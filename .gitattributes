@@ -9,5 +9,6 @@ skill/falzmarke/typst/vendor/letter-pro-v3.0.0.typ -text
 # Alles andere einheitlich mit LF im Repository.
 * text=auto eol=lf
 *.otf binary
+*.ttf binary
 *.png binary
 *.pdf binary
