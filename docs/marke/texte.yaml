@@ -1,0 +1,71 @@
+# Textkanon der Marke falzmarke — einzige Quelle.
+#
+# README, pyproject, Banner und die Szenentexte des Erklaerfilms werden hiergegen
+# geprueft (tests/test_marke.py). docs/marke/texte.md und die Szenendatei des Films
+# werden hieraus erzeugt: python3 scripts/texte.py
+#
+# Was hier NICHT stehen darf: "normgerecht", "DIN-konform", "normkonform",
+# "zertifiziert". Solange der Abgleich mit dem Originaltext der DIN 5008:2020-03
+# aussteht, ist keine dieser Behauptungen belegt. tests/test_textkanon.py wacht
+# darueber, tests/test_marke.py prueft zusaetzlich diese Datei.
+
+name: falzmarke
+
+claim:
+  de: "Briefe schreiben mit KI — nach Norm, nicht nach Gefühl."
+  sekundaer: "Nachgemessen, nicht geschätzt."
+
+untertitel:
+  de: "DIN-5008-Briefe aus Markdown — als PDF/A gesetzt und auf den Millimeter geprüft."
+  en: "German business letters from Markdown — rendered to PDF/A and verified to the millimetre."
+
+fusszeile: "Claude-Skill · CLI · PDF/A · Hybridbrief"
+adresse: "falzmarke.com"
+
+github_beschreibung: "DIN-5008-Briefe aus Markdown — als PDF/A gesetzt, auf den Millimeter geprüft. Skill für KI-Agenten und CLI."
+
+# Die Befehle, die im Film und im GIF gezeigt werden duerfen. Es gibt sie wirklich —
+# `pipx install falzmarke` gibt es nicht, das Paket liegt nicht auf PyPI (Issue #7).
+# tests/test_installationswege.py wacht ueber die README, dieser Eintrag ueber das Video.
+installation:
+  ohne_clone: "uvx --from git+https://github.com/blitzsicht/falzmarke falzmarke"
+  dauerhaft: "pipx install git+https://github.com/blitzsicht/falzmarke"
+
+# Drehbuch des Erklaerfilms. Sekunden sind Sollwerte; jede Zeile steht mindestens
+# 2,5 Sekunden, damit sie lesbar ist.
+film:
+  dauer: 60
+  szenen:
+    - name: Wunsch
+      von: 0
+      bis: 6
+      text: "Ich brauche heute eine Mahnung an die Muster GmbH."
+      bild: "Markenfläche, Zeichen klein"
+    - name: Sagen
+      von: 6
+      bis: 18
+      text: "Ein Satz genügt. Den Brief schreibt der Agent als Markdown."
+      bild: "stilisierter Chat, darunter die entstehende Markdown-Datei"
+    - name: Setzen
+      von: 18
+      bis: 32
+      text: "Form aus Norm und Profil. Nichts wird von Hand gesetzt."
+      bild: "Terminalzeile, dann baut sich das Blatt auf: Anschriftfeld, Informationsblock, Betreff, Falzmarken"
+    - name: Prüfen
+      von: 32
+      bis: 42
+      text: "Nachgemessen, nicht geschätzt."
+      bild: "Messlinien an Falzmarken, Anschriftfeld und Betreff; Bestätigungszeilen"
+    - name: Ziel
+      von: 42
+      bis: 52
+      text: "PDF/A, archivfest. Ihr PDF ist Ihre Datei."
+      bild: "PDF mit zwei Anhängen; drei Wege: drucken, versenden, archivieren"
+    - name: Für dich
+      von: 52
+      bis: 60
+      text: "Briefe schreiben mit KI — nach Norm, nicht nach Gefühl."
+      bild: "Zeichen groß, Claim, darunter der Installationsbefehl und die Adresse"
+
+# Ton: kurze Saetze, aktiv, konkret. Zahlen statt Adjektive ("105,0 mm" statt "praezise").
+# Keine Superlative, keine Ausrufezeichen, keine Emojis.
