@@ -2,6 +2,34 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.5.2 — 25.08.2026
+
+### Geändert
+- **Die README ist eine Produktseite statt einer Referenz.** Der erste Bildschirm beantwortet
+  jetzt, was falzmarke ist, was es löst und woran man sieht, dass es stimmt — mit dem Satz, um
+  den es geht: *Andere Werkzeuge erzeugen ein PDF. falzmarke prüft das Ergebnis.* Neu sind eine
+  Beweisleiste aus belegten Angaben, ein Vergleich mit dem typischen Arbeitsablauf (nicht mit
+  Produkten), Funktionen als Nutzen statt als Komponentenliste, und eine Beweissektion **vor**
+  der Installation — an ihr entscheidet sich das Versprechen, also steht sie nicht am Ende.
+- **Ein Abschnitt „Sicherheit"**, der ausschließlich nennt, was im Code steht und geprüft ist:
+  `safe_load` durchgängig, Markdown-Positivliste, Brieftext als maskierte Zeichenkette statt
+  Typst-Code, Ordnergrenze für Datei-Angaben samt Symlink-Auflösung, begrenztes
+  Typst-Wurzelverzeichnis, abgeschaltete Systemschriften, keine Netzwerkbibliothek im
+  Renderpfad. Ausdrücklich **nicht** „sicher", „gehärtet" oder „auditiert" — ein unabhängiges
+  Audit gibt es nicht.
+- **Referenzteile ausgelagert**: [`docs/cli.md`](docs/cli.md) (Befehle, Exit-Codes, was geprüft
+  wird), [`docs/profiles.md`](docs/profiles.md) (Profil anlegen, Suchreihenfolge, eigener
+  Briefkopf) und [`docs/architecture.md`](docs/architecture.md) (Schichten, Vendoring, warum das
+  Paket unter `skill/` liegt). Die README behält je eine Kurzfassung und einen benannten Link,
+  dazu eine Tabelle „Weiterlesen“.
+
+### Behoben
+- **Drei veraltete Zähler.** Die README nannte „alle sieben Beispiele" (es sind acht) und
+  „28 Prüfungen" (es sind 30). Genau die Sorte Zahl, die bei jeder Änderung altert, ohne dass
+  ein Test anschlägt — sie ist jetzt raus oder aus der Wirklichkeit abgeleitet.
+- **Ein toter Verweis** in `docs/normmasse.md`: `skill/scripts/geometrie.py` gibt es nicht, die
+  Datei liegt unter `skill/falzmarke/`. Gefunden beim Prüfen aller 66 internen Verweise.
+
 ## v0.5.1 — 25.08.2026
 
 ### Geändert

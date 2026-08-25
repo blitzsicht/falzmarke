@@ -37,7 +37,7 @@ vergleicht mit einem Fehler.
 
 ## Wie gemessen wird
 
-[`skill/scripts/geometrie.py`](../skill/scripts/geometrie.py) öffnet das erzeugte PDF und
+[`skill/falzmarke/geometrie.py`](../skill/falzmarke/geometrie.py) öffnet das erzeugte PDF und
 vermisst es: `get_drawings()` liefert die Falz- und Lochmarken als waagerechte Striche im
 Heftrand, `get_text("dict")` die Textkästen mit Position, Größe und Schriftschnitt. Verglichen
 wird gegen die Tabelle, mit benannten Toleranzen.
