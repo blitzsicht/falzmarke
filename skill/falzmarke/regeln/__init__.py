@@ -26,6 +26,17 @@ WERKZEUG = "werkzeug"
 
 HERKUENFTE = {MEHRFACH, EINZELN, OFFEN, WERKZEUG}
 
+# Wie weit eine Quelle trägt. Siehe Kopfkommentar von din5008.yaml.
+ZAEHLT_VOLL = "voll"        # externer Beleg, zählt auch für „mehrfach"
+ZAEHLT_EINZELN = "einzeln"  # Beleg, aber keine unabhängige Bestätigung
+ZAEHLT_NIE = "nie"          # zählt gar nicht
+ZAEHLSTUFEN = {ZAEHLT_VOLL, ZAEHLT_EINZELN, ZAEHLT_NIE}
+
+# Wie viele Quellen mit `zaehlt: voll` eine Herkunftsstufe mindestens braucht.
+MINDESTENS_VOLL = {MEHRFACH: 2}
+# Stufen, für die auch eine nur einzeln tragende Quelle genügt.
+MINDESTENS_IRGENDEIN_BELEG = {EINZELN}
+
 # Was eine Herkunft im Linter höchstens bewirken darf.
 DARF_FEHLER_SEIN = {MEHRFACH, WERKZEUG}
 
@@ -65,7 +76,54 @@ def laden() -> dict:
         for name in regel.get("quellen") or []:
             if name not in quellen:
                 raise Regelfehler(f"{DATEI.name}: {kennung} nennt unbekannte Quelle {name!r}")
+        _pruefe_beleglage(kennung, regel, quellen)
     return {"regeln": regeln, "quellen": quellen}
+
+
+def _pruefe_beleglage(kennung: str, regel: dict, quellen: dict) -> None:
+    """Trägt die Regel die Stufe, die sie behauptet?
+
+    Bis v0.5.0 stand die Zählung nur im Kopfkommentar der Regeldatei und wurde
+    von Hand gesetzt. Gemessen am 25.08.2026: **alle 14** als
+    `mehrfach_bestaetigt` geführten Regeln verfehlten die damals dokumentierte
+    Definition — je zwei Sekundärquellen plus die vendorte Implementierung,
+    verlangt waren drei Quellen beziehungsweise eine plus zwei
+    Implementierungen. Niemandem fiel es auf, weil nichts nachzählte.
+
+    Eine Definition, die nur im Kommentar steht, ist keine Definition.
+    """
+    herkunft = regel["herkunft"]
+    namen = regel.get("quellen") or []
+
+    stufen = []
+    for name in namen:
+        stufe = quellen[name].get("zaehlt")
+        if stufe not in ZAEHLSTUFEN:
+            raise Regelfehler(
+                f"{DATEI.name}: Quelle {name!r} hat zaehlt={stufe!r}, "
+                f"zulässig sind {sorted(ZAEHLSTUFEN)}. Ohne diese Angabe ist nicht "
+                "entscheidbar, ob sie eine Regel trägt.")
+        stufen.append(stufe)
+
+    voll = stufen.count(ZAEHLT_VOLL)
+    belege = voll + stufen.count(ZAEHLT_EINZELN)
+
+    noetig = MINDESTENS_VOLL.get(herkunft)
+    if noetig is not None and voll < noetig:
+        schwach = [n for n in namen if quellen[n].get("zaehlt") != ZAEHLT_VOLL]
+        raise Regelfehler(
+            f"{DATEI.name}: {kennung} ist {herkunft}, hat aber nur {voll} "
+            f"voll zählende Quelle(n) — nötig sind {noetig}.\n"
+            f"        Genannt: {', '.join(namen) or 'keine'}\n"
+            f"        Zählt nicht voll: {', '.join(schwach) or '—'}\n"
+            "        Entweder eine unabhängige Quelle ergänzen oder die Regel "
+            "auf einzeln_belegt zurückstufen.")
+
+    if herkunft in MINDESTENS_IRGENDEIN_BELEG and belege < 1:
+        raise Regelfehler(
+            f"{DATEI.name}: {kennung} ist {herkunft}, aber keine der genannten "
+            f"Quellen trägt sie ({', '.join(namen) or 'keine'}). "
+            "Dann ist sie offen, nicht belegt.")
 
 
 def alle() -> list[dict]:

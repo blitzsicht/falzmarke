@@ -192,3 +192,101 @@ def test_die_normreferenz_ist_auf_dem_stand_der_regeldatei():
         [_sys.executable, str(REPO / "scripts" / "quellenlage.py"), "--pruefen"],
         capture_output=True, text=True, encoding="utf-8", errors="replace")
     assert lauf.returncode == 0, lauf.stdout + lauf.stderr
+
+
+# ── Trägt eine Regel die Stufe, die sie behauptet? ──────────────────────────
+#
+# Anlass, gemessen am 25.08.2026 an v0.5.0: Die Regeldatei dokumentierte im
+# Kopfkommentar, wann eine Regel `mehrfach_bestaetigt` heißen darf — und
+# **alle 14** so geführten Regeln verfehlten diese Definition. Sie hatten je
+# zwei Sekundärquellen plus die vendorte Implementierung; verlangt waren drei
+# Quellen beziehungsweise eine plus zwei Implementierungen. Niemandem fiel es
+# auf, weil `herkunft:` von Hand gesetzt wurde und nichts nachzählte.
+#
+# Eine Definition, die nur im Kommentar steht, ist keine Definition.
+
+import yaml
+
+from falzmarke import regeln as regeln_modul
+
+
+def _regeldatei(tmp_path, aenderung):
+    """Die echte Regeldatei, an einer Stelle verändert."""
+    quelle = regeln_modul.DATEI.read_text(encoding="utf-8")
+    daten = yaml.safe_load(quelle)
+    aenderung(daten)
+    ziel = tmp_path / "din5008.yaml"
+    ziel.write_text(yaml.safe_dump(daten, allow_unicode=True), encoding="utf-8")
+    return ziel
+
+
+def _laden(pfad):
+    """Die Regeldatei unter einem anderen Pfad laden, ohne den Cache zu stören."""
+    alt = regeln_modul.DATEI
+    try:
+        regeln_modul.DATEI = pfad
+        regeln_modul.laden.cache_clear()
+        return regeln_modul.laden()
+    finally:
+        regeln_modul.DATEI = alt
+        regeln_modul.laden.cache_clear()
+
+
+def test_die_echte_regeldatei_traegt_ihre_stufen():
+    """Positivprobe. Ohne sie sagen die Gegenproben nur, dass irgendetwas blockt."""
+    assert len(regeln_modul.alle()) > 0
+
+
+def test_mehrfach_ohne_zwei_volle_quellen_wird_abgewiesen(tmp_path):
+    """Der Fall, der v0.5.0 vierzehnmal unbemerkt blieb."""
+    def kippen(daten):
+        for regel in daten["regeln"]:
+            if regel["id"] == "geometrie.form_a.masse":
+                regel["herkunft"] = "mehrfach_bestaetigt"
+    with pytest.raises(regeln_modul.Regelfehler) as fehler:
+        _laden(_regeldatei(tmp_path, kippen))
+    assert "voll zählende" in str(fehler.value), str(fehler.value)
+
+
+def test_vendorte_implementierung_hebt_nicht_auf_mehrfach(tmp_path):
+    """Der Kern: falzmarke setzt mit letter-pro und darf sich damit nicht selbst bestätigen.
+
+    Zwei externe Zeichnungen tragen eine Form-B-Regel. Fällt eine davon weg,
+    bleibt eine externe Quelle plus letter-pro — und das darf nicht mehr für
+    `mehrfach_bestaetigt` reichen, sonst wäre der Sollwert gegen ein PDF
+    geprüft, das dieselbe Quelle erzeugt hat.
+    """
+    def kippen(daten):
+        for regel in daten["regeln"]:
+            if regel["id"] == "geometrie.form_b.falzmarken":
+                regel["quellen"] = ["massskizze_b", "letter_pro"]
+    with pytest.raises(regeln_modul.Regelfehler) as fehler:
+        _laden(_regeldatei(tmp_path, kippen))
+    assert "nur 1 voll zählende" in str(fehler.value), str(fehler.value)
+
+
+def test_quelle_ohne_zaehlstufe_wird_abgewiesen(tmp_path):
+    """Eine neue Quelle darf nicht stillschweigend als Beleg durchgehen."""
+    def kippen(daten):
+        daten["quellen"]["massskizze_b"].pop("zaehlt", None)
+    with pytest.raises(regeln_modul.Regelfehler) as fehler:
+        _laden(_regeldatei(tmp_path, kippen))
+    assert "zaehlt=" in str(fehler.value), str(fehler.value)
+
+
+def test_einzeln_belegt_braucht_wenigstens_einen_beleg(tmp_path):
+    """`eigene_messung` allein ist kein Beleg — sie misst nur uns selbst."""
+    def kippen(daten):
+        for regel in daten["regeln"]:
+            if regel["id"] == "geometrie.form_a.masse":
+                regel["quellen"] = ["eigene_messung"]
+    with pytest.raises(regeln_modul.Regelfehler) as fehler:
+        _laden(_regeldatei(tmp_path, kippen))
+    assert "trägt sie" in str(fehler.value), str(fehler.value)
+
+
+def test_letter_pro_traegt_einzeln_aber_nicht_voll():
+    """Die Einstufung selbst — sonst könnte sie jemand still zurückdrehen."""
+    quellen = regeln_modul.quellen()
+    assert quellen["letter_pro"]["zaehlt"] == regeln_modul.ZAEHLT_EINZELN
+    assert quellen["eigene_messung"]["zaehlt"] == regeln_modul.ZAEHLT_NIE

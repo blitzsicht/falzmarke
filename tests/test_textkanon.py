@@ -2,8 +2,13 @@
 
 Manche Formulierungen sind kein Stil, sondern eine Zusage. Der Satz zur
 Quellenlage sagt, dass der Abgleich mit dem Originaltext der DIN 5008:2020-03
-aussteht — er ist der Unterschied zwischen einer beschreibenden Nennung und
-einer Behauptung, die das Werkzeug nicht decken kann.
+einschließlich Berichtigung 1:2020-07 aussteht — er ist der Unterschied
+zwischen einer beschreibenden Nennung und einer Behauptung, die das Werkzeug
+nicht decken kann.
+
+Die Berichtigung gehört seit v0.5.1 in den Satz: Wer nur die Ausgabe 2020-03
+nennt, benennt die geltende Fassung unvollständig, und ein Abgleich, der sie
+auslässt, wäre keiner.
 
 Solche Sätze überleben Überarbeitungen nur, wenn etwas sie festhält. Genau das
 ist hier der Fall: Wer sie streicht, sieht einen roten Test und muss sich
@@ -19,7 +24,10 @@ import pytest
 from conftest import REPO
 
 # Kern des Satzes, ohne die verlinkten Teile — die dürfen sich ändern.
-QUELLENLAGE = "der Abgleich mit dem Originaltext der DIN 5008:2020-03 steht aus"
+QUELLENLAGE = (
+    "der Abgleich mit dem Originaltext der DIN 5008:2020-03 "
+    "einschließlich Berichtigung 1:2020-07 steht aus"
+)
 WARNSTUFE = "Regeln aus einzelnen Quellen wirken nur als Warnung"
 
 MUSS_ENTHALTEN = {

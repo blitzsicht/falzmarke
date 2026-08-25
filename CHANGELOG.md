@@ -2,19 +2,38 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
-## Unveröffentlicht
+## v0.5.1 — 25.08.2026
 
 ### Geändert
+- **Die Belegregel wird jetzt nachgezählt, statt im Kommentar behauptet.** Die Regeldatei
+  beschrieb seit v0.4.0, wann eine Regel `mehrfach_bestaetigt` heißen darf — gesetzt wurde die
+  Stufe aber von Hand, und nichts prüfte sie. Am 25.08.2026 nachgemessen: **alle vierzehn** so
+  geführten Regeln verfehlten die eigene Definition. Jede hatte zwei Sekundärquellen plus die
+  vendorte Implementierung; verlangt waren drei Quellen beziehungsweise eine plus zwei
+  Implementierungen. Diese vierzehn Regeln durften Läufe scheitern lassen.
+- **`typst-letter-pro` zählt nicht mehr zur Bestätigung.** Die Layoutbasis ist eingebettet —
+  falzmarke *setzt* damit das Layout. Ein Sollwert von dort wurde gegen ein PDF geprüft, das
+  dieselbe Quelle erzeugt hat; die Prüfung konnte nicht rot werden. Als Beleg dafür, wie jemand
+  anders die Norm gelesen hat, bleibt der Eintrag und trägt eine Regel weiterhin auf
+  `einzeln_belegt` — auf `mehrfach_bestaetigt` hebt er sie nie. Jede Quelle trägt dafür eine
+  Zählstufe (`voll`, `einzeln`, `nie`); fehlt sie, bricht die Regeldatei ab.
+  **Für Briefe ändert sich nichts:** Die vierzehn Form-B-Regeln stehen auf zwei unabhängigen
+  bemaßten Zeichnungen und bleiben Fehler. Form A stand schon vorher auf Warnung.
+- **Der Normkanon nennt die Berichtigung.** Überall, wo „DIN 5008:2020-03“ den Bezugsrahmen
+  benannte, steht jetzt „DIN 5008:2020-03 einschließlich Berichtigung 1:2020-07“. Wer nur die
+  Ausgabe 2020-03 nennt, benennt die geltende Fassung unvollständig — und ein Abgleich, der die
+  Berichtigung auslässt, wäre keiner ([#16](https://github.com/blitzsicht/falzmarke/issues/16)).
+
 - **Zwei Aussagen im README zurückgenommen, die zu weit gingen.**
-  „PDF/A-2b … archivfest für GoBD" versprach eine Konformität, die ein Ausgabeformat nicht
+  „PDF/A-2b … archivfest für GoBD“ versprach eine Konformität, die ein Ausgabeformat nicht
   begründen kann: Die GoBD verlangen Aufbewahrung, Unveränderbarkeit, Nachvollziehbarkeit und
   eine Verfahrensdokumentation. Dort steht jetzt, was tatsächlich geprüft wird — das für die
   Langzeitarchivierung ausgelegte Profil und die nachgemessene Kennzeichnung.
-  Und der Brief, den „die Post als nicht automationsfähig zurückgibt", wird in Wahrheit
+  Und der Brief, den „die Post als nicht automationsfähig zurückgibt“, wird in Wahrheit
   zugestellt: Automationsfähigkeit betrifft Rabatt- und Massensendungen, nicht die Beförderung.
   Der echte Schaden trägt das Argument auch ohne Zuspitzung — die Anschrift steht nicht mehr im
   Fensterausschnitt, der Stapel muss neu gedruckt werden, der Automationsrabatt entfällt für
-  diese Sendung. Dieselbe zu starke Aussage stand als „Archivfestigkeit" auch in einem
+  diese Sendung. Dieselbe zu starke Aussage stand als „Archivfestigkeit“ auch in einem
   Test-Docstring, also dort, wo niemand eine Faktenbehauptung vermutet ([#17](https://github.com/blitzsicht/falzmarke/issues/17)).
 
 ## v0.5.0 — 25.08.2026

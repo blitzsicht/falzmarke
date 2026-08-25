@@ -7,7 +7,7 @@ Rechtsberatung.
 
 > Maße und Schreibregeln folgen öffentlich dokumentierten Quellen (Liste in
 > [`skill/references/din5008.md`](../skill/references/din5008.md)); der Abgleich mit dem
-> Originaltext der DIN 5008:2020-03 steht aus. Regeln aus einzelnen Quellen wirken nur als
+> Originaltext der DIN 5008:2020-03 einschließlich Berichtigung 1:2020-07 steht aus. Regeln aus einzelnen Quellen wirken nur als
 > Warnung.
 
 Er steht so auch in der [README](../README.md) und wird von einem Test bewacht
@@ -28,10 +28,25 @@ wissen nicht mit letzter Sicherheit, ob jede Regel dem Normtext entspricht.**
 
 | Herkunft einer Regel | Wirkung im Werkzeug |
 |---|---|
-| mehrfach bestätigt — drei unabhängige Quellen, oder eine Quelle plus zwei Implementierungen | darf einen Lauf scheitern lassen (Fehler) |
-| einzeln belegt — eine Quelle | Warnung mit Quellenangabe, der Lauf geht weiter |
+| mehrfach bestätigt — mindestens zwei Quellen, die zur Bestätigung zählen | darf einen Lauf scheitern lassen (Fehler) |
+| einzeln belegt — eine Quelle, die die Regel trägt | Warnung mit Quellenangabe, der Lauf geht weiter |
 | offen — Annahme ohne Beleg | wird nicht geprüft |
 | Werkzeugprüfung — keine Aussage der Norm | Fehler oder Warnung, je nach Sache |
+
+**Nicht jede genannte Quelle zählt zur Bestätigung.** Zwei zählen bewusst nicht:
+
+- **Die eigene Messung am gerenderten PDF.** Sie belegt, dass das Werkzeug einhält, was es sich
+  vornimmt — nicht, dass das Vorgenommene der Norm entspricht.
+- **`typst-letter-pro`.** Die Layoutbasis ist unter `skill/falzmarke/typst/vendor/` eingebettet;
+  falzmarke *setzt* damit. Ein Sollwert von dort würde gegen ein PDF geprüft, das dieselbe Quelle
+  erzeugt hat — die Prüfung könnte nicht rot werden. Als Hinweis darauf, wie jemand anders die
+  Norm gelesen hat, bleibt der Eintrag wertvoll; eine Regel auf „mehrfach bestätigt" hebt er nie.
+
+Bis v0.5.0 stand diese Zählung nur in einem Kommentar und wurde von Hand gesetzt. Am 25.08.2026
+nachgezählt: **alle vierzehn** als mehrfach bestätigt geführten Regeln verfehlten die damals
+dokumentierte Definition. Seitdem prüft `skill/falzmarke/regeln/__init__.py` sie nach — eine
+Regel, die ihre Stufe nicht trägt, lässt die Regeldatei abbrechen, und
+[Gegenproben](../tests/test_quellenlage.py) halten das fest.
 
 Die vollständige Zuordnung steht in der
 [Quellenlage je Regel](../skill/references/din5008.md#quellenlage-je-regel), gepflegt in

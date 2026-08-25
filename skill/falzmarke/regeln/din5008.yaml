@@ -6,9 +6,8 @@
 # was mehrfach belegt ist — und muss sagen, woher es das weiß.
 #
 # herkunft (genau einer):
-#   mehrfach_bestaetigt  mindestens drei unabhängige Sekundärquellen, oder eine
-#                        Sekundärquelle plus zwei unabhängige Implementierungen
-#   einzeln_belegt       eine Quelle
+#   mehrfach_bestaetigt  mindestens ZWEI Quellen mit `zaehlt: voll`
+#   einzeln_belegt       mindestens eine Quelle mit `zaehlt: voll` oder `einzeln`
 #   offen                Annahme ohne Beleg
 #   werkzeug             keine Aussage der Norm, sondern eine Prüfung des
 #                        Werkzeugs (siehe unten)
@@ -23,6 +22,30 @@
 # wirkung: fehler | warnung | keine — was der Linter höchstens tun darf.
 #   Der Linter stuft selbst herab: einzeln_belegt wird immer zur Warnung.
 #
+# ── zaehlt: wie weit eine Quelle traegt ────────────────────────────────────
+#
+#   voll     Externer Beleg. Zaehlt fuer `einzeln_belegt` UND `mehrfach_bestaetigt`.
+#
+#   einzeln  Beleg ja, unabhaengige Bestaetigung nein. Bisher nur `letter_pro`:
+#            vendort unter skill/falzmarke/typst/vendor/ — falzmarke SETZT damit
+#            das Layout. Ein Sollwert von dort wird gegen ein PDF geprueft, das
+#            dieselbe Quelle erzeugt hat; die Pruefung kann nicht rot werden.
+#            Als Hinweis darauf, wie jemand anders die Norm gelesen hat, bleibt
+#            der Eintrag wertvoll — als Bestaetigung des eigenen Ergebnisses ist
+#            er wertlos. Deshalb traegt er eine Regel, hebt sie aber nie auf
+#            `mehrfach_bestaetigt`.
+#
+#   nie      Zaehlt gar nicht. Bisher nur `eigene_messung`: Sie belegt, dass das
+#            Werkzeug einhaelt, was es sich vornimmt — nicht, dass das
+#            Vorgenommene der Norm entspricht.
+#
+# Bis v0.5.0 stand diese Zaehlung nur in diesem Kommentar und wurde von Hand
+# gesetzt. Gemessen am 25.08.2026: ALLE 14 als `mehrfach_bestaetigt` gefuehrten
+# Regeln verfehlten die damalige Definition (je 2 Sekundaerquellen + 1
+# Implementierung, verlangt waren 3 bzw. 1+2). Seitdem prueft
+# `regeln/__init__.py` die Zaehlung — eine Regel, die ihre Stufe nicht traegt,
+# laesst die Regeldatei abbrechen.
+#
 # Nach dem Normabgleich wird `herkunft` durch `DIN 5008:2020-03, Abschnitt …`
 # ersetzt und die Quellenliste entfällt.
 
@@ -31,6 +54,7 @@ quellen:
     titel: "Maßzeichnung „DIN 5008 Form B“, Wikimedia Commons"
     url: https://commons.wikimedia.org/wiki/File:DIN_5008_Form_B.svg
     art: sekundaerquelle
+    zaehlt: voll
     abgerufen: 2026-08-25
     bemerkung: >-
       Bemaßte Zeichnung von 2013. Aus den Pfaden gerendert und abgelesen; sie
@@ -40,6 +64,7 @@ quellen:
     titel: "Maßzeichnungen im Onlineprinters-Magazin"
     url: https://www.onlineprinters.de/magazin/din-5008-vorlage/
     art: sekundaerquelle
+    zaehlt: voll
     abgerufen: 2026-08-25
     bemerkung: >-
       Als Sichtreferenz gegengeprüft. Die dort angebotene Word-Vorlage ist
@@ -49,6 +74,7 @@ quellen:
     titel: "DIN 5008 in der deutschsprachigen Wikipedia"
     url: https://de.wikipedia.org/wiki/DIN_5008
     art: sekundaerquelle
+    zaehlt: voll
     abgerufen: 2026-08-25
     bemerkung: >-
       Nennt ausdrücklich nur: Anschriftfeld 32 mm (Form A) bzw. 50 mm (Form B)
@@ -59,14 +85,19 @@ quellen:
     titel: "typst-letter-pro v3.0.0"
     url: https://github.com/Sematre/typst-letter-pro
     art: implementierung
+    zaehlt: einzeln
     abgerufen: 2026-08-25
     bemerkung: >-
       Vendort unter skill/falzmarke/typst/vendor/, prüfsummengesichert. Die
       Werte sind dort direkt nachlesbar (folding-mark-1-pos usw.).
+      **Zählt nicht zur Bestätigung**: falzmarke setzt das Layout mit dieser
+      Datei. Ein Sollwert von hier würde gegen ein PDF geprüft, das dieselbe
+      Quelle erzeugt hat — die Prüfung könnte nicht rot werden.
   eigene_messung:
     titel: "Messung am gerenderten PDF"
     url: docs/normmasse.md
     art: eigene_messung
+    zaehlt: nie
     abgerufen: 2026-08-25
     bemerkung: >-
       **Keine unabhängige Quelle.** Sie belegt, dass das Werkzeug einhält, was

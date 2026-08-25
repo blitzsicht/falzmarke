@@ -47,9 +47,21 @@ def abschnitt() -> str:
         " — dort ändern, dann `python3 scripts/quellenlage.py`.**",
         "",
         "Alle Werte auf dieser Seite stammen aus Sekundärquellen. Der Abgleich mit dem",
-        "Originaltext der DIN 5008:2020-03 steht aus. Bis dahin wirkt nur als Fehler, was",
-        "mehrfach belegt ist; eine Regel aus einer einzigen Quelle ist eine Warnung, und",
-        "eine Regel ohne Beleg wird nicht geprüft.",
+        "Originaltext der DIN 5008:2020-03 einschließlich Berichtigung 1:2020-07 steht aus.",
+        "Bis dahin wirkt nur als Fehler, was mehrfach belegt ist; eine Regel aus einer",
+        "einzigen Quelle ist eine Warnung, und eine Regel ohne Beleg wird nicht geprüft.",
+        "",
+        "**Nicht jede genannte Quelle zählt zur Bestätigung.** `typst-letter-pro` ist unter",
+        "`skill/falzmarke/typst/vendor/` eingebettet — falzmarke *setzt* damit das Layout.",
+        "Ein Sollwert von dort würde gegen ein PDF geprüft, das dieselbe Quelle erzeugt hat;",
+        "die Prüfung könnte nicht rot werden. Die Quelle bleibt als Hinweis darauf wertvoll,",
+        "wie jemand anders die Norm gelesen hat, hebt eine Regel aber nie auf „mehrfach",
+        "bestätigt“. Dasselbe gilt für die eigene Messung: Sie belegt, dass das Werkzeug",
+        "einhält, was es sich vornimmt — nicht, dass das Vorgenommene der Norm entspricht.",
+        "",
+        "Ab v0.5.1 zählt `skill/falzmarke/regeln/__init__.py` das nach. Zuvor stand die",
+        "Regel nur in einem Kommentar, und **alle vierzehn** als mehrfach bestätigt",
+        "geführten Regeln verfehlten sie.",
         "",
         "| Regel | Herkunft | wirkt als | Quellen |",
         "|---|---|---|---|",
@@ -67,9 +79,15 @@ def abschnitt() -> str:
                "eigene_messung": "eigene Messung"}.get(quelle["art"], quelle["art"])
         titel = quelle["titel"].strip('"')
         url = quelle["url"]
-        kopf = f"- **{titel}** ({art}, abgerufen {quelle['abgerufen']})"
+        zaehlt = {
+            "voll": "zählt zur Bestätigung",
+            "einzeln": "**zählt nicht zur Bestätigung**",
+            "nie": "**zählt nie**",
+        }.get(quelle.get("zaehlt"), "Zählstufe fehlt")
+        beschriftung = f"{art}, {zaehlt}, abgerufen {quelle['abgerufen']}"
+        kopf = f"- **{titel}** ({beschriftung})"
         if url.startswith("http"):
-            kopf = f"- **[{titel}]({url})** ({art}, abgerufen {quelle['abgerufen']})"
+            kopf = f"- **[{titel}]({url})** ({beschriftung})"
         zeilen.append(kopf)
         if quelle.get("bemerkung"):
             zeilen.append(f"  {quelle['bemerkung'].strip()}")

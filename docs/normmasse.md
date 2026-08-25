@@ -9,6 +9,9 @@ im Einzelnen arbeitet.
 
 - **DIN 5008:2020-03** — Normtext urheberrechtlich geschützt, Bezug über
   [DIN Media](https://www.dinmedia.de); hier weder wiedergegeben noch mitgeliefert
+- **DIN 5008 Berichtigung 1:2020-07** — Korrektur zur Ausgabe 2020-03, ebenfalls
+  kostenpflichtig. Wer nur die Ausgabe 2020-03 heranzieht, prüft gegen eine
+  unvollständige Fassung; beide gehören zum Abgleich.
 - [DIN 5008 bei Wikipedia](https://de.wikipedia.org/wiki/DIN_5008)
 - [Maßzeichnungen von Onlineprinters](https://www.onlineprinters.de/magazin/din-5008-vorlage/)
 - Deutsche Post, *Automationsfähige Briefsendungen* — die frühere Adresse ist seit spätestens
