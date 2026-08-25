@@ -52,6 +52,6 @@ gibt es nicht — das Paket liegt nicht auf PyPI ([#7](https://github.com/blitzs
 |---|---|---|---|
 | 0–4 s | Auftrag | Hey, schreib mir eine Mahnung an die Muster GmbH: Rechnung 2026-0815, 2.380 Euro, Frist 8. September. | Eingabefeld eines Chats, der Satz tippt sich, dann wird abgeschickt |
 | 4–9 s | Ohne | Frei gesetzt. | ein Blatt, dreimal umgesprungen: brief.txt, brief.docx, brief.pdf — dann durchgestrichen |
-| 9–16 s | Norm | Nach DIN 5008 gesetzt. | der Brief, darauf der Stempel; danach die Masse an ihren Positionen |
+| 9–16 s | Norm | Der ganze Brief, nachgemessen. | der Brief, darauf der Stempel; danach Zonen und Masse ueber das ganze Blatt |
 | 16–21 s | Gleich | Jedes Mal dieselbe Form. | drei gleiche Blaetter |
 | 21–26 s | Für dich | Briefe schreiben mit KI — nach Norm, nicht nach Gefühl. | Zeichen, Claim, Installationsbefehl, Adresse |

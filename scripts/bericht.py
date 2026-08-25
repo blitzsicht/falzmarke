@@ -27,14 +27,30 @@ ZIEL = REPO / "docs" / "marke" / "video" / "erklaerfilm" / "src" / "bericht.json
 # Die Pruefungen, die der Film zeigt. Namen wie in geometrie.py — steht einer
 # davon nicht mehr im Bericht, bricht dieses Skript ab, statt still eine
 # Behauptung ins Video zu lassen.
+# Bewusst quer ueber den Brief gestreut, nicht dreimal dieselbe Zone: Von den
+# rund 30 Pruefungen betreffen nur sechs die Falz- und Lochmarken. Der Name des
+# Werkzeugs legt nahe, es messe nur die Marke am Rand — gemessen wird das ganze
+# Blatt, und genau das soll im Bild stehen.
 GEZEIGT = [
-    "Falzmarke 1, y",
-    "Falzmarke 2, y",
-    "Lochmarke, y",
-    "Anschrift, x-links",
+    "Anschrift, erste Zeile y",
     "Infoblock, x-links",
+    "Betreff, y-Oberkante",
     "Abstand Betreff → Anrede (2 Leerzeilen)",
+    "Textblock, x-rechts",
+    "Falzmarke 1, y",
 ]
+
+# Die Zonen, die im Film am Blatt markiert werden. Werte in Millimetern, alle aus
+# demselben Lauf — nichts hier ist geschaetzt oder aus der Norm abgetippt.
+ZONEN = {
+    "ruecksendeangabe": ["Rücksendeangabe, y-Oberkante", "Rücksendeangabe, x"],
+    "anschrift": ["Anschrift, x-links", "Anschrift, erste Zeile y",
+                  "Anschrift, letzte Zeile Unterkante"],
+    "infoblock": ["Infoblock, x-links", "Infoblock, x-rechts", "Infoblock, y-Oberkante"],
+    "betreff": ["Betreff, x-links", "Betreff, y-Oberkante"],
+    "textblock": ["Textblock, x-links", "Textblock, x-rechts"],
+    "marken": ["Falzmarke 1, y", "Lochmarke, y", "Falzmarke 2, y"],
+}
 
 
 def brieftext() -> dict:
@@ -58,6 +74,17 @@ def brieftext() -> dict:
     }
 
 
+def _zahl(wert) -> float:
+    """Aus '62.69' oder '≥ 62.7' die Zahl. Der Bericht schreibt Sollwerte auch
+    mit Vergleichszeichen; fuer die Zeichnung zaehlt der gemessene Ist-Wert."""
+    import re
+
+    treffer = re.search(r"-?\d+(?:[.,]\d+)?", str(wert))
+    if not treffer:
+        raise SystemExit(f"Kein Zahlenwert in {wert!r}")
+    return float(treffer.group(0).replace(",", "."))
+
+
 def messwerte() -> dict:
     with tempfile.TemporaryDirectory(prefix="falzmarke-bericht-") as tmp:
         pdf = Path(tmp) / "mahnung.pdf"
@@ -76,7 +103,8 @@ def messwerte() -> dict:
         roh = json.loads(lauf.stdout)
 
     nach_name = {p["name"]: p for p in roh["pruefungen"]}
-    fehlend = [n for n in GEZEIGT if n not in nach_name]
+    verlangt = list(GEZEIGT) + [p for gruppe in ZONEN.values() for p in gruppe]
+    fehlend = [n for n in dict.fromkeys(verlangt) if n not in nach_name]
     if fehlend:
         raise SystemExit(
             "Diese Pruefungen sollen im Film erscheinen, stehen aber nicht mehr\n"
@@ -92,6 +120,10 @@ def messwerte() -> dict:
         "ok": roh["ok"],
         "gesamt": len(roh["pruefungen"]),
         "bestanden": sum(1 for p in roh["pruefungen"] if p["bestanden"]),
+        "zonen": {
+            name: [_zahl(nach_name[p]["ist"]) for p in pruefungen if p in nach_name]
+            for name, pruefungen in ZONEN.items()
+        },
         "zeilen": [
             {
                 "name": nach_name[n]["name"],

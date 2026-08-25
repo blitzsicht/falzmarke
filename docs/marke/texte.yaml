@@ -49,8 +49,8 @@ film:
     - name: Norm
       von: 9
       bis: 16
-      text: "Nach DIN 5008 gesetzt."
-      bild: "der Brief, darauf der Stempel; danach die Masse an ihren Positionen"
+      text: "Der ganze Brief, nachgemessen."
+      bild: "der Brief, darauf der Stempel; danach Zonen und Masse ueber das ganze Blatt"
     - name: Gleich
       von: 16
       bis: 21
