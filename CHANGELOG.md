@@ -39,6 +39,50 @@ braucht ab vier Beschäftigten eine Company License. Deshalb wird lokal gerender
 Ergebnis eingecheckt, statt in CI zu bauen. Einzelheiten in `THIRD_PARTY_LICENSES.md`,
 Abschnitt „Nur für die Videoerzeugung". Die Aussage „Alle Abhängigkeiten sind permissiv
 lizenziert" heißt entsprechend jetzt „Alle Abhängigkeiten **des Programms**".
+## v0.5.2 — 25.08.2026
+
+### Geändert
+- **Die CI-Aktionen hängen an vollständigen Commit-SHAs statt an Tags.** Ein Tag ist
+  verschiebbar: `actions/checkout@v4` zeigt heute auf einen Commit und morgen womöglich auf
+  einen anderen, ohne dass sich hier etwas ändert. Nur der SHA ist eine unveränderliche
+  Referenz. Die Version steht als Kommentar dahinter, damit lesbar bleibt, was gepinnt ist.
+  Alle sechs SHAs sind vor dem Festschreiben gegen ihr Repository geprüft worden — ein
+  falscher SHA bricht jeden Lauf, und bei `release.yml` fiele das erst beim nächsten Release auf.
+- **Voreinstellung `contents: read` je Workflow.** Die Jobs, die schreiben müssen, sagen das
+  weiterhin selbst — jetzt sichtbar als Ausnahme statt als Normalfall.
+- **Die README ist eine Produktseite statt einer Referenz.** Der erste Bildschirm beantwortet
+  jetzt, was falzmarke ist, was es löst und woran man sieht, dass es stimmt — mit dem Satz, um
+  den es geht: *Andere Werkzeuge erzeugen ein PDF. falzmarke prüft das Ergebnis.* Neu sind eine
+  Beweisleiste aus belegten Angaben, ein Vergleich mit dem typischen Arbeitsablauf (nicht mit
+  Produkten), Funktionen als Nutzen statt als Komponentenliste, und eine Beweissektion **vor**
+  der Installation — an ihr entscheidet sich das Versprechen, also steht sie nicht am Ende.
+- **Ein Abschnitt „Sicherheit"**, der ausschließlich nennt, was im Code steht und geprüft ist:
+  `safe_load` durchgängig, Markdown-Positivliste, Brieftext als maskierte Zeichenkette statt
+  Typst-Code, Ordnergrenze für Datei-Angaben samt Symlink-Auflösung, begrenztes
+  Typst-Wurzelverzeichnis, abgeschaltete Systemschriften, keine Netzwerkbibliothek im
+  Renderpfad. Ausdrücklich **nicht** „sicher", „gehärtet" oder „auditiert" — ein unabhängiges
+  Audit gibt es nicht.
+- **Referenzteile ausgelagert**: [`docs/cli.md`](docs/cli.md) (Befehle, Exit-Codes, was geprüft
+  wird), [`docs/profiles.md`](docs/profiles.md) (Profil anlegen, Suchreihenfolge, eigener
+  Briefkopf) und [`docs/architecture.md`](docs/architecture.md) (Schichten, Vendoring, warum das
+  Paket unter `skill/` liegt). Die README behält je eine Kurzfassung und einen benannten Link,
+  dazu eine Tabelle „Weiterlesen“.
+
+### Neu
+- **`.github/dependabot.yml`** für Versions-Updates von Actions und Python-Abhängigkeiten.
+  Security-Updates liefen bereits über die Repository-Einstellung.
+- **Das Release-Asset ist überprüfbar.** `falzmarke.skill` bekommt eine
+  Herkunftsbestätigung (`actions/attest-build-provenance`) und eine SHA-256-Summe in der
+  Release-Notiz sowie als eigene Datei. Der Prüfbefehl steht im README. Eine solche Bestätigung
+  belegt **Herkunft und Bauweg, nicht Fehlerfreiheit** — genau so ist es dort formuliert.
+
+### Behoben
+- **Drei veraltete Zähler.** Die README nannte „alle sieben Beispiele" (es sind acht) und
+  „28 Prüfungen" (es sind 30). Genau die Sorte Zahl, die bei jeder Änderung altert, ohne dass
+  ein Test anschlägt — sie ist jetzt raus oder aus der Wirklichkeit abgeleitet.
+- **Ein toter Verweis** in `docs/normmasse.md`: `skill/scripts/geometrie.py` gibt es nicht, die
+  Datei liegt unter `skill/falzmarke/`. Gefunden beim Prüfen aller 66 internen Verweise.
+
 ## v0.5.1 — 25.08.2026
 
 ### Geändert
