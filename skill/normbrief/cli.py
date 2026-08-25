@@ -820,7 +820,24 @@ def befehl_pack(args) -> int:
     return EXIT_OK
 
 
+def _ausgabe_auf_utf8() -> None:
+    """Damit die Ausgabe unter Windows nicht abbricht.
+
+    Dort schreibt Python standardmäßig in cp1252. Ein `≤` oder `→` im
+    Prüfbericht beendet dann jeden Aufruf mit einem UnicodeEncodeError —
+    gemessen in der CI am 25.08.2026, betrifft `verify` bei jedem Lauf.
+    """
+    for strom in (sys.stdout, sys.stderr):
+        rekonfigurieren = getattr(strom, "reconfigure", None)
+        if rekonfigurieren is not None:
+            try:
+                rekonfigurieren(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):   # pragma: no cover — sehr alte Streams
+                pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    _ausgabe_auf_utf8()
     parser = argparse.ArgumentParser(
         prog="normbrief", description="Geschäftsbriefe nach DIN 5008 aus Markdown."
     )
