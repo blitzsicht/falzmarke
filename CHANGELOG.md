@@ -2,6 +2,19 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## Unveröffentlicht
+
+### Geändert
+- **`CONTRIBUTING.md` und `SECURITY.md` sind wieder deutsch**, mit je einem kurzen englischen
+  Absatz. Die Umstellung auf Englisch in v0.3.0 ist damit zurückgenommen — das Werkzeug, seine
+  Meldungen und seine Dokumentation sind deutsch, und zwei Dateien in einer anderen Sprache
+  waren ein Bruch ohne Gewinn. Die beim Übersetzen gefundenen vier veralteten Pfadangaben
+  bleiben korrigiert.
+- **`CONTRIBUTING.md`** nennt jetzt zusätzlich: Herkunftsbestätigung per DCO (`git commit -s`,
+  kein CLA), einen Absatz zur KI-gestützten Entwicklung, die Beweispflicht am Pull Request und
+  die Bedingungen für beigesteuerte Musterbriefe.
+- **README-Kopf**: Banner aus der Markenwerkstatt statt selbstgebautem Logo-Arrangement.
+
 ## v0.4.0 — 25.08.2026
 
 ### Neu

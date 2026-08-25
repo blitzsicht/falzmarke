@@ -1,42 +1,48 @@
-# Security
+# Sicherheit
 
-## Reporting
+## Melden
 
-Please report security-relevant findings **privately** to **servus@blitzsicht.com**, not as a
-public issue. You can expect a reply within three working days.
+Sicherheitsrelevante Funde bitte **nicht** als öffentliches Issue, sondern an
+**servus@blitzsicht.com**. Antwort in der Regel innerhalb von drei Werktagen.
 
-This file is in English because findings come from everywhere; the tool itself is German, see
-[`CONTRIBUTING.md`](CONTRIBUTING.md).
+*English: please report security findings privately to servus@blitzsicht.com rather than in a
+public issue. Reports in English are fine. The attack surface is described below in German; the
+short version: front matter is parsed with `yaml.safe_load`, letter text is emitted as a Typst
+string literal rather than as markup, and profile assets must stay inside the profile's own
+directory. A way around any of those is a finding.*
 
-## Where the attack surface is
+## Wo die Angriffsfläche liegt
 
-falzmarke processes files it did not write and hands them to a compiler. The interesting parts are
-therefore:
+falzmarke verarbeitet Dateien, die es nicht selbst geschrieben hat, und gibt sie an einen
+Compiler weiter. Interessant sind deshalb vor allem:
 
-- **Front matter** is read with `yaml.safe_load` — never `load`.
-- **Letter body** is translated into Typst markup. Text is emitted as a Typst string literal
-  rather than escaped piecemeal ([`skill/falzmarke/markdown.py`](skill/falzmarke/markdown.py)),
-  and the Markdown parser runs against an allow-list of node types. A way to get Typst code
-  through either of those would be a finding.
-- **Profile paths, logos and signature images** are resolved relative to the profile file and
-  must stay inside the profile's own directory (subdirectories are fine). `resolve()` runs first,
-  so a symlink pointing outward is rejected too. This matters because a letter may carry its
-  profile in its own front matter — then the profile comes from whoever sent the letter. Until
-  v0.3.1 the check existed for `briefkopf_typ` but not for `logo` and `signatur`; see
-  [`docs/angriff-2026-08-25.md`](docs/angriff-2026-08-25.md). A way out of that directory is a
-  finding.
-- **Typst** compiles inside its own root directory and reads nothing above it. System fonts are
-  disabled (`ignore_system_fonts`), so a document cannot pull in fonts from the host.
+- **Frontmatter** wird mit `yaml.safe_load` gelesen — nie mit `load`.
+- **Brieftext** wird nach Typst-Markup übersetzt. Der Text wird dabei als Typst-**Zeichenkette**
+  ausgegeben, nicht Sonderzeichen für Sonderzeichen escaped
+  ([`skill/falzmarke/markdown.py`](skill/falzmarke/markdown.py)), und der Markdown-Parser läuft
+  gegen eine Positivliste von Knotentypen. Ein Weg, durch eines von beidem Typst-Code
+  einzuschleusen, wäre ein Fund.
+- **Profilpfade, Logos und Unterschriftsbilder** werden relativ zur Profildatei aufgelöst und
+  müssen **im Profilordner bleiben** (Unterordner sind erlaubt). `resolve()` läuft zuerst, ein
+  nach außen zeigender Symlink wird also ebenfalls abgewiesen. Das zählt, weil ein Brief sein
+  Profil im eigenen Frontmatter mitbringen darf — dann stammt das Profil von dem, der den Brief
+  geschickt hat. Bis v0.3.1 gab es diese Prüfung für `briefkopf_typ`, aber nicht für `logo` und
+  `signatur`; siehe [`docs/angriff-2026-08-25.md`](docs/angriff-2026-08-25.md). Ein Weg aus
+  diesem Verzeichnis heraus ist ein Fund.
+- **Typst** kompiliert in einem eigenen Wurzelverzeichnis und liest nichts darüber hinaus.
+  Systemschriften sind abgeschaltet (`ignore_system_fonts`), ein Dokument kann also keine
+  Schriften vom Rechner nachladen.
 
-## What is not a security finding
+## Was kein Sicherheitsfund ist
 
-- A letter with wrong geometry — that is a bug, please open an issue.
-- Credentials inside your own profile: profiles belong in `~/.config/falzmarke/profiles/`, not in
-  a public repository. The bundled search path keeps the two apart on purpose.
-- The string `normbrief` inside `skill/falzmarke/typst/vendor/letter-pro-v3.0.0.typ`. It is part
-  of a Deutsche Post URL in a third-party file that is kept byte-for-byte unmodified, and is
-  verified by checksum.
+- Ein Brief mit falscher Geometrie — das ist ein Fehler, bitte als Issue melden.
+- Zugangsdaten in einem eigenen Profil: Profile gehören nach `~/.config/falzmarke/profiles/` und
+  nicht in ein öffentliches Repository. Der mitgelieferte Suchpfad trennt beides bewusst.
+- Das Wort `normbrief` in `skill/falzmarke/typst/vendor/letter-pro-v3.0.0.typ`. Es steht dort in
+  einer URL der Deutschen Post, in einer Fremddatei, die byteweise unverändert bleibt und per
+  Prüfsumme bewacht wird.
 
-## Supported versions
+## Unterstützte Fassungen
 
-Only the latest release receives fixes. There is no long-term support branch.
+Fixes gibt es nur für die jeweils neueste Veröffentlichung. Einen Wartungszweig für ältere
+Fassungen gibt es nicht.

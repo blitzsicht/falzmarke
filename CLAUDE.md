@@ -29,9 +29,14 @@ Prüfmittel, das nie rot werden kann, ist kein Nachweis.
 
 ## Sprache
 
-Code, Kommentare, Fehlermeldungen und Dokumentation auf Deutsch — der Gegenstand ist eine
-deutsche Norm. Ausgenommen sind `CONTRIBUTING.md` und `SECURITY.md`: Beiträge und
-Sicherheitsmeldungen kommen von überall.
+Code, Kommentare, Fehlermeldungen, Dokumentation und Commits auf Deutsch — der Gegenstand ist
+eine deutsche Norm. `CONTRIBUTING.md` und `SECURITY.md` sind ebenfalls deutsch, tragen aber je
+einen kurzen englischen Absatz: Beiträge und Sicherheitsmeldungen kommen von überall, und wer
+kein Deutsch liest, soll wenigstens wissen, worum es geht und wohin er sich wendet.
+
+**Keine Claude-Attribution in Commits** — kein `Co-Authored-By`, kein Session-Trailer, kein
+„Generated with". Dass große Teile mit Claude Code entstanden sind, steht in `CONTRIBUTING.md`
+unter „KI-gestützte Entwicklung"; das ist die Stelle dafür, nicht jede einzelne Commit-Nachricht.
 
 ## Was nicht behauptet wird
 
