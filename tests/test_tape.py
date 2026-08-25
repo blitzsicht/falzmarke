@@ -87,8 +87,18 @@ def echte_ausgabe(tmp_path_factory) -> set[str]:
         assert ergebnis.returncode == 0, f"{befehl} scheiterte:\n{ergebnis.stderr}"
         for zeile in (ergebnis.stdout + ergebnis.stderr).splitlines():
             if zeile.strip():
-                zeilen.add(zeile.strip())
+                zeilen.add(pfadtrenner_vereinheitlichen(zeile.strip()))
     return zeilen
+
+
+def pfadtrenner_vereinheitlichen(zeile: str) -> str:
+    """Windows meldet `examples\\brief-mahnung.pdf`, das GIF zeigt `examples/…`.
+
+    Der Mitschnitt entsteht auf einem Rechner, der Test laeuft auf dreien. Ohne
+    diese Angleichung waere der Test auf Windows immer rot — und zwar aus einem
+    Grund, der mit der Sache nichts zu tun hat.
+    """
+    return zeile.replace("\\", "/")
 
 
 def mitgeschnittene_zeilen() -> list[str]:
@@ -100,7 +110,7 @@ def mitgeschnittene_zeilen() -> list[str]:
         # beides Rahmen, kein Inhalt.
         if not nackt or set(nackt) <= {"─"} or nackt.startswith("$") or nackt == ">":
             continue
-        raus.append(nackt)
+        raus.append(pfadtrenner_vereinheitlichen(nackt))
     return raus
 
 
@@ -109,7 +119,8 @@ def mitgeschnittene_zeilen() -> list[str]:
 def test_jede_zeile_im_gif_stammt_aus_einem_echten_lauf(echte_ausgabe):
     quelle = REPO / "examples" / "brief-mahnung.md"
     erlaubt = set(echte_ausgabe)
-    erlaubt |= {z.strip() for z in quelle.read_text(encoding="utf-8").splitlines() if z.strip()}
+    erlaubt |= {pfadtrenner_vereinheitlichen(z.strip())
+                for z in quelle.read_text(encoding="utf-8").splitlines() if z.strip()}
 
     fremd = [z for z in mitgeschnittene_zeilen() if z not in erlaubt]
     assert not fremd, "Im Mitschnitt stehen Zeilen, die kein Lauf erzeugt:\n" + "\n".join(fremd[:10])
@@ -119,7 +130,8 @@ def test_die_pruefung_wuerde_eine_erfundene_zeile_bemerken(echte_ausgabe):
     """Gegenprobe: ein Satz, den die CLI nie schreibt, muss auffallen."""
     quelle = REPO / "examples" / "brief-mahnung.md"
     erlaubt = set(echte_ausgabe)
-    erlaubt |= {z.strip() for z in quelle.read_text(encoding="utf-8").splitlines() if z.strip()}
+    erlaubt |= {pfadtrenner_vereinheitlichen(z.strip())
+                for z in quelle.read_text(encoding="utf-8").splitlines() if z.strip()}
     assert "OK  verify: 99/99 Maße eingehalten" not in erlaubt
 
 
