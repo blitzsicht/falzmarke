@@ -23,15 +23,21 @@ PROFILE = REPO / "skill" / "typst" / "profiles"
 
 
 def nur_text(markdown: str) -> str:
-    """Markdown-Markup entfernen, damit der reine Inhalt übrig bleibt."""
-    text = markdown
+    """Aus der Quelle das machen, was im PDF stehen soll.
+
+    Reihenfolge zählt: Escapes werden zuerst geparkt, sonst entfernt der
+    Markup-Schritt ein geschütztes `\*` mit. Und getilgt werden nur *paarige*
+    Auszeichnungen — ein einzelnes Sternchen ist Text und bleibt stehen.
+    """
+    PARK = "\x00"
+    text = re.sub(r"\\(.)", lambda m: PARK + m.group(1), markdown)
     text = re.sub(r"^\s*\|.*$", "", text, flags=re.M)      # Tabellen: eigene Prüfung
     text = re.sub(r"^\s*[-*+]\s+", "", text, flags=re.M)   # Aufzählungszeichen
     text = re.sub(r"^\s*\d+[.)]\s+", "", text, flags=re.M)
-    text = text.replace("**", "").replace("*", "")
-    text = re.sub(r"\\(.)", r"\1", text)                   # Markdown-Escapes
+    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)           # paariges fett
+    text = re.sub(r"(?<!\*)\*([^*\s][^*]*?)\*(?!\*)", r"\1", text)   # paariges kursiv
     text = text.replace("\\", "")                          # harter Umbruch
-    return text
+    return text.replace(PARK, "")
 
 
 def verdichtet(text: str) -> str:
@@ -92,7 +98,9 @@ def test_heikle_zeichen_ueberleben(tmp_path, zeile, beschreibung):
         encoding="utf-8",
     )
     pdf, _ = normbrief.rendere(brief, tmp_path / "b.pdf", profil_verzeichnis=PROFILE)
-    erwartet = verdichtet(nur_text(zeile))
+    import typografie
+
+    erwartet = verdichtet(typografie.anwenden(nur_text(zeile)))
     assert erwartet in verdichtet(pdf_text(pdf)), (
         f"{beschreibung}: Text ging verloren.\nErwartet: {zeile}\n"
         f"Im PDF:   {pdf_text(pdf)[:400]}"
