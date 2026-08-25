@@ -2,6 +2,43 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## Unveröffentlicht
+
+### Neu
+- **Video aus Code.** Die README zeigt oben ein GIF der echten CLI, aufgezeichnet mit
+  [vhs](https://github.com/charmbracelet/vhs) aus `docs/marke/video/readme.tape`. Dazu ein
+  Erklärfilm von 60 Sekunden in 16:9 und 9:16
+  (`docs/marke/video/erklaerfilm/`, Remotion). Nichts darin ist abgetippt: Die Szenentexte
+  kommen aus dem Textkanon, die Messzeilen aus einem echten `verify --json`-Lauf, das Blatt
+  ist der CI-Render von `examples/brief-mahnung.md`.
+- **Der Textkanon ist eine Datei geworden.** `docs/marke/texte.yaml` ist ab jetzt die einzige
+  Quelle für Claim, Untertitel und die Szenentexte; `docs/marke/texte.md` und die Szenendatei
+  des Films werden daraus erzeugt (`python3 scripts/texte.py`). Vorher trug dasselbe Produkt
+  drei Beschreibungen — im Banner, im Auftrag und in `pyproject` —, keine davon war die Quelle.
+- **`docs/marke/erscheinungsbild.md`** schreibt Farben, Schriften und Verwendung fest, mit
+  gemessenen Kontrastwerten und einem ausführbaren Rechenweg.
+- **Mahnung als neuntes Beispiel** (`examples/brief-mahnung.md`).
+- **`make`** als gemeinsamer Einstieg für Marke, Texte, GIF und Film.
+
+### Behoben
+- **Der Banner ließ sich nicht neu bauen.** Seine HTML-Quelle verwies auf `/tmp/sp/` und
+  `/home/claude/fz/` — Pfade einer fremden Sandbox. Montserrat liegt jetzt als OFL-Schrift
+  unter `docs/marke/fonts/`, und `bash scripts/marke.sh` erzeugt Banner und Vorschaubild
+  reproduzierbar aus der HTML.
+- **Marken-Grün war als Text nicht barrierefrei.** `#3EB057` erreicht auf Weiß nur 2,78 : 1
+  und verfehlt WCAG AA — genau so stand der Zweitclaim im Banner. Für Text auf hellem Grund
+  gilt jetzt `#2F8642` (4,56 : 1, gleicher Farbton). Als Fläche bleibt `#3EB057`.
+- **`pyproject`-Beschreibung** entspricht dem Kanon statt einer vierten Formulierung.
+
+### Hinweis zu Lizenzen
+Der Erklärfilm wird mit [Remotion](https://www.remotion.dev) erzeugt, und das ist die erste
+Komponente in diesem Repository, die **nicht** permissiv lizenziert ist. Sie ist am Programm
+nicht beteiligt und wird nicht mitgeliefert. Die fertigen MP4-Dateien sind Ergebnis, nicht
+Software, und stehen wie das übrige Repository unter MIT; wer den Film selbst neu rendert,
+braucht ab vier Beschäftigten eine Company License. Deshalb wird lokal gerendert und das
+Ergebnis eingecheckt, statt in CI zu bauen. Einzelheiten in `THIRD_PARTY_LICENSES.md`,
+Abschnitt „Nur für die Videoerzeugung". Die Aussage „Alle Abhängigkeiten sind permissiv
+lizenziert" heißt entsprechend jetzt „Alle Abhängigkeiten **des Programms**".
 ## v0.5.1 — 25.08.2026
 
 ### Geändert
