@@ -24,6 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import lint as lint_modul  # noqa: E402
 from markdown_typst import MarkdownFehler, konvertiere  # noqa: E402
 
 SKILL = Path(__file__).resolve().parent.parent
@@ -90,6 +91,14 @@ def lies_brief(pfad: Path) -> tuple[dict, str, int]:
         kopf = yaml.safe_load(kopf_roh) or {}
     except yaml.YAMLError as fehler:
         raise Eingabefehler(f"{pfad.name}: Frontmatter ist kein gültiges YAML — {fehler}") from None
+    except ValueError as fehler:
+        # PyYAML erkennt `2026-13-45` am Muster als Zeitstempel und scheitert
+        # beim Bauen des Datums — mit ValueError, nicht mit YAMLError. Ohne
+        # diesen Zweig endet der Lauf in einem Traceback.
+        raise Eingabefehler(
+            f"{pfad.name}: Frontmatter enthält einen unmöglichen Wert — {fehler}\n"
+            "        Bei einem Datum: als ISO-Datum schreiben, z. B. 2026-08-25."
+        ) from None
     if not isinstance(kopf, dict):
         raise Eingabefehler(f"{pfad.name}: Frontmatter muss ein Feld-Wert-Block sein.")
     return kopf, body, versatz
@@ -368,6 +377,28 @@ def baue_arbeitsverzeichnis(ziel: Path) -> None:
     )
 
 
+def linte(brief_pfad: Path, profil_verzeichnis: Path | None = None) -> lint_modul.Bericht:
+    """Prüft die Eingabe, ohne Typst zu bemühen."""
+    kopf, body_md, versatz = lies_brief(brief_pfad)
+    bericht = lint_modul.Bericht()
+    kopf_roh = brief_pfad.read_text(encoding="utf-8").split("\n---", 2)[0][3:]
+
+    lint_modul.pruefe_frontmatter(kopf, kopf_roh, bericht)
+    lint_modul.pruefe_body(body_md, versatz, bericht)
+
+    try:
+        konvertiere(body_md, versatz)
+    except MarkdownFehler as fehler:
+        bericht.fehler(fehler.zeile, "markdown", fehler.meldung)
+
+    if kopf.get("profil"):
+        try:
+            lade_profil(str(kopf["profil"]), profil_verzeichnis)
+        except Eingabefehler as fehler:
+            bericht.fehler(1, "profil", str(fehler).splitlines()[0])
+    return bericht
+
+
 def rendere(
     brief_pfad: Path,
     ausgabe: Path | None = None,
@@ -427,6 +458,14 @@ def rendere(
         }
         if FONT_DIR.is_dir():
             argumente["font_paths"] = [str(FONT_DIR)]
+
+        # Ohne diese Zeile zieht Typst Schriften vom Rechner, auf dem gerade
+        # gesetzt wird. Gemessen am 25.08.2026: ein Brief mit einem Emoji
+        # bettete die Apple-Systemschrift STSong ins PDF ein — das ist
+        # lizenzrechtlich heikel und macht das Ergebnis vom Rechner abhängig.
+        # Fehlt eine Glyphe, soll das auffallen und nicht still ersetzt werden;
+        # `lint` meldet es vor dem Render.
+        argumente["ignore_system_fonts"] = True
         if format_name == "png":
             argumente["format"] = "png"
             argumente["ppi"] = ppi
@@ -441,6 +480,19 @@ def rendere(
                 argumente.pop("pdf_standards", None)
                 typst.compile(**argumente)
                 return ausgabe, daten["form"]
+            treffer = re.search(
+                r'the text `"(.+?)"` could not be displayed with font `"(.+?)"`', meldung
+            )
+            if treffer:
+                zeichen, schrift = treffer.group(1), treffer.group(2)
+                punkte = " ".join(f"U+{ord(z):04X}" for z in zeichen)
+                raise Eingabefehler(
+                    f"Das Zeichen „{zeichen}“ ({punkte}) gibt es in der Schrift "
+                    f"„{schrift}“ nicht.\n"
+                    "        Ein anderes Zeichen wählen oder im Profil eine Schrift "
+                    "einstellen, die es enthält.\n"
+                    "        Emoji sind in keiner der mitgelieferten Schriften enthalten."
+                ) from None
             raise Eingabefehler(f"Typst konnte den Brief nicht setzen:\n{meldung}") from None
 
     if format_name == "png":
@@ -455,8 +507,28 @@ def rendere(
 
 # ── Unterbefehle ────────────────────────────────────────────────────────────
 
+def befehl_lint(args) -> int:
+    bericht = linte(
+        Path(args.brief), Path(args.profiles) if args.profiles else None
+    )
+    if args.json:
+        print(json.dumps(bericht.als_dict(), ensure_ascii=False, indent=2))
+    else:
+        print(bericht.als_text(Path(args.brief).name))
+    return EXIT_OK if bericht.ok else EXIT_EINGABE
+
+
 def befehl_render(args) -> int:
     import geometrie
+
+    # Erst prüfen, dann setzen: Ein Eingabefehler soll Exit 1 ergeben und keinen
+    # Render kosten — und nicht als Geometriebefund erscheinen.
+    vorpruefung = linte(Path(args.brief), Path(args.profiles) if args.profiles else None)
+    if not vorpruefung.ok:
+        print(vorpruefung.als_text(Path(args.brief).name), file=sys.stderr)
+        return EXIT_EINGABE
+    for befund in vorpruefung.befunde:
+        print(befund.als_zeile(Path(args.brief).name), file=sys.stderr)
 
     pdf, form = rendere(
         Path(args.brief),
@@ -601,6 +673,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--profiles", help="zusätzliches Profilverzeichnis")
     p.add_argument("--ppi", type=int, default=120)
     p.set_defaults(funktion=befehl_render)
+
+    p = unter.add_parser("lint", help="Brief prüfen, ohne ihn zu setzen")
+    p.add_argument("brief")
+    p.add_argument("--json", action="store_true")
+    p.add_argument("--profiles")
+    p.set_defaults(funktion=befehl_lint)
 
     p = unter.add_parser("check", help="ein PDF gegen die Normmaße vermessen")
     p.add_argument("pdf")
