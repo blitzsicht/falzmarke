@@ -1,11 +1,16 @@
-<div align="center">
+<table>
+<tr>
+<td width="230" align="center" valign="middle">
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/logo-dark.svg">
-  <img src="docs/assets/brand/logo.svg" alt="falzmarke" width="440">
+  <img src="docs/assets/brand/logo.svg" alt="falzmarke" width="200">
 </picture>
 
-<p><em>German business letters per DIN 5008 — written in Markdown, rendered to PDF/A, and geometrically verified.</em></p>
+</td>
+<td valign="middle">
+
+*German business letters per DIN 5008 — written in Markdown, rendered to PDF/A, and geometrically verified.*
 
 [![CI](https://github.com/blitzsicht/falzmarke/actions/workflows/ci.yml/badge.svg)](https://github.com/blitzsicht/falzmarke/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/blitzsicht/falzmarke)](https://github.com/blitzsicht/falzmarke/releases/latest)
@@ -13,7 +18,9 @@
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB)](pyproject.toml)
 [![DIN 5008](https://img.shields.io/badge/DIN_5008-2020-245A73)](skill/references/din5008.md)
 
-</div>
+</td>
+</tr>
+</table>
 
 ---
 
