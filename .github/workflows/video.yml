@@ -75,7 +75,17 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/renders/demo.gif docs/renders/demo.mp4 docs/renders/demo.ascii
-          # [skip ci] ist Pflicht: ohne den Marker loest dieser Commit den Lauf
-          # erneut aus, und der Job zeichnet sich selbst im Kreis auf.
-          git diff --staged --quiet || git commit -m "GIF neu aufgezeichnet [skip ci]"
+          # KEIN "[skip ci]" in dieser Nachricht. Der Marker stand hier einmal mit
+          # der Begruendung, er verhindere die Selbstausloesung — das leistet aber
+          # schon der paths-Filter oben: er nennt readme.tape, den Beispielbrief,
+          # skill/falzmarke/** und diese Datei, aber NICHT docs/renders/**. Genau
+          # und nur die schreibt dieser Schritt. Der Marker war also wirkungslos
+          # gegen die Schleife — und richtete zweierlei Schaden an: die
+          # zurueckgeschriebene Aufzeichnung wurde von keinem Test mehr geprueft,
+          # und ein Tag auf diesen Commit liess den Release-Workflow gar nicht
+          # erst anlaufen (so geschehen bei v0.6.0).
+          #
+          # Wer docs/renders/** jemals in den paths-Filter aufnimmt, holt die
+          # Schleife zurueck. Dann gehoert hier ein Abbruch hin, kein Marker.
+          git diff --staged --quiet || git commit -m "GIF neu aufgezeichnet"
           git push
