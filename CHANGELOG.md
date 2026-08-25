@@ -2,6 +2,23 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.3.2 — 25.08.2026
+
+### Behoben
+- **Eine nicht eingebettete Schrift galt als eingebettet.** Schriften ohne `/FontDescriptor`
+  wurden übersprungen — dabei ist der Deskriptor der einzige Ort, an dem eine `/FontFile` stehen
+  kann. Genau so sehen die 14 PDF-Standardschriften aus: Ein fremdes PDF, das nur Helvetica
+  benutzte, kam ohne Beanstandung durch, obwohl es beim Empfänger anders aussieht. Type-3-
+  Schriften bleiben ausgenommen, ihre Glyphen stehen im PDF selbst.
+- **Unlesbare Dateien endeten im Traceback.** `verify` prüft fremde PDFs, und was dabei
+  hereinkommt, ist nicht immer eines: leere Datei, abgebrochener Download, umbenanntes
+  Word-Dokument, PDF ohne Seiten — fünf von sechs Fällen zeigten einen Python-Stapelauszug statt
+  einer Meldung. Jetzt: eine Zeile und Rückgabecode 1. Nebenbei schließt `pruefe()` das Dokument
+  auch dann, wenn eine Prüfung dazwischen wirft.
+
+Beide gefunden beim Angriff auf `verify`, Protokoll in
+[`docs/angriff-2026-08-25.md`](docs/angriff-2026-08-25.md).
+
 ## v0.3.1 — 25.08.2026
 
 ### Behoben

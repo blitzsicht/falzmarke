@@ -669,6 +669,14 @@ def befehl_verify(args) -> int:
         print(f"Datei nicht gefunden: {pdf}", file=sys.stderr)
         return EXIT_EINGABE
 
+    try:
+        return _verify(args, pdf, geometrie)
+    except geometrie.PdfUnlesbar as fehler:
+        print(f"FEHLER  {fehler}", file=sys.stderr)
+        return EXIT_EINGABE
+
+
+def _verify(args, pdf: Path, geometrie) -> int:
     form = (args.form or "").upper()
     if not form:
         # Die Form steht im Blatt: Form A faltet bei 87 und 192 mm, Form B bei

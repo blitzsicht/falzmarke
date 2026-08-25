@@ -20,3 +20,6 @@ __pycache__/
 build/
 dist/
 bau/
+
+# macOS legt das in jedem Ordner an, den der Finder je gesehen hat.
+.DS_Store

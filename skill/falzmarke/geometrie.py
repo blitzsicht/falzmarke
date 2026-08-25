@@ -218,11 +218,51 @@ def _zeilen_gruppieren(spans: list[Span], toleranz: float = 0.6) -> list[list[Sp
     return zeilen
 
 
+class PdfUnlesbar(ValueError):
+    """Die Datei lässt sich nicht als PDF lesen.
+
+    `verify` prüft ausdrücklich **fremde** PDFs. Was dabei hereinkommt, ist
+    nicht immer eines: eine leere Datei, ein abgebrochener Download, ein
+    umbenanntes Word-Dokument. Bis v0.3.1 endete jeder dieser Fälle in einem
+    Python-Traceback — für den, der das Werkzeug benutzt, nicht von einem
+    Absturz zu unterscheiden.
+    """
+
+
+def _oeffne(pdf_pfad: Path):
+    """pdfplumber.open mit verständlicher Fehlermeldung.
+
+    Gefangen wird breit: pdfminer wirft je nach Schaden PdfminerException,
+    PSException, struct.error, ValueError oder AssertionError, und die Liste
+    wächst mit jeder Version. Eine Aufzählung wäre zwangsläufig unvollständig
+    — und ein nicht gefangener Fall sieht für den Benutzer aus wie ein Absturz.
+    """
+    import pdfplumber
+
+    try:
+        return pdfplumber.open(str(pdf_pfad))
+    except Exception as fehler:                            # noqa: BLE001
+        grund = str(fehler).strip().splitlines()[0] if str(fehler).strip() else type(fehler).__name__
+        raise PdfUnlesbar(
+            f"{pdf_pfad.name} lässt sich nicht als PDF lesen: {grund}"
+        ) from fehler
+
+
 def _nicht_eingebettete_schriften(pdf_pfad: Path) -> list[str]:
     """Schriften ohne eingebettete Datei — sie werden beim Empfänger ersetzt.
 
     Ein Font-Deskriptor mit FontFile/FontFile2/FontFile3 trägt die Schrift im
     PDF; fehlt er, hängt das Aussehen vom fremden Rechner ab.
+
+    Fehlt der Deskriptor **ganz**, ist die Schrift erst recht nicht eingebettet:
+    Er ist der einzige Ort, an dem eine FontFile stehen kann. Genau so sehen die
+    14 PDF-Standardschriften aus (Helvetica, Times, Courier …) — sie dürfen ohne
+    Deskriptor auftreten und werden beim Empfänger ersetzt. Bis v0.3.1 wurden
+    sie übersprungen und galten damit als eingebettet; ein fremdes PDF, das
+    ausschließlich Helvetica benutzte, kam ohne Beanstandung durch.
+
+    Ausnahme sind Type-3-Schriften: Ihre Glyphen stehen als Zeichenprogramme in
+    `/CharProcs` im PDF selbst, sie brauchen keine FontFile.
     """
     from pypdf import PdfReader
 
@@ -235,8 +275,11 @@ def _nicht_eingebettete_schriften(pdf_pfad: Path) -> list[str]:
             nachfahren = schrift.get("/DescendantFonts")
             kandidaten = [d.get_object() for d in nachfahren] if nachfahren else [schrift]
             for kandidat in kandidaten:
+                if kandidat.get("/Subtype") == "/Type3":
+                    continue
                 deskriptor = kandidat.get("/FontDescriptor")
                 if deskriptor is None:
+                    offen.append(str(kandidat.get("/BaseFont", schluessel)))
                     continue
                 deskriptor = deskriptor.get_object()
                 if not any(k in deskriptor for k in ("/FontFile", "/FontFile2", "/FontFile3")):
@@ -245,11 +288,12 @@ def _nicht_eingebettete_schriften(pdf_pfad: Path) -> list[str]:
 
 
 def pruefe(pdf_pfad: Path, form: str) -> Bericht:
-    import pdfplumber
-
     soll = FORM[form]
     bericht = Bericht()
-    dokument = pdfplumber.open(str(pdf_pfad))
+    dokument = _oeffne(pdf_pfad)
+    if not dokument.pages:
+        dokument.close()
+        raise PdfUnlesbar(f"{pdf_pfad.name} enthält keine Seite.")
     seite = dokument.pages[0]
 
     # Seitengröße
@@ -520,7 +564,7 @@ def erkenne_form(pdf_pfad: Path) -> str | None:
     """
     import pdfplumber
 
-    with pdfplumber.open(str(pdf_pfad)) as dokument:
+    with _oeffne(pdf_pfad) as dokument:
         marken = [m[0] for m in _marken(dokument.pages[0])]
     if not marken:
         return None
