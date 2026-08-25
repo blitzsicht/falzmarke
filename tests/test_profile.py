@@ -14,11 +14,11 @@ import zipfile
 import pytest
 import yaml
 
-import normbrief
+from normbrief import cli as normbrief
 from conftest import REPO, SKILL
 
 CLI = SKILL / "scripts" / "normbrief.py"
-PROFILE = SKILL / "typst" / "profiles"
+PROFILE = SKILL / "normbrief" / "typst" / "profiles"
 
 BRIEF = """---
 profil: {profil}
@@ -110,7 +110,7 @@ def test_eigener_briefkopf_wird_gesetzt(tmp_path, eigenes_profil):
 def test_eigener_briefkopf_verschiebt_das_anschriftfeld_nicht(tmp_path, eigenes_profil):
     """letter-pro erzwingt die Kopfhöhe — ein eigener Kopf darf die Zonen nicht
     verrücken. Sonst wäre der Hook ein Weg, die Norm zu verlassen."""
-    import geometrie
+    from normbrief import geometrie
 
     brief = tmp_path / "b.md"
     brief.write_text(BRIEF.format(profil="meins"), encoding="utf-8")
@@ -145,8 +145,9 @@ def test_pack_backt_profil_und_beilagen_ein(tmp_path, eigenes_profil):
     with zipfile.ZipFile(ziel) as archiv:
         namen = archiv.namelist()
     assert "normbrief/SKILL.md" in namen, "claude.ai erwartet SKILL.md an der Wurzel"
-    assert "normbrief/typst/profiles/meins.yaml" in namen
-    assert "normbrief/typst/profiles/meinkopf.typ" in namen, "die Beilage fehlt"
+    # Im Zip liegt der Skill-Ordner, darin das gleichnamige Paket.
+    assert "normbrief/normbrief/typst/profiles/meins.yaml" in namen
+    assert "normbrief/normbrief/typst/profiles/meinkopf.typ" in namen, "die Beilage fehlt"
 
 
 def test_aus_dem_gepackten_skill_laesst_sich_rendern(tmp_path, eigenes_profil):

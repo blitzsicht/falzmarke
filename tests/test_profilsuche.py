@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-import normbrief
+from normbrief import cli as normbrief
 from conftest import REPO, SKILL
 
 CLI = SKILL / "scripts" / "normbrief.py"
@@ -32,7 +32,7 @@ def xdg(tmp_path, monkeypatch):
 def profil_ablegen(verzeichnis: Path, name: str) -> Path:
     verzeichnis.mkdir(parents=True, exist_ok=True)
     ziel = verzeichnis / f"{name}.yaml"
-    inhalt = (SKILL / "typst" / "profiles" / "example.yaml").read_text(encoding="utf-8")
+    inhalt = (SKILL / "normbrief" / "typst" / "profiles" / "example.yaml").read_text(encoding="utf-8")
     ziel.write_text(inhalt.replace("Beispiel GmbH", f"{name} GmbH"), encoding="utf-8")
     return ziel
 

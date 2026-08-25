@@ -9,12 +9,12 @@ import sys
 
 import pytest
 
-import geometrie
-import normbrief
+from normbrief import geometrie
+from normbrief import cli as normbrief
 from conftest import REPO, SKILL
 
 CLI = SKILL / "scripts" / "normbrief.py"
-PROFILE = SKILL / "typst" / "profiles"
+PROFILE = SKILL / "normbrief" / "typst" / "profiles"
 
 
 def rufe(*argumente) -> subprocess.CompletedProcess:
@@ -74,7 +74,7 @@ def test_verschobene_marke_wird_mit_millimetern_gemeldet(tmp_path):
     """Der Linter-Fall: Eine Marke bei 102 statt 105 mm ist ein verschobenes
     Layout, keine fehlende Marke. Bis v0.1.2 hieß es dort 'nicht gefunden'."""
     ziel = tmp_path / "typst"
-    shutil.copytree(SKILL / "typst", ziel)
+    shutil.copytree(SKILL / "normbrief" / "typst", ziel)
     datei = ziel / "vendor" / "letter-pro-v3.0.0.typ"
     datei.write_text(
         datei.read_text(encoding="utf-8").replace(

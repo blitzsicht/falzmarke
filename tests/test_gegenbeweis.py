@@ -12,8 +12,8 @@ from pathlib import Path
 
 import pytest
 
-import geometrie
-import normbrief
+from normbrief import geometrie
+from normbrief import cli as normbrief
 from conftest import REPO
 
 BEISPIEL = REPO / "examples" / "brief-form-b.md"
@@ -22,7 +22,7 @@ BEISPIEL = REPO / "examples" / "brief-form-b.md"
 def _sabotiere(tmp_path: Path, datei: str, alt: str, neu: str) -> Path:
     """Legt eine Kopie des typst-Verzeichnisses an und ändert dort eine Stelle."""
     ziel = tmp_path / "typst"
-    shutil.copytree(REPO / "skill" / "typst", ziel)
+    shutil.copytree(REPO / "skill" / "normbrief" / "typst", ziel)
     pfad = ziel / datei
     inhalt = pfad.read_text(encoding="utf-8")
     assert alt in inhalt, f"Ankertext nicht gefunden in {datei}: {alt!r}"

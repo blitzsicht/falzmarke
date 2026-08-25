@@ -6,7 +6,7 @@ import datetime as dt
 
 import pytest
 
-import normbrief
+from normbrief import cli as normbrief
 from conftest import REPO
 
 PROFILE = REPO / "skill" / "typst" / "profiles"

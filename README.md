@@ -77,7 +77,19 @@ wird das Ergebnis gemessen statt angeschaut.
    Für Claude Code genügt ein Symlink, siehe [Als Claude-Skill](#als-claude-skill).
 3. „Schreib einen Brief an die Muster GmbH, Angebot über …"
 
-### Im Terminal
+### Im Terminal, ohne Clone
+
+```bash
+uvx normbrief init brief.md --profil example --betreff "Angebot Nr. 2026-0815"
+uvx normbrief render brief.md --png
+```
+
+oder dauerhaft: `pipx install normbrief`, danach `normbrief render brief.md`.
+
+Der Typst-Compiler kommt als Python-Wheel mit — **keine Systeminstallation**: kein LaTeX, kein
+wkhtmltopdf, keine Schriftinstallation. Alle Abhängigkeiten sind permissiv lizenziert.
+
+Aus einem Clone heraus geht es auch ohne Installation:
 
 ```bash
 git clone https://github.com/blitzsicht/normbrief.git
@@ -85,9 +97,6 @@ cd normbrief
 python3 skill/scripts/bootstrap.py
 python3 skill/scripts/normbrief.py render examples/brief-form-b.md --png
 ```
-
-`bootstrap.py` holt `typst`, `pyyaml` und `pymupdf`. Der Typst-Compiler kommt als Python-Wheel mit —
-**keine Systeminstallation**: kein LaTeX, kein wkhtmltopdf, keine Schriftinstallation.
 
 ## Einen Brief schreiben
 
@@ -131,6 +140,7 @@ brief.pdf + brief.png
 | 0 | PDF geschrieben, alle Maße eingehalten |
 | 1 | Eingabefehler — mit Feldname und Zeilennummer |
 | 2 | Geometrieprüfung gescheitert — mit Soll, Ist und Toleranz |
+| 4 | Fehler im Renderer — bitte als Issue melden |
 | 3 | Umgebung unvollständig |
 
 Geprüft werden Seitenformat, Falz- und Lochmarken, alle vier Zonen des Anschriftfelds, Position und
@@ -161,20 +171,22 @@ unter Einstellungen › Capabilities hochladen.
 ## Befehle
 
 ```
-normbrief.py render      BRIEF.md [-o AUS.pdf] [--png] [--no-pdfa] [--profiles DIR]
-normbrief.py check       AUS.pdf --form B [--json]
-normbrief.py preview     BRIEF.md [-o AUS.png] [--ppi 120]
-normbrief.py profiles
-normbrief.py init        ZIEL.md --profil NAME [--empfaenger "Zeile|Zeile"] [--betreff "..."]
-normbrief.py init-profil NAME [--ziel VERZEICHNIS]
-normbrief.py lint        BRIEF.md [--json]
-normbrief.py verify      AUS.pdf [--form B] [--json] [--verbose]
-normbrief.py pack        --profil NAME [-o ZIEL.skill]
+normbrief lint        BRIEF.md [--json]
+normbrief render      BRIEF.md [-o AUS.pdf] [--png] [--no-pdfa] [--pdfua] [--verbose]
+normbrief verify      AUS.pdf [--form A|B] [--json] [--verbose]
+normbrief preview     BRIEF.md [-o AUS.png] [--ppi 120]
+normbrief init        ZIEL.md --profil NAME [--empfaenger "Zeile|Zeile"] [--betreff "..."]
+normbrief init-profil NAME [--ziel VERZEICHNIS]
+normbrief profiles
+normbrief pack        --profil NAME [-o ZIEL.skill]
+normbrief --version
 ```
 
-Aufruf im geklonten Repo mit `python3 skill/scripts/normbrief.py …`. Ein installierbarer Befehl
-`normbrief` kommt mit der PyPI-Veröffentlichung
-([#7](https://github.com/blitzsicht/normbrief/issues/7)).
+Aus einem Clone ohne Installation: `python3 skill/scripts/normbrief.py …` — dasselbe Programm,
+nur ein anderer Aufrufweg.
+
+`render` prüft die Eingabe vorweg (`lint`) und misst das Ergebnis nach (`verify`). Ein
+Eingabefehler kostet damit keinen Render.
 
 ## Absenderprofile
 

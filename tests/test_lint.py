@@ -13,11 +13,11 @@ import time
 
 import pytest
 
-import normbrief
+from normbrief import cli as normbrief
 from conftest import BEISPIELE, REPO, SKILL
 
 CLI = SKILL / "scripts" / "normbrief.py"
-PROFILE = SKILL / "typst" / "profiles"
+PROFILE = SKILL / "normbrief" / "typst" / "profiles"
 
 KOPF = """profil: example
 empfaenger: [Muster GmbH, Musterstraße 1, 12345 Musterstadt]

@@ -1,6 +1,6 @@
 [project]
 name = "normbrief"
-version = "0.1.2"
+version = "0.2.0"
 description = "Geschäftsbriefe nach DIN 5008 aus Markdown — mit nachgemessener Geometrie"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -20,7 +20,23 @@ Homepage = "https://github.com/blitzsicht/normbrief"
 Issues = "https://github.com/blitzsicht/normbrief/issues"
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "fonttools>=4"]
+
+[project.scripts]
+normbrief = "normbrief.cli:main"
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+# Das Paket liegt unter skill/, weil derselbe Ordner als Claude-Skill
+# ausgeliefert wird. Zwei Kopien wären zwei Fassungen.
+[tool.setuptools]
+package-dir = { "" = "skill" }
+packages = ["normbrief"]
+
+[tool.setuptools.package-data]
+normbrief = ["typst/**/*", "assets/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

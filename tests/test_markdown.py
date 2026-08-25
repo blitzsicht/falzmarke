@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from markdown_typst import MarkdownFehler, konvertiere
-from typografie import NBSP
+from normbrief.markdown import MarkdownFehler, konvertiere
+from normbrief.typografie import NBSP
 
 # (Eingabe, erwartet) — erwartet ist entweder ein Stück der Typst-Ausgabe
 # oder ein Stück der Fehlermeldung, je nach Marke.

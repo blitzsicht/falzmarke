@@ -16,7 +16,7 @@ import re
 
 import pytest
 
-import normbrief
+from normbrief import cli as normbrief
 from conftest import BEISPIELE, REPO
 
 PROFILE = REPO / "skill" / "typst" / "profiles"
@@ -98,7 +98,7 @@ def test_heikle_zeichen_ueberleben(tmp_path, zeile, beschreibung):
         encoding="utf-8",
     )
     pdf, _ = normbrief.rendere(brief, tmp_path / "b.pdf", profil_verzeichnis=PROFILE)
-    import typografie
+    from normbrief import typografie
 
     erwartet = verdichtet(typografie.anwenden(nur_text(zeile)))
     assert erwartet in verdichtet(pdf_text(pdf)), (

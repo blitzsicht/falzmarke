@@ -2,6 +2,36 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.2.0 — 25.08.2026
+
+### Behoben
+- **Stiller Textverlust.** `Az. 12//345` verlor den Rest der Zeile, weil `//` für Typst ein
+  Zeilenkommentar ist — ohne Fehler, ohne Warnung. Der Regex-Konverter ist durch einen
+  CommonMark-Parser mit Positivliste ersetzt; Text wird jetzt als Typst-Zeichenkette ausgegeben,
+  wodurch es im Ergebnis keine Sonderzeichen mehr gibt.
+- **Zweizeiliger Betreff wurde abgelehnt.** Die Messung nahm die erste statt der letzten
+  Betreffzeile und hielt die zweite für die Anrede. Ein Angebot mit Vorgangsnummer und Gegenstand
+  ist der Normalfall.
+- **`datum: morgen`** stand wörtlich im Brief, **`datum: 2026-13-45`** endete in einem Traceback.
+- **Systemschriften im PDF.** Ein Brief mit Emoji bettete die Apple-Schrift STSong ein — das
+  Ergebnis hing am Rechner, auf dem gesetzt wurde.
+- **Der `.typ`-Briefkopf** war seit v0.1.2 dokumentiert und nicht gebaut.
+- **Der claude.ai-Weg endete nach dem ersten Chat**, weil Profile dort nicht überleben.
+
+### Geändert
+- **PyMuPDF (AGPL-3.0) ersetzt** durch pdfplumber (MIT) und pypdf (BSD-3). Alle Abhängigkeiten
+  sind jetzt permissiv lizenziert; siehe [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). Die
+  Messung wurde dabei genauer: Abstände treffen jetzt auf 0,00 mm.
+- Der Prüfbericht ist eine Zeile statt dreißig; `--verbose` zeigt alles.
+- `check` heißt `verify` und braucht kein `--form` mehr — die Form steht in den Falzmarken.
+- normbrief ist ein installierbares Paket: `pipx install normbrief`, `uvx normbrief`.
+
+### Hinzugefügt
+- `lint` prüft vor dem Render, ohne Typst.
+- `pack --profil NAME` erzeugt ein Skill-Zip mit eingebackenen Absendern für claude.ai.
+- `--pdfua` für barrierefreie PDFs (PDF/UA-1), Herkunftsvermerk im PDF, Fremd-PDF-Modus mit
+  Millimeterangabe bei verschobenen Marken.
+
 ## v0.1.2 — 25.08.2026
 
 ### Geändert

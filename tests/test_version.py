@@ -32,6 +32,27 @@ def neuester_tag() -> str | None:
     return tags[0] if tags else None
 
 
+def test_paket_und_pyproject_nennen_dieselbe_version():
+    """Zwei Quellen, ein Wert. Beim Wheel-Bau fiel auf, dass sie
+    auseinanderlaufen können, ohne dass irgendetwas rot wird: pyproject stand
+    auf 0.1.2, das Paket meldete 0.2.0."""
+    from normbrief import __version__
+
+    assert __version__ == version_aus_pyproject(), (
+        f"normbrief/__init__.py sagt {__version__}, pyproject.toml "
+        f"{version_aus_pyproject()}"
+    )
+
+
+def test_changelog_kennt_die_version():
+    changelog = (REPO / "CHANGELOG.md").read_text(encoding="utf-8")
+    version = version_aus_pyproject()
+    assert f"## v{version}" in changelog, (
+        f"CHANGELOG.md hat keinen Abschnitt für v{version} — "
+        "eine Version ohne Eintrag ist eine unerklärte Änderung"
+    )
+
+
 def test_version_ist_eine_freigegebene_fassung():
     """Kein `.dev`, kein `.post` — was hier steht, wird ausgeliefert."""
     version = version_aus_pyproject()

@@ -8,11 +8,11 @@ from pathlib import Path
 
 import pytest
 
-import normbrief
+from normbrief import cli as normbrief
 from conftest import REPO, SKILL
 
 CLI = SKILL / "scripts" / "normbrief.py"
-PROFILE = SKILL / "typst" / "profiles"
+PROFILE = SKILL / "normbrief" / "typst" / "profiles"
 BEISPIEL = REPO / "examples" / "brief-form-b.md"
 
 
@@ -125,7 +125,7 @@ def test_mehrseitige_vorschau_schreibt_je_seite_eine_datei(tmp_path):
 
 
 def test_render_ohne_pdfa(tmp_path):
-    import geometrie
+    from normbrief import geometrie
 
     ergebnis = rufe("render", BEISPIEL, "-o", tmp_path / "a.pdf", "--no-pdfa")
     assert ergebnis.returncode == normbrief.EXIT_OK

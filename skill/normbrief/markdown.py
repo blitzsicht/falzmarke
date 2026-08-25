@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import re
 
-import emit
+from normbrief import emit
 
 MAX_LISTENTIEFE = 2
 

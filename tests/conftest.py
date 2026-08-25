@@ -9,7 +9,8 @@ import pytest
 
 REPO = Path(__file__).resolve().parent.parent
 SKILL = REPO / "skill"
-sys.path.insert(0, str(SKILL / "scripts"))
+# Der Skill-Ordner ist zugleich das Paketverzeichnis.
+sys.path.insert(0, str(SKILL))
 
 BEISPIELE = sorted((REPO / "examples").glob("*.md"))
 
@@ -17,7 +18,7 @@ BEISPIELE = sorted((REPO / "examples").glob("*.md"))
 @pytest.fixture(scope="session")
 def gerendert(tmp_path_factory) -> dict[str, tuple[Path, str]]:
     """Name des Beispiels -> (PDF-Pfad, Form)."""
-    import normbrief
+    from normbrief import cli as normbrief
 
     ziel = tmp_path_factory.mktemp("renders")
     ergebnis = {}

@@ -19,7 +19,7 @@ prüfbar.
 
 from __future__ import annotations
 
-import typografie
+from normbrief import typografie
 
 
 def zeichenkette(text: str) -> str:
