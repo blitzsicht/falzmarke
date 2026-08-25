@@ -61,6 +61,9 @@ def markdown(k: dict) -> str:
     z.append("gibt es nicht — das Paket liegt nicht auf PyPI ([#7](https://github.com/blitzsicht/falzmarke/issues/7)).\n")
     z.append(f"- Ohne Clone: `{k['installation']['ohne_clone']}`")
     z.append(f"- Dauerhaft: `{k['installation']['dauerhaft']}`\n")
+    z.append("\n## Nutzen im Bild\n")
+    z.append(f"- ohne: {k['nutzen']['ohne']}")
+    z.append(f"- mit: {k['nutzen']['mit']}\n")
     f = k["film"]
     z.append(f"\n## Erklaerfilm — {f['dauer']} Sekunden\n")
     z.append("| Zeit | Szene | Text im Bild | Bild |")
@@ -71,15 +74,36 @@ def markdown(k: dict) -> str:
     return "\n".join(z)
 
 
+def claim_stufen(claim: str) -> tuple[str, str]:
+    """Der Claim, in zwei Stufen getrennt.
+
+    Der Abbinder zeigt erst „Briefe schreiben mit KI", dann die Pointe. Getrennt
+    wird am Geviertstrich, damit der Kanon eine einzige Quelle bleibt — zwei
+    gepflegte Fassungen desselben Satzes waeren zwei Fassungen, die auseinander-
+    laufen. tests/test_marke.py prueft, dass beide Teile wieder den Claim ergeben.
+    """
+    if "—" not in claim:
+        raise SystemExit(
+            f"Der Claim hat keinen Geviertstrich, an dem sich zwei Stufen trennen "
+            f"liessen: {claim!r}"
+        )
+    erste, zweite = claim.split("—", 1)
+    return erste.strip(), zweite.strip()
+
+
 def szenen(k: dict) -> str:
     f = k["film"]
+    stufe1, stufe2 = claim_stufen(k["claim"]["de"])
     daten = {
         "hinweis": "Erzeugt aus docs/marke/texte.yaml — nicht von Hand aendern.",
         "claim": k["claim"]["de"],
+        "claimStufe1": stufe1,
+        "claimStufe2": stufe2,
         "claimSekundaer": k["claim"]["sekundaer"],
         "untertitel": k["untertitel"]["de"],
         "adresse": k["adresse"],
         "installation": k["installation"]["ohne_clone"],
+        "nutzen": k["nutzen"],
         "dauer": f["dauer"],
         "szenen": [
             {"name": s["name"], "von": s["von"], "bis": s["bis"], "text": s["text"]}

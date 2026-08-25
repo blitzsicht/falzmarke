@@ -1,11 +1,10 @@
 import React from 'react';
 import {AbsoluteFill, Sequence} from 'remotion';
 import texte from './texte.json';
-import {Wunsch} from './szenen/Wunsch';
-import {Sagen} from './szenen/Sagen';
-import {Setzen} from './szenen/Setzen';
-import {Pruefen} from './szenen/Pruefen';
-import {Ziel} from './szenen/Ziel';
+import {Auftrag} from './szenen/Auftrag';
+import {Ohne} from './szenen/Ohne';
+import {Norm} from './szenen/Norm';
+import {Gleich} from './szenen/Gleich';
 import {FuerDich} from './szenen/FuerDich';
 
 export const FPS = 30;
@@ -13,10 +12,15 @@ export const FPS = 30;
 /**
  * Eine Zeitleiste fuer beide Formate.
  *
- * Die Zeiten stehen nicht hier, sondern in docs/marke/texte.yaml und kommen
- * ueber texte.json herein. So laesst sich das Drehbuch aendern, ohne den Film
- * anzufassen — und tests/test_marke.py prueft die Zeitleiste auf Lueckenlosigkeit
- * und jede Zeile auf mindestens 2,5 Sekunden Lesezeit.
+ * Die Zeiten stehen in docs/marke/texte.yaml, nicht hier. tests/test_marke.py
+ * prueft sie auf Lueckenlosigkeit und jede Szene auf mindestens 2,5 Sekunden.
+ *
+ * Getaktet auf 25 Sekunden. Die erste Fassung lief 60, die zweite 37 — beide
+ * waren zu langsam geschnitten. Harte Schnitte, keine Blenden: wer nach zwei
+ * Sekunden nicht weiss, worum es geht, ist weg.
+ *
+ * Dramaturgie: Auftrag -> was ohne feste Form herauskommt (durchgestrichen) ->
+ * der gesetzte Brief mit Stempel und Massen -> immer dieselbe Form -> Abbinder.
  */
 const nach = (name: string) => {
   const szene = texte.szenen.find((s) => s.name === name);
@@ -34,39 +38,34 @@ const nach = (name: string) => {
 };
 
 export const Erklaerfilm: React.FC = () => {
-  const wunsch = nach('Wunsch');
-  const sagen = nach('Sagen');
-  const setzen = nach('Setzen');
-  const pruefen = nach('Prüfen');
-  const ziel = nach('Ziel');
+  const auftrag = nach('Auftrag');
+  const ohne = nach('Ohne');
+  const norm = nach('Norm');
+  const gleich = nach('Gleich');
   const fuerDich = nach('Für dich');
 
   return (
     <AbsoluteFill>
-      <Sequence from={wunsch.from} durationInFrames={wunsch.durationInFrames}>
-        <Wunsch text={wunsch.text} />
+      <Sequence from={auftrag.from} durationInFrames={auftrag.durationInFrames}>
+        <Auftrag text={auftrag.text} />
       </Sequence>
 
-      <Sequence from={sagen.from} durationInFrames={sagen.durationInFrames}>
-        <Sagen text={sagen.text} satz={wunsch.text} />
+      <Sequence from={ohne.from} durationInFrames={ohne.durationInFrames}>
+        <Ohne text={ohne.text} />
       </Sequence>
 
-      <Sequence from={setzen.from} durationInFrames={setzen.durationInFrames}>
-        <Setzen text={setzen.text} />
+      <Sequence from={norm.from} durationInFrames={norm.durationInFrames}>
+        <Norm text={norm.text} />
       </Sequence>
 
-      <Sequence from={pruefen.from} durationInFrames={pruefen.durationInFrames}>
-        <Pruefen text={pruefen.text} />
-      </Sequence>
-
-      <Sequence from={ziel.from} durationInFrames={ziel.durationInFrames}>
-        <Ziel text={ziel.text} />
+      <Sequence from={gleich.from} durationInFrames={gleich.durationInFrames}>
+        <Gleich text={gleich.text} ohne={texte.nutzen.ohne} mit={texte.nutzen.mit} />
       </Sequence>
 
       <Sequence from={fuerDich.from} durationInFrames={fuerDich.durationInFrames}>
         <FuerDich
-          claim={texte.claim}
-          installation={texte.installation}
+          stufe1={texte.claimStufe1}
+          stufe2={texte.claimStufe2}
           adresse={texte.adresse}
         />
       </Sequence>

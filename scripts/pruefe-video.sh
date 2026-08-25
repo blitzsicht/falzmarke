@@ -96,11 +96,21 @@ if [ "${1:-}" = "--gegenprobe" ]; then
   exit 1
 fi
 
+# Die Solldauer steht im Textkanon, nicht hier. Sonst muesste man sie an zwei
+# Stellen aendern — und beim ersten Mal, wo das jemand vergisst, prueft dieses
+# Skript gegen eine Zahl, die niemand mehr gemeint hat.
+solldauer() {
+  python3 -c "import yaml,sys; print(yaml.safe_load(open('docs/marke/texte.yaml',encoding='utf-8'))['film']['dauer'])" 2>/dev/null
+}
+
 if [ "$#" -gt 0 ]; then
   pruefe "$1" "${2:-1920}" "${3:-1080}" "${4:-}"
 else
-  pruefe docs/renders/erklaerfilm-16x9.mp4 1920 1080 60
-  pruefe docs/renders/erklaerfilm-9x16.mp4 1080 1920 60
+  dauer="$(solldauer)"
+  [ -n "$dauer" ] || { echo "FEHLER: Solldauer nicht aus docs/marke/texte.yaml lesbar" >&2; exit 1; }
+  echo "Solldauer laut Textkanon: ${dauer}s"
+  pruefe docs/renders/erklaerfilm-16x9.mp4 1920 1080 "$dauer"
+  pruefe docs/renders/erklaerfilm-9x16.mp4 1080 1920 "$dauer"
 fi
 
 echo

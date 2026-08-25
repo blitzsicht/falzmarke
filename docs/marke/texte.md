@@ -40,13 +40,18 @@ gibt es nicht — das Paket liegt nicht auf PyPI ([#7](https://github.com/blitzs
 - Dauerhaft: `pipx install git+https://github.com/blitzsicht/falzmarke`
 
 
-## Erklaerfilm — 60 Sekunden
+## Nutzen im Bild
+
+- ohne: Frei gesetzt: jedes Mal ein anderes Blatt.
+- mit: Aus Norm und Profil: jedes Mal dasselbe.
+
+
+## Erklaerfilm — 26 Sekunden
 
 | Zeit | Szene | Text im Bild | Bild |
 |---|---|---|---|
-| 0–6 s | Wunsch | Ich brauche heute eine Mahnung an die Muster GmbH. | Markenfläche, Zeichen klein |
-| 6–18 s | Sagen | Ein Satz genügt. Den Brief schreibt der Agent als Markdown. | stilisierter Chat, darunter die entstehende Markdown-Datei |
-| 18–32 s | Setzen | Form aus Norm und Profil. Nichts wird von Hand gesetzt. | Terminalzeile, dann baut sich das Blatt auf: Anschriftfeld, Informationsblock, Betreff, Falzmarken |
-| 32–42 s | Prüfen | Nachgemessen, nicht geschätzt. | Messlinien an Falzmarken, Anschriftfeld und Betreff; Bestätigungszeilen |
-| 42–52 s | Ziel | PDF/A, archivfest. Ihr PDF ist Ihre Datei. | PDF mit zwei Anhängen; drei Wege: drucken, versenden, archivieren |
-| 52–60 s | Für dich | Briefe schreiben mit KI — nach Norm, nicht nach Gefühl. | Zeichen groß, Claim, darunter der Installationsbefehl und die Adresse |
+| 0–4 s | Auftrag | Hey, schreib mir eine Mahnung an die Muster GmbH: Rechnung 2026-0815, 2.380 Euro, Frist 8. September. | Eingabefeld eines Chats, der Satz tippt sich, dann wird abgeschickt |
+| 4–9 s | Ohne | Frei gesetzt. | ein Blatt, dreimal umgesprungen: brief.txt, brief.docx, brief.pdf — dann durchgestrichen |
+| 9–16 s | Norm | Nach DIN 5008 gesetzt. | der Brief, darauf der Stempel; danach die Masse an ihren Positionen |
+| 16–21 s | Gleich | Jedes Mal dieselbe Form. | drei gleiche Blaetter |
+| 21–26 s | Für dich | Briefe schreiben mit KI — nach Norm, nicht nach Gefühl. | Zeichen, Claim, Installationsbefehl, Adresse |

@@ -1,46 +1,46 @@
 {
   "hinweis": "Erzeugt aus docs/marke/texte.yaml — nicht von Hand aendern.",
   "claim": "Briefe schreiben mit KI — nach Norm, nicht nach Gefühl.",
+  "claimStufe1": "Briefe schreiben mit KI",
+  "claimStufe2": "nach Norm, nicht nach Gefühl.",
   "claimSekundaer": "Nachgemessen, nicht geschätzt.",
   "untertitel": "DIN-5008-Briefe aus Markdown — als PDF/A gesetzt und auf den Millimeter geprüft.",
   "adresse": "falzmarke.com",
   "installation": "uvx --from git+https://github.com/blitzsicht/falzmarke falzmarke",
-  "dauer": 60,
+  "nutzen": {
+    "ohne": "Frei gesetzt: jedes Mal ein anderes Blatt.",
+    "mit": "Aus Norm und Profil: jedes Mal dasselbe."
+  },
+  "dauer": 26,
   "szenen": [
     {
-      "name": "Wunsch",
+      "name": "Auftrag",
       "von": 0,
-      "bis": 6,
-      "text": "Ich brauche heute eine Mahnung an die Muster GmbH."
+      "bis": 4,
+      "text": "Hey, schreib mir eine Mahnung an die Muster GmbH: Rechnung 2026-0815, 2.380 Euro, Frist 8. September."
     },
     {
-      "name": "Sagen",
-      "von": 6,
-      "bis": 18,
-      "text": "Ein Satz genügt. Den Brief schreibt der Agent als Markdown."
+      "name": "Ohne",
+      "von": 4,
+      "bis": 9,
+      "text": "Frei gesetzt."
     },
     {
-      "name": "Setzen",
-      "von": 18,
-      "bis": 32,
-      "text": "Form aus Norm und Profil. Nichts wird von Hand gesetzt."
+      "name": "Norm",
+      "von": 9,
+      "bis": 16,
+      "text": "Nach DIN 5008 gesetzt."
     },
     {
-      "name": "Prüfen",
-      "von": 32,
-      "bis": 42,
-      "text": "Nachgemessen, nicht geschätzt."
-    },
-    {
-      "name": "Ziel",
-      "von": 42,
-      "bis": 52,
-      "text": "PDF/A, archivfest. Ihr PDF ist Ihre Datei."
+      "name": "Gleich",
+      "von": 16,
+      "bis": 21,
+      "text": "Jedes Mal dieselbe Form."
     },
     {
       "name": "Für dich",
-      "von": 52,
-      "bis": 60,
+      "von": 21,
+      "bis": 26,
       "text": "Briefe schreiben mit KI — nach Norm, nicht nach Gefühl."
     }
   ]

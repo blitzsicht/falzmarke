@@ -130,11 +130,15 @@ def test_die_wortpruefung_wuerde_anschlagen():
     assert VERBOTEN.search("Diese Briefe sind DIN-konform gesetzt.")
 
 
-def test_film_zeigt_nur_befehle_die_es_gibt(kanon):
+def test_kanon_nennt_nur_befehle_die_es_gibt(kanon):
     """`pipx install falzmarke` gibt es nicht — das Paket liegt nicht auf PyPI.
 
     Dieselbe Falle, die test_installationswege.py fuer die README stellt, hier
-    fuer alles, was im Video zu sehen ist.
+    fuer den Kanon. Der Abbinder des Films zeigt seit dem dritten Schnitt keinen
+    Befehl mehr — auf einer Endkarte ist ein `uvx --from git+https://…` weder
+    lesbar noch merkbar. Der Eintrag bleibt trotzdem geprueft: Er speist
+    kuenftige Verwendungen, und ein ungeprueftes Feld im Kanon ist eine Falle,
+    die beim naechsten Gebrauch zuschnappt.
     """
     nackt = re.compile(r"(?<![\w./-])(?:uvx\s+falzmarke\b|pipx\s+install\s+falzmarke\b)")
     for zweck, befehl in kanon["installation"].items():
@@ -146,6 +150,34 @@ def test_die_befehlspruefung_wuerde_anschlagen():
     """Gegenprobe."""
     nackt = re.compile(r"(?<![\w./-])(?:uvx\s+falzmarke\b|pipx\s+install\s+falzmarke\b)")
     assert nackt.search("pipx install falzmarke")
+
+
+# ── Der Claim, in zwei Stufen ───────────────────────────────────────────────
+
+def test_claim_stufen_ergeben_wieder_den_claim(kanon):
+    """Der Abbinder zeigt den Claim in zwei Stufen — abgeleitet, nicht gepflegt.
+
+    Zwei von Hand gepflegte Fassungen desselben Satzes laufen auseinander, und
+    zwar unbemerkt: Der Banner traegt dann den einen, der Film den anderen.
+    scripts/texte.py trennt am Geviertstrich; hier wird gegengerechnet.
+    """
+    import sys as _sys
+    _sys.path.insert(0, str(REPO / "scripts"))
+    from texte import claim_stufen
+
+    erste, zweite = claim_stufen(kanon["claim"]["de"])
+    assert erste and zweite
+    assert flach(f"{erste} — {zweite}") == flach(kanon["claim"]["de"])
+
+
+def test_die_stufenpruefung_wuerde_eine_abweichung_bemerken():
+    """Gegenprobe: ein Claim ohne Geviertstrich laesst sich nicht teilen."""
+    import sys as _sys
+    _sys.path.insert(0, str(REPO / "scripts"))
+    from texte import claim_stufen
+
+    with pytest.raises(SystemExit):
+        claim_stufen("Ein Satz ohne Trennzeichen")
 
 
 # ── Zeitleiste des Films ────────────────────────────────────────────────────

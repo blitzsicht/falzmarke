@@ -7,8 +7,8 @@
     "start": "remotion studio",
     "quer": "remotion render src/index.tsx Querformat ../../../renders/erklaerfilm-16x9.mp4",
     "hoch": "remotion render src/index.tsx Hochformat ../../../renders/erklaerfilm-9x16.mp4",
-    "bild-quer": "remotion still src/index.tsx Querformat ../../../renders/erklaerfilm-16x9.png --frame=1590",
-    "bild-hoch": "remotion still src/index.tsx Hochformat ../../../renders/erklaerfilm-9x16.png --frame=1590"
+    "bild-quer": "remotion still src/index.tsx Querformat ../../../renders/erklaerfilm-16x9.png --frame=800",
+    "bild-hoch": "remotion still src/index.tsx Hochformat ../../../renders/erklaerfilm-9x16.png --frame=800"
   },
   "dependencies": {
     "@remotion/cli": "^4.0.300",

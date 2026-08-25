@@ -34,38 +34,42 @@ installation:
 # Drehbuch des Erklaerfilms. Sekunden sind Sollwerte; jede Zeile steht mindestens
 # 2,5 Sekunden, damit sie lesbar ist.
 film:
-  dauer: 60
+  dauer: 26
   szenen:
-    - name: Wunsch
+    - name: Auftrag
       von: 0
-      bis: 6
-      text: "Ich brauche heute eine Mahnung an die Muster GmbH."
-      bild: "Markenfläche, Zeichen klein"
-    - name: Sagen
-      von: 6
-      bis: 18
-      text: "Ein Satz genügt. Den Brief schreibt der Agent als Markdown."
-      bild: "stilisierter Chat, darunter die entstehende Markdown-Datei"
-    - name: Setzen
-      von: 18
-      bis: 32
-      text: "Form aus Norm und Profil. Nichts wird von Hand gesetzt."
-      bild: "Terminalzeile, dann baut sich das Blatt auf: Anschriftfeld, Informationsblock, Betreff, Falzmarken"
-    - name: Prüfen
-      von: 32
-      bis: 42
-      text: "Nachgemessen, nicht geschätzt."
-      bild: "Messlinien an Falzmarken, Anschriftfeld und Betreff; Bestätigungszeilen"
-    - name: Ziel
-      von: 42
-      bis: 52
-      text: "PDF/A, archivfest. Ihr PDF ist Ihre Datei."
-      bild: "PDF mit zwei Anhängen; drei Wege: drucken, versenden, archivieren"
+      bis: 4
+      text: "Hey, schreib mir eine Mahnung an die Muster GmbH: Rechnung 2026-0815, 2.380 Euro, Frist 8. September."
+      bild: "Eingabefeld eines Chats, der Satz tippt sich, dann wird abgeschickt"
+    - name: Ohne
+      von: 4
+      bis: 9
+      text: "Frei gesetzt."
+      bild: "ein Blatt, dreimal umgesprungen: brief.txt, brief.docx, brief.pdf — dann durchgestrichen"
+    - name: Norm
+      von: 9
+      bis: 16
+      text: "Nach DIN 5008 gesetzt."
+      bild: "der Brief, darauf der Stempel; danach die Masse an ihren Positionen"
+    - name: Gleich
+      von: 16
+      bis: 21
+      text: "Jedes Mal dieselbe Form."
+      bild: "drei gleiche Blaetter"
     - name: Für dich
-      von: 52
-      bis: 60
+      von: 21
+      bis: 26
       text: "Briefe schreiben mit KI — nach Norm, nicht nach Gefühl."
-      bild: "Zeichen groß, Claim, darunter der Installationsbefehl und die Adresse"
+      bild: "Zeichen, Claim, Installationsbefehl, Adresse"
+
+# Der Satz, der den Nutzen traegt. Bewusst ohne "normgerecht", "DIN-konform" oder
+# "zertifiziert": solange der Abgleich mit dem Originaltext der DIN 5008:2020-03
+# aussteht, ist keine dieser Behauptungen belegt (CLAUDE.md, tests/test_textkanon.py).
+# "nach DIN 5008 gesetzt" beschreibt die Vorlage, nicht eine geprüfte Konformität —
+# dieselbe Formulierung wie in README und Paketbeschreibung.
+nutzen:
+  ohne: "Frei gesetzt: jedes Mal ein anderes Blatt."
+  mit: "Aus Norm und Profil: jedes Mal dasselbe."
 
 # Ton: kurze Saetze, aktiv, konkret. Zahlen statt Adjektive ("105,0 mm" statt "praezise").
 # Keine Superlative, keine Ausrufezeichen, keine Emojis.

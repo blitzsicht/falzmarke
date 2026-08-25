@@ -1,6 +1,16 @@
 {
   "hinweis": "Erzeugt aus einem echten verify-Lauf — nicht von Hand aendern. Neu bauen: python3 scripts/bericht.py",
   "brief": "brief-mahnung.md",
+  "brieftext": {
+    "empfaenger": [
+      "Muster GmbH",
+      "Frau Erika Muster",
+      "Musterstraße 1",
+      "12345 Musterstadt"
+    ],
+    "betreff": "Zahlungserinnerung zu Rechnung Nr. 2026-0815",
+    "anrede": "Sehr geehrte Frau Muster,"
+  },
   "ok": true,
   "gesamt": 29,
   "bestanden": 29,

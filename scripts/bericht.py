@@ -37,6 +37,27 @@ GEZEIGT = [
 ]
 
 
+def brieftext() -> dict:
+    """Empfaenger, Betreff und Anrede aus dem Frontmatter des Musterbriefs.
+
+    Die Szene, die zeigt, wie derselbe Brief in .txt, .docx und .pdf jedes Mal
+    anders aussieht, braucht einen Brieftext. Der wird nicht in die Szene
+    getippt: Aendert sich examples/brief-mahnung.md, aendert sich das Bild mit.
+    Dasselbe Prinzip wie bei den Messzeilen.
+    """
+    import yaml
+
+    roh = BRIEF.read_text(encoding="utf-8")
+    if not roh.startswith("---"):
+        raise SystemExit(f"{BRIEF.name} hat kein Frontmatter")
+    kopf = yaml.safe_load(roh.split("---", 2)[1])
+    return {
+        "empfaenger": kopf["empfaenger"],
+        "betreff": kopf["betreff"],
+        "anrede": kopf["anrede"],
+    }
+
+
 def messwerte() -> dict:
     with tempfile.TemporaryDirectory(prefix="falzmarke-bericht-") as tmp:
         pdf = Path(tmp) / "mahnung.pdf"
@@ -67,6 +88,7 @@ def messwerte() -> dict:
         "hinweis": "Erzeugt aus einem echten verify-Lauf — nicht von Hand aendern. "
                    "Neu bauen: python3 scripts/bericht.py",
         "brief": BRIEF.name,
+        "brieftext": brieftext(),
         "ok": roh["ok"],
         "gesamt": len(roh["pruefungen"]),
         "bestanden": sum(1 for p in roh["pruefungen"] if p["bestanden"]),
