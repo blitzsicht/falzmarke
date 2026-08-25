@@ -2,6 +2,17 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.3.1 — 25.08.2026
+
+### Behoben
+- **Ein fremdes Profil las Bilder außerhalb seines Ordners.** `briefkopf_typ` prüfte, dass die
+  angegebene Datei im Profilordner liegt — `logo` und `signatur` prüften es nicht. Weil ein Brief
+  sein Profil im Frontmatter mitbringen darf, konnte ein zugeschickter Brief mit
+  `logo: ../geheim/privat.png` jede Bilddatei einbetten, die der Empfänger lesen kann; der Lauf
+  meldete dabei `30/30 Maße eingehalten`. Ein Symlink wirkte genauso. Die Prüfung sitzt jetzt an
+  einer Stelle und wird von allen drei Feldern benutzt; ein Unterordner bleibt erlaubt.
+  Gefunden beim Angriff auf v0.3.0, Protokoll in [`docs/angriff-2026-08-25.md`](docs/angriff-2026-08-25.md).
+
 ## v0.3.0 — 25.08.2026
 
 ### Geändert

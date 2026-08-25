@@ -19,7 +19,12 @@ therefore:
   and the Markdown parser runs against an allow-list of node types. A way to get Typst code
   through either of those would be a finding.
 - **Profile paths, logos and signature images** are resolved relative to the profile file and
-  copied into a temporary working directory. A way out of that directory would be a finding.
+  must stay inside the profile's own directory (subdirectories are fine). `resolve()` runs first,
+  so a symlink pointing outward is rejected too. This matters because a letter may carry its
+  profile in its own front matter — then the profile comes from whoever sent the letter. Until
+  v0.3.1 the check existed for `briefkopf_typ` but not for `logo` and `signatur`; see
+  [`docs/angriff-2026-08-25.md`](docs/angriff-2026-08-25.md). A way out of that directory is a
+  finding.
 - **Typst** compiles inside its own root directory and reads nothing above it. System fonts are
   disabled (`ignore_system_fonts`), so a document cannot pull in fonts from the host.
 

@@ -306,9 +306,7 @@ def baue_daten(kopf: dict, profil: dict, profil_pfad: Path, arbeitsverzeichnis: 
 
     signatur = None
     if profil.get("signatur"):
-        quelle = (profil_pfad.parent / profil["signatur"]).resolve()
-        if not quelle.is_file():
-            raise Eingabefehler(f"Profil: Signaturbild nicht gefunden: {quelle}")
+        quelle = datei_aus_dem_profilordner(profil_pfad, profil["signatur"], "Signaturbild")
         ziel = arbeitsverzeichnis / "assets" / quelle.name
         ziel.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(quelle, ziel)
@@ -357,6 +355,31 @@ def _pruefe_textzeilen(profil: dict, profil_pfad: Path) -> None:
             melde("briefkopf.zeilen", zeile)
 
 
+def datei_aus_dem_profilordner(profil_pfad: Path, angabe: str, feld: str) -> Path:
+    """Löst eine Dateiangabe aus einem Profil auf und hält sie im Profilordner.
+
+    Ein Profil darf auf Nachbardateien zeigen — Logo, Unterschrift, eigener
+    Briefkopf — aber nicht darüber hinaus. Der Grund ist das eingebettete
+    Profil: Ein Brief bringt sein Profil im Frontmatter mit, und dann stammt
+    beides von dem, der den Brief geschickt hat. Ohne diese Grenze bettet ein
+    fremder Brief jede Bilddatei ein, die der Empfänger lesen kann — gemessen
+    am 25.08.2026 mit `logo: ../geheim/privat.png`: das Bild stand im Briefkopf,
+    der Lauf meldete 30/30 Maße eingehalten.
+
+    `resolve()` folgt Symlinks, deshalb hilft auch ein getarnter Verweis nicht.
+    """
+    ordner = profil_pfad.parent.resolve()
+    quelle = (profil_pfad.parent / angabe).resolve()
+    if not quelle.is_file():
+        raise Eingabefehler(f"Profil {profil_pfad.name}: {feld} nicht gefunden: {quelle}")
+    if ordner not in quelle.parents:
+        raise Eingabefehler(
+            f"Profil {profil_pfad.name}: {feld} muss im Profilordner liegen "
+            f"(angegeben: {angabe}). Die Datei neben das Profil legen."
+        )
+    return quelle
+
+
 def baue_profil_daten(profil: dict, profil_pfad: Path, arbeitsverzeichnis: Path) -> dict:
     """Kopiert Profil-Assets ins Arbeitsverzeichnis und macht Pfade relativ."""
     _pruefe_textzeilen(profil, profil_pfad)
@@ -364,9 +387,7 @@ def baue_profil_daten(profil: dict, profil_pfad: Path, arbeitsverzeichnis: Path)
     briefkopf = daten.get("briefkopf") or {}
     logo = briefkopf.get("logo")
     if logo:
-        quelle = (profil_pfad.parent / logo).resolve()
-        if not quelle.is_file():
-            raise Eingabefehler(f"Profil {profil_pfad.name}: Logo nicht gefunden: {quelle}")
+        quelle = datei_aus_dem_profilordner(profil_pfad, logo, "Logo")
         ziel = arbeitsverzeichnis / "assets" / quelle.name
         ziel.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(quelle, ziel)
@@ -462,17 +483,7 @@ def rendere(
         kopf_import, kopf_argument = "", ""
         eigener_kopf = profil.get("briefkopf_typ")
         if eigener_kopf:
-            quelle = (profil_pfad.parent / eigener_kopf).resolve()
-            if not quelle.is_file():
-                raise Eingabefehler(
-                    f"Profil {profil_pfad.name}: briefkopf_typ verweist auf "
-                    f"{eigener_kopf}, die Datei gibt es dort nicht."
-                )
-            if profil_pfad.parent.resolve() not in quelle.parents:
-                raise Eingabefehler(
-                    f"Profil {profil_pfad.name}: briefkopf_typ muss im Profilordner liegen "
-                    f"(angegeben: {eigener_kopf})."
-                )
+            quelle = datei_aus_dem_profilordner(profil_pfad, eigener_kopf, "briefkopf_typ")
             shutil.copy2(quelle, arbeit / "briefkopf-eigen.typ")
             kopf_import = '#import "briefkopf-eigen.typ": briefkopf as eigener-kopf\n'
             kopf_argument = ", briefkopf-eigen: eigener-kopf"
