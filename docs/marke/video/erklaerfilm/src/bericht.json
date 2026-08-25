@@ -1,0 +1,84 @@
+{
+  "hinweis": "Erzeugt aus einem echten verify-Lauf — nicht von Hand aendern. Neu bauen: python3 scripts/bericht.py",
+  "brief": "brief-mahnung.md",
+  "brieftext": {
+    "empfaenger": [
+      "Muster GmbH",
+      "Frau Erika Muster",
+      "Musterstraße 1",
+      "12345 Musterstadt"
+    ],
+    "betreff": "Zahlungserinnerung zu Rechnung Nr. 2026-0815",
+    "anrede": "Sehr geehrte Frau Muster,"
+  },
+  "ok": true,
+  "gesamt": 29,
+  "bestanden": 29,
+  "zonen": {
+    "ruecksendeangabe": [
+      46.26,
+      25.0
+    ],
+    "anschrift": [
+      25.0,
+      62.69,
+      77.86
+    ],
+    "infoblock": [
+      125.0,
+      179.72,
+      50.34
+    ],
+    "betreff": [
+      25.0,
+      98.45
+    ],
+    "textblock": [
+      25.0,
+      186.92
+    ],
+    "marken": [
+      105.0,
+      148.5,
+      210.0
+    ]
+  },
+  "zeilen": [
+    {
+      "name": "Anschrift, erste Zeile y",
+      "soll": "≥ 62.7",
+      "ist": "62.69",
+      "bestanden": true
+    },
+    {
+      "name": "Infoblock, x-links",
+      "soll": "125.00",
+      "ist": "125.00",
+      "bestanden": true
+    },
+    {
+      "name": "Betreff, y-Oberkante",
+      "soll": "98.47",
+      "ist": "98.45",
+      "bestanden": true
+    },
+    {
+      "name": "Abstand Betreff → Anrede (2 Leerzeilen)",
+      "soll": "12.70",
+      "ist": "12.70",
+      "bestanden": true
+    },
+    {
+      "name": "Textblock, x-rechts",
+      "soll": "≤ 190.0",
+      "ist": "186.92",
+      "bestanden": true
+    },
+    {
+      "name": "Falzmarke 1, y",
+      "soll": "105.00",
+      "ist": "105.00",
+      "bestanden": true
+    }
+  ]
+}

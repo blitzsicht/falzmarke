@@ -1,0 +1,75 @@
+# Textkanon der Marke falzmarke — einzige Quelle.
+#
+# README, pyproject, Banner und die Szenentexte des Erklaerfilms werden hiergegen
+# geprueft (tests/test_marke.py). docs/marke/texte.md und die Szenendatei des Films
+# werden hieraus erzeugt: python3 scripts/texte.py
+#
+# Was hier NICHT stehen darf: "normgerecht", "DIN-konform", "normkonform",
+# "zertifiziert". Solange der Abgleich mit dem Originaltext der DIN 5008:2020-03
+# aussteht, ist keine dieser Behauptungen belegt. tests/test_textkanon.py wacht
+# darueber, tests/test_marke.py prueft zusaetzlich diese Datei.
+
+name: falzmarke
+
+claim:
+  de: "Briefe schreiben mit KI — nach Norm, nicht nach Gefühl."
+  sekundaer: "Nachgemessen, nicht geschätzt."
+
+untertitel:
+  de: "DIN-5008-Briefe aus Markdown — als PDF/A gesetzt und auf den Millimeter geprüft."
+  en: "German business letters from Markdown — rendered to PDF/A and verified to the millimetre."
+
+fusszeile: "Claude-Skill · CLI · PDF/A · Hybridbrief"
+adresse: "falzmarke.com"
+
+github_beschreibung: "DIN-5008-Briefe aus Markdown — als PDF/A gesetzt, auf den Millimeter geprüft. Skill für KI-Agenten und CLI."
+
+# Die Befehle, die im Film und im GIF gezeigt werden duerfen. Es gibt sie wirklich —
+# `pipx install falzmarke` gibt es nicht, das Paket liegt nicht auf PyPI (Issue #7).
+# tests/test_installationswege.py wacht ueber die README, dieser Eintrag ueber das Video.
+installation:
+  ohne_clone: "uvx --from git+https://github.com/blitzsicht/falzmarke falzmarke"
+  dauerhaft: "pipx install git+https://github.com/blitzsicht/falzmarke"
+
+# Drehbuch des Erklaerfilms. Sekunden sind Sollwerte; jede Zeile steht mindestens
+# 2,5 Sekunden, damit sie lesbar ist.
+film:
+  dauer: 26
+  szenen:
+    - name: Auftrag
+      von: 0
+      bis: 4
+      text: "Hey, schreib mir eine Mahnung an die Muster GmbH: Rechnung 2026-0815, 2.380 Euro, Frist 8. September."
+      bild: "Eingabefeld eines Chats, der Satz tippt sich, dann wird abgeschickt"
+    - name: Ohne
+      von: 4
+      bis: 9
+      text: "Frei gesetzt."
+      bild: "ein Blatt, dreimal umgesprungen: brief.txt, brief.docx, brief.pdf — dann durchgestrichen"
+    - name: Norm
+      von: 9
+      bis: 16
+      text: "Der ganze Brief, nachgemessen."
+      bild: "der Brief, darauf der Stempel; danach Zonen und Masse ueber das ganze Blatt"
+    - name: Gleich
+      von: 16
+      bis: 21
+      text: "Jedes Mal dieselbe Form."
+      bild: "drei gleiche Blaetter"
+    - name: Für dich
+      von: 21
+      bis: 26
+      text: "Briefe schreiben mit KI — nach Norm, nicht nach Gefühl."
+      bild: "Zeichen, Claim, Installationsbefehl, Adresse"
+
+# Der Satz, der den Nutzen traegt. Bewusst ohne "normgerecht", "DIN-konform" oder
+# "zertifiziert": solange der Abgleich mit dem Originaltext der DIN 5008:2020-03
+# aussteht, ist keine dieser Behauptungen belegt (CLAUDE.md, tests/test_textkanon.py).
+# "nach DIN 5008 gesetzt" beschreibt die Vorlage, nicht eine geprüfte Konformität —
+# dieselbe Formulierung wie in README und Paketbeschreibung.
+nutzen:
+  ohne: "Frei gesetzt: jedes Mal ein anderes Blatt."
+  mit: "Aus Norm und Profil: jedes Mal dasselbe."
+
+# Ton: kurze Saetze, aktiv, konkret. Zahlen statt Adjektive ("105,0 mm" statt "praezise").
+# Keine Superlative, keine Ausrufezeichen, keine Emojis.

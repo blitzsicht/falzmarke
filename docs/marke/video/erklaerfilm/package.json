@@ -1,0 +1,24 @@
+{
+  "name": "falzmarke-erklaerfilm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Erklaerfilm zu falzmarke, 16:9 und 9:16. Wird lokal gerendert, nicht in CI.",
+  "scripts": {
+    "start": "remotion studio",
+    "quer": "remotion render src/index.tsx Querformat ../../../renders/erklaerfilm-16x9.mp4",
+    "hoch": "remotion render src/index.tsx Hochformat ../../../renders/erklaerfilm-9x16.mp4",
+    "bild-quer": "remotion still src/index.tsx Querformat ../../../renders/erklaerfilm-16x9.png --frame=800",
+    "bild-hoch": "remotion still src/index.tsx Hochformat ../../../renders/erklaerfilm-9x16.png --frame=800"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.300",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.300"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.4.0"
+  }
+}

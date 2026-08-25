@@ -30,6 +30,17 @@ auf 105,0 mm, endet der Lauf mit einem Fehler statt mit einem Brief, der nur ung
 
 ---
 
+## In Bewegung
+
+![Ein Terminal zeigt den Musterbrief als Markdown, danach den Lauf von falzmarke render: PDF und Vorschau werden geschrieben, anschließend läuft der Messbericht durch und endet mit der Zeile, die die eingehaltenen Maße zählt.](docs/renders/demo.gif)
+
+Aufgezeichnet aus der echten CLI mit [vhs](https://github.com/charmbracelet/vhs);
+das Drehbuch steht in [`docs/marke/video/readme.tape`](docs/marke/video/readme.tape).
+Ein Test hält den Mitschnitt gegen einen frischen Lauf, damit hier kein Terminal
+steht, das es so nie gab ([`tests/test_tape.py`](tests/test_tape.py)).
+
+---
+
 ## Was dabei herauskommt
 
 ![Briefkopf, Anschriftfeld, Informationsblock und Betreff](docs/assets/demo/hero.png)
@@ -136,7 +147,7 @@ auditiert — Sicherheitsrelevantes bitte nach [SECURITY.md](SECURITY.md), nicht
   dürfen nicht darüber hinauszeigen, Symlinks werden aufgelöst
   ([Gegenproben](tests/test_profilgrenze.py)).
 - **Typst läuft auf ein eigenes Wurzelverzeichnis begrenzt**, Systemschriften sind abgeschaltet.
-- **Alle Abhängigkeiten sind permissiv lizenziert** —
+- **Alle Abhängigkeiten des Programms sind permissiv lizenziert** —
   [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 - **Die CI-Aktionen hängen an vollständigen Commit-SHAs**, nicht an verschiebbaren Tags.
 
@@ -304,6 +315,11 @@ Gesetzt wird mit [Typst](https://typst.app) (Apache-2.0), geparst mit
 [pypdf](https://github.com/py-pdf/pypdf) (BSD-3). Schriften: Libertinus und Source Sans 3
 (beide OFL 1.1). Die vollständige Aufstellung samt der Begründung, warum PyMuPDF (AGPL-3.0)
 ersetzt wurde, steht in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+
+**Alle Abhängigkeiten des Programms sind permissiv lizenziert** — falzmarke lässt sich damit
+auch in geschlossene Systeme einbauen. Nicht permissiv ist allein
+[Remotion](https://www.remotion.dev), womit der Erklärfilm gerendert wird: am Programm ist es
+nicht beteiligt und wird nicht mitgeliefert.
 
 **DIN 5008** ist eine Norm des DIN Deutsches Institut für Normung e. V. falzmarke ist kein
 Produkt des DIN, steht in keiner Verbindung zum DIN und behauptet keine Zertifizierung. Wie die

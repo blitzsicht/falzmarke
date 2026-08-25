@@ -1,0 +1,81 @@
+name: Video
+
+# Zeichnet das README-GIF neu auf, wenn sich etwas aendert, das darin zu sehen
+# ist: das Tape selbst, der gezeigte Beispielbrief oder die CLI, deren Ausgabe
+# im Bild steht. Ein Demo-Bild altert sonst still — jemand aendert eine
+# Ausgabezeile, und im README laeuft monatelang ein Terminal, das es nie gab.
+#
+# Der Erklaerfilm wird hier NICHT gerendert. Er entsteht lokal, wie jedes andere
+# Video im Haus; dieser Lauf misst nur die eingecheckten Dateien.
+#
+# Alle Actions sind auf Commit-SHAs gepinnt, nicht auf Tags. Ein Tag laesst sich
+# verschieben; wer ihn kontrolliert, bekaeme hier Code in einen Job mit
+# `contents: write`, der auf main zurueckschreibt. Das wiegt bei
+# charmbracelet/vhs-action besonders schwer — sie ist die einzige Action hier,
+# die nicht von GitHub selbst kommt. Die Version steht als Kommentar daneben,
+# damit beim Aktualisieren sichtbar bleibt, was gepinnt ist.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/marke/video/readme.tape"
+      - "examples/brief-mahnung.md"
+      - "skill/falzmarke/**"
+      - ".github/workflows/video.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gif:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: falzmarke installieren
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+          falzmarke --version
+
+      - uses: charmbracelet/vhs-action@f6d7db07a432fcd3b06772628d36a57f96d95dcf  # v2.1.1
+        with:
+          path: docs/marke/video/readme.tape
+
+      - name: Ausgaben pruefen
+        run: |
+          set -e
+          for datei in docs/renders/demo.gif docs/renders/demo.mp4 docs/renders/demo.ascii; do
+            test -s "$datei" || { echo "FEHLER: $datei fehlt oder ist leer"; exit 1; }
+          done
+          # GitHub spielt groessere GIFs nicht mehr von allein ab.
+          groesse=$(stat -c%s docs/renders/demo.gif)
+          echo "demo.gif: $((groesse / 1024)) KB"
+          test "$groesse" -le 5242880 || { echo "FEHLER: GIF ueber 5 MB"; exit 1; }
+          mp4=$(stat -c%s docs/renders/demo.mp4)
+          echo "demo.mp4: $((mp4 / 1024)) KB"
+          test "$mp4" -le 10485760 || { echo "FEHLER: MP4 ueber 10 MB"; exit 1; }
+
+      - name: Mitschnitt gegen die echte CLI halten
+        run: |
+          pip install pytest
+          python -m pytest tests/test_tape.py -q
+
+      - name: Aufzeichnung zurueckschreiben
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/renders/demo.gif docs/renders/demo.mp4 docs/renders/demo.ascii
+          # [skip ci] ist Pflicht: ohne den Marker loest dieser Commit den Lauf
+          # erneut aus, und der Job zeichnet sich selbst im Kreis auf.
+          git diff --staged --quiet || git commit -m "GIF neu aufgezeichnet [skip ci]"
+          git push

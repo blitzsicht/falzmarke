@@ -11,6 +11,12 @@ briefe/
 !docs/renders/*.png
 !docs/assets/**/*.png
 
+# Die Videoausgaben gehoeren ins Repo: das README bindet demo.gif direkt ein,
+# und tests/test_tape.py prueft demo.ascii gegen einen echten CLI-Lauf. Sie
+# fallen unter keine Regel oben — der Hinweis steht hier, damit niemand spaeter
+# ein pauschales *.mp4 ergaenzt und das GIF im README still totlegt.
+#   docs/renders/demo.gif  demo.mp4  demo.ascii
+
 # Python
 __pycache__/
 *.py[cod]
@@ -23,3 +29,13 @@ bau/
 
 # macOS legt das in jedem Ordner an, den der Finder je gesehen hat.
 .DS_Store
+
+# Node liegt nur im Video-Ordner und gehoert nicht ins Repo.
+node_modules/
+
+# Der Film holt seine Schriften und Bilder aus dem Repo; public/ ist eine Kopie
+# davon und wird von  gebaut. Nicht einchecken — sonst lägen
+# 1,6 MB doppelt im Repo, und das Briefbild fiele als *.png sogar still unter
+# die Regel oben. Wer es committet haette, haette einen Ordner im Repo, aus dem
+# sich der Film trotzdem nicht bauen laesst.
+docs/marke/video/erklaerfilm/public/

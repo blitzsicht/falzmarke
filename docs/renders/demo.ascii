@@ -1,0 +1,686 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+$
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+$ cat examples/brief-mahnung.md
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+$ cat examples/brief-mahnung.md
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+$ cat examples/brief-mahnung.md
+---
+profil: example-grafik
+form: B
+empfaenger:
+  - Muster GmbH
+  - Frau Erika Muster
+  - Musterstraße 1
+  - 12345 Musterstadt
+datum: 2026-08-25
+betreff: Zahlungserinnerung zu Rechnung Nr. 2026-0815
+infoblock:
+  unser_zeichen: EM
+anrede: Sehr geehrte Frau Muster,
+---
+unsere Rechnung Nr. 2026-0815 vom 10. Juli 2026 über 2.380,00 Euro ist bis heute nicht beglichen.
+
+Wir bitten Sie, den Betrag bis zum **8. September 2026** auf das unten genannte Konto zu überweisen.
+
+Sollte sich Ihre Zahlung mit diesem Schreiben gekreuzt haben, betrachten Sie es bitte als gegenstandslos.
+$
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+$ cat examples/brief-mahnung.md
+---
+profil: example-grafik
+form: B
+empfaenger:
+  - Muster GmbH
+  - Frau Erika Muster
+  - Musterstraße 1
+  - 12345 Musterstadt
+datum: 2026-08-25
+betreff: Zahlungserinnerung zu Rechnung Nr. 2026-0815
+infoblock:
+  unser_zeichen: EM
+anrede: Sehr geehrte Frau Muster,
+---
+unsere Rechnung Nr. 2026-0815 vom 10. Juli 2026 über 2.380,00 Euro ist bis heute nicht beglichen.
+
+Wir bitten Sie, den Betrag bis zum **8. September 2026** auf das unten genannte Konto zu überweisen.
+
+Sollte sich Ihre Zahlung mit diesem Schreiben gekreuzt haben, betrachten Sie es bitte als gegenstandslos.
+$
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+$
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+$ falzmarke render examples/brief-mahnung.md --png --verbose
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+$ falzmarke render examples/brief-mahnung.md --png --verbose
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+$ falzmarke render examples/brief-mahnung.md --png --verbose
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+$ falzmarke render examples/brief-mahnung.md --png --verbose
+OK  PDF geschrieben: examples/brief-mahnung.pdf
+OK  Vorschau: examples/brief-mahnung.png
+OK    Seitenbreite: soll 210.00 ist 210.00 (tol ±0.1)
+OK    Seitenhöhe: soll 297.00 ist 297.00 (tol ±0.1)
+OK    Falzmarke 1, y: soll 105.00 ist 105.00 (tol ±0.3)
+OK    Falzmarke 1, im Heftrand: soll x-Ende ≤ 20.0 ist 7.50 (tol —)
+OK    Falzmarke 2, y: soll 210.00 ist 210.00 (tol ±0.3)
+OK    Falzmarke 2, im Heftrand: soll x-Ende ≤ 20.0 ist 7.50 (tol —)
+OK    Lochmarke, y: soll 148.50 ist 148.50 (tol ±0.3)
+OK    Lochmarke, im Heftrand: soll x-Ende ≤ 20.0 ist 9.00 (tol —)
+OK    Rücksendeangabe, y-Oberkante: soll 45.00–50.00 ist 46.26 (tol ±0.8)
+OK    Rücksendeangabe, x: soll 25.00 ist 25.00 (tol ±0.3)
+OK    Rücksendeangabe, Schriftgröße 7–8 pt: soll 7–8 pt ist 7.0 pt (tol —)
+OK    Anschrift, erste Zeile y: soll ≥ 62.7 ist 62.69 (tol -1.59)
+OK    Anschrift, letzte Zeile Unterkante: soll ≤ 90.0 ist 77.86 (tol 0)
+OK    Anschrift, x-links: soll 25.00 ist 25.00 (tol ±0.3)
+OK    Anschrift, Zeilenzahl: soll ≤ 6 ist 4 (tol —)
+OK    Infoblock, x-links: soll 125.00 ist 125.00 (tol ±0.5)
+OK    Infoblock, x-rechts: soll ≤ 200.0 ist 179.72 (tol —)
+OK    Infoblock, y-Oberkante: soll 50.00 ist 50.34 (tol ±0.8)
+OK    Betreff, Zeilenzahl: soll ≤ 2 ist 1 (tol —)
+OK    Betreff, y-Oberkante: soll 98.47 ist 98.45 (tol -1.74625/+0.6)
+OK    Betreff, x-links: soll 25.00 ist 25.00 (tol ±0.3)
+OK    Betreff ohne Leitwort: soll kein 'Betreff:' ist Zahlungserinnerung (tol —)
+OK    Betreff ohne Schlusspunkt: soll kein Punkt am Ende ist gserinnerung (tol —)
+OK    Abstand Anschrift → Betreff: soll 35.77 ist 35.77 (tol ±0.3)
+OK    Abstand Betreff → Anrede (2 Leerzeilen): soll 12.70 ist 12.70 (tol ±0.2)
+OK    Textblock, x-links: soll 25.00 ist 25.00 (tol ±0.3)
+OK    Textblock, x-rechts: soll ≤ 190.0 ist 186.92 (tol ±0,3)
+OK    Unterster Text, Abstand zur Blattkante: soll ≥ 8.0 ist 14.30 (tol —)
+────────────────────────────────────────────────────────────────────────────────
+$ falzmarke render examples/brief-mahnung.md --png --verbose
+OK  PDF geschrieben: examples/brief-mahnung.pdf
+OK  Vorschau: examples/brief-mahnung.png
+OK    Seitenbreite: soll 210.00 ist 210.00 (tol ±0.1)
+OK    Seitenhöhe: soll 297.00 ist 297.00 (tol ±0.1)
+OK    Falzmarke 1, y: soll 105.00 ist 105.00 (tol ±0.3)
+OK    Falzmarke 1, im Heftrand: soll x-Ende ≤ 20.0 ist 7.50 (tol —)
+OK    Falzmarke 2, y: soll 210.00 ist 210.00 (tol ±0.3)
+OK    Falzmarke 2, im Heftrand: soll x-Ende ≤ 20.0 ist 7.50 (tol —)
+OK    Lochmarke, y: soll 148.50 ist 148.50 (tol ±0.3)
+OK    Lochmarke, im Heftrand: soll x-Ende ≤ 20.0 ist 9.00 (tol —)
+OK    Rücksendeangabe, y-Oberkante: soll 45.00–50.00 ist 46.26 (tol ±0.8)
+OK    Rücksendeangabe, x: soll 25.00 ist 25.00 (tol ±0.3)
+OK    Rücksendeangabe, Schriftgröße 7–8 pt: soll 7–8 pt ist 7.0 pt (tol —)
+OK    Anschrift, erste Zeile y: soll ≥ 62.7 ist 62.69 (tol -1.59)
+OK    Anschrift, letzte Zeile Unterkante: soll ≤ 90.0 ist 77.86 (tol 0)
+OK    Anschrift, x-links: soll 25.00 ist 25.00 (tol ±0.3)
+OK    Anschrift, Zeilenzahl: soll ≤ 6 ist 4 (tol —)
+OK    Infoblock, x-links: soll 125.00 ist 125.00 (tol ±0.5)
+OK    Infoblock, x-rechts: soll ≤ 200.0 ist 179.72 (tol —)
+OK    Infoblock, y-Oberkante: soll 50.00 ist 50.34 (tol ±0.8)
+OK    Betreff, Zeilenzahl: soll ≤ 2 ist 1 (tol —)
+OK    Betreff, y-Oberkante: soll 98.47 ist 98.45 (tol -1.74625/+0.6)
+OK    Betreff, x-links: soll 25.00 ist 25.00 (tol ±0.3)
+OK    Betreff ohne Leitwort: soll kein 'Betreff:' ist Zahlungserinnerung (tol —)
+OK    Betreff ohne Schlusspunkt: soll kein Punkt am Ende ist gserinnerung (tol —)
+OK    Abstand Anschrift → Betreff: soll 35.77 ist 35.77 (tol ±0.3)
+OK    Abstand Betreff → Anrede (2 Leerzeilen): soll 12.70 ist 12.70 (tol ±0.2)
+OK    Textblock, x-links: soll 25.00 ist 25.00 (tol ±0.3)
+OK    Textblock, x-rechts: soll ≤ 190.0 ist 186.92 (tol ±0,3)
+OK    Unterster Text, Abstand zur Blattkante: soll ≥ 8.0 ist 14.30 (tol —)
+────────────────────────────────────────────────────────────────────────────────
