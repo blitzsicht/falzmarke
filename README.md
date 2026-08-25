@@ -103,7 +103,7 @@ Noch liegt das Paket **nicht auf PyPI** — deshalb die Adresse statt eines blo�
 Befehl steht, den es nicht gibt.
 
 Der Typst-Compiler kommt als Python-Wheel mit — **keine Systeminstallation**: kein LaTeX, kein
-wkhtmltopdf, keine Schriftinstallation. Alle Abhängigkeiten sind permissiv lizenziert.
+wkhtmltopdf, keine Schriftinstallation. Alle Abhängigkeiten des Programms sind permissiv lizenziert.
 
 Aus einem Clone heraus geht es auch ohne Installation:
 
@@ -317,7 +317,7 @@ Gesetzt wird mit [Typst](https://typst.app) (Apache-2.0), geparst mit
 [pypdf](https://github.com/py-pdf/pypdf) (BSD-3). Schriften: Libertinus und Source Sans 3
 (beide OFL 1.1).
 
-**Alle Abhängigkeiten sind permissiv lizenziert** — falzmarke lässt sich damit auch in
+**Alle Abhängigkeiten des Programms sind permissiv lizenziert** — falzmarke lässt sich damit auch in
 geschlossene Systeme einbauen. Die vollständige Aufstellung samt der Begründung, warum PyMuPDF
 (AGPL-3.0) ersetzt wurde, steht in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 

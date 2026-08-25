@@ -29,3 +29,13 @@ bau/
 
 # macOS legt das in jedem Ordner an, den der Finder je gesehen hat.
 .DS_Store
+
+# Node liegt nur im Video-Ordner und gehoert nicht ins Repo.
+node_modules/
+
+# Der Film holt seine Schriften und Bilder aus dem Repo; public/ ist eine Kopie
+# davon und wird von  gebaut. Nicht einchecken — sonst lägen
+# 1,6 MB doppelt im Repo, und das Briefbild fiele als *.png sogar still unter
+# die Regel oben. Wer es committet haette, haette einen Ordner im Repo, aus dem
+# sich der Film trotzdem nicht bauen laesst.
+docs/marke/video/erklaerfilm/public/

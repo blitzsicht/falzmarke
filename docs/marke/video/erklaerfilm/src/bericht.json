@@ -1,0 +1,45 @@
+{
+  "hinweis": "Erzeugt aus einem echten verify-Lauf — nicht von Hand aendern. Neu bauen: python3 scripts/bericht.py",
+  "brief": "brief-mahnung.md",
+  "ok": true,
+  "gesamt": 29,
+  "bestanden": 29,
+  "zeilen": [
+    {
+      "name": "Falzmarke 1, y",
+      "soll": "105.00",
+      "ist": "105.00",
+      "bestanden": true
+    },
+    {
+      "name": "Falzmarke 2, y",
+      "soll": "210.00",
+      "ist": "210.00",
+      "bestanden": true
+    },
+    {
+      "name": "Lochmarke, y",
+      "soll": "148.50",
+      "ist": "148.50",
+      "bestanden": true
+    },
+    {
+      "name": "Anschrift, x-links",
+      "soll": "25.00",
+      "ist": "25.00",
+      "bestanden": true
+    },
+    {
+      "name": "Infoblock, x-links",
+      "soll": "125.00",
+      "ist": "125.00",
+      "bestanden": true
+    },
+    {
+      "name": "Abstand Betreff → Anrede (2 Leerzeilen)",
+      "soll": "12.70",
+      "ist": "12.70",
+      "bestanden": true
+    }
+  ]
+}
