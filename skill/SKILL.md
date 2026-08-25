@@ -82,9 +82,22 @@ zeigen. `render` ruft die Prüfung selbst auf und endet mit Code 2, wenn ein Ma�
 
 ## Eigenes Profil anlegen
 
-`typst/profiles/example.yaml` kopieren nach `typst/profiles.local/<name>.yaml` und ausfüllen.
-`profiles.local/` wird nicht versioniert — echte Absenderdaten gehören nicht ins Repository.
-Alternativ ein eigenes Verzeichnis über `NORMBRIEF_PROFILES` oder `--profiles` angeben.
+```bash
+python3 scripts/normbrief.py init-profil meinefirma
+```
+
+Das legt eine ausgefüllte Vorlage unter `~/.config/normbrief/profiles/meinefirma.yaml` an.
+**Dieser Ort überlebt Aktualisierungen des Skills** — ein Profil innerhalb des Skill-Ordners tut
+das nicht: wird der Skill ersetzt, sind die Absender weg und keiner der alten Briefe lässt sich
+mehr setzen.
+
+Gesucht wird in dieser Reihenfolge:
+
+1. `--profiles VERZEICHNIS`
+2. `NORMBRIEF_PROFILES` (mehrere Pfade mit Doppelpunkt getrennt)
+3. `./profiles/` neben den Briefen — für Profile, die zu einem Vorgang gehören
+4. `~/.config/normbrief/profiles/` — die eigenen Absender
+5. die mitgelieferten Beispiele
 
 Achtung bei YAML: Eine Zeile mit Doppelpunkt braucht Anführungszeichen, sonst liest YAML sie als
 Feld statt als Text:

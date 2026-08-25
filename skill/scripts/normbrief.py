@@ -120,16 +120,47 @@ def formatiere_datum(wert, format_name: str) -> str:
 
 # ── Profile ─────────────────────────────────────────────────────────────────
 
+def benutzer_profilverzeichnis() -> Path:
+    """Der Ort, an dem eigene Profile ein Update überstehen.
+
+    Alles unterhalb der Installation ist dafür ungeeignet: Wer den Skill
+    aktualisiert — Zip neu hochladen, Verzeichnis ersetzen, `pip install -U` —
+    verliert dort seine Profile, und mit ihnen die Möglichkeit, alte Briefe
+    erneut zu setzen.
+    """
+    basis = os.environ.get("XDG_CONFIG_HOME")
+    wurzel = Path(basis).expanduser() if basis else Path.home() / ".config"
+    return wurzel / "normbrief" / "profiles"
+
+
 def profil_verzeichnisse(zusatz: Path | None = None) -> list[Path]:
+    """Suchorte in absteigendem Vorrang.
+
+    1. --profiles                     ausdrücklich genannt
+    2. NORMBRIEF_PROFILES             Umgebung, mehrere Pfade erlaubt
+    3. ./profiles/                    zum Vorgang gehörend, neben den Briefen
+    4. ~/.config/normbrief/profiles/  die eigenen Absender, updatefest
+    5. profiles.local/                alter Ort, nur noch als Übergang
+    6. mitgelieferte Beispiele
+    """
     pfade = []
     if zusatz:
         pfade.append(Path(zusatz).expanduser().resolve())
     aus_umgebung = os.environ.get("NORMBRIEF_PROFILES")
     if aus_umgebung:
         pfade.extend(Path(p).expanduser().resolve() for p in aus_umgebung.split(os.pathsep) if p)
+    pfade.append(Path.cwd() / "profiles")
+    pfade.append(benutzer_profilverzeichnis())
     pfade.append(TYPST_DIR / "profiles.local")
     pfade.append(TYPST_DIR / "profiles")
-    return [p for p in pfade if p.is_dir()]
+
+    gesehen, eindeutig = set(), []
+    for pfad in pfade:
+        aufgeloest = pfad.expanduser()
+        if aufgeloest.is_dir() and aufgeloest not in gesehen:
+            gesehen.add(aufgeloest)
+            eindeutig.append(aufgeloest)
+    return eindeutig
 
 
 def finde_profile(zusatz: Path | None = None) -> dict[str, Path]:
@@ -529,6 +560,33 @@ def befehl_init(args) -> int:
     return EXIT_OK
 
 
+def befehl_init_profil(args) -> int:
+    ziel_verzeichnis = (
+        Path(args.ziel).expanduser() if args.ziel else benutzer_profilverzeichnis()
+    )
+    ziel = ziel_verzeichnis / f"{args.name}.yaml"
+    if ziel.exists():
+        print(f"{ziel} gibt es schon — nichts überschrieben.", file=sys.stderr)
+        return EXIT_EINGABE
+
+    vorlage = (TYPST_DIR / "profiles" / "example.yaml").read_text(encoding="utf-8")
+    kopf = (
+        f"# Absenderprofil '{args.name}'\n"
+        "#\n"
+        "# Dieser Ort überlebt Aktualisierungen des Skills. Profile innerhalb der\n"
+        "# Installation tun das nicht.\n"
+        "#\n"
+        "# Die Werte unten stammen aus dem Beispiel und sind zu ersetzen.\n"
+        "# Zeilen mit Doppelpunkt gehören in Anführungszeichen.\n\n"
+    )
+    ziel_verzeichnis.mkdir(parents=True, exist_ok=True)
+    zeilen = [z for z in vorlage.splitlines() if not z.startswith("# ")]
+    ziel.write_text(kopf + "\n".join(zeilen).lstrip("\n") + "\n", encoding="utf-8")
+    print(f"OK  Profil angelegt: {ziel}")
+    print(f"    Jetzt ausfüllen, dann: normbrief.py render BRIEF.md  (profil: {args.name})")
+    return EXIT_OK
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="normbrief", description="Geschäftsbriefe nach DIN 5008 aus Markdown."
@@ -568,6 +626,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--empfaenger", help="Zeilen mit | getrennt")
     p.add_argument("--betreff")
     p.set_defaults(funktion=befehl_init)
+
+    p = unter.add_parser("init-profil", help="eigenes Absenderprofil anlegen")
+    p.add_argument("name", help="Name des Profils, wird zum Dateinamen")
+    p.add_argument("--ziel", help="Verzeichnis; ohne Angabe ~/.config/normbrief/profiles/")
+    p.set_defaults(funktion=befehl_init_profil)
 
     args = parser.parse_args(argv)
     try:

@@ -89,6 +89,7 @@ normbrief.py check   AUS.pdf --form B [--json]
 normbrief.py preview BRIEF.md [-o AUS.png] [--ppi 120]
 normbrief.py profiles
 normbrief.py init    ZIEL.md --profil NAME [--empfaenger "Zeile|Zeile"] [--betreff "..."]
+normbrief.py init-profil NAME [--ziel VERZEICHNIS]
 ```
 
 | Exit | Bedeutung |
@@ -101,9 +102,15 @@ normbrief.py init    ZIEL.md --profil NAME [--empfaenger "Zeile|Zeile"] [--betre
 ## Absender-Profile
 
 Ein Profil ist eine YAML-Datei mit Briefkopf, Fußzeile, Rücksendeangabe und Voreinstellungen.
-`skill/typst/profiles/example.yaml` zeigt alle Felder. Eigene Profile gehören nach
-`skill/typst/profiles.local/` (nicht versioniert), in ein Verzeichnis aus `NORMBRIEF_PROFILES`
-oder hinter `--profiles`.
+
+```bash
+normbrief.py init-profil meinefirma
+```
+
+legt eine ausgefüllte Vorlage unter `~/.config/normbrief/profiles/` an — **außerhalb der
+Installation**, damit sie ein Update übersteht. Gesucht wird in dieser Reihenfolge:
+`--profiles` → `NORMBRIEF_PROFILES` → `./profiles/` (zum Vorgang gehörend) →
+`~/.config/normbrief/profiles/` → mitgelieferte Beispiele.
 
 Wer den Briefkopf frei gestalten will, legt eine gleichnamige `.typ`-Datei daneben; für alles
 andere reicht YAML.

@@ -5,7 +5,7 @@ darunter.
 
 ```yaml
 ---
-profil: example                  # Pflicht. Dateiname (ohne .yaml) in profiles.local/ oder profiles/
+profil: example                  # Pflicht. Dateiname (ohne .yaml) aus ~/.config/normbrief/profiles/
 form: B                          # A oder B. Ohne Angabe gilt der Wert aus dem Profil
 norm: din5008                    # reserviert; derzeit nur din5008
 empfaenger:                      # Pflicht. 1 bis 6 Zeilen, keine Leerzeilen
@@ -69,6 +69,10 @@ und wird ebenfalls gemeldet.
 Der erste Absatz folgt auf die Anrede und beginnt deshalb klein.
 
 ## Profildatei
+
+Anlegen mit `normbrief.py init-profil <name>`. Die Datei landet unter
+`~/.config/normbrief/profiles/<name>.yaml` — außerhalb der Installation, damit sie
+Aktualisierungen übersteht.
 
 ```yaml
 absender:                    # Pflicht
