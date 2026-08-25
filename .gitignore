@@ -11,6 +11,12 @@ briefe/
 !docs/renders/*.png
 !docs/assets/**/*.png
 
+# Die Videoausgaben gehoeren ins Repo: das README bindet demo.gif direkt ein,
+# und tests/test_tape.py prueft demo.ascii gegen einen echten CLI-Lauf. Sie
+# fallen unter keine Regel oben — der Hinweis steht hier, damit niemand spaeter
+# ein pauschales *.mp4 ergaenzt und das GIF im README still totlegt.
+#   docs/renders/demo.gif  demo.mp4  demo.ascii
+
 # Python
 __pycache__/
 *.py[cod]

@@ -27,6 +27,17 @@ der nur ungefähr stimmt.
 
 ---
 
+## In Bewegung
+
+![Ein Terminal zeigt den Musterbrief als Markdown, danach den Lauf von falzmarke render: PDF und Vorschau werden geschrieben, anschließend läuft der Messbericht durch und endet mit der Zeile, die die eingehaltenen Maße zählt.](docs/renders/demo.gif)
+
+Aufgezeichnet aus der echten CLI mit [vhs](https://github.com/charmbracelet/vhs);
+das Drehbuch steht in [`docs/marke/video/readme.tape`](docs/marke/video/readme.tape).
+Ein Test hält den Mitschnitt gegen einen frischen Lauf, damit hier kein Terminal
+steht, das es so nie gab ([`tests/test_tape.py`](tests/test_tape.py)).
+
+---
+
 ## Was dabei herauskommt
 
 ![Briefkopf, Anschriftfeld, Informationsblock und Betreff](docs/assets/demo/hero.png)
