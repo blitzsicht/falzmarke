@@ -6,7 +6,10 @@ profiles.local/
 briefe/
 *.pdf
 *.png
+# Ausgenommen: alles, was die README zeigt. Ohne diese Zeilen sind die
+# Bildverweise im Repo tot, obwohl die Dateien lokal daliegen.
 !docs/renders/*.png
+!docs/assets/**/*.png
 
 # Python
 __pycache__/
