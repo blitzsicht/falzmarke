@@ -1,4 +1,4 @@
-"""normbrief-Markdown: der Dialekt, Fall für Fall.
+"""falzmarke-Markdown: der Dialekt, Fall für Fall.
 
 Die Tabelle unten ist die verbindliche Beschreibung dessen, was gesetzt wird
 und was abgelehnt wird. Sie ist die Prüfung und zugleich die Vorlage für
@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from normbrief.markdown import MarkdownFehler, konvertiere
-from normbrief.typografie import NBSP
+from falzmarke.markdown import MarkdownFehler, konvertiere
+from falzmarke.typografie import NBSP
 
 # (Eingabe, erwartet) — erwartet ist entweder ein Stück der Typst-Ausgabe
 # oder ein Stück der Fehlermeldung, je nach Marke.

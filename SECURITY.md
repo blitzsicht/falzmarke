@@ -7,7 +7,7 @@ Sicherheitsrelevante Funde bitte **nicht** als öffentliches Issue, sondern an
 
 ## Wo die Angriffsfläche liegt
 
-normbrief verarbeitet Dateien, die es nicht selbst geschrieben hat, und gibt sie an einen Compiler
+falzmarke verarbeitet Dateien, die es nicht selbst geschrieben hat, und gibt sie an einen Compiler
 weiter. Interessant sind deshalb vor allem:
 
 - **Frontmatter** wird mit `yaml.safe_load` gelesen — nie mit `load`.
@@ -21,5 +21,5 @@ weiter. Interessant sind deshalb vor allem:
 ## Was kein Sicherheitsfund ist
 
 - Ein Brief mit falscher Geometrie — das ist ein Fehler, bitte als Issue melden.
-- Zugangsdaten in einem eigenen Profil: Profile gehören nach `~/.config/normbrief/profiles/`
+- Zugangsdaten in einem eigenen Profil: Profile gehören nach `~/.config/falzmarke/profiles/`
   und nicht in ein öffentliches Repository. Der mitgelieferte Suchpfad trennt beides bewusst.

@@ -6,7 +6,7 @@ import datetime as dt
 
 import pytest
 
-from normbrief import cli as normbrief
+from falzmarke import cli as falzmarke
 from conftest import REPO
 
 PROFILE = REPO / "skill" / "typst" / "profiles"
@@ -19,7 +19,7 @@ def schreibe(tmp_path, kopf: str, body: str = "Text des Briefes.\n"):
 
 
 def rendere(tmp_path, kopf: str, body: str = "Text des Briefes.\n"):
-    return normbrief.rendere(
+    return falzmarke.rendere(
         schreibe(tmp_path, kopf, body), tmp_path / "aus.pdf", profil_verzeichnis=PROFILE
     )
 
@@ -44,7 +44,7 @@ def test_pflichtfeld_fehlt(tmp_path, feld):
     kopf = "\n".join(z for z in GUELTIG.splitlines() if not z.startswith(feld)) + "\n"
     if feld == "empfaenger":
         kopf = "\n".join(z for z in kopf.splitlines() if not z.startswith("  - ")) + "\n"
-    with pytest.raises(normbrief.Eingabefehler) as fehler:
+    with pytest.raises(falzmarke.Eingabefehler) as fehler:
         rendere(tmp_path, kopf)
     assert feld in str(fehler.value)
 
@@ -56,40 +56,40 @@ def test_anschrift_mit_sieben_zeilen(tmp_path):
         "  - 12345 Musterstadt\n",
         "  - 12345 Musterstadt\n" + "".join(f"  - Zeile {i}\n" for i in range(4)),
     )
-    with pytest.raises(normbrief.Eingabefehler) as fehler:
+    with pytest.raises(falzmarke.Eingabefehler) as fehler:
         rendere(tmp_path, kopf)
     assert "7 Zeilen" in str(fehler.value)
 
 
 def test_vier_vermerke_sind_zu_viel(tmp_path):
     kopf = GUELTIG + "vermerke: [Einschreiben, Eilt, Persönlich, Vertraulich]\n"
-    with pytest.raises(normbrief.Eingabefehler) as fehler:
+    with pytest.raises(falzmarke.Eingabefehler) as fehler:
         rendere(tmp_path, kopf)
     assert "Vermerkzone" in str(fehler.value)
 
 
 def test_anrede_ohne_komma(tmp_path):
     kopf = GUELTIG + "anrede: Sehr geehrte Damen und Herren\n"
-    with pytest.raises(normbrief.Eingabefehler) as fehler:
+    with pytest.raises(falzmarke.Eingabefehler) as fehler:
         rendere(tmp_path, kopf)
     assert "Komma" in str(fehler.value)
 
 
 def test_gruss_mit_komma(tmp_path):
     kopf = GUELTIG + "gruss: Mit freundlichen Grüßen,\n"
-    with pytest.raises(normbrief.Eingabefehler) as fehler:
+    with pytest.raises(falzmarke.Eingabefehler) as fehler:
         rendere(tmp_path, kopf)
     assert "ohne Komma" in str(fehler.value)
 
 
 def test_unbekannte_form(tmp_path):
-    with pytest.raises(normbrief.Eingabefehler):
+    with pytest.raises(falzmarke.Eingabefehler):
         rendere(tmp_path, GUELTIG + "form: C\n")
 
 
 def test_andere_norm_wird_abgelehnt(tmp_path):
     """Das Feld ist reserviert, damit CH und AT später additiv dazukommen."""
-    with pytest.raises(normbrief.Eingabefehler) as fehler:
+    with pytest.raises(falzmarke.Eingabefehler) as fehler:
         rendere(tmp_path, GUELTIG + "norm: sn010130\n")
     assert "din5008" in str(fehler.value)
 
@@ -104,16 +104,16 @@ def test_andere_norm_wird_abgelehnt(tmp_path):
     ],
 )
 def test_datumsformate(eingabe, format_name, erwartet):
-    assert normbrief.formatiere_datum(eingabe, format_name) == erwartet
+    assert falzmarke.formatiere_datum(eingabe, format_name) == erwartet
 
 
 def test_leerer_body(tmp_path):
-    with pytest.raises(normbrief.Eingabefehler) as fehler:
+    with pytest.raises(falzmarke.Eingabefehler) as fehler:
         rendere(tmp_path, GUELTIG, body="\n")
     assert "keinen Text" in str(fehler.value)
 
 
 def test_unbekanntes_profil(tmp_path):
-    with pytest.raises(normbrief.Eingabefehler) as fehler:
+    with pytest.raises(falzmarke.Eingabefehler) as fehler:
         rendere(tmp_path, GUELTIG.replace("profil: example", "profil: gibtsnicht"))
     assert "gibtsnicht" in str(fehler.value) and "example" in str(fehler.value)

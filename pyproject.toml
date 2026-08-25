@@ -1,5 +1,5 @@
 [project]
-name = "normbrief"
+name = "falzmarke"
 version = "0.2.0"
 description = "Geschäftsbriefe nach DIN 5008 aus Markdown — mit nachgemessener Geometrie"
 readme = "README.md"
@@ -16,14 +16,14 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/blitzsicht/normbrief"
-Issues = "https://github.com/blitzsicht/normbrief/issues"
+Homepage = "https://github.com/blitzsicht/falzmarke"
+Issues = "https://github.com/blitzsicht/falzmarke/issues"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "fonttools>=4"]
 
 [project.scripts]
-normbrief = "normbrief.cli:main"
+falzmarke = "falzmarke.cli:main"
 
 [build-system]
 requires = ["setuptools>=69"]
@@ -33,10 +33,10 @@ build-backend = "setuptools.build_meta"
 # ausgeliefert wird. Zwei Kopien wären zwei Fassungen.
 [tool.setuptools]
 package-dir = { "" = "skill" }
-packages = ["normbrief"]
+packages = ["falzmarke"]
 
 [tool.setuptools.package-data]
-normbrief = ["typst/**/*", "assets/**/*"]
+falzmarke = ["typst/**/*", "assets/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

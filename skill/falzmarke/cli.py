@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""normbrief — Geschäftsbriefe nach DIN 5008 aus Markdown.
+"""falzmarke — Geschäftsbriefe nach DIN 5008 aus Markdown.
 
-  normbrief.py render   BRIEF.md [-o AUS.pdf] [--png] [--no-pdfa] [--profiles DIR]
-  normbrief.py check    AUS.pdf --form B [--json]
-  normbrief.py preview  BRIEF.md [-o AUS.png] [--ppi 120]
-  normbrief.py profiles
-  normbrief.py init     ZIEL.md --profil NAME [--empfaenger "..."] [--betreff "..."]
+  falzmarke.py render   BRIEF.md [-o AUS.pdf] [--png] [--no-pdfa] [--profiles DIR]
+  falzmarke.py check    AUS.pdf --form B [--json]
+  falzmarke.py preview  BRIEF.md [-o AUS.png] [--ppi 120]
+  falzmarke.py profiles
+  falzmarke.py init     ZIEL.md --profil NAME [--empfaenger "..."] [--betreff "..."]
 
 Exit-Codes: 0 ok · 1 Eingabefehler · 2 Geometrie-Check gescheitert · 3 Umgebung
 """
@@ -23,9 +23,9 @@ import sys
 import tempfile
 from pathlib import Path
 
-from normbrief import __version__ as VERSION_PAKET
-from normbrief import lint as lint_modul
-from normbrief.markdown import MarkdownFehler, konvertiere
+from falzmarke import __version__ as VERSION_PAKET
+from falzmarke import lint as lint_modul
+from falzmarke.markdown import MarkdownFehler, konvertiere
 
 PAKET = Path(__file__).resolve().parent
 SKILL = PAKET.parent
@@ -140,7 +140,7 @@ def benutzer_profilverzeichnis() -> Path:
     """
     basis = os.environ.get("XDG_CONFIG_HOME")
     wurzel = Path(basis).expanduser() if basis else Path.home() / ".config"
-    return wurzel / "normbrief" / "profiles"
+    return wurzel / "falzmarke" / "profiles"
 
 
 def profil_verzeichnisse(zusatz: Path | None = None,
@@ -148,18 +148,18 @@ def profil_verzeichnisse(zusatz: Path | None = None,
     """Suchorte in absteigendem Vorrang.
 
     1. --profiles                       ausdrücklich genannt
-    2. NORMBRIEF_PROFILES               Umgebung, mehrere Pfade erlaubt
+    2. FALZMARKE_PROFILES               Umgebung, mehrere Pfade erlaubt
     3. neben dem Brief und dessen profiles/
     4. /mnt/user-data/uploads           was auf claude.ai hochgeladen wurde
     5. ./profiles/                      zum Vorgang gehörend
-    6. ~/.config/normbrief/profiles/    die eigenen Absender, updatefest
+    6. ~/.config/falzmarke/profiles/    die eigenen Absender, updatefest
     7. profiles.local/                  alter Ort, nur noch als Übergang
     8. mitgelieferte Beispiele
     """
     pfade = []
     if zusatz:
         pfade.append(Path(zusatz).expanduser().resolve())
-    aus_umgebung = os.environ.get("NORMBRIEF_PROFILES")
+    aus_umgebung = os.environ.get("FALZMARKE_PROFILES")
     if aus_umgebung:
         pfade.extend(Path(p).expanduser().resolve() for p in aus_umgebung.split(os.pathsep) if p)
     if brief_pfad is not None:
@@ -403,7 +403,7 @@ def _typst_modul():
 def baue_arbeitsverzeichnis(ziel: Path) -> None:
     """Typst darf nur innerhalb seiner Wurzel lesen — deshalb ein eigener Baum."""
     (ziel / "vendor").mkdir(parents=True, exist_ok=True)
-    shutil.copy2(TYPST_DIR / "normbrief.typ", ziel / "normbrief.typ")
+    shutil.copy2(TYPST_DIR / "falzmarke.typ", ziel / "falzmarke.typ")
     shutil.copy2(
         TYPST_DIR / "vendor" / "letter-pro-v3.0.0.typ", ziel / "vendor" / "letter-pro-v3.0.0.typ"
     )
@@ -445,7 +445,7 @@ def rendere(
     kopf, body_md, versatz = lies_brief(brief_pfad)
     profil, profil_pfad = lade_profil(kopf.get("profil", ""), profil_verzeichnis, brief_pfad)
 
-    with tempfile.TemporaryDirectory(prefix="normbrief-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="falzmarke-") as tmp:
         arbeit = Path(tmp)
         baue_arbeitsverzeichnis(arbeit)
         daten = baue_daten(kopf, profil, profil_pfad, arbeit)
@@ -479,7 +479,7 @@ def rendere(
 
         haupt = arbeit / "main.typ"
         haupt.write_text(
-            '#import "normbrief.typ": brief\n'
+            '#import "falzmarke.typ": brief\n'
             + kopf_import
             + "#let profil = json(bytes(sys.inputs.profil))\n"
             "#let daten = json(bytes(sys.inputs.daten))\n"
@@ -584,11 +584,11 @@ def schreibe_herkunft(pdf: Path, quelle: Path, profil: str, form: str) -> None:
     leser = PdfReader(str(pdf))
     schreiber = PdfWriter(clone_from=leser)
     schreiber.add_metadata({
-        "/Producer": f"normbrief {VERSION}",
-        "/normbrief_Version": VERSION,
-        "/normbrief_Profil": profil,
-        "/normbrief_Form": form,
-        "/normbrief_Quelle": f"sha256:{hash_quelle}",
+        "/Producer": f"falzmarke {VERSION}",
+        "/falzmarke_Version": VERSION,
+        "/falzmarke_Profil": profil,
+        "/falzmarke_Form": form,
+        "/falzmarke_Quelle": f"sha256:{hash_quelle}",
     })
     ziel = pdf.with_suffix(".herkunft.pdf")
     with ziel.open("wb") as datei:
@@ -608,7 +608,7 @@ def befehl_lint(args) -> int:
 
 
 def befehl_render(args) -> int:
-    from normbrief import geometrie
+    from falzmarke import geometrie
 
     # Erst prüfen, dann setzen: Ein Eingabefehler soll Exit 1 ergeben und keinen
     # Render kosten — und nicht als Geometriebefund erscheinen.
@@ -651,7 +651,7 @@ def befehl_render(args) -> int:
 
 
 def befehl_verify(args) -> int:
-    from normbrief import geometrie
+    from falzmarke import geometrie
 
     pdf = Path(args.pdf)
     if not pdf.is_file():
@@ -759,7 +759,7 @@ def befehl_init_profil(args) -> int:
     zeilen = [z for z in vorlage.splitlines() if not z.startswith("# ")]
     ziel.write_text(kopf + "\n".join(zeilen).lstrip("\n") + "\n", encoding="utf-8")
     print(f"OK  Profil angelegt: {ziel}")
-    print(f"    Jetzt ausfüllen, dann: normbrief.py render BRIEF.md  (profil: {args.name})")
+    print(f"    Jetzt ausfüllen, dann: falzmarke.py render BRIEF.md  (profil: {args.name})")
     return EXIT_OK
 
 
@@ -782,12 +782,12 @@ def befehl_pack(args) -> int:
             return EXIT_EINGABE
         gewaehlt[name] = profile[name]
 
-    ziel = Path(args.output or f"normbrief-{'-'.join(args.profil)}.skill")
-    with tempfile.TemporaryDirectory(prefix="normbrief-pack-") as tmp:
-        bau = Path(tmp) / "normbrief"
+    ziel = Path(args.output or f"falzmarke-{'-'.join(args.profil)}.skill")
+    with tempfile.TemporaryDirectory(prefix="falzmarke-pack-") as tmp:
+        bau = Path(tmp) / "falzmarke"
         shutil.copytree(SKILL, bau, ignore=shutil.ignore_patterns(
             "profiles.local", "__pycache__", "*.pyc", "*.egg-info"))
-        ziel_profile = bau / "normbrief" / "typst" / "profiles"
+        ziel_profile = bau / "falzmarke" / "typst" / "profiles"
 
         for name, quelle in gewaehlt.items():
             shutil.copy2(quelle, ziel_profile / f"{name}.yaml")
@@ -839,9 +839,9 @@ def _ausgabe_auf_utf8() -> None:
 def main(argv: list[str] | None = None) -> int:
     _ausgabe_auf_utf8()
     parser = argparse.ArgumentParser(
-        prog="normbrief", description="Geschäftsbriefe nach DIN 5008 aus Markdown."
+        prog="falzmarke", description="Geschäftsbriefe nach DIN 5008 aus Markdown."
     )
-    parser.add_argument("--version", action="version", version=f"normbrief {VERSION}")
+    parser.add_argument("--version", action="version", version=f"falzmarke {VERSION}")
     unter = parser.add_subparsers(dest="befehl", required=True)
 
     p = unter.add_parser("render", help="Brief nach PDF setzen und nachmessen")
@@ -902,7 +902,7 @@ def main(argv: list[str] | None = None) -> int:
 
     p = unter.add_parser("init-profil", help="eigenes Absenderprofil anlegen")
     p.add_argument("name", help="Name des Profils, wird zum Dateinamen")
-    p.add_argument("--ziel", help="Verzeichnis; ohne Angabe ~/.config/normbrief/profiles/")
+    p.add_argument("--ziel", help="Verzeichnis; ohne Angabe ~/.config/falzmarke/profiles/")
     p.set_defaults(funktion=befehl_init_profil)
 
     args = parser.parse_args(argv)

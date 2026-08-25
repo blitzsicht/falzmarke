@@ -15,11 +15,11 @@ import zipfile
 import pytest
 import yaml
 
-from normbrief import cli as normbrief
+from falzmarke import cli as falzmarke
 from conftest import REPO, SKILL
 
-CLI = SKILL / "scripts" / "normbrief.py"
-PROFILE = SKILL / "normbrief" / "typst" / "profiles"
+CLI = SKILL / "scripts" / "falzmarke.py"
+PROFILE = SKILL / "falzmarke" / "typst" / "profiles"
 
 BRIEF = """---
 profil: {profil}
@@ -50,7 +50,7 @@ def test_profil_neben_dem_brief(tmp_path):
     shutil.copy(PROFILE / "example.yaml", tmp_path / "hier.yaml")
     brief = tmp_path / "b.md"
     brief.write_text(BRIEF.format(profil="hier"), encoding="utf-8")
-    pdf, _ = normbrief.rendere(brief, tmp_path / "b.pdf")
+    pdf, _ = falzmarke.rendere(brief, tmp_path / "b.pdf")
     assert pdf.is_file()
 
 
@@ -60,7 +60,7 @@ def test_profil_als_pfad(tmp_path):
     shutil.copy(PROFILE / "example.yaml", ziel / "firma.yaml")
     brief = tmp_path / "b.md"
     brief.write_text(BRIEF.format(profil="./unterordner/firma.yaml"), encoding="utf-8")
-    pdf, _ = normbrief.rendere(brief, tmp_path / "b.pdf")
+    pdf, _ = falzmarke.rendere(brief, tmp_path / "b.pdf")
     assert pdf.is_file()
 
 
@@ -77,15 +77,15 @@ def test_profil_im_frontmatter_eingebettet(tmp_path):
         "---\nText des Briefes.\n",
         encoding="utf-8",
     )
-    pdf, _ = normbrief.rendere(brief, tmp_path / "b.pdf")
+    pdf, _ = falzmarke.rendere(brief, tmp_path / "b.pdf")
     assert pdf.is_file()
 
 
 def test_unbekanntes_profil_nennt_die_suchorte(tmp_path):
     brief = tmp_path / "b.md"
     brief.write_text(BRIEF.format(profil="gibtsnicht"), encoding="utf-8")
-    with pytest.raises(normbrief.Eingabefehler) as fehler:
-        normbrief.rendere(brief, tmp_path / "b.pdf")
+    with pytest.raises(falzmarke.Eingabefehler) as fehler:
+        falzmarke.rendere(brief, tmp_path / "b.pdf")
     assert "gibtsnicht" in str(fehler.value) and "Gesucht in" in str(fehler.value)
 
 
@@ -97,7 +97,7 @@ def test_eigener_briefkopf_wird_gesetzt(tmp_path, eigenes_profil):
 
     brief = tmp_path / "b.md"
     brief.write_text(BRIEF.format(profil="meins"), encoding="utf-8")
-    pdf, _ = normbrief.rendere(brief, tmp_path / "b.pdf", profil_verzeichnis=eigenes_profil)
+    pdf, _ = falzmarke.rendere(brief, tmp_path / "b.pdf", profil_verzeichnis=eigenes_profil)
 
     with pdfplumber.open(str(pdf)) as dokument:
         seite = dokument.pages[0]
@@ -111,11 +111,11 @@ def test_eigener_briefkopf_wird_gesetzt(tmp_path, eigenes_profil):
 def test_eigener_briefkopf_verschiebt_das_anschriftfeld_nicht(tmp_path, eigenes_profil):
     """letter-pro erzwingt die Kopfhöhe — ein eigener Kopf darf die Zonen nicht
     verrücken. Sonst wäre der Hook ein Weg, die Norm zu verlassen."""
-    from normbrief import geometrie
+    from falzmarke import geometrie
 
     brief = tmp_path / "b.md"
     brief.write_text(BRIEF.format(profil="meins"), encoding="utf-8")
-    pdf, form = normbrief.rendere(brief, tmp_path / "b.pdf", profil_verzeichnis=eigenes_profil)
+    pdf, form = falzmarke.rendere(brief, tmp_path / "b.pdf", profil_verzeichnis=eigenes_profil)
     bericht = geometrie.pruefe(pdf, form)
     assert bericht.ok, bericht.als_text(ausfuehrlich=True)
 
@@ -127,8 +127,8 @@ def test_briefkopf_typ_ausserhalb_des_profilordners(tmp_path, eigenes_profil):
         yaml.safe_dump(daten, allow_unicode=True), encoding="utf-8")
     brief = tmp_path / "b.md"
     brief.write_text(BRIEF.format(profil="meins"), encoding="utf-8")
-    with pytest.raises(normbrief.Eingabefehler):
-        normbrief.rendere(brief, tmp_path / "b.pdf", profil_verzeichnis=eigenes_profil)
+    with pytest.raises(falzmarke.Eingabefehler):
+        falzmarke.rendere(brief, tmp_path / "b.pdf", profil_verzeichnis=eigenes_profil)
 
 
 # ── pack ────────────────────────────────────────────────────────────────────
@@ -140,15 +140,15 @@ def test_pack_backt_profil_und_beilagen_ein(tmp_path, eigenes_profil):
          "--profiles", str(eigenes_profil), "-o", str(ziel)],
         capture_output=True, text=True, encoding="utf-8",
     )
-    assert ergebnis.returncode == normbrief.EXIT_OK, ergebnis.stderr
+    assert ergebnis.returncode == falzmarke.EXIT_OK, ergebnis.stderr
     assert "Absenderdaten" in ergebnis.stdout, "die Warnung muss auffallen"
 
     with zipfile.ZipFile(ziel) as archiv:
         namen = archiv.namelist()
-    assert "normbrief/SKILL.md" in namen, "claude.ai erwartet SKILL.md an der Wurzel"
+    assert "falzmarke/SKILL.md" in namen, "claude.ai erwartet SKILL.md an der Wurzel"
     # Im Zip liegt der Skill-Ordner, darin das gleichnamige Paket.
-    assert "normbrief/normbrief/typst/profiles/meins.yaml" in namen
-    assert "normbrief/normbrief/typst/profiles/meinkopf.typ" in namen, "die Beilage fehlt"
+    assert "falzmarke/falzmarke/typst/profiles/meins.yaml" in namen
+    assert "falzmarke/falzmarke/typst/profiles/meinkopf.typ" in namen, "die Beilage fehlt"
 
 
 def test_aus_dem_gepackten_skill_laesst_sich_rendern(tmp_path, eigenes_profil):
@@ -166,7 +166,7 @@ def test_aus_dem_gepackten_skill_laesst_sich_rendern(tmp_path, eigenes_profil):
     brief = entpackt / "b.md"
     brief.write_text(BRIEF.format(profil="meins"), encoding="utf-8")
     ergebnis = subprocess.run(
-        [sys.executable, str(entpackt / "normbrief" / "scripts" / "normbrief.py"),
+        [sys.executable, str(entpackt / "falzmarke" / "scripts" / "falzmarke.py"),
          "render", str(brief), "-o", str(entpackt / "b.pdf")],
         capture_output=True, text=True, encoding="utf-8",
         # Die vorhandene Umgebung übernehmen und nur die Profilorte umbiegen:
@@ -175,9 +175,9 @@ def test_aus_dem_gepackten_skill_laesst_sich_rendern(tmp_path, eigenes_profil):
              "XDG_CONFIG_HOME": str(tmp_path / "leer"),
              "HOME": str(tmp_path),
              "USERPROFILE": str(tmp_path),
-             "NORMBRIEF_PROFILES": ""},
+             "FALZMARKE_PROFILES": ""},
     )
-    assert ergebnis.returncode == normbrief.EXIT_OK, ergebnis.stdout + ergebnis.stderr
+    assert ergebnis.returncode == falzmarke.EXIT_OK, ergebnis.stdout + ergebnis.stderr
     assert (entpackt / "b.pdf").is_file()
 
 
@@ -186,5 +186,5 @@ def test_pack_meldet_unbekanntes_profil(tmp_path):
         [sys.executable, str(CLI), "pack", "--profil", "gibtsnicht", "-o", str(tmp_path / "x.skill")],
         capture_output=True, text=True, encoding="utf-8",
     )
-    assert ergebnis.returncode == normbrief.EXIT_EINGABE
+    assert ergebnis.returncode == falzmarke.EXIT_EINGABE
     assert "gibtsnicht" in ergebnis.stderr

@@ -12,7 +12,7 @@ import re
 
 from conftest import SKILL
 
-VENDOR = SKILL / "normbrief" / "typst" / "vendor"
+VENDOR = SKILL / "falzmarke" / "typst" / "vendor"
 DATEI = VENDOR / "letter-pro-v3.0.0.typ"
 ERWARTET = "0a66de073f0c1e697d23d4bc66b3364ae04026460cccc7af50fba00c4dac3181"
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prüft die Laufzeitabhängigkeiten von normbrief und installiert sie bei Bedarf.
+"""Prüft die Laufzeitabhängigkeiten von falzmarke und installiert sie bei Bedarf.
 
 Exit 0: alles vorhanden (oder erfolgreich installiert)
 Exit 1: Installation nicht möglich — die Meldung nennt den Grund
@@ -16,7 +16,7 @@ from pathlib import Path
 # Modulname -> pip-Requirement. Alle Abhängigkeiten tragen eine permissive
 # Lizenz (MIT/BSD/Apache); siehe THIRD_PARTY_LICENSES.md. Das ist kein Zufall:
 # PyMuPDF wäre technisch geeignet, ist aber AGPL-3.0 und hätte jede Firma, die
-# normbrief einbaut, in die AGPL gezwungen.
+# falzmarke einbaut, in die AGPL gezwungen.
 DEPS = {
     "typst": "typst>=0.15,<0.16",
     "yaml": "pyyaml>=6",
@@ -52,7 +52,7 @@ def main() -> int:
     if not installiere(offen):
         print(
             "FEHLER  Installation fehlgeschlagen.\n"
-            "        normbrief braucht Netzwerkzugriff für den ersten Lauf "
+            "        falzmarke braucht Netzwerkzugriff für den ersten Lauf "
             f"({', '.join(offen)}).\n"
             "        Ohne diese Pakete gibt es bewusst keinen Ersatz-Renderer — "
             "ein zweiter Renderer würde ein anderes Layout erzeugen.",

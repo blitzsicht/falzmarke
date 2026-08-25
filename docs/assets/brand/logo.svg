@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 110" width="460" height="110" role="img" aria-label="normbrief">
-  <title>normbrief</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 110" width="460" height="110" role="img" aria-label="falzmarke">
+  <title>falzmarke</title>
   <!-- Angedeutetes A4-Blatt mit den Marken, die das Werkzeug prueft:
        zwei Falzmarken und eine Lochmarke im Heftrand. Die Verhaeltnisse
        entsprechen Form B: Falz bei 105 und 210 mm, Lochung bei 148,5 mm. -->
@@ -27,6 +27,6 @@
       <path d="M6 12.4 L10.3 16.6 L18.2 7.8" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
     </g>
   </g>
-  <text x="106" y="62" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="42" font-weight="600" letter-spacing="-0.8" fill="#1D1E3B">normbrief</text>
+  <text x="106" y="62" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="42" font-weight="600" letter-spacing="-0.8" fill="#1D1E3B">falzmarke</text>
   <text x="108" y="84" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" letter-spacing="0.2" fill="#3D4463" opacity="0.95">DIN 5008 aus Markdown · gerendert und nachgemessen</text>
 </svg>

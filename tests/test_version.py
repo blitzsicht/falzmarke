@@ -36,10 +36,10 @@ def test_paket_und_pyproject_nennen_dieselbe_version():
     """Zwei Quellen, ein Wert. Beim Wheel-Bau fiel auf, dass sie
     auseinanderlaufen können, ohne dass irgendetwas rot wird: pyproject stand
     auf 0.1.2, das Paket meldete 0.2.0."""
-    from normbrief import __version__
+    from falzmarke import __version__
 
     assert __version__ == version_aus_pyproject(), (
-        f"normbrief/__init__.py sagt {__version__}, pyproject.toml "
+        f"falzmarke/__init__.py sagt {__version__}, pyproject.toml "
         f"{version_aus_pyproject()}"
     )
 

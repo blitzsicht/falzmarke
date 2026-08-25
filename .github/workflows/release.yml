@@ -16,12 +16,12 @@ jobs:
         run: |
           # claude.ai erwartet den Skill-Ordner mit SKILL.md an der Wurzel des Zips.
           mkdir -p paket
-          cp -r skill paket/normbrief
-          rm -rf paket/normbrief/typst/profiles.local
-          cd paket && zip -rq ../normbrief.skill normbrief
-          cd .. && unzip -l normbrief.skill | head -5
+          cp -r skill paket/falzmarke
+          rm -rf paket/falzmarke/typst/profiles.local
+          cd paket && zip -rq ../falzmarke.skill falzmarke
+          cd .. && unzip -l falzmarke.skill | head -5
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: normbrief.skill
+          files: falzmarke.skill
           generate_release_notes: true

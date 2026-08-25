@@ -13,11 +13,11 @@ import time
 
 import pytest
 
-from normbrief import cli as normbrief
+from falzmarke import cli as falzmarke
 from conftest import BEISPIELE, REPO, SKILL
 
-CLI = SKILL / "scripts" / "normbrief.py"
-PROFILE = SKILL / "normbrief" / "typst" / "profiles"
+CLI = SKILL / "scripts" / "falzmarke.py"
+PROFILE = SKILL / "falzmarke" / "typst" / "profiles"
 
 KOPF = """profil: example
 empfaenger: [Muster GmbH, Musterstraße 1, 12345 Musterstadt]
@@ -34,7 +34,7 @@ def schreibe(tmp_path, kopf: str = KOPF, body: str = "Text des Briefes.\n"):
 
 
 def linte(tmp_path, kopf: str = KOPF, body: str = "Text des Briefes.\n"):
-    return normbrief.linte(schreibe(tmp_path, kopf, body), profil_verzeichnis=PROFILE)
+    return falzmarke.linte(schreibe(tmp_path, kopf, body), profil_verzeichnis=PROFILE)
 
 
 def regeln(bericht) -> set[str]:
@@ -49,7 +49,7 @@ def test_gueltiger_brief_ist_sauber(tmp_path):
 
 @pytest.mark.parametrize("name", [p.stem for p in BEISPIELE])
 def test_beispiele_sind_sauber(name):
-    bericht = normbrief.linte(REPO / "examples" / f"{name}.md", profil_verzeichnis=PROFILE)
+    bericht = falzmarke.linte(REPO / "examples" / f"{name}.md", profil_verzeichnis=PROFILE)
     assert bericht.ok, bericht.als_text(name)
 
 
@@ -73,7 +73,7 @@ def test_unmoegliches_datum_ergibt_keinen_traceback(tmp_path):
     ergebnis = subprocess.run(
         [sys.executable, str(CLI), "lint", str(brief)], capture_output=True, text=True, encoding="utf-8"
     )
-    assert ergebnis.returncode == normbrief.EXIT_EINGABE
+    assert ergebnis.returncode == falzmarke.EXIT_EINGABE
     assert "Traceback" not in ergebnis.stderr
     assert "2026-08-25" in ergebnis.stderr
 
@@ -185,7 +185,7 @@ def test_render_bricht_vor_dem_setzen_ab(tmp_path):
         [sys.executable, str(CLI), "render", str(brief), "-o", str(ziel)],
         capture_output=True, text=True, encoding="utf-8",
     )
-    assert ergebnis.returncode == normbrief.EXIT_EINGABE
+    assert ergebnis.returncode == falzmarke.EXIT_EINGABE
     assert not ziel.exists()
     assert "Maße" not in ergebnis.stderr, "das ist kein Geometriebefund"
 
@@ -205,6 +205,6 @@ def test_lint_ist_schnell():
     """Ohne Typst — die Grenze ist großzügig, sie soll nur Ausreißer fangen."""
     quelle = REPO / "examples" / "brief-mehrseitig.md"
     start = time.perf_counter()
-    normbrief.linte(quelle, profil_verzeichnis=PROFILE)
+    falzmarke.linte(quelle, profil_verzeichnis=PROFILE)
     dauer = time.perf_counter() - start
     assert dauer < 0.5, f"lint brauchte {dauer*1000:.0f} ms"

@@ -31,7 +31,7 @@ jobs:
           # ein Import unbemerkt zurückkehren und die Lizenzlage der ganzen
           # Auslieferung ändern, ohne dass ein Test rot wird.
           if pip show pymupdf >/dev/null 2>&1; then
-            echo "PyMuPDF ist installiert — es darf keine Abhängigkeit von normbrief sein."
+            echo "PyMuPDF ist installiert — es darf keine Abhängigkeit von falzmarke sein."
             exit 1
           fi
           if grep -rn "pymupdf\|import fitz" --include="*.py" --include="*.txt" --include="*.toml" .; then
@@ -50,8 +50,8 @@ jobs:
           mkdir -p docs/renders bau
           for datei in examples/*.md; do
             name=$(basename "$datei" .md)
-            python skill/scripts/normbrief.py render "$datei" -o "bau/$name.pdf"
-            python skill/scripts/normbrief.py preview "$datei" -o "docs/renders/$name.png" --ppi 110
+            python skill/scripts/falzmarke.py render "$datei" -o "bau/$name.pdf"
+            python skill/scripts/falzmarke.py preview "$datei" -o "docs/renders/$name.png" --ppi 110
           done
 
       - uses: actions/upload-artifact@v4
@@ -79,12 +79,12 @@ jobs:
         run: |
           # Der Beweis, dass die README nicht etwas verspricht, was es nicht gibt.
           mkdir -p /tmp/arbeit && cd /tmp/arbeit
-          /tmp/frisch/bin/normbrief --version
-          /tmp/frisch/bin/normbrief init brief.md --profil example --betreff "Probe"
+          /tmp/frisch/bin/falzmarke --version
+          /tmp/frisch/bin/falzmarke init brief.md --profil example --betreff "Probe"
           printf 'dieser Brief entstand ohne Clone.\n' >> brief.md
-          /tmp/frisch/bin/normbrief lint brief.md
-          /tmp/frisch/bin/normbrief render brief.md --png
-          /tmp/frisch/bin/normbrief verify brief.pdf
+          /tmp/frisch/bin/falzmarke lint brief.md
+          /tmp/frisch/bin/falzmarke render brief.md --png
+          /tmp/frisch/bin/falzmarke verify brief.pdf
           test -f brief.pdf && test -f brief.png
 
   renders-aktualisieren:

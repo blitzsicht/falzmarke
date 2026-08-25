@@ -20,7 +20,7 @@ body:
     attributes:
       label: Ausgabe von check
       description: |
-        `python3 skill/scripts/normbrief.py check DEIN.pdf --form B`
+        `python3 skill/scripts/falzmarke.py check DEIN.pdf --form B`
         Bei einem Eingabefehler stattdessen die vollständige Fehlermeldung.
       render: text
   - type: textarea

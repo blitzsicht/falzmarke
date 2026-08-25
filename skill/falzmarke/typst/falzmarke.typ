@@ -1,11 +1,11 @@
-// normbrief — DIN-5008-Wrapper um letter-pro v3.0.0
+// falzmarke — DIN-5008-Wrapper um letter-pro v3.0.0
 //
 // Diese Datei setzt das Layout. Alle Werte stammen aus DIN 5008:2020;
 // die Fundstellen stehen in skill/references/din5008.md.
 //
-// Aufgerufen wird sie aus einer von normbrief.py erzeugten main.typ:
+// Aufgerufen wird sie aus einer von falzmarke.py erzeugten main.typ:
 //
-//   #import "normbrief.typ": brief
+//   #import "falzmarke.typ": brief
 //   #show: brief.with(profil: (..), daten: (..))
 //   <Body als Typst-Markup>
 

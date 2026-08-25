@@ -3,13 +3,13 @@
 
 Gemessen wird mit pdfplumber (MIT) und pypdf (BSD-3). Die frühere Messung lief
 über PyMuPDF — das ist AGPL-3.0 oder kommerziell und hätte jede Firma, die
-normbrief einbaut, in die AGPL gezwungen. Der Wechsel ist außerdem genauer:
+falzmarke einbaut, in die AGPL gezwungen. Der Wechsel ist außerdem genauer:
 pdfplumber liefert die Zeilenoberkante statt der Ascender-Box und trifft die
 Sollwerte auf 0,01 mm (Anschrift 62,69 bei Soll 62,70; Betreff 98,45 bei
 98,46), wo PyMuPDF um 0,5 mm danebenlag.
 
 Die Sollwerte stehen ausschließlich hier und in references/din5008.md.
-Sowohl `normbrief.py check` als auch die Testsuite lesen sie von hier —
+Sowohl `falzmarke.py check` als auch die Testsuite lesen sie von hier —
 ein Layoutfehler kann sich damit nicht in zwei Quellen unterschiedlich
 niederschlagen.
 

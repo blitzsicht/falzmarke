@@ -2,13 +2,13 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/logo-dark.svg">
-  <img src="docs/assets/brand/logo.svg" alt="normbrief" width="440">
+  <img src="docs/assets/brand/logo.svg" alt="falzmarke" width="440">
 </picture>
 
 <p><em>German business letters per DIN 5008 — written in Markdown, rendered to PDF/A, and geometrically verified.</em></p>
 
-[![CI](https://github.com/blitzsicht/normbrief/actions/workflows/ci.yml/badge.svg)](https://github.com/blitzsicht/normbrief/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/blitzsicht/normbrief)](https://github.com/blitzsicht/normbrief/releases/latest)
+[![CI](https://github.com/blitzsicht/falzmarke/actions/workflows/ci.yml/badge.svg)](https://github.com/blitzsicht/falzmarke/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/blitzsicht/falzmarke)](https://github.com/blitzsicht/falzmarke/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB)](pyproject.toml)
 [![DIN 5008](https://img.shields.io/badge/DIN_5008-2020-245A73)](skill/references/din5008.md)
@@ -17,7 +17,7 @@
 
 ---
 
-Schreibe den Inhalt als Markdown mit YAML-Frontmatter. normbrief macht daraus einen Geschäftsbrief
+Schreibe den Inhalt als Markdown mit YAML-Frontmatter. falzmarke macht daraus einen Geschäftsbrief
 nach **DIN 5008:2020** als **PDF/A-2b** — mit Anschriftfeld für Fensterumschläge,
 Informationsblock, Falz- und Lochmarken sowie Briefkopf und Fußzeile aus einem Absenderprofil.
 Anschließend wird **das fertige PDF nachgemessen**: Sitzt die Falzmarke nicht auf 105,0 mm oder
@@ -26,7 +26,7 @@ der nur ungefähr stimmt.
 
 <div align="center">
 
-**[⬇ Skill herunterladen](https://github.com/blitzsicht/normbrief/releases/latest/download/normbrief.skill)** · **[Schnellstart](#schnellstart)** · **[Beispiele](#beispiele)**
+**[⬇ Skill herunterladen](https://github.com/blitzsicht/falzmarke/releases/latest/download/falzmarke.skill)** · **[Schnellstart](#schnellstart)** · **[Beispiele](#beispiele)**
 
 </div>
 
@@ -45,7 +45,7 @@ OK    Betreff, y-Oberkante: soll 98.47 ist 97.91 (tol -1.75/+0.6)
 OK    Abstand Betreff → Anrede (2 Leerzeilen): soll 12.70 ist 12.70 (tol ±0.2)
 ```
 
-## Warum normbrief
+## Warum falzmarke
 
 Eine Briefvorlage kann nicht prüfen, ob das Ergebnis stimmt. Sie wird kopiert, jemand verschiebt
 eine Zeile, und der Fehler fällt erst auf, wenn der Brief im Fensterumschlag nicht mehr lesbar ist
@@ -55,7 +55,7 @@ Sprachmodelle verschärfen das: Sie formulieren gut, aber sie können keinen Tex
 Wer einen Brief von einer KI schreiben lässt, bekommt zuverlässig guten Inhalt in unzuverlässigem
 Layout.
 
-normbrief trennt beides. Der Inhalt kommt als Markdown — lesbar, versionierbar, diffbar. Das
+falzmarke trennt beides. Der Inhalt kommt als Markdown — lesbar, versionierbar, diffbar. Das
 Layout setzt ein Renderer, der es immer gleich macht. Und weil auch ein Renderer Fehler haben kann,
 wird das Ergebnis gemessen statt angeschaut.
 
@@ -72,7 +72,7 @@ wird das Ergebnis gemessen statt angeschaut.
 
 ### Mit Claude
 
-1. **[`normbrief.skill` herunterladen](https://github.com/blitzsicht/normbrief/releases/latest/download/normbrief.skill)**
+1. **[`falzmarke.skill` herunterladen](https://github.com/blitzsicht/falzmarke/releases/latest/download/falzmarke.skill)**
 2. In Claude unter Einstellungen › Capabilities hochladen (Tarif mit Code-Ausführung nötig).
    Für Claude Code genügt ein Symlink, siehe [Als Claude-Skill](#als-claude-skill).
 3. „Schreib einen Brief an die Muster GmbH, Angebot über …"
@@ -80,11 +80,11 @@ wird das Ergebnis gemessen statt angeschaut.
 ### Im Terminal, ohne Clone
 
 ```bash
-uvx normbrief init brief.md --profil example --betreff "Angebot Nr. 2026-0815"
-uvx normbrief render brief.md --png
+uvx falzmarke init brief.md --profil example --betreff "Angebot Nr. 2026-0815"
+uvx falzmarke render brief.md --png
 ```
 
-oder dauerhaft: `pipx install normbrief`, danach `normbrief render brief.md`.
+oder dauerhaft: `pipx install falzmarke`, danach `falzmarke render brief.md`.
 
 Der Typst-Compiler kommt als Python-Wheel mit — **keine Systeminstallation**: kein LaTeX, kein
 wkhtmltopdf, keine Schriftinstallation. Alle Abhängigkeiten sind permissiv lizenziert.
@@ -92,10 +92,10 @@ wkhtmltopdf, keine Schriftinstallation. Alle Abhängigkeiten sind permissiv lize
 Aus einem Clone heraus geht es auch ohne Installation:
 
 ```bash
-git clone https://github.com/blitzsicht/normbrief.git
-cd normbrief
+git clone https://github.com/blitzsicht/falzmarke.git
+cd falzmarke
 python3 skill/scripts/bootstrap.py
-python3 skill/scripts/normbrief.py render examples/brief-form-b.md --png
+python3 skill/scripts/falzmarke.py render examples/brief-form-b.md --png
 ```
 
 ## Einen Brief schreiben
@@ -120,7 +120,7 @@ Die Umsetzung dauert ab Ihrer Freigabe **sieben Werktage**.
 ```
 
 ```bash
-python3 skill/scripts/normbrief.py render brief.md --png
+python3 skill/scripts/falzmarke.py render brief.md --png
 ```
 
 Alle Felder stehen in [`skill/references/frontmatter.md`](skill/references/frontmatter.md).
@@ -160,29 +160,29 @@ python3 -m pytest -q
 ## Als Claude-Skill
 
 ```bash
-ln -s "$PWD/skill" ~/.claude/skills/normbrief          # global
-ln -s "$PWD/skill" .claude/skills/normbrief            # nur dieses Projekt
+ln -s "$PWD/skill" ~/.claude/skills/falzmarke          # global
+ln -s "$PWD/skill" .claude/skills/falzmarke            # nur dieses Projekt
 ```
 
 Auf claude.ai: das Release-Asset
-[`normbrief.skill`](https://github.com/blitzsicht/normbrief/releases/latest/download/normbrief.skill)
+[`falzmarke.skill`](https://github.com/blitzsicht/falzmarke/releases/latest/download/falzmarke.skill)
 unter Einstellungen › Capabilities hochladen.
 
 ## Befehle
 
 ```
-normbrief lint        BRIEF.md [--json]
-normbrief render      BRIEF.md [-o AUS.pdf] [--png] [--no-pdfa] [--pdfua] [--verbose]
-normbrief verify      AUS.pdf [--form A|B] [--json] [--verbose]
-normbrief preview     BRIEF.md [-o AUS.png] [--ppi 120]
-normbrief init        ZIEL.md --profil NAME [--empfaenger "Zeile|Zeile"] [--betreff "..."]
-normbrief init-profil NAME [--ziel VERZEICHNIS]
-normbrief profiles
-normbrief pack        --profil NAME [-o ZIEL.skill]
-normbrief --version
+falzmarke lint        BRIEF.md [--json]
+falzmarke render      BRIEF.md [-o AUS.pdf] [--png] [--no-pdfa] [--pdfua] [--verbose]
+falzmarke verify      AUS.pdf [--form A|B] [--json] [--verbose]
+falzmarke preview     BRIEF.md [-o AUS.png] [--ppi 120]
+falzmarke init        ZIEL.md --profil NAME [--empfaenger "Zeile|Zeile"] [--betreff "..."]
+falzmarke init-profil NAME [--ziel VERZEICHNIS]
+falzmarke profiles
+falzmarke pack        --profil NAME [-o ZIEL.skill]
+falzmarke --version
 ```
 
-Aus einem Clone ohne Installation: `python3 skill/scripts/normbrief.py …` — dasselbe Programm,
+Aus einem Clone ohne Installation: `python3 skill/scripts/falzmarke.py …` — dasselbe Programm,
 nur ein anderer Aufrufweg.
 
 `render` prüft die Eingabe vorweg (`lint`) und misst das Ergebnis nach (`verify`). Ein
@@ -193,13 +193,13 @@ Eingabefehler kostet damit keinen Render.
 Ein Profil ist eine YAML-Datei mit Briefkopf, Fußzeile, Rücksendeangabe und Voreinstellungen.
 
 ```bash
-python3 skill/scripts/normbrief.py init-profil meinefirma
+python3 skill/scripts/falzmarke.py init-profil meinefirma
 ```
 
-Das legt eine ausgefüllte Vorlage unter `~/.config/normbrief/profiles/` an — **außerhalb der
+Das legt eine ausgefüllte Vorlage unter `~/.config/falzmarke/profiles/` an — **außerhalb der
 Installation**, damit sie ein Update übersteht. Gesucht wird in dieser Reihenfolge:
-`--profiles` → `NORMBRIEF_PROFILES` → `./profiles/` (zum Vorgang gehörend) →
-`~/.config/normbrief/profiles/` → mitgelieferte Beispiele.
+`--profiles` → `FALZMARKE_PROFILES` → `./profiles/` (zum Vorgang gehörend) →
+`~/.config/falzmarke/profiles/` → mitgelieferte Beispiele.
 
 Wer den Briefkopf frei gestalten will, setzt `briefkopf_typ: meinkopf.typ` und legt daneben eine
 Typst-Datei mit einer Funktion `briefkopf(profil)` — Beispiel:
@@ -208,7 +208,7 @@ unberührt, seine Höhe erzwingt das Layout. Für alles andere reicht YAML.
 
 `profil:` nimmt außerdem einen Pfad (`./profile/firma.yaml`) oder die Felder direkt im
 Frontmatter — nützlich auf claude.ai, wo kein Verzeichnis den nächsten Chat überlebt. Für
-diesen Fall erzeugt `normbrief.py pack --profil meinefirma` ein Skill-Zip mit eingebackenem
+diesen Fall erzeugt `falzmarke.py pack --profil meinefirma` ein Skill-Zip mit eingebackenem
 Absender.
 
 ## Beispiele
@@ -223,13 +223,13 @@ Dazu Form A, Auslandsanschrift, Tabelle und ein Brief mit langem Informationsblo
 
 ## Grenzen
 
-- **normbrief-Markdown (CommonMark-Teilmenge)**: Absätze, fett, kursiv, Aufzählungen,
+- **falzmarke-Markdown (CommonMark-Teilmenge)**: Absätze, fett, kursiv, Aufzählungen,
   nummerierte Listen, harter Umbruch, Pipe-Tabellen. Alles andere bricht mit Zeilenangabe ab, statt still etwas anderes zu setzen.
 - **Zonengrößen der Norm**: Anschrift höchstens 6 Zeilen, Vermerke höchstens 3, Werte im
   Informationsblock höchstens 32 Zeichen.
 - **Keine Bilder im Fließtext** — ein Logo gehört ins Profil.
 - **Nur DIN 5008.** Schweiz (SN 010130) und Österreich (ÖNORM A 1080) sind vorgemerkt
-  ([#10](https://github.com/blitzsicht/normbrief/issues/10)); das Frontmatter-Feld `norm:` ist dafür
+  ([#10](https://github.com/blitzsicht/falzmarke/issues/10)); das Frontmatter-Feld `norm:` ist dafür
   reserviert.
 
 ## Aufbau
@@ -239,7 +239,7 @@ skill/                      der Claude-Skill, in sich lauffähig
 ├── SKILL.md
 ├── scripts/                CLI, Markdown-Konverter, Geometriemessung
 ├── typst/
-│   ├── normbrief.typ       Layout-Wrapper
+│   ├── falzmarke.typ       Layout-Wrapper
 │   ├── vendor/             letter-pro v3.0.0 (MIT), unverändert
 │   └── profiles/           example.yaml
 ├── assets/fonts/           Source Sans 3 (OFL)
@@ -261,15 +261,15 @@ Sicherheitsrelevantes bitte nicht als Issue, sondern nach [SECURITY.md](SECURITY
 
 **Markdown** wurde 2004 von [John Gruber](https://daringfireball.net/projects/markdown/) gemeinsam
 mit Aaron Swartz entworfen. Die Spezifikation dazu ist [CommonMark](https://commonmark.org/)
-(John MacFarlane und Mitwirkende). normbrief setzt eine dokumentierte Teilmenge von CommonMark um
-— **normbrief-Markdown (CommonMark-Teilmenge)** — und weicht an drei Stellen bewusst ab: HTML wird
+(John MacFarlane und Mitwirkende). falzmarke setzt eine dokumentierte Teilmenge von CommonMark um
+— **falzmarke-Markdown (CommonMark-Teilmenge)** — und weicht an drei Stellen bewusst ab: HTML wird
 nie durchgereicht, Links werden nie gesetzt, und eine einzelne `2. Text`-Zeile ohne weitere
 Listenpunkte ist ein Fehler statt einer Liste. Die vollständige Tabelle steht in
 [`skill/references/frontmatter.md`](skill/references/frontmatter.md).
 
 Das **Seitenlayout** stammt von [typst-letter-pro](https://github.com/Sematre/typst-letter-pro)
 (MIT) von Sematre und ist unverändert vendort — Prüfsumme in
-[`skill/typst/vendor/README.md`](skill/typst/vendor/README.md). normbrief ergänzt die Schicht
+[`skill/typst/vendor/README.md`](skill/typst/vendor/README.md). falzmarke ergänzt die Schicht
 darüber: Datenvertrag, Profile, Markdown-Eingabe, Messung und den Skill.
 
 Gesetzt wird mit [Typst](https://typst.app) (Apache-2.0), geparst mit
@@ -278,12 +278,12 @@ Gesetzt wird mit [Typst](https://typst.app) (Apache-2.0), geparst mit
 [pypdf](https://github.com/py-pdf/pypdf) (BSD-3). Schriften: Libertinus und Source Sans 3
 (beide OFL 1.1).
 
-**Alle Abhängigkeiten sind permissiv lizenziert** — normbrief lässt sich damit auch in
+**Alle Abhängigkeiten sind permissiv lizenziert** — falzmarke lässt sich damit auch in
 geschlossene Systeme einbauen. Die vollständige Aufstellung samt der Begründung, warum PyMuPDF
 (AGPL-3.0) ersetzt wurde, steht in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 
 **DIN 5008** ist eine Norm des DIN Deutsches Institut für Normung e. V. Die Maße hier folgen
-öffentlich dokumentierten Quellen ([`docs/normmasse.md`](docs/normmasse.md)). normbrief ist kein
+öffentlich dokumentierten Quellen ([`docs/normmasse.md`](docs/normmasse.md)). falzmarke ist kein
 Produkt des DIN, steht in keiner Verbindung zum DIN und behauptet keine Zertifizierung.
 
 ## Lizenz

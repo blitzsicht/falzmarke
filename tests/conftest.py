@@ -24,12 +24,12 @@ BEISPIELE = sorted((REPO / "examples").glob("*.md"))
 @pytest.fixture(scope="session")
 def gerendert(tmp_path_factory) -> dict[str, tuple[Path, str]]:
     """Name des Beispiels -> (PDF-Pfad, Form)."""
-    from normbrief import cli as normbrief
+    from falzmarke import cli as falzmarke
 
     ziel = tmp_path_factory.mktemp("renders")
     ergebnis = {}
     for quelle in BEISPIELE:
-        pdf, form = normbrief.rendere(quelle, ziel / f"{quelle.stem}.pdf")
+        pdf, form = falzmarke.rendere(quelle, ziel / f"{quelle.stem}.pdf")
         ergebnis[quelle.stem] = (pdf, form)
     return ergebnis
 

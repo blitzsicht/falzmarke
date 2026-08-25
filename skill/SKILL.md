@@ -1,5 +1,5 @@
 ---
-name: normbrief
+name: falzmarke
 description: >
   Erzeugt Geschäftsbriefe nach DIN 5008:2020 (Form A und B) als PDF mit Falz- und Lochmarken,
   Anschriftfeld für Fensterumschläge, Informationsblock, Briefkopf und Fußzeile aus
@@ -10,7 +10,7 @@ description: >
   dieser Skill verfügbar ist.
 ---
 
-# normbrief
+# falzmarke
 
 Briefe entstehen hier als Markdown-Datei mit YAML-Frontmatter und werden von einem Renderer
 gesetzt. **Das Layout wird nie von Hand gesetzt** — weder durch Positionsangaben im Text noch
@@ -32,7 +32,7 @@ zeigen. `render` ruft die Prüfung selbst auf und endet mit Code 2, wenn ein Ma�
 
 2. **Profil wählen**:
    ```bash
-   python3 scripts/normbrief.py profiles
+   python3 scripts/falzmarke.py profiles
    ```
    Gibt es mehrere und ist aus dem Gespräch nicht klar, welcher Absender gemeint ist, einmal
    nachfragen. Gibt es nur eines, dieses nehmen.
@@ -48,7 +48,7 @@ zeigen. `render` ruft die Prüfung selbst auf und endet mit Code 2, wenn ein Ma�
 
 6. **Rendern und prüfen**:
    ```bash
-   python3 scripts/normbrief.py render briefe/2026-08-25_muster-gmbh_angebot.md --png
+   python3 scripts/falzmarke.py render briefe/2026-08-25_muster-gmbh_angebot.md --png
    ```
 
 7. **Vorschau zeigen** und das PDF bereitstellen. Änderungswünsche in der `.md` einarbeiten und
@@ -83,19 +83,19 @@ zeigen. `render` ruft die Prüfung selbst auf und endet mit Code 2, wenn ein Ma�
 ## Profil auf claude.ai
 
 Dort überlebt kein Verzeichnis den nächsten Chat: Ein Profil unter
-`~/.config/normbrief/profiles/` ist im zweiten Chat weg, und das Release-Asset enthält nur das
+`~/.config/falzmarke/profiles/` ist im zweiten Chat weg, und das Release-Asset enthält nur das
 Beispiel. Zwei Wege, damit der Absender bleibt:
 
 1. **Skill mit eingebackenem Profil** — einmal am eigenen Rechner:
    ```bash
-   python3 scripts/normbrief.py pack --profil meinefirma -o normbrief-meinefirma.skill
+   python3 scripts/falzmarke.py pack --profil meinefirma -o falzmarke-meinefirma.skill
    ```
    Dieses Zip statt des Release-Assets hochladen. Es enthält Absenderdaten und gehört nicht in ein
    öffentliches Repository.
 2. **Profil im Brief** — `profil:` nimmt statt eines Namens auch die Felder selbst. Dann trägt der
    Brief alles Nötige und funktioniert überall.
 
-Hochgeladene Dateien sucht normbrief auch unter `/mnt/user-data/uploads`; Brief und Profil lassen
+Hochgeladene Dateien sucht falzmarke auch unter `/mnt/user-data/uploads`; Brief und Profil lassen
 sich also zusammen in einen Chat legen.
 
 ## Wenn es bricht
@@ -110,12 +110,12 @@ sich also zusammen in einen Chat legen.
 ## Eigenes Profil anlegen
 
 ```bash
-python3 scripts/normbrief.py init-profil meinefirma
+python3 scripts/falzmarke.py init-profil meinefirma
 ```
 
-Das legt eine ausgefüllte Vorlage unter `~/.config/normbrief/profiles/meinefirma.yaml` an.
+Das legt eine ausgefüllte Vorlage unter `~/.config/falzmarke/profiles/meinefirma.yaml` an.
 Die Pfade in diesem Dokument sind relativ zum Skill-Ordner; auf claude.ai liegt er unter
-`/mnt/skills/user/normbrief`.
+`/mnt/skills/user/falzmarke`.
 **Dieser Ort überlebt Aktualisierungen des Skills** — ein Profil innerhalb des Skill-Ordners tut
 das nicht: wird der Skill ersetzt, sind die Absender weg und keiner der alten Briefe lässt sich
 mehr setzen.
@@ -123,9 +123,9 @@ mehr setzen.
 Gesucht wird in dieser Reihenfolge:
 
 1. `--profiles VERZEICHNIS`
-2. `NORMBRIEF_PROFILES` (mehrere Pfade mit Doppelpunkt getrennt)
+2. `FALZMARKE_PROFILES` (mehrere Pfade mit Doppelpunkt getrennt)
 3. `./profiles/` neben den Briefen — für Profile, die zu einem Vorgang gehören
-4. `~/.config/normbrief/profiles/` — die eigenen Absender
+4. `~/.config/falzmarke/profiles/` — die eigenen Absender
 5. die mitgelieferten Beispiele
 
 Achtung bei YAML: Eine Zeile mit Doppelpunkt braucht Anführungszeichen, sonst liest YAML sie als

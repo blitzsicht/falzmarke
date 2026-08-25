@@ -12,8 +12,8 @@ from pathlib import Path
 
 import pytest
 
-from normbrief import geometrie
-from normbrief import cli as normbrief
+from falzmarke import geometrie
+from falzmarke import cli as falzmarke
 from conftest import REPO
 
 BEISPIEL = REPO / "examples" / "brief-form-b.md"
@@ -22,7 +22,7 @@ BEISPIEL = REPO / "examples" / "brief-form-b.md"
 def _sabotiere(tmp_path: Path, datei: str, alt: str, neu: str) -> Path:
     """Legt eine Kopie des typst-Verzeichnisses an und ändert dort eine Stelle."""
     ziel = tmp_path / "typst"
-    shutil.copytree(REPO / "skill" / "normbrief" / "typst", ziel)
+    shutil.copytree(REPO / "skill" / "falzmarke" / "typst", ziel)
     pfad = ziel / datei
     inhalt = pfad.read_text(encoding="utf-8")
     assert alt in inhalt, f"Ankertext nicht gefunden in {datei}: {alt!r}"
@@ -31,13 +31,13 @@ def _sabotiere(tmp_path: Path, datei: str, alt: str, neu: str) -> Path:
 
 
 def _rendere_mit(tmp_path: Path, typst_dir: Path) -> tuple[Path, str]:
-    original = normbrief.TYPST_DIR
-    normbrief.TYPST_DIR = typst_dir
+    original = falzmarke.TYPST_DIR
+    falzmarke.TYPST_DIR = typst_dir
     try:
-        return normbrief.rendere(BEISPIEL, tmp_path / "sabotiert.pdf",
+        return falzmarke.rendere(BEISPIEL, tmp_path / "sabotiert.pdf",
                                  profil_verzeichnis=typst_dir / "profiles")
     finally:
-        normbrief.TYPST_DIR = original
+        falzmarke.TYPST_DIR = original
 
 
 def _gescheitert(pdf: Path, form: str) -> set[str]:
@@ -48,7 +48,7 @@ def _gescheitert(pdf: Path, form: str) -> set[str]:
 def test_unveraendert_ist_gruen(tmp_path):
     """Kontrollprobe: ohne Sabotage darf nichts anschlagen. Sonst misst die
     Sabotage nur die Kopie, nicht die Verschiebung."""
-    kopie = _sabotiere(tmp_path, "normbrief.typ", "#let zeile = 4.2333mm",
+    kopie = _sabotiere(tmp_path, "falzmarke.typ", "#let zeile = 4.2333mm",
                        "#let zeile = 4.2333mm  // unveraendert")
     pdf, form = _rendere_mit(tmp_path, kopie)
     assert _gescheitert(pdf, form) == set()
@@ -74,7 +74,7 @@ def test_verschobene_lochmarke_faellt_auf(tmp_path):
 def test_zu_tiefer_betreff_faellt_auf(tmp_path):
     """Der teure Fehler: der Betreff rutscht in den Text."""
     kopie = _sabotiere(
-        tmp_path, "normbrief.typ", "let soll = unterkante + 2 * zeile",
+        tmp_path, "falzmarke.typ", "let soll = unterkante + 2 * zeile",
         "let soll = unterkante + 3 * zeile",
     )
     pdf, form = _rendere_mit(tmp_path, kopie)
@@ -96,21 +96,21 @@ def test_verschobene_anschrift_faellt_auf(tmp_path):
 def test_zu_kleiner_unterrand_faellt_auf(tmp_path):
     """Die vierzeilige Fußzeile lief beim 20-mm-Standardrand aus dem Blatt."""
     kopie = _sabotiere(
-        tmp_path, "normbrief.typ",
+        tmp_path, "falzmarke.typ",
         'profil.at("rand_unten_mm", default: 42)', "20",
     )
-    original = normbrief.baue_profil_daten
+    original = falzmarke.baue_profil_daten
 
     def ohne_randberechnung(profil, pfad, arbeit):
         daten = original(profil, pfad, arbeit)
         daten.pop("rand_unten_mm", None)
         return daten
 
-    normbrief.baue_profil_daten = ohne_randberechnung
+    falzmarke.baue_profil_daten = ohne_randberechnung
     try:
         pdf, form = _rendere_mit(tmp_path, kopie)
     finally:
-        normbrief.baue_profil_daten = original
+        falzmarke.baue_profil_daten = original
     assert "Unterster Text, Abstand zur Blattkante" in _gescheitert(pdf, form)
 
 

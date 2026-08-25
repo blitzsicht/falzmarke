@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""normbrief-Markdown: eine Teilmenge von CommonMark, geprüft statt geraten.
+"""falzmarke-Markdown: eine Teilmenge von CommonMark, geprüft statt geraten.
 
 Bis v0.1.2 war das hier ein Regex-Konverter. Regexe können Markdown nicht
 zerlegen — sie sehen `**` und `*`, aber keine Struktur, und was sie nicht
@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import re
 
-from normbrief import emit
+from falzmarke import emit
 
 MAX_LISTENTIEFE = 2
 
@@ -212,7 +212,7 @@ def _block(knoten, versatz: int, tiefe: int = 1) -> str:
 
 
 def konvertiere(markdown: str, zeilenversatz: int = 0) -> str:
-    """normbrief-Markdown -> Typst.
+    """falzmarke-Markdown -> Typst.
 
     `zeilenversatz` ist die Zeilenzahl des Frontmatters, damit Fehlermeldungen
     die Zeile der Originaldatei nennen.

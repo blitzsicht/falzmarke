@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Repository-Einstellungen als Code. Idempotent, mehrfach ausführbar.
 #
-#   scripts/repo-einstellungen.sh --trocken blitzsicht/normbrief   # nur zeigen
-#   scripts/repo-einstellungen.sh blitzsicht/normbrief             # anwenden
+#   scripts/repo-einstellungen.sh --trocken blitzsicht/falzmarke   # nur zeigen
+#   scripts/repo-einstellungen.sh blitzsicht/falzmarke             # anwenden
 #
 # Voraussetzung: gh auth login mit Admin-Rechten auf dem Repository.
 #
@@ -17,7 +17,7 @@ REPO="${1:?Aufruf: $0 [--trocken] OWNER/REPO}"
 OWNER="${REPO%%/*}"
 
 BESCHREIBUNG="DIN-5008-Briefe aus Markdown — als PDF/A gesetzt, auf den Millimeter geprüft. Skill für KI-Agenten und CLI."
-HOMEPAGE_WUNSCH="${NORMBRIEF_HOMEPAGE:-}"
+HOMEPAGE_WUNSCH="${FALZMARKE_HOMEPAGE:-}"
 
 tue() {
   if [ "$TROCKEN" = "1" ]; then printf '  [trocken] %s\n' "$*"; else "$@"; fi
@@ -77,7 +77,7 @@ fi
 echo "== Homepage =="
 if [ -z "$HOMEPAGE_WUNSCH" ]; then
   HOMEPAGE="https://github.com/$REPO/releases/latest"
-  hinweis "Keine Domain angegeben (NORMBRIEF_HOMEPAGE) — Homepage zeigt auf die Release-Seite."
+  hinweis "Keine Domain angegeben (FALZMARKE_HOMEPAGE) — Homepage zeigt auf die Release-Seite."
 elif curl -s -o /dev/null -w '%{http_code}' -L --max-time 10 "$HOMEPAGE_WUNSCH" | grep -qE '^(200|301|302)$'; then
   HOMEPAGE="$HOMEPAGE_WUNSCH"
   hinweis "$HOMEPAGE_WUNSCH antwortet — wird als Homepage gesetzt."
@@ -101,7 +101,7 @@ tue gh repo edit "$REPO" \
   --allow-update-branch=true \
   --enable-auto-merge=true
 
-for t in normbrief din5008 din-5008 geschaeftsbrief typst pdfa pdfua claude-skill agent-skills markdown; do
+for t in falzmarke din5008 din-5008 geschaeftsbrief typst pdfa pdfua claude-skill agent-skills markdown; do
   tue gh repo edit "$REPO" --add-topic "$t"
 done
 
@@ -147,10 +147,10 @@ fi
 echo "== Ruleset main =="
 # Enforcement: "evaluate" meldet Verstöße, blockiert aber nicht. Erst wenn die
 # Regeln nachweislich zum Ablauf passen, auf "active" stellen — über
-# NORMBRIEF_RULESET_AKTIV=1.
+# FALZMARKE_RULESET_AKTIV=1.
 DURCHSETZUNG="evaluate"
-[ "${NORMBRIEF_RULESET_AKTIV:-0}" = "1" ] && DURCHSETZUNG="active"
-hinweis "Durchsetzung: $DURCHSETZUNG (mit NORMBRIEF_RULESET_AKTIV=1 scharf schalten)"
+[ "${FALZMARKE_RULESET_AKTIV:-0}" = "1" ] && DURCHSETZUNG="active"
+hinweis "Durchsetzung: $DURCHSETZUNG (mit FALZMARKE_RULESET_AKTIV=1 scharf schalten)"
 
 CHECK_JSON="[]"
 if [ ${#CHECKS[@]} -gt 0 ]; then
@@ -246,4 +246,4 @@ echo "  3. PyPI: Trusted Publisher für $REPO, Workflow release.yml, Environment
 echo "  4. Organisation $OWNER: 2FA erzwingen, zweiten Owner eintragen"
 echo
 echo "Erst wenn die CI die endgültigen Jobnamen hat und ein Lauf grün war:"
-echo "  NORMBRIEF_RULESET_AKTIV=1 $0 $REPO   # schaltet das main-Ruleset scharf"
+echo "  FALZMARKE_RULESET_AKTIV=1 $0 $REPO   # schaltet das main-Ruleset scharf"

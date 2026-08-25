@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         Vor dem Schreiben lohnt ein Blick in die
-        [offenen Issues](https://github.com/blitzsicht/normbrief/issues) — Anlagen-Merge,
+        [offenen Issues](https://github.com/blitzsicht/falzmarke/issues) — Anlagen-Merge,
         Umschlagdruck, Serienbrief, MCP-Server, Versand und Ablage sind bereits vorgemerkt.
   - type: textarea
     id: problem

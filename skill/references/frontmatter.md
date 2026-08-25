@@ -5,7 +5,7 @@ darunter.
 
 ```yaml
 ---
-profil: example                  # Pflicht. Dateiname (ohne .yaml) aus ~/.config/normbrief/profiles/
+profil: example                  # Pflicht. Dateiname (ohne .yaml) aus ~/.config/falzmarke/profiles/
 form: B                          # A oder B. Ohne Angabe gilt der Wert aus dem Profil
 norm: din5008                    # reserviert; derzeit nur din5008
 empfaenger:                      # Pflicht. 1 bis 6 Zeilen, keine Leerzeilen
@@ -51,7 +51,7 @@ Steht dort bereits ein ausformulierter Text, bleibt er unverändert.
 | `anrede` | endet mit Komma | Norm |
 | `gruss` | ohne Komma | Norm |
 
-## normbrief-Markdown (CommonMark-Teilmenge)
+## falzmarke-Markdown (CommonMark-Teilmenge)
 
 Geparst wird nach [CommonMark](https://commonmark.org/) 0.31.2. Gesetzt wird davon die Teilmenge,
 die in einen Brief gehört; alles andere bricht mit Zeile, Grund und Korrektur ab — nie still.
@@ -84,7 +84,7 @@ die in einen Brief gehört; alles andere bricht mit Zeile, Grund und Korrektur a
 Drei Stellen weichen bewusst von CommonMark ab:
 
 1. **Eine einzelne Zeile, die wie ein Listenpunkt aussieht, ist keiner.** `2. Mahnung zur
-   Rechnung 4711` würde als nummerierte Liste gesetzt und die Zahl verschwände. normbrief lehnt
+   Rechnung 4711` würde als nummerierte Liste gesetzt und die Zahl verschwände. falzmarke lehnt
    das ab und schlägt `2\. Mahnung` vor. Dasselbe gilt für einen einzelnen Strich: `- 5 °C`
    würde ein Aufzählungspunkt.
 2. **HTML wird nie durchgereicht.**
@@ -96,8 +96,8 @@ zwischen Zahl und Einheit (`10 %`, `5 km`, `1.234,56 EUR`), nach `§`, zwischen 
 
 ## Profildatei
 
-Anlegen mit `normbrief.py init-profil <name>`. Die Datei landet unter
-`~/.config/normbrief/profiles/<name>.yaml` — außerhalb der Installation, damit sie
+Anlegen mit `falzmarke.py init-profil <name>`. Die Datei landet unter
+`~/.config/falzmarke/profiles/<name>.yaml` — außerhalb der Installation, damit sie
 Aktualisierungen übersteht.
 
 ```yaml

@@ -1,7 +1,7 @@
 // Beispiel für einen frei gestalteten Briefkopf.
 //
 // Wird in einem Profil `briefkopf_typ: example-kopf.typ` gesetzt, ruft
-// normbrief diese Funktion statt der YAML-Bausteine auf. Das Anschriftfeld
+// falzmarke diese Funktion statt der YAML-Bausteine auf. Das Anschriftfeld
 // bleibt davon unberührt: seine Höhe erzwingt letter-pro.
 //
 // Verfügbar ist alles aus dem Profil-Dictionary — absender, farbe, briefkopf,

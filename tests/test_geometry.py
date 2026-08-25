@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from normbrief import geometrie
+from falzmarke import geometrie
 from conftest import BEISPIELE
 
 

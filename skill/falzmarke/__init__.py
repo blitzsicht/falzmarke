@@ -1,7 +1,7 @@
-"""normbrief — Geschäftsbriefe nach DIN 5008 aus Markdown.
+"""falzmarke — Geschäftsbriefe nach DIN 5008 aus Markdown.
 
 Das Paket ist zugleich der Inhalt des Claude-Skills. Es muss deshalb ohne
-Installation lauffähig bleiben: `skill/scripts/normbrief.py` ruft es direkt
+Installation lauffähig bleiben: `skill/scripts/falzmarke.py` ruft es direkt
 auf, ohne dass etwas auf dem Rechner eingerichtet sein müsste.
 """
 

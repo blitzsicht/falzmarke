@@ -16,7 +16,7 @@ import re
 
 import pytest
 
-from normbrief import cli as normbrief
+from falzmarke import cli as falzmarke
 from conftest import BEISPIELE, REPO
 
 PROFILE = REPO / "skill" / "typst" / "profiles"
@@ -97,8 +97,8 @@ def test_heikle_zeichen_ueberleben(tmp_path, zeile, beschreibung):
         f"datum: 2026-08-25\nbetreff: Probe\nanrede: Sehr geehrte Damen und Herren,\n---\n{zeile}\n",
         encoding="utf-8",
     )
-    pdf, _ = normbrief.rendere(brief, tmp_path / "b.pdf", profil_verzeichnis=PROFILE)
-    from normbrief import typografie
+    pdf, _ = falzmarke.rendere(brief, tmp_path / "b.pdf", profil_verzeichnis=PROFILE)
+    from falzmarke import typografie
 
     erwartet = verdichtet(typografie.anwenden(nur_text(zeile)))
     assert erwartet in verdichtet(pdf_text(pdf)), (

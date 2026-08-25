@@ -21,7 +21,7 @@ nicht reproduzieren lässt, ist unklar, was der Fix behebt.
 ```bash
 python3 skill/scripts/bootstrap.py
 python3 -m pytest -q
-for f in examples/*.md; do python3 skill/scripts/normbrief.py render "$f" -o "/tmp/$(basename "$f" .md).pdf"; done
+for f in examples/*.md; do python3 skill/scripts/falzmarke.py render "$f" -o "/tmp/$(basename "$f" .md).pdf"; done
 ```
 
 Alle Tests grün, alle sieben Beispiele ohne `FEHL`-Zeile.
@@ -54,7 +54,7 @@ prüft die Prüfsumme. Muss dort wirklich etwas geändert werden, gehört jede �
 Bei Geometriefehlern **immer die Ausgabe von `check` mitschicken**:
 
 ```bash
-python3 skill/scripts/normbrief.py check DEIN.pdf --form B --json
+python3 skill/scripts/falzmarke.py check DEIN.pdf --form B --json
 ```
 
 Ohne sie lässt sich nicht unterscheiden, ob das Layout falsch sitzt oder die Messung danebenliegt.

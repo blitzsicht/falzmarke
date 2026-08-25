@@ -1,12 +1,12 @@
 # Fremdkomponenten und ihre Lizenzen
 
-normbrief steht unter der [MIT-Lizenz](LICENSE). Alles, was mitgeliefert wird oder zur Laufzeit
+falzmarke steht unter der [MIT-Lizenz](LICENSE). Alles, was mitgeliefert wird oder zur Laufzeit
 gebraucht wird, trägt eine permissive Lizenz — MIT, BSD, Apache-2.0 oder OFL. Damit lässt sich
-normbrief auch in geschlossene Systeme einbauen, ohne dass eine Copyleft-Pflicht entsteht.
+falzmarke auch in geschlossene Systeme einbauen, ohne dass eine Copyleft-Pflicht entsteht.
 
 **Das ist eine bewusste Entscheidung, keine Selbstverständlichkeit.** Bis v0.1.2 wurde die
 Geometrie mit [PyMuPDF](https://pymupdf.readthedocs.io) gemessen. PyMuPDF ist *„Dual Licensed —
-GNU AFFERO GPL 3.0 or Artifex Commercial License"*: Wer normbrief eingebaut und die Software über
+GNU AFFERO GPL 3.0 or Artifex Commercial License"*: Wer falzmarke eingebaut und die Software über
 ein Netzwerk angeboten hätte, wäre unter der AGPL zur Offenlegung des eigenen Quelltexts
 verpflichtet gewesen. Für ein Werkzeug, dessen Zielgruppe Firmen sind, ist das ein
 Ausschlusskriterium. Seit v0.2.0 messen pdfplumber und pypdf; das ist nebenbei genauer, weil
@@ -35,12 +35,12 @@ pdfplumber die Zeilenoberkante statt der Ascender-Box liefert.
 
 DIN 5008 ist eine Norm des DIN Deutsches Institut für Normung e. V. Die Maße in diesem Projekt
 folgen öffentlich dokumentierten Quellen (siehe [`docs/normmasse.md`](docs/normmasse.md)).
-**normbrief ist kein Produkt des DIN, steht in keiner Verbindung zum DIN und behauptet keine
+**falzmarke ist kein Produkt des DIN, steht in keiner Verbindung zum DIN und behauptet keine
 Zertifizierung.** Der Normtext selbst ist urheberrechtlich geschützt und wird hier weder
 wiedergegeben noch mitgeliefert.
 
 ## Markdown
 
 Markdown wurde 2004 von [John Gruber](https://daringfireball.net/projects/markdown/) gemeinsam mit
-Aaron Swartz entworfen. Die Spezifikation, an der sich normbrief orientiert, ist
+Aaron Swartz entworfen. Die Spezifikation, an der sich falzmarke orientiert, ist
 [CommonMark](https://commonmark.org/) (John MacFarlane und Mitwirkende).
