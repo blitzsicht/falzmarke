@@ -7,9 +7,12 @@ im Einzelnen arbeitet.
 
 ## Quellen
 
-- DIN 5008:2020-03, Schreib- und Gestaltungsregeln für die Text- und Informationsverarbeitung
-- Deutsche Post, Automationsfähige Briefsendungen
-- Maßzeichnungen von Onlineprinters für Form A und B (als Sichtreferenz)
+- **DIN 5008:2020-03** — Normtext urheberrechtlich geschützt, Bezug über
+  [DIN Media](https://www.dinmedia.de); hier weder wiedergegeben noch mitgeliefert
+- [DIN 5008 bei Wikipedia](https://de.wikipedia.org/wiki/DIN_5008)
+- [Maßzeichnungen von Onlineprinters](https://www.onlineprinters.de/magazin/din-5008-vorlage/)
+- Deutsche Post, *Automationsfähige Briefsendungen* — die frühere Adresse ist seit spätestens
+  25.08.2026 nicht mehr erreichbar (HTTP 404)
 
 ## Gegenprobe
 
