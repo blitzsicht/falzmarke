@@ -2,6 +2,34 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.4.0 — 25.08.2026
+
+### Neu
+- **Quellenlage je Regel.** Alle Maße und Schreibregeln stammen aus Sekundärquellen; der Abgleich
+  mit dem Originaltext der DIN 5008:2020-03 steht aus ([#12](https://github.com/blitzsicht/falzmarke/issues/12)).
+  Jede der 36 Regeln trägt jetzt ihre Herkunft — `mehrfach bestätigt`, `einzeln belegt`, `offen`
+  oder `Werkzeugprüfung` — samt Quellen und Abrufdatum, gepflegt an einer Stelle in
+  [`skill/falzmarke/regeln/din5008.yaml`](skill/falzmarke/regeln/din5008.yaml). Der Abschnitt
+  „Quellenlage je Regel" in der Normreferenz wird daraus erzeugt.
+- **Warnstufe.** Nur eine mehrfach belegte Regel darf einen Lauf scheitern lassen. Aus einer
+  einzigen Quelle wird eine Warnung, die ihre Quellenlage nennt; ohne Beleg wird nicht geprüft.
+  Betroffen sind unter anderem die Grußformel ohne Komma und die Sechs-Zeilen-Grenze der
+  Anschrift — beide bisher Fehler.
+- **Der Typografie-Pass ändert nur, was er belegen kann.** Geschützte Leerzeichen zwischen Zahl
+  und Einheit sowie die Zahlengliederung stehen nur in einer Quelle und werden nicht mehr still
+  ersetzt. `typografie.vorschlaege()` sagt, was der Pass geändert hätte, ohne den Brief
+  anzufassen.
+- **Wortmarke.** Das Logo liegt als `docs/assets/brand/logo.svg` (hell) und `logo-dark.svg`
+  (dunkler Grund) samt Illustrator-Quelle im Repository. Das Vorschaubild ist neu gesetzt.
+- **`docs/recht.md`** — was das Werkzeug behauptet und was nicht. `tests/test_textkanon.py` hält
+  den Satz zur ausstehenden Prüfung fest und meldet ungedeckte Konformitätsbehauptungen.
+- **`CLAUDE.md`** — Arbeitsregeln, allen voran: Normtext wird nie geladen, gescannt oder zitiert.
+
+### Bemerkenswert
+Die Erhebung hat einen blinden Fleck sichtbar gemacht: **Form A ist deutlich schwächer belegt als
+Form B.** Für Form B gibt es eine bemaßte Zeichnung, die alle Werte bestätigt; für Form A stützt
+sich falzmarke auf eine einzige Implementierung. Beim Normabgleich zuerst dort nachsehen.
+
 ## v0.3.2 — 25.08.2026
 
 ### Behoben

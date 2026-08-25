@@ -5,4 +5,4 @@ Installation lauffähig bleiben: `skill/scripts/falzmarke.py` ruft es direkt
 auf, ohne dass etwas auf dem Rechner eingerichtet sein müsste.
 """
 
-__version__ = "0.3.2"
+__version__ = "0.4.0"

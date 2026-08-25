@@ -16,44 +16,79 @@
            xlink:href="../../renders/brief-form-b.png"/>
   </g>
 
-  <!-- Wortmarke: dasselbe Zeichen wie in logo-dark.svg, groesser gesetzt -->
-  <g transform="translate(100 148) scale(1.34)">
-    <g transform="translate(8 8)">
-      <rect x="10" y="0" width="66" height="94" rx="2" fill="#F6F7FB" stroke="#3D4463" stroke-width="1.6"/>
-      <g stroke="#AAB2CC" stroke-width="2" stroke-linecap="round">
-        <line x1="0" y1="33.2" x2="8" y2="33.2"/>
-        <line x1="0" y1="47.0" x2="9.5" y2="47.0"/>
-        <line x1="0" y1="66.5" x2="8" y2="66.5"/>
-      </g>
-      <rect x="20" y="14" width="30" height="17" rx="1" fill="none" stroke="#AAB2CC" stroke-width="1.2" opacity="0.55"/>
-      <g stroke="#AAB2CC" stroke-width="2.4" stroke-linecap="round" opacity="0.85">
-        <line x1="20" y1="42" x2="52" y2="42"/>
-      </g>
-      <g stroke="#AAB2CC" stroke-width="1.6" stroke-linecap="round" opacity="0.4">
-        <line x1="20" y1="52" x2="66" y2="52"/>
-        <line x1="20" y1="59" x2="66" y2="59"/>
-        <line x1="20" y1="66" x2="58" y2="66"/>
-      </g>
-      <g transform="translate(52 66)">
-        <circle cx="12" cy="12" r="12" fill="#4FBF80"/>
-        <path d="M6 12.4 L10.3 16.6 L18.2 7.8" fill="none" stroke="#F6F7FB" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-      </g>
-    </g>
+  <!-- Wortmarke. Quelle: docs/assets/brand/logo-dark.svg, hier eingebettet,
+       damit das Vorschaubild ohne Nachladen rendert. -->
+  <svg x="100" y="86" width="250" height="200" version="1.1" role="img" aria-label="falzmarke" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+  	 viewBox="0 0 535.7 429.24" xml:space="preserve">
+  <title>falzmarke</title>
+  <style type="text/css">
+  	.lg0{fill:#F2F4F9;}
+  	.lg1{fill:#3EB057;}
+  	.lg2{fill:#FFFFFF;}
+  </style>
+  <g id="FALZMARKE">
+  	<g>
+  		<g id="paper">
+  			<path class="lg0" d="M184.17,99.66V53.1c0-5.52-4.48-10-10-10s-10,4.48-10,10v46.55c0,5.52,4.48,10,10,10
+  				S184.17,105.18,184.17,99.66z"/>
+  			<path class="lg0" d="M164.17,329.54v46.55c0,5.52,4.48,10,10,10s10-4.48,10-10v-46.55c0-5.52-4.48-10-10-10
+  				S164.17,324.01,164.17,329.54z"/>
+  			<path class="lg0" d="M129.57,20h197.24v76.21c0,5.52,4.48,10,10,10h75.06v49.27h20V98.51c0-2.6-1.01-5.09-2.81-6.95l-2.22-2.3
+  				c0,0,0,0,0,0L344,3.64c0,0,0,0,0,0l-0.57-0.59C341.54,1.1,338.94,0,336.23,0H119.57c-5.52,0-10,4.48-10,10v145.48h20V20z
+  				 M346.81,35.31l49.24,50.9h-49.24V35.31z"/>
+  			<polygon class="lg0" points="411.87,292.08 431.87,271.85 431.87,263.38 411.87,263.38 			"/>
+  			<path class="lg0" d="M129.57,263.38h-20v155.82c0,5.52,4.48,10,10,10h155.68l20-20H129.57V263.38z"/>
+  		</g>
+  		<path id="green" class="lg1" d="M411.87,292.08c-35.68,36.35-100.43,100.9-136.62,137.11c26.89,0.15,118.19-0.11,146.62,0
+  			c5.52,0,10-4.48,10-10c-0.16-29.26,0.11-119.52,0-147.35L411.87,292.08z"/>
+  		<path id="check_x5F_icon" class="lg2" d="M403.36,357.21l-27.31,27.31l-7.94-7.94c-2.94-2.94-7.69-2.94-10.63,0
+  			c-2.94,2.94-2.94,7.7,0,10.63l13.15,13.15c0.03,0.03,0.06,0.07,0.09,0.11s0.07,0.06,0.11,0.09c2.96,2.82,8.26,2.17,11.92-1.49
+  			l3.93-3.93l27.31-27.31c3.71-3.71,4.33-9.09,1.39-12.02C412.45,352.88,407.07,353.5,403.36,357.21z"/>
+  		<g id="falzmarke_x5F_font">
+  			<path class="lg0" d="M42.44,191.37H28.22V191c0-5.32,2.69-6.04,5.32-6.04c1.99,0,3.88,0.57,5.34,1.59l2.14,1.51l5.65-15.56
+  				l-1.27-0.88c-3.08-2.12-7.96-3.34-13.4-3.34c-14.46,0-23.44,8.66-23.44,22.61v0.47H0v16.37h8.55v41.84h20.08v-41.84h13.81V191.37
+  				z"/>
+  			<path class="lg0" d="M69.81,189.31c-9.48,0-18.85,2.64-25.07,7.07l-1.41,1l7.68,14.94l1.91-1.52c3.66-2.91,9.31-4.72,14.73-4.72
+  				c6.4,0,9.89,2.27,10.63,6.92H67.65c-22.45,0-25.81,11.65-25.81,18.59c0,11.24,9.13,18.8,22.71,18.8c6.24,0,11.29-1.51,14.9-4.41
+  				v3.59h19.05v-33.64C98.51,198.52,88.58,189.31,69.81,189.31z M78.43,229.69c-1.53,3.75-5.1,5.9-9.85,5.9
+  				c-1.66,0-7.07-0.34-7.07-4.7c0-1.34,0-4.49,7.89-4.49h9.03V229.69z"/>
+  			<rect x="109.04" y="169.11" class="lg0" width="20.08" height="80.47"/>
+  			<polygon class="lg0" points="189.72,233.21 162.86,233.21 188.79,202.55 188.79,190.13 136.97,190.13 136.97,206.5 162.18,206.5 
+  				136.25,237.16 136.25,249.58 189.72,249.58 			"/>
+  			<path class="lg0" d="M293.71,249.58v-33.74c0-16.61-9.22-26.53-24.67-26.53c-7.85,0-14.95,2.84-19.86,7.88
+  				c-4.25-5.1-10.68-7.88-18.38-7.88c-5.94,0-11.26,1.64-15.42,4.68v-3.85h-19.36v59.45h20.08v-29.83c0-8.08,3.61-12.53,10.16-12.53
+  				c3.65,0,8.51,1.15,8.51,11.09v31.27h20.08v-29.83c0-8.08,3.65-12.53,10.26-12.53c5.73,0,8.51,3.63,8.51,11.09v31.27H293.71z"/>
+  			<path class="lg0" d="M328.5,189.31c-9.48,0-18.85,2.64-25.07,7.07l-1.41,1l7.68,14.94l1.91-1.52c3.66-2.91,9.31-4.72,14.73-4.72
+  				c6.4,0,9.89,2.27,10.63,6.92h-10.63c-22.45,0-25.81,11.65-25.81,18.59c0,11.24,9.13,18.8,22.71,18.8c6.24,0,11.29-1.51,14.9-4.42
+  				v3.59h19.05v-33.64C357.2,198.52,347.28,189.31,328.5,189.31z M337.12,229.69c-1.53,3.75-5.09,5.89-9.85,5.89
+  				c-1.66,0-7.07-0.34-7.07-4.7c0-1.34,0-4.49,7.89-4.49h9.03V229.69z"/>
+  			<path class="lg0" d="M387.09,194.5v-4.36h-19.36v59.45h20.08V221.4c0-8.8,4.4-13.46,12.74-13.46c0.94,0,1.76,0.06,2.78,0.15
+  				l2.82,0.22v-19h-2C397.15,189.31,391.35,191.09,387.09,194.5z"/>
+  			<polygon class="lg0" points="477.25,190.13 452.52,190.13 431.82,209.74 431.82,169.11 411.74,169.11 411.74,249.58 
+  				431.82,249.58 431.82,234.3 437.38,228.81 454.11,249.58 478.66,249.58 452.06,215.78 			"/>
+  			<path class="lg0" d="M504.85,189.31c-18.3,0-31.58,12.85-31.58,30.55c0,17.99,13.83,30.55,33.64,30.55
+  				c10.56,0,18.77-3.25,24.38-9.65l1.19-1.35l-11.15-12.09l-1.47,1.39c-3.57,3.37-7.32,4.81-12.54,4.81
+  				c-6.42,0-11.06-2.57-13.12-7.13h41.04l0.14-1.85c0.03-0.38,0.07-0.8,0.11-1.23c0.1-1.12,0.21-2.28,0.21-3.25
+  				C535.7,201.96,523.01,189.31,504.85,189.31z M493.78,213.01c1.61-4.77,5.65-7.54,11.17-7.54c5.36,0,9.42,2.83,11.05,7.54H493.78z
+  				"/>
+  		</g>
+  	</g>
   </g>
+  <g id="Ebene_2">
+  </g>
+  </svg>
 
-  <text x="227" y="228" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
-        font-size="48" font-weight="600" letter-spacing="-0.9" fill="#F2F4F9">falzmarke</text>
-  <text x="230" y="256" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+  <text x="102" y="318" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
         font-size="16" letter-spacing="0.2" fill="#AAB2CC" opacity="0.95">DIN 5008 aus Markdown · gerendert und nachgemessen</text>
 
-  <text x="100" y="320" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+  <text x="100" y="374" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
         font-size="27" fill="#F2F4F9" opacity="0.92">Geschäftsbriefe nach DIN 5008 aus Markdown —</text>
-  <text x="100" y="356" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+  <text x="100" y="410" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
         font-size="27" fill="#F2F4F9" opacity="0.92">als PDF/A gerendert und geometrisch geprüft.</text>
 
   <g font-family="SF Mono, Menlo, DejaVu Sans Mono, monospace" font-size="19" fill="#4FBF80">
-    <text x="100" y="434">OK  Falzmarke 1, y: soll 105.00 ist 105.00</text>
-    <text x="100" y="465">OK  Anschrift, erste Zeile y: soll ≥ 62.7 ist 62.19</text>
-    <text x="100" y="496">OK  Abstand Betreff → Anrede: soll 12.70 ist 12.70</text>
+    <text x="100" y="470">OK  Falzmarke 1, y: soll 105.00 ist 105.00</text>
+    <text x="100" y="501">OK  Anschrift, erste Zeile y: soll ≥ 62.7 ist 62.19</text>
+    <text x="100" y="532">OK  Abstand Betreff → Anrede: soll 12.70 ist 12.70</text>
   </g>
 </svg>

@@ -48,7 +48,11 @@ GESETZT = [
     ('Er sagte "Hallo" dazu', ["„Hallo“"]),
     ("Gilt z.B. und d.h. hier", [f"z.{NBSP}B.", f"d.{NBSP}h."]),
     ("Angebot -- Nachtrag folgt", ["–"]),
-    ("Es sind 10 % und 5 km und § 3 und 25. August", [f"10{NBSP}%", f"5{NBSP}km", f"§{NBSP}3", f"25.{NBSP}August"]),
+    # Einheiten (10 %, 5 km) stehen nur in einer Quelle und werden seit v0.4
+    # nicht mehr automatisch verbunden — siehe tests/test_quellenlage.py.
+    # § und Datum bleiben: Paragrafzeichen ist Satztechnik, das Datum ist
+    # mehrfach belegt.
+    ("Es sind 10 % und 5 km und § 3 und 25. August", [f"§{NBSP}3", f"25.{NBSP}August"]),
     ("5&nbsp;km und AT&amp;T und &copy; 2026", [f"5{NBSP}km", "AT&T", "©"]),
 ]
 

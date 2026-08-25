@@ -41,6 +41,10 @@ def regeln(bericht) -> set[str]:
     return {b.regel for b in bericht.befunde if b.schwere == "Fehler"}
 
 
+def warnungen(bericht) -> set[str]:
+    return {b.regel for b in bericht.befunde if b.schwere == "Warnung"}
+
+
 def test_gueltiger_brief_ist_sauber(tmp_path):
     bericht = linte(tmp_path)
     assert bericht.ok, bericht.als_text("brief.md")
@@ -106,8 +110,14 @@ def test_anrede_ohne_komma(tmp_path):
 
 
 def test_gruss_mit_komma(tmp_path):
+    """Warnung statt Fehler: Die Regel steht nur in einer Quelle.
+
+    Die Herabstufung kommt aus `regeln/din5008.yaml` und gilt, bis der
+    Abgleich mit dem Originaltext der Norm sie bestätigt.
+    """
     bericht = linte(tmp_path, KOPF + "gruss: Mit freundlichen Grüßen,\n")
-    assert "gruss" in regeln(bericht)
+    assert "gruss" in warnungen(bericht)
+    assert "gruss" not in regeln(bericht)
 
 
 # ── Anschrift und Vermerke ──────────────────────────────────────────────────
@@ -116,7 +126,8 @@ def test_sieben_anschriftzeilen(tmp_path):
     zeilen = ", ".join(f"Zeile {i}" for i in range(7))
     bericht = linte(tmp_path, KOPF.replace(
         "empfaenger: [Muster GmbH, Musterstraße 1, 12345 Musterstadt]", f"empfaenger: [{zeilen}]"))
-    assert "empfaenger" in regeln(bericht)
+    # Warnung statt Fehler — die Sechs-Zeilen-Grenze steht nur in einer Quelle.
+    assert "empfaenger" in warnungen(bericht)
 
 
 def test_vier_vermerke(tmp_path):

@@ -156,6 +156,10 @@ Breite des Informationsblocks, die Betreffposition relativ zum tiefer reichenden
 Satzspiegel, die Zeilenabstände im 12-pt-Raster, eingebettete Schriften, die PDF/A-Kennzeichnung
 und die Folgeseiten.
 
+**Woher die Sollwerte stammen:** Maße und Schreibregeln folgen öffentlich dokumentierten Quellen (Liste in [`skill/references/din5008.md`](skill/references/din5008.md)); der Abgleich mit dem Originaltext der DIN 5008:2020-03 steht aus. Regeln aus einzelnen Quellen wirken nur als Warnung.
+Welche Regel worauf beruht, steht in der
+[Quellenlage je Regel](skill/references/din5008.md#quellenlage-je-regel).
+
 Die Sollwerte stehen an genau einer Stelle und gelten für Prüfung und Testsuite gemeinsam. Dazu
 kommen [Gegenproben](tests/test_gegenbeweis.py): Jede tragende Prüfung wird gegen ein absichtlich
 verschobenes Layout gefahren und muss dort anschlagen — ein Prüfmittel, das nie rot werden kann,
@@ -290,9 +294,11 @@ Gesetzt wird mit [Typst](https://typst.app) (Apache-2.0), geparst mit
 geschlossene Systeme einbauen. Die vollständige Aufstellung samt der Begründung, warum PyMuPDF
 (AGPL-3.0) ersetzt wurde, steht in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 
-**DIN 5008** ist eine Norm des DIN Deutsches Institut für Normung e. V. Die Maße hier folgen
-öffentlich dokumentierten Quellen ([`docs/normmasse.md`](docs/normmasse.md)). falzmarke ist kein
-Produkt des DIN, steht in keiner Verbindung zum DIN und behauptet keine Zertifizierung.
+**DIN 5008** ist eine Norm des DIN Deutsches Institut für Normung e. V. Maße und Schreibregeln folgen öffentlich dokumentierten Quellen (Liste in [`skill/references/din5008.md`](skill/references/din5008.md)); der Abgleich mit dem Originaltext der DIN 5008:2020-03 steht aus. Regeln aus einzelnen Quellen wirken nur als Warnung.
+falzmarke ist kein Produkt des DIN, steht in keiner Verbindung zum DIN und behauptet keine
+Zertifizierung. Wie die Maße gemessen wurden, steht in
+[`docs/normmasse.md`](docs/normmasse.md); was rechtlich daraus folgt, in
+[`docs/recht.md`](docs/recht.md).
 
 ## Lizenz
 

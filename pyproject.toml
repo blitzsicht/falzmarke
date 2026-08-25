@@ -1,6 +1,6 @@
 [project]
 name = "falzmarke"
-version = "0.3.2"
+version = "0.4.0"
 description = "Geschäftsbriefe nach DIN 5008 aus Markdown — mit nachgemessener Geometrie"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -33,10 +33,16 @@ build-backend = "setuptools.build_meta"
 # ausgeliefert wird. Zwei Kopien wären zwei Fassungen.
 [tool.setuptools]
 package-dir = { "" = "skill" }
-packages = ["falzmarke"]
+packages = ["falzmarke", "falzmarke.regeln"]
 
 [tool.setuptools.package-data]
 falzmarke = ["typst/**/*", "assets/**/*"]
+# Die Quellenlage gehört ins Paket — ohne sie fällt der Linter mit
+# „Regeldatei fehlt“ um. Gemessen am 25.08.2026: setuptools nimmt das
+# Unterpaket auch ohne diese beiden Einträge mit. Sie stehen trotzdem hier,
+# weil das Verhalten dann von einer Voreinstellung abhängt statt von einer
+# Angabe — und weil `packages` sonst unvollständig ist.
+"falzmarke.regeln" = ["*.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -19,6 +19,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlparse
 
+from falzmarke import regeln
+
 FEHLER = "Fehler"
 WARNUNG = "Warnung"
 
@@ -60,6 +62,27 @@ class Bericht:
     befunde: list[Befund] = field(default_factory=list)
 
     def fehler(self, zeile: int, regel: str, meldung: str, korrektur: str = "") -> None:
+        """Meldet einen Fehler — soweit die Quellenlage das trägt.
+
+        Alle Maße und Schreibregeln stammen aus Sekundärquellen; der Abgleich
+        mit dem Originaltext der DIN 5008:2020-03 steht aus. Solange das so
+        ist, darf nur als Fehler gelten, was mehrfach belegt ist. Eine Regel
+        aus einer einzigen Quelle wird hier zur Warnung und nennt das in der
+        Meldung; eine Regel ohne Beleg wird gar nicht gemeldet.
+
+        Die Herabstufung sitzt bewusst an dieser einen Stelle: Jeder Fehler im
+        Linter läuft hier durch, und eine neue Prüfung erbt die Regel, ohne
+        dass jemand daran denken muss.
+        """
+        herkunft = regeln.herkunft_von_lint(regel)
+        if herkunft == regeln.OFFEN:
+            return
+        if herkunft == regeln.EINZELN:
+            hinweis = regeln.quellenhinweis(regel)
+            self.befunde.append(Befund(
+                zeile, regel, WARNUNG,
+                f"{meldung} — {hinweis}" if hinweis else meldung, korrektur))
+            return
         self.befunde.append(Befund(zeile, regel, FEHLER, meldung, korrektur))
 
     def warnung(self, zeile: int, regel: str, meldung: str, korrektur: str = "") -> None:

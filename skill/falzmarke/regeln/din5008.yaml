@@ -1,0 +1,341 @@
+# Quellenlage je Regel — die einzige Stelle, an der die Herkunft gepflegt wird.
+#
+# Warum es diese Datei gibt: Alle Maße und Schreibregeln in falzmarke stammen aus
+# Sekundärquellen. Der Abgleich mit dem Originaltext der DIN 5008:2020-03 steht
+# aus (Issue: Normabgleich). Bis dahin darf das Werkzeug nur als Fehler melden,
+# was mehrfach belegt ist — und muss sagen, woher es das weiß.
+#
+# herkunft (genau einer):
+#   mehrfach_bestaetigt  mindestens drei unabhängige Sekundärquellen, oder eine
+#                        Sekundärquelle plus zwei unabhängige Implementierungen
+#   einzeln_belegt       eine Quelle
+#   offen                Annahme ohne Beleg
+#   werkzeug             keine Aussage der Norm, sondern eine Prüfung des
+#                        Werkzeugs (siehe unten)
+#
+# Zu `werkzeug`: Der Auftrag sah drei Werte vor. Es gibt aber Regeln, die gar
+# keine Normaussage treffen — ein Tabulator im Markdown, eine URL im Fließtext,
+# ein Betreff, der über zwei Zeilen läuft. Sie als `offen` zu führen hieße, sie
+# dürften nicht prüfen; sie als `einzeln_belegt` zu führen wäre eine
+# Quellenbehauptung, die es nicht gibt. Deshalb der vierte Wert. Er wirkt wie
+# `mehrfach_bestaetigt` (darf Fehler sein), sagt aber nichts über die Norm.
+#
+# wirkung: fehler | warnung | keine — was der Linter höchstens tun darf.
+#   Der Linter stuft selbst herab: einzeln_belegt wird immer zur Warnung.
+#
+# Nach dem Normabgleich wird `herkunft` durch `DIN 5008:2020-03, Abschnitt …`
+# ersetzt und die Quellenliste entfällt.
+
+quellen:
+  massskizze_b:
+    titel: "Maßzeichnung „DIN 5008 Form B“, Wikimedia Commons"
+    url: https://commons.wikimedia.org/wiki/File:DIN_5008_Form_B.svg
+    art: sekundaerquelle
+    abgerufen: 2026-08-25
+    bemerkung: >-
+      Bemaßte Zeichnung von 2013. Aus den Pfaden gerendert und abgelesen; sie
+      nennt 45 / 85×45 / 17,7 / 27,3 / 125 / 75 / 8,46 / 105 / 210 / 148,5 /
+      25 / 20 / 4,23 mm. Nur Form B — ein Pendant für Form A gibt es dort nicht.
+  onlineprinters:
+    titel: "Maßzeichnungen im Onlineprinters-Magazin"
+    url: https://www.onlineprinters.de/magazin/din-5008-vorlage/
+    art: sekundaerquelle
+    abgerufen: 2026-08-25
+    bemerkung: >-
+      Als Sichtreferenz gegengeprüft. Die dort angebotene Word-Vorlage ist
+      nachweislich nicht normgerecht, siehe docs/normmasse.md — die
+      Maßzeichnung selbst stimmt mit den übrigen Quellen überein.
+  wikipedia:
+    titel: "DIN 5008 in der deutschsprachigen Wikipedia"
+    url: https://de.wikipedia.org/wiki/DIN_5008
+    art: sekundaerquelle
+    abgerufen: 2026-08-25
+    bemerkung: >-
+      Nennt ausdrücklich nur: Anschriftfeld 32 mm (Form A) bzw. 50 mm (Form B)
+      unter der Oberkante, Fluchtlinie 25 mm, A4, Datumsformate und die
+      Abkürzungsschreibung mit Leerzeichen. Die übrigen Detailmaße stehen dort
+      nicht — die Quelle trägt weniger, als ihre Nennung vermuten lässt.
+  letter_pro:
+    titel: "typst-letter-pro v3.0.0"
+    url: https://github.com/Sematre/typst-letter-pro
+    art: implementierung
+    abgerufen: 2026-08-25
+    bemerkung: >-
+      Vendort unter skill/falzmarke/typst/vendor/, prüfsummengesichert. Die
+      Werte sind dort direkt nachlesbar (folding-mark-1-pos usw.).
+  eigene_messung:
+    titel: "Messung am gerenderten PDF"
+    url: docs/normmasse.md
+    art: eigene_messung
+    abgerufen: 2026-08-25
+    bemerkung: >-
+      **Keine unabhängige Quelle.** Sie belegt, dass das Werkzeug einhält, was
+      es sich vornimmt — nicht, dass das Vorgenommene der Norm entspricht.
+      Zählt deshalb nie zur Bestätigung.
+
+regeln:
+
+  # ── Geometrie, Form B ────────────────────────────────────────────────────
+  - id: geometrie.form_b.briefkopf
+    titel: Briefkopfhöhe Form B, 45 mm
+    herkunft: mehrfach_bestaetigt
+    quellen: [massskizze_b, onlineprinters, letter_pro]
+    wirkung: fehler
+
+  - id: geometrie.form_b.anschriftfeld
+    titel: Anschriftfeld 85 × 45 mm, linke Kante 20 mm, Text ab 25 mm
+    herkunft: mehrfach_bestaetigt
+    quellen: [massskizze_b, onlineprinters, letter_pro]
+    wirkung: fehler
+
+  - id: geometrie.form_b.zonen
+    titel: Rücksendeangabe 5 mm, Zusatz-/Vermerkzone 12,7 mm, Anschriftzone 27,3 mm
+    herkunft: mehrfach_bestaetigt
+    quellen: [massskizze_b, onlineprinters, letter_pro]
+    wirkung: fehler
+    bemerkung: >-
+      Die Maßzeichnung fasst die ersten beiden zu 17,7 mm zusammen
+      („Zusatz- und Vermerkzone mit integrierter Rücksendeangabe“).
+      5 + 12,7 = 17,7 — dieselben Werte, feiner aufgelöst.
+
+  - id: geometrie.form_b.infoblock
+    titel: Informationsblock x = 125 mm, Breite 75 mm, Oberkante 50 mm
+    herkunft: mehrfach_bestaetigt
+    quellen: [massskizze_b, onlineprinters, letter_pro]
+    wirkung: fehler
+
+  - id: geometrie.form_b.falzmarken
+    titel: Falzmarken bei 105 und 210 mm
+    herkunft: mehrfach_bestaetigt
+    quellen: [massskizze_b, onlineprinters, letter_pro]
+    wirkung: fehler
+
+  # ── Geometrie, Form A ────────────────────────────────────────────────────
+  - id: geometrie.form_a.masse
+    titel: Form A — Briefkopf 27 mm, Anschriftfeld ab 27 mm, Falzmarken 87 / 192 mm
+    herkunft: einzeln_belegt
+    quellen: [letter_pro]
+    wirkung: warnung
+    bemerkung: >-
+      Schwächer belegt als Form B, und das ist erst durch diese Erhebung
+      aufgefallen. Eine bemaßte Zeichnung für Form A gibt es auf Wikimedia
+      Commons nicht; Wikipedia nennt im Text nur die 32 mm für den Beginn der
+      Anschrift (= 27 mm Feldoberkante plus 5 mm Rücksendezone). Bleibt bis
+      zum Normabgleich eine Warnung.
+
+  # ── Geometrie, formunabhängig ────────────────────────────────────────────
+  - id: geometrie.seitenformat
+    titel: A4, 210 × 297 mm
+    herkunft: mehrfach_bestaetigt
+    quellen: [massskizze_b, wikipedia, letter_pro]
+    wirkung: fehler
+
+  - id: geometrie.lochmarke
+    titel: Lochmarke bei 148,5 mm
+    herkunft: mehrfach_bestaetigt
+    quellen: [massskizze_b, onlineprinters, letter_pro]
+    wirkung: fehler
+
+  - id: geometrie.seitenraender
+    titel: Rand links 25 mm, rechts 20 mm, Textbreite 165 mm
+    herkunft: mehrfach_bestaetigt
+    quellen: [massskizze_b, wikipedia, letter_pro]
+    wirkung: fehler
+
+  - id: geometrie.grundzeilenhoehe
+    titel: Grundzeilenhöhe 4,23 mm (12 pt)
+    herkunft: mehrfach_bestaetigt
+    quellen: [massskizze_b, onlineprinters, letter_pro]
+    wirkung: fehler
+
+  - id: geometrie.betreffabstand
+    titel: Betreff zwei Leerzeilen (8,46 mm) unter dem tieferen von Feld und Block
+    herkunft: mehrfach_bestaetigt
+    quellen: [massskizze_b, onlineprinters, letter_pro]
+    wirkung: fehler
+
+  - id: geometrie.infoblock_mindesthoehe
+    titel: Informationsblock mindestens 40 mm hoch
+    herkunft: einzeln_belegt
+    quellen: [onlineprinters]
+    wirkung: warnung
+    bemerkung: In der Maßzeichnung ist die Höhe nicht bemaßt.
+
+  - id: geometrie.markenlaenge
+    titel: Marken 2,5 bis 5 mm lang, im Heftrand bis 20 mm von links
+    herkunft: einzeln_belegt
+    quellen: [onlineprinters]
+    wirkung: warnung
+    bemerkung: >-
+      letter-pro zeichnet die Marken, legt aber keine Länge als Sollwert fest.
+      Die Zeichnung bemaßt sie nicht.
+
+  - id: geometrie.schriftgroessen
+    titel: Fließtext mindestens 10 pt, Anschrift und Informationsblock mindestens 8 pt
+    herkunft: einzeln_belegt
+    quellen: [wikipedia]
+    wirkung: warnung
+    bemerkung: Wikipedia nennt 8 pt für die Rücksendeangabe (seit 2011 zulässig).
+
+  # ── Aufbau des Textteils ─────────────────────────────────────────────────
+  - id: text.anrede_komma
+    titel: Anrede endet mit Komma, der Text darunter beginnt klein
+    lint: anrede
+    herkunft: mehrfach_bestaetigt
+    quellen: [wikipedia, onlineprinters, letter_pro]
+    wirkung: fehler
+
+  - id: text.gruss_ohne_komma
+    titel: Grußformel ohne Komma
+    lint: gruss
+    herkunft: einzeln_belegt
+    quellen: [onlineprinters]
+    wirkung: warnung
+
+  - id: text.anlagen_ohne_doppelpunkt
+    titel: „Anlage“/„Anlagen“ ohne Doppelpunkt
+    herkunft: einzeln_belegt
+    quellen: [onlineprinters]
+    wirkung: warnung
+
+  - id: text.folgeseiten
+    titel: Folgeseiten tragen die Seitenzahl, Kopfzeile mit Betreffkurzform empfohlen
+    herkunft: einzeln_belegt
+    quellen: [massskizze_b]
+    wirkung: warnung
+    bemerkung: Die Zeichnung zeigt „Seite x von y (Bei mehrseitigen Texten)“.
+
+  - id: text.anschrift_ohne_leerzeilen
+    titel: Anschriftzone bis 6 Zeilen, keine Leerzeilen
+    lint: empfaenger
+    herkunft: einzeln_belegt
+    quellen: [onlineprinters]
+    wirkung: warnung
+
+  - id: text.vermerke_max_3
+    titel: Zusatz- und Vermerkzone fasst bis zu 3 Zeilen
+    lint: vermerke
+    herkunft: mehrfach_bestaetigt
+    quellen: [massskizze_b, onlineprinters, letter_pro]
+    wirkung: fehler
+    bemerkung: Folgt aus der Zonenhöhe von 12,7 mm bei 4,23 mm Zeilenhöhe.
+
+  # ── Schreibweisen ────────────────────────────────────────────────────────
+  - id: schreibweise.datum
+    titel: "Datum als „25. August 2026“ oder „2026-08-25“"
+    lint: datum
+    typografie: _datum
+    herkunft: mehrfach_bestaetigt
+    quellen: [wikipedia, onlineprinters, letter_pro]
+    wirkung: fehler
+    bemerkung: >-
+      Wikipedia nennt beide Formen ausdrücklich. Der Linter prüft nur, dass ein
+      Datumsfeld eine dieser Formen hat, nicht welche.
+
+  - id: schreibweise.abkuerzungen
+    titel: "Abkürzungen mit geschütztem Leerzeichen: z. B., u. a."
+    typografie: _abkuerzungen
+    herkunft: mehrfach_bestaetigt
+    quellen: [wikipedia, onlineprinters, letter_pro]
+    wirkung: fehler
+    bemerkung: Wikipedia nennt „a. a. O., d. h., v. l. n. r., z. B.“ wörtlich.
+
+  - id: schreibweise.telefon
+    titel: "Telefon „0941 620-9800“, international „+49 941 620-9800“"
+    herkunft: einzeln_belegt
+    quellen: [onlineprinters]
+    wirkung: warnung
+
+  - id: schreibweise.zahlengliederung
+    titel: "Zahlen in Dreiergruppen mit geschütztem Leerzeichen: 1 234 567,89"
+    typografie: _vor_angabe
+    herkunft: einzeln_belegt
+    quellen: [onlineprinters]
+    wirkung: warnung
+
+  - id: schreibweise.iban
+    titel: "IBAN in Vierergruppen"
+    herkunft: einzeln_belegt
+    quellen: [onlineprinters]
+    wirkung: warnung
+
+  - id: schreibweise.postfach
+    titel: "Postfachnummer von rechts in Zweiergruppen"
+    herkunft: einzeln_belegt
+    quellen: [onlineprinters]
+    wirkung: warnung
+
+  - id: schreibweise.uhrzeit
+    titel: "Uhrzeit „11:30 Uhr“"
+    herkunft: einzeln_belegt
+    quellen: [onlineprinters]
+    wirkung: warnung
+
+  - id: schreibweise.geldbetrag
+    titel: "Geldbetrag „1.234,56 EUR“, Währung nachgestellt"
+    herkunft: einzeln_belegt
+    quellen: [onlineprinters]
+    wirkung: warnung
+
+  - id: schreibweise.auslandsanschrift
+    titel: Ort und Land in Großbuchstaben, Land auf Deutsch in der letzten Zeile
+    herkunft: einzeln_belegt
+    quellen: [onlineprinters]
+    wirkung: warnung
+
+  - id: schreibweise.akademischer_grad
+    titel: Grad vor dem Namen, Bachelor/Master dahinter
+    herkunft: offen
+    quellen: []
+    wirkung: keine
+    bemerkung: >-
+      Steht in references/din5008.md ohne Beleg. Wird deshalb nicht geprüft,
+      bis eine Quelle vorliegt.
+
+  - id: schreibweise.einheiten
+    titel: Einheiten und Zeichen nicht vom Zahlwert trennen (5 kg, 20 %, § 3)
+    typografie: _einheiten
+    herkunft: einzeln_belegt
+    quellen: [onlineprinters]
+    wirkung: warnung
+
+  # ── Prüfungen des Werkzeugs, keine Normaussage ───────────────────────────
+  - id: werkzeug.betreff_laenge
+    titel: Betreff höchstens 150 Zeichen (zwei Zeilen bei 165 mm Satzbreite)
+    lint: betreff
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Eigene Herleitung aus Satzbreite und Schriftgröße. Die Norm nennt keine
+      Zeichenzahl; sie begrenzt den Betreff auf zwei Zeilen.
+
+  - id: werkzeug.url_im_text
+    titel: URL im Brieftext
+    lint: url
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: Auf Papier gibt es nichts zum Anklicken.
+
+  - id: werkzeug.email_im_infoblock
+    titel: E-Mail-Adresse im Informationsblock muss eine sein
+    lint: infoblock.email
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+
+  - id: werkzeug.tabulator
+    titel: Tabulator im Markdown
+    lint: tabulator
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+
+  - id: werkzeug.umbruch
+    titel: Zeilenumbruch durch zwei Leerzeichen
+    lint: umbruch
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: Unsichtbar in jeder Vorschau — deshalb die Warnung.

@@ -90,18 +90,56 @@ def _anfuehrungszeichen(text: str) -> str:
     return text
 
 
-def anwenden(text: str) -> str:
-    """Der vollständige Pass, in fester Reihenfolge.
+# Reihenfolge ist wesentlich: erst die Striche (--- vor --), dann die
+# Anführungszeichen, dann die geschützten Leerzeichen — sonst zerlegt eine
+# Ersetzung die Vorlage der nächsten.
+#
+# Der zweite Eintrag ist der Name der Regel in `regeln/din5008.yaml`. Steht
+# dort keine (None), ist der Schritt keine Normaussage, sondern Satztechnik
+# des Werkzeugs: Geviertstriche und deutsche Anführungszeichen setzt jeder
+# Setzkasten so, dafür braucht es die Norm nicht.
+SCHRITTE = [
+    (_striche, None),
+    (_anfuehrungszeichen, None),
+    (_abkuerzungen, "_abkuerzungen"),
+    (_datum, "_datum"),
+    (_einheiten, "_einheiten"),
+    (_paragraf, None),
+    (_vor_angabe, "_vor_angabe"),
+]
 
-    Erst die Striche (--- vor --), dann Anführungszeichen, dann die
-    geschützten Leerzeichen — sonst zerlegt eine Ersetzung die Vorlage der
-    nächsten.
+
+def anwenden(text: str) -> str:
+    """Der vollständige Pass — aber nur, soweit die Quellenlage ihn trägt.
+
+    Ein Schritt, dessen Regel nur in einer einzigen Quelle steht, ändert den
+    Text **nicht**. Eine stille Ersetzung auf dünner Grundlage wäre der
+    schlechteste Fall: Der Brief sähe anders aus, als er geschrieben wurde,
+    und niemand erführe warum. `vorschlaege()` sammelt stattdessen, was der
+    Schritt geändert hätte; der Linter macht Warnungen daraus.
     """
-    text = _striche(text)
-    text = _anfuehrungszeichen(text)
-    text = _abkuerzungen(text)
-    text = _datum(text)
-    text = _einheiten(text)
-    text = _paragraf(text)
-    text = _vor_angabe(text)
+    from falzmarke import regeln
+
+    for schritt, regelname in SCHRITTE:
+        if regelname is None or regeln.darf_automatisch_ersetzen(regelname):
+            text = schritt(text)
     return text
+
+
+def vorschlaege(text: str) -> list[tuple[str, str]]:
+    """Was ein zurückgehaltener Schritt geändert hätte.
+
+    Gibt Paare (Regelname, geänderter Ausschnitt) zurück — leer, wenn nichts
+    anzumerken ist. Der Text selbst bleibt unberührt.
+    """
+    from falzmarke import regeln
+
+    offen = []
+    for schritt, regelname in SCHRITTE:
+        if regelname is None or regeln.darf_automatisch_ersetzen(regelname):
+            continue
+        geaendert = schritt(text)
+        if geaendert != text:
+            regel = regeln.fuer_typografie(regelname)
+            offen.append((regel["id"] if regel else regelname, geaendert))
+    return offen
