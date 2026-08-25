@@ -35,7 +35,9 @@ def test_render_meldet_eingabefehler_mit_eins(tmp_path):
     brief.write_text("---\nprofil: example\n---\nText\n", encoding="utf-8")
     ergebnis = rufe("render", brief, "-o", tmp_path / "a.pdf")
     assert ergebnis.returncode == normbrief.EXIT_EINGABE
-    assert "Pflichtfelder fehlen" in ergebnis.stderr
+    # lint meldet je fehlendes Feld eine eigene Zeile mit Korrektur.
+    assert "empfaenger — Pflichtfeld fehlt" in ergebnis.stderr
+    assert "Korrektur:" in ergebnis.stderr
 
 
 def test_markdownfehler_nennt_zeile(tmp_path):
@@ -48,7 +50,7 @@ def test_markdownfehler_nennt_zeile(tmp_path):
     ergebnis = rufe("render", brief, "-o", tmp_path / "a.pdf")
     assert ergebnis.returncode == normbrief.EXIT_EINGABE
     # Zeile 9: sechs Zeilen Frontmatter, dann "Text", eine Leerzeile, die Überschrift.
-    assert "Zeile 9" in ergebnis.stderr, ergebnis.stderr
+    assert "kaputt.md:9" in ergebnis.stderr, ergebnis.stderr
 
 
 def test_check_meldet_zwei_bei_falscher_geometrie(tmp_path, gerendert):
