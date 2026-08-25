@@ -26,7 +26,7 @@ def version_aus_pyproject(text: str | None = None) -> str:
 def neuester_tag() -> str | None:
     ergebnis = subprocess.run(
         ["git", "-C", str(REPO), "tag", "--list", "v*", "--sort=-v:refname"],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8",
     )
     tags = [z for z in ergebnis.stdout.splitlines() if re.fullmatch(r"v\d+\.\d+\.\d+", z)]
     return tags[0] if tags else None

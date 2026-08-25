@@ -6,6 +6,7 @@ claude.ai, wo kein Verzeichnis den nächsten Chat überlebt.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -137,7 +138,7 @@ def test_pack_backt_profil_und_beilagen_ein(tmp_path, eigenes_profil):
     ergebnis = subprocess.run(
         [sys.executable, str(CLI), "pack", "--profil", "meins",
          "--profiles", str(eigenes_profil), "-o", str(ziel)],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8",
     )
     assert ergebnis.returncode == normbrief.EXIT_OK, ergebnis.stderr
     assert "Absenderdaten" in ergebnis.stdout, "die Warnung muss auffallen"
@@ -156,7 +157,7 @@ def test_aus_dem_gepackten_skill_laesst_sich_rendern(tmp_path, eigenes_profil):
     subprocess.run(
         [sys.executable, str(CLI), "pack", "--profil", "meins",
          "--profiles", str(eigenes_profil), "-o", str(ziel)],
-        capture_output=True, text=True, check=True,
+        capture_output=True, text=True, encoding="utf-8", check=True,
     )
     entpackt = tmp_path / "entpackt"
     with zipfile.ZipFile(ziel) as archiv:
@@ -167,10 +168,14 @@ def test_aus_dem_gepackten_skill_laesst_sich_rendern(tmp_path, eigenes_profil):
     ergebnis = subprocess.run(
         [sys.executable, str(entpackt / "normbrief" / "scripts" / "normbrief.py"),
          "render", str(brief), "-o", str(entpackt / "b.pdf")],
-        capture_output=True, text=True,
-        env={"PATH": "/usr/bin:/bin:/usr/local/bin",
+        capture_output=True, text=True, encoding="utf-8",
+        # Die vorhandene Umgebung übernehmen und nur die Profilorte umbiegen:
+        # ein hartkodierter PATH wäre unter Windows falsch.
+        env={**os.environ,
              "XDG_CONFIG_HOME": str(tmp_path / "leer"),
-             "HOME": str(tmp_path)},
+             "HOME": str(tmp_path),
+             "USERPROFILE": str(tmp_path),
+             "NORMBRIEF_PROFILES": ""},
     )
     assert ergebnis.returncode == normbrief.EXIT_OK, ergebnis.stdout + ergebnis.stderr
     assert (entpackt / "b.pdf").is_file()
@@ -179,7 +184,7 @@ def test_aus_dem_gepackten_skill_laesst_sich_rendern(tmp_path, eigenes_profil):
 def test_pack_meldet_unbekanntes_profil(tmp_path):
     ergebnis = subprocess.run(
         [sys.executable, str(CLI), "pack", "--profil", "gibtsnicht", "-o", str(tmp_path / "x.skill")],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8",
     )
     assert ergebnis.returncode == normbrief.EXIT_EINGABE
     assert "gibtsnicht" in ergebnis.stderr

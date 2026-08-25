@@ -1,4 +1,10 @@
-"""Gemeinsame Fixtures. Die Beispiele werden einmal je Testlauf gerendert."""
+"""Gemeinsame Fixtures. Die Beispiele werden einmal je Testlauf gerendert.
+
+Wo Tests die CLI über `subprocess` aufrufen, steht dort `encoding="utf-8"`.
+Ohne das liest Python die Ausgabe unter Windows in cp1252, und jeder Vergleich
+mit einem Text, der `—` oder `ß` enthält, scheitert an Mojibake statt an der
+Sache. Das Programm selbst schreibt seit v0.2.0 immer UTF-8.
+"""
 
 from __future__ import annotations
 

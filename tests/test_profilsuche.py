@@ -79,7 +79,7 @@ def test_beispiel_bleibt_auffindbar(xdg):
 def test_init_profil_legt_am_updatefesten_ort_an(xdg):
     ergebnis = subprocess.run(
         [sys.executable, str(CLI), "init-profil", "meinefirma"],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8",
     )
     assert ergebnis.returncode == normbrief.EXIT_OK, ergebnis.stderr
     assert (xdg / "meinefirma.yaml").is_file()
@@ -90,7 +90,7 @@ def test_init_profil_ueberschreibt_nicht(xdg):
     profil_ablegen(xdg, "meinefirma")
     ergebnis = subprocess.run(
         [sys.executable, str(CLI), "init-profil", "meinefirma"],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8",
     )
     assert ergebnis.returncode == normbrief.EXIT_EINGABE
     assert "gibt es schon" in ergebnis.stderr
@@ -106,7 +106,7 @@ def test_erzeugtes_profil_rendert(xdg, tmp_path):
     )
     ergebnis = subprocess.run(
         [sys.executable, str(CLI), "render", str(brief), "-o", str(tmp_path / "b.pdf")],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8",
     )
     assert ergebnis.returncode == normbrief.EXIT_OK, ergebnis.stdout + ergebnis.stderr
 

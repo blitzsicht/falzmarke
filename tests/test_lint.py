@@ -71,7 +71,7 @@ def test_unmoegliches_datum_ergibt_keinen_traceback(tmp_path):
     """`2026-13-45` scheiterte bis v0.1.2 in PyYAML mit einem Traceback."""
     brief = schreibe(tmp_path, KOPF.replace("datum: 2026-08-25", "datum: 2026-13-45"))
     ergebnis = subprocess.run(
-        [sys.executable, str(CLI), "lint", str(brief)], capture_output=True, text=True
+        [sys.executable, str(CLI), "lint", str(brief)], capture_output=True, text=True, encoding="utf-8"
     )
     assert ergebnis.returncode == normbrief.EXIT_EINGABE
     assert "Traceback" not in ergebnis.stderr
@@ -183,7 +183,7 @@ def test_render_bricht_vor_dem_setzen_ab(tmp_path):
     ziel = tmp_path / "aus.pdf"
     ergebnis = subprocess.run(
         [sys.executable, str(CLI), "render", str(brief), "-o", str(ziel)],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8",
     )
     assert ergebnis.returncode == normbrief.EXIT_EINGABE
     assert not ziel.exists()
@@ -193,7 +193,7 @@ def test_render_bricht_vor_dem_setzen_ab(tmp_path):
 def test_json_ausgabe(tmp_path):
     brief = schreibe(tmp_path, KOPF.replace("datum: 2026-08-25", "datum: morgen"))
     ergebnis = subprocess.run(
-        [sys.executable, str(CLI), "lint", str(brief), "--json"], capture_output=True, text=True
+        [sys.executable, str(CLI), "lint", str(brief), "--json"], capture_output=True, text=True, encoding="utf-8"
     )
     bericht = json.loads(ergebnis.stdout)
     assert bericht["ok"] is False and bericht["fehler"] == 1

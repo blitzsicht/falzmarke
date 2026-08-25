@@ -19,7 +19,7 @@ PROFILE = SKILL / "normbrief" / "typst" / "profiles"
 
 def rufe(*argumente) -> subprocess.CompletedProcess:
     return subprocess.run(
-        [sys.executable, str(CLI), *map(str, argumente)], capture_output=True, text=True
+        [sys.executable, str(CLI), *map(str, argumente)], capture_output=True, text=True, encoding="utf-8"
     )
 
 

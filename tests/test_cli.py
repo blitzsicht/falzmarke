@@ -19,7 +19,7 @@ BEISPIEL = REPO / "examples" / "brief-form-b.md"
 def rufe(*argumente) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(CLI), *map(str, argumente)],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8",
     )
 
 
