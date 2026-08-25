@@ -7,6 +7,13 @@ name: Video
 #
 # Der Erklaerfilm wird hier NICHT gerendert. Er entsteht lokal, wie jedes andere
 # Video im Haus; dieser Lauf misst nur die eingecheckten Dateien.
+#
+# Alle Actions sind auf Commit-SHAs gepinnt, nicht auf Tags. Ein Tag laesst sich
+# verschieben; wer ihn kontrolliert, bekaeme hier Code in einen Job mit
+# `contents: write`, der auf main zurueckschreibt. Das wiegt bei
+# charmbracelet/vhs-action besonders schwer — sie ist die einzige Action hier,
+# die nicht von GitHub selbst kommt. Die Version steht als Kommentar daneben,
+# damit beim Aktualisieren sichtbar bleibt, was gepinnt ist.
 
 on:
   push:
@@ -27,9 +34,9 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
         with:
           python-version: "3.12"
 
@@ -39,7 +46,7 @@ jobs:
           pip install .
           falzmarke --version
 
-      - uses: charmbracelet/vhs-action@v2
+      - uses: charmbracelet/vhs-action@f6d7db07a432fcd3b06772628d36a57f96d95dcf  # v2.1.1
         with:
           path: docs/marke/video/readme.tape
 
