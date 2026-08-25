@@ -51,22 +51,48 @@ Steht dort bereits ein ausformulierter Text, bleibt er unverändert.
 | `anrede` | endet mit Komma | Norm |
 | `gruss` | ohne Komma | Norm |
 
-## Brieftext
+## normbrief-Markdown (CommonMark-Teilmenge)
 
-Zugelassen sind Absätze, `**fett**`, `*kursiv*`, Aufzählungen mit `- `, nummerierte Listen mit
-`1. `, harter Zeilenumbruch mit `\` am Zeilenende und Pipe-Tabellen:
+Geparst wird nach [CommonMark](https://commonmark.org/) 0.31.2. Gesetzt wird davon die Teilmenge,
+die in einen Brief gehört; alles andere bricht mit Zeile, Grund und Korrektur ab — nie still.
 
-```markdown
-| Position | Betrag |
+| Syntax | Verhalten |
 |---|---|
-| Technik | 1.240,00 EUR |
-```
+| Absätze, durch Leerzeile getrennt | gesetzt |
+| `**fett**`, `__fett__` | fett |
+| `*kursiv*`, `_kursiv_` | kursiv |
+| `***beides***` | fett und kursiv |
+| `\` am Zeilenende | Zeilenumbruch |
+| zwei Leerzeichen am Zeilenende | Zeilenumbruch, dazu eine Warnung — in keiner Vorschau sichtbar |
+| einfacher Zeilenwechsel | Leerzeichen (ein Absatz) |
+| `-` / `*` / `+` Aufzählung, bis zwei Ebenen | Liste |
+| `1.` / `1)`, beliebiger Startwert | nummerierte Liste, die mit diesem Wert beginnt |
+| Tabelle mit Trennzeile, Ausrichtung `:--`, `:-:`, `--:` | Tabelle; Spalten ohne Angabe linksbündig |
+| `\* \_ \\ \# \. \- \[ \]` | das Zeichen selbst |
+| `*` oder `_` mit Leerzeichen ringsum (`3 * 4`) | Text |
+| `&nbsp;` `&amp;` `&copy;` | dekodiert |
+| Überschriften `#`, auch `===`/`---` darunter | **Fehler** — der Betreff steht im Frontmatter |
+| Blockzitat `>` | **Fehler** |
+| Code: `` `x` ``, eingerückt, ``` | **Fehler** — Text ohne Backticks schreiben |
+| Links `[t](u)`, `[t][id]`, `<url>` | **Fehler** — auf Papier gibt es keinen Link; Adresse ausschreiben |
+| Bilder `![]()` | **Fehler** — Logo und Signatur gehören ins Profil |
+| HTML | **Fehler** — wird nie durchgereicht |
+| Trennlinie `---` allein | **Fehler** |
+| `~~durchgestrichen~~`, `[^1]`, `- [ ]` | **Fehler** mit Nennung der Syntax |
+| Tabelle ohne Trennzeile | **Fehler** — sonst stünde die Zeile als Text im Brief |
 
-Alles andere bricht mit Zeilenangabe ab: Überschriften, Zitate, Codeblöcke, Bilder, Links in
-Markdown-Schreibweise, Trennlinien. Ein einzelnes `*` im Text gilt als angefangenes Kursiv-Markup
-und wird ebenfalls gemeldet.
+Drei Stellen weichen bewusst von CommonMark ab:
 
-Der erste Absatz folgt auf die Anrede und beginnt deshalb klein.
+1. **Eine einzelne Zeile, die wie ein Listenpunkt aussieht, ist keiner.** `2. Mahnung zur
+   Rechnung 4711` würde als nummerierte Liste gesetzt und die Zahl verschwände. normbrief lehnt
+   das ab und schlägt `2\. Mahnung` vor. Dasselbe gilt für einen einzelnen Strich: `- 5 °C`
+   würde ein Aufzählungspunkt.
+2. **HTML wird nie durchgereicht.**
+3. **Links werden nie gesetzt.**
+
+Typografie nach DIN passiert selbsttätig: geschützte Leerzeichen in `z. B.`, `u. a.`, `d. h.`,
+zwischen Zahl und Einheit (`10 %`, `5 km`, `1.234,56 EUR`), nach `§`, zwischen Tag und Monat
+(`25. August`); `--` wird zum Halbgeviertstrich, `"..."` zu `„..."`.
 
 ## Profildatei
 
