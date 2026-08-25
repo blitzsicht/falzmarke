@@ -167,6 +167,9 @@ normbrief.py preview     BRIEF.md [-o AUS.png] [--ppi 120]
 normbrief.py profiles
 normbrief.py init        ZIEL.md --profil NAME [--empfaenger "Zeile|Zeile"] [--betreff "..."]
 normbrief.py init-profil NAME [--ziel VERZEICHNIS]
+normbrief.py lint        BRIEF.md [--json]
+normbrief.py verify      AUS.pdf [--form B] [--json] [--verbose]
+normbrief.py pack        --profil NAME [-o ZIEL.skill]
 ```
 
 Aufruf im geklonten Repo mit `python3 skill/scripts/normbrief.py …`. Ein installierbarer Befehl
@@ -186,8 +189,15 @@ Installation**, damit sie ein Update übersteht. Gesucht wird in dieser Reihenfo
 `--profiles` → `NORMBRIEF_PROFILES` → `./profiles/` (zum Vorgang gehörend) →
 `~/.config/normbrief/profiles/` → mitgelieferte Beispiele.
 
-Wer den Briefkopf frei gestalten will, legt eine gleichnamige `.typ`-Datei daneben; für alles
-andere reicht YAML.
+Wer den Briefkopf frei gestalten will, setzt `briefkopf_typ: meinkopf.typ` und legt daneben eine
+Typst-Datei mit einer Funktion `briefkopf(profil)` — Beispiel:
+[`example-kopf.typ`](skill/typst/profiles/example-kopf.typ). Das Anschriftfeld bleibt davon
+unberührt, seine Höhe erzwingt das Layout. Für alles andere reicht YAML.
+
+`profil:` nimmt außerdem einen Pfad (`./profile/firma.yaml`) oder die Felder direkt im
+Frontmatter — nützlich auf claude.ai, wo kein Verzeichnis den nächsten Chat überlebt. Für
+diesen Fall erzeugt `normbrief.py pack --profil meinefirma` ein Skill-Zip mit eingebackenem
+Absender.
 
 ## Beispiele
 

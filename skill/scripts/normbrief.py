@@ -143,15 +143,18 @@ def benutzer_profilverzeichnis() -> Path:
     return wurzel / "normbrief" / "profiles"
 
 
-def profil_verzeichnisse(zusatz: Path | None = None) -> list[Path]:
+def profil_verzeichnisse(zusatz: Path | None = None,
+                         brief_pfad: Path | None = None) -> list[Path]:
     """Suchorte in absteigendem Vorrang.
 
-    1. --profiles                     ausdrücklich genannt
-    2. NORMBRIEF_PROFILES             Umgebung, mehrere Pfade erlaubt
-    3. ./profiles/                    zum Vorgang gehörend, neben den Briefen
-    4. ~/.config/normbrief/profiles/  die eigenen Absender, updatefest
-    5. profiles.local/                alter Ort, nur noch als Übergang
-    6. mitgelieferte Beispiele
+    1. --profiles                       ausdrücklich genannt
+    2. NORMBRIEF_PROFILES               Umgebung, mehrere Pfade erlaubt
+    3. neben dem Brief und dessen profiles/
+    4. /mnt/user-data/uploads           was auf claude.ai hochgeladen wurde
+    5. ./profiles/                      zum Vorgang gehörend
+    6. ~/.config/normbrief/profiles/    die eigenen Absender, updatefest
+    7. profiles.local/                  alter Ort, nur noch als Übergang
+    8. mitgelieferte Beispiele
     """
     pfade = []
     if zusatz:
@@ -159,6 +162,12 @@ def profil_verzeichnisse(zusatz: Path | None = None) -> list[Path]:
     aus_umgebung = os.environ.get("NORMBRIEF_PROFILES")
     if aus_umgebung:
         pfade.extend(Path(p).expanduser().resolve() for p in aus_umgebung.split(os.pathsep) if p)
+    if brief_pfad is not None:
+        # Neben dem Brief: so lassen sich Brief und Profil zusammen weitergeben
+        pfade.append(Path(brief_pfad).expanduser().resolve().parent)
+        pfade.append(Path(brief_pfad).expanduser().resolve().parent / "profiles")
+    # Auf claude.ai landen hochgeladene Dateien hier.
+    pfade.append(Path("/mnt/user-data/uploads"))
     pfade.append(Path.cwd() / "profiles")
     pfade.append(benutzer_profilverzeichnis())
     pfade.append(TYPST_DIR / "profiles.local")
@@ -173,24 +182,46 @@ def profil_verzeichnisse(zusatz: Path | None = None) -> list[Path]:
     return eindeutig
 
 
-def finde_profile(zusatz: Path | None = None) -> dict[str, Path]:
+def finde_profile(zusatz: Path | None = None,
+                  brief_pfad: Path | None = None) -> dict[str, Path]:
     """Profilname -> Pfad. Frühere Verzeichnisse haben Vorrang."""
     gefunden: dict[str, Path] = {}
-    for verzeichnis in profil_verzeichnisse(zusatz):
+    for verzeichnis in profil_verzeichnisse(zusatz, brief_pfad):
         for datei in sorted(verzeichnis.glob("*.yaml")) + sorted(verzeichnis.glob("*.yml")):
             gefunden.setdefault(datei.stem, datei)
     return gefunden
 
 
-def lade_profil(name: str, zusatz: Path | None = None) -> tuple[dict, Path]:
+def lade_profil(
+    name, zusatz: Path | None = None, brief_pfad: Path | None = None
+) -> tuple[dict, Path]:
+    """Profil aus einem Namen, einem Pfad oder direkt aus dem Frontmatter.
+
+    Der eingebettete Fall ist für claude.ai gedacht: dort überlebt kein
+    Verzeichnis den nächsten Chat, ein Brief mit allem Nötigen darin schon.
+    """
     import yaml
 
-    profile = finde_profile(zusatz)
+    if isinstance(name, dict):
+        # Vollständig im Brief. Als Bezugspunkt für Logopfade dient der Brief.
+        basis = Path(brief_pfad).parent if brief_pfad else Path.cwd()
+        return name, basis / "<frontmatter>"
+
+    name = str(name)
+    if name.endswith((".yaml", ".yml")) or "/" in name:
+        pfad = Path(name).expanduser()
+        if not pfad.is_absolute() and brief_pfad is not None:
+            pfad = (Path(brief_pfad).parent / pfad).resolve()
+        if not pfad.is_file():
+            raise Eingabefehler(f"Profil nicht gefunden: {pfad}")
+        return yaml.safe_load(pfad.read_text(encoding="utf-8")) or {}, pfad
+
+    profile = finde_profile(zusatz, brief_pfad)
     if name not in profile:
         bekannt = ", ".join(sorted(profile)) or "keine"
         raise Eingabefehler(
             f"Profil '{name}' nicht gefunden. Vorhanden: {bekannt}.\n"
-            f"Gesucht in: {', '.join(str(p) for p in profil_verzeichnisse(zusatz))}"
+            f"Gesucht in: {', '.join(str(p) for p in profil_verzeichnisse(zusatz, brief_pfad))}"
         )
     pfad = profile[name]
     profil = yaml.safe_load(pfad.read_text(encoding="utf-8")) or {}
@@ -394,7 +425,7 @@ def linte(brief_pfad: Path, profil_verzeichnis: Path | None = None) -> lint_modu
 
     if kopf.get("profil"):
         try:
-            lade_profil(str(kopf["profil"]), profil_verzeichnis)
+            lade_profil(kopf["profil"], profil_verzeichnis, brief_pfad)
         except Eingabefehler as fehler:
             bericht.fehler(1, "profil", str(fehler).splitlines()[0])
     return bericht
@@ -412,7 +443,7 @@ def rendere(
 ) -> tuple[Path, str]:
     typst = _typst_modul()
     kopf, body_md, versatz = lies_brief(brief_pfad)
-    profil, profil_pfad = lade_profil(str(kopf.get("profil", "")), profil_verzeichnis)
+    profil, profil_pfad = lade_profil(kopf.get("profil", ""), profil_verzeichnis, brief_pfad)
 
     with tempfile.TemporaryDirectory(prefix="normbrief-") as tmp:
         arbeit = Path(tmp)
@@ -427,12 +458,32 @@ def rendere(
         if not body_typst.strip():
             raise Eingabefehler(f"{brief_pfad.name}: Der Brief hat keinen Text.")
 
+        # Eigener Briefkopf, falls das Profil einen mitbringt
+        kopf_import, kopf_argument = "", ""
+        eigener_kopf = profil.get("briefkopf_typ")
+        if eigener_kopf:
+            quelle = (profil_pfad.parent / eigener_kopf).resolve()
+            if not quelle.is_file():
+                raise Eingabefehler(
+                    f"Profil {profil_pfad.name}: briefkopf_typ verweist auf "
+                    f"{eigener_kopf}, die Datei gibt es dort nicht."
+                )
+            if profil_pfad.parent.resolve() not in quelle.parents:
+                raise Eingabefehler(
+                    f"Profil {profil_pfad.name}: briefkopf_typ muss im Profilordner liegen "
+                    f"(angegeben: {eigener_kopf})."
+                )
+            shutil.copy2(quelle, arbeit / "briefkopf-eigen.typ")
+            kopf_import = '#import "briefkopf-eigen.typ": briefkopf as eigener-kopf\n'
+            kopf_argument = ", briefkopf-eigen: eigener-kopf"
+
         haupt = arbeit / "main.typ"
         haupt.write_text(
             '#import "normbrief.typ": brief\n'
-            "#let profil = json(bytes(sys.inputs.profil))\n"
+            + kopf_import
+            + "#let profil = json(bytes(sys.inputs.profil))\n"
             "#let daten = json(bytes(sys.inputs.daten))\n"
-            "#show: brief.with(profil: profil, daten: daten)\n\n"
+            f"#show: brief.with(profil: profil, daten: daten{kopf_argument})\n\n"
             + body_typst,
             encoding="utf-8",
         )
@@ -712,6 +763,63 @@ def befehl_init_profil(args) -> int:
     return EXIT_OK
 
 
+def befehl_pack(args) -> int:
+    """Ein Skill-Zip mit eingebackenen Profilen.
+
+    Auf claude.ai überlebt kein Verzeichnis den nächsten Chat: Profile unter
+    ~/.config sind dort nach dem ersten Brief weg, und das Release-Asset
+    enthält nur das Beispiel. Wer den Skill dort ernsthaft nutzt, braucht ein
+    Zip mit seinen eigenen Absendern darin.
+    """
+    import zipfile
+
+    profile = finde_profile(Path(args.profiles) if args.profiles else None)
+    gewaehlt = {}
+    for name in args.profil:
+        if name not in profile:
+            print(f"Profil '{name}' nicht gefunden. Vorhanden: {', '.join(sorted(profile))}",
+                  file=sys.stderr)
+            return EXIT_EINGABE
+        gewaehlt[name] = profile[name]
+
+    ziel = Path(args.output or f"normbrief-{'-'.join(args.profil)}.skill")
+    with tempfile.TemporaryDirectory(prefix="normbrief-pack-") as tmp:
+        bau = Path(tmp) / "normbrief"
+        shutil.copytree(SKILL, bau, ignore=shutil.ignore_patterns(
+            "profiles.local", "__pycache__", "*.pyc"))
+        ziel_profile = bau / "typst" / "profiles"
+
+        for name, quelle in gewaehlt.items():
+            shutil.copy2(quelle, ziel_profile / f"{name}.yaml")
+            import yaml
+
+            inhalt = yaml.safe_load(quelle.read_text(encoding="utf-8")) or {}
+            # Alles, worauf das Profil zeigt, muss mit — sonst fehlt im Chat
+            # das Logo und der Render bricht ab.
+            beilagen = [
+                (inhalt.get("briefkopf") or {}).get("logo"),
+                inhalt.get("signatur"),
+                inhalt.get("briefkopf_typ"),
+            ]
+            for beilage in [b for b in beilagen if b]:
+                mit = (quelle.parent / beilage).resolve()
+                if mit.is_file():
+                    (ziel_profile / Path(beilage).parent).mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(mit, ziel_profile / beilage)
+
+        with zipfile.ZipFile(ziel, "w", zipfile.ZIP_DEFLATED) as archiv:
+            for datei in sorted(bau.rglob("*")):
+                if datei.is_file():
+                    archiv.write(datei, datei.relative_to(bau.parent))
+
+    groesse = ziel.stat().st_size / 1024
+    print(f"OK  Skill geschrieben: {ziel} ({groesse:.0f} KB)")
+    print(f"    Enthaltene Profile: {', '.join(sorted(gewaehlt))}")
+    print("    ACHTUNG: Diese Datei enthält Absenderdaten — Anschrift, Bankverbindung,")
+    print("             Register. Sie gehört nicht in ein öffentliches Repository.")
+    return EXIT_OK
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="normbrief", description="Geschäftsbriefe nach DIN 5008 aus Markdown."
@@ -766,6 +874,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--empfaenger", help="Zeilen mit | getrennt")
     p.add_argument("--betreff")
     p.set_defaults(funktion=befehl_init)
+
+    p = unter.add_parser("pack", help="Skill-Zip mit eigenen Profilen für claude.ai")
+    p.add_argument("--profil", action="append", required=True,
+                   help="Profilname; mehrfach angebbar")
+    p.add_argument("-o", "--output")
+    p.add_argument("--profiles", dest="profiles")
+    p.set_defaults(funktion=befehl_pack)
 
     p = unter.add_parser("init-profil", help="eigenes Absenderprofil anlegen")
     p.add_argument("name", help="Name des Profils, wird zum Dateinamen")

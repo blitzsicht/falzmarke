@@ -118,7 +118,7 @@
 
 // ── Hauptfunktion ───────────────────────────────────────────────────────────
 
-#let brief(profil: (:), daten: (:), body) = {
+#let brief(profil: (:), daten: (:), briefkopf-eigen: none, body) = {
   let form = daten.at("form", default: "B")
   let kopf-h = kopfhoehe.at(form)
 
@@ -173,7 +173,11 @@
   letter-generic(
     format: "DIN-5008-" + form,
     margin: (left: 25mm, right: 20mm, top: 20mm, bottom: rand-unten),
-    header: briefkopf(profil),
+    // Ein Profil darf den Briefkopf selbst setzen: liegt neben der YAML eine
+    // .typ-Datei mit `briefkopf(profil)`, gewinnt sie über die Bausteine.
+    // Die Höhe von 27 bzw. 45 mm erzwingt letter-pro unabhängig davon — ein
+    // eigener Kopf kann das Anschriftfeld also nicht verschieben.
+    header: if briefkopf-eigen != none { briefkopf-eigen(profil) } else { briefkopf(profil) },
     footer: fusszeile(profil),
     folding-marks: true,
     hole-mark: true,

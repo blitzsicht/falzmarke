@@ -80,6 +80,33 @@ zeigen. `render` ruft die Prüfung selbst auf und endet mit Code 2, wenn ein Ma�
 - `references/din5008.md` — die Maßtabelle. Nur lesen, wenn nach Normdetails gefragt wird oder
   `check` fehlschlägt.
 
+## Profil auf claude.ai
+
+Dort überlebt kein Verzeichnis den nächsten Chat: Ein Profil unter
+`~/.config/normbrief/profiles/` ist im zweiten Chat weg, und das Release-Asset enthält nur das
+Beispiel. Zwei Wege, damit der Absender bleibt:
+
+1. **Skill mit eingebackenem Profil** — einmal am eigenen Rechner:
+   ```bash
+   python3 scripts/normbrief.py pack --profil meinefirma -o normbrief-meinefirma.skill
+   ```
+   Dieses Zip statt des Release-Assets hochladen. Es enthält Absenderdaten und gehört nicht in ein
+   öffentliches Repository.
+2. **Profil im Brief** — `profil:` nimmt statt eines Namens auch die Felder selbst. Dann trägt der
+   Brief alles Nötige und funktioniert überall.
+
+Hochgeladene Dateien sucht normbrief auch unter `/mnt/user-data/uploads`; Brief und Profil lassen
+sich also zusammen in einen Chat legen.
+
+## Wenn es bricht
+
+| Exit | Was zu tun ist |
+|---|---|
+| 1 | Eingabefehler. Die Meldung nennt Feld und Zeile — dort korrigieren und erneut `lint`. |
+| 2 | Verifikation. Den Bericht wörtlich weitergeben. **Nach einem Versuch aufhören**, nicht am Layout herumprobieren. |
+| 3 | Umgebung. `python3 scripts/bootstrap.py`, danach abbrechen, wenn es wieder scheitert. |
+| 4 | Renderer. Das ist ein Fehler im Werkzeug — als Issue melden, mit der `.md`. |
+
 ## Eigenes Profil anlegen
 
 ```bash
@@ -87,6 +114,8 @@ python3 scripts/normbrief.py init-profil meinefirma
 ```
 
 Das legt eine ausgefüllte Vorlage unter `~/.config/normbrief/profiles/meinefirma.yaml` an.
+Die Pfade in diesem Dokument sind relativ zum Skill-Ordner; auf claude.ai liegt er unter
+`/mnt/skills/user/normbrief`.
 **Dieser Ort überlebt Aktualisierungen des Skills** — ein Profil innerhalb des Skill-Ordners tut
 das nicht: wird der Skill ersetzt, sind die Absender weg und keiner der alten Briefe lässt sich
 mehr setzen.
