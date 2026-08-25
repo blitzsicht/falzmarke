@@ -138,6 +138,16 @@ auditiert — Sicherheitsrelevantes bitte nach [SECURITY.md](SECURITY.md), nicht
 - **Typst läuft auf ein eigenes Wurzelverzeichnis begrenzt**, Systemschriften sind abgeschaltet.
 - **Alle Abhängigkeiten sind permissiv lizenziert** —
   [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+- **Die CI-Aktionen hängen an vollständigen Commit-SHAs**, nicht an verschiebbaren Tags.
+
+Das Release-Asset lässt sich auf seine Herkunft prüfen:
+
+```bash
+gh attestation verify falzmarke.skill --repo blitzsicht/falzmarke
+```
+
+Das belegt, aus welchem Lauf und welchem Commit die Datei stammt — **nicht, dass sie fehlerfrei
+ist**. Die SHA-256-Summe steht in der Release-Notiz und als `falzmarke.skill.sha256` daneben.
 
 ## In 60 Sekunden
 

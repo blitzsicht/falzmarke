@@ -1,0 +1,23 @@
+# Versions-Updates. Security-Updates laufen unabhaengig davon bereits
+# (Repository-Einstellung), dies hier haelt auch die uebrigen Staende aktuell.
+#
+# Wichtig fuer die Actions: Sie sind auf vollstaendige Commit-SHAs gepinnt, weil
+# nur ein SHA eine unveraenderliche Referenz ist. Dependabot kann damit umgehen
+# und hebt SHA samt Versionskommentar gemeinsam an.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "ci"
+    labels: [maintainer]
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "build"
+    labels: [maintainer]

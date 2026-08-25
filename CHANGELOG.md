@@ -2,6 +2,26 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## Unveröffentlicht
+
+### Geändert
+- **Die CI-Aktionen hängen an vollständigen Commit-SHAs statt an Tags.** Ein Tag ist
+  verschiebbar: `actions/checkout@v4` zeigt heute auf einen Commit und morgen womöglich auf
+  einen anderen, ohne dass sich hier etwas ändert. Nur der SHA ist eine unveränderliche
+  Referenz. Die Version steht als Kommentar dahinter, damit lesbar bleibt, was gepinnt ist.
+  Alle sechs SHAs sind vor dem Festschreiben gegen ihr Repository geprüft worden — ein
+  falscher SHA bricht jeden Lauf, und bei `release.yml` fiele das erst beim nächsten Release auf.
+- **Voreinstellung `contents: read` je Workflow.** Die Jobs, die schreiben müssen, sagen das
+  weiterhin selbst — jetzt sichtbar als Ausnahme statt als Normalfall.
+
+### Neu
+- **`.github/dependabot.yml`** für Versions-Updates von Actions und Python-Abhängigkeiten.
+  Security-Updates liefen bereits über die Repository-Einstellung.
+- **Das Release-Asset ist überprüfbar.** `falzmarke.skill` bekommt eine
+  Herkunftsbestätigung (`actions/attest-build-provenance`) und eine SHA-256-Summe in der
+  Release-Notiz sowie als eigene Datei. Der Prüfbefehl steht im README. Eine solche Bestätigung
+  belegt **Herkunft und Bauweg, nicht Fehlerfreiheit** — genau so ist es dort formuliert.
+
 ## v0.5.2 — 25.08.2026
 
 ### Geändert
