@@ -44,11 +44,13 @@ jobs:
         run: python -m pytest -q -p no:warnings
 
       - name: Beispiele rendern
+        shell: bash
         run: |
-          mkdir -p docs/renders
+          # Relativer Pfad statt /tmp — den gibt es auf Windows-Runnern nicht.
+          mkdir -p docs/renders bau
           for datei in examples/*.md; do
             name=$(basename "$datei" .md)
-            python skill/scripts/normbrief.py render "$datei" -o "/tmp/$name.pdf"
+            python skill/scripts/normbrief.py render "$datei" -o "bau/$name.pdf"
             python skill/scripts/normbrief.py preview "$datei" -o "docs/renders/$name.png" --ppi 110
           done
 
