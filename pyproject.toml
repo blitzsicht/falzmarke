@@ -1,6 +1,6 @@
 [project]
 name = "normbrief"
-version = "0.1.0.dev0"
+version = "0.1.2"
 description = "Geschäftsbriefe nach DIN 5008 aus Markdown — mit nachgemessener Geometrie"
 readme = "README.md"
 requires-python = ">=3.11"

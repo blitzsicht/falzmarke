@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 110" width="460" height="110" role="img" aria-label="normbrief">
+  <title>normbrief</title>
+  <!-- Angedeutetes A4-Blatt mit den Marken, die das Werkzeug prueft:
+       zwei Falzmarken und eine Lochmarke im Heftrand. Die Verhaeltnisse
+       entsprechen Form B: Falz bei 105 und 210 mm, Lochung bei 148,5 mm. -->
+  <g transform="translate(8 8)">
+    <rect x="10" y="0" width="66" height="94" rx="2" fill="#FFFFFF" stroke="#C9CEDB" stroke-width="1.6"/>
+    <!-- Marken im Heftrand, links ausserhalb des Blattes -->
+    <g stroke="#3D4463" stroke-width="2" stroke-linecap="round">
+      <line x1="0" y1="33.2" x2="8" y2="33.2"/>
+      <line x1="0" y1="47.0" x2="9.5" y2="47.0"/>
+      <line x1="0" y1="66.5" x2="8" y2="66.5"/>
+    </g>
+    <!-- Anschriftfeld und Betreffzeile, stark abstrahiert -->
+    <rect x="20" y="14" width="30" height="17" rx="1" fill="none" stroke="#3D4463" stroke-width="1.2" opacity="0.55"/>
+    <g stroke="#3D4463" stroke-width="2.4" stroke-linecap="round" opacity="0.85">
+      <line x1="20" y1="42" x2="52" y2="42"/>
+    </g>
+    <g stroke="#3D4463" stroke-width="1.6" stroke-linecap="round" opacity="0.4">
+      <line x1="20" y1="52" x2="66" y2="52"/>
+      <line x1="20" y1="59" x2="66" y2="59"/>
+      <line x1="20" y1="66" x2="58" y2="66"/>
+    </g>
+    <!-- Pruefhaken: das Blatt ist nachgemessen -->
+    <g transform="translate(52 66)">
+      <circle cx="12" cy="12" r="12" fill="#2E7D4F"/>
+      <path d="M6 12.4 L10.3 16.6 L18.2 7.8" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+  <text x="106" y="62" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="42" font-weight="600" letter-spacing="-0.8" fill="#1D1E3B">normbrief</text>
+  <text x="108" y="84" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" letter-spacing="0.2" fill="#3D4463" opacity="0.95">DIN 5008 aus Markdown · gerendert und nachgemessen</text>
+</svg>

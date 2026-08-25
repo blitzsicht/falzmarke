@@ -1,0 +1,29 @@
+name: Vorschlag
+description: Eine Funktion oder Verbesserung anregen
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Vor dem Schreiben lohnt ein Blick in die
+        [offenen Issues](https://github.com/blitzsicht/normbrief/issues) — Anlagen-Merge,
+        Umschlagdruck, Serienbrief, MCP-Server, Versand und Ablage sind bereits vorgemerkt.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Welches Problem löst das
+      description: Was geht heute nicht oder nur umständlich?
+    validations:
+      required: true
+  - type: textarea
+    id: vorschlag
+    attributes:
+      label: Vorschlag
+      description: Wie könnte es aussehen? Gern mit Frontmatter- oder Befehlsbeispiel.
+  - type: textarea
+    id: norm
+    attributes:
+      label: Normbezug
+      description: |
+        Betrifft der Vorschlag das Layout: Welche Stelle der DIN 5008 (oder einer anderen Norm)
+        ist gemeint? Maße bitte mit Quelle — nicht aus einer Word-Vorlage abgeleitet.

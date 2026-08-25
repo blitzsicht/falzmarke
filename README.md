@@ -1,37 +1,95 @@
-# normbrief
+<div align="center">
 
-Geschäftsbriefe nach **DIN 5008:2020** aus einer Markdown-Datei — mit Falz- und Lochmarken,
-Anschriftfeld für Fensterumschläge, Informationsblock, Briefkopf und Fußzeile aus
-Absender-Profilen. Als PDF/A-2b, also archivfest.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/logo-dark.svg">
+  <img src="docs/assets/brand/logo.svg" alt="normbrief" width="440">
+</picture>
 
-Der Unterschied zu einer Briefvorlage: **jedes erzeugte PDF wird nachgemessen.** Sitzt die
-Falzmarke nicht auf 105,0 mm oder steht der Betreff einen Millimeter zu tief, endet der Lauf mit
-einem Fehler statt mit einem Brief, der nur ungefähr stimmt.
+<p><em>German business letters per DIN 5008 — written in Markdown, rendered to PDF/A, and geometrically verified.</em></p>
 
-```bash
-normbrief.py render brief.md
+[![CI](https://github.com/blitzsicht/normbrief/actions/workflows/ci.yml/badge.svg)](https://github.com/blitzsicht/normbrief/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/blitzsicht/normbrief)](https://github.com/blitzsicht/normbrief/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB)](pyproject.toml)
+[![DIN 5008](https://img.shields.io/badge/DIN_5008-2020-245A73)](skill/references/din5008.md)
+
+</div>
+
+---
+
+Schreibe den Inhalt als Markdown mit YAML-Frontmatter. normbrief macht daraus einen Geschäftsbrief
+nach **DIN 5008:2020** als **PDF/A-2b** — mit Anschriftfeld für Fensterumschläge,
+Informationsblock, Falz- und Lochmarken sowie Briefkopf und Fußzeile aus einem Absenderprofil.
+Anschließend wird **das fertige PDF nachgemessen**: Sitzt die Falzmarke nicht auf 105,0 mm oder
+steht der Betreff einen Millimeter zu tief, endet der Lauf mit einem Fehler statt mit einem Brief,
+der nur ungefähr stimmt.
+
+<div align="center">
+
+**[⬇ Skill herunterladen](https://github.com/blitzsicht/normbrief/releases/latest/download/normbrief.skill)** · **[Schnellstart](#schnellstart)** · **[Beispiele](#beispiele)**
+
+</div>
+
+---
+
+## Was dabei herauskommt
+
+![Briefkopf, Anschriftfeld, Informationsblock und Betreff](docs/assets/demo/hero.png)
+
+Und was danach geprüft wird — Auszug aus dem Bericht, den jeder Lauf ausgibt:
+
 ```
-
-```
-OK  PDF geschrieben: brief.pdf
 OK    Falzmarke 1, y: soll 105.00 ist 105.00 (tol ±0.3)
-OK    Anschrift, erste Zeile y: soll ≥ 62.7 ist 62.19 (tol -1.59)
+OK    Infoblock, x-links: soll 125.00 ist 125.00 (tol ±0.5)
 OK    Betreff, y-Oberkante: soll 98.47 ist 97.91 (tol -1.75/+0.6)
 OK    Abstand Betreff → Anrede (2 Leerzeilen): soll 12.70 ist 12.70 (tol ±0.2)
-...
 ```
 
-## Wofür
+## Warum normbrief
 
-Für alle, die Briefe von einer KI schreiben lassen und trotzdem ein normgerechtes Ergebnis
-brauchen. Ein Sprachmodell kann gut formulieren, aber es kann keinen Text auf 45,0 mm setzen.
-Deshalb liefert es hier nur Inhalt — Markdown mit YAML-Frontmatter —, und ein Renderer setzt das
+Eine Briefvorlage kann nicht prüfen, ob das Ergebnis stimmt. Sie wird kopiert, jemand verschiebt
+eine Zeile, und der Fehler fällt erst auf, wenn der Brief im Fensterumschlag nicht mehr lesbar ist
+oder die Post ihn als nicht automationsfähig zurückgibt.
+
+Sprachmodelle verschärfen das: Sie formulieren gut, aber sie können keinen Text auf 45,0 mm setzen.
+Wer einen Brief von einer KI schreiben lässt, bekommt zuverlässig guten Inhalt in unzuverlässigem
 Layout.
 
-Der Ordner `skill/` ist zugleich ein **Claude-Skill**: in Claude Code oder auf claude.ai
-installiert, schreibt Claude den Brief, rendert ihn und zeigt die Vorschau.
+normbrief trennt beides. Der Inhalt kommt als Markdown — lesbar, versionierbar, diffbar. Das
+Layout setzt ein Renderer, der es immer gleich macht. Und weil auch ein Renderer Fehler haben kann,
+wird das Ergebnis gemessen statt angeschaut.
 
-## Ein Brief
+## Funktionen
+
+- **DIN 5008 Form A und B** — Anschriftfeld mit allen vier Zonen, Informationsblock bei 125 mm, Falz- und Lochmarken, 12-pt-Raster.
+- **Markdown als Quelle** — der Brieftext bleibt lesbar und versionierbar; das PDF ist Ergebnis, nicht Quelle.
+- **Geometrieprüfung** — jedes erzeugte PDF wird gegen die Maßtabelle vermessen; Abweichung heißt Fehler, nicht Warnung.
+- **PDF/A-2b als Standard** — archivfest für GoBD und Dokumentenverwaltung, ohne zusätzliches Flag.
+- **Absenderprofile** — Briefkopf, Fußzeile, Logo, Farben und Voreinstellungen einmal anlegen, überall verwenden.
+- **Claude-Skill und CLI** — im Gespräch mit Claude oder direkt im Terminal, ohne Systeminstallation.
+
+## Schnellstart
+
+### Mit Claude
+
+1. **[`normbrief.skill` herunterladen](https://github.com/blitzsicht/normbrief/releases/latest/download/normbrief.skill)**
+2. In Claude unter Einstellungen › Capabilities hochladen (Tarif mit Code-Ausführung nötig).
+   Für Claude Code genügt ein Symlink, siehe [Als Claude-Skill](#als-claude-skill).
+3. „Schreib einen Brief an die Muster GmbH, Angebot über …"
+
+### Im Terminal
+
+```bash
+git clone https://github.com/blitzsicht/normbrief.git
+cd normbrief
+python3 skill/scripts/bootstrap.py
+python3 skill/scripts/normbrief.py render examples/brief-form-b.md --png
+```
+
+`bootstrap.py` holt `typst`, `pyyaml` und `pymupdf`. Der Typst-Compiler kommt als Python-Wheel mit —
+**keine Systeminstallation**: kein LaTeX, kein wkhtmltopdf, keine Schriftinstallation.
+
+## Einen Brief schreiben
 
 ```markdown
 ---
@@ -52,78 +110,36 @@ vielen Dank für Ihre Anfrage vom 20. August 2026. Anbei erhalten Sie unser Ange
 Die Umsetzung dauert ab Ihrer Freigabe **sieben Werktage**.
 ```
 
-![Form B](docs/renders/brief-form-b.png)
-
-Weitere Beispiele in [`examples/`](examples/): [Form A](docs/renders/brief-form-a.png),
-[Einschreiben mit Vermerken](docs/renders/brief-einschreiben.png),
-[Tabelle](docs/renders/brief-tabelle.png),
-[langer Informationsblock](docs/renders/brief-infoblock-lang.png),
-[Auslandsanschrift](docs/renders/brief-ausland.png),
-[mehrseitig](docs/renders/brief-mehrseitig-1.png).
-
-## Installation
-
 ```bash
-git clone https://github.com/blitzsicht/normbrief.git
-cd normbrief
-python3 skill/scripts/bootstrap.py     # holt typst, pyyaml, pymupdf
+python3 skill/scripts/normbrief.py render brief.md --png
 ```
 
-Der Typst-Compiler kommt als Python-Wheel mit. Es ist **keine** Systeminstallation nötig —
-kein LaTeX, kein wkhtmltopdf, keine Schriftinstallation.
+Alle Felder stehen in [`skill/references/frontmatter.md`](skill/references/frontmatter.md).
 
-**Als Claude-Skill in Claude Code:**
-
-```bash
-ln -s "$PWD/skill" ~/.claude/skills/normbrief
-```
-
-**Auf claude.ai:** das Release-Asset `normbrief.skill` unter Einstellungen › Capabilities
-hochladen (erfordert einen Tarif mit Code-Ausführung).
-
-## Befehle
+## Ausgabe und Prüfung
 
 ```
-normbrief.py render  BRIEF.md [-o AUS.pdf] [--png] [--no-pdfa] [--profiles DIR]
-normbrief.py check   AUS.pdf --form B [--json]
-normbrief.py preview BRIEF.md [-o AUS.png] [--ppi 120]
-normbrief.py profiles
-normbrief.py init    ZIEL.md --profil NAME [--empfaenger "Zeile|Zeile"] [--betreff "..."]
-normbrief.py init-profil NAME [--ziel VERZEICHNIS]
+brief.md
+   ↓ render
+brief.pdf + brief.png
+   ↓ check  (läuft automatisch mit)
+28 Prüfungen · Exit 0
 ```
 
 | Exit | Bedeutung |
 |---|---|
 | 0 | PDF geschrieben, alle Maße eingehalten |
-| 1 | Eingabefehler — mit Feld und Zeilennummer |
-| 2 | Geometrieprüfung gescheitert |
+| 1 | Eingabefehler — mit Feldname und Zeilennummer |
+| 2 | Geometrieprüfung gescheitert — mit Soll, Ist und Toleranz |
 | 3 | Umgebung unvollständig |
 
-## Absender-Profile
+Geprüft werden Seitenformat, Falz- und Lochmarken, alle vier Zonen des Anschriftfelds, Position und
+Breite des Informationsblocks, die Betreffposition relativ zum tiefer reichenden der beiden Blöcke,
+Satzspiegel, die Zeilenabstände im 12-pt-Raster, eingebettete Schriften, die PDF/A-Kennzeichnung
+und die Folgeseiten.
 
-Ein Profil ist eine YAML-Datei mit Briefkopf, Fußzeile, Rücksendeangabe und Voreinstellungen.
-
-```bash
-normbrief.py init-profil meinefirma
-```
-
-legt eine ausgefüllte Vorlage unter `~/.config/normbrief/profiles/` an — **außerhalb der
-Installation**, damit sie ein Update übersteht. Gesucht wird in dieser Reihenfolge:
-`--profiles` → `NORMBRIEF_PROFILES` → `./profiles/` (zum Vorgang gehörend) →
-`~/.config/normbrief/profiles/` → mitgelieferte Beispiele.
-
-Wer den Briefkopf frei gestalten will, legt eine gleichnamige `.typ`-Datei daneben; für alles
-andere reicht YAML.
-
-## Was geprüft wird
-
-Nach jedem Render misst [`geometrie.py`](skill/scripts/geometrie.py) das fertige PDF mit PyMuPDF:
-Seitenformat, Falz- und Lochmarken, alle vier Zonen des Anschriftfelds, Position und Breite des
-Informationsblocks, Betreffposition relativ zum tieferen der beiden Blöcke, Satzspiegel,
-Zeilenabstände im 12-pt-Raster, eingebettete Schriften, PDF/A-Kennzeichnung und die Folgeseiten.
-
-Die Sollwerte stehen an einer Stelle und gelten für Prüfung und Tests gemeinsam. Die Testsuite
-enthält außerdem [Gegenproben](tests/test_gegenbeweis.py): Jede Prüfung wird gegen ein absichtlich
+Die Sollwerte stehen an genau einer Stelle und gelten für Prüfung und Testsuite gemeinsam. Dazu
+kommen [Gegenproben](tests/test_gegenbeweis.py): Jede tragende Prüfung wird gegen ein absichtlich
 verschobenes Layout gefahren und muss dort anschlagen — ein Prüfmittel, das nie rot werden kann,
 wäre kein Nachweis.
 
@@ -131,14 +147,68 @@ wäre kein Nachweis.
 python3 -m pytest -q
 ```
 
+## Als Claude-Skill
+
+```bash
+ln -s "$PWD/skill" ~/.claude/skills/normbrief          # global
+ln -s "$PWD/skill" .claude/skills/normbrief            # nur dieses Projekt
+```
+
+Auf claude.ai: das Release-Asset
+[`normbrief.skill`](https://github.com/blitzsicht/normbrief/releases/latest/download/normbrief.skill)
+unter Einstellungen › Capabilities hochladen.
+
+## Befehle
+
+```
+normbrief.py render      BRIEF.md [-o AUS.pdf] [--png] [--no-pdfa] [--profiles DIR]
+normbrief.py check       AUS.pdf --form B [--json]
+normbrief.py preview     BRIEF.md [-o AUS.png] [--ppi 120]
+normbrief.py profiles
+normbrief.py init        ZIEL.md --profil NAME [--empfaenger "Zeile|Zeile"] [--betreff "..."]
+normbrief.py init-profil NAME [--ziel VERZEICHNIS]
+```
+
+Aufruf im geklonten Repo mit `python3 skill/scripts/normbrief.py …`. Ein installierbarer Befehl
+`normbrief` kommt mit der PyPI-Veröffentlichung
+([#7](https://github.com/blitzsicht/normbrief/issues/7)).
+
+## Absenderprofile
+
+Ein Profil ist eine YAML-Datei mit Briefkopf, Fußzeile, Rücksendeangabe und Voreinstellungen.
+
+```bash
+python3 skill/scripts/normbrief.py init-profil meinefirma
+```
+
+Das legt eine ausgefüllte Vorlage unter `~/.config/normbrief/profiles/` an — **außerhalb der
+Installation**, damit sie ein Update übersteht. Gesucht wird in dieser Reihenfolge:
+`--profiles` → `NORMBRIEF_PROFILES` → `./profiles/` (zum Vorgang gehörend) →
+`~/.config/normbrief/profiles/` → mitgelieferte Beispiele.
+
+Wer den Briefkopf frei gestalten will, legt eine gleichnamige `.typ`-Datei daneben; für alles
+andere reicht YAML.
+
+## Beispiele
+
+| Standardbrief | Einschreiben | Mehrseitig |
+|---|---|---|
+| ![Form B](docs/assets/demo/gallery-standard.png) | ![Vermerkzone](docs/assets/demo/gallery-einschreiben.png) | ![Folgeseiten](docs/assets/demo/gallery-mehrseitig.png) |
+| Form B mit Informationsblock | Zusatz- und Vermerkzone | Kopfzeile und Seitenzählung |
+
+Dazu Form A, Auslandsanschrift, Tabelle und ein Brief mit langem Informationsblock —
+[alle sieben Beispiele](examples/) und ihre [vollständigen Renderings](docs/renders/).
+
 ## Grenzen
 
-- Markdown-Teilmenge: Absätze, fett, kursiv, Listen, harter Umbruch, Pipe-Tabellen. Alles andere
-  bricht mit Zeilenangabe ab, statt still etwas anderes zu setzen.
-- Anschrift höchstens 6 Zeilen, Vermerke höchstens 3, Werte im Informationsblock höchstens
-  32 Zeichen — das sind die Zonengrößen der Norm.
-- Nur DIN 5008. Schweiz (SN 010130) und Österreich (ÖNORM A 1080) sind vorgemerkt; das Feld
-  `norm:` ist dafür reserviert.
+- **Markdown-Teilmenge**: Absätze, fett, kursiv, Aufzählungen, nummerierte Listen, harter Umbruch,
+  Pipe-Tabellen. Alles andere bricht mit Zeilenangabe ab, statt still etwas anderes zu setzen.
+- **Zonengrößen der Norm**: Anschrift höchstens 6 Zeilen, Vermerke höchstens 3, Werte im
+  Informationsblock höchstens 32 Zeichen.
+- **Keine Bilder im Fließtext** — ein Logo gehört ins Profil.
+- **Nur DIN 5008.** Schweiz (SN 010130) und Österreich (ÖNORM A 1080) sind vorgemerkt
+  ([#10](https://github.com/blitzsicht/normbrief/issues/10)); das Frontmatter-Feld `norm:` ist dafür
+  reserviert.
 
 ## Aufbau
 
@@ -153,15 +223,27 @@ skill/                      der Claude-Skill, in sich lauffähig
 ├── assets/fonts/           Source Sans 3 (OFL)
 └── references/             DIN-Maße, Stilregeln, Datenvertrag
 examples/                   sieben Briefe, die die Testsuite rendert
-tests/                      Geometrie, Gegenproben, Datenvertrag, CLI
+tests/                      Geometrie, Gegenproben, Datenvertrag, CLI, Profilsuche
+docs/normmasse.md           Herkunft der Maße, Gegenproben, Messmethodik
 ```
+
+## Mitmachen
+
+Fehlerberichte und Vorschläge sind willkommen — siehe [CONTRIBUTING.md](CONTRIBUTING.md).
+Bei einem Geometriefehler bitte die Ausgabe von `check` mitschicken; ohne sie lässt sich nicht
+unterscheiden, ob das Layout oder die Messung danebenliegt.
+
+Sicherheitsrelevantes bitte nicht als Issue, sondern nach [SECURITY.md](SECURITY.md).
 
 ## Dank
 
-Das Seitenlayout stammt von [typst-letter-pro](https://github.com/Sematre/typst-letter-pro)
-(MIT) von Sematre und ist unverändert vendort. normbrief ergänzt die Schicht darüber:
-Datenvertrag, Profile, Markdown-Eingabe, Messung, Skill.
+Das Seitenlayout stammt von [typst-letter-pro](https://github.com/Sematre/typst-letter-pro) (MIT)
+von Sematre und ist unverändert vendort — Prüfsumme in
+[`skill/typst/vendor/README.md`](skill/typst/vendor/README.md). normbrief ergänzt die Schicht
+darüber: Datenvertrag, Profile, Markdown-Eingabe, Messung und den Skill.
+
+Gesetzt wird mit [Typst](https://typst.app), gemessen mit [PyMuPDF](https://pymupdf.readthedocs.io).
 
 ## Lizenz
 
-MIT
+[MIT](LICENSE)

@@ -1,0 +1,45 @@
+name: Fehler melden
+description: Etwas funktioniert nicht wie beschrieben
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke fürs Melden. Bei Geometriefehlern ist die Ausgabe von `check` das Wichtigste —
+        ohne sie lässt sich nicht unterscheiden, ob das Layout falsch sitzt oder die Messung
+        danebenliegt.
+  - type: textarea
+    id: was
+    attributes:
+      label: Was passiert
+      description: Was hast du erwartet, was ist stattdessen passiert?
+    validations:
+      required: true
+  - type: textarea
+    id: check
+    attributes:
+      label: Ausgabe von check
+      description: |
+        `python3 skill/scripts/normbrief.py check DEIN.pdf --form B`
+        Bei einem Eingabefehler stattdessen die vollständige Fehlermeldung.
+      render: text
+  - type: textarea
+    id: brief
+    attributes:
+      label: Frontmatter des Briefes
+      description: Ohne echte Namen und Anschriften — die Feldstruktur genügt.
+      render: yaml
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "`git describe --tags` oder der Name des Skill-Zips"
+    validations:
+      required: true
+  - type: dropdown
+    id: umgebung
+    attributes:
+      label: Umgebung
+      options: [Linux, macOS, Windows, claude.ai, Claude Code]
+    validations:
+      required: true
