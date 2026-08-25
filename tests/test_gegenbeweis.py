@@ -1,0 +1,123 @@
+"""Gegenprobe: Ein Prüfmittel, das nie rot werden kann, ist kein Nachweis.
+
+Jeder Test hier sabotiert das Layout an genau einer Stelle und verlangt, dass
+die zugehörige Prüfung anschlägt — und nur sie. Ohne diese Datei wüsste die
+Testsuite nur, dass sie grün ist, nicht dass sie misst.
+"""
+
+from __future__ import annotations
+
+import shutil
+from pathlib import Path
+
+import pytest
+
+import geometrie
+import normbrief
+from conftest import REPO
+
+BEISPIEL = REPO / "examples" / "brief-form-b.md"
+
+
+def _sabotiere(tmp_path: Path, datei: str, alt: str, neu: str) -> Path:
+    """Legt eine Kopie des typst-Verzeichnisses an und ändert dort eine Stelle."""
+    ziel = tmp_path / "typst"
+    shutil.copytree(REPO / "skill" / "typst", ziel)
+    pfad = ziel / datei
+    inhalt = pfad.read_text(encoding="utf-8")
+    assert alt in inhalt, f"Ankertext nicht gefunden in {datei}: {alt!r}"
+    pfad.write_text(inhalt.replace(alt, neu, 1), encoding="utf-8")
+    return ziel
+
+
+def _rendere_mit(tmp_path: Path, typst_dir: Path) -> tuple[Path, str]:
+    original = normbrief.TYPST_DIR
+    normbrief.TYPST_DIR = typst_dir
+    try:
+        return normbrief.rendere(BEISPIEL, tmp_path / "sabotiert.pdf",
+                                 profil_verzeichnis=typst_dir / "profiles")
+    finally:
+        normbrief.TYPST_DIR = original
+
+
+def _gescheitert(pdf: Path, form: str) -> set[str]:
+    bericht = geometrie.pruefe(pdf, form)
+    return {p.name for p in bericht.pruefungen if not p.bestanden}
+
+
+def test_unveraendert_ist_gruen(tmp_path):
+    """Kontrollprobe: ohne Sabotage darf nichts anschlagen. Sonst misst die
+    Sabotage nur die Kopie, nicht die Verschiebung."""
+    kopie = _sabotiere(tmp_path, "normbrief.typ", "#let zeile = 4.2333mm",
+                       "#let zeile = 4.2333mm  // unveraendert")
+    pdf, form = _rendere_mit(tmp_path, kopie)
+    assert _gescheitert(pdf, form) == set()
+
+
+def test_verschobene_falzmarke_faellt_auf(tmp_path):
+    kopie = _sabotiere(
+        tmp_path, "vendor/letter-pro-v3.0.0.typ",
+        "folding-mark-1-pos: 105mm", "folding-mark-1-pos: 112mm",
+    )
+    pdf, form = _rendere_mit(tmp_path, kopie)
+    assert "Falzmarke 1, y" in _gescheitert(pdf, form)
+
+
+def test_verschobene_lochmarke_faellt_auf(tmp_path):
+    kopie = _sabotiere(
+        tmp_path, "vendor/letter-pro-v3.0.0.typ", "dy: 148.5mm", "dy: 152mm",
+    )
+    pdf, form = _rendere_mit(tmp_path, kopie)
+    assert "Lochmarke, y" in _gescheitert(pdf, form)
+
+
+def test_zu_tiefer_betreff_faellt_auf(tmp_path):
+    """Der teure Fehler: der Betreff rutscht in den Text."""
+    kopie = _sabotiere(
+        tmp_path, "normbrief.typ", "let soll = unterkante + 2 * zeile",
+        "let soll = unterkante + 3 * zeile",
+    )
+    pdf, form = _rendere_mit(tmp_path, kopie)
+    assert "Betreff, y-Oberkante" in _gescheitert(pdf, form)
+
+
+def test_verschobene_anschrift_faellt_auf(tmp_path):
+    """Ein um 10 mm verschobenes Anschriftfeld ist im Fensterumschlag nicht
+    mehr lesbar — das muss die Messung fangen."""
+    kopie = _sabotiere(
+        tmp_path, "vendor/letter-pro-v3.0.0.typ",
+        "#let recipient-box(content) = {\n  set text(size: 10pt)\n  set align(top)\n  \n  pad(left: 5mm, content)",
+        "#let recipient-box(content) = {\n  set text(size: 10pt)\n  set align(top)\n  \n  pad(left: 15mm, content)",
+    )
+    pdf, form = _rendere_mit(tmp_path, kopie)
+    assert "Anschrift, x-links" in _gescheitert(pdf, form)
+
+
+def test_zu_kleiner_unterrand_faellt_auf(tmp_path):
+    """Die vierzeilige Fußzeile lief beim 20-mm-Standardrand aus dem Blatt."""
+    kopie = _sabotiere(
+        tmp_path, "normbrief.typ",
+        'profil.at("rand_unten_mm", default: 42)', "20",
+    )
+    original = normbrief.baue_profil_daten
+
+    def ohne_randberechnung(profil, pfad, arbeit):
+        daten = original(profil, pfad, arbeit)
+        daten.pop("rand_unten_mm", None)
+        return daten
+
+    normbrief.baue_profil_daten = ohne_randberechnung
+    try:
+        pdf, form = _rendere_mit(tmp_path, kopie)
+    finally:
+        normbrief.baue_profil_daten = original
+    assert "Unterster Text, Abstand zur Blattkante" in _gescheitert(pdf, form)
+
+
+def test_verschobener_infoblock_faellt_auf(tmp_path):
+    kopie = _sabotiere(
+        tmp_path, "vendor/letter-pro-v3.0.0.typ",
+        "pad(top: 5mm, information-box)", "pad(top: 12mm, information-box)",
+    )
+    pdf, form = _rendere_mit(tmp_path, kopie)
+    assert "Infoblock, y-Oberkante" in _gescheitert(pdf, form)

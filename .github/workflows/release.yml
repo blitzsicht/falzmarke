@@ -1,0 +1,27 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  skill-paket:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Skill packen
+        run: |
+          # claude.ai erwartet den Skill-Ordner mit SKILL.md an der Wurzel des Zips.
+          mkdir -p paket
+          cp -r skill paket/normbrief
+          rm -rf paket/normbrief/typst/profiles.local
+          cd paket && zip -rq ../normbrief.skill normbrief
+          cd .. && unzip -l normbrief.skill | head -5
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: normbrief.skill
+          generate_release_notes: true

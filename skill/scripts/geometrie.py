@@ -25,6 +25,19 @@ def pt(millimeter: float) -> float:
     return millimeter * PT_PRO_MM
 
 
+# Gemessen wird die Glyph-Box, gesetzt wird die Zeilenoberkante. Die Glyph-Box
+# beginnt beim Ascender und liegt deshalb hoeher — und zwar je nach Schrift
+# unterschiedlich weit: 0,25 em bei Libertinus Serif, 0,34 em bei Source Sans 3.
+# Eine feste Toleranz in Millimetern wuerde deshalb entweder Fehlalarme
+# erzeugen oder bei kleiner Schrift zu grob werden.
+GLYPH_VERSATZ_EM = 0.45
+
+
+def glyph_versatz(groesse_pt: float) -> float:
+    """Wie weit die Glyph-Box hoechstens ueber der Zeilenoberkante liegt (mm)."""
+    return mm(GLYPH_VERSATZ_EM * groesse_pt)
+
+
 # ── Sollwerte ───────────────────────────────────────────────────────────────
 
 FORM = {
@@ -60,6 +73,7 @@ INFOBLOCK_X_RECHTS = 200.0
 ANSCHRIFT_X_RECHTS = 105.0   # 20 mm + 85 mm Fensterbreite
 MARKE_X_MAX = 20.0           # Marken liegen im Heftrand
 ZEILE = 4.2333
+FUSS_MINDESTRAND = 8.0       # mm zwischen unterstem Text und Blattkante
 LEERZEILEN_VOR_BETREFF = 2 * ZEILE   # 8,46 mm
 INFOBLOCK_MINDESTHOEHE = 40.0
 
@@ -234,11 +248,10 @@ def pruefe(pdf_pfad: Path, form: str) -> Bericht:
     if anschrift_zeilen:
         erste = anschrift_zeilen[0][0]
         letzte = max(s.y1 for s in anschrift_zeilen[-1])
-        # Die Glyph-Box beginnt beim Ascender und liegt damit bis zu 1 mm über
-        # der Zonenlinie. Gemessener Referenzwert für Form B: 61,9 statt 62,7.
+        versatz = glyph_versatz(erste.groesse)
         bericht.add(
-            "Anschrift, erste Zeile y", f"≥ {a_oben}", f"{erste.y0:.2f}", "±1,0",
-            erste.y0 >= a_oben - 1.0,
+            "Anschrift, erste Zeile y", f"≥ {a_oben}", f"{erste.y0:.2f}",
+            f"-{versatz:.2f}", erste.y0 >= a_oben - versatz,
         )
         bericht.add(
             "Anschrift, letzte Zeile Unterkante", f"≤ {a_unten}", f"{letzte:.2f}", "0",
@@ -282,7 +295,10 @@ def pruefe(pdf_pfad: Path, form: str) -> Bericht:
         # hoeher (0,83 mm bei 10 pt, 0,97 mm bei 11 pt). Nach oben deckt das
         # Fenster diesen Versatz ab, nach unten bleibt es eng: ein zu tief
         # gesetzter Betreff laeuft in den Text und ist der teure Fehler.
-        bericht.spanne_asymmetrisch("Betreff, y-Oberkante", betreff.y0, erwartet, -1.2, 0.6)
+        bericht.spanne_asymmetrisch(
+            "Betreff, y-Oberkante", betreff.y0, erwartet,
+            -glyph_versatz(betreff.groesse), 0.6,
+        )
         bericht.wert("Betreff, x-links", betreff.x0, RAND_LINKS, 0.3)
         bericht.wahr(
             "Betreff ohne Leitwort", not betreff.text.strip().lower().startswith("betreff"),
@@ -295,6 +311,26 @@ def pruefe(pdf_pfad: Path, form: str) -> Bericht:
     else:
         bericht.wahr("Betreff vorhanden", False, "fett gesetzt", "nicht gefunden")
 
+    # Abstaende statt Absolutpositionen. Der Ascender-Versatz kuerzt sich heraus,
+    # weil er beide Messpunkte gleich betrifft — diese Pruefungen sind deshalb
+    # schaerfer als die absoluten oben und gelten fuer jede Schrift.
+    if betreff is not None and anschrift_zeilen:
+        abstand = betreff.y0 - anschrift_zeilen[0][0].y0
+        soll_abstand = (
+            max(soll["kopfhoehe"] + 45.0, infoblock_unterkante)
+            + LEERZEILEN_VOR_BETREFF - a_oben
+        )
+        bericht.wert("Abstand Anschrift → Betreff", abstand, soll_abstand, 0.3)
+
+    anrede = next((s for s in spans if betreff is not None and s.y0 > betreff.y1), None)
+    if betreff is not None and anrede is not None:
+        # Konstruktiv exakt: beide Messpunkte tragen denselben Glyph-Versatz,
+        # der sich in der Differenz heraushebt. Deshalb enge Toleranz.
+        bericht.wert(
+            "Abstand Betreff → Anrede (2 Leerzeilen)",
+            anrede.y0 - betreff.y0, 3 * ZEILE, 0.2,
+        )
+
     # Textblock
     body_spans = [s for s in spans if betreff is not None and s.y0 > betreff.y1 and s.y1 < 250]
     if body_spans:
@@ -304,6 +340,16 @@ def pruefe(pdf_pfad: Path, form: str) -> Bericht:
             f"{max(s.x1 for s in body_spans):.2f}", "±0,3",
             max(s.x1 for s in body_spans) <= RAND_RECHTS + 0.3,
         )
+
+    # Nichts darf aus dem Blatt laufen. Der Fall ist real: eine vierzeilige
+    # Fußzeile wächst nach unten und wurde beim 20-mm-Standardrand
+    # abgeschnitten, ohne dass Typst gewarnt hätte.
+    unterster = max((s.y1 for s in spans), default=0.0)
+    bericht.add(
+        "Unterster Text, Abstand zur Blattkante", f"≥ {FUSS_MINDESTRAND}",
+        f"{SEITE_HOEHE - unterster:.2f}", "—",
+        SEITE_HOEHE - unterster >= FUSS_MINDESTRAND,
+    )
 
     # Schriften eingebettet
     nicht_eingebettet = [f for f in seite.get_fonts(full=True) if f[3] == ""]
@@ -321,13 +367,28 @@ def pruefe(pdf_pfad: Path, form: str) -> Bericht:
             f"'Seite 2 von {dokument.page_count}'",
             "vorhanden" if f"Seite 2 von {dokument.page_count}" in text else "fehlt",
         )
-        im_anschriftfeld = [
-            s for s in _spans(zweite)
-            if a_oben <= s.y0 <= a_unten and s.x0 < ANSCHRIFT_X_RECHTS
+        spans_2 = _spans(zweite)
+        # Auf Folgeseiten entfaellt das Anschriftfeld. Nachweisbar ist das nicht
+        # daran, dass die Zone leer waere — dort steht auf Seite 2 normaler
+        # Fliesstext —, sondern daran, dass der Text oben beginnt statt erst
+        # unterhalb des Feldes, und dass keine Ruecksendeangabe wiederholt wird.
+        fliesstext = [s for s in spans_2 if s.y0 > 20.0]
+        beginn = min((s.y0 for s in fliesstext), default=999.0)
+        bericht.add(
+            "Seite 2: Textbeginn", f"≤ {soll['kopfhoehe']}", f"{beginn:.2f}", "—",
+            beginn <= soll["kopfhoehe"],
+        )
+        ruecksende_wiederholt = [
+            s for s in spans_2 if s.groesse <= 8.0 and zone_oben <= s.y0 <= zone_unten
         ]
         bericht.wahr(
-            "Seite 2: kein Anschriftfeld", not im_anschriftfeld, "leer",
-            f"{len(im_anschriftfeld)} Textstellen",
+            "Seite 2: keine Rücksendeangabe", not ruecksende_wiederholt, "keine",
+            f"{len(ruecksende_wiederholt)} gefunden",
+        )
+        kopfzeile = [s for s in spans_2 if s.y0 <= 20.0]
+        bericht.wahr(
+            "Seite 2: Kopfzeile", bool(kopfzeile), "Betreff und Datum",
+            " ".join(s.text for s in kopfzeile)[:40] if kopfzeile else "fehlt",
         )
 
     dokument.close()

@@ -51,6 +51,10 @@ INFOBLOCK_REIHENFOLGE = [
 
 PFLICHTFELDER = ("profil", "empfaenger", "datum", "betreff")
 
+# Zeichen, die bei 10 pt in die Wertespalte des Informationsblocks passen
+# (43 mm Spaltenbreite, gemessen rund 1,24 mm je Zeichen).
+INFOBLOCK_WERT_MAX = 32
+
 
 class Eingabefehler(ValueError):
     pass
@@ -203,6 +207,19 @@ def baue_daten(kopf: dict, profil: dict, profil_pfad: Path, arbeitsverzeichnis: 
         infoblock.append([leitwort, str(wert)])
     infoblock.append(["Datum", datum])
 
+    # Die Zeilen des Informationsblocks stehen im 12-pt-Raster und haben feste
+    # Höhe. Ein überlanger Wert würde deshalb nicht umbrechen, sondern über die
+    # 75 mm hinauslaufen — sichtbar erst im fertigen PDF. Lieber hier abbrechen.
+    zu_lang = [(lw, w) for lw, w in infoblock if len(w) > INFOBLOCK_WERT_MAX]
+    if zu_lang:
+        leitwort, wert = zu_lang[0]
+        raise Eingabefehler(
+            f"infoblock: '{leitwort}' ist mit {len(wert)} Zeichen zu lang "
+            f"(höchstens {INFOBLOCK_WERT_MAX}, sonst passt die Zeile nicht in die 75 mm "
+            "des Informationsblocks).\n"
+            f"        Wert: {wert}"
+        )
+
     anrede = str(kopf.get("anrede") or "Sehr geehrte Damen und Herren,").strip()
     if not anrede.endswith(","):
         raise Eingabefehler(f"anrede: '{anrede}' — die Anrede endet nach DIN mit einem Komma.")
@@ -242,8 +259,35 @@ def baue_daten(kopf: dict, profil: dict, profil_pfad: Path, arbeitsverzeichnis: 
     }
 
 
+def _pruefe_textzeilen(profil: dict, profil_pfad: Path) -> None:
+    """Fängt die häufigste YAML-Falle ab.
+
+    `- Geschäftsführerin: Erika Muster` ist für YAML kein Text, sondern ein
+    Mapping. Ungeprüft landet so ein Dictionary im PDF — sichtbar, aber leicht
+    zu übersehen. Zeilen mit Doppelpunkt gehören in Anführungszeichen.
+    """
+    def melde(ort: str, wert) -> None:
+        raise Eingabefehler(
+            f"Profil {profil_pfad.name}: {ort} ist kein Text, sondern {type(wert).__name__} "
+            f"({wert!r}).\n"
+            "        Enthält die Zeile einen Doppelpunkt, gehört sie in Anführungszeichen:\n"
+            '        - "Geschäftsführerin: Erika Muster"'
+        )
+
+    for nummer, spalte in enumerate(profil.get("fusszeile") or [], start=1):
+        if not isinstance(spalte, list):
+            melde(f"fusszeile, Spalte {nummer}", spalte)
+        for zeile in spalte:
+            if not isinstance(zeile, (str, int, float)):
+                melde(f"fusszeile, Spalte {nummer}", zeile)
+    for zeile in (profil.get("briefkopf") or {}).get("zeilen") or []:
+        if not isinstance(zeile, (str, int, float)):
+            melde("briefkopf.zeilen", zeile)
+
+
 def baue_profil_daten(profil: dict, profil_pfad: Path, arbeitsverzeichnis: Path) -> dict:
     """Kopiert Profil-Assets ins Arbeitsverzeichnis und macht Pfade relativ."""
+    _pruefe_textzeilen(profil, profil_pfad)
     daten = json.loads(json.dumps(profil, default=str))
     briefkopf = daten.get("briefkopf") or {}
     logo = briefkopf.get("logo")
@@ -262,11 +306,12 @@ def baue_profil_daten(profil: dict, profil_pfad: Path, arbeitsverzeichnis: Path)
     # Unterkante des Textbereichs und laesst sie nach unten wachsen. Gemessen
     # (Fusszeile 7,5 pt): der Footer-Bereich braucht 16,8 mm Grundbedarf
     # (Seitenzahlzeile, Innenabstaende, Trennlinie) plus 3,4 mm je Textzeile.
-    # Darunter bleiben so rund 12 mm Rand bis zur Blattkante.
+    # Aufgerundet auf 31 mm Grundbedarf, damit rund 11 mm Rand bis zur
+    # Blattkante bleiben.
     if "rand_unten_mm" not in daten:
         spalten = daten.get("fusszeile") or []
         zeilen = max((len(s) for s in spalten), default=0)
-        daten["rand_unten_mm"] = 20 if zeilen == 0 else round(28.8 + zeilen * 3.4)
+        daten["rand_unten_mm"] = 20 if zeilen == 0 else round(31.0 + zeilen * 3.4)
     return daten
 
 
@@ -334,6 +379,12 @@ def rendere(
         ausgabe = Path(ausgabe)
         ausgabe.parent.mkdir(parents=True, exist_ok=True)
 
+        # Typst schreibt PNGs seitenweise und verlangt dafuer den Platzhalter {n}
+        # im Dateinamen. Ohne ihn bricht jeder mehrseitige Brief ab.
+        png_ziel = ausgabe
+        if format_name == "png":
+            ausgabe = ausgabe.with_name(ausgabe.stem + "-{n}" + ausgabe.suffix)
+
         argumente = {
             "input": str(haupt),
             "output": str(ausgabe),
@@ -360,6 +411,13 @@ def rendere(
                 typst.compile(**argumente)
                 return ausgabe, daten["form"]
             raise Eingabefehler(f"Typst konnte den Brief nicht setzen:\n{meldung}") from None
+
+    if format_name == "png":
+        seiten = sorted(png_ziel.parent.glob(png_ziel.stem + "-*" + png_ziel.suffix))
+        if len(seiten) == 1:
+            seiten[0].replace(png_ziel)
+            return png_ziel, daten["form"]
+        return seiten[0] if seiten else png_ziel, daten["form"]
 
     return ausgabe, daten["form"]
 

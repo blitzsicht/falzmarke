@@ -14,6 +14,13 @@
 // Grundzeile: 12 pt = 4,2333 mm. DIN rechnet mit 4,23 mm.
 #let zeile = 4.2333mm
 
+// Der Zeilenkasten ist 11 pt hoch, die Zeile 12 pt. Typst rechnet den Durchschuss
+// nicht in die Blockhoehe ein — ein Blockabstand von n Zeilen ergaebe deshalb nur
+// n Zeilen minus 1 pt. `leer(n)` gleicht das aus: der Abstand zwischen zwei
+// Zeilenoberkanten wird damit exakt (n + 1) Rasterzeilen.
+#let durchschuss = 12pt - 11pt
+#let leer(n) = n * zeile + durchschuss
+
 // Kopfhöhe je Form; identisch mit letter-pro
 #let kopfhoehe = (A: 27mm, B: 45mm)
 
@@ -92,14 +99,16 @@
   let spalten = profil.at("fusszeile", default: ())
   if spalten.len() == 0 { return none }
   let farbe = if "farbe" in profil { rgb(profil.farbe) } else { black }
-  set text(size: 7.5pt)
+  set text(size: 7pt)
   set par(leading: 0.45em)
   block(width: 100%, {
     line(length: 100%, stroke: 0.4pt + farbe)
     v(1.5mm)
+    // Spaltenbreite nach Inhalt: eine IBAN in Vierergruppen passt sonst nicht
+    // in ein Viertel der Satzbreite und bricht mitten in der Gruppe um.
     grid(
-      columns: spalten.map(_ => 1fr),
-      column-gutter: 5mm,
+      columns: spalten.map(_ => auto),
+      column-gutter: 1fr,
       ..spalten.map(sp => {
         for z in sp [#z\ ]
       })
@@ -119,9 +128,16 @@
     lang: "de",
     region: "DE",
     hyphenate: true,
+    // Zeilenkasten fest in em statt nach Schriftmetrik: damit ist eine Zeile in
+    // jeder Schrift gleich hoch. Ohne das haengt der Zeilenabstand am Ascender
+    // der jeweiligen Schrift, und das 12-pt-Raster der Norm geht nicht mehr auf
+    // (gemessen: Libertinus Serif und Source Sans 3 wichen um 1,7 mm ab).
+    top-edge: 0.75em,
+    bottom-edge: -0.25em,
   )
-  // DIN empfiehlt einen Zeilenabstand von etwa 130 % für den Fließtext.
-  set par(justify: false, leading: 0.55em, spacing: zeile)
+  // Grundzeilenabstand 12 pt = 4,2333 mm: 11 pt Zeilenkasten plus 1 pt Durchschuss.
+  // Jede "Leerzeile" der Norm ist damit genau eine Rasterzeile.
+  set par(justify: false, leading: durchschuss, spacing: leer(1))
 
   set document(
     title: daten.betreff,
@@ -187,47 +203,46 @@
         let soll = unterkante + 2 * zeile
         let ist = here().position().y
         v(calc.max(0mm, soll - ist), weak: false)
-        block(above: 0pt, below: 2 * zeile, strong(daten.betreff))
+        // 2 Leerzeilen zwischen Betreff und Anrede
+        block(above: 0pt, below: leer(2), strong(daten.betreff))
+        block(above: 0pt, below: 0pt, daten.anrede)
       }
 
-      daten.anrede
-      v(zeile)
+      // 1 Leerzeile zwischen Anrede und Text; innerhalb des Textes sorgt
+      // par.spacing fuer je eine Leerzeile zwischen den Absaetzen.
+      block(above: leer(1), below: 0pt, body)
 
-      body
-
-      v(zeile)
-      daten.gruss
+      block(above: leer(1), below: 0pt, daten.gruss)
 
       if profil.at("firma_ueber_unterschrift", default: false) {
-        v(zeile)
-        profil.absender.name
+        block(above: leer(1), below: 0pt, profil.absender.name)
       }
 
-      // Unterschriftsraum: üblich 3 Leerzeilen.
+      // Unterschriftsraum: ueblich 3 Leerzeilen. Mit Signaturbild wird der Raum
+      // vom Bild gefuellt, der Abstand darunter bleibt gleich.
       if daten.at("signatur", default: none) != none {
-        v(0.5 * zeile)
-        image(daten.signatur, height: 2.5 * zeile)
-        v(0.5 * zeile)
+        block(above: leer(1), below: 0pt, image(daten.signatur, height: 2.5 * zeile))
+        block(above: leer(1), below: 0pt, daten.unterzeichner)
       } else {
-        v(3 * zeile)
+        block(above: leer(3), below: 0pt, daten.unterzeichner)
       }
-
-      daten.unterzeichner
 
       let anlagen = daten.at("anlagen", default: ())
       if anlagen.len() > 0 {
-        v(2 * zeile)
-        strong(if anlagen.len() == 1 { "Anlage" } else { "Anlagen" })
-        linebreak()
-        anlagen.map(a => [#a]).join(linebreak())
+        block(above: leer(1), below: 0pt, {
+          strong(if anlagen.len() == 1 { "Anlage" } else { "Anlagen" })
+          linebreak()
+          anlagen.map(a => [#a]).join(linebreak())
+        })
       }
 
       let verteiler = daten.at("verteiler", default: ())
       if verteiler.len() > 0 {
-        v(2 * zeile)
-        strong("Verteiler")
-        linebreak()
-        verteiler.map(v => [#v]).join(linebreak())
+        block(above: leer(1), below: 0pt, {
+          strong("Verteiler")
+          linebreak()
+          verteiler.map(v => [#v]).join(linebreak())
+        })
       }
     },
   )

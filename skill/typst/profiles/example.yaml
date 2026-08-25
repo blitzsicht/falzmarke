@@ -40,7 +40,7 @@ fusszeile:
     - BIC BYLADEM1RBG
   - - Amtsgericht Regensburg HRB 12345
     - USt-IdNr. DE123456789
-    - Geschäftsführerin: Erika Muster
+    - "Geschäftsführerin: Erika Muster"   # Doppelpunkt: Anführungszeichen nötig
 
 # lang -> "25. August 2026" · iso -> "2026-08-25"
 datumsformat: lang
