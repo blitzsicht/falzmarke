@@ -219,3 +219,63 @@ def test_lint_ist_schnell():
     falzmarke.linte(quelle, profil_verzeichnis=PROFILE)
     dauer = time.perf_counter() - start
     assert dauer < 0.5, f"lint brauchte {dauer*1000:.0f} ms"
+
+
+# ── Unbekannte Frontmatter-Felder ───────────────────────────────────────────
+#
+# Bis v0.4.0 gab es dagegen keine Prüfung: Jeder Schlüssel, den `baue_daten`
+# nicht abfragte, wurde still verworfen. Wer `signatur:` in den Brief schrieb —
+# naheliegend, es steht im Profil — bekam keinen Fehler, sondern keine Wirkung.
+# Das ist genau der stille Ausgang, den das Werkzeug sonst überall vermeidet.
+
+def test_unbekanntes_feld_bricht_ab(tmp_path):
+    bericht = linte(tmp_path, KOPF + "quatschfeld: irgendwas\n")
+    assert "frontmatter" in regeln(bericht), bericht.als_text("brief.md")
+
+
+def test_tippfehler_bekommt_den_richtigen_vorschlag(tmp_path):
+    """`signature:` ist der wahrscheinlichste Fehlgriff — englisch statt deutsch."""
+    bericht = linte(tmp_path, KOPF + "signature: assets/unterschrift.svg\n")
+    text = bericht.als_text("brief.md")
+    assert "frontmatter" in regeln(bericht), text
+    assert "signatur" in text, text
+
+
+@pytest.mark.parametrize("feld,wert", [
+    ("form", "B"),
+    ("norm", "din5008"),
+    ("vermerke", "[Einschreiben]"),
+    ("betreff_kurz", "Kurz"),
+    ("gruss", "Mit freundlichen Grüßen"),
+    ("unterzeichner", "i. A. Erika Muster"),
+    ("signatur", "keine"),
+    ("anlagen", "[Angebot]"),
+    ("verteiler", "[Herrn Max Muster]"),
+])
+def test_dokumentierte_felder_bleiben_erlaubt(tmp_path, feld, wert):
+    """Gegenprobe: Eine Sperre, die auch Erlaubtes abweist, wäre unbrauchbar."""
+    bericht = linte(tmp_path, KOPF + f"{feld}: {wert}\n")
+    assert "frontmatter" not in regeln(bericht), bericht.als_text("brief.md")
+
+
+def test_unbekannter_infoblock_schluessel_bricht_ab(tmp_path):
+    bericht = linte(tmp_path, KOPF + "infoblock: {handy: 0170 1234567}\n")
+    assert "infoblock" in regeln(bericht), bericht.als_text("brief.md")
+
+
+def test_die_feldliste_deckt_sich_mit_dem_datenvertrag(tmp_path):
+    """Die Liste im Code und die Tabelle in der Doku sind zwei Stellen.
+
+    Ohne diesen Abgleich altert eine von beiden still — und zwar die, die
+    niemand ausführt.
+    """
+    import re
+
+    from falzmarke import lint as lint_modul
+
+    vertrag = (REPO / "skill" / "references" / "frontmatter.md").read_text(encoding="utf-8")
+    block = vertrag.split("```yaml", 1)[1].split("```", 1)[0]
+    dokumentiert = set(re.findall(r"^([a-z_]+):", block, flags=re.M))
+
+    fehlend = dokumentiert - lint_modul.FRONTMATTER_FELDER
+    assert not fehlend, f"In der Doku, aber vom Linter abgewiesen: {sorted(fehlend)}"

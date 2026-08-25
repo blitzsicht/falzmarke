@@ -70,7 +70,7 @@ wird das Ergebnis gemessen statt angeschaut.
 1. **[`falzmarke.skill` herunterladen](https://github.com/blitzsicht/falzmarke/releases/latest/download/falzmarke.skill)**
 2. In Claude unter Einstellungen › Capabilities hochladen (Tarif mit Code-Ausführung nötig).
    Für Claude Code genügt ein Symlink, siehe [Als Claude-Skill](#als-claude-skill).
-3. „Schreib einen Brief an die Muster GmbH, Angebot über …"
+3. „Schreib einen Brief an die Muster GmbH, Angebot über …“
 
 ### Im Terminal, ohne Clone
 
@@ -126,7 +126,26 @@ Die Umsetzung dauert ab Ihrer Freigabe **sieben Werktage**.
 python3 skill/scripts/falzmarke.py render brief.md --png
 ```
 
-Alle Felder stehen in [`skill/references/frontmatter.md`](skill/references/frontmatter.md).
+Alle Felder stehen im [Datenvertrag](skill/references/frontmatter.md). Ein Feld, das dort
+nicht steht, bricht mit Zeilennummer und Vorschlag ab — es wird nie stillschweigend verworfen.
+
+## Was im Brieftext erlaubt ist
+
+Der Text unter dem Frontmatter ist **falzmarke-Markdown**, eine dokumentierte Teilmenge von
+[CommonMark](https://commonmark.org/):
+
+| Das geht | Das erledigt falzmarke selbst |
+|---|---|
+| Absätze, `**fett**`, `*kursiv*` | `z. B.`, `10 %`, `§ 5` bekommen geschützte Leerzeichen |
+| Aufzählungen und nummerierte Listen | `--` wird zum Halbgeviertstrich – so |
+| Harter Umbruch mit `\` am Zeilenende | `"Wort"` wird zu „Wort“ |
+| Pipe-Tabellen mit Ausrichtung | Tag und Monat bleiben zusammen: `25. August` |
+
+Überschriften, Links, Bilder, Code und HTML sind **Fehler** — mit Zeile, Grund und Korrektur,
+nie stillschweigend. Der Grund steht jeweils dabei: Auf Papier gibt es keinen Link, und ein
+Bild im Fließtext verschöbe die Geometrie, die danach gemessen wird.
+
+Die vollständige Liste: [falzmarke-Markdown](skill/references/markdown.md).
 
 ## Ausgabe und Prüfung
 
@@ -230,8 +249,9 @@ Dazu Form A, Auslandsanschrift, Tabelle und ein Brief mit langem Informationsblo
 
 ## Grenzen
 
-- **falzmarke-Markdown (CommonMark-Teilmenge)**: Absätze, fett, kursiv, Aufzählungen,
-  nummerierte Listen, harter Umbruch, Pipe-Tabellen. Alles andere bricht mit Zeilenangabe ab, statt still etwas anderes zu setzen.
+- **[falzmarke-Markdown](skill/references/markdown.md) (CommonMark-Teilmenge)**: Absätze,
+  fett, kursiv, Aufzählungen, nummerierte Listen, harter Umbruch, Pipe-Tabellen. Alles andere
+  bricht mit Zeilenangabe ab, statt still etwas anderes zu setzen.
 - **Zonengrößen der Norm**: Anschrift höchstens 6 Zeilen, Vermerke höchstens 3, Werte im
   Informationsblock höchstens 32 Zeichen.
 - **Keine Bilder im Fließtext** — ein Logo gehört ins Profil.
@@ -250,7 +270,7 @@ skill/                      der Claude-Skill, in sich lauffähig
 │   ├── vendor/             letter-pro v3.0.0 (MIT), unverändert
 │   └── profiles/           example.yaml
 ├── assets/fonts/           Source Sans 3 (OFL)
-└── references/             DIN-Maße, Stilregeln, Datenvertrag
+└── references/             DIN-Maße, Stilregeln, Datenvertrag, Markdown-Teilmenge
 examples/                   sieben Briefe, die die Testsuite rendert
 tests/                      Geometrie, Gegenproben, Datenvertrag, CLI, Profilsuche
 docs/normmasse.md           Herkunft der Maße, Gegenproben, Messmethodik
@@ -269,10 +289,9 @@ Sicherheitsrelevantes bitte nicht als Issue, sondern nach [SECURITY.md](SECURITY
 **Markdown** wurde 2004 von [John Gruber](https://daringfireball.net/projects/markdown/) gemeinsam
 mit Aaron Swartz entworfen. Die Spezifikation dazu ist [CommonMark](https://commonmark.org/)
 (John MacFarlane und Mitwirkende). falzmarke setzt eine dokumentierte Teilmenge von CommonMark um
-— **falzmarke-Markdown (CommonMark-Teilmenge)** — und weicht an drei Stellen bewusst ab: HTML wird
-nie durchgereicht, Links werden nie gesetzt, und eine einzelne `2. Text`-Zeile ohne weitere
-Listenpunkte ist ein Fehler statt einer Liste. Die vollständige Tabelle steht in
-[`skill/references/frontmatter.md`](skill/references/frontmatter.md).
+— **[falzmarke-Markdown](skill/references/markdown.md)** — und weicht an drei Stellen bewusst
+ab: HTML wird nie durchgereicht, Links werden nie gesetzt, und eine einzelne `2. Text`-Zeile
+ohne weitere Listenpunkte ist ein Fehler statt einer Liste.
 
 Das **Seitenlayout** stammt von [typst-letter-pro](https://github.com/Sematre/typst-letter-pro)
 (MIT) von Sematre und ist unverändert vendort — Prüfsumme in

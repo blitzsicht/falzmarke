@@ -40,6 +40,11 @@ zeigen. `render` ruft die Prüfung selbst auf und endet mit Code 2, wenn ein Ma�
 3. **Angaben sammeln.** Pflicht sind Empfänger, Datum und Betreff. Fehlende Angaben **einmal
    gesammelt** erfragen, nicht einzeln nacheinander. Bei Feldern siehe `references/frontmatter.md`.
 
+   **Unterschrift:** Trägt das Profil eine `signatur:`, erscheint sie auf jedem Brief. Wird
+   der Brief von jemand anderem gezeichnet (`unterzeichner: i. A. …`) oder soll er von Hand
+   unterschrieben werden, gehört `signatur: keine` ins Frontmatter — sonst steht die fremde
+   Unterschrift darunter. Eine andere Unterschrift: `signatur: <datei>` neben dem Brief.
+
 4. **Text formulieren** nach `references/stil.md`. Diese Datei vor dem Schreiben lesen — sie
    regelt Anrede, Betreffbildung und den Aufbau je Brieftyp.
 
@@ -56,8 +61,9 @@ zeigen. `render` ruft die Prüfung selbst auf und endet mit Code 2, wenn ein Ma�
 
 ## Grenzen
 
-- **Markdown-Teilmenge**: Absätze, `**fett**`, `*kursiv*`, Aufzählungen, nummerierte Listen,
-  harter Umbruch (`\` am Zeilenende), Pipe-Tabellen. Alles andere bricht mit Zeilenangabe ab —
+- **Markdown-Teilmenge** (`references/markdown.md`): Absätze, `**fett**`, `*kursiv*`,
+  Aufzählungen, nummerierte Listen, harter Umbruch (`\` am Zeilenende), Pipe-Tabellen.
+  Alles andere bricht mit Zeilenangabe ab —
   besonders Überschriften: ein Brief hat einen Betreff, keine Kapitel.
 - **Anschrift**: höchstens 6 Zeilen, keine Leerzeilen.
 - **Vermerke** (Einschreiben, Persönlich): höchstens 3 Zeilen.
@@ -76,6 +82,10 @@ zeigen. `render` ruft die Prüfung selbst auf und endet mit Code 2, wenn ein Ma�
 ## Weiterführende Dateien
 
 - `references/frontmatter.md` — alle Felder mit Beispielen. Bei Unsicherheit über ein Feld lesen.
+  Ein Feld, das dort nicht steht, lehnt `lint` ab — es gibt keine stillen Zusatzfelder.
+- `references/markdown.md` — **was im Brieftext erlaubt ist.** Vor dem ersten Brief lesen:
+  Überschriften, Links, Bilder, Code und HTML brechen ab, und der Typografie-Pass setzt
+  geschützte Leerzeichen von selbst — von Hand eingefügte sind überflüssig.
 - `references/stil.md` — **vor dem Formulieren lesen.**
 - `references/din5008.md` — die Maßtabelle. Nur lesen, wenn nach Normdetails gefragt wird oder
   `check` fehlschlägt.

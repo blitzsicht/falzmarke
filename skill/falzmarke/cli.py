@@ -39,19 +39,10 @@ MONATE = [
     "Juli", "August", "September", "Oktober", "November", "Dezember",
 ]
 
-# Leitwörter des Informationsblocks in der Reihenfolge der Norm.
-INFOBLOCK_REIHENFOLGE = [
-    ("ihr_zeichen", "Ihr Zeichen"),
-    ("ihre_nachricht_vom", "Ihre Nachricht vom"),
-    ("unser_zeichen", "Unser Zeichen"),
-    ("unsere_nachricht_vom", "Unsere Nachricht vom"),
-    ("ansprechpartner", "Name"),
-    ("telefon", "Telefon"),
-    ("fax", "Fax"),
-    ("email", "E-Mail"),
-]
-
-PFLICHTFELDER = ("profil", "empfaenger", "datum", "betreff")
+# Datenvertrag und Leitwörter stehen in lint.py — dort, wo sie geprüft werden.
+# cli importiert lint ohnehin; eine zweite Liste hier wäre eine Kopie, die bei
+# der naechsten Aenderung still auseinanderlaeuft.
+from falzmarke.lint import INFOBLOCK_REIHENFOLGE, PFLICHTFELDER  # noqa: E402
 
 # Zeichen, die bei 10 pt in die Wertespalte des Informationsblocks passen
 # (43 mm Spaltenbreite, gemessen rund 1,24 mm je Zeichen).
@@ -233,7 +224,8 @@ def lade_profil(
 
 # ── Daten für den Typst-Wrapper ─────────────────────────────────────────────
 
-def baue_daten(kopf: dict, profil: dict, profil_pfad: Path, arbeitsverzeichnis: Path) -> dict:
+def baue_daten(kopf: dict, profil: dict, profil_pfad: Path, arbeitsverzeichnis: Path,
+               brief_pfad: Path) -> dict:
     fehlend = [f for f in PFLICHTFELDER if not kopf.get(f)]
     if fehlend:
         raise Eingabefehler(f"Pflichtfelder fehlen: {', '.join(fehlend)}")
@@ -304,13 +296,7 @@ def baue_daten(kopf: dict, profil: dict, profil_pfad: Path, arbeitsverzeichnis: 
         kopf.get("unterzeichner") or profil.get("unterzeichner") or profil["absender"]["name"]
     ).strip()
 
-    signatur = None
-    if profil.get("signatur"):
-        quelle = datei_aus_dem_profilordner(profil_pfad, profil["signatur"], "Signaturbild")
-        ziel = arbeitsverzeichnis / "assets" / quelle.name
-        ziel.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(quelle, ziel)
-        signatur = f"assets/{quelle.name}"
+    signatur = _signatur(kopf, profil, profil_pfad, brief_pfad, arbeitsverzeichnis)
 
     return {
         "form": form,
@@ -327,6 +313,45 @@ def baue_daten(kopf: dict, profil: dict, profil_pfad: Path, arbeitsverzeichnis: 
         "verteiler": als_liste(kopf.get("verteiler")),
         "signatur": signatur,
     }
+
+
+def _signatur(
+    kopf: dict, profil: dict, profil_pfad: Path, brief_pfad: Path, arbeitsverzeichnis: Path
+) -> str | None:
+    """Welches Unterschriftsbild gilt — und ob überhaupt eines gilt.
+
+    Vorrang wie bei `unterzeichner:`: Was im Brief steht, schlägt das Profil.
+    Ohne diese Möglichkeit unterschreibt ein Profil immer oder nie — ein Brief
+    „i. A.“ trüge dann die Unterschrift der Geschäftsführung.
+
+    | `signatur:` im Brief | Wirkung                                  |
+    |----------------------|------------------------------------------|
+    | fehlt                | Profilwert gilt                          |
+    | `keine` oder leer    | kein Bild, drei Leerzeilen Raum          |
+    | Dateiangabe          | dieses Bild, relativ zum Briefordner     |
+    """
+    def uebernimm(quelle: Path, name: str) -> str:
+        ziel = arbeitsverzeichnis / "assets" / name
+        ziel.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(quelle, ziel)
+        return f"assets/{name}"
+
+    if "signatur" in kopf:
+        angabe = kopf["signatur"]
+        text = "" if angabe is None else str(angabe).strip()
+        if text == "" or text.lower() == "keine":
+            return None
+        quelle = datei_aus_dem_briefordner(brief_pfad, text, "Signaturbild")
+        # Eigener Name: Das Profil legt sein Logo unter dem Dateinamen der
+        # Quelle ab. Hieße die Unterschrift des Briefes genauso, überschriebe
+        # eine der beiden die andere — still, und erst im PDF sichtbar.
+        return uebernimm(quelle, f"signatur-brief{quelle.suffix}")
+
+    if profil.get("signatur"):
+        quelle = datei_aus_dem_profilordner(profil_pfad, profil["signatur"], "Signaturbild")
+        return uebernimm(quelle, quelle.name)
+
+    return None
 
 
 def _pruefe_textzeilen(profil: dict, profil_pfad: Path) -> None:
@@ -355,29 +380,63 @@ def _pruefe_textzeilen(profil: dict, profil_pfad: Path) -> None:
             melde("briefkopf.zeilen", zeile)
 
 
-def datei_aus_dem_profilordner(profil_pfad: Path, angabe: str, feld: str) -> Path:
-    """Löst eine Dateiangabe aus einem Profil auf und hält sie im Profilordner.
+def _datei_in_der_grenze(
+    basis: Path, angabe: str, feld: str, vorspann: str, grenze: str, rat: str
+) -> Path:
+    """Löst eine Dateiangabe auf und hält sie in ihrem Ordner.
 
-    Ein Profil darf auf Nachbardateien zeigen — Logo, Unterschrift, eigener
-    Briefkopf — aber nicht darüber hinaus. Der Grund ist das eingebettete
-    Profil: Ein Brief bringt sein Profil im Frontmatter mit, und dann stammt
-    beides von dem, der den Brief geschickt hat. Ohne diese Grenze bettet ein
-    fremder Brief jede Bilddatei ein, die der Empfänger lesen kann — gemessen
-    am 25.08.2026 mit `logo: ../geheim/privat.png`: das Bild stand im Briefkopf,
-    der Lauf meldete 30/30 Maße eingehalten.
+    Eine Datei-Angabe darf auf Nachbardateien zeigen — Logo, Unterschrift,
+    eigener Briefkopf — aber nicht darüber hinaus. Der Grund ist das
+    eingebettete Profil: Ein Brief bringt sein Profil im Frontmatter mit, und
+    dann stammt beides von dem, der den Brief geschickt hat. Ohne diese Grenze
+    bettet ein fremder Brief jede Bilddatei ein, die der Empfänger lesen kann —
+    gemessen am 25.08.2026 mit `logo: ../geheim/privat.png`: das Bild stand im
+    Briefkopf, der Lauf meldete 30/30 Maße eingehalten.
 
     `resolve()` folgt Symlinks, deshalb hilft auch ein getarnter Verweis nicht.
+
+    Die Funktion steht bewusst nur einmal da: Der Fund von damals war nicht die
+    fehlende Prüfung an sich, sondern dass dieselbe Fehlerklasse an einer von
+    drei Stellen bedacht war. Wer einen weiteren Dateipfad einführt, ruft hier
+    an — sonst wiederholt sich das.
     """
-    ordner = profil_pfad.parent.resolve()
-    quelle = (profil_pfad.parent / angabe).resolve()
-    if not quelle.is_file():
-        raise Eingabefehler(f"Profil {profil_pfad.name}: {feld} nicht gefunden: {quelle}")
+    ordner = basis.resolve()
+    quelle = (basis / angabe).resolve()
+    # Grenze zuerst, Existenz danach. Andersherum verriete die Meldung, ob eine
+    # Datei ausserhalb liegt: `../../../etc/shadow` antwortete mit „nicht
+    # gefunden“ oder „muss … liegen“ — je nachdem, und das ist ein Orakel.
+    # Wer draussen ist, erfaehrt nichts ueber draussen.
     if ordner not in quelle.parents:
         raise Eingabefehler(
-            f"Profil {profil_pfad.name}: {feld} muss im Profilordner liegen "
-            f"(angegeben: {angabe}). Die Datei neben das Profil legen."
+            f"{vorspann}: {feld} muss {grenze} (angegeben: {angabe}). {rat}"
         )
+    if not quelle.is_file():
+        raise Eingabefehler(f"{vorspann}: {feld} nicht gefunden: {quelle}")
     return quelle
+
+
+def datei_aus_dem_profilordner(profil_pfad: Path, angabe: str, feld: str) -> Path:
+    """Logo, Unterschrift und eigener Briefkopf eines Profils."""
+    return _datei_in_der_grenze(
+        profil_pfad.parent, angabe, feld,
+        f"Profil {profil_pfad.name}", "im Profilordner liegen",
+        "Die Datei neben das Profil legen.",
+    )
+
+
+def datei_aus_dem_briefordner(brief_pfad: Path, angabe: str, feld: str) -> Path:
+    """Was ein einzelner Brief mitbringt — heute nur `signatur:`.
+
+    Der Bezugspunkt ist hier der Brief, nicht das Profil: Eine
+    Vertretungsunterschrift gehört zu dem Brief, der sie braucht, und liegt
+    neben ihm. Sie im Profilordner zu verlangen, hieße für jede Vertretung ein
+    fremdes Profilverzeichnis anzufassen.
+    """
+    return _datei_in_der_grenze(
+        brief_pfad.parent, angabe, feld,
+        f"Brief {brief_pfad.name}", "beim Brief liegen",
+        "Die Datei neben den Brief legen.",
+    )
 
 
 def baue_profil_daten(profil: dict, profil_pfad: Path, arbeitsverzeichnis: Path) -> dict:
@@ -469,7 +528,7 @@ def rendere(
     with tempfile.TemporaryDirectory(prefix="falzmarke-") as tmp:
         arbeit = Path(tmp)
         baue_arbeitsverzeichnis(arbeit)
-        daten = baue_daten(kopf, profil, profil_pfad, arbeit)
+        daten = baue_daten(kopf, profil, profil_pfad, arbeit, brief_pfad)
         profil_daten = baue_profil_daten(profil, profil_pfad, arbeit)
 
         try:

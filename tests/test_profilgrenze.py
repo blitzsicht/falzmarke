@@ -143,3 +143,104 @@ def test_das_mitgelieferte_beispiel_rendert_weiterhin(tmp_path):
         REPO / "examples" / "brief-form-b.md", tmp_path / "grenze.pdf")
     gescheitert = [p.name for p in geometrie.pruefe(pdf, form).pruefungen if not p.bestanden]
     assert not gescheitert, gescheitert
+
+
+# ── Dieselbe Grenze, andere Herkunft: `signatur:` im Brief ───────────────────
+#
+# Ab v0.5.0 darf ein Brief die Unterschrift des Profils überschreiben. Damit
+# entsteht ein zweites Dateifeld, das aus fremder Hand kommen kann — und die
+# Fehlerklasse von oben gilt unverändert. Der Bezugspunkt ist hier aber der
+# BRIEFordner, nicht der Profilordner: Eine Vertretungsunterschrift liegt beim
+# Brief, nicht beim fremden Profil.
+
+BRIEF_MIT_SIGNATUR = """---
+profil: {profil}
+empfaenger: [Muster GmbH, Musterstraße 1, 12345 Musterstadt]
+datum: 2026-08-25
+betreff: Probe
+anrede: Sehr geehrte Damen und Herren,
+gruss: Mit freundlichen Grüßen
+unterzeichner: i. A. Vertretung
+signatur: {signatur}
+---
+Text des Briefes.
+"""
+
+
+def test_signatur_im_brief_kommt_nicht_aus_dem_briefordner(aufbau):
+    """Der Brief zeigt über seinen eigenen Ordner hinaus — muss abbrechen."""
+    tmp_path, profil, aussen = aufbau
+    (profil / "p.yaml").write_text(PROFIL_RUMPF, encoding="utf-8")
+    arbeit = tmp_path / "arbeit"
+    arbeit.mkdir()
+    brief = arbeit / "b.md"
+    # Die Datei existiert wirklich — sonst pruefte der Test nur, dass etwas
+    # fehlt, statt dass die Grenze haelt.
+    brief.write_text(
+        BRIEF_MIT_SIGNATUR.format(profil="../profil/p.yaml", signatur="../aussen/fremd.svg"),
+        encoding="utf-8")
+
+    with pytest.raises(falzmarke.Eingabefehler) as fehler:
+        falzmarke.rendere(brief, arbeit / "b.pdf")
+    assert "beim Brief liegen" in str(fehler.value), str(fehler.value)
+
+
+def test_signatur_im_brief_als_symlink_wird_abgewiesen(aufbau):
+    """`resolve()` folgt dem Symlink — auch hier."""
+    tmp_path, profil, aussen = aufbau
+    (profil / "p.yaml").write_text(PROFIL_RUMPF, encoding="utf-8")
+    arbeit = tmp_path / "arbeit"
+    arbeit.mkdir()
+    (arbeit / "getarnt.svg").symlink_to(aussen / "fremd.svg")
+    brief = arbeit / "b.md"
+    brief.write_text(
+        BRIEF_MIT_SIGNATUR.format(profil="../profil/p.yaml", signatur="getarnt.svg"),
+        encoding="utf-8")
+
+    with pytest.raises(falzmarke.Eingabefehler) as fehler:
+        falzmarke.rendere(brief, arbeit / "b.pdf")
+    assert "beim Brief liegen" in str(fehler.value), str(fehler.value)
+
+
+def _y_des_unterzeichners(pdf) -> float:
+    """Wo steht „Vertretung“ auf der Seite? Von oben gemessen, in Punkt."""
+    import pdfplumber
+
+    with pdfplumber.open(str(pdf)) as dokument:
+        for wort in dokument.pages[0].extract_words():
+            if wort["text"].startswith("Vertretung"):
+                return wort["top"]
+    raise AssertionError("„Vertretung“ steht nicht im PDF")
+
+
+def test_signatur_neben_dem_brief_wird_gesetzt(aufbau):
+    """Gegenprobe: Ohne sie belegen die beiden Tests oben nur, dass etwas blockt.
+
+    Gemessen wird nicht, DASS ein PDF entsteht — das tut es auch, wenn das Feld
+    stillschweigend ignoriert wird, und dann wäre dieser Test wertlos. Gemessen
+    wird die Wirkung: Mit Bild steht der Unterzeichner tiefer (1 Leerzeile +
+    2,5 Zeilen Bild + 1 Leerzeile) als ohne (3 Leerzeilen), siehe
+    `falzmarke.typ`. Bleibt die Position gleich, ist das Bild nicht angekommen.
+    """
+    tmp_path, profil, aussen = aufbau
+    (profil / "p.yaml").write_text(PROFIL_RUMPF, encoding="utf-8")
+    shutil.copy(PROFILE / "assets" / "logo.svg", tmp_path / "meine-unterschrift.svg")
+
+    mit = tmp_path / "mit.md"
+    mit.write_text(
+        BRIEF_MIT_SIGNATUR.format(profil="./profil/p.yaml", signatur="meine-unterschrift.svg"),
+        encoding="utf-8")
+    ohne = tmp_path / "ohne.md"
+    ohne.write_text(
+        BRIEF_MIT_SIGNATUR.format(profil="./profil/p.yaml", signatur="keine"),
+        encoding="utf-8")
+
+    pdf_mit, _ = falzmarke.rendere(mit, tmp_path / "mit.pdf")
+    pdf_ohne, _ = falzmarke.rendere(ohne, tmp_path / "ohne.pdf")
+
+    y_mit = _y_des_unterzeichners(pdf_mit)
+    y_ohne = _y_des_unterzeichners(pdf_ohne)
+    assert y_mit > y_ohne + 5, (
+        f"Der Unterzeichner steht mit Signaturbild bei {y_mit:.1f} pt und ohne bei "
+        f"{y_ohne:.1f} pt — das Bild ist nicht gesetzt worden."
+    )

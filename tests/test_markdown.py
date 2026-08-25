@@ -120,3 +120,85 @@ def test_kein_zugelassener_commonmark_fall_bricht_ab():
     ]
     for fall in faelle:
         konvertiere(fall)
+
+
+# ── Die Referenz und der Renderer ───────────────────────────────────────────
+
+def test_was_markdown_md_als_moeglich_listet_rendert_auch(tmp_path):
+    """Jede Zeile der Positivtabelle einmal wirklich setzen.
+
+    Eine Dokumentation, die niemand ausführt, altert still an der nächsten
+    Änderung — und zwar zur gefährlichsten Sorte: Sie verspricht etwas, das das
+    Werkzeug ablehnt. Diese Prüfung ist der Grund, warum die Tabelle in
+    `references/markdown.md` eine Tabelle mit Syntax-Spalte ist.
+    """
+    from falzmarke import cli as falzmarke
+    from conftest import REPO, SKILL
+
+    proben = {
+        "**fett**": "Ein **fetter** Teil.",
+        "*kursiv*": "Ein *kursiver* Teil.",
+        "***beides***": "Ein ***fett-kursiver*** Teil.",
+        "harter Umbruch": "Erste Zeile\\\nzweite Zeile.",
+        "Aufzählung": "- erster Punkt\n- zweiter Punkt",
+        "nummerierte Liste": "1. erster Punkt\n2. zweiter Punkt",
+        "Tabelle": "| A | B |\n|:--|--:|\n| 1 | 2 |",
+        "Escape": "Drei \\* vier Stück.",
+        "Entity": "Zeichen &amp; mehr.",
+        "Zeichen mit Leerraum": "Die Rechnung 3 * 4 Stück.",
+    }
+    kopf = ("---\nprofil: example\n"
+            "empfaenger: [Muster GmbH, Musterstraße 1, 12345 Musterstadt]\n"
+            "datum: 2026-08-25\nbetreff: Probe\n"
+            "anrede: Sehr geehrte Damen und Herren,\n---\n")
+
+    gescheitert = []
+    for name, quelle in proben.items():
+        brief = tmp_path / "b.md"
+        brief.write_text(kopf + quelle + "\n", encoding="utf-8")
+        try:
+            falzmarke.rendere(brief, tmp_path / f"{abs(hash(name))}.pdf",
+                              profil_verzeichnis=SKILL / "falzmarke" / "typst" / "profiles")
+        except Exception as fehler:                      # noqa: BLE001
+            gescheitert.append(f"{name}: {type(fehler).__name__}: {fehler}")
+
+    assert not gescheitert, (
+        "In references/markdown.md als möglich gelistet, aber abgewiesen:\n"
+        + "\n".join(gescheitert))
+
+
+def test_was_markdown_md_als_fehler_listet_bricht_auch_ab(tmp_path):
+    """Die Gegenrichtung — sonst belegt der Test oben nur, dass irgendetwas geht."""
+    from falzmarke import cli as falzmarke
+    from conftest import SKILL
+
+    proben = {
+        "Überschrift": "# Eine Überschrift",
+        "Link": "Siehe [hier](https://example.de).",
+        "Bild": "![Logo](logo.png)",
+        "Code": "Ein `code` im Text.",
+        "Blockzitat": "> Ein Zitat.",
+        "HTML": "Ein <b>Fettdruck</b>.",
+        "durchgestrichen": "Ein ~~Fehler~~.",
+        "Fußnote": "Ein Wort[^1].",
+        "Aufgabenliste": "- [ ] offen",
+    }
+    kopf = ("---\nprofil: example\n"
+            "empfaenger: [Muster GmbH, Musterstraße 1, 12345 Musterstadt]\n"
+            "datum: 2026-08-25\nbetreff: Probe\n"
+            "anrede: Sehr geehrte Damen und Herren,\n---\n")
+
+    durchgerutscht = []
+    for name, quelle in proben.items():
+        brief = tmp_path / "b.md"
+        brief.write_text(kopf + quelle + "\n", encoding="utf-8")
+        try:
+            falzmarke.rendere(brief, tmp_path / f"{abs(hash(name))}.pdf",
+                              profil_verzeichnis=SKILL / "falzmarke" / "typst" / "profiles")
+            durchgerutscht.append(name)
+        except Exception:                                # noqa: BLE001, S110
+            pass
+
+    assert not durchgerutscht, (
+        "In references/markdown.md als Fehler gelistet, aber gesetzt: "
+        + ", ".join(durchgerutscht))

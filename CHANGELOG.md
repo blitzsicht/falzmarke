@@ -2,9 +2,39 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
-## Unveröffentlicht
+## v0.5.0 — 25.08.2026
+
+### Neu
+- **`signatur:` gilt jetzt auch je Brief.** Bisher stand das Unterschriftsbild nur im Profil —
+  ein Profil unterschrieb damit immer oder nie. Wer einen Brief „i. A.“ zeichnen ließ, bekam
+  trotzdem die Unterschrift der Geschäftsführung ins PDF, und wer von Hand unterschreiben
+  wollte, konnte das Faksimile nicht abschalten. Im Frontmatter schlägt `signatur:` jetzt das
+  Profil, genau wie `unterzeichner:` schon vorher: `keine` lässt drei Leerzeilen Raum, eine
+  Dateiangabe setzt ein anderes Bild.
+- **Unbekannte Frontmatter-Felder brechen ab.** Bis v0.4.0 verwarf der Renderer jeden Schlüssel,
+  den er nicht abfragte — stillschweigend. `signatur:` im Brief blieb damit wirkungslos, ohne
+  ein Wort, und dasselbe galt für jeden Tippfehler. Der Linter kennt den Datenvertrag jetzt als
+  Liste und nennt bei einem unbekannten Feld die Zeile und den nächstliegenden erlaubten Namen
+  (`signature:` → `signatur`). Für den Informationsblock gilt dasselbe.
+- **[`references/markdown.md`](skill/references/markdown.md)** — die Markdown-Teilmenge steht
+  nicht mehr als Unterabschnitt im Datenvertrag, sondern als eigene Referenz, und sie beginnt
+  mit dem, was möglich ist, statt mit dem, was verboten ist. Neu darin: was der Typografie-Pass
+  von selbst erledigt. Zwei Tests fahren jede gelistete Zeile durch den Renderer — was dort als
+  möglich steht, muss rendern; was als Fehler steht, muss abbrechen.
 
 ### Geändert
+- **Die Ordnergrenze für Dateiangaben steht nur noch an einer Stelle** und wird von beiden
+  Bezugspunkten benutzt: Profil-Assets (Logo, Unterschrift, eigener Briefkopf) bleiben im
+  Profilordner, die Brief-Unterschrift bleibt beim Brief. Der Fund vom 25.08.2026 war nicht die
+  fehlende Prüfung an sich, sondern dass dieselbe Fehlerklasse an einer von drei Stellen bedacht
+  war — eine zweite Kopie hätte das wiederholt.
+- **Die Grenzprüfung läuft jetzt vor der Existenzprüfung.** Andersherum verriet die Meldung, ob
+  eine Datei außerhalb liegt: `../../../etc/shadow` antwortete mit „nicht gefunden“ oder „muss
+  im Profilordner liegen" — je nachdem, und das ist ein Existenz-Orakel gegenüber einem Brief
+  aus fremder Hand.
+- **`INFOBLOCK_REIHENFOLGE` und `PFLICHTFELDER`** stehen jetzt in `lint.py` statt in `cli.py`;
+  `cli` bezieht sie von dort. Zwei Listen für denselben Datenvertrag wären eine Kopie, die bei
+  der nächsten Änderung still auseinanderläuft.
 - **`CONTRIBUTING.md` und `SECURITY.md` sind wieder deutsch**, mit je einem kurzen englischen
   Absatz. Die Umstellung auf Englisch in v0.3.0 ist damit zurückgenommen — das Werkzeug, seine
   Meldungen und seine Dokumentation sind deutsch, und zwei Dateien in einer anderen Sprache
@@ -23,7 +53,7 @@ Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
   Jede der 36 Regeln trägt jetzt ihre Herkunft — `mehrfach bestätigt`, `einzeln belegt`, `offen`
   oder `Werkzeugprüfung` — samt Quellen und Abrufdatum, gepflegt an einer Stelle in
   [`skill/falzmarke/regeln/din5008.yaml`](skill/falzmarke/regeln/din5008.yaml). Der Abschnitt
-  „Quellenlage je Regel" in der Normreferenz wird daraus erzeugt.
+  „Quellenlage je Regel“ in der Normreferenz wird daraus erzeugt.
 - **Warnstufe.** Nur eine mehrfach belegte Regel darf einen Lauf scheitern lassen. Aus einer
   einzigen Quelle wird eine Warnung, die ihre Quellenlage nennt; ohne Beleg wird nicht geprüft.
   Betroffen sind unter anderem die Grußformel ohne Komma und die Sechs-Zeilen-Grenze der
@@ -76,7 +106,7 @@ Beide gefunden beim Angriff auf `verify`, Protokoll in
 ### Geändert
 - **normbrief heißt jetzt falzmarke.** Der Name musste vor dem Hybridbrief fallen, dessen
   Schema-URLs ab Veröffentlichung unveränderlich sind. Belegt vor dem Schnitt: TMview meldet
-  weltweit keine eingetragene Marke „falzmarke" (Kontrollprobe mit „falz": 1.782 Treffer, die
+  weltweit keine eingetragene Marke „falzmarke“ (Kontrollprobe mit „falz“: 1.782 Treffer, die
   Suche misst also), und der Handelsregister-Bestand kennt kein Unternehmen dieses Namens.
 - **Harter Schnitt, keine Aliase.** Mit umgezogen sind der CLI-Befehl, `FALZMARKE_PROFILES`,
   `~/.config/falzmarke/profiles/` und die PDF-Metadaten `/falzmarke_*`. Bestehende Profile
@@ -89,7 +119,7 @@ Beide gefunden beim Angriff auf `verify`, Protokoll in
 - **Bilder brachen `--pdfua`.** Sobald ein Profil ein Logo oder eine Unterschrift benutzte,
   brach der Satz mit `missing alt text` ab: PDF/UA-1 verlangt für jedes Bild eine Beschreibung.
   Logo und Signatur bekommen jetzt einen Alternativtext — der Absendername beziehungsweise
-  „Unterschrift <Name>", überschreibbar mit `logo_alt`. Aufgefallen ist es erst, als das
+  „Unterschrift <Name>“, überschreibbar mit `logo_alt`. Aufgefallen ist es erst, als das
   Beispielprofil die Bilder tatsächlich benutzte.
 - **Ein Installationsweg, den es nicht gab.** README und der v0.2.0-Eintrag unten versprachen
   `uvx normbrief` und `pipx install normbrief` — das Paket lag nie auf PyPI, beide Befehle

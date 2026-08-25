@@ -30,6 +30,32 @@ VERMERKE_MAX_ZEILEN = 3
 INFOBLOCK_WERT_MAX = 32
 BETREFF_MAX_ZEICHEN = 150      # zwei Zeilen bei 165 mm Satzbreite, 11 pt
 
+# Leitwörter des Informationsblocks in der Reihenfolge der Norm.
+# Steht hier und nicht in cli.py, weil cli lint importiert und nicht umgekehrt:
+# So gibt es EINE Liste statt einer Kopie, die still veraltet.
+INFOBLOCK_REIHENFOLGE = [
+    ("ihr_zeichen", "Ihr Zeichen"),
+    ("ihre_nachricht_vom", "Ihre Nachricht vom"),
+    ("unser_zeichen", "Unser Zeichen"),
+    ("unsere_nachricht_vom", "Unsere Nachricht vom"),
+    ("ansprechpartner", "Name"),
+    ("telefon", "Telefon"),
+    ("fax", "Fax"),
+    ("email", "E-Mail"),
+]
+
+PFLICHTFELDER = ("profil", "empfaenger", "datum", "betreff")
+
+# Der vollständige Datenvertrag: was im Frontmatter einer Briefdatei stehen darf.
+# Dokumentiert in references/frontmatter.md; ein Test hält beide zusammen.
+FRONTMATTER_FELDER = frozenset({
+    "profil", "form", "norm", "empfaenger", "vermerke", "datum",
+    "betreff", "betreff_kurz", "infoblock", "anrede", "gruss",
+    "unterzeichner", "signatur", "anlagen", "verteiler",
+})
+
+INFOBLOCK_FELDER = frozenset(schluessel for schluessel, _ in INFOBLOCK_REIHENFOLGE)
+
 URL_MUSTER = re.compile(r"\bhttps?://\S*", re.I)
 EMAIL_MUSTER = re.compile(r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")
 TELEFON_MUSTER = re.compile(r"^\+?[\d]{2,4}(\s\d+)*(-\d+)?$")
@@ -147,8 +173,37 @@ def pruefe_datum(wert, zeile: int, bericht: Bericht) -> None:
         )
 
 
+def _melde_unbekannte(
+    schluessel, erlaubt: frozenset, regel: str, kopf_roh: str, bericht: Bericht
+) -> None:
+    """Ein Feld, das niemand liest, ist ein Fehler — kein Grund zum Schweigen.
+
+    Bis v0.4.0 verwarf der Renderer jeden Schlüssel, den er nicht abfragte.
+    `signatur:` im Brief blieb damit wirkungslos, ohne ein Wort. Das
+    widerspricht der Zusage, mit der das Werkzeug antritt: abbrechen statt
+    still etwas anderes zu setzen.
+    """
+    import difflib
+
+    for feld in schluessel:
+        if feld in erlaubt:
+            continue
+        nah = difflib.get_close_matches(str(feld).lower(), sorted(erlaubt), n=1, cutoff=0.6)
+        rat = (f"meintest du `{nah[0]}`?" if nah
+               else "erlaubt sind: " + ", ".join(sorted(erlaubt)))
+        bericht.fehler(
+            _feldzeile(kopf_roh, str(feld)), regel,
+            f"`{feld}` ist kein Feld des Datenvertrags", rat,
+        )
+
+
 def pruefe_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
-    for feld in ("profil", "empfaenger", "datum", "betreff"):
+    _melde_unbekannte(kopf.keys(), FRONTMATTER_FELDER, "frontmatter", kopf_roh, bericht)
+    if isinstance(kopf.get("infoblock"), dict):
+        _melde_unbekannte(
+            kopf["infoblock"].keys(), INFOBLOCK_FELDER, "infoblock", kopf_roh, bericht)
+
+    for feld in PFLICHTFELDER:
         if not kopf.get(feld):
             bericht.fehler(1, feld, "Pflichtfeld fehlt", f"`{feld}:` im Frontmatter ergänzen")
 
