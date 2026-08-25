@@ -1,6 +1,6 @@
 [project]
 name = "falzmarke"
-version = "0.5.2"
+version = "0.6.0"
 description = "DIN-5008-Briefe aus Markdown — als PDF/A gesetzt, auf den Millimeter geprüft. Skill für KI-Agenten und CLI."
 readme = "README.md"
 requires-python = ">=3.11"

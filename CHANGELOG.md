@@ -2,7 +2,7 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
-## Unveröffentlicht
+## v0.6.0 — 25.08.2026
 
 ### Neu
 - **Video aus Code.** Die README zeigt oben ein GIF der echten CLI, aufgezeichnet mit
