@@ -3,6 +3,18 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  # Nachfahrbar von Hand. Anlass: v0.6.0 wurde auf einen Commit gesetzt, dessen
+  # Nachricht "[skip ci]" trug — von der GIF-Aufzeichnung, die auf main
+  # zurueckschreibt. GitHub ueberspringt daraufhin JEDEN Workflow fuer diesen
+  # Commit, auch diesen hier. Das Ruleset "release-tags" laesst Tags weder
+  # verschieben noch loeschen; ohne manuellen Ausloeser waere das Release
+  # unwiederbringlich verloren gewesen.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag, fuer den das Release gebaut wird (z. B. v0.6.0)"
+        required: true
+        type: string
 
 # Voreinstellung fuer alle Jobs: nur lesen. Wer mehr braucht,
 # sagt es im Job — sichtbar und begrenzt.
@@ -17,7 +29,22 @@ jobs:
       id-token: write        # OIDC fuer die Herkunftsbestaetigung
       attestations: write    # die Bestaetigung selbst schreiben
     steps:
+      # Die Eingabe kommt von einem Menschen und wird nie in eine Shell
+      # interpoliert — sie geht ueber die Umgebung, sonst waere jeder Ausloeser
+      # eine Befehlseinschleusung.
+      - name: Eingabe pruefen
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          case "$TAG" in
+            v[0-9]*.[0-9]*.[0-9]*) echo "Tag: $TAG" ;;
+            *) echo "FEHLER: '$TAG' ist kein Versions-Tag"; exit 1 ;;
+          esac
+
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Skill packen
         run: |
@@ -44,6 +71,7 @@ jobs:
           files: |
             falzmarke.skill
             falzmarke.skill.sha256
+          tag_name: ${{ inputs.tag || github.ref_name }}
           generate_release_notes: true
           append_body: true
           body: |
