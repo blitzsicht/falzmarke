@@ -1,0 +1,18 @@
+# Echte Absenderdaten gehören nie ins öffentliche Repo
+skill/typst/profiles.local/
+profiles.local/
+
+# Erzeugte Briefe
+briefe/
+*.pdf
+*.png
+!docs/renders/*.png
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+*.egg-info/
+build/
+dist/

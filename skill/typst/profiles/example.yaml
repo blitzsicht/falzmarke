@@ -1,0 +1,56 @@
+# Beispielprofil — zeigt alle Felder.
+# Echte Absenderdaten gehören nach profiles.local/ (gitignored) oder in ein
+# privates Repository, nie hierher.
+
+absender:
+  name: Beispiel GmbH
+  strasse: Musterweg 12
+  plz: "93055"
+  ort: Regensburg
+
+# Einzeilig, erscheint 7 pt und unterstrichen über dem Anschriftfeld.
+ruecksendeangabe: Beispiel GmbH · Musterweg 12 · 93055 Regensburg
+
+# Voreinstellung, im Brief mit `form:` überschreibbar.
+form: B
+
+# Schrift: leer lassen für Libertinus Serif (bringt Typst mit).
+# "Source Sans 3" liegt unter skill/assets/fonts/ bereit.
+font: Libertinus Serif
+farbe: "#1a3a5c"
+
+briefkopf:
+  # logo: assets/logo.png   # relativ zum Profilverzeichnis, PNG oder SVG
+  logo_hoehe_mm: 14
+  zeilen:
+    - Beispiel GmbH
+    - Musterweg 12 · 93055 Regensburg
+    - Telefon 0941 620-9800
+
+# Jede Liste ist eine Spalte der Fußzeile.
+fusszeile:
+  - - Beispiel GmbH
+    - Musterweg 12
+    - 93055 Regensburg
+  - - Telefon 0941 620-9800
+    - info@example.de
+    - www.example.de
+  - - Sparkasse Regensburg
+    - IBAN DE62 7625 1020 0221 0217 44
+    - BIC BYLADEM1RBG
+  - - Amtsgericht Regensburg HRB 12345
+    - USt-IdNr. DE123456789
+    - Geschäftsführerin: Erika Muster
+
+# lang -> "25. August 2026" · iso -> "2026-08-25"
+datumsformat: lang
+
+gruss: Mit freundlichen Grüßen
+unterzeichner: Erika Muster
+firma_ueber_unterschrift: false
+
+# Werden in den Informationsblock übernommen, wenn der Brief nichts anderes sagt.
+infoblock_defaults:
+  ansprechpartner: Erika Muster
+  telefon: 0941 620-9800
+  email: muster@example.de
