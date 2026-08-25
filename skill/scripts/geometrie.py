@@ -79,6 +79,7 @@ INFOBLOCK_X = 125.0
 INFOBLOCK_X_RECHTS = 200.0
 ANSCHRIFT_X_RECHTS = 105.0   # 20 mm + 85 mm Fensterbreite
 MARKE_X_MAX = 20.0           # Marken liegen im Heftrand
+MARKE_ZUORDNUNG = 25.0       # bis hierhin gilt eine Marke als "diese, verschoben"
 ZEILE = 4.2333
 FUSS_MINDESTRAND = 8.0       # mm zwischen unterstem Text und Blattkante
 LEERZEILEN_VOR_BETREFF = 2 * ZEILE   # 8,46 mm
@@ -123,11 +124,24 @@ class Bericht:
     def ok(self) -> bool:
         return all(p.bestanden for p in self.pruefungen)
 
-    def als_text(self) -> str:
-        zeilen = []
-        for p in self.pruefungen:
-            marke = "OK  " if p.bestanden else "FEHL"
-            zeilen.append(f"{marke}  {p.name}: soll {p.soll} ist {p.ist} (tol {p.toleranz})")
+    def als_text(self, ausfuehrlich: bool = False) -> str:
+        """Standard: eine Zeile. Bei Abweichung nur die betroffenen Prüfungen.
+
+        Der ausführliche Bericht hat 30 Zeilen und landete bei jedem Render im
+        Kontext des Sprachmodells — das verdrängt den Brief, um den es geht.
+        """
+        gescheitert = [p for p in self.pruefungen if not p.bestanden]
+        zeigen = self.pruefungen if ausfuehrlich else gescheitert
+        zeilen = [
+            f"{'OK  ' if p.bestanden else 'FEHL'}  {p.name}: "
+            f"soll {p.soll} ist {p.ist} (tol {p.toleranz})"
+            for p in zeigen
+        ]
+        gesamt = len(self.pruefungen)
+        if gescheitert:
+            zeilen.append(f"verify: {gesamt - len(gescheitert)}/{gesamt} Maße eingehalten")
+        else:
+            zeilen.append(f"OK  verify: {gesamt}/{gesamt} Maße eingehalten")
         return "\n".join(zeilen)
 
     def als_dict(self) -> dict:
@@ -242,23 +256,45 @@ def pruefe(pdf_pfad: Path, form: str) -> Bericht:
     bericht.wert("Seitenbreite", mm(seite.width), SEITE_BREITE, 0.1)
     bericht.wert("Seitenhöhe", mm(seite.height), SEITE_HOEHE, 0.1)
 
-    # Falz- und Lochmarken
+    # Falz- und Lochmarken. Gesucht wird die nächstgelegene Marke, nicht die an
+    # der Sollposition: Eine Marke bei 84,0 statt 87,0 mm ist ein verschobenes
+    # Layout und soll als solches gemeldet werden — bis v0.1.2 hieß es dort
+    # "nicht gefunden", was für einen Linter fremder PDFs unbrauchbar ist.
     marken = _marken(seite)
+    vergeben: set[float] = set()
     for bezeichnung, sollwert in (
         ("Falzmarke 1", soll["falzmarke_1"]),
         ("Falzmarke 2", soll["falzmarke_2"]),
         ("Lochmarke", LOCHMARKE),
     ):
-        passende = [m for m in marken if abs(m[0] - sollwert) <= 2.0]
-        if passende:
-            y, _, x_ende = passende[0]
+        frei = [m for m in marken if m[0] not in vergeben]
+        naechste = min(frei, key=lambda m: abs(m[0] - sollwert), default=None)
+        if naechste is None:
+            bericht.wahr(f"{bezeichnung}, y", False, f"{sollwert} mm",
+                         "keine Marke im Heftrand gefunden")
+            continue
+        y, _, x_ende = naechste
+        vergeben.add(y)
+        abweichung = y - sollwert
+        if abs(abweichung) <= 0.3:
             bericht.wert(f"{bezeichnung}, y", y, sollwert, 0.3)
             bericht.wahr(
                 f"{bezeichnung}, im Heftrand", x_ende <= MARKE_X_MAX,
                 f"x-Ende ≤ {MARKE_X_MAX}", f"{x_ende:.2f}",
             )
+        elif abs(abweichung) <= MARKE_ZUORDNUNG:
+            # Die Marke ist da, sitzt nur falsch. Für den Linter fremder PDFs
+            # ist das die eigentlich nützliche Auskunft.
+            richtung = "zu hoch" if abweichung < 0 else "zu tief"
+            bericht.add(
+                f"{bezeichnung}, y", f"{sollwert:.2f}",
+                f"{y:.2f} — {abs(abweichung):.2f} mm {richtung}", "±0.30", False,
+            )
         else:
-            bericht.wahr(f"{bezeichnung}, y", False, f"{sollwert} mm", "nicht gefunden")
+            bericht.wahr(
+                f"{bezeichnung}, y", False, f"{sollwert:.2f} mm",
+                f"keine Marke in der Nähe (nächste bei {y:.2f} mm)",
+            )
 
     spans = _spans(seite)
 
@@ -329,9 +365,26 @@ def pruefe(pdf_pfad: Path, form: str) -> Bericht:
         bericht.wert("Infoblock, y-Oberkante", oben, soll["infoblock_oben"], 0.8)
         infoblock_unterkante = max(infoblock_unterkante, gemessene_unterkante)
 
-    # Betreff: erster fetter Span unterhalb des Anschriftfelds
-    betreff = next((s for s in spans if s.fett and s.y0 > a_unten - 5), None)
+    # Betreff: der fette Block unterhalb des Anschriftfelds. Er darf zwei
+    # Zeilen haben — ein Angebot mit Vorgangsnummer und Gegenstand ist der
+    # Normalfall. Gemessen wird deshalb der ganze Block, nicht die erste Zeile:
+    # sonst gilt die zweite Betreffzeile als Anrede und der Abstand stimmt nie.
+    fette = [s for s in spans if s.fett and s.y0 > a_unten - 5]
+    betreff_zeilen = []
+    for zeile in _zeilen_gruppieren(fette):
+        if betreff_zeilen:
+            vorige = betreff_zeilen[-1][0].y0
+            if zeile[0].y0 - vorige > 1.6 * ZEILE:   # Lücke: gehört nicht mehr dazu
+                break
+        betreff_zeilen.append(zeile)
+
+    betreff = betreff_zeilen[0][0] if betreff_zeilen else None
+    betreff_letzte = betreff_zeilen[-1][0] if betreff_zeilen else None
     if betreff is not None:
+        bericht.add(
+            "Betreff, Zeilenzahl", "≤ 2", str(len(betreff_zeilen)), "—",
+            len(betreff_zeilen) <= 2,
+        )
         erwartet = max(soll["kopfhoehe"] + 45.0, infoblock_unterkante) + LEERZEILEN_VOR_BETREFF
         # Gemessen wird die Glyph-Box, gesetzt wird die Zeilenoberkante. Die
         # Glyph-Box beginnt beim Ascender und liegt deshalb systematisch etwas
@@ -365,17 +418,23 @@ def pruefe(pdf_pfad: Path, form: str) -> Bericht:
         )
         bericht.wert("Abstand Anschrift → Betreff", abstand, soll_abstand, 0.3)
 
-    anrede = next((s for s in spans if betreff is not None and s.y0 > betreff.y1), None)
-    if betreff is not None and anrede is not None:
+    anrede = next(
+        (s for s in spans if betreff_letzte is not None and s.y0 > betreff_letzte.y0 + 0.5 * ZEILE),
+        None,
+    )
+    if betreff_letzte is not None and anrede is not None:
         # Konstruktiv exakt: beide Messpunkte tragen denselben Glyph-Versatz,
         # der sich in der Differenz heraushebt. Deshalb enge Toleranz.
         bericht.wert(
             "Abstand Betreff → Anrede (2 Leerzeilen)",
-            anrede.y0 - betreff.y0, 3 * ZEILE, 0.2,
+            anrede.y0 - betreff_letzte.y0, 3 * ZEILE, 0.2,
         )
 
     # Textblock
-    body_spans = [s for s in spans if betreff is not None and s.y0 > betreff.y1 and s.y1 < 250]
+    body_spans = [
+        s for s in spans
+        if betreff_letzte is not None and s.y0 > betreff_letzte.y0 + 0.5 * ZEILE and s.y1 < 250
+    ]
     if body_spans:
         bericht.wert("Textblock, x-links", min(s.x0 for s in body_spans), RAND_LINKS, 0.3)
         bericht.add(
@@ -451,6 +510,29 @@ def xmp_lesen(pdf_pfad: Path) -> str:
         daten = strom.get_data()
         return daten.decode("utf-8", "replace") if isinstance(daten, bytes) else str(daten)
     return str(roh)
+
+
+def erkenne_form(pdf_pfad: Path) -> str | None:
+    """Form A oder B aus den Falzmarken ableiten.
+
+    Form A faltet bei 87 und 192 mm, Form B bei 105 und 210 mm. Die Marken
+    stehen im Blatt, also muss man die Form nicht wissen, um zu prüfen.
+    """
+    import pdfplumber
+
+    with pdfplumber.open(str(pdf_pfad)) as dokument:
+        marken = [m[0] for m in _marken(dokument.pages[0])]
+    if not marken:
+        return None
+    treffer = {}
+    for form, werte in FORM.items():
+        passend = sum(
+            1 for sollwert in (werte["falzmarke_1"], werte["falzmarke_2"])
+            if any(abs(m - sollwert) <= 1.0 for m in marken)
+        )
+        treffer[form] = passend
+    beste = max(treffer, key=lambda f: treffer[f])
+    return beste if treffer[beste] >= 1 else None
 
 
 def pdfa_geprueft(pdf_pfad: Path) -> tuple[bool, str]:

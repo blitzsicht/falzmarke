@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import os
 import re
@@ -405,6 +406,7 @@ def rendere(
     *,
     profil_verzeichnis: Path | None = None,
     pdfa: bool = True,
+    pdfua: bool = False,
     format_name: str = "pdf",
     ppi: int = 120,
 ) -> tuple[Path, str]:
@@ -470,7 +472,10 @@ def rendere(
             argumente["format"] = "png"
             argumente["ppi"] = ppi
         elif pdfa:
-            argumente["pdf_standards"] = "a-2b"
+            # PDF/UA-1 setzt eine getaggte Struktur voraus; Typst 0.15 erzeugt
+            # sie zusammen mit A-2b.
+            # typst-py nimmt eine Liste oder einen String, kein Tupel.
+            argumente["pdf_standards"] = ["a-2b", "ua-1"] if pdfua else "a-2b"
 
         try:
             typst.compile(**argumente)
@@ -495,6 +500,11 @@ def rendere(
                 ) from None
             raise Eingabefehler(f"Typst konnte den Brief nicht setzen:\n{meldung}") from None
 
+    if format_name == "pdf":
+        # Der Herkunftsvermerk gehört hierher und nicht in den CLI-Befehl:
+        # sonst trägt ihn nur, wer über die Kommandozeile rendert.
+        schreibe_herkunft(ausgabe, brief_pfad, str(kopf.get("profil", "")), daten["form"])
+
     if format_name == "png":
         seiten = sorted(png_ziel.parent.glob(png_ziel.stem + "-*" + png_ziel.suffix))
         if len(seiten) == 1:
@@ -506,6 +516,34 @@ def rendere(
 
 
 # ── Unterbefehle ────────────────────────────────────────────────────────────
+
+VERSION = "0.2.0"
+
+
+def schreibe_herkunft(pdf: Path, quelle: Path, profil: str, form: str) -> None:
+    """Vermerkt im PDF, womit es gesetzt wurde.
+
+    Beantwortet zwei Fragen, die sonst niemand mehr beantworten kann: Mit
+    welcher Fassung ist dieser Brief entstanden, und aus welcher Quelle? Der
+    Hash macht den Abgleich möglich, ohne die Quelle mitzuliefern.
+    """
+    from pypdf import PdfReader, PdfWriter
+
+    hash_quelle = hashlib.sha256(quelle.read_bytes()).hexdigest()
+    leser = PdfReader(str(pdf))
+    schreiber = PdfWriter(clone_from=leser)
+    schreiber.add_metadata({
+        "/Producer": f"normbrief {VERSION}",
+        "/normbrief_Version": VERSION,
+        "/normbrief_Profil": profil,
+        "/normbrief_Form": form,
+        "/normbrief_Quelle": f"sha256:{hash_quelle}",
+    })
+    ziel = pdf.with_suffix(".herkunft.pdf")
+    with ziel.open("wb") as datei:
+        schreiber.write(datei)
+    ziel.replace(pdf)
+
 
 def befehl_lint(args) -> int:
     bericht = linte(
@@ -535,6 +573,7 @@ def befehl_render(args) -> int:
         Path(args.output) if args.output else None,
         profil_verzeichnis=Path(args.profiles) if args.profiles else None,
         pdfa=not args.no_pdfa,
+        pdfua=args.pdfua,
     )
     print(f"OK  PDF geschrieben: {pdf}")
 
@@ -553,25 +592,39 @@ def befehl_render(args) -> int:
         ist_pdfa, _ = geometrie.pdfa_geprueft(pdf)
         bericht.wahr("PDF/A-2b", ist_pdfa, "pdfaid part 2, conformance B",
                      "vorhanden" if ist_pdfa else "fehlt")
-    print(bericht.als_text())
+    print(bericht.als_text(ausfuehrlich=args.verbose))
     if not bericht.ok:
         print("\nFEHLGESCHLAGEN — das PDF hält die Maße aus DIN 5008 nicht ein.", file=sys.stderr)
         return EXIT_GEOMETRIE
     return EXIT_OK
 
 
-def befehl_check(args) -> int:
+def befehl_verify(args) -> int:
     import geometrie
 
     pdf = Path(args.pdf)
     if not pdf.is_file():
         print(f"Datei nicht gefunden: {pdf}", file=sys.stderr)
         return EXIT_EINGABE
-    bericht = geometrie.pruefe(pdf, args.form.upper())
+
+    form = (args.form or "").upper()
+    if not form:
+        # Die Form steht im Blatt: Form A faltet bei 87 und 192 mm, Form B bei
+        # 105 und 210. Wer ein fremdes PDF prüft, muss sie nicht wissen.
+        form = geometrie.erkenne_form(pdf) or ""
+        if not form:
+            print(
+                "Die Form ließ sich nicht erkennen — es sind keine Falzmarken im "
+                "Heftrand.\n        Mit --form A oder --form B angeben.",
+                file=sys.stderr,
+            )
+            return EXIT_EINGABE
+
+    bericht = geometrie.pruefe(pdf, form)
     if args.json:
         print(json.dumps(bericht.als_dict(), ensure_ascii=False, indent=2))
     else:
-        print(bericht.als_text())
+        print(bericht.als_text(ausfuehrlich=args.verbose))
     return EXIT_OK if bericht.ok else EXIT_GEOMETRIE
 
 
@@ -670,6 +723,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("-o", "--output")
     p.add_argument("--png", action="store_true", help="zusätzlich eine PNG-Vorschau")
     p.add_argument("--no-pdfa", action="store_true", help="ohne PDF/A-2b")
+    p.add_argument("--pdfua", action="store_true",
+                   help="zusätzlich PDF/UA-1 (barrierefrei getaggt)")
+    p.add_argument("--verbose", action="store_true", help="alle Prüfungen zeigen")
     p.add_argument("--profiles", help="zusätzliches Profilverzeichnis")
     p.add_argument("--ppi", type=int, default=120)
     p.set_defaults(funktion=befehl_render)
@@ -680,11 +736,17 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--profiles")
     p.set_defaults(funktion=befehl_lint)
 
-    p = unter.add_parser("check", help="ein PDF gegen die Normmaße vermessen")
-    p.add_argument("pdf")
-    p.add_argument("--form", default="B", choices=["A", "B", "a", "b"])
-    p.add_argument("--json", action="store_true")
-    p.set_defaults(funktion=befehl_check)
+    for name, hilfe in (
+        ("verify", "ein PDF gegen die Normmaße vermessen"),
+        ("check", "frühere Schreibweise von verify"),
+    ):
+        p = unter.add_parser(name, help=hilfe)
+        p.add_argument("pdf")
+        p.add_argument("--form", choices=["A", "B", "a", "b"],
+                       help="ohne Angabe aus den Falzmarken erkannt")
+        p.add_argument("--json", action="store_true")
+        p.add_argument("--verbose", action="store_true", help="alle Prüfungen zeigen")
+        p.set_defaults(funktion=befehl_verify)
 
     p = unter.add_parser("preview", help="PNG der ersten Seite")
     p.add_argument("brief")
