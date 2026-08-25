@@ -1,16 +1,6 @@
-<table>
-<tr>
-<td width="230" align="center" valign="middle">
+<div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/logo-dark.svg">
-  <img src="docs/assets/brand/logo.svg" alt="falzmarke" width="200">
-</picture>
-
-</td>
-<td valign="middle">
-
-*German business letters per DIN 5008 — written in Markdown, rendered to PDF/A, and geometrically verified.*
+<img src="docs/assets/brand/banner.png" alt="falzmarke — Briefe schreiben mit KI, nach Norm, nicht nach Gefühl. DIN-5008-Briefe aus Markdown, als PDF/A gesetzt und auf den Millimeter geprüft." width="100%">
 
 [![CI](https://github.com/blitzsicht/falzmarke/actions/workflows/ci.yml/badge.svg)](https://github.com/blitzsicht/falzmarke/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/blitzsicht/falzmarke)](https://github.com/blitzsicht/falzmarke/releases/latest)
@@ -18,9 +8,7 @@
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB)](pyproject.toml)
 [![DIN 5008](https://img.shields.io/badge/DIN_5008-2020-245A73)](skill/references/din5008.md)
 
-</td>
-</tr>
-</table>
+</div>
 
 ---
 

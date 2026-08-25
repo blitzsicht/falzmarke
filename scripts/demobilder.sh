@@ -33,24 +33,8 @@ ausschnitt "$RENDERS/brief-form-b.png"        "$DEMO/gallery-standard.png"     6
 ausschnitt "$RENDERS/brief-einschreiben.png"  "$DEMO/gallery-einschreiben.png" 649  827
 ausschnitt "$RENDERS/brief-mehrseitig-2.png"  "$DEMO/gallery-mehrseitig.png"   649  827
 
-# Das GitHub-Social-Preview. Die SVG-Quelle verweist relativ auf das Briefbild;
-# rsvg-convert laedt aus Sicherheitsgruenden keine externen Dateien, deshalb
-# wird zum Rendern eine Fassung mit eingebettetem Bild gebaut und wieder
-# verworfen. Die Quelle im Repo bleibt lesbar.
-echo
-command -v rsvg-convert >/dev/null || { echo "rsvg-convert fehlt (brew install librsvg) — social-preview uebersprungen"; exit 0; }
-tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
-magick "$RENDERS/brief-form-b.png" -resize 800x -strip "$tmp/brief.png"
-python3 - "$tmp" <<'PY'
-import base64, pathlib, sys
-tmp = pathlib.Path(sys.argv[1])
-b64 = base64.b64encode((tmp / "brief.png").read_bytes()).decode()
-quelle = pathlib.Path("docs/assets/brand/social-preview.svg")
-text = quelle.read_text(encoding="utf-8")
-alt = 'xlink:href="../../renders/brief-form-b.png"'
-assert alt in text, "Verweis auf das Briefbild nicht gefunden"
-(tmp / "preview.svg").write_text(
-    text.replace(alt, f'xlink:href="data:image/png;base64,{b64}"'), encoding="utf-8")
-PY
-rsvg-convert -w 1280 -h 640 -o docs/assets/brand/social-preview.png "$tmp/preview.svg"
-printf '  %-46s %s\n' "docs/assets/brand/social-preview.png" "$(magick docs/assets/brand/social-preview.png -format '%wx%h' info:)"
+
+# Das Vorschaubild wird NICHT hier erzeugt. Es kommt aus der Markenwerkstatt
+# (docs/marke/quelle/social-preview.html) und liegt fertig unter
+# docs/assets/brand/social-preview.png (1280x640) und hero.png (2560x1280).
+# Wer es ändert, ändert die HTML-Quelle — nicht das PNG.
