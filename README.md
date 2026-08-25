@@ -80,11 +80,19 @@ wird das Ergebnis gemessen statt angeschaut.
 ### Im Terminal, ohne Clone
 
 ```bash
-uvx falzmarke init brief.md --profil example --betreff "Angebot Nr. 2026-0815"
-uvx falzmarke render brief.md --png
+uvx --from git+https://github.com/blitzsicht/falzmarke falzmarke \
+    init brief.md --profil example --betreff "Angebot Nr. 2026-0815"
 ```
 
-oder dauerhaft: `pipx install falzmarke`, danach `falzmarke render brief.md`.
+oder dauerhaft installiert, danach genügt `falzmarke render brief.md --png`:
+
+```bash
+pipx install git+https://github.com/blitzsicht/falzmarke
+```
+
+Noch liegt das Paket **nicht auf PyPI** — deshalb die Adresse statt eines bloßen Namens
+([#7](https://github.com/blitzsicht/falzmarke/issues/7)). Ein Test wacht darüber, dass hier kein
+Befehl steht, den es nicht gibt.
 
 Der Typst-Compiler kommt als Python-Wheel mit — **keine Systeminstallation**: kein LaTeX, kein
 wkhtmltopdf, keine Schriftinstallation. Alle Abhängigkeiten sind permissiv lizenziert.

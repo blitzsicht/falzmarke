@@ -1,6 +1,9 @@
-# Beispielprofil — zeigt alle Felder.
-# Echte Absenderdaten gehören nach profiles.local/ (gitignored) oder in ein
-# privates Repository, nie hierher.
+# Beispielprofil mit Bildern — Logo im Briefkopf, Unterschrift über dem Namen.
+#
+# Der Unterschied zu example.yaml sind genau die beiden Zeilen `logo:` und
+# `signatur:`. Beide Pfade sind relativ zu DIESER Datei; ein Profil mit Bildern
+# lässt sich deshalb nur samt seinem assets-Ordner an einen anderen Ort kopieren.
+# Wer ein Profil ohne Nachbardateien braucht, nimmt example.yaml.
 
 absender:
   name: Beispiel GmbH
@@ -20,8 +23,7 @@ font: Libertinus Serif
 farbe: "#1a3a5c"
 
 briefkopf:
-  # logo: assets/logo.svg   # relativ zum Profilverzeichnis, PNG oder SVG
-  # Ein Profil mit Logo und Unterschrift zeigt example-grafik.yaml.
+  logo: assets/logo.svg     # ersetzt den Namen links im Briefkopf
   logo_hoehe_mm: 14
   zeilen:
     - Beispiel GmbH
@@ -45,6 +47,9 @@ fusszeile:
 
 # lang -> "25. August 2026" · iso -> "2026-08-25"
 datumsformat: lang
+
+# Über dem Unterzeichner. Ohne diese Zeile bleiben drei Leerzeilen Raum.
+signatur: assets/unterschrift.svg
 
 gruss: Mit freundlichen Grüßen
 unterzeichner: Erika Muster

@@ -2,6 +2,41 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.3.0 — 25.08.2026
+
+### Geändert
+- **normbrief heißt jetzt falzmarke.** Der Name musste vor dem Hybridbrief fallen, dessen
+  Schema-URLs ab Veröffentlichung unveränderlich sind. Belegt vor dem Schnitt: TMview meldet
+  weltweit keine eingetragene Marke „falzmarke" (Kontrollprobe mit „falz": 1.782 Treffer, die
+  Suche misst also), und der Handelsregister-Bestand kennt kein Unternehmen dieses Namens.
+- **Harter Schnitt, keine Aliase.** Mit umgezogen sind der CLI-Befehl, `FALZMARKE_PROFILES`,
+  `~/.config/falzmarke/profiles/` und die PDF-Metadaten `/falzmarke_*`. Bestehende Profile
+  wandern von Hand nach `~/.config/falzmarke/`. Bei null Fremdnutzern wäre eine
+  Übergangsschicht toter Code gewesen.
+- **`CONTRIBUTING.md` und `SECURITY.md` sind auf Englisch.** Das Werkzeug bleibt deutsch — DIN
+  5008 ist eine deutsche Norm —, aber Fehler- und Sicherheitsmeldungen kommen von überall.
+
+### Behoben
+- **Bilder brachen `--pdfua`.** Sobald ein Profil ein Logo oder eine Unterschrift benutzte,
+  brach der Satz mit `missing alt text` ab: PDF/UA-1 verlangt für jedes Bild eine Beschreibung.
+  Logo und Signatur bekommen jetzt einen Alternativtext — der Absendername beziehungsweise
+  „Unterschrift <Name>", überschreibbar mit `logo_alt`. Aufgefallen ist es erst, als das
+  Beispielprofil die Bilder tatsächlich benutzte.
+- **Ein Installationsweg, den es nicht gab.** README und der v0.2.0-Eintrag unten versprachen
+  `uvx normbrief` und `pipx install normbrief` — das Paket lag nie auf PyPI, beide Befehle
+  schlugen fehl. Der Frischklon-Job der CI konnte das nie melden, weil er ein lokal gebautes
+  Wheel testet. Die README nennt jetzt `uvx --from git+…`, nachgemessen, und
+  `tests/test_installationswege.py` wacht darüber. Die PyPI-Veröffentlichung bleibt offen
+  ([#7](https://github.com/blitzsicht/falzmarke/issues/7)).
+
+### Neu
+- **`example-grafik.yaml`** — ein zweites mitgeliefertes Profil mit Logo im Briefkopf und
+  Unterschrift über dem Namen. `example.yaml` bleibt bewusst ohne Bilder: Dass eine einzelne
+  YAML-Datei ohne Nachbardateien rendert, ist eine Eigenschaft, die Tests bewachen.
+- **`scripts/demobilder.sh`** erzeugt die Bilder der README und das Vorschaubild aus den
+  Renders. Sie lagen bisher als PNG im Repository, ohne dass irgendwo stand, wie sie entstanden
+  sind — und veralteten deshalb still bei jeder Änderung am Beispielbrief.
+
 ## v0.2.0 — 25.08.2026
 
 ### Behoben

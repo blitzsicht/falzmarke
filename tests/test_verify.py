@@ -127,7 +127,7 @@ def test_herkunft_steht_im_pdf(gerendert):
     pdf, _ = gerendert["brief-form-b"]
     metadaten = PdfReader(str(pdf)).metadata
     assert metadaten.get("/falzmarke_Version") == falzmarke.VERSION
-    assert metadaten.get("/falzmarke_Profil") == "example"
+    assert metadaten.get("/falzmarke_Profil") == "example-grafik"
     assert str(metadaten.get("/falzmarke_Quelle", "")).startswith("sha256:")
 
 

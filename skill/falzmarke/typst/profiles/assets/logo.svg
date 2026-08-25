@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 216 56" width="216" height="56"
+     role="img" aria-label="Beispiel GmbH">
+  <title>Beispiel GmbH</title>
+  <!-- Beispiel-Logo für das mitgelieferte Profil. Frei erfundenes Unternehmen;
+       zeigt, dass briefkopf.logo ein Bild statt des Namens setzt. -->
+  <g>
+    <rect x="2" y="8" width="40" height="40" rx="7" fill="#1a3a5c"/>
+    <path d="M13 22 h18 M13 28 h18 M13 34 h11" stroke="#FFFFFF" stroke-width="2.6"
+          stroke-linecap="round" opacity="0.92"/>
+  </g>
+  <text x="54" y="32" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+        font-size="19" font-weight="600" letter-spacing="-0.2" fill="#1a3a5c">Beispiel GmbH</text>
+  <text x="55" y="48" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+        font-size="8.4" letter-spacing="1.5" fill="#1a3a5c" opacity="0.62">DRUCKSACHEN UND VERSAND</text>
+</svg>

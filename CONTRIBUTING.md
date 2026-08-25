@@ -1,60 +1,72 @@
-# Mitmachen
+# Contributing
 
-Danke für dein Interesse. Dieses Projekt hat eine ungewöhnliche Eigenschaft, die alles andere
-bestimmt: **Es misst sein eigenes Ergebnis.** Was hier geändert wird, muss deshalb messbar bleiben.
+Thanks for your interest. This project has one unusual property that shapes everything else:
+**it measures its own output.** Whatever changes here has to stay measurable.
 
-## Der Grundsatz
+The tool itself, its code comments and its error messages are in German — DIN 5008 is a German
+standard and the letters it produces are German business correspondence. This file and
+[`SECURITY.md`](SECURITY.md) are in English, because bug reports and security findings come from
+everywhere. Both languages are deliberate; please keep them where they are.
 
-Ein Prüfmittel, das nie rot werden kann, ist kein Nachweis.
+## The principle
 
-Wer eine Prüfung hinzufügt, fügt auch die Gegenprobe hinzu: In
-[`tests/test_gegenbeweis.py`](tests/test_gegenbeweis.py) wird das Layout an genau einer Stelle
-absichtlich verschoben, und die neue Prüfung muss dort anschlagen. Dazu gehört die Kontrollprobe
-ohne Sabotage, die grün bleiben muss — ohne sie belegt der Test nur, dass eine Kopie anders misst
-als das Original.
+A check that can never turn red is not evidence.
 
-Dasselbe gilt für Fehlerbehebungen: **Erst den Fehler reproduzieren, dann beheben.** Wenn er sich
-nicht reproduzieren lässt, ist unklar, was der Fix behebt.
+If you add a check, add its counter-test as well: in
+[`tests/test_gegenbeweis.py`](tests/test_gegenbeweis.py) the layout is deliberately broken in
+exactly one place, and your new check has to fire there. That includes the control case without
+sabotage, which must stay green — without it, the test only proves that a copy measures
+differently from the original, not that it measures the right thing.
 
-## Bevor du einen Pull Request öffnest
+The same holds for bug fixes: **reproduce the bug first, then fix it.** If it cannot be
+reproduced, it is unclear what the fix repairs.
+
+## Before opening a pull request
 
 ```bash
 python3 skill/scripts/bootstrap.py
 python3 -m pytest -q
-for f in examples/*.md; do python3 skill/scripts/falzmarke.py render "$f" -o "/tmp/$(basename "$f" .md).pdf"; done
+for f in examples/*.md; do
+  python3 skill/scripts/falzmarke.py render "$f" -o "/tmp/$(basename "$f" .md).pdf"
+done
 ```
 
-Alle Tests grün, alle sieben Beispiele ohne `FEHL`-Zeile.
+All tests green, all eight examples without a `FEHL` line.
 
-## Maße ändern
+## Changing measurements
 
-Die Sollwerte stehen an **einer** Stelle: `FORM` und die Konstanten in
-[`skill/scripts/geometrie.py`](skill/scripts/geometrie.py), beschrieben in
-[`skill/references/din5008.md`](skill/references/din5008.md). Beides zusammen ändern.
+The target values live in **one** place: `FORM` and the constants in
+[`skill/falzmarke/geometrie.py`](skill/falzmarke/geometrie.py), documented in
+[`skill/references/din5008.md`](skill/references/din5008.md). Change both together.
 
-Ein geänderter Wert braucht einen Beleg — die Norm, die Maßzeichnung, eine Messung. Nicht die
-verbreitete Word-Vorlage: sie weicht nachweislich um mehrere Millimeter ab, siehe
+A changed value needs evidence — the standard, a dimensioned drawing, a measurement. Not the
+widely circulated Word template: it demonstrably deviates by several millimetres, see
 [`docs/normmasse.md`](docs/normmasse.md).
 
-## Die vendorte Datei
+## The vendored file
 
-`skill/typst/vendor/letter-pro-v3.0.0.typ` ist Fremdcode (MIT) und **unverändert**. Ein Test
-prüft die Prüfsumme. Muss dort wirklich etwas geändert werden, gehört jede Änderung nach
-`vendor/CHANGES.md` und die Prüfsumme im Test angepasst — beides im selben Commit.
+`skill/falzmarke/typst/vendor/letter-pro-v3.0.0.typ` is third-party code (MIT) and is kept
+**unmodified**. A test verifies its checksum. If something really has to change there, record
+every change in `skill/falzmarke/typst/vendor/CHANGES.md` (create it) and update the checksum in
+the test — both in the same commit.
 
-## Stil
+Note that the string `normbrief` appears in that file, inside a Deutsche Post URL. It is not a
+leftover of this project's former name; do not "fix" it. Replacing it would falsify a third-party
+source and break the checksum.
 
-- Code und Kommentare auf Deutsch, passend zum Gegenstand.
-- Kommentare erklären **warum**, nicht was. Besonders wertvoll: der Grund, warum etwas *nicht*
-  offensichtlich gelöst ist.
-- Commit-Nachrichten beschreiben die Wirkung, nicht die Datei.
+## Style
 
-## Fehler melden
+- Code and comments in German, matching the subject matter.
+- Comments explain **why**, not what. Most valuable: the reason something is *not* solved the
+  obvious way.
+- Commit messages describe the effect, not the file.
 
-Bei Geometriefehlern **immer die Ausgabe von `check` mitschicken**:
+## Reporting bugs
+
+For geometry problems, **always include the output of `verify`**:
 
 ```bash
-python3 skill/scripts/falzmarke.py check DEIN.pdf --form B --json
+python3 skill/scripts/falzmarke.py verify YOUR.pdf --form B --json
 ```
 
-Ohne sie lässt sich nicht unterscheiden, ob das Layout falsch sitzt oder die Messung danebenliegt.
+Without it there is no way to tell whether the layout sits wrong or the measurement is off.

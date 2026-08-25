@@ -80,7 +80,13 @@
       align: (left + horizon, right + horizon),
       {
         if k.at("logo", default: none) != none {
-          image(k.logo, height: k.at("logo_hoehe_mm", default: 42) * 1mm)
+          // Alternativtext: ohne ihn lehnt PDF/UA-1 jedes Bild ab. Der Name des
+          // Absenders ist die richtige Beschreibung — das Logo ersetzt ihn hier.
+          image(
+            k.logo,
+            height: k.at("logo_hoehe_mm", default: 42) * 1mm,
+            alt: k.at("logo_alt", default: profil.absender.name),
+          )
         } else {
           text(size: 16pt, weight: "bold", fill: farbe, profil.absender.name)
         }
@@ -225,7 +231,11 @@
       // Unterschriftsraum: ueblich 3 Leerzeilen. Mit Signaturbild wird der Raum
       // vom Bild gefuellt, der Abstand darunter bleibt gleich.
       if daten.at("signatur", default: none) != none {
-        block(above: leer(1), below: 0pt, image(daten.signatur, height: 2.5 * zeile))
+        block(above: leer(1), below: 0pt, image(
+          daten.signatur,
+          height: 2.5 * zeile,
+          alt: "Unterschrift " + daten.unterzeichner,
+        ))
         block(above: leer(1), below: 0pt, daten.unterzeichner)
       } else {
         block(above: leer(3), below: 0pt, daten.unterzeichner)

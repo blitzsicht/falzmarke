@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 16 248 70" width="248" height="70"
+     role="img" aria-label="Unterschrift Erika Muster">
+  <title>Erika Muster</title>
+  <!-- Beispiel-Unterschrift für das mitgelieferte Profil. Frei gezeichnet,
+       keine Schrift eingebettet: zeigt, dass signatur ein Bild aufnimmt. -->
+  <g fill="none" stroke="#16233d" stroke-linecap="round" stroke-linejoin="round">
+    <!-- E -->
+    <path d="M58 30 C 51 21 38 22 33 33 C 28 44 39 49 46 44
+             C 37 48 28 55 31 65 C 34 74 47 75 55 67" stroke-width="2.8"/>
+    <!-- rika, als fliessender Zug -->
+    <path d="M64 64 C 66 52 68 44 71 44 C 74 44 73 54 72 64
+             C 76 50 82 42 86 44 C 89 46 87 56 86 64
+             C 90 52 95 45 99 46 C 103 47 100 58 99 64
+             C 104 48 110 30 114 26 C 117 23 118 30 116 40 C 114 52 110 60 108 64" stroke-width="2.4"/>
+    <!-- M -->
+    <path d="M132 68 C 134 50 138 30 142 28 C 146 26 146 44 146 56
+             C 150 40 156 28 160 29 C 164 30 163 50 162 66" stroke-width="2.9"/>
+    <!-- uster, auslaufend -->
+    <path d="M170 52 C 169 60 170 66 174 65 C 178 64 180 56 181 50
+             C 181 58 183 65 187 64 C 191 63 192 56 190 52 C 188 48 184 50 186 55
+             C 189 61 196 62 200 58
+             C 203 52 206 46 209 47 C 212 48 210 56 209 62
+             C 213 50 219 42 224 43 C 228 44 226 52 224 58
+             C 232 56 244 52 258 44" stroke-width="2.4"/>
+    <!-- Abstrich unter dem Namen -->
+    <path d="M40 78 C 90 72 170 70 236 74" stroke-width="1.7" opacity="0.85"/>
+  </g>
+</svg>

@@ -121,3 +121,29 @@ def test_verschobener_infoblock_faellt_auf(tmp_path):
     )
     pdf, form = _rendere_mit(tmp_path, kopie)
     assert "Infoblock, y-Oberkante" in _gescheitert(pdf, form)
+
+
+def test_bild_ohne_alternativtext_wird_von_pdfua_abgelehnt(tmp_path):
+    """Ein Logo im Briefkopf ist für PDF/UA-1 nur zulässig, wenn es beschrieben
+    ist. Ohne den alt-Text bricht Typst den Satz ab — genau das soll er.
+
+    Anlass: Beim Aktivieren des Beispielprofils mit Logo scheiterte `--pdfua`
+    mit 'missing alt text'. Ohne diesen Test wüsste die Suite nur, dass der
+    alt-Text heute dasteht, nicht dass er gebraucht wird.
+    """
+    kopie = _sabotiere(
+        tmp_path, "falzmarke.typ",
+        'alt: k.at("logo_alt", default: profil.absender.name),', "",
+    )
+    original = falzmarke.TYPST_DIR
+    falzmarke.TYPST_DIR = kopie
+    try:
+        with pytest.raises(falzmarke.Eingabefehler) as fehler:
+            falzmarke.rendere(BEISPIEL, tmp_path / "ohne-alt.pdf",
+                              profil_verzeichnis=kopie / "profiles", pdfua=True)
+    finally:
+        falzmarke.TYPST_DIR = original
+    assert "alt text" in str(fehler.value).lower(), (
+        f"Erwartet wurde eine PDF/UA-Beschwerde über den fehlenden alt-Text, "
+        f"bekommen: {fehler.value}"
+    )
