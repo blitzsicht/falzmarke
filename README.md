@@ -43,8 +43,9 @@ OK    Abstand Betreff → Anrede (2 Leerzeilen): soll 12.70 ist 12.70 (tol ±0.2
 ## Warum falzmarke
 
 Eine Briefvorlage kann nicht prüfen, ob das Ergebnis stimmt. Sie wird kopiert, jemand verschiebt
-eine Zeile, und der Fehler fällt erst auf, wenn der Brief im Fensterumschlag nicht mehr lesbar ist
-oder die Post ihn als nicht automationsfähig zurückgibt.
+eine Zeile, und der Fehler fällt erst am fertigen Stapel auf: Die Anschrift steht nicht mehr im
+Fensterausschnitt, alles muss neu gedruckt und kuvertiert werden — und wer mit Automationsrabatt
+einliefert, verliert ihn für diese Sendung.
 
 Sprachmodelle verschärfen das: Sie formulieren gut, aber sie können keinen Text auf 45,0 mm setzen.
 Wer einen Brief von einer KI schreiben lässt, bekommt zuverlässig guten Inhalt in unzuverlässigem
@@ -59,7 +60,8 @@ wird das Ergebnis gemessen statt angeschaut.
 - **DIN 5008 Form A und B** — Anschriftfeld mit allen vier Zonen, Informationsblock bei 125 mm, Falz- und Lochmarken, 12-pt-Raster.
 - **Markdown als Quelle** — der Brieftext bleibt lesbar und versionierbar; das PDF ist Ergebnis, nicht Quelle.
 - **Geometrieprüfung** — jedes erzeugte PDF wird gegen die Maßtabelle vermessen; Abweichung heißt Fehler, nicht Warnung.
-- **PDF/A-2b als Standard** — archivfest für GoBD und Dokumentenverwaltung, ohne zusätzliches Flag.
+- **PDF/A-2b als Standard** — das für die Langzeitarchivierung ausgelegte Profil, ohne
+  zusätzliches Flag; die Kennzeichnung wird im fertigen PDF nachgemessen.
 - **Absenderprofile** — Briefkopf, Fußzeile, Logo, Farben und Voreinstellungen einmal anlegen, überall verwenden.
 - **Claude-Skill und CLI** — im Gespräch mit Claude oder direkt im Terminal, ohne Systeminstallation.
 

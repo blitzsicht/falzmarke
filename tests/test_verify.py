@@ -133,7 +133,7 @@ def test_herkunft_steht_im_pdf(gerendert):
 
 def test_pdfa_ueberlebt_den_herkunftsvermerk(gerendert):
     """pypdf schreibt das Dokument neu — die PDF/A-Kennung darf dabei nicht
-    verloren gehen, sonst wäre die Archivfestigkeit still weg."""
+    verloren gehen, sonst fiele das Dokument still aus dem Profil."""
     for name, (pdf, _) in gerendert.items():
         ist_pdfa, _ = geometrie.pdfa_geprueft(pdf)
         assert ist_pdfa, f"{name}: PDF/A-Kennzeichnung fehlt"

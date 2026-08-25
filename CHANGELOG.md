@@ -2,6 +2,21 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## Unveröffentlicht
+
+### Geändert
+- **Zwei Aussagen im README zurückgenommen, die zu weit gingen.**
+  „PDF/A-2b … archivfest für GoBD" versprach eine Konformität, die ein Ausgabeformat nicht
+  begründen kann: Die GoBD verlangen Aufbewahrung, Unveränderbarkeit, Nachvollziehbarkeit und
+  eine Verfahrensdokumentation. Dort steht jetzt, was tatsächlich geprüft wird — das für die
+  Langzeitarchivierung ausgelegte Profil und die nachgemessene Kennzeichnung.
+  Und der Brief, den „die Post als nicht automationsfähig zurückgibt", wird in Wahrheit
+  zugestellt: Automationsfähigkeit betrifft Rabatt- und Massensendungen, nicht die Beförderung.
+  Der echte Schaden trägt das Argument auch ohne Zuspitzung — die Anschrift steht nicht mehr im
+  Fensterausschnitt, der Stapel muss neu gedruckt werden, der Automationsrabatt entfällt für
+  diese Sendung. Dieselbe zu starke Aussage stand als „Archivfestigkeit" auch in einem
+  Test-Docstring, also dort, wo niemand eine Faktenbehauptung vermutet ([#17](https://github.com/blitzsicht/falzmarke/issues/17)).
+
 ## v0.5.0 — 25.08.2026
 
 ### Neu
