@@ -42,7 +42,7 @@ jobs:
             *) echo "FEHLER: '$TAG' ist kein Versions-Tag"; exit 1 ;;
           esac
 
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           ref: ${{ inputs.tag || github.ref }}
 
@@ -62,7 +62,7 @@ jobs:
           echo "sha256=$(cut -d' ' -f1 falzmarke.skill.sha256)" >> "$GITHUB_OUTPUT"
 
       # Belegt Herkunft und Bauweg der Datei — nicht ihre Fehlerfreiheit.
-      - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2.4.0
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
         with:
           subject-path: falzmarke.skill
 
