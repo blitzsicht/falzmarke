@@ -201,8 +201,8 @@ Dazu Form A, Auslandsanschrift, Tabelle und ein Brief mit langem Informationsblo
 
 ## Grenzen
 
-- **Markdown-Teilmenge**: Absätze, fett, kursiv, Aufzählungen, nummerierte Listen, harter Umbruch,
-  Pipe-Tabellen. Alles andere bricht mit Zeilenangabe ab, statt still etwas anderes zu setzen.
+- **normbrief-Markdown (CommonMark-Teilmenge)**: Absätze, fett, kursiv, Aufzählungen,
+  nummerierte Listen, harter Umbruch, Pipe-Tabellen. Alles andere bricht mit Zeilenangabe ab, statt still etwas anderes zu setzen.
 - **Zonengrößen der Norm**: Anschrift höchstens 6 Zeilen, Vermerke höchstens 3, Werte im
   Informationsblock höchstens 32 Zeichen.
 - **Keine Bilder im Fließtext** — ein Logo gehört ins Profil.
@@ -235,14 +235,34 @@ unterscheiden, ob das Layout oder die Messung danebenliegt.
 
 Sicherheitsrelevantes bitte nicht als Issue, sondern nach [SECURITY.md](SECURITY.md).
 
-## Dank
+## Herkunft und Dank
 
-Das Seitenlayout stammt von [typst-letter-pro](https://github.com/Sematre/typst-letter-pro) (MIT)
-von Sematre und ist unverändert vendort — Prüfsumme in
+**Markdown** wurde 2004 von [John Gruber](https://daringfireball.net/projects/markdown/) gemeinsam
+mit Aaron Swartz entworfen. Die Spezifikation dazu ist [CommonMark](https://commonmark.org/)
+(John MacFarlane und Mitwirkende). normbrief setzt eine dokumentierte Teilmenge von CommonMark um
+— **normbrief-Markdown (CommonMark-Teilmenge)** — und weicht an drei Stellen bewusst ab: HTML wird
+nie durchgereicht, Links werden nie gesetzt, und eine einzelne `2. Text`-Zeile ohne weitere
+Listenpunkte ist ein Fehler statt einer Liste. Die vollständige Tabelle steht in
+[`skill/references/frontmatter.md`](skill/references/frontmatter.md).
+
+Das **Seitenlayout** stammt von [typst-letter-pro](https://github.com/Sematre/typst-letter-pro)
+(MIT) von Sematre und ist unverändert vendort — Prüfsumme in
 [`skill/typst/vendor/README.md`](skill/typst/vendor/README.md). normbrief ergänzt die Schicht
 darüber: Datenvertrag, Profile, Markdown-Eingabe, Messung und den Skill.
 
-Gesetzt wird mit [Typst](https://typst.app), gemessen mit [PyMuPDF](https://pymupdf.readthedocs.io).
+Gesetzt wird mit [Typst](https://typst.app) (Apache-2.0), geparst mit
+[markdown-it-py](https://github.com/executablebooks/markdown-it-py) (MIT), gemessen mit
+[pdfplumber](https://github.com/jsvine/pdfplumber) (MIT) und
+[pypdf](https://github.com/py-pdf/pypdf) (BSD-3). Schriften: Libertinus und Source Sans 3
+(beide OFL 1.1).
+
+**Alle Abhängigkeiten sind permissiv lizenziert** — normbrief lässt sich damit auch in
+geschlossene Systeme einbauen. Die vollständige Aufstellung samt der Begründung, warum PyMuPDF
+(AGPL-3.0) ersetzt wurde, steht in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+
+**DIN 5008** ist eine Norm des DIN Deutsches Institut für Normung e. V. Die Maße hier folgen
+öffentlich dokumentierten Quellen ([`docs/normmasse.md`](docs/normmasse.md)). normbrief ist kein
+Produkt des DIN, steht in keiner Verbindung zum DIN und behauptet keine Zertifizierung.
 
 ## Lizenz
 

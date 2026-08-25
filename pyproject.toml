@@ -7,7 +7,13 @@ requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [{ name = "Blitzsicht", email = "servus@blitzsicht.com" }]
 keywords = ["din5008", "brief", "letter", "typst", "pdf", "markdown", "geschaeftsbrief"]
-dependencies = ["typst>=0.15,<0.16", "pyyaml>=6", "pymupdf>=1.24"]
+dependencies = [
+    "typst>=0.15,<0.16",
+    "pyyaml>=6",
+    "pdfplumber>=0.11",
+    "pypdf>=5",
+    "markdown-it-py>=4,<5",
+]
 
 [project.urls]
 Homepage = "https://github.com/blitzsicht/normbrief"

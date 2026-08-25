@@ -13,10 +13,16 @@ import sys
 from pathlib import Path
 
 # Modulname -> pip-Requirement
+# Modulname -> pip-Requirement. Alle Abhängigkeiten tragen eine permissive
+# Lizenz (MIT/BSD/Apache); siehe THIRD_PARTY_LICENSES.md. Das ist kein Zufall:
+# PyMuPDF wäre technisch geeignet, ist aber AGPL-3.0 und hätte jede Firma, die
+# normbrief einbaut, in die AGPL gezwungen.
 DEPS = {
     "typst": "typst>=0.15,<0.16",
     "yaml": "pyyaml>=6",
-    "fitz": "pymupdf>=1.24",
+    "pdfplumber": "pdfplumber>=0.11",
+    "pypdf": "pypdf>=5",
+    "markdown_it": "markdown-it-py>=4,<5",
 }
 
 

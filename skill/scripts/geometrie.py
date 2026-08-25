@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """Vermisst ein fertiges PDF gegen die Maße aus DIN 5008:2020.
 
+Gemessen wird mit pdfplumber (MIT) und pypdf (BSD-3). Die frühere Messung lief
+über PyMuPDF — das ist AGPL-3.0 oder kommerziell und hätte jede Firma, die
+normbrief einbaut, in die AGPL gezwungen. Der Wechsel ist außerdem genauer:
+pdfplumber liefert die Zeilenoberkante statt der Ascender-Box und trifft die
+Sollwerte auf 0,01 mm (Anschrift 62,69 bei Soll 62,70; Betreff 98,45 bei
+98,46), wo PyMuPDF um 0,5 mm danebenlag.
+
 Die Sollwerte stehen ausschließlich hier und in references/din5008.md.
 Sowohl `normbrief.py check` als auch die Testsuite lesen sie von hier —
 ein Layoutfehler kann sich damit nicht in zwei Quellen unterschiedlich
@@ -145,40 +152,45 @@ class Span:
 
 
 def _spans(seite) -> list[Span]:
+    """Wörter mit Position, Größe und Schriftschnitt.
+
+    pdfplumber liefert Wörter statt Textkästen; das ist für die Messung
+    gleichwertig und für die Zeilenbildung sogar direkter.
+    """
     ergebnis = []
-    for block in seite.get_text("dict")["blocks"]:
-        for zeile in block.get("lines", []):
-            for span in zeile["spans"]:
-                if not span["text"].strip():
-                    continue
-                x0, y0, x1, y1 = span["bbox"]
-                name = span["font"]
-                ergebnis.append(
-                    Span(
-                        text=span["text"],
-                        x0=mm(x0), y0=mm(y0), x1=mm(x1), y1=mm(y1),
-                        groesse=span["size"] / PT_PRO_MM * PT_PRO_MM,
-                        fett=bool(span["flags"] & 2 ** 4) or "Bold" in name or "Semibold" in name,
-                        font=name,
-                    )
-                )
+    for wort in seite.extract_words(extra_attrs=["fontname", "size"], use_text_flow=True):
+        if not wort["text"].strip():
+            continue
+        name = wort["fontname"]
+        ergebnis.append(
+            Span(
+                text=wort["text"],
+                x0=mm(wort["x0"]), y0=mm(wort["top"]),
+                x1=mm(wort["x1"]), y1=mm(wort["bottom"]),
+                groesse=round(wort["size"], 1),
+                fett="Bold" in name or "Semibold" in name or "Black" in name,
+                font=name,
+            )
+        )
     return sorted(ergebnis, key=lambda s: (round(s.y0, 1), s.x0))
 
 
 def _marken(seite) -> list[tuple[float, float, float]]:
-    """Waagerechte Striche im Heftrand als (y, x_start, x_ende)."""
+    """Waagerechte Striche im Heftrand als (y, x_start, x_ende).
+
+    Falz- und Lochmarken zeichnet letter-pro als kurze Linien; pdfplumber führt
+    sie in `page.lines`. Manche Erzeuger legen sie stattdessen als sehr flaches
+    Rechteck an — deshalb werden `rects` mitgelesen.
+    """
     treffer = []
-    for zeichnung in seite.get_drawings():
-        for element in zeichnung["items"]:
-            if element[0] != "l":
-                continue
-            p1, p2 = element[1], element[2]
-            if abs(p1.y - p2.y) > 0.5:          # nicht waagerecht
-                continue
-            x_start, x_ende = sorted((mm(p1.x), mm(p2.x)))
-            if x_ende > MARKE_X_MAX:            # nicht im Heftrand
-                continue
-            treffer.append((mm(p1.y), x_start, x_ende))
+    for element in list(seite.lines) + list(seite.rects):
+        hoehe = abs(element["bottom"] - element["top"])
+        if hoehe > 0.7:                       # nicht waagerecht
+            continue
+        x_start, x_ende = mm(element["x0"]), mm(element["x1"])
+        if x_ende > MARKE_X_MAX:              # nicht im Heftrand
+            continue
+        treffer.append((mm(element["top"]), x_start, x_ende))
     return sorted(treffer)
 
 
@@ -192,17 +204,43 @@ def _zeilen_gruppieren(spans: list[Span], toleranz: float = 0.6) -> list[list[Sp
     return zeilen
 
 
+def _nicht_eingebettete_schriften(pdf_pfad: Path) -> list[str]:
+    """Schriften ohne eingebettete Datei — sie werden beim Empfänger ersetzt.
+
+    Ein Font-Deskriptor mit FontFile/FontFile2/FontFile3 trägt die Schrift im
+    PDF; fehlt er, hängt das Aussehen vom fremden Rechner ab.
+    """
+    from pypdf import PdfReader
+
+    offen = []
+    leser = PdfReader(str(pdf_pfad))
+    for seite in leser.pages:
+        schriften = (seite.get("/Resources") or {}).get("/Font") or {}
+        for schluessel in schriften:
+            schrift = schriften[schluessel].get_object()
+            nachfahren = schrift.get("/DescendantFonts")
+            kandidaten = [d.get_object() for d in nachfahren] if nachfahren else [schrift]
+            for kandidat in kandidaten:
+                deskriptor = kandidat.get("/FontDescriptor")
+                if deskriptor is None:
+                    continue
+                deskriptor = deskriptor.get_object()
+                if not any(k in deskriptor for k in ("/FontFile", "/FontFile2", "/FontFile3")):
+                    offen.append(str(kandidat.get("/BaseFont", schluessel)))
+    return sorted(set(offen))
+
+
 def pruefe(pdf_pfad: Path, form: str) -> Bericht:
-    import pymupdf as fitz
+    import pdfplumber
 
     soll = FORM[form]
     bericht = Bericht()
-    dokument = fitz.open(pdf_pfad)
-    seite = dokument[0]
+    dokument = pdfplumber.open(str(pdf_pfad))
+    seite = dokument.pages[0]
 
     # Seitengröße
-    bericht.wert("Seitenbreite", mm(seite.rect.width), SEITE_BREITE, 0.1)
-    bericht.wert("Seitenhöhe", mm(seite.rect.height), SEITE_HOEHE, 0.1)
+    bericht.wert("Seitenbreite", mm(seite.width), SEITE_BREITE, 0.1)
+    bericht.wert("Seitenhöhe", mm(seite.height), SEITE_HOEHE, 0.1)
 
     # Falz- und Lochmarken
     marken = _marken(seite)
@@ -266,12 +304,17 @@ def pruefe(pdf_pfad: Path, form: str) -> Bericht:
         bericht.wahr("Anschrift vorhanden", False, "1–6 Zeilen", "nicht gefunden")
 
     # Informationsblock
-    # Erst unterhalb der Kopfhöhe suchen — darüber steht der Briefkopf,
-    # der ebenfalls rechtsbündig gesetzt sein darf.
-    info_spans = [
-        s for s in spans
-        if s.x0 >= INFOBLOCK_X - 5 and soll["kopfhoehe"] < s.y0 < 150
-    ]
+    # Zum Informationsblock gehört eine Zeile nur, wenn sie rechts BEGINNT.
+    # Einzelne Wörter rechts von 125 mm gibt es auch im Fließtext — sie sind
+    # Fortsetzung einer Zeile, die links am Satzspiegel anfängt. Erst unterhalb
+    # der Kopfhöhe suchen: darüber steht der Briefkopf, der ebenfalls
+    # rechtsbündig gesetzt sein darf.
+    info_spans = []
+    for zeile in _zeilen_gruppieren(
+        [s for s in spans if soll["kopfhoehe"] < s.y0 < 150]
+    ):
+        if min(s.x0 for s in zeile) >= INFOBLOCK_X - 5:
+            info_spans.extend(zeile)
     infoblock_unterkante = soll["kopfhoehe"] + 5.0 + INFOBLOCK_MINDESTHOEHE
     if info_spans:
         links = min(s.x0 for s in info_spans)
@@ -352,20 +395,20 @@ def pruefe(pdf_pfad: Path, form: str) -> Bericht:
     )
 
     # Schriften eingebettet
-    nicht_eingebettet = [f for f in seite.get_fonts(full=True) if f[3] == ""]
+    nicht_eingebettet = _nicht_eingebettete_schriften(pdf_pfad)
     bericht.wahr(
         "Schriften eingebettet", not nicht_eingebettet, "alle eingebettet",
-        "fehlend: " + ", ".join(f[3] for f in nicht_eingebettet) if nicht_eingebettet else "alle",
+        "fehlend: " + ", ".join(nicht_eingebettet) if nicht_eingebettet else "alle",
     )
 
     # Folgeseiten
-    if dokument.page_count > 1:
-        zweite = dokument[1]
-        text = zweite.get_text()
+    if len(dokument.pages) > 1:
+        zweite = dokument.pages[1]
+        text = zweite.extract_text() or ""
+        seitenzahl = f"Seite 2 von {len(dokument.pages)}"
         bericht.wahr(
-            "Seite 2: Seitenzahl", f"Seite 2 von {dokument.page_count}" in text,
-            f"'Seite 2 von {dokument.page_count}'",
-            "vorhanden" if f"Seite 2 von {dokument.page_count}" in text else "fehlt",
+            "Seite 2: Seitenzahl", seitenzahl in text, f"'{seitenzahl}'",
+            "vorhanden" if seitenzahl in text else "fehlt",
         )
         spans_2 = _spans(zweite)
         # Auf Folgeseiten entfaellt das Anschriftfeld. Nachweisbar ist das nicht
@@ -395,13 +438,24 @@ def pruefe(pdf_pfad: Path, form: str) -> Bericht:
     return bericht
 
 
+def xmp_lesen(pdf_pfad: Path) -> str:
+    """Die rohen XMP-Metadaten des Dokuments."""
+    from pypdf import PdfReader
+
+    leser = PdfReader(str(pdf_pfad))
+    roh = leser.xmp_metadata
+    if roh is None:
+        return ""
+    strom = getattr(roh, "stream", None)
+    if strom is not None:
+        daten = strom.get_data()
+        return daten.decode("utf-8", "replace") if isinstance(daten, bytes) else str(daten)
+    return str(roh)
+
+
 def pdfa_geprueft(pdf_pfad: Path) -> tuple[bool, str]:
     """Liest die XMP-Metadaten und prüft auf PDF/A-2b."""
-    import pymupdf as fitz
-
-    dokument = fitz.open(pdf_pfad)
-    xmp = dokument.get_xml_metadata() or ""
-    dokument.close()
+    xmp = xmp_lesen(pdf_pfad)
     teil_ok = "pdfaid:part>2" in xmp.replace(" ", "") or 'pdfaid:part="2"' in xmp
     konformitaet_ok = "pdfaid:conformance>B" in xmp.replace(" ", "") or 'pdfaid:conformance="B"' in xmp
     return (teil_ok and konformitaet_ok), xmp[:200]

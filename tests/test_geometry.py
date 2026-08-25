@@ -35,12 +35,10 @@ def test_formspezifische_werte(gerendert, name, soll_falz1, soll_falz2, soll_kop
     """Die Formen müssen sich tatsächlich unterscheiden — sonst prüft die
     Testsuite oben nur zweimal dasselbe."""
     pdf, form = gerendert[name]
-    import pymupdf
+    import pdfplumber
 
-    dokument = pymupdf.open(pdf)
-    marken = geometrie._marken(dokument[0])
-    ys = [round(m[0], 1) for m in marken]
-    dokument.close()
+    with pdfplumber.open(str(pdf)) as dokument:
+        ys = [round(m[0], 1) for m in geometrie._marken(dokument.pages[0])]
     assert soll_falz1 in ys and soll_falz2 in ys, f"Falzmarken {ys}, erwartet {soll_falz1}/{soll_falz2}"
     assert geometrie.FORM[form]["kopfhoehe"] == soll_kopf
 
@@ -52,23 +50,20 @@ def test_pdfa_ist_der_standardfall(gerendert):
 
 
 def test_schriften_sind_eingebettet(gerendert):
-    import pymupdf
-
+    """Eine nicht eingebettete Schrift wird beim Empfänger ersetzt — das Layout
+    stimmt dann nur auf dem eigenen Rechner."""
     for name, (pdf, _) in gerendert.items():
-        dokument = pymupdf.open(pdf)
-        offen = [f for f in dokument[0].get_fonts(full=True) if f[3] == ""]
-        dokument.close()
+        offen = geometrie._nicht_eingebettete_schriften(pdf)
         assert not offen, f"{name}: nicht eingebettete Schriften {offen}"
 
 
 def test_umlaute_ueberstehen_den_weg_ins_pdf(gerendert):
     """Ein Brief mit 'Gruessen' statt 'Grüßen' wäre unbrauchbar."""
-    import pymupdf
+    import pdfplumber
 
     pdf, _ = gerendert["brief-form-b"]
-    dokument = pymupdf.open(pdf)
-    text = dokument[0].get_text()
-    dokument.close()
+    with pdfplumber.open(str(pdf)) as dokument:
+        text = dokument.pages[0].extract_text() or ""
     assert "Grüßen" in text
     assert "Musterstraße" in text
     for falsch in ("Gruessen", "Strasse", "Muenchen", "ue berall"):

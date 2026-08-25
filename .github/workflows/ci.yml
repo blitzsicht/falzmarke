@@ -24,6 +24,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r skill/requirements.txt pytest
 
+      - name: Keine AGPL-Abhängigkeit
+        shell: bash
+        run: |
+          # PyMuPDF ist AGPL-3.0 oder kommerziell. Wäre es installiert, könnte
+          # ein Import unbemerkt zurückkehren und die Lizenzlage der ganzen
+          # Auslieferung ändern, ohne dass ein Test rot wird.
+          if pip show pymupdf >/dev/null 2>&1; then
+            echo "PyMuPDF ist installiert — es darf keine Abhängigkeit von normbrief sein."
+            exit 1
+          fi
+          if grep -rn "pymupdf\|import fitz" --include="*.py" --include="*.txt" --include="*.toml" .; then
+            echo "PyMuPDF wird im Code referenziert."
+            exit 1
+          fi
+          echo "OK  keine AGPL-Abhängigkeit"
+
       - name: Tests
         run: python -m pytest -q -p no:warnings
 
