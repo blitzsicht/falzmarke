@@ -1,0 +1,15 @@
+{
+  "hinweis": "Erzeugt aus einem echten Render — nicht von Hand aendern. Neu bauen: python3 scripts/detailbild.py",
+  "brief": "brief-form-b.md",
+  "pruefung": "Falzmarke 1, y",
+  "soll_mm": 105.0,
+  "ist_mm": 105.0,
+  "sabotage_mm": 107.0,
+  "ppi": 600,
+  "fenster_mm": [
+    0.0,
+    102.0,
+    9.0,
+    7.0
+  ]
+}

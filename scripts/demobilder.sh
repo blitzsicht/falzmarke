@@ -10,6 +10,12 @@
 # Voraussetzung: ImageMagick (magick). Die Renders erzeugt die CI ohnehin:
 #   python3 skill/scripts/falzmarke.py preview examples/<name>.md \
 #     -o docs/renders/<name>.png --ppi 110
+#
+# Der Detailausschnitt der Falzmarke entsteht nicht hier, sondern in
+# scripts/detailbild.py: Er braucht einen eigenen Render mit 600 ppi, weil die
+# Marke bei den 110 ppi dieser Renders duenner als ein Pixel ist. Das Skript
+# wird am Ende aufgerufen und braucht kein ImageMagick, nur eine lauffaehige
+# Installation.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -32,6 +38,11 @@ ausschnitt "$RENDERS/brief-form-b.png"        "$DEMO/hero.png"                 5
 ausschnitt "$RENDERS/brief-form-b.png"        "$DEMO/gallery-standard.png"     649  827
 ausschnitt "$RENDERS/brief-einschreiben.png"  "$DEMO/gallery-einschreiben.png" 649  827
 ausschnitt "$RENDERS/brief-mehrseitig-2.png"  "$DEMO/gallery-mehrseitig.png"   649  827
+
+
+echo
+echo "Detailausschnitt der Falzmarke (eigener Render, 600 ppi):"
+python3 scripts/detailbild.py
 
 
 # Das Vorschaubild wird NICHT hier erzeugt. Es kommt aus der Markenwerkstatt

@@ -54,6 +54,14 @@ OK    Betreff, y-Oberkante: soll 98.47 ist 97.91 (tol -1.75/+0.6)
 OK    Abstand Betreff → Anrede (2 Leerzeilen): soll 12.70 ist 12.70 (tol ±0.2)
 ```
 
+Die erste dieser Zeilen spricht von einem Strich, den man auf einem Vorschaubild
+kaum sieht — er ist 0,25 pt stark. Vergrößert sieht die Stelle so aus:
+
+![Ausschnitt vom linken Rand eines Briefes, neun mal sieben Millimeter groß: Eine gestrichelte grüne Hilfslinie markiert die Sollposition bei 105,00 Millimetern und trifft genau auf die kurze schwarze Falzmarke. Daneben das ganze Blatt verkleinert, mit einem Rahmen um die vergrößerte Stelle. Darunter steht die gemessene Position 105,00 Millimeter.](docs/assets/demo/falzmarke-detail.png)
+
+Dort wird der Bogen gefaltet, damit die Anschrift im Fensterumschlag steht. Sitzt die
+Marke falsch, faltet der Stapel falsch — und das fällt erst nach dem Druck auf.
+
 ## Das Problem
 
 Eine Briefvorlage kann nicht prüfen, ob das Ergebnis stimmt. Sie wird kopiert, jemand verschiebt
@@ -109,7 +117,16 @@ Das ist der Teil, an dem sich das Versprechen entscheidet — deshalb steht er v
   pdfplumber und vergleicht Zonen, Marken und Abstände gegen die Sollwerte.
 - **Jede tragende Prüfung hat eine [Gegenprobe](tests/test_gegenbeweis.py).** Sie läuft gegen ein
   absichtlich verschobenes Layout und muss dort anschlagen — ein Prüfmittel, das nie rot werden
-  kann, wäre kein Nachweis.
+  kann, wäre kein Nachweis. Das gilt auch für das Bild oben: Es entsteht zweimal, einmal aus dem
+  ausgelieferten Layout und einmal aus einem, in dem die Marke 2 mm zu tief sitzt.
+
+  ![Zwei gleiche Ausschnitte nebeneinander. Links liegt die Falzmarke genau auf der gestrichelten
+  Sollinie bei 105,00 Millimetern, darunter steht 105,00 Millimeter und der Hinweis, dass so
+  ausgeliefert wird. Rechts liegt die Marke deutlich unterhalb der Sollinie, darunter steht 107,00
+  Millimeter und der Hinweis, dass verify hier anschlägt.](docs/assets/demo/falzmarke-gegenprobe.png)
+
+  Unterscheiden sich die beiden Ausschnitte nicht, zeigt der Ausschnitt die Marke gar nicht — dann
+  ist das Bild oben wertlos, und `tests/test_detailbild.py` schlägt fehl.
 - **CI auf Linux, macOS und Windows**, bei jedem Push.
 - **Ein Frischinstallations-Test** führt die Befehle aus dieser README wirklich aus. Hier steht
   kein Befehl, den niemand ausprobiert hat.
