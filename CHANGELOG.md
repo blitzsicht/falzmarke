@@ -2,6 +2,18 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.7.2 — 26.08.2026
+
+### Behoben
+- **Die Publish-Action konnte ihr eigenes Image nicht laden.** `pypa/gh-action-pypi-publish`
+  laeuft als Docker-Container und zieht ihr Image mit dem `action_ref` als Tag. Beim
+  SHA-Pinning ist das der Commit-SHA — und dafuer existiert im Registry kein Image, sie werden
+  nur fuer Release-Tags gebaut (`manifest unknown`). Die Action ist damit die eine Stelle, an
+  der die Hausregel „Actions auf Commit-SHAs pinnen" nicht anwendbar ist; sie steht jetzt als
+  begruendete Ausnahme auf `v1.14.2`, der auf denselben Commit zeigt.
+
+Auch dieser Lauf brach **vor** dem Upload ab. Auf PyPI ist weiterhin nichts gelandet.
+
 ## v0.7.1 — 26.08.2026
 
 ### Behoben
