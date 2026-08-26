@@ -7,6 +7,22 @@ requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [{ name = "Blitzsicht", email = "servus@blitzsicht.com" }]
 keywords = ["din5008", "brief", "letter", "typst", "pdf", "markdown", "geschaeftsbrief"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: German",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business",
+    "Topic :: Printing",
+    "Topic :: Text Processing :: Markup :: Markdown",
+]
 dependencies = [
     "typst>=0.15,<0.16",
     "pyyaml>=6",
@@ -17,6 +33,10 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/blitzsicht/falzmarke"
+Documentation = "https://github.com/blitzsicht/falzmarke#readme"
+Source = "https://github.com/blitzsicht/falzmarke"
+Changelog = "https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md"
+Releases = "https://github.com/blitzsicht/falzmarke/releases"
 Issues = "https://github.com/blitzsicht/falzmarke/issues"
 
 [project.optional-dependencies]
