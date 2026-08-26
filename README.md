@@ -219,6 +219,24 @@ pipx install git+https://github.com/blitzsicht/falzmarke
 Der Typst-Compiler kommt als Python-Wheel mit: **keine Systeminstallation**, kein LaTeX, kein
 wkhtmltopdf, keine Schriftinstallation.
 
+### In einem Repository voller Briefe
+
+Wer seine Briefe versioniert, lässt sie bei jedem Push setzen und nachmessen:
+
+```yaml
+- uses: blitzsicht/falzmarke@main
+  with:
+    briefe: "briefe/*.md"
+    profile: "profile"
+```
+
+Die PDFs hängen danach als Artefakt am Lauf. Hält ein Brief die Maße nicht ein, wird der Lauf
+rot und nennt Datei und Maß — ein Serienbrief-Archiv merkt einen verrutschten Betreff damit
+beim Push und nicht beim Empfänger. Die Eingaben stehen in
+[`action.yml`](https://github.com/blitzsicht/falzmarke/blob/main/action.yml); die Aktion
+installiert falzmarke von PyPI und baut keine zweite Installationsstrecke auf. Wer den Lauf
+nachfahrbar halten will, nennt eine feste Fassung: `paket: "falzmarke==0.7.3"`.
+
 ### In einem anderen KI-Client
 
 falzmarke spricht MCP — damit setzen auch Clients Briefe, die keinen Claude-Skill kennen.
