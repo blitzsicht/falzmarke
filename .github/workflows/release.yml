@@ -83,3 +83,70 @@ jobs:
             ```bash
             gh attestation verify falzmarke.skill --repo blitzsicht/falzmarke
             ```
+
+  pypi:
+    # Der einzige Job im Repo, dessen Wirkung sich nicht zuruecknehmen laesst.
+    #
+    # Eine hochgeladene Version kann zurueckgezogen (geyankt), aber nie geloescht
+    # und nie durch eine andere Datei mit derselben Nummer ersetzt werden. Und
+    # der Paketname bleibt dauerhaft belegt — auch nach dem Loeschen des Projekts
+    # gibt PyPI ihn nicht wieder frei.
+    #
+    # Deshalb drei Bremsen, von denen jede allein reichen wuerde:
+    #   1. `environment: pypi` traegt required_reviewers — GitHub haelt den Job
+    #      an und wartet auf eine Freigabe von Hand, auch nach dem Tag.
+    #   2. Die Deployment-Branch-Policy laesst nur Tags `v*` zu.
+    #   3. `needs: skill-paket` — laeuft erst, wenn das Release selbst steht.
+    #
+    # Kein API-Token: Die Anmeldung laeuft ueber OIDC (Trusted Publishing), der
+    # Lauf weist sich mit einem kurzlebigen Token aus, das PyPI gegen die
+    # hinterlegte Kombination aus Repository, Workflow-Datei und Environment
+    # prueft. Ein Geheimnis, das es nicht gibt, kann nicht abfliessen.
+    name: Auf PyPI veroeffentlichen (unumkehrbar)
+    needs: skill-paket
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write        # nur hierfuer: das OIDC-Token
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Version im Tag und im Paket muessen uebereinstimmen
+        shell: bash
+        run: |
+          # Sonst laege auf PyPI eine andere Version als im Release — und die
+          # falsche liesse sich nicht mehr ersetzen.
+          TAG="${{ inputs.tag || github.ref_name }}"
+          PAKET=$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2)
+          echo "Tag: $TAG   pyproject: $PAKET"
+          [ "$TAG" = "v$PAKET" ] || { echo "FEHL: Tag und Paketversion weichen ab."; exit 1; }
+
+      - name: Paket bauen
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          ls -la dist/
+
+      - name: Metadaten pruefen
+        run: |
+          # twine check prueft, ob die Langbeschreibung rendert. Dass ihre Links
+          # und Bilder auch auflösen, prueft tests/test_readme_auf_pypi.py —
+          # twine sieht das nicht und meldet auch bei kaputten Bildern PASSED.
+          python -m twine check dist/*
+          python -m pytest tests/test_readme_auf_pypi.py -o addopts="" -q
+
+      - name: Pruefsummen ausgeben
+        run: |
+          # Damit im Nachhinein belegbar ist, welche Datei hochgeladen wurde.
+          sha256sum dist/* | tee dist/SHA256SUMS
+
+      - uses: pypa/gh-action-pypi-publish@a892a5a61159132606e93a2fa6f4358831b04d26  # v1.14.2
+        with:
+          print-hash: true
