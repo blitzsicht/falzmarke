@@ -8,6 +8,7 @@ darunter.
 profil: example                  # Pflicht. Dateiname (ohne .yaml) aus ~/.config/falzmarke/profiles/
 form: B                          # A oder B. Ohne Angabe gilt der Wert aus dem Profil
 norm: din5008                    # reserviert; derzeit nur din5008
+sprache: de                      # de oder en. Beschriftung und Datum, nicht die Maße
 empfaenger:                      # Pflicht. 1 bis 6 Zeilen, keine Leerzeilen
   - Muster GmbH                  # Reihenfolge: Firma, Person, Straße, PLZ Ort, [LAND]
   - Frau Erika Muster
@@ -75,6 +76,7 @@ absender:                    # Pflicht
   ort: Regensburg
 ruecksendeangabe: Beispiel GmbH · Musterweg 12 · 93055 Regensburg   # Pflicht, einzeilig
 form: B                      # Voreinstellung
+sprache: de                  # Voreinstellung; der Brief darf sie überschreiben
 font: Libertinus Serif       # oder "Source Sans 3" aus assets/fonts/
 farbe: "#1a3a5c"
 briefkopf:
@@ -103,6 +105,44 @@ infoblock_defaults:
 ```
 
 Ohne Anführungszeichen bricht der Renderer mit einer entsprechenden Meldung ab.
+
+## Sprache
+
+`sprache: en` setzt die Beschriftung eines Briefes auf Englisch: die Leitwörter des
+Informationsblocks, die Monatsnamen, „Anlagen", „Verteiler" und die Seitenzählung. Dazu
+`text.lang`, wovon die Silbentrennung abhängt — ohne das bräche englischer Text nach
+deutschen Regeln um.
+
+**Die Maße ändern sich nicht.** Anschriftfeld, Informationsblock, Falzmarken und das
+12-pt-Raster sind Werte der DIN 5008 und hängen nicht an der Sprache. `verify` misst
+Zonen und Abstände, keine Wörter; ein englischer Brief besteht dieselben Prüfungen.
+
+**Die englischen Wörter sind nicht normbelegt.** DIN 5008 ist eine deutsche Norm und
+kennt kein „Your reference". Was `falzmarke` dort einsetzt, ist die im Geschäftsverkehr
+übliche Entsprechung — eine Konvention, keine Fundstelle. Wer so einen Brief setzt,
+bekommt ein Blatt, dessen Maße belegt sind und dessen Beschriftung es nicht ist.
+
+| Feld | Deutsch | Englisch |
+|---|---|---|
+| `ihr_zeichen` | Ihr Zeichen | Your reference |
+| `ihre_nachricht_vom` | Ihre Nachricht vom | Your letter of |
+| `unser_zeichen` | Unser Zeichen | Our reference |
+| `unsere_nachricht_vom` | Unsere Nachricht vom | Our letter of |
+| `ansprechpartner` | Name | Contact |
+| `telefon` | Telefon | Phone |
+| `fax` | Fax | Fax |
+| `email` | E-Mail | Email |
+| — | Datum | Date |
+| — | Anlage / Anlagen | Enclosure / Enclosures |
+| — | Verteiler | Copies to |
+| — | Seite x von y | Page x of y |
+
+Das Datum folgt der britischen Schreibweise (`26 August 2026`), nicht der amerikanischen:
+Ein DIN-5008-Brief ist ein europäischer Geschäftsbrief, und die Folge Tag–Monat–Jahr
+bleibt damit dieselbe wie im deutschen Original. Wer die Zeile überfliegt, verwechselt
+Tag und Monat nicht.
+
+Ein vollständiges Beispiel: [`examples/brief-englisch.md`](../../examples/brief-englisch.md).
 
 ## Anlagen beilegen
 

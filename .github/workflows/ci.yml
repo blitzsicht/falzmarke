@@ -28,6 +28,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r skill/requirements.txt pytest
+          # Das MCP-SDK ist optional (pyproject: falzmarke[mcp]). Ohne es hier
+          # zu installieren, würden die Server-Tests still übersprungen — und
+          # ein übersprungener Test belegt nichts.
+          pip install 'mcp>=2,<3'
 
       - name: Keine AGPL-Abhängigkeit
         shell: bash

@@ -34,15 +34,13 @@ FONT_DIR = PAKET / "assets" / "fonts"
 
 EXIT_OK, EXIT_EINGABE, EXIT_GEOMETRIE, EXIT_UMGEBUNG = 0, 1, 2, 3
 
-MONATE = [
-    "Januar", "Februar", "März", "April", "Mai", "Juni",
-    "Juli", "August", "September", "Oktober", "November", "Dezember",
-]
+# Die Monatsnamen stehen je Sprache in sprachen.MONATE.
 
 # Datenvertrag und Leitwörter stehen in lint.py — dort, wo sie geprüft werden.
 # cli importiert lint ohnehin; eine zweite Liste hier wäre eine Kopie, die bei
 # der naechsten Aenderung still auseinanderlaeuft.
 from falzmarke import anlagen as anlagen_modul  # noqa: E402
+from falzmarke import sprachen  # noqa: E402
 from falzmarke.lint import INFOBLOCK_REIHENFOLGE, PFLICHTFELDER  # noqa: E402
 
 # Zeichen, die bei 10 pt in die Wertespalte des Informationsblocks passen
@@ -105,7 +103,7 @@ def als_liste(wert) -> list[str]:
     return [str(z) for z in wert]
 
 
-def formatiere_datum(wert, format_name: str) -> str:
+def formatiere_datum(wert, format_name: str, sprache: str = sprachen.VORGABE) -> str:
     if isinstance(wert, dt.datetime):
         wert = wert.date()
     if isinstance(wert, str):
@@ -117,7 +115,11 @@ def formatiere_datum(wert, format_name: str) -> str:
         raise Eingabefehler(f"datum: '{wert}' ist kein Datum im Format JJJJ-MM-TT.")
     if format_name == "iso":
         return wert.isoformat()
-    return f"{wert.day}. {MONATE[wert.month - 1]} {wert.year}"
+    if sprache == "de":
+        return f"{wert.day}. {sprachen.monat(sprache, wert.month)} {wert.year}"
+    # Ohne Punkt hinter dem Tag: „26. August“ ist die deutsche Ordinalform, im
+    # Englischen stünde dort ein Punkt, der nichts bedeutet.
+    return f"{wert.day} {sprachen.monat(sprache, wert.month)} {wert.year}"
 
 
 # ── Profile ─────────────────────────────────────────────────────────────────
@@ -248,6 +250,15 @@ def baue_daten(kopf: dict, profil: dict, profil_pfad: Path, arbeitsverzeichnis: 
     if form not in ("A", "B"):
         raise Eingabefehler(f"form: '{form}' ist unbekannt, zulässig sind A und B.")
 
+    # Wie bei form: Der Brief schlägt das Profil. Ein Absender schreibt meist in
+    # einer Sprache, aber der eine Brief ins Ausland soll nicht zwingen, das
+    # Profil umzuschreiben.
+    try:
+        sprache = sprachen.pruefe(
+            str(kopf.get("sprache", profil.get("sprache", sprachen.VORGABE))).lower())
+    except ValueError as fehler:
+        raise Eingabefehler(str(fehler)) from None
+
     norm = str(kopf.get("norm", "din5008")).lower()
     if norm != "din5008":
         raise Eingabefehler(
@@ -258,19 +269,20 @@ def baue_daten(kopf: dict, profil: dict, profil_pfad: Path, arbeitsverzeichnis: 
     if len(betreff) > 160:
         raise Eingabefehler(f"betreff: {len(betreff)} Zeichen — die Norm lässt höchstens 2 Zeilen zu.")
 
-    datum = formatiere_datum(kopf["datum"], profil.get("datumsformat", "lang"))
+    datum = formatiere_datum(kopf["datum"], profil.get("datumsformat", "lang"), sprache)
 
     defaults = profil.get("infoblock_defaults") or {}
     info_roh = {**defaults, **(kopf.get("infoblock") or {})}
     infoblock = []
-    for schluessel, leitwort in INFOBLOCK_REIHENFOLGE:
+    for schluessel, _ in INFOBLOCK_REIHENFOLGE:
+        leitwort = sprachen.leitwort(sprache, schluessel)
         wert = info_roh.get(schluessel)
         if wert in (None, ""):
             continue
         if schluessel.endswith("_vom"):
-            wert = formatiere_datum(wert, profil.get("datumsformat", "lang"))
+            wert = formatiere_datum(wert, profil.get("datumsformat", "lang"), sprache)
         infoblock.append([leitwort, str(wert)])
-    infoblock.append(["Datum", datum])
+    infoblock.append([sprachen.leitwort(sprache, "datum"), datum])
 
     # Die Zeilen des Informationsblocks stehen im 12-pt-Raster und haben feste
     # Höhe. Ein überlanger Wert würde deshalb nicht umbrechen, sondern über die
@@ -301,6 +313,9 @@ def baue_daten(kopf: dict, profil: dict, profil_pfad: Path, arbeitsverzeichnis: 
 
     return {
         "form": form,
+        "sprache": sprache,
+        "gebiet": list(sprachen.GEBIET[sprache]),
+        "woerter": sprachen.WOERTER[sprache],
         "empfaenger": empfaenger,
         "vermerke": vermerke,
         "datum": datum,
@@ -828,6 +843,13 @@ def befehl_preview(args) -> int:
     return EXIT_OK
 
 
+def befehl_mcp(args) -> int:
+    """Der Dienst liegt in einem eigenen Modul — es zieht das SDK erst beim Start."""
+    from falzmarke import dienst
+
+    return dienst.main()
+
+
 def befehl_profiles(args) -> int:
     profile = finde_profile(Path(args.profiles) if args.profiles else None)
     if not profile:
@@ -1017,6 +1039,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--ppi", type=int, default=120)
     p.add_argument("--profiles")
     p.set_defaults(funktion=befehl_preview)
+
+    p = unter.add_parser("mcp", help="als MCP-Dienst über stdio laufen")
+    p.set_defaults(funktion=befehl_mcp)
 
     p = unter.add_parser("profiles", help="verfügbare Absenderprofile auflisten")
     p.add_argument("--profiles", dest="profiles")

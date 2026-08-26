@@ -9,12 +9,13 @@
 
 FILM := docs/marke/video/erklaerfilm
 
-.PHONY: help marke texte bericht gif film film-assets film-quer film-hoch pruefe-video alles
+.PHONY: help marke texte bericht changelog gif film film-assets film-quer film-hoch pruefe-video alles
 
 help:
 	@echo "make marke        Banner und Vorschaubild aus der HTML-Quelle"
 	@echo "make texte        texte.md und texte.json aus texte.yaml"
 	@echo "make bericht      Messwerte fuer den Film aus einem echten verify-Lauf"
+	@echo "make changelog    Verlaufsabschnitt der README aus CHANGELOG.md"
 	@echo "make gif          README-GIF neu aufzeichnen (braucht vhs)"
 	@echo "make film-assets  Schriften und Bilder nach erklaerfilm/public/ kopieren"
 	@echo "make film         Erklaerfilm in beiden Formaten (braucht npm install im Filmordner)"
@@ -29,6 +30,9 @@ texte:
 
 bericht:
 	python3 scripts/bericht.py
+
+changelog:
+	python3 scripts/changelog.py
 
 gif:
 	vhs docs/marke/video/readme.tape
@@ -58,4 +62,4 @@ film-hoch:
 pruefe-video:
 	bash scripts/pruefe-video.sh
 
-alles: marke texte bericht gif film pruefe-video
+alles: marke texte bericht changelog gif film pruefe-video

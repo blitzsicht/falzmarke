@@ -1,5 +1,5 @@
 ---
-profil: example
+profil: example-grafik
 form: B
 empfaenger:
   - Beispielverein e. V.

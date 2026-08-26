@@ -54,6 +54,14 @@ OK    Betreff, y-Oberkante: soll 98.47 ist 97.91 (tol -1.75/+0.6)
 OK    Abstand Betreff → Anrede (2 Leerzeilen): soll 12.70 ist 12.70 (tol ±0.2)
 ```
 
+Die erste dieser Zeilen spricht von einem Strich, den man auf einem Vorschaubild
+kaum sieht — er ist 0,25 pt stark. Vergrößert sieht die Stelle so aus:
+
+![Ausschnitt vom linken Rand eines Briefes, neun mal sieben Millimeter groß: Eine gestrichelte grüne Hilfslinie markiert die Sollposition bei 105,00 Millimetern und trifft genau auf die kurze schwarze Falzmarke. Daneben das ganze Blatt verkleinert, mit einem Rahmen um die vergrößerte Stelle. Darunter steht die gemessene Position 105,00 Millimeter.](https://github.com/blitzsicht/falzmarke/raw/main/docs/assets/demo/falzmarke-detail.png)
+
+Dort wird der Bogen gefaltet, damit die Anschrift im Fensterumschlag steht. Sitzt die
+Marke falsch, faltet der Stapel falsch — und das fällt erst nach dem Druck auf.
+
 ## Das Problem
 
 Eine Briefvorlage kann nicht prüfen, ob das Ergebnis stimmt. Sie wird kopiert, jemand verschiebt
@@ -109,7 +117,16 @@ Das ist der Teil, an dem sich das Versprechen entscheidet — deshalb steht er v
   pdfplumber und vergleicht Zonen, Marken und Abstände gegen die Sollwerte.
 - **Jede tragende Prüfung hat eine [Gegenprobe](https://github.com/blitzsicht/falzmarke/blob/main/tests/test_gegenbeweis.py).** Sie läuft gegen ein
   absichtlich verschobenes Layout und muss dort anschlagen — ein Prüfmittel, das nie rot werden
-  kann, wäre kein Nachweis.
+  kann, wäre kein Nachweis. Das gilt auch für das Bild oben: Es entsteht zweimal, einmal aus dem
+  ausgelieferten Layout und einmal aus einem, in dem die Marke 2 mm zu tief sitzt.
+
+  ![Zwei gleiche Ausschnitte nebeneinander. Links liegt die Falzmarke genau auf der gestrichelten
+  Sollinie bei 105,00 Millimetern, darunter steht 105,00 Millimeter und der Hinweis, dass so
+  ausgeliefert wird. Rechts liegt die Marke deutlich unterhalb der Sollinie, darunter steht 107,00
+  Millimeter und der Hinweis, dass verify hier anschlägt.](https://github.com/blitzsicht/falzmarke/raw/main/docs/assets/demo/falzmarke-gegenprobe.png)
+
+  Unterscheiden sich die beiden Ausschnitte nicht, zeigt der Ausschnitt die Marke gar nicht — dann
+  ist das Bild oben wertlos, und `tests/test_detailbild.py` schlägt fehl.
 - **CI auf Linux, macOS und Windows**, bei jedem Push.
 - **Ein Frischinstallations-Test** führt die Befehle aus dieser README wirklich aus. Hier steht
   kein Befehl, den niemand ausprobiert hat.
@@ -202,6 +219,26 @@ pipx install git+https://github.com/blitzsicht/falzmarke
 Der Typst-Compiler kommt als Python-Wheel mit: **keine Systeminstallation**, kein LaTeX, kein
 wkhtmltopdf, keine Schriftinstallation.
 
+### In einem anderen KI-Client
+
+falzmarke spricht MCP — damit setzen auch Clients Briefe, die keinen Claude-Skill kennen.
+
+```bash
+pip install 'mcp>=2,<3'          # das SDK ist nicht in der Grundausstattung
+falzmarke mcp                    # Server über stdio
+```
+
+Drei Werkzeuge: `brief_rendern`, `brief_pruefen`, `profile_auflisten`. Der **Messbericht kommt
+bei jedem Rendern mit** — ein Dienst, der ein PDF zurückgibt und offenlässt, ob die Maße
+stimmen, wäre ein PDF-Generator wie jeder andere.
+
+Das Absenderprofil darf als Objekt im Aufruf stehen. Ein Client ohne Zugriff auf das
+Dateisystem des Servers kann so seinen eigenen Absender mitgeben, statt mit den Profilen zu
+leben, die dort zufällig liegen.
+
+Was der Dienst **nicht** tut: versenden, ablegen, zustellen. Er setzt und prüft
+([ADR 0029](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0029-falzmarke-ist-werkzeug-kein-kanal.md)).
+
 <details>
 <summary>Aus einem Clone, ohne Installation</summary>
 
@@ -267,7 +304,8 @@ Die vollständige Liste: [falzmarke-Markdown](https://github.com/blitzsicht/falz
 | ![Form B](https://github.com/blitzsicht/falzmarke/raw/main/docs/assets/demo/gallery-standard.png) | ![Vermerkzone](https://github.com/blitzsicht/falzmarke/raw/main/docs/assets/demo/gallery-einschreiben.png) | ![Folgeseiten](https://github.com/blitzsicht/falzmarke/raw/main/docs/assets/demo/gallery-mehrseitig.png) |
 | Form B mit Informationsblock | Zusatz- und Vermerkzone | Kopfzeile und Seitenzählung |
 
-Dazu Form A, Auslandsanschrift, Tabelle und ein Brief mit langem Informationsblock —
+Dazu Form A, Auslandsanschrift, Tabelle, ein Brief mit langem Informationsblock und einer
+mit englischer Beschriftung (`sprache: en` — deutsche Maße, englische Wörter) —
 [alle Beispiele](https://github.com/blitzsicht/falzmarke/tree/main/examples/) und ihre [vollständigen Renderings](https://github.com/blitzsicht/falzmarke/tree/main/docs/renders/).
 
 ## Grenzen
@@ -336,6 +374,67 @@ nicht beteiligt und wird nicht mitgeliefert.
 **DIN 5008** ist eine Norm des DIN Deutsches Institut für Normung e. V. falzmarke ist kein
 Produkt des DIN, steht in keiner Verbindung zum DIN und behauptet keine Zertifizierung. Wie die
 Maße gemessen wurden, steht in [`docs/normmasse.md`](https://github.com/blitzsicht/falzmarke/blob/main/docs/normmasse.md).
+
+<!-- changelog:anfang -->
+
+## Was sich zuletzt getan hat
+
+Die letzten zwei Versionen im Wortlaut. **Erzeugt aus [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md) — dort ändern, dann `python3 scripts/changelog.py`.**
+
+### v0.7.3 — 26.08.2026
+
+#### Behoben
+- **Der Schritt „Prüfsummen ausgeben" hat den Upload verhindert.** Er schrieb die Summen mit
+  `| tee dist/SHA256SUMS` in genau das Verzeichnis, das die Publish-Action vollständig
+  hochlädt. Sie prüft vorher jede Datei darin und bricht an der ersten ab, die kein
+  Distributions-Format ist — Lauf 32966455275:
+
+  ```
+  Checking dist/falzmarke-0.7.2-py3-none-any.whl: PASSED
+  Checking dist/SHA256SUMS: ERROR InvalidDistribution: Unknown distribution format: 'SHA256SUMS'
+  ```
+
+  Das Paket selbst war in Ordnung. Die Summen stehen jetzt nur noch im Lauf-Protokoll; die
+  Action gibt sie mit `print-hash: true` ohnehin ein zweites Mal aus.
+
+#### Hinzugefügt
+- **Ein Wächter vor dem Upload.** Ein neuer Schritt bricht ab, wenn in `dist/` etwas liegt, das
+  weder `.whl` noch `.tar.gz` ist. Das Entfernen des `tee` behebt diesen einen Fall; der
+  Wächter behebt die Fehlerklasse. Er schlägt fehl, wo es nichts kostet — statt nach der
+  Freigabe, im unumkehrbaren Job.
+
+Lauf 32966455275 brach — wie die drei davor — **vor** dem Upload ab; auf PyPI war zu diesem
+Zeitpunkt nichts gelandet.
+
+#### Angekommen
+**v0.7.3 liegt auf [PyPI](https://pypi.org/project/falzmarke/)** — der fünfte Anlauf, Lauf
+32972861001 am 26.08.2026. Gemessen, nicht vom grünen Job abgelesen:
+`pypi.org/pypi/falzmarke/json` → HTTP 200, Version 0.7.3, Wheel und sdist. In einer frischen
+Umgebung installiert (`pip install falzmarke`) und ein Brief gerendert: 33/33 Maße eingehalten.
+
+Damit gelten die kurzen Befehle: `pipx install falzmarke`, `uvx falzmarke`. Die README nennt sie
+jetzt, und `tests/test_installationswege.py` lässt sie zu (`AUF_PYPI = True`).
+
+#### Warum es diese Version gibt
+Wie schon bei 0.7.1 und 0.7.2: Das Ruleset `release-tags` lässt Tags weder verschieben noch
+löschen, und das Environment `pypi` erlaubt Deployments nur von Tags `v*`. Ein neuer Anlauf
+braucht deshalb eine neue Versionsnummer — v0.7.2 ist verbraucht.
+
+### v0.7.2 — 26.08.2026
+
+#### Behoben
+- **Die Publish-Action konnte ihr eigenes Image nicht laden.** `pypa/gh-action-pypi-publish`
+  laeuft als Docker-Container und zieht ihr Image mit dem `action_ref` als Tag. Beim
+  SHA-Pinning ist das der Commit-SHA — und dafuer existiert im Registry kein Image, sie werden
+  nur fuer Release-Tags gebaut (`manifest unknown`). Die Action ist damit die eine Stelle, an
+  der die Hausregel „Actions auf Commit-SHAs pinnen" nicht anwendbar ist; sie steht jetzt als
+  begruendete Ausnahme auf `v1.14.2`, der auf denselben Commit zeigt.
+
+Auch dieser Lauf brach **vor** dem Upload ab. Auf PyPI ist weiterhin nichts gelandet.
+
+Davor liegen 14 weitere Versionen — der vollständige Verlauf steht in [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md).
+
+<!-- changelog:ende -->
 
 ## Lizenz
 

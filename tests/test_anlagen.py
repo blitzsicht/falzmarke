@@ -256,3 +256,34 @@ def test_der_anlagenvermerk_bleibt_unabhaengig(tmp_path):
     assert len(PdfReader(str(pdf)).pages) == 1, "ein Vermerk darf keine Seite anhängen"
     with pdfplumber.open(str(pdf)) as dokument:
         assert "Rechnung 2026-0815" in (dokument.pages[0].extract_text() or "")
+
+
+def test_englischer_mehrseiter_mit_anlage(tmp_path):
+    """Die Kreuzung beider Neuerungen: Sprache (#11) und Anlagen (#1).
+
+    Hier treffen sich zwei Zahlen, die leicht verwechselt werden: die Seiten der
+    Datei und die Seiten des Briefes. Die Fusszeile des Briefes zaehlt nur ihn
+    selbst („Page 2 of 2"), die Datei hat mit Anlage aber drei Seiten.
+
+    Genau daran ist der Merge von #11 und #55 gescheitert, ohne dass git einen
+    Konflikt gemeldet haette: Beide Aenderungen standen textuell nebeneinander,
+    aber das Sprachmuster suchte weiter nach „Page 2 of 3“. Kein Konfliktmarker
+    zeigt so etwas an — nur ein Test, der beide Wege zugleich geht.
+    """
+    fueller = "\n\n".join(f"Filler paragraph {n} to force a second page." for n in range(1, 30))
+    _ohne_deklaration(tmp_path / "invoice.pdf")
+    quelle = tmp_path / "brief.md"
+    quelle.write_text(
+        BRIEF.format(anlagen="sprache: en\nanlagen_dateien:\n  - invoice.pdf\n") + fueller,
+        encoding="utf-8")
+
+    berichte: list = []
+    pdf, form = falzmarke.rendere(quelle, tmp_path / "aus.pdf", anlagen_bericht=berichte)
+
+    from pypdf import PdfReader
+    assert len(PdfReader(str(pdf)).pages) == 3, "zwei Briefseiten plus eine Anlage"
+    assert berichte[0]["seiten_vorher"] == 2
+
+    bericht = geometrie.pruefe(pdf, form)
+    gescheitert = [p["name"] for p in bericht.als_dict()["pruefungen"] if not p["bestanden"]]
+    assert bericht.ok, f"englischer Mehrseiter mit Anlage fällt durch: {gescheitert}"
