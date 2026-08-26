@@ -8,20 +8,21 @@ Die Reihenfolge der Phasen folgt [ADR 0030](entscheidungen/0030-reihenfolge-der-
 Meilensteinen und offenen Issues erzeugt und nicht von Hand gepflegt: die Wahrheit
 steht im Issue, hier steht nur eine Sicht darauf.
 
-**19 offene Vorgänge** in 6 Phasen.
+**20 offene Vorgänge** in 6 Phasen.
 
 ## 1. Vor Verbreitung
 
-Muss abgeschlossen sein, bevor das Werkzeug öffentlich beworben wird: Typst Universe, Skills-Listen, LinkedIn, Website-Launch.
+Belegarbeit, die vor einer starken Behauptung stehen muss. Sperrt seit ADR 0032 nicht mehr die Verbreitung selbst — nur die Wörter normgerecht, DIN-konform, normkonform und zertifiziert.
 
-**8 offen · 1 erledigt**
+**9 offen · 1 erledigt**
 
 | Nr. | Was | Typ | Priorität | Bereich | Zustand |
 |---|---|---|---|---|---|
-| [#12](https://github.com/blitzsicht/falzmarke/issues/12) | Normabgleich gegen den Originaltext der DIN 5008:2020-03 | Forschung | P0 | norm | blockiert, maintainer |
+| [#12](https://github.com/blitzsicht/falzmarke/issues/12) | Normabgleich gegen den Originaltext der DIN 5008:2020-03 | Forschung | P0 | norm | maintainer |
 | [#16](https://github.com/blitzsicht/falzmarke/issues/16) | Quellenlage: vendorte Implementierung zählt als unabhängiger Beleg | Forschung | P0 | norm | maintainer |
 | [#34](https://github.com/blitzsicht/falzmarke/issues/34) | PDF-Konformität mit einem unabhängigen Werkzeug prüfen | Feature | P0 | verify, ci | — |
 | [#35](https://github.com/blitzsicht/falzmarke/issues/35) | Briefkörper bleibt auf jeder Seite im Satzspiegel | Feature | P0 | verify, dialekt | — |
+| [#40](https://github.com/blitzsicht/falzmarke/issues/40) | Quellenlage muss dorthin, wo sie ohne README ankommt | Aufgabe | P0 | doku | — |
 | [#7](https://github.com/blitzsicht/falzmarke/issues/7) | Als Paket auf PyPI veröffentlichen | Aufgabe | P1 | ci | — |
 | [#13](https://github.com/blitzsicht/falzmarke/issues/13) | Schaufenster: die Falzmarke ist auf keinem Bild zu erkennen | Fehler | P1 | doku, marke | — |
 | [#18](https://github.com/blitzsicht/falzmarke/issues/18) | Form A steht nur auf der eigenen Layoutbasis — externer Beleg fehlt | Forschung | P1 | norm | — |
