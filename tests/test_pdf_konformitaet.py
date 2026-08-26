@@ -2,20 +2,27 @@
 
 Zwei Ebenen, bewusst getrennt:
 
-**Ohne veraPDF** läuft alles, was das Skript selbst entscheidet: Welche
-Konformität behauptet eine Datei? Was passiert bei einer Datei ohne
-Deklaration? Endet der Lauf im richtigen Zustand, wenn das fremde Werkzeug
-fehlt? Diese Tests laufen überall, auch ohne Java.
+**Ohne veraPDF** laufen die Entscheidungen, die das Skript allein trifft: XMP
+lesen, die Deklaration erkennen, und den richtigen Zustand melden, wenn das
+fremde Werkzeug fehlt. Vier Tests, sie laufen in der ganzen Plattform-Matrix.
 
-**Mit veraPDF** läuft der eigentliche Nachweis. Fehlt das Werkzeug, werden
-diese Tests übersprungen — aber der Lauf ohne sie belegt die Konformität dann
-eben *nicht*. Damit das nicht still passiert, prüft
-`test_verapdf_fehlt_ist_nicht_gruen`, dass das Skript in diesem Fall Exit 2
-liefert und nicht 0: „nicht geprüft" ist ein eigener Zustand, kein Grün.
+**Mit veraPDF** läuft der eigentliche Nachweis. Fehlt es, werden diese Tests
+übersprungen — der Lauf belegt die Konformität dann eben *nicht*. Damit das
+nicht still passiert, prüft `test_verapdf_fehlt_ist_nicht_gruen`, dass das
+Skript in diesem Fall Exit 2 liefert und nicht 0: „nicht geprüft" ist ein
+eigener Zustand, kein Grün. Und der veraPDF-Job in der CI fährt sie alle.
+
+Wer prüft, dass die Aufteilung stimmt? Die CI selbst hat es getan: Drei Tests
+riefen anfangs das Skript als Prozess auf und erwarteten Exit 1 — ohne veraPDF
+bricht es aber vorher mit Exit 2 ab. Sie schlugen in der Matrix fehl, weil sie
+ihren Gegenstand gar nicht erreichten. Lokal, mit installiertem veraPDF, waren
+sie grün. Ein Test, der nur auf der Maschine seines Autors trennt, ist genau
+die Sorte Beleg, gegen die dieses Projekt geschrieben ist.
 """
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -50,7 +57,17 @@ def _lauf(*argumente: str) -> subprocess.CompletedProcess:
     )
 
 
-# ── ohne veraPDF prüfbar ────────────────────────────────────────────────────
+# ── ohne veraPDF prüfbar: die Entscheidungen, die das Skript selbst trifft ──
+#
+# Was hier steht, kommt ohne das fremde Werkzeug aus: XMP lesen, Deklaration
+# erkennen, den richtigen Zustand melden, wenn veraPDF fehlt.
+#
+# ACHTUNG, hier lag ein Denkfehler: Drei Tests weiter unten rufen das SKRIPT als
+# Prozess auf und erwarten Exit 1. Ohne veraPDF bricht es aber vorher mit Exit 2
+# ab (NICHT GEPRÜFT) — sie erreichen ihren Gegenstand gar nicht und schlugen in
+# der CI-Matrix fehl, wo kein veraPDF installiert ist. Sie tragen deshalb
+# dasselbe `skipif` wie die Prüfungen darunter. Die Deklarations-Logik wird
+# stattdessen direkt an der Funktion geprüft, nicht über den Prozess.
 
 def test_deklaration_wird_gelesen_statt_angenommen(tmp_path):
     """Ein normal gerendertes PDF behauptet PDF/A-2b — und das liest das Skript.
@@ -77,12 +94,14 @@ def test_ohne_pdfa_gibt_es_nichts_zu_behaupten(tmp_path):
     assert pk.deklarierte_standards(pdf) == []
 
 
+@pytest.mark.skipif(not HAT_VERAPDF, reason="veraPDF nicht installiert")
 def test_datei_ohne_deklaration_ist_ein_befund(tmp_path):
     """Sonst wäre der Lauf genau dann am grünsten, wenn nichts behauptet wird."""
     pdf = _rendere(tmp_path / "ohne.pdf", "--no-pdfa")
     assert _lauf(str(pdf)).returncode == 1
 
 
+@pytest.mark.skipif(not HAT_VERAPDF, reason="veraPDF nicht installiert")
 def test_null_pruefungen_sind_kein_erfolg(tmp_path):
     """Leere Menge gegen leere Menge belegt nichts.
 
@@ -96,6 +115,7 @@ def test_null_pruefungen_sind_kein_erfolg(tmp_path):
     assert "0 Konformitätsprüfungen" in ergebnis.stdout
 
 
+@pytest.mark.skipif(not HAT_VERAPDF, reason="veraPDF nicht installiert")
 def test_fehlende_datei_ist_ein_befund():
     assert _lauf("gibt-es-nicht.pdf").returncode == 1
 
@@ -107,12 +127,15 @@ def test_verapdf_fehlt_ist_nicht_gruen(tmp_path):
     Exit 2 unterscheidet ihn von beidem — bestanden (0) und Befund (1).
     """
     pdf = _rendere(tmp_path / "normal.pdf")
+    # Nur PATH leeren, nicht die ganze Umgebung ersetzen: Windows braucht
+    # SYSTEMROOT und COMSPEC, sonst startet der Kindprozess gar nicht erst —
+    # der Test wäre dann aus dem falschen Grund rot.
+    umgebung = {**os.environ, "PATH": ""}
     ergebnis = subprocess.run(
         [sys.executable, str(SKRIPT), str(pdf)],
-        capture_output=True, text=True,
-        env={"PATH": "/usr/bin:/bin", "HOME": str(tmp_path)},
+        capture_output=True, text=True, env=umgebung,
     )
-    assert ergebnis.returncode == 2
+    assert ergebnis.returncode == 2, ergebnis.stdout + ergebnis.stderr
     assert "NICHT GEPRÜFT" in ergebnis.stderr
 
 
