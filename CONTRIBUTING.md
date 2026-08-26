@@ -88,6 +88,14 @@ mehrere Millimeter ab, siehe [`docs/normmasse.md`](docs/normmasse.md).
 nie Wortlaut, Tabellen oder Abbildungen — siehe [`CLAUDE.md`](CLAUDE.md) und
 [`docs/recht.md`](docs/recht.md).
 
+## Den Changelog ändern
+
+`CHANGELOG.md` ist die Quelle. Der Abschnitt „Was sich zuletzt getan hat" in der README wird
+daraus erzeugt (`python3 scripts/changelog.py`, oder `make changelog`) — ihn nie von Hand
+ändern. Wer eine Version einträgt, lässt das Skript laufen und nimmt die geänderte README mit
+in denselben Commit; sonst zeigt die Produktseite einen Stand, den es nicht mehr gibt, und
+`tests/test_changelog.py` schlägt fehl.
+
 ## Die vendorte Datei
 
 `skill/falzmarke/typst/vendor/letter-pro-v3.0.0.typ` ist Fremdcode (MIT) und bleibt
