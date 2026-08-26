@@ -33,6 +33,28 @@ WARNSTUFE = "Regeln aus einzelnen Quellen wirken nur als Warnung"
 MUSS_ENTHALTEN = {
     "README.md": [QUELLENLAGE, WARNSTUFE],
     "docs/recht.md": [QUELLENLAGE, WARNSTUFE],
+    # Der Skill ist der Ort, an dem die Quellenlage am ehesten ankommt: Wer ihn
+    # über einen Prompt auslöst, sieht nie ein README. Voller Satz, weil die
+    # Beschreibung keine harte Längengrenze hat (Issue #40).
+    "skill/SKILL.md": [QUELLENLAGE, WARNSTUFE],
+}
+
+# Kurzform für Felder mit Längenbegrenzung.
+#
+# Der volle Satz passt dort nicht: Die Paketbeschreibung wird in der Trefferliste
+# nach rund 100 Zeichen abgeschnitten, die GitHub-Beschreibung nach 120. Ein
+# Vorbehalt hinter dem Abschneidepunkt schützt den Herausgeber und nicht den
+# Nutzer — genau die Lücke, die ADR 0032 als ihre schwächste Stelle benennt.
+#
+# Was bleiben muss, ist der Kern: die Sollwerte sind nicht am Originaltext
+# geprüft. Alles Weitere trägt die lange Beschreibung.
+KURZFORM = "Sollwerte aus Sekundärquellen"
+
+KANAL_KURZTEXTE = {
+    # Einzige Quelle für beide Kurztexte — pyproject und die GitHub-Beschreibung
+    # werden daraus gespeist, test_marke.py hält sie zusammen.
+    "docs/marke/texte.yaml": KURZFORM,
+    "pyproject.toml": KURZFORM,
 }
 
 # Begriffe, die ohne den Satz oben eine Zusage wären, die niemand geprüft hat.
@@ -82,3 +104,56 @@ def test_die_pruefung_wuerde_eine_behauptung_bemerken():
     # Und die Verneinung darf nicht anschlagen:
     satz = "Die verbreitete Word-Vorlage ist nicht normgerecht."
     assert AUSNAHMEN.search(satz), "Die Ausnahme greift bei der Verneinung nicht"
+
+
+# ── Kanäle: die Quellenlage muss dorthin, wo kein README gelesen wird ────────
+
+
+@pytest.mark.parametrize("datei", sorted(KANAL_KURZTEXTE))
+def test_kurztext_traegt_die_quellenlage(datei):
+    """Issue #40: Ein Kanal geht erst live, wenn sein Text den Vorbehalt trägt.
+
+    ADR 0032 gibt die Verbreitung frei, *weil* der Belegstand ehrlich
+    ausgewiesen ist. Diese Begründung trägt nur so weit, wie der Hinweis
+    tatsächlich ankommt.
+    """
+    inhalt = (REPO / datei).read_text(encoding="utf-8")
+    assert KANAL_KURZTEXTE[datei] in inhalt, (
+        f"{datei} nennt die Quellenlage nicht mehr. Ohne sie ruht ADR 0032 auf "
+        f"einer Zusage, die dieser Kanal nicht einlöst."
+    )
+
+
+def test_kurztexte_bleiben_unter_der_abschneidegrenze():
+    """Ein Vorbehalt hinter dem Abschneidepunkt ist keiner.
+
+    GitHub zeigt 120 Zeichen, die Paketsuche rund 100. Gemessen wird gegen die
+    schärfere der beiden — sonst stünde der Hinweis zwar in der Datei, aber
+    nicht in der Trefferliste.
+    """
+    import yaml
+
+    kanon = yaml.safe_load((REPO / "docs/marke/texte.yaml").read_text(encoding="utf-8"))
+    beschreibung = kanon["github_beschreibung"]
+    assert len(beschreibung) <= 100, (
+        f"{len(beschreibung)} Zeichen — die Paketsuche schneidet bei rund 100 ab, "
+        f"der Vorbehalt am Ende wäre dann unsichtbar."
+    )
+    assert KURZFORM in beschreibung
+
+
+def test_gegenprobe_der_kanalpruefung():
+    """Belegt, dass die Prüfung oben überhaupt trennt.
+
+    Ohne diesen Test wüsste die Suite nur, dass die Dateien den Satz heute
+    enthalten — nicht, dass ein Entfernen auffiele. Geprüft wird deshalb an
+    einem Text, dem der Hinweis fehlt: Die Bedingung muss dort falsch sein.
+    """
+    ohne_hinweis = "DIN-5008-Briefe aus Markdown, am fertigen PDF nachgemessen."
+    assert KURZFORM not in ohne_hinweis
+
+    mit_hinweis = ohne_hinweis + " Sollwerte aus Sekundärquellen."
+    assert KURZFORM in mit_hinweis
+
+    # Und derselbe Schnitt am vollen Satz, für die Dateien in MUSS_ENTHALTEN.
+    assert QUELLENLAGE not in "Ein Text, der die Quellenlage verschweigt."

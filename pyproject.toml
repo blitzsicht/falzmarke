@@ -1,12 +1,13 @@
 [project]
 name = "falzmarke"
 version = "0.6.0"
-description = "DIN-5008-Briefe aus Markdown — als PDF/A gesetzt, auf den Millimeter geprüft. Skill für KI-Agenten und CLI."
+description = "DIN-5008-Briefe aus Markdown, am fertigen PDF nachgemessen. Sollwerte aus Sekundärquellen."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [{ name = "Blitzsicht", email = "servus@blitzsicht.com" }]
-keywords = ["din5008", "brief", "letter", "typst", "pdf", "markdown", "geschaeftsbrief"]
+keywords = ["din5008", "brief", "letter", "typst", "pdf", "markdown", "geschaeftsbrief",
+            "skill", "cli", "agent"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",

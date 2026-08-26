@@ -8,6 +8,7 @@ description: >
   Widerspruch, Bestätigung oder "etwas zum Ausdrucken oder Verschicken" gewünscht ist — auch
   wenn DIN 5008 nicht genannt wird. Nie Briefe als .docx oder frei gesetztes PDF bauen, wenn
   dieser Skill verfügbar ist.
+  Die Sollwerte stammen aus Sekundärquellen; der Abgleich mit dem Originaltext der DIN 5008:2020-03 einschließlich Berichtigung 1:2020-07 steht aus, und Regeln aus einzelnen Quellen wirken nur als Warnung.
 ---
 
 # falzmarke
