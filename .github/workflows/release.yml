@@ -148,10 +148,36 @@ jobs:
           python -m twine check dist/*
           python -m pytest tests/test_readme_auf_pypi.py -o addopts="" -q
 
+      - name: In dist/ liegt nur, was hochgeladen werden darf
+        run: |
+          # Die Publish-Action laedt dieses Verzeichnis vollstaendig hoch und
+          # prueft vorher jede Datei darin. An der ersten, die kein
+          # Distributions-Format ist, bricht sie ab — nach der Freigabe.
+          # Lieber hier abbrechen, wo es nichts kostet.
+          FREMD=$(find dist -maxdepth 1 -type f ! -name '*.whl' ! -name '*.tar.gz')
+          if [ -n "$FREMD" ]; then
+            echo "FEHL: dist/ enthaelt Dateien, die kein Paket sind:"
+            echo "$FREMD"
+            exit 1
+          fi
+          echo "dist/ enthaelt nur Pakete:"
+          ls -1 dist/
+
       - name: Pruefsummen ausgeben
         run: |
           # Damit im Nachhinein belegbar ist, welche Datei hochgeladen wurde.
-          sha256sum dist/* | tee dist/SHA256SUMS
+          #
+          # NICHT nach dist/ schreiben: Die Publish-Action laedt das Verzeichnis
+          # vollstaendig hoch. Ein `| tee dist/SHA256SUMS` an dieser Stelle hat
+          # Lauf 32966455275 (v0.7.2, 26.08.2026) zu Fall gebracht:
+          #
+          #   Checking dist/falzmarke-0.7.2-py3-none-any.whl: PASSED
+          #   Checking dist/SHA256SUMS: ERROR InvalidDistribution:
+          #     Unknown distribution format: 'SHA256SUMS'
+          #
+          # Der Beleg geht nicht verloren — er steht hier im Protokoll, und die
+          # Action gibt die Hashes mit `print-hash: true` selbst noch einmal aus.
+          sha256sum dist/*
 
       # AUSNAHME von der Hausregel "Actions auf Commit-SHAs pinnen" — begruendet,
       # nicht vergessen. Diese Action laeuft als Docker-Container und zieht ihr
