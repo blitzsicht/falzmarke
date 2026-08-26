@@ -20,8 +20,9 @@ import pytest
 
 from conftest import REPO
 
-# Umstellen, sobald das Paket auf PyPI liegt — zusammen mit Issue #7.
-AUF_PYPI = False
+# Seit v0.7.3 liegt das Paket auf PyPI (26.08.2026, Lauf 32972861001).
+# Gemessen: pypi.org/pypi/falzmarke/json -> HTTP 200, Version 0.7.3.
+AUF_PYPI = True
 
 PAKET = "falzmarke"
 README = REPO / "README.md"
@@ -49,6 +50,24 @@ def test_readme_verspricht_keinen_pypi_befehl_ohne_pypi():
         f"voraussetzt, das es nicht gibt:\n  " + "\n  ".join(gefunden) +
         "\n\nEntweder `--from git+…` bzw. `pipx install git+…` schreiben, oder "
         "nach der Veröffentlichung AUF_PYPI = True setzen."
+    )
+
+
+def test_nach_der_veroeffentlichung_steht_der_kurze_befehl_auch_da():
+    """Die Gegenrichtung. Ohne sie wird der Test oben mit AUF_PYPI = True nur
+    uebersprungen — und ein Skip prueft nichts.
+
+    Die Konstante behauptet, das Paket liege auf PyPI. Wenn das stimmt, muss die
+    README den kurzen Befehl auch nennen; sonst ist die Umstellung
+    folgenlos geblieben und niemand merkt es. Genau so ist der Fall
+    `AUF_PYPI` ueberhaupt erst entstanden: eine Nacharbeit, die nichts erzwingt.
+    """
+    if not AUF_PYPI:
+        pytest.skip("noch nicht veroeffentlicht — dafuer ist der Test oben zustaendig")
+    assert _nackte_befehle(README.read_text(encoding="utf-8")), (
+        "AUF_PYPI ist True, aber die README nennt keinen kurzen Installationsbefehl.\n"
+        "Entweder `pipx install falzmarke` bzw. `uvx falzmarke` eintragen — oder "
+        "die Konstante steht falsch."
     )
 
 

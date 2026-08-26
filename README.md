@@ -183,18 +183,21 @@ ist**. Die SHA-256-Summe steht in der Release-Notiz und als `falzmarke.skill.sha
 ### Im Terminal
 
 ```bash
-uvx --from git+https://github.com/blitzsicht/falzmarke falzmarke \
-    init brief.md --profil example --betreff "Angebot Nr. 2026-0815"
+uvx falzmarke init brief.md --profil example --betreff "Angebot Nr. 2026-0815"
 ```
 
 oder dauerhaft installiert, danach genügt `falzmarke render brief.md --png`:
 
 ```bash
-pipx install git+https://github.com/blitzsicht/falzmarke
+pipx install falzmarke
 ```
 
-Noch liegt das Paket **nicht auf PyPI** — deshalb die Adresse statt eines bloßen Namens
-([#7](https://github.com/blitzsicht/falzmarke/issues/7)).
+Das Paket liegt auf [PyPI](https://pypi.org/project/falzmarke/). Wer den unveröffentlichten
+Stand von `main` will, nimmt weiterhin die Adresse:
+
+```bash
+pipx install git+https://github.com/blitzsicht/falzmarke
+```
 
 Der Typst-Compiler kommt als Python-Wheel mit: **keine Systeminstallation**, kein LaTeX, kein
 wkhtmltopdf, keine Schriftinstallation.

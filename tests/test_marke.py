@@ -131,7 +131,12 @@ def test_die_wortpruefung_wuerde_anschlagen():
 
 
 def test_kanon_nennt_nur_befehle_die_es_gibt(kanon):
-    """`pipx install falzmarke` gibt es nicht — das Paket liegt nicht auf PyPI.
+    """Der Kanon nennt nur Befehle mit ausdruecklicher Herkunft.
+
+    Bis v0.7.2 lag der Grund darin, dass es `pipx install falzmarke` gar nicht
+    gab. Seit v0.7.3 (26.08.2026) liegt das Paket auf PyPI, den Befehl gibt es
+    also — der Kanon bleibt trotzdem beim `git+`-Weg: Er trifft auch den
+    unveroeffentlichten Stand von `main` und ist im gerenderten Film verbaut.
 
     Dieselbe Falle, die test_installationswege.py fuer die README stellt, hier
     fuer den Kanon. Der Abbinder des Films zeigt seit dem dritten Schnitt keinen

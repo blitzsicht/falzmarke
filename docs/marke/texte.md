@@ -33,8 +33,11 @@ Sekundaer, nie allein: *Nachgemessen, nicht geschätzt.*
 
 ## Installationsbefehle
 
-Nur diese duerfen in Bild und Text gezeigt werden. `pipx install falzmarke`
-gibt es nicht — das Paket liegt nicht auf PyPI ([#7](https://github.com/blitzsicht/falzmarke/issues/7)).
+Nur diese duerfen in Bild und Text gezeigt werden. Seit v0.7.3 gibt es
+`pipx install falzmarke` zwar wirklich ([PyPI](https://pypi.org/project/falzmarke/)) —
+der Kanon bleibt trotzdem beim `git+`-Weg: Er trifft auch den unveroeffentlichten
+Stand von `main`, und er steckt im gerenderten Film. Umstellen hiesse Film und
+Szenen neu rendern.
 
 - Ohne Clone: `uvx --from git+https://github.com/blitzsicht/falzmarke falzmarke`
 - Dauerhaft: `pipx install git+https://github.com/blitzsicht/falzmarke`

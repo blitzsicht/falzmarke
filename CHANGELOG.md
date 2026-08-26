@@ -24,9 +24,17 @@ Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
   Wächter behebt die Fehlerklasse. Er schlägt fehl, wo es nichts kostet — statt nach der
   Freigabe, im unumkehrbaren Job.
 
-Auch Lauf 32966455275 brach **vor** dem Upload ab. Auf PyPI ist zum Zeitpunkt dieses Eintrags
-nichts gelandet, der Paketname ist frei (`pypi.org/pypi/falzmarke/json` → HTTP 404, gemessen am
-26.08.2026).
+Lauf 32966455275 brach — wie die drei davor — **vor** dem Upload ab; auf PyPI war zu diesem
+Zeitpunkt nichts gelandet.
+
+### Angekommen
+**v0.7.3 liegt auf [PyPI](https://pypi.org/project/falzmarke/)** — der fünfte Anlauf, Lauf
+32972861001 am 26.08.2026. Gemessen, nicht vom grünen Job abgelesen:
+`pypi.org/pypi/falzmarke/json` → HTTP 200, Version 0.7.3, Wheel und sdist. In einer frischen
+Umgebung installiert (`pip install falzmarke`) und ein Brief gerendert: 33/33 Maße eingehalten.
+
+Damit gelten die kurzen Befehle: `pipx install falzmarke`, `uvx falzmarke`. Die README nennt sie
+jetzt, und `tests/test_installationswege.py` lässt sie zu (`AUF_PYPI = True`).
 
 ### Warum es diese Version gibt
 Wie schon bei 0.7.1 und 0.7.2: Das Ruleset `release-tags` lässt Tags weder verschieben noch
