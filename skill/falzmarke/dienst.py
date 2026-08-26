@@ -17,7 +17,9 @@ sondern der Gegenstand: Ein Werkzeug, das ein PDF zurückgibt und offen lässt, 
 die Maße stimmen, wäre ein PDF-Generator wie jeder andere.
 
 Das MCP-SDK ist eine **optionale** Abhängigkeit — `pip install 'mcp>=2,<3'`,
-oder über das Extra `falzmarke[mcp]`, sobald das Paket auf PyPI liegt (#7).
+oder über das Extra `falzmarke[mcp]`, sobald diese Änderung veröffentlicht ist.
+Das Paket selbst liegt seit v0.7.3 auf PyPI; das Extra kommt mit dem nächsten
+Release nach dem Merge dazu.
 Es bringt 28 Pakete mit — darunter uvicorn, starlette, cryptography und
 opentelemetry, also Server- und Auth-Infrastruktur. Ein Werkzeug, das offline
 Briefe setzt, soll die nicht mitschleppen; wer den Dienst betreibt, installiert
@@ -63,7 +65,7 @@ def _mcp_modul():
                 "Das Python-Paket 'mcp' fehlt — es gehört nicht zur Grundausstattung.\n"
                 "  pip install 'mcp>=2,<3'\n"
                 "  Wer falzmarke selbst über pip installiert, nimmt das Extra:\n"
-                "  pip install 'falzmarke[mcp]' — sobald das Paket auf PyPI liegt (#7)."
+                "  pip install 'falzmarke[mcp]' — ab dem Release, das dieses Extra bringt."
             ) from None
         raise Umgebungsfehler(
             "Das Paket 'mcp' ist da, aber zu alt: MCPServer fehlt.\n"
@@ -284,9 +286,12 @@ def _durchgereicht(werkzeug, ToolError):
 
 def baue_server():
     """Meldet die drei Werkzeuge an. Getrennt von main(), damit Tests sie sehen."""
+    # _mcp_modul() zuerst: Es übersetzt ein fehlendes oder zu altes SDK in eine
+    # Meldung mit Befehl. Stand der ToolError-Import davor, flog stattdessen ein
+    # nackter ModuleNotFoundError — genau die Auskunft, die niemandem hilft.
+    MCPServer = _mcp_modul()
     from mcp.server.mcpserver.exceptions import ToolError
 
-    MCPServer = _mcp_modul()
     server = MCPServer(NAME)
     for werkzeug in WERKZEUGE:
         server.tool()(_durchgereicht(werkzeug, ToolError))

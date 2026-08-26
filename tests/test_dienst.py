@@ -14,6 +14,7 @@ Extra ausdruecklich (.github/workflows/ci.yml).
 from __future__ import annotations
 
 import base64
+import subprocess
 import sys
 
 import pytest
@@ -160,6 +161,46 @@ def test_ohne_sdk_gibt_es_eine_meldung_mit_befehl(monkeypatch):
     with pytest.raises(Umgebungsfehler) as fehler:
         dienst._mcp_modul()
     assert "falzmarke[mcp]" in str(fehler.value)
+
+
+# Sperrt `mcp` so, wie ein fehlendes Paket sich verhaelt: mit
+# ModuleNotFoundError aus der Import-Maschinerie. Ein Platzhaltermodul, das beim
+# Import `raise ImportError` ausfuehrt, taeuscht das NICHT — gemessen am
+# 26.08.2026: Damit kam der Fehler an einer anderen Stelle heraus als im echten
+# Fall, und der Test haette einen Zustand geprueft, den es nie gibt.
+SPERRE = """
+import sys
+
+class Sperre:
+    def find_spec(self, name, path=None, target=None):
+        if name == "mcp" or name.startswith("mcp."):
+            raise ModuleNotFoundError(f"No module named {name!r}", name=name)
+        return None
+
+sys.meta_path.insert(0, Sperre())
+sys.path.insert(0, %r)
+from falzmarke import cli
+raise SystemExit(cli.main(["mcp"]))
+"""
+
+
+def test_ohne_sdk_kommt_eine_meldung_und_kein_traceback():
+    """Der Weg, den der Benutzer wirklich geht: `falzmarke mcp`.
+
+    baue_server() hatte den ToolError-Import einmal VOR _mcp_modul(), und der
+    Aufruf endete ohne SDK in einem nackten ModuleNotFoundError samt Traceback.
+    test_ohne_sdk_gibt_es_eine_meldung_mit_befehl sah das nicht: Es ruft
+    _mcp_modul() direkt auf, und das war die ganze Zeit in Ordnung.
+    """
+    lauf = subprocess.run(
+        [sys.executable, "-c", SPERRE % str(REPO / "skill")],
+        capture_output=True, text=True, encoding="utf-8",
+    )
+    ausgabe = lauf.stdout + lauf.stderr
+    assert "Traceback" not in ausgabe, (
+        "Ohne SDK kommt ein nackter Traceback statt einer Meldung:\n" + ausgabe[-500:])
+    assert "pip install" in ausgabe, ausgabe[-400:]
+    assert lauf.returncode == 3, f"Exit {lauf.returncode}, erwartet 3 (Umgebungsfehler)"
 
 
 def test_der_server_meldet_die_drei_werkzeuge_an():
