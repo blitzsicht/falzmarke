@@ -24,7 +24,7 @@ auf 105,0 mm, endet der Lauf mit einem Fehler statt mit einem Brief, der nur ung
 **[In 60 Sekunden ausprobieren](#in-60-sekunden)** ·
 **[Beispielbrief ansehen](docs/renders/brief-form-b.png)**
 
-`Linux · macOS · Windows`  ·  `30 Maße je PDF`  ·  `PDF/A-2b`  ·  `MIT`
+`Linux · macOS · Windows`  ·  `33 Maße je Seite`  ·  `PDF/A-2b`  ·  `MIT`
 
 </div>
 
@@ -80,7 +80,7 @@ gepflegten Vorlage lässt sich vieles davon erreichen.
 |---|---|---|---|
 | Quelle diffbar und versionierbar | teilweise | selten | ja — Markdown und YAML |
 | Layout reproduzierbar | hängt an Vorlage und Umgebung | nicht zugesichert | ja — derselbe Renderer, dieselbe Ausgabe |
-| Fertiges PDF wird nachgemessen | nein | nein | ja — 30 Maße, Abweichung ist ein Fehler |
+| Fertiges PDF wird nachgemessen | nein | nein | ja — 33 Maße, jede Seite, Abweichung ist ein Fehler |
 | Absenderprofile | von Hand gepflegt | uneinheitlich | ja — einmal anlegen, überall nutzen |
 | Prüfbericht maschinenlesbar | nein | nein | ja — `--json` und Exit-Codes |
 | PDF/A als Voreinstellung | nicht automatisch | nicht zugesichert | ja — ohne zusätzliches Flag |
