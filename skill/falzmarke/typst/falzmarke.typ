@@ -131,8 +131,10 @@
   set text(
     font: profil.at("font", default: "Libertinus Serif"),
     size: 11pt,
-    lang: "de",
-    region: "DE",
+    // Aus den Daten, nicht fest: Davon haengt die Silbentrennung ab, und ein
+    // englischer Text mit deutschen Trennregeln bricht an falschen Stellen um.
+    lang: daten.at("gebiet", default: ("de", "DE")).at(0),
+    region: daten.at("gebiet", default: ("de", "DE")).at(1),
     hyphenate: true,
     // Zeilenkasten fest in em statt nach Schriftmetrik: damit ist eine Zeile in
     // jeder Schrift gleich hoch. Ohne das haengt der Zeilenabstand am Ascender
@@ -166,6 +168,13 @@
     }
   })
 
+  // Die Woerter, die im Satz stehen. Vorgabe deutsch, damit ein Aufruf ohne
+  // dieses Feld weiter funktioniert.
+  let woerter = daten.at("woerter", default: (
+    anlage: "Anlage", anlagen: "Anlagen", verteiler: "Verteiler",
+    seite: "Seite {n} von {m}",
+  ))
+
   let vermerke = daten.at("vermerke", default: ())
   let info-eintraege = daten.at("infoblock", default: ())
 
@@ -193,7 +202,11 @@
       recipient-box(daten.empfaenger.map(z => [#z]).join(linebreak())),
     ),
     information-box: info-content,
-    page-numbering: auto,
+    // letter-pro setzt bei `auto` fest „Seite x von y“ (vendor-Datei, Zeile 177).
+    // Die Datei ist pruefsummengesichert und wird nicht angefasst; stattdessen
+    // bekommt sie eine Funktion, wie ihr eigener Vertrag es vorsieht.
+    page-numbering: (n, m) => woerter.seite
+      .replace("{n}", str(n)).replace("{m}", str(m)),
     {
       // Betreffposition: 2 Leerzeilen unter dem tiefer reichenden von
       // Anschriftfeld (Unterkante kopfhoehe + 45 mm) und Informationsblock
@@ -244,7 +257,7 @@
       let anlagen = daten.at("anlagen", default: ())
       if anlagen.len() > 0 {
         block(above: leer(1), below: 0pt, {
-          strong(if anlagen.len() == 1 { "Anlage" } else { "Anlagen" })
+          strong(if anlagen.len() == 1 { woerter.anlage } else { woerter.anlagen })
           linebreak()
           anlagen.map(a => [#a]).join(linebreak())
         })
@@ -253,7 +266,7 @@
       let verteiler = daten.at("verteiler", default: ())
       if verteiler.len() > 0 {
         block(above: leer(1), below: 0pt, {
-          strong("Verteiler")
+          strong(woerter.verteiler)
           linebreak()
           verteiler.map(v => [#v]).join(linebreak())
         })

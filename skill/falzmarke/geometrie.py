@@ -561,10 +561,24 @@ def pruefe(pdf_pfad: Path, form: str) -> Bericht:
     if len(dokument.pages) > 1:
         zweite = dokument.pages[1]
         text = zweite.extract_text() or ""
-        seitenzahl = f"Seite 2 von {len(dokument.pages)}"
+        # Die Seitenzahl steht in der Sprache des Briefes. Geprueft wird gegen
+        # jede bekannte Fassung, nicht nur die deutsche: `verify` misst auch
+        # fremde PDFs, deren Sprache niemand kennt — und ein englischer Brief
+        # ist nicht deshalb falsch gesetzt, weil dort „Page 2 of 2“ steht.
+        # Zuvor war der deutsche Wortlaut fest verdrahtet, und jeder englische
+        # Mehrseiter fiel hier durch.
+        from falzmarke import sprachen
+
+        moegliche = [
+            sprachen.WOERTER[s]["seite"].replace("{n}", "2").replace(
+                "{m}", str(len(dokument.pages)))
+            for s in sprachen.erlaubt()
+        ]
+        gefunden = next((m for m in moegliche if m in text), None)
         bericht.wahr(
-            "Seite 2: Seitenzahl", seitenzahl in text, f"'{seitenzahl}'",
-            "vorhanden" if seitenzahl in text else "fehlt",
+            "Seite 2: Seitenzahl", gefunden is not None,
+            " oder ".join(f"'{m}'" for m in moegliche),
+            f"'{gefunden}'" if gefunden else "fehlt",
         )
         spans_2 = _spans(zweite)
         # Auf Folgeseiten entfaellt das Anschriftfeld. Nachweisbar ist das nicht

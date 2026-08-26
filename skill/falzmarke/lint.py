@@ -33,6 +33,10 @@ BETREFF_MAX_ZEICHEN = 150      # zwei Zeilen bei 165 mm Satzbreite, 11 pt
 # Leitwörter des Informationsblocks in der Reihenfolge der Norm.
 # Steht hier und nicht in cli.py, weil cli lint importiert und nicht umgekehrt:
 # So gibt es EINE Liste statt einer Kopie, die still veraltet.
+#
+# Die Reihenfolge ist die der Norm und gilt für jede Sprache. Wie das Leitwort
+# heisst, steht in sprachen.LEITWOERTER — die deutsche Fassung hier ist die
+# Vorgabe. tests/test_sprachen.py hält beide Mengen zusammen.
 INFOBLOCK_REIHENFOLGE = [
     ("ihr_zeichen", "Ihr Zeichen"),
     ("ihre_nachricht_vom", "Ihre Nachricht vom"),
@@ -49,7 +53,7 @@ PFLICHTFELDER = ("profil", "empfaenger", "datum", "betreff")
 # Der vollständige Datenvertrag: was im Frontmatter einer Briefdatei stehen darf.
 # Dokumentiert in references/frontmatter.md; ein Test hält beide zusammen.
 FRONTMATTER_FELDER = frozenset({
-    "profil", "form", "norm", "empfaenger", "vermerke", "datum",
+    "profil", "form", "norm", "sprache", "empfaenger", "vermerke", "datum",
     "betreff", "betreff_kurz", "infoblock", "anrede", "gruss",
     "unterzeichner", "signatur", "anlagen", "verteiler",
 })
