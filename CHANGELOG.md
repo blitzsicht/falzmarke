@@ -2,6 +2,49 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.7.0 — 26.08.2026
+
+### Neu
+- **Die Konformität bestätigt ein fremdes Werkzeug.** Bisher schrieb falzmarke PDF/A und mass
+  das Ergebnis selbst nach — Erzeuger und Prüfer waren dieselbe Codebasis. Das belegt
+  Selbsttreue, nicht Konformität; in der Quellenlage trägt `eigene_messung` genau deshalb die
+  Zählstufe `nie`. Jetzt läuft [veraPDF](https://verapdf.org/), die Referenzimplementierung der
+  PDF Association, in CI bei jedem Push. Alle neun Beispielbriefe bestehen PDF/A-2b, die
+  `--pdfua`-Fassung zusätzlich UA-1. Geprüft wird, was die Datei selbst deklariert — eine
+  spätere Umstellung der Stufe trägt die Prüfung ohne Änderung mit. Fehlt veraPDF, endet der
+  Lauf mit Exit 2 und `NICHT GEPRÜFT` statt mit 0. (#34)
+- **Der Briefkörper wird auf jeder Seite gemessen.** Die Textprüfung lief auf `pages[0]`; ein
+  mehrseitiger Brief konnte ab Seite 2 aus dem Satzspiegel laufen und trotzdem „Maße
+  eingehalten" melden. Jetzt drei Messungen je Seite, und der Bericht nennt Seite **und**
+  Element: `Seite 2, rechter Rand — 190.88 bei „1234567"`. (#35)
+- **Die Quellenlage steht dort, wo kein README gelesen wird.** Paketbeschreibung,
+  GitHub-Beschreibung und Skill-Beschreibung tragen den Vorbehalt jetzt selbst — testgesichert,
+  mit Gegenprobe je Ort. Wer über einen Paketindex oder einen Prompt kommt, sieht kein README;
+  ein Vorbehalt, der dort nicht ankommt, schützt den Herausgeber und nicht den Nutzer. (#40)
+
+### Geändert
+- **Die Paketbeschreibung wurde umgebaut, nicht ergänzt.** Sie belegte 107 Zeichen, GitHub
+  schneidet bei 120 ab und die Paketsuche bei rund 100 — für einen Zusatz war kein Platz. Aus
+  „auf den Millimeter geprüft" wurde „am fertigen PDF nachgemessen": dieselbe Leistung, keine
+  Normaussage, und der Vorbehalt steht als eigener Satz dahinter. 90 Zeichen, also vor beiden
+  Abschneidepunkten.
+- **Das README ist als Projektseite lesbar.** Es wird als Langbeschreibung nach PyPI
+  übernommen, wo relative Pfade nicht auflösen — 43 Verweise zeigten ins Leere, darunter der
+  Banner in Zeile 3. Alle auf absolute URLs umgestellt, Bilder über `/raw/`, Dokumente über
+  `/blob/`. `twine check` fängt das nicht: Es prüft, ob die Beschreibung rendert, nicht ob die
+  Ziele existieren.
+- **Die Maßzahl im README altert nicht mehr still.** Dort stand „30 Maße je PDF" — schon vorher
+  ungenau. Jetzt „33 Maße je Seite", an einen echten Lauf gebunden: Wer eine Prüfung hinzufügt,
+  sieht Rot statt einer stillen Abweichung.
+- Trove-Classifier und vier zusätzliche Projekt-Adressen in `pyproject.toml`; ohne sie wäre das
+  Paket auf PyPI praktisch unauffindbar. (#33)
+
+### Infrastruktur
+- Publish-Job für PyPI über OIDC (Trusted Publishing), ohne API-Token. Drei Bremsen: das
+  Environment `pypi` mit Freigabe von Hand, eine Branch-Policy nur für Tags `v*`, und ein
+  Abgleich von Tag und Paketversion vor dem Upload. (#7)
+- ADR 0029 bis 0032; `docs/ROADMAP.md` wird wöchentlich aus Meilensteinen und Issues erzeugt.
+
 ## v0.6.0 — 25.08.2026
 
 ### Neu
