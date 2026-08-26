@@ -153,6 +153,19 @@ jobs:
           # Damit im Nachhinein belegbar ist, welche Datei hochgeladen wurde.
           sha256sum dist/* | tee dist/SHA256SUMS
 
-      - uses: pypa/gh-action-pypi-publish@a892a5a61159132606e93a2fa6f4358831b04d26  # v1.14.2
+      # AUSNAHME von der Hausregel "Actions auf Commit-SHAs pinnen" — begruendet,
+      # nicht vergessen. Diese Action laeuft als Docker-Container und zieht ihr
+      # Image mit dem `action_ref` als Image-Tag. Beim SHA-Pinning ist das der
+      # Commit-SHA, und dafuer existiert im Registry kein Image: Sie werden nur
+      # fuer Release-Tags gebaut. Gemessen am 26.08.2026 gegen ghcr.io:
+      #
+      #   v1.14.2                                    HTTP 200
+      #   a892a5a61159132606e93a2fa6f4358831b04d26   manifest unknown
+      #
+      # Der Lauf 32965096295 ist genau daran gescheitert — nach der Freigabe,
+      # aber vor jedem Upload. Der Tag v1.14.2 zeigt auf denselben Commit
+      # a892a5a; wer das SHA-Pinning wiederherstellen will, muss vorher pruefen,
+      # ob die Action ihr Image inzwischen unter dem SHA ablegt.
+      - uses: pypa/gh-action-pypi-publish@v1.14.2
         with:
           print-hash: true
