@@ -19,3 +19,4 @@ gelesen wird und die niemand nachpflegt.
 | [0029](0029-falzmarke-ist-werkzeug-kein-kanal.md) | falzmarke ist Werkzeug, kein Kanal | 26.08.2026 |
 | [0030](0030-reihenfolge-der-roadmap.md) | Reihenfolge der Roadmap | 26.08.2026 |
 | [0031](0031-was-in-ein-oeffentliches-issue-gehoert.md) | Was in ein öffentliches Issue gehört | 26.08.2026 |
+| [0032](0032-verbreitung-vor-normabgleich.md) | Verbreitung darf dem Normabgleich vorausgehen | 26.08.2026 |
