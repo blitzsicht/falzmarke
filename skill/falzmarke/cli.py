@@ -39,6 +39,7 @@ EXIT_OK, EXIT_EINGABE, EXIT_GEOMETRIE, EXIT_UMGEBUNG = 0, 1, 2, 3
 # Datenvertrag und Leitwörter stehen in lint.py — dort, wo sie geprüft werden.
 # cli importiert lint ohnehin; eine zweite Liste hier wäre eine Kopie, die bei
 # der naechsten Aenderung still auseinanderlaeuft.
+from falzmarke import anlagen as anlagen_modul  # noqa: E402
 from falzmarke import sprachen  # noqa: E402
 from falzmarke.lint import INFOBLOCK_REIHENFOLGE, PFLICHTFELDER  # noqa: E402
 
@@ -535,7 +536,15 @@ def rendere(
     pdfua: bool = False,
     format_name: str = "pdf",
     ppi: int = 120,
+    anlagen_bericht: list | None = None,
 ) -> tuple[Path, str]:
+    """Setzt den Brief. Gibt (Pfad, Form) zurück.
+
+    `anlagen_bericht`: Wer wissen will, was beim Anhängen von `anlagen_dateien`
+    geschah, gibt eine Liste mit — der Bericht wird angehängt. Ein
+    Rückgabewert mehr hätte jeden Aufrufer gebrochen, ein Modul-Global wäre
+    Zustand, den niemand erwartet.
+    """
     typst = _typst_modul()
     kopf, body_md, versatz = lies_brief(brief_pfad)
     profil, profil_pfad = lade_profil(kopf.get("profil", ""), profil_verzeichnis, brief_pfad)
@@ -641,6 +650,18 @@ def rendere(
         # sonst trägt ihn nur, wer über die Kommandozeile rendert.
         schreibe_herkunft(ausgabe, brief_pfad, str(kopf.get("profil", "")), daten["form"])
 
+        # Anlagen zuletzt: Der Brief ist dann fertig gemessen und vermerkt, und
+        # die angehängten Seiten verschieben nichts an seiner Geometrie.
+        dateien = als_liste(kopf.get("anlagen_dateien"))
+        if dateien:
+            try:
+                bericht = anlagen_modul.haenge_an(
+                    ausgabe, anlagen_modul.loese_auf(dateien, brief_pfad))
+            except anlagen_modul.AnlagenFehler as fehler:
+                raise Eingabefehler(str(fehler)) from None
+            if anlagen_bericht is not None:
+                anlagen_bericht.append(bericht)
+
     if format_name == "png":
         seiten = sorted(png_ziel.parent.glob(png_ziel.stem + "-*" + png_ziel.suffix))
         if len(seiten) == 1:
@@ -692,6 +713,35 @@ def befehl_lint(args) -> int:
     return EXIT_OK if bericht.ok else EXIT_EINGABE
 
 
+def _melde_anlagen(bericht: dict) -> None:
+    """Sagt, was angehängt wurde — und was das für die PDF/A-Kennzeichnung hiess.
+
+    Beides still zu tun waere das Schlechteste: Wer nicht merkt, dass die
+    Kennzeichnung fiel, legt eine Datei ins Archiv, die er fuer PDF/A haelt.
+    Wer nicht merkt, dass sie blieb, weiss nicht, worauf sie beruht.
+    """
+    dazu = bericht["seiten_nachher"] - bericht["seiten_vorher"]
+    namen = ", ".join(a["datei"] for a in bericht["anlagen"])
+    print(f"OK  {len(bericht['anlagen'])} Anlage(n) angehängt, {dazu} Seiten: {namen}")
+
+    if bericht["ohne_deklaration"]:
+        print(
+            "    Die PDF/A-Kennzeichnung wurde entfernt: "
+            + ", ".join(bericht["ohne_deklaration"])
+            + " trägt keine.\n"
+            "    falzmarke hat diese Datei nicht gesetzt und kann ihre Konformität nicht\n"
+            "    prüfen. Ein PDF, das PDF/A behauptet und es nicht ist, fällt erst im\n"
+            "    Archiv auf. Prüfen lässt sich das Ergebnis mit veraPDF.",
+            file=sys.stderr,
+        )
+    elif bericht["pdfa_nachher"]:
+        print(
+            f"    PDF/A-{bericht['pdfa_nachher']} bleibt gekennzeichnet — jede Anlage\n"
+            "    deklariert es selbst. Das ist ihre Aussage, keine Prüfung: Belegt ist\n"
+            "    die Konformität erst durch veraPDF.",
+        )
+
+
 def befehl_render(args) -> int:
     from falzmarke import geometrie
 
@@ -704,14 +754,18 @@ def befehl_render(args) -> int:
     for befund in vorpruefung.befunde:
         print(befund.als_zeile(Path(args.brief).name), file=sys.stderr)
 
+    anlagen_berichte: list = []
     pdf, form = rendere(
         Path(args.brief),
         Path(args.output) if args.output else None,
         profil_verzeichnis=Path(args.profiles) if args.profiles else None,
         pdfa=not args.no_pdfa,
         pdfua=args.pdfua,
+        anlagen_bericht=anlagen_berichte,
     )
     print(f"OK  PDF geschrieben: {pdf}")
+    for anlagen_bericht in anlagen_berichte:
+        _melde_anlagen(anlagen_bericht)
 
     if args.png:
         png, _ = rendere(
@@ -724,7 +778,12 @@ def befehl_render(args) -> int:
         print(f"OK  Vorschau: {png}")
 
     bericht = geometrie.pruefe(pdf, form)
-    if not args.no_pdfa:
+    # Die Kennzeichnung faellt absichtlich, wenn eine Anlage keine traegt — das
+    # ist dann kein Fehler des Briefes, und die Meldung dazu steht schon oben.
+    # Sie hier als Geometriebefund zu fuehren, wuerde EXIT_GEOMETRIE ergeben und
+    # behaupten, die Masse stimmten nicht.
+    kennzeichnung_gefallen = any(b["ohne_deklaration"] for b in anlagen_berichte)
+    if not args.no_pdfa and not kennzeichnung_gefallen:
         ist_pdfa, _ = geometrie.pdfa_geprueft(pdf)
         bericht.wahr("PDF/A-2b", ist_pdfa, "pdfaid part 2, conformance B",
                      "vorhanden" if ist_pdfa else "fehlt")

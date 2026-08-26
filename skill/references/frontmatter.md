@@ -33,8 +33,10 @@ gruss: Mit freundlichen Grüßen          # ohne Komma. Ohne Angabe: Wert aus de
 unterzeichner: i. A. Erika Muster       # ohne Angabe: Wert aus dem Profil
 signatur: keine                         # `keine` = von Hand unterschreiben;
                                         # oder eine Bilddatei neben dem Brief
-anlagen:                                # optional
+anlagen:                                # optional, der Vermerk im Brief
   - Angebot 2026-0815
+anlagen_dateien:                        # optional, PDFs hinten anhängen
+  - angebot-2026-0815.pdf               # relativ zur Briefdatei
 verteiler:                              # optional
   - Herrn Max Muster
 ---
@@ -141,3 +143,50 @@ bleibt damit dieselbe wie im deutschen Original. Wer die Zeile überfliegt, verw
 Tag und Monat nicht.
 
 Ein vollständiges Beispiel: [`examples/brief-englisch.md`](../../examples/brief-englisch.md).
+
+## Anlagen beilegen
+
+`anlagen:` und `anlagen_dateien:` sind zweierlei und unabhängig voneinander:
+
+- **`anlagen:`** schreibt den Anlagenvermerk unter den Brief. Er nennt, was beiliegt —
+  auch dann, wenn die Anlage per Post beigelegt wird und es keine Datei gibt.
+- **`anlagen_dateien:`** hängt PDF-Dateien hinten an das erzeugte PDF. Pfade sind
+  relativ zur Briefdatei, damit ein Vorgang samt seinen Anlagen ein Ordner bleibt,
+  den man verschieben kann.
+
+Wer beides will, schreibt beides.
+
+### Was das mit PDF/A macht
+
+Ein Merge erhält die XMP-Metadaten des Briefes. Ohne Gegenmaßnahme behauptet die Datei
+danach weiter PDF/A-2b, gleichgültig was in der Anlage steckt — gemessen mit veraPDF:
+
+| Anlage | Ergebnis laut veraPDF | XMP sagt |
+|---|---|---|
+| aus Typst, Schriften eingebettet | PASS 2b | 2b |
+| nicht eingebettete Schrift | **FAIL 2b** | 2b |
+
+Der zweite Fall ist der teure: eine Datei, die PDF/A behauptet und es nicht ist. Sie
+fällt erst auf, wenn im Archiv die Schrift fehlt.
+
+falzmarke hat die Anlage nicht gesetzt und kann ihre Konformität nicht prüfen — das kann
+nur ein Prüfwerkzeug wie veraPDF. Ohne fremdes Werkzeug feststellbar ist allein, was die
+Anlage **über sich selbst sagt**. Daran richtet sich die Kennzeichnung aus:
+
+| Lage | Kennzeichnung | Meldung |
+|---|---|---|
+| alle Anlagen deklarieren PDF/A | bleibt | Hinweis, dass das ihre Aussage ist, keine Prüfung |
+| eine Anlage deklariert nichts | wird entfernt | nennt die Datei und den Grund |
+
+Die Deklaration ist kein Beleg für Konformität. Eine Anlage, die nichts behauptet, ist
+mit Sicherheit kein PDF/A; eine, die es behauptet, ist es wahrscheinlich. Auf dieser
+Grundlage die Kennzeichnung zu *entfernen* ist sicher — sie stehen zu lassen bleibt eine
+Aussage über die Anlage. Belegt ist die Konformität des Ergebnisses erst durch veraPDF
+([`scripts/pdf_konformitaet.py`](../../scripts/pdf_konformitaet.py)).
+
+### Die Anlage wird nicht nach Briefregeln gemessen
+
+Eine Anlage trägt keine Kopfzeile mit Betreff, keine Seitenzählung und womöglich keine
+eingebettete Schrift. `verify` misst deshalb nur die Seiten des Briefes; wo er endet,
+vermerkt falzmarke beim Anhängen als `/falzmarke_Briefseiten` im PDF. Auch ein späteres
+`verify` auf der fertigen Datei liest das und beurteilt die Anlage nicht.

@@ -55,7 +55,7 @@ PFLICHTFELDER = ("profil", "empfaenger", "datum", "betreff")
 FRONTMATTER_FELDER = frozenset({
     "profil", "form", "norm", "sprache", "empfaenger", "vermerke", "datum",
     "betreff", "betreff_kurz", "infoblock", "anrede", "gruss",
-    "unterzeichner", "signatur", "anlagen", "verteiler",
+    "unterzeichner", "signatur", "anlagen", "anlagen_dateien", "verteiler",
 })
 
 INFOBLOCK_FELDER = frozenset(schluessel for schluessel, _ in INFOBLOCK_REIHENFOLGE)
