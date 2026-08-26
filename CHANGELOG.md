@@ -2,6 +2,21 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.7.1 — 26.08.2026
+
+### Behoben
+- **Der Publish-Job konnte nicht laufen.** Ihm fehlte `pytest`, obwohl er
+  `tests/test_readme_auf_pypi.py` aufruft — der Lauf brach mit `No module named pytest` ab.
+  Das geschah nach der Freigabe, aber **vor dem Upload**: Die Reihenfolge im Job prüft erst und
+  lädt dann hoch, deshalb ist auf PyPI nichts gelandet und der Paketname blieb frei.
+
+### Warum es diese Version gibt
+v0.7.0 ist als Tag und GitHub-Release vorhanden, aber nie auf PyPI erschienen. Ein erneuter
+Anlauf mit demselben Tag war nicht möglich: Das Environment `pypi` lässt Deployments nur von
+Tags `v*` zu, ein `workflow_dispatch` von `main` wird abgewiesen — und ein Dispatch vom Tag
+selbst hätte wieder die fehlerhafte Workflow-Datei geladen. Die Schutzregel zu lockern wäre der
+falsche Weg gewesen; ein neuer Tag ist der richtige.
+
 ## v0.7.0 — 26.08.2026
 
 ### Neu
