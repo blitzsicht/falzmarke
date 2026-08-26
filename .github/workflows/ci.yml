@@ -92,6 +92,88 @@ jobs:
           /tmp/frisch/bin/falzmarke verify brief.pdf
           test -f brief.pdf && test -f brief.png
 
+  pdf-konformitaet:
+    # Der einzige Job, dessen Urteil NICHT aus dieser Codebasis stammt.
+    #
+    # Alle anderen Prüfungen hier messen mit demselben Code, der das PDF
+    # erzeugt hat — sie belegen Selbsttreue, keine Konformität. veraPDF ist die
+    # Referenzimplementierung der PDF Association, hat den Brief nicht
+    # geschrieben und teilt keine Zeile mit dem Renderer. Erst damit steht
+    # hinter der Konformitätsaussage im README ein fremder Beleg (Issue #34).
+    #
+    # Nur ubuntu: Der Beleg hängt am Prüfergebnis, nicht am Betriebssystem des
+    # Prüfers. Dieselbe Datei dreimal zu validieren wäre dreimal dasselbe
+    # Urteil — die Plattform-Matrix in `tests` deckt ab, dass die Datei überall
+    # gleich entsteht.
+    name: PDF-Konformität (veraPDF, fremdes Werkzeug)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Abhängigkeiten
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r skill/requirements.txt pytest
+
+      - name: veraPDF installieren
+        run: |
+          # Java bringt der Runner mit; ein eigener setup-java-Schritt wäre eine
+          # weitere Action, die gepinnt und gepflegt werden müsste.
+          java -version
+          curl -sSL --retry 3 -o /tmp/verapdf-installer.zip \
+            https://software.verapdf.org/releases/verapdf-installer.zip
+          unzip -q /tmp/verapdf-installer.zip -d /tmp/verapdf-installer
+          cd /tmp/verapdf-installer/verapdf-greenfield-*
+          cat > auto-install.xml <<'XML'
+          <AutomatedInstallation langpack="eng">
+            <com.izforge.izpack.panels.htmlhello.HTMLHelloPanel id="welcome"/>
+            <com.izforge.izpack.panels.target.TargetPanel id="install_dir">
+              <installpath>/opt/verapdf</installpath>
+            </com.izforge.izpack.panels.target.TargetPanel>
+            <com.izforge.izpack.panels.packs.PacksPanel id="sdk_pack_select">
+              <pack index="0" name="veraPDF GUI" selected="true"/>
+              <pack index="1" name="veraPDF Mac and *nix Scripts" selected="true"/>
+              <pack index="2" name="veraPDF Validation model" selected="false"/>
+              <pack index="3" name="veraPDF Documentation" selected="false"/>
+              <pack index="4" name="veraPDF Sample Plugins" selected="false"/>
+            </com.izforge.izpack.panels.packs.PacksPanel>
+            <com.izforge.izpack.panels.install.InstallPanel id="install"/>
+            <com.izforge.izpack.panels.finish.FinishPanel id="finish"/>
+          </AutomatedInstallation>
+          XML
+          ./verapdf-install ./auto-install.xml
+          echo "/opt/verapdf" >> "$GITHUB_PATH"
+
+      - name: veraPDF ist wirklich da
+        run: |
+          # Ohne diesen Schritt liefe der nächste in "NICHT GEPRÜFT" (Exit 2)
+          # und würde den Job zwar rot machen — aber die Ursache stünde erst
+          # tief in der Ausgabe. Hier steht sie oben.
+          command -v verapdf
+          verapdf --version 2>&1 | grep -iE "veraPDF|[0-9]+\.[0-9]+" | head -2
+
+      - name: Beispiele rendern
+        run: |
+          mkdir -p bau
+          for datei in examples/*.md; do
+            python skill/scripts/falzmarke.py render "$datei" -o "bau/$(basename "$datei" .md).pdf"
+          done
+          echo "gerendert: $(ls bau/*.pdf | wc -l)"
+
+      - name: Konformität gegen ein fremdes Werkzeug halten
+        run: |
+          # --gegenprobe erzeugt zusätzlich ein PDF OHNE PDF/A und verlangt,
+          # dass veraPDF es ablehnt. Ohne sie belegt ein grüner Lauf nur, dass
+          # veraPDF gestartet ist.
+          python scripts/pdf_konformitaet.py bau/*.pdf --gegenprobe examples/brief-form-b.md
+
+      - name: Tests der Prüfung selbst
+        run: python -m pytest tests/test_pdf_konformitaet.py -o addopts="" -q
+
   renders-aktualisieren:
     needs: tests
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'

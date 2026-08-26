@@ -95,8 +95,10 @@ gepflegten Vorlage lässt sich vieles davon erreichen.
   Voreinstellungen. Auch die Unterschrift, je Brief überschreibbar.
 - **Fehler sind maschinenlesbar** — eigene Exit-Codes für Eingabe-, Geometrie- und
   Umgebungsfehler, dazu `--json`. Damit läuft es in CI und in Automatisierungen.
-- **Für Langzeitarchivierung ausgelegt** — PDF/A-2b ohne zusätzliches Flag, die Kennzeichnung
-  wird im fertigen PDF nachgemessen. Optional PDF/UA-1 mit `--pdfua`.
+- **Für Langzeitarchivierung ausgelegt** — PDF/A-2b ohne zusätzliches Flag. Dass die Datei die
+  Konformität wirklich einhält, sagt nicht dieses Werkzeug, sondern
+  [veraPDF](https://verapdf.org/) — die Referenzimplementierung der PDF Association, in CI bei
+  jedem Push. Optional PDF/UA-1 mit `--pdfua`, ebenfalls dort geprüft.
 - **Im Gespräch oder im Terminal** — als Claude-Skill oder als CLI, ohne Systeminstallation.
 
 ## Woran man sieht, dass es stimmt
@@ -112,6 +114,12 @@ Das ist der Teil, an dem sich das Versprechen entscheidet — deshalb steht er v
 - **Ein Frischinstallations-Test** führt die Befehle aus dieser README wirklich aus. Hier steht
   kein Befehl, den niemand ausprobiert hat.
 - **Alle Beispielbriefe werden in CI gerendert** und vermessen.
+- **Die PDF-Konformität bestätigt ein fremdes Werkzeug.** Alles andere auf dieser Liste misst mit
+  demselben Code, der das PDF erzeugt hat — das belegt Selbsttreue, nicht Konformität.
+  [veraPDF](https://verapdf.org/) hat den Brief nicht geschrieben und teilt keine Zeile mit dem
+  Renderer. Geprüft wird, was die Datei selbst deklariert, auf der ausgelieferten Datei, mit
+  Prüfsummen-Abgleich — und mit einer Gegenprobe, die ein absichtlich nicht-konformes PDF
+  durchfallen lässt ([`scripts/pdf_konformitaet.py`](scripts/pdf_konformitaet.py)).
 - **Die Layoutbasis ist vendort und prüfsummengesichert** —
   [`vendor/README.md`](skill/falzmarke/typst/vendor/README.md).
 
