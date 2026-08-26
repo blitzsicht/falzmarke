@@ -57,8 +57,11 @@ def markdown(k: dict) -> str:
     z.append(f"- GitHub-Beschreibung ({len(k['github_beschreibung'])} Zeichen): "
              f"`{k['github_beschreibung']}`\n")
     z.append("\n## Installationsbefehle\n")
-    z.append("Nur diese duerfen in Bild und Text gezeigt werden. `pipx install falzmarke`")
-    z.append("gibt es nicht — das Paket liegt nicht auf PyPI ([#7](https://github.com/blitzsicht/falzmarke/issues/7)).\n")
+    z.append("Nur diese duerfen in Bild und Text gezeigt werden. Seit v0.7.3 gibt es")
+    z.append("`pipx install falzmarke` zwar wirklich ([PyPI](https://pypi.org/project/falzmarke/)) —")
+    z.append("der Kanon bleibt trotzdem beim `git+`-Weg: Er trifft auch den unveroeffentlichten")
+    z.append("Stand von `main`, und er steckt im gerenderten Film. Umstellen hiesse Film und")
+    z.append("Szenen neu rendern.\n")
     z.append(f"- Ohne Clone: `{k['installation']['ohne_clone']}`")
     z.append(f"- Dauerhaft: `{k['installation']['dauerhaft']}`\n")
     z.append("\n## Nutzen im Bild\n")

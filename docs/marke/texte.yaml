@@ -24,8 +24,11 @@ adresse: "falzmarke.com"
 
 github_beschreibung: "DIN-5008-Briefe aus Markdown, am fertigen PDF nachgemessen. Sollwerte aus Sekundärquellen."
 
-# Die Befehle, die im Film und im GIF gezeigt werden duerfen. Es gibt sie wirklich —
-# `pipx install falzmarke` gibt es nicht, das Paket liegt nicht auf PyPI (Issue #7).
+# Die Befehle, die im Film und im GIF gezeigt werden duerfen.
+# Seit v0.7.3 (26.08.2026) liegt das Paket auf PyPI, `pipx install falzmarke` gibt es
+# also. Hier steht trotzdem der `git+`-Weg: Er trifft auch den unveroeffentlichten
+# Stand von `main` und ist im gerenderten Film verbaut — eine Umstellung zoege ein
+# Neu-Rendern nach sich, keinen Gewinn.
 # tests/test_installationswege.py wacht ueber die README, dieser Eintrag ueber das Video.
 installation:
   ohne_clone: "uvx --from git+https://github.com/blitzsicht/falzmarke falzmarke"
