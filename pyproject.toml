@@ -42,6 +42,12 @@ Issues = "https://github.com/blitzsicht/falzmarke/issues"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "fonttools>=4"]
+# Der MCP-Dienst ist bewusst nicht in der Grundausstattung: Das SDK bringt
+# 28 Pakete mit, darunter uvicorn, starlette, cryptography und opentelemetry.
+# Ein Werkzeug, das offline Briefe setzt, schleppt die nicht mit.
+# Ab 2.0: dort heisst die Serverklasse MCPServer. In 1.x war es FastMCP
+# unter einem anderen Pfad — derselbe Code laeuft nicht auf beiden.
+mcp = ["mcp>=2,<3"]
 
 [project.scripts]
 falzmarke = "falzmarke.cli:main"

@@ -199,6 +199,26 @@ Noch liegt das Paket **nicht auf PyPI** — deshalb die Adresse statt eines blo�
 Der Typst-Compiler kommt als Python-Wheel mit: **keine Systeminstallation**, kein LaTeX, kein
 wkhtmltopdf, keine Schriftinstallation.
 
+### In einem anderen KI-Client
+
+falzmarke spricht MCP — damit setzen auch Clients Briefe, die keinen Claude-Skill kennen.
+
+```bash
+pip install 'mcp>=2,<3'          # das SDK ist nicht in der Grundausstattung
+falzmarke mcp                    # Server über stdio
+```
+
+Drei Werkzeuge: `brief_rendern`, `brief_pruefen`, `profile_auflisten`. Der **Messbericht kommt
+bei jedem Rendern mit** — ein Dienst, der ein PDF zurückgibt und offenlässt, ob die Maße
+stimmen, wäre ein PDF-Generator wie jeder andere.
+
+Das Absenderprofil darf als Objekt im Aufruf stehen. Ein Client ohne Zugriff auf das
+Dateisystem des Servers kann so seinen eigenen Absender mitgeben, statt mit den Profilen zu
+leben, die dort zufällig liegen.
+
+Was der Dienst **nicht** tut: versenden, ablegen, zustellen. Er setzt und prüft
+([ADR 0029](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0029-falzmarke-ist-werkzeug-kein-kanal.md)).
+
 <details>
 <summary>Aus einem Clone, ohne Installation</summary>
 
