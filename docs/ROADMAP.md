@@ -8,7 +8,7 @@ Die Reihenfolge der Phasen folgt [ADR 0030](entscheidungen/0030-reihenfolge-der-
 Meilensteinen und offenen Issues erzeugt und nicht von Hand gepflegt: die Wahrheit
 steht im Issue, hier steht nur eine Sicht darauf.
 
-**20 offene Vorgänge** in 6 Phasen.
+**19 offene Vorgänge** in 6 Phasen.
 
 ## 1. Vor Verbreitung
 
@@ -42,13 +42,12 @@ Muss abgeschlossen sein, bevor das Werkzeug öffentlich beworben wird: Typst Uni
 
 Dienst, MCP, Browser, Website
 
-**3 offen · 0 erledigt**
+**2 offen · 0 erledigt**
 
 | Nr. | Was | Priorität | Bereich | Zustand |
 |---|---|---|---|---|
 | [#5](https://github.com/blitzsicht/falzmarke/issues/5) | MCP-Server, damit andere KI-Clients Briefe setzen können | P1 | mcp | — |
 | [#6](https://github.com/blitzsicht/falzmarke/issues/6) | GitHub Action: Briefe im Repo rendern | P2 | ci | — |
-| [#36](https://github.com/blitzsicht/falzmarke/issues/36) | Entscheidung: Captain-Muster in falzmarke oder daneben? | P2 | — | maintainer |
 
 ## 4. Dokumentpakete
 
