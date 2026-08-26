@@ -105,8 +105,17 @@ def test_zweizeiliger_betreff_ist_erlaubt(tmp_path):
 
 
 def test_anrede_ohne_komma(tmp_path):
+    """Warnung statt Fehler: Die Regel steht nur in einer vollen Quelle.
+
+    Bis v0.6.0 galt sie als mehrfach bestätigt und durfte Läufe scheitern
+    lassen — gestützt auch auf den Wikipedia-Artikel. Der nennt das Wort
+    „Komma" jedoch kein einziges Mal und sagt zur Anrede ausdrücklich, ihr
+    Textinhalt sei dort nicht geregelt. Eine Quelle, die zur Regel schweigt,
+    trägt sie nicht.
+    """
     bericht = linte(tmp_path, KOPF.replace("Herren,", "Herren"))
-    assert "anrede" in regeln(bericht)
+    assert "anrede" in warnungen(bericht)
+    assert "anrede" not in regeln(bericht)
 
 
 def test_gruss_mit_komma(tmp_path):

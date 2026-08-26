@@ -61,8 +61,8 @@ quellen:
       nennt 45 / 85×45 / 17,7 / 27,3 / 125 / 75 / 8,46 / 105 / 210 / 148,5 /
       25 / 20 / 4,23 mm. Nur Form B — ein Pendant für Form A gibt es dort nicht.
   onlineprinters:
-    titel: "Maßzeichnungen im Onlineprinters-Magazin"
-    url: https://www.onlineprinters.de/magazin/din-5008-vorlage/
+    titel: "Maßzeichnung Form B im Onlineprinters-Magazin"
+    url: https://www.onlineprinters.de/magazin/aufbau-geschaeftsbrief-nach-din-5008/
     art: sekundaerquelle
     zaehlt: voll
     abgerufen: 2026-08-25
@@ -70,6 +70,49 @@ quellen:
       Als Sichtreferenz gegengeprüft. Die dort angebotene Word-Vorlage ist
       nachweislich nicht normgerecht, siehe docs/normmasse.md — die
       Maßzeichnung selbst stimmt mit den übrigen Quellen überein.
+      **Die frühere Adresse (…/din-5008-vorlage/) ist tot** — sie leitet auf die
+      Magazin-Startseite um und wurde nie archiviert. Am 26.08.2026 durch die
+      tatsächliche Artikeladresse ersetzt.
+      Zur Unabhängigkeit von `massskizze_b` läuft eine Prüfung (Issue #16): Die
+      Bemaßungsstruktur beider Form-B-Zeichnungen ist deckungsgleich, und die
+      CC0-Lizenz der Wikimedia-Zeichnung erlaubt eine Übernahme ohne Nennung.
+      Solange dort keine Kontrollzeichnung vorliegt, bleibt die Stufe unverändert.
+  massskizze_a:
+    titel: "Maßzeichnung Form A im Onlineprinters-Magazin"
+    url: https://www.onlineprinters.de/magazin/aufbau-geschaeftsbrief-nach-din-5008/
+    art: sekundaerquelle
+    zaehlt: voll
+    abgerufen: 2026-08-26
+    bemerkung: >-
+      Eigene Form-A-Zeichnung (Datei `Vorlage_Geschaeftsbrief_DIN-5008_Form-A.jpg`,
+      hochgeladen 2021-07), Bezugsnorm DIN 5008:2020.
+      **Getrennt von `onlineprinters` geführt, obwohl im selben Artikel:** Für
+      Form A gibt es auf Wikimedia kein Pendant, diese Zeichnung kann also nicht
+      von dort abgeleitet sein — der Zweifel an der Form-B-Zeichnung trifft sie
+      nicht. Dieselbe Fundstelle, aber eine andere Belegkette.
+      Abgelesen und nachgerechnet: Briefkopf/Anschriftfeld ab 27, Anschriftzone
+      20 links und 45 hoch, Faltmarke 1 bei 87, Lochmarke bei 148,5, von dort
+      105 bis Faltmarke 2 (= 192) und nochmals 105 bis zur Blattkante.
+      87 + 105 + 105 = 297 mm — die Bemaßung geht auf A4 auf, was ein
+      Ablesefehler nicht täte.
+  koma_script:
+    titel: "KOMA-Script, DIN5008A.lco (TeX Live)"
+    url: https://ctan.org/pkg/koma-script
+    art: implementierung
+    zaehlt: einzeln
+    abgerufen: 2026-08-26
+    bemerkung: >-
+      **Nicht vendort** — im Gegensatz zu letter_pro setzt falzmarke nicht damit.
+      Der Sollwert käme also von außen, und die Prüfung kann rot werden.
+      **Zählt trotzdem nicht zur Bestätigung**, aus zwei Gründen. Erstens
+      bezeichnet das Handbuch die Datei selbst als „experimentellen" Parametersatz,
+      „angelehnt an" Variante A, der „nur eine einzige Interpretation der Norm"
+      umsetzt. Zweitens: `DIN5008A.lco` lädt `DINmtext` als Basis und ändert
+      zwölf Längen — aber keine der Kerngeometrie. Faltmarken 87/192 und
+      Anschriftfeld 27 stammen unverändert aus `DINmtext`, und das ist laut
+      Handbuch der Parametersatz nach **DIN 676**, nicht nach DIN 5008.
+      Dass der Autor gerade diese Werte nicht angepasst hat, ist stille
+      Zustimmung — aber keine eigenständige Normaussage.
   wikipedia:
     titel: "DIN 5008 in der deutschsprachigen Wikipedia"
     url: https://de.wikipedia.org/wiki/DIN_5008
@@ -145,7 +188,7 @@ regeln:
   - id: geometrie.form_a.masse
     titel: Form A — Briefkopf 27 mm, Anschriftfeld ab 27 mm, Falzmarken 87 / 192 mm
     herkunft: einzeln_belegt
-    quellen: [letter_pro]
+    quellen: [massskizze_a, koma_script, letter_pro]
     wirkung: warnung
     bemerkung: >-
       Schwächer belegt als Form B, und das ist erst durch diese Erhebung
@@ -212,9 +255,14 @@ regeln:
   - id: text.anrede_komma
     titel: Anrede endet mit Komma, der Text darunter beginnt klein
     lint: anrede
-    herkunft: mehrfach_bestaetigt
-    quellen: [wikipedia, onlineprinters, letter_pro]
-    wirkung: fehler
+    herkunft: einzeln_belegt
+    quellen: [onlineprinters, letter_pro]
+    # wikipedia am 26.08.2026 entfernt: Der Artikel nennt das Wort „Komma" kein
+    # einziges Mal — 13.020 Zeichen, ueber die API geholt und vollstaendig
+    # durchsucht — und sagt zur Anrede ausdruecklich, ihr Textinhalt sei „hier
+    # nicht geregelt". Die Quelle stand hier, ohne zur Regel etwas beizutragen,
+    # und hob sie damit auf eine Stufe, die Laeufe scheitern lassen darf.
+    wirkung: warnung
 
   - id: text.gruss_ohne_komma
     titel: Grußformel ohne Komma
