@@ -234,7 +234,8 @@ Die PDFs hängen danach als Artefakt am Lauf. Hält ein Brief die Maße nicht ei
 rot und nennt Datei und Maß — ein Serienbrief-Archiv merkt einen verrutschten Betreff damit
 beim Push und nicht beim Empfänger. Die Eingaben stehen in
 [`action.yml`](https://github.com/blitzsicht/falzmarke/blob/main/action.yml); die Aktion
-installiert falzmarke von PyPI und baut keine zweite Installationsstrecke auf.
+installiert falzmarke von PyPI und baut keine zweite Installationsstrecke auf. Wer den Lauf
+nachfahrbar halten will, nennt eine feste Fassung: `paket: "falzmarke==0.7.3"`.
 
 ### In einem anderen KI-Client
 

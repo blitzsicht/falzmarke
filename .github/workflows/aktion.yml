@@ -4,9 +4,20 @@
 # Dateimuster und ihre Fehlerbehandlung zeigen sich erst im Lauf. Dieses
 # Repository benutzt sie deshalb auf seinen eigenen Beispielbriefen.
 #
-# Geprueft wird die Mechanik der Aktion, nicht der Renderer — sie installiert
-# falzmarke von PyPI, also die veroeffentlichte Fassung. Ob der Code in diesem
-# Zweig richtig rechnet, sagt ci.yml.
+# Zwei Wege, weil beide gebraucht werden:
+#
+#   selbsttest  installiert den Code DIESES Zweiges (`paket: "."`). Nur so
+#               deckt er Beispiele ab, die neuere Felder benutzen als die
+#               letzte Veroeffentlichung.
+#   mit-pypi    installiert die veroeffentlichte Fassung und prueft damit den
+#               Weg, den fremde Repositories gehen.
+#
+# Der zweite Job braucht einen eigenen Brief. Die Beispiele im Repository
+# laufen der Veroeffentlichung voraus: Am 26.08.2026 scheiterte dieser
+# Selbsttest daran, dass `examples/brief-englisch.md` das Feld `sprache`
+# benutzt, das v0.7.3 noch nicht kennt (#11 war gemergt, aber nicht
+# veroeffentlicht). Das ist kein Fehler der Aktion — aber ein Grund, den
+# PyPI-Weg an etwas zu pruefen, das sich nicht mit dem Repository bewegt.
 
 name: Aktion
 
@@ -36,6 +47,8 @@ jobs:
           ausgabe: "aus"
           vorschau: "true"
           artefakt: "beispielbriefe"
+          # Der Code dieses Zweiges, nicht die letzte Veroeffentlichung.
+          paket: "."
 
       - name: Ergebnis nachzaehlen
         shell: bash
@@ -54,6 +67,50 @@ jobs:
           [ "$pngs" -gt 0 ] || { echo "::error::vorschau=true, aber kein PNG"; exit 1; }
 
           echo "OK  $gemeldet Briefe, $pdfs PDFs, $pngs Vorschauen"
+
+  mit-pypi:
+    name: Der Weg, den fremde Repositories gehen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      # Ein eigener Brief statt examples/: Der benutzt nur Pflichtfelder und
+      # bewegt sich damit nicht mit dem Repository. Ein Beispiel, das ein
+      # neues Feld benutzt, wuerde diesen Job bei jeder Neuerung rot faerben,
+      # ohne dass an der Aktion etwas falsch waere.
+      - name: Brief nur aus Pflichtfeldern
+        shell: bash
+        run: |
+          mkdir -p probe
+          cat > probe/brief.md <<'BRIEF'
+          ---
+          profil: example
+          datum: 2026-08-26
+          empfaenger:
+            - Muster GmbH
+            - Frau Erika Muster
+            - Musterstraße 1
+            - 12345 Musterstadt
+          betreff: Probelauf der Aktion
+          anrede: Sehr geehrte Frau Muster,
+          ---
+
+          dieser Brief prüft den Installationsweg über PyPI.
+
+          Mit freundlichen Grüßen
+          BRIEF
+
+      - uses: ./
+        with:
+          briefe: "probe/*.md"
+          ausgabe: "aus-pypi"
+          artefakt: ""
+
+      - name: PDF vorhanden
+        shell: bash
+        run: |
+          [ -f aus-pypi/brief.pdf ] || { echo "::error::kein PDF"; exit 1; }
+          echo "OK  PyPI-Weg trägt"
 
   gegenprobe:
     name: Ohne Treffer muss sie fehlschlagen

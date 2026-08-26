@@ -140,6 +140,25 @@ def test_der_selbsttest_benutzt_die_aktion_aus_diesem_baum():
     assert "./" in verwendet, f"der Selbsttest benutzt nicht ./: {verwendet}"
 
 
+def test_der_selbsttest_nimmt_den_code_dieses_zweiges():
+    """Sonst prüft er die letzte Veröffentlichung, nicht den Stand im PR.
+
+    Am 26.08.2026 hat genau das zugeschlagen: Der Selbsttest installierte
+    v0.7.3 von PyPI und scheiterte an `examples/brief-englisch.md`, weil das
+    Feld `sprache` erst nach dieser Fassung dazukam. Die Beispiele im
+    Repository laufen der Veröffentlichung voraus — der Selbsttest muss
+    deshalb den Zweig nehmen, und der PyPI-Weg bekommt einen eigenen Job mit
+    einem Brief, der sich nicht mitbewegt.
+    """
+    plan = yaml.safe_load(SELBSTTEST.read_text(encoding="utf-8"))
+    schritte = [s for s in plan["jobs"]["selbsttest"]["steps"] if s.get("uses") == "./"]
+    assert schritte, "der Selbsttest benutzt die Aktion gar nicht"
+    assert schritte[0]["with"].get("paket") == ".", (
+        "der Selbsttest installiert nicht den Code dieses Zweiges"
+    )
+    assert "mit-pypi" in plan["jobs"], "der Weg über PyPI wird nirgends geprüft"
+
+
 def test_die_readme_nennt_die_aktion():
     readme = (REPO / "README.md").read_text(encoding="utf-8")
     assert "action.yml" in readme or "blitzsicht/falzmarke@" in readme, (

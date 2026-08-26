@@ -39,12 +39,18 @@ inputs:
     description: Zielverzeichnis für die PDFs.
     required: false
     default: "briefe-pdf"
-  version:
+  paket:
     description: >
-      Zu installierende falzmarke-Fassung, als pip-Angabe. Leer lässt pip die
-      neueste wählen; eine feste Angabe macht den Lauf nachfahrbar.
+      Was pip installieren soll. Vorgabe „falzmarke" — die neueste
+      Veröffentlichung. „falzmarke==0.7.3" macht den Lauf nachfahrbar, „."
+      nimmt den Code eines ausgecheckten Repositories.
+
+      Die volle pip-Angabe und nicht nur eine Fassungsnummer, weil beides
+      gebraucht wird: Dieses Repository prüft seine eigene Aktion gegen den
+      Code im Zweig, fremde Repositories ziehen von PyPI. Eine Eingabe, die
+      nur Ziffern annimmt, könnte den ersten Fall nicht.
     required: false
-    default: ""
+    default: "falzmarke"
   vorschau:
     description: Zusätzlich ein PNG der ersten Seite je Brief schreiben.
     required: false
@@ -75,11 +81,7 @@ runs:
       shell: bash
       run: |
         python -m pip install --upgrade pip
-        if [ -n "${{ inputs.version }}" ]; then
-          pip install "falzmarke${{ inputs.version }}"
-        else
-          pip install falzmarke
-        fi
+        pip install "${{ inputs.paket }}"
         falzmarke --version
 
     - name: Briefe setzen und nachmessen
