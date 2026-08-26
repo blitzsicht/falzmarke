@@ -1,0 +1,153 @@
+# Eine Aktion für fremde Repositories: Briefe rendern, nachmessen, anhängen.
+#
+# Sie installiert falzmarke von PyPI statt den Klon nachzubauen — das war die
+# Vorgabe aus Issue #6 („die vorhandene Installationsstrecke wiederverwenden
+# statt eine zweite aufzubauen"). Möglich ist das erst seit v0.7.3; davor gab
+# es kein Paket, das ein fremdes Repository hätte ziehen können (#7).
+#
+# Verwendung im eigenen Repository:
+#
+#     - uses: blitzsicht/falzmarke@main
+#       with:
+#         briefe: "briefe/*.md"
+#         profile: "profile"
+#
+# Die PDFs liegen danach im Artefakt und in `ausgabe`.
+name: falzmarke
+description: DIN-5008-Briefe aus Markdown setzen und auf den Millimeter nachmessen
+author: blitzsicht
+
+branding:
+  icon: mail
+  color: green
+
+inputs:
+  briefe:
+    description: >
+      Muster der zu rendernden Briefdateien, relativ zum Repository.
+      Mehrere Muster durch Leerzeichen trennen.
+    required: false
+    default: "briefe/*.md"
+  profile:
+    description: >
+      Verzeichnis mit Absenderprofilen (*.yaml). Ohne Angabe gelten die
+      mitgelieferten Beispielprofile — für echte Briefe ist das selten das,
+      was gemeint ist.
+    required: false
+    default: ""
+  ausgabe:
+    description: Zielverzeichnis für die PDFs.
+    required: false
+    default: "briefe-pdf"
+  version:
+    description: >
+      Zu installierende falzmarke-Fassung, als pip-Angabe. Leer lässt pip die
+      neueste wählen; eine feste Angabe macht den Lauf nachfahrbar.
+    required: false
+    default: ""
+  vorschau:
+    description: Zusätzlich ein PNG der ersten Seite je Brief schreiben.
+    required: false
+    default: "false"
+  artefakt:
+    description: >
+      Name des Artefakts. Leer lädt nichts hoch — dann kümmert sich der
+      aufrufende Workflow selbst um die Dateien.
+    required: false
+    default: "briefe"
+
+outputs:
+  anzahl:
+    description: Wie viele Briefe gesetzt wurden.
+    value: ${{ steps.rendern.outputs.anzahl }}
+  ausgabe:
+    description: Verzeichnis, in dem die PDFs liegen.
+    value: ${{ inputs.ausgabe }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+      with:
+        python-version: "3.12"
+
+    - name: falzmarke installieren
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        if [ -n "${{ inputs.version }}" ]; then
+          pip install "falzmarke${{ inputs.version }}"
+        else
+          pip install falzmarke
+        fi
+        falzmarke --version
+
+    - name: Briefe setzen und nachmessen
+      id: rendern
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p "${{ inputs.ausgabe }}"
+
+        # Ohne nullglob liefert ein Muster ohne Treffer sich selbst als
+        # Dateinamen zurück, und der Lauf scheitert mit einer Meldung über eine
+        # Datei, die nie gemeint war. Der leere Fall wird unten eigens gemeldet.
+        shopt -s nullglob
+        dateien=()
+        for muster in ${{ inputs.briefe }}; do
+          dateien+=($muster)
+        done
+
+        if [ ${#dateien[@]} -eq 0 ]; then
+          echo "::error::Kein Brief gefunden für: ${{ inputs.briefe }}"
+          echo "Gesucht wurde ab $(pwd). Vorhanden sind:"
+          ls -1 2>/dev/null | head -20
+          exit 1
+        fi
+
+        profil_argument=""
+        if [ -n "${{ inputs.profile }}" ]; then
+          if [ ! -d "${{ inputs.profile }}" ]; then
+            echo "::error::Profilverzeichnis gibt es nicht: ${{ inputs.profile }}"
+            exit 1
+          fi
+          profil_argument="--profiles ${{ inputs.profile }}"
+        fi
+
+        vorschau_argument=""
+        [ "${{ inputs.vorschau }}" = "true" ] && vorschau_argument="--png"
+
+        gescheitert=0
+        for datei in "${dateien[@]}"; do
+          name=$(basename "$datei" .md)
+          echo "::group::$datei"
+          # Kein `set -e`-Abbruch beim ersten Fehler: Wer zwölf Briefe rendert,
+          # will alle Befunde sehen und nicht einen nach dem anderen erfahren.
+          if falzmarke render "$datei" -o "${{ inputs.ausgabe }}/$name.pdf" \
+               $profil_argument $vorschau_argument; then
+            echo "::endgroup::"
+          else
+            code=$?
+            echo "::endgroup::"
+            echo "::error file=$datei::falzmarke endete mit Code $code"
+            gescheitert=$((gescheitert + 1))
+          fi
+        done
+
+        echo "anzahl=${#dateien[@]}" >> "$GITHUB_OUTPUT"
+        echo "### falzmarke" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "${#dateien[@]} Brief(e) gesetzt, $gescheitert mit Befund." >> "$GITHUB_STEP_SUMMARY"
+
+        if [ "$gescheitert" -gt 0 ]; then
+          echo "::error::$gescheitert von ${#dateien[@]} Briefen halten die Maße nicht ein."
+          exit 1
+        fi
+
+    - name: PDFs anhängen
+      if: inputs.artefakt != ''
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+      with:
+        name: ${{ inputs.artefakt }}
+        path: ${{ inputs.ausgabe }}/
+        if-no-files-found: error

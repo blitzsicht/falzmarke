@@ -1,0 +1,83 @@
+# Selbsttest der Aktion aus action.yml.
+#
+# Eine Aktion, die niemand ausfuehrt, ist ungeprueft: Ihre Eingaben, ihr
+# Dateimuster und ihre Fehlerbehandlung zeigen sich erst im Lauf. Dieses
+# Repository benutzt sie deshalb auf seinen eigenen Beispielbriefen.
+#
+# Geprueft wird die Mechanik der Aktion, nicht der Renderer — sie installiert
+# falzmarke von PyPI, also die veroeffentlichte Fassung. Ob der Code in diesem
+# Zweig richtig rechnet, sagt ci.yml.
+
+name: Aktion
+
+on:
+  push:
+    branches: [main]
+    paths: ['action.yml', '.github/workflows/aktion.yml']
+  pull_request:
+    paths: ['action.yml', '.github/workflows/aktion.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  selbsttest:
+    name: Aktion auf den eigenen Beispielen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - id: lauf
+        uses: ./
+        with:
+          briefe: "examples/*.md"
+          profile: "skill/falzmarke/typst/profiles"
+          ausgabe: "aus"
+          vorschau: "true"
+          artefakt: "beispielbriefe"
+
+      - name: Ergebnis nachzaehlen
+        shell: bash
+        run: |
+          set -euo pipefail
+          erwartet=$(ls -1 examples/*.md | wc -l | tr -d ' ')
+          gemeldet="${{ steps.lauf.outputs.anzahl }}"
+          [ "$gemeldet" = "$erwartet" ] || {
+            echo "::error::Aktion meldet $gemeldet Briefe, es sind $erwartet"; exit 1; }
+
+          pdfs=$(ls -1 aus/*.pdf | wc -l | tr -d ' ')
+          [ "$pdfs" = "$erwartet" ] || {
+            echo "::error::$pdfs PDFs statt $erwartet"; exit 1; }
+
+          pngs=$(ls -1 aus/*.png 2>/dev/null | wc -l | tr -d ' ')
+          [ "$pngs" -gt 0 ] || { echo "::error::vorschau=true, aber kein PNG"; exit 1; }
+
+          echo "OK  $gemeldet Briefe, $pdfs PDFs, $pngs Vorschauen"
+
+  gegenprobe:
+    name: Ohne Treffer muss sie fehlschlagen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      # Ohne diesen Job belegte der Selbsttest nur, dass die Aktion bei gutem
+      # Wetter laeuft. Ein Muster ohne Treffer MUSS abbrechen — stillschweigend
+      # null Briefe zu rendern und gruen zu melden waere der teuerste Ausgang:
+      # Der Betreiber glaubt, seine Briefe seien gesetzt und geprueft.
+      - id: leer
+        continue-on-error: true
+        uses: ./
+        with:
+          briefe: "gibt-es-nicht/*.md"
+          ausgabe: "leer"
+          artefakt: ""
+
+      - name: Fehlschlag verlangen
+        shell: bash
+        run: |
+          if [ "${{ steps.leer.outcome }}" != "failure" ]; then
+            echo "::error::Die Aktion lief ohne einen einzigen Brief durch (${{ steps.leer.outcome }})."
+            exit 1
+          fi
+          echo "OK  leeres Muster bricht ab, wie es soll"
