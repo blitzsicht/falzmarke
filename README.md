@@ -285,6 +285,7 @@ Dazu Form A, Auslandsanschrift, Tabelle und ein Brief mit langem Informationsblo
 | [Normmaße und Quellenlage](skill/references/din5008.md) | Sollwerte und ihre Herkunft |
 | [Was falzmarke behauptet — und was nicht](docs/recht.md) | Grenzen der Normaussage |
 | [Aufbau des Repositorys](docs/architecture.md) | Schichten, Vendoring, warum das Paket unter `skill/` liegt |
+| [Roadmap](docs/ROADMAP.md) | in welcher Reihenfolge gearbeitet wird, und was noch offen ist |
 | [Changelog](CHANGELOG.md) · [Releases](https://github.com/blitzsicht/falzmarke/releases) | was sich geändert hat |
 
 ## Mitmachen
