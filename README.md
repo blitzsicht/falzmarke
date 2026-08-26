@@ -264,7 +264,8 @@ Die vollständige Liste: [falzmarke-Markdown](https://github.com/blitzsicht/falz
 | ![Form B](https://github.com/blitzsicht/falzmarke/raw/main/docs/assets/demo/gallery-standard.png) | ![Vermerkzone](https://github.com/blitzsicht/falzmarke/raw/main/docs/assets/demo/gallery-einschreiben.png) | ![Folgeseiten](https://github.com/blitzsicht/falzmarke/raw/main/docs/assets/demo/gallery-mehrseitig.png) |
 | Form B mit Informationsblock | Zusatz- und Vermerkzone | Kopfzeile und Seitenzählung |
 
-Dazu Form A, Auslandsanschrift, Tabelle und ein Brief mit langem Informationsblock —
+Dazu Form A, Auslandsanschrift, Tabelle, ein Brief mit langem Informationsblock und einer
+mit englischer Beschriftung (`sprache: en` — deutsche Maße, englische Wörter) —
 [alle Beispiele](https://github.com/blitzsicht/falzmarke/tree/main/examples/) und ihre [vollständigen Renderings](https://github.com/blitzsicht/falzmarke/tree/main/docs/renders/).
 
 ## Grenzen
