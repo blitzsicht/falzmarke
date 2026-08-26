@@ -2,6 +2,37 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.7.3 — 26.08.2026
+
+### Behoben
+- **Der Schritt „Prüfsummen ausgeben" hat den Upload verhindert.** Er schrieb die Summen mit
+  `| tee dist/SHA256SUMS` in genau das Verzeichnis, das die Publish-Action vollständig
+  hochlädt. Sie prüft vorher jede Datei darin und bricht an der ersten ab, die kein
+  Distributions-Format ist — Lauf 32966455275:
+
+  ```
+  Checking dist/falzmarke-0.7.2-py3-none-any.whl: PASSED
+  Checking dist/SHA256SUMS: ERROR InvalidDistribution: Unknown distribution format: 'SHA256SUMS'
+  ```
+
+  Das Paket selbst war in Ordnung. Die Summen stehen jetzt nur noch im Lauf-Protokoll; die
+  Action gibt sie mit `print-hash: true` ohnehin ein zweites Mal aus.
+
+### Hinzugefügt
+- **Ein Wächter vor dem Upload.** Ein neuer Schritt bricht ab, wenn in `dist/` etwas liegt, das
+  weder `.whl` noch `.tar.gz` ist. Das Entfernen des `tee` behebt diesen einen Fall; der
+  Wächter behebt die Fehlerklasse. Er schlägt fehl, wo es nichts kostet — statt nach der
+  Freigabe, im unumkehrbaren Job.
+
+Auch Lauf 32966455275 brach **vor** dem Upload ab. Auf PyPI ist zum Zeitpunkt dieses Eintrags
+nichts gelandet, der Paketname ist frei (`pypi.org/pypi/falzmarke/json` → HTTP 404, gemessen am
+26.08.2026).
+
+### Warum es diese Version gibt
+Wie schon bei 0.7.1 und 0.7.2: Das Ruleset `release-tags` lässt Tags weder verschieben noch
+löschen, und das Environment `pypi` erlaubt Deployments nur von Tags `v*`. Ein neuer Anlauf
+braucht deshalb eine neue Versionsnummer — v0.7.2 ist verbraucht.
+
 ## v0.7.2 — 26.08.2026
 
 ### Behoben
