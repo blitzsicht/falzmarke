@@ -769,6 +769,13 @@ def befehl_preview(args) -> int:
     return EXIT_OK
 
 
+def befehl_mcp(args) -> int:
+    """Der Dienst liegt in einem eigenen Modul — es zieht das SDK erst beim Start."""
+    from falzmarke import dienst
+
+    return dienst.main()
+
+
 def befehl_profiles(args) -> int:
     profile = finde_profile(Path(args.profiles) if args.profiles else None)
     if not profile:
@@ -958,6 +965,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--ppi", type=int, default=120)
     p.add_argument("--profiles")
     p.set_defaults(funktion=befehl_preview)
+
+    p = unter.add_parser("mcp", help="als MCP-Dienst über stdio laufen")
+    p.set_defaults(funktion=befehl_mcp)
 
     p = unter.add_parser("profiles", help="verfügbare Absenderprofile auflisten")
     p.add_argument("--profiles", dest="profiles")
