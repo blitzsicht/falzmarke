@@ -130,7 +130,13 @@ jobs:
 
       - name: Paket bauen
         run: |
-          python -m pip install --upgrade pip build twine
+          # pytest und die Laufzeit-Abhaengigkeiten gehoeren dazu: Der Schritt
+          # unten faehrt tests/test_readme_auf_pypi.py, und dessen conftest legt
+          # skill/ auf den sys.path. Ohne sie brach der Lauf mit
+          # "No module named pytest" ab — nach dem Freigabeklick, aber noch VOR
+          # dem Upload (26.08.2026, Lauf 32961125084).
+          python -m pip install --upgrade pip build twine pytest
+          python -m pip install -r skill/requirements.txt
           python -m build
           ls -la dist/
 
