@@ -2,6 +2,115 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.7.3 — 26.08.2026
+
+### Behoben
+- **Der Schritt „Prüfsummen ausgeben" hat den Upload verhindert.** Er schrieb die Summen mit
+  `| tee dist/SHA256SUMS` in genau das Verzeichnis, das die Publish-Action vollständig
+  hochlädt. Sie prüft vorher jede Datei darin und bricht an der ersten ab, die kein
+  Distributions-Format ist — Lauf 32966455275:
+
+  ```
+  Checking dist/falzmarke-0.7.2-py3-none-any.whl: PASSED
+  Checking dist/SHA256SUMS: ERROR InvalidDistribution: Unknown distribution format: 'SHA256SUMS'
+  ```
+
+  Das Paket selbst war in Ordnung. Die Summen stehen jetzt nur noch im Lauf-Protokoll; die
+  Action gibt sie mit `print-hash: true` ohnehin ein zweites Mal aus.
+
+### Hinzugefügt
+- **Ein Wächter vor dem Upload.** Ein neuer Schritt bricht ab, wenn in `dist/` etwas liegt, das
+  weder `.whl` noch `.tar.gz` ist. Das Entfernen des `tee` behebt diesen einen Fall; der
+  Wächter behebt die Fehlerklasse. Er schlägt fehl, wo es nichts kostet — statt nach der
+  Freigabe, im unumkehrbaren Job.
+
+Lauf 32966455275 brach — wie die drei davor — **vor** dem Upload ab; auf PyPI war zu diesem
+Zeitpunkt nichts gelandet.
+
+### Angekommen
+**v0.7.3 liegt auf [PyPI](https://pypi.org/project/falzmarke/)** — der fünfte Anlauf, Lauf
+32972861001 am 26.08.2026. Gemessen, nicht vom grünen Job abgelesen:
+`pypi.org/pypi/falzmarke/json` → HTTP 200, Version 0.7.3, Wheel und sdist. In einer frischen
+Umgebung installiert (`pip install falzmarke`) und ein Brief gerendert: 33/33 Maße eingehalten.
+
+Damit gelten die kurzen Befehle: `pipx install falzmarke`, `uvx falzmarke`. Die README nennt sie
+jetzt, und `tests/test_installationswege.py` lässt sie zu (`AUF_PYPI = True`).
+
+### Warum es diese Version gibt
+Wie schon bei 0.7.1 und 0.7.2: Das Ruleset `release-tags` lässt Tags weder verschieben noch
+löschen, und das Environment `pypi` erlaubt Deployments nur von Tags `v*`. Ein neuer Anlauf
+braucht deshalb eine neue Versionsnummer — v0.7.2 ist verbraucht.
+
+## v0.7.2 — 26.08.2026
+
+### Behoben
+- **Die Publish-Action konnte ihr eigenes Image nicht laden.** `pypa/gh-action-pypi-publish`
+  laeuft als Docker-Container und zieht ihr Image mit dem `action_ref` als Tag. Beim
+  SHA-Pinning ist das der Commit-SHA — und dafuer existiert im Registry kein Image, sie werden
+  nur fuer Release-Tags gebaut (`manifest unknown`). Die Action ist damit die eine Stelle, an
+  der die Hausregel „Actions auf Commit-SHAs pinnen" nicht anwendbar ist; sie steht jetzt als
+  begruendete Ausnahme auf `v1.14.2`, der auf denselben Commit zeigt.
+
+Auch dieser Lauf brach **vor** dem Upload ab. Auf PyPI ist weiterhin nichts gelandet.
+
+## v0.7.1 — 26.08.2026
+
+### Behoben
+- **Der Publish-Job konnte nicht laufen.** Ihm fehlte `pytest`, obwohl er
+  `tests/test_readme_auf_pypi.py` aufruft — der Lauf brach mit `No module named pytest` ab.
+  Das geschah nach der Freigabe, aber **vor dem Upload**: Die Reihenfolge im Job prüft erst und
+  lädt dann hoch, deshalb ist auf PyPI nichts gelandet und der Paketname blieb frei.
+
+### Warum es diese Version gibt
+v0.7.0 ist als Tag und GitHub-Release vorhanden, aber nie auf PyPI erschienen. Ein erneuter
+Anlauf mit demselben Tag war nicht möglich: Das Environment `pypi` lässt Deployments nur von
+Tags `v*` zu, ein `workflow_dispatch` von `main` wird abgewiesen — und ein Dispatch vom Tag
+selbst hätte wieder die fehlerhafte Workflow-Datei geladen. Die Schutzregel zu lockern wäre der
+falsche Weg gewesen; ein neuer Tag ist der richtige.
+
+## v0.7.0 — 26.08.2026
+
+### Neu
+- **Die Konformität bestätigt ein fremdes Werkzeug.** Bisher schrieb falzmarke PDF/A und mass
+  das Ergebnis selbst nach — Erzeuger und Prüfer waren dieselbe Codebasis. Das belegt
+  Selbsttreue, nicht Konformität; in der Quellenlage trägt `eigene_messung` genau deshalb die
+  Zählstufe `nie`. Jetzt läuft [veraPDF](https://verapdf.org/), die Referenzimplementierung der
+  PDF Association, in CI bei jedem Push. Alle neun Beispielbriefe bestehen PDF/A-2b, die
+  `--pdfua`-Fassung zusätzlich UA-1. Geprüft wird, was die Datei selbst deklariert — eine
+  spätere Umstellung der Stufe trägt die Prüfung ohne Änderung mit. Fehlt veraPDF, endet der
+  Lauf mit Exit 2 und `NICHT GEPRÜFT` statt mit 0. (#34)
+- **Der Briefkörper wird auf jeder Seite gemessen.** Die Textprüfung lief auf `pages[0]`; ein
+  mehrseitiger Brief konnte ab Seite 2 aus dem Satzspiegel laufen und trotzdem „Maße
+  eingehalten" melden. Jetzt drei Messungen je Seite, und der Bericht nennt Seite **und**
+  Element: `Seite 2, rechter Rand — 190.88 bei „1234567"`. (#35)
+- **Die Quellenlage steht dort, wo kein README gelesen wird.** Paketbeschreibung,
+  GitHub-Beschreibung und Skill-Beschreibung tragen den Vorbehalt jetzt selbst — testgesichert,
+  mit Gegenprobe je Ort. Wer über einen Paketindex oder einen Prompt kommt, sieht kein README;
+  ein Vorbehalt, der dort nicht ankommt, schützt den Herausgeber und nicht den Nutzer. (#40)
+
+### Geändert
+- **Die Paketbeschreibung wurde umgebaut, nicht ergänzt.** Sie belegte 107 Zeichen, GitHub
+  schneidet bei 120 ab und die Paketsuche bei rund 100 — für einen Zusatz war kein Platz. Aus
+  „auf den Millimeter geprüft" wurde „am fertigen PDF nachgemessen": dieselbe Leistung, keine
+  Normaussage, und der Vorbehalt steht als eigener Satz dahinter. 90 Zeichen, also vor beiden
+  Abschneidepunkten.
+- **Das README ist als Projektseite lesbar.** Es wird als Langbeschreibung nach PyPI
+  übernommen, wo relative Pfade nicht auflösen — 43 Verweise zeigten ins Leere, darunter der
+  Banner in Zeile 3. Alle auf absolute URLs umgestellt, Bilder über `/raw/`, Dokumente über
+  `/blob/`. `twine check` fängt das nicht: Es prüft, ob die Beschreibung rendert, nicht ob die
+  Ziele existieren.
+- **Die Maßzahl im README altert nicht mehr still.** Dort stand „30 Maße je PDF" — schon vorher
+  ungenau. Jetzt „33 Maße je Seite", an einen echten Lauf gebunden: Wer eine Prüfung hinzufügt,
+  sieht Rot statt einer stillen Abweichung.
+- Trove-Classifier und vier zusätzliche Projekt-Adressen in `pyproject.toml`; ohne sie wäre das
+  Paket auf PyPI praktisch unauffindbar. (#33)
+
+### Infrastruktur
+- Publish-Job für PyPI über OIDC (Trusted Publishing), ohne API-Token. Drei Bremsen: das
+  Environment `pypi` mit Freigabe von Hand, eine Branch-Policy nur für Tags `v*`, und ein
+  Abgleich von Tag und Paketversion vor dem Upload. (#7)
+- ADR 0029 bis 0032; `docs/ROADMAP.md` wird wöchentlich aus Meilensteinen und Issues erzeugt.
+
 ## v0.6.0 — 25.08.2026
 
 ### Neu

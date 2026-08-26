@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="docs/assets/brand/banner.png" alt="falzmarke — Briefe schreiben mit KI, nach Norm, nicht nach Gefühl. DIN-5008-Briefe aus Markdown, als PDF/A gesetzt und auf den Millimeter geprüft." width="100%">
+<img src="https://github.com/blitzsicht/falzmarke/raw/main/docs/assets/brand/banner.png" alt="falzmarke — Briefe schreiben mit KI, nach Norm, nicht nach Gefühl. DIN-5008-Briefe aus Markdown, als PDF/A gesetzt und auf den Millimeter geprüft." width="100%">
 
 [![CI](https://github.com/blitzsicht/falzmarke/actions/workflows/ci.yml/badge.svg)](https://github.com/blitzsicht/falzmarke/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/blitzsicht/falzmarke)](https://github.com/blitzsicht/falzmarke/releases/latest)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB)](pyproject.toml)
-[![DIN 5008](https://img.shields.io/badge/DIN_5008-2020-245A73)](skill/references/din5008.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/blitzsicht/falzmarke/blob/main/LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://github.com/blitzsicht/falzmarke/blob/main/pyproject.toml)
+[![DIN 5008](https://img.shields.io/badge/DIN_5008-2020-245A73)](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/din5008.md)
 
 </div>
 
@@ -22,9 +22,9 @@ auf 105,0 mm, endet der Lauf mit einem Fehler statt mit einem Brief, der nur ung
 
 **[⬇ Als Claude-Skill laden](https://github.com/blitzsicht/falzmarke/releases/latest/download/falzmarke.skill)** ·
 **[In 60 Sekunden ausprobieren](#in-60-sekunden)** ·
-**[Beispielbrief ansehen](docs/renders/brief-form-b.png)**
+**[Beispielbrief ansehen](https://github.com/blitzsicht/falzmarke/raw/main/docs/renders/brief-form-b.png)**
 
-`Linux · macOS · Windows`  ·  `30 Maße je PDF`  ·  `PDF/A-2b`  ·  `MIT`
+`Linux · macOS · Windows`  ·  `33 Maße je Seite`  ·  `PDF/A-2b`  ·  `MIT`
 
 </div>
 
@@ -32,18 +32,18 @@ auf 105,0 mm, endet der Lauf mit einem Fehler statt mit einem Brief, der nur ung
 
 ## In Bewegung
 
-![Ein Terminal zeigt den Musterbrief als Markdown, danach den Lauf von falzmarke render: PDF und Vorschau werden geschrieben, anschließend läuft der Messbericht durch und endet mit der Zeile, die die eingehaltenen Maße zählt.](docs/renders/demo.gif)
+![Ein Terminal zeigt den Musterbrief als Markdown, danach den Lauf von falzmarke render: PDF und Vorschau werden geschrieben, anschließend läuft der Messbericht durch und endet mit der Zeile, die die eingehaltenen Maße zählt.](https://github.com/blitzsicht/falzmarke/raw/main/docs/renders/demo.gif)
 
 Aufgezeichnet aus der echten CLI mit [vhs](https://github.com/charmbracelet/vhs);
-das Drehbuch steht in [`docs/marke/video/readme.tape`](docs/marke/video/readme.tape).
+das Drehbuch steht in [`docs/marke/video/readme.tape`](https://github.com/blitzsicht/falzmarke/blob/main/docs/marke/video/readme.tape).
 Ein Test hält den Mitschnitt gegen einen frischen Lauf, damit hier kein Terminal
-steht, das es so nie gab ([`tests/test_tape.py`](tests/test_tape.py)).
+steht, das es so nie gab ([`tests/test_tape.py`](https://github.com/blitzsicht/falzmarke/blob/main/tests/test_tape.py)).
 
 ---
 
 ## Was dabei herauskommt
 
-![Briefkopf, Anschriftfeld, Informationsblock und Betreff](docs/assets/demo/hero.png)
+![Briefkopf, Anschriftfeld, Informationsblock und Betreff](https://github.com/blitzsicht/falzmarke/raw/main/docs/assets/demo/hero.png)
 
 Und was danach geprüft wird — Auszug aus dem Bericht, den jeder Lauf ausgibt:
 
@@ -88,7 +88,7 @@ gepflegten Vorlage lässt sich vieles davon erreichen.
 |---|---|---|---|
 | Quelle diffbar und versionierbar | teilweise | selten | ja — Markdown und YAML |
 | Layout reproduzierbar | hängt an Vorlage und Umgebung | nicht zugesichert | ja — derselbe Renderer, dieselbe Ausgabe |
-| Fertiges PDF wird nachgemessen | nein | nein | ja — 30 Maße, Abweichung ist ein Fehler |
+| Fertiges PDF wird nachgemessen | nein | nein | ja — 33 Maße, jede Seite, Abweichung ist ein Fehler |
 | Absenderprofile | von Hand gepflegt | uneinheitlich | ja — einmal anlegen, überall nutzen |
 | Prüfbericht maschinenlesbar | nein | nein | ja — `--json` und Exit-Codes |
 | PDF/A als Voreinstellung | nicht automatisch | nicht zugesichert | ja — ohne zusätzliches Flag |
@@ -115,7 +115,7 @@ Das ist der Teil, an dem sich das Versprechen entscheidet — deshalb steht er v
 
 - **Gemessen wird das fertige PDF**, nicht die Eingabe. `verify` liest das erzeugte Dokument mit
   pdfplumber und vergleicht Zonen, Marken und Abstände gegen die Sollwerte.
-- **Jede tragende Prüfung hat eine [Gegenprobe](tests/test_gegenbeweis.py).** Sie läuft gegen ein
+- **Jede tragende Prüfung hat eine [Gegenprobe](https://github.com/blitzsicht/falzmarke/blob/main/tests/test_gegenbeweis.py).** Sie läuft gegen ein
   absichtlich verschobenes Layout und muss dort anschlagen — ein Prüfmittel, das nie rot werden
   kann, wäre kein Nachweis. Das gilt auch für das Bild oben: Es entsteht zweimal, einmal aus dem
   ausgelieferten Layout und einmal aus einem, in dem die Marke 2 mm zu tief sitzt.
@@ -136,9 +136,9 @@ Das ist der Teil, an dem sich das Versprechen entscheidet — deshalb steht er v
   [veraPDF](https://verapdf.org/) hat den Brief nicht geschrieben und teilt keine Zeile mit dem
   Renderer. Geprüft wird, was die Datei selbst deklariert, auf der ausgelieferten Datei, mit
   Prüfsummen-Abgleich — und mit einer Gegenprobe, die ein absichtlich nicht-konformes PDF
-  durchfallen lässt ([`scripts/pdf_konformitaet.py`](scripts/pdf_konformitaet.py)).
+  durchfallen lässt ([`scripts/pdf_konformitaet.py`](https://github.com/blitzsicht/falzmarke/blob/main/scripts/pdf_konformitaet.py)).
 - **Die Layoutbasis ist vendort und prüfsummengesichert** —
-  [`vendor/README.md`](skill/falzmarke/typst/vendor/README.md).
+  [`vendor/README.md`](https://github.com/blitzsicht/falzmarke/blob/main/skill/falzmarke/typst/vendor/README.md).
 
 Zwei Aussagen, die gern verwechselt werden, hält das Projekt auseinander:
 
@@ -146,11 +146,11 @@ Zwei Aussagen, die gern verwechselt werden, hält das Projekt auseinander:
 > verschiedene Dinge. Das Zweite ist bewiesen. Das Erste hat Grenzen.
 
 **Woher die Sollwerte stammen:** Maße und Schreibregeln folgen öffentlich dokumentierten Quellen
-(Liste in [`skill/references/din5008.md`](skill/references/din5008.md)); der Abgleich mit dem
+(Liste in [`skill/references/din5008.md`](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/din5008.md)); der Abgleich mit dem
 Originaltext der DIN 5008:2020-03 einschließlich Berichtigung 1:2020-07 steht aus. Regeln aus
 einzelnen Quellen wirken nur als Warnung. Welche Regel worauf beruht, steht in der
-[Quellenlage je Regel](skill/references/din5008.md#quellenlage-je-regel); was daraus rechtlich
-folgt, in [`docs/recht.md`](docs/recht.md).
+[Quellenlage je Regel](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/din5008.md#quellenlage-je-regel); was daraus rechtlich
+folgt, in [`docs/recht.md`](https://github.com/blitzsicht/falzmarke/blob/main/docs/recht.md).
 
 ```bash
 python3 -m pytest -q
@@ -159,7 +159,7 @@ python3 -m pytest -q
 ## Sicherheit
 
 Genannt wird nur, was im Code steht und geprüft ist. falzmarke ist **nicht** unabhängig
-auditiert — Sicherheitsrelevantes bitte nach [SECURITY.md](SECURITY.md), nicht als Issue.
+auditiert — Sicherheitsrelevantes bitte nach [SECURITY.md](https://github.com/blitzsicht/falzmarke/blob/main/SECURITY.md), nicht als Issue.
 
 - **Verarbeitung bleibt lokal.** Der Renderpfad importiert keine Netzwerkbibliothek.
 - **YAML wird ausschließlich mit `safe_load` gelesen** — an jeder Stelle, auch beim
@@ -170,10 +170,10 @@ auditiert — Sicherheitsrelevantes bitte nach [SECURITY.md](SECURITY.md), nicht
   Sonderzeichen können die Struktur nicht verlassen.
 - **Profil- und Briefdateien bleiben in ihrem Ordner.** Logo, Unterschrift und eigener Briefkopf
   dürfen nicht darüber hinauszeigen, Symlinks werden aufgelöst
-  ([Gegenproben](tests/test_profilgrenze.py)).
+  ([Gegenproben](https://github.com/blitzsicht/falzmarke/blob/main/tests/test_profilgrenze.py)).
 - **Typst läuft auf ein eigenes Wurzelverzeichnis begrenzt**, Systemschriften sind abgeschaltet.
 - **Alle Abhängigkeiten des Programms sind permissiv lizenziert** —
-  [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+  [THIRD_PARTY_LICENSES.md](https://github.com/blitzsicht/falzmarke/blob/main/THIRD_PARTY_LICENSES.md).
 - **Die CI-Aktionen hängen an vollständigen Commit-SHAs**, nicht an verschiebbaren Tags.
 
 Das Release-Asset lässt sich auf seine Herkunft prüfen:
@@ -200,18 +200,21 @@ ist**. Die SHA-256-Summe steht in der Release-Notiz und als `falzmarke.skill.sha
 ### Im Terminal
 
 ```bash
-uvx --from git+https://github.com/blitzsicht/falzmarke falzmarke \
-    init brief.md --profil example --betreff "Angebot Nr. 2026-0815"
+uvx falzmarke init brief.md --profil example --betreff "Angebot Nr. 2026-0815"
 ```
 
 oder dauerhaft installiert, danach genügt `falzmarke render brief.md --png`:
 
 ```bash
-pipx install git+https://github.com/blitzsicht/falzmarke
+pipx install falzmarke
 ```
 
-Noch liegt das Paket **nicht auf PyPI** — deshalb die Adresse statt eines bloßen Namens
-([#7](https://github.com/blitzsicht/falzmarke/issues/7)).
+Das Paket liegt auf [PyPI](https://pypi.org/project/falzmarke/). Wer den unveröffentlichten
+Stand von `main` will, nimmt weiterhin die Adresse:
+
+```bash
+pipx install git+https://github.com/blitzsicht/falzmarke
+```
 
 Der Typst-Compiler kommt als Python-Wheel mit: **keine Systeminstallation**, kein LaTeX, kein
 wkhtmltopdf, keine Schriftinstallation.
@@ -253,7 +256,7 @@ Die Umsetzung dauert ab Ihrer Freigabe **sieben Werktage**.
 python3 skill/scripts/falzmarke.py render brief.md --png
 ```
 
-Alle Felder stehen im [Datenvertrag](skill/references/frontmatter.md). Ein Feld, das dort nicht
+Alle Felder stehen im [Datenvertrag](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/frontmatter.md). Ein Feld, das dort nicht
 steht, bricht mit Zeilennummer und Vorschlag ab — es wird nie stillschweigend verworfen.
 
 ### Was im Brieftext erlaubt ist
@@ -272,21 +275,21 @@ Der Text unter dem Frontmatter ist **falzmarke-Markdown**, eine dokumentierte Te
 nie stillschweigend. Auf Papier gibt es keinen Link, und ein Bild im Fließtext verschöbe die
 Geometrie, die danach gemessen wird.
 
-Die vollständige Liste: [falzmarke-Markdown](skill/references/markdown.md).
+Die vollständige Liste: [falzmarke-Markdown](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/markdown.md).
 
 ## Beispiele
 
 | Standardbrief | Einschreiben | Mehrseitig |
 |---|---|---|
-| ![Form B](docs/assets/demo/gallery-standard.png) | ![Vermerkzone](docs/assets/demo/gallery-einschreiben.png) | ![Folgeseiten](docs/assets/demo/gallery-mehrseitig.png) |
+| ![Form B](https://github.com/blitzsicht/falzmarke/raw/main/docs/assets/demo/gallery-standard.png) | ![Vermerkzone](https://github.com/blitzsicht/falzmarke/raw/main/docs/assets/demo/gallery-einschreiben.png) | ![Folgeseiten](https://github.com/blitzsicht/falzmarke/raw/main/docs/assets/demo/gallery-mehrseitig.png) |
 | Form B mit Informationsblock | Zusatz- und Vermerkzone | Kopfzeile und Seitenzählung |
 
 Dazu Form A, Auslandsanschrift, Tabelle und ein Brief mit langem Informationsblock —
-[alle Beispiele](examples/) und ihre [vollständigen Renderings](docs/renders/).
+[alle Beispiele](https://github.com/blitzsicht/falzmarke/tree/main/examples/) und ihre [vollständigen Renderings](https://github.com/blitzsicht/falzmarke/tree/main/docs/renders/).
 
 ## Grenzen
 
-- **[falzmarke-Markdown](skill/references/markdown.md) (CommonMark-Teilmenge)**: Absätze,
+- **[falzmarke-Markdown](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/markdown.md) (CommonMark-Teilmenge)**: Absätze,
   fett, kursiv, Aufzählungen, nummerierte Listen, harter Umbruch, Pipe-Tabellen. Alles andere
   bricht mit Zeilenangabe ab, statt still etwas anderes zu setzen.
 - **Zonengrößen der Norm**: Anschrift höchstens 6 Zeilen, Vermerke höchstens 3, Werte im
@@ -303,36 +306,36 @@ Dazu Form A, Auslandsanschrift, Tabelle und ein Brief mit langem Informationsblo
 
 | | |
 |---|---|
-| [Befehle](docs/cli.md) | alle Unterbefehle, Exit-Codes, was geprüft wird |
-| [Absenderprofile](docs/profiles.md) | Profil anlegen, Suchreihenfolge, eigener Briefkopf |
-| [Datenvertrag](skill/references/frontmatter.md) | jedes Frontmatter-Feld mit Beispiel |
-| [falzmarke-Markdown](skill/references/markdown.md) | was im Brieftext möglich ist |
-| [Normmaße und Quellenlage](skill/references/din5008.md) | Sollwerte und ihre Herkunft |
-| [Was falzmarke behauptet — und was nicht](docs/recht.md) | Grenzen der Normaussage |
-| [Aufbau des Repositorys](docs/architecture.md) | Schichten, Vendoring, warum das Paket unter `skill/` liegt |
-| [Roadmap](docs/ROADMAP.md) | in welcher Reihenfolge gearbeitet wird, und was noch offen ist |
-| [Changelog](CHANGELOG.md) · [Releases](https://github.com/blitzsicht/falzmarke/releases) | was sich geändert hat |
+| [Befehle](https://github.com/blitzsicht/falzmarke/blob/main/docs/cli.md) | alle Unterbefehle, Exit-Codes, was geprüft wird |
+| [Absenderprofile](https://github.com/blitzsicht/falzmarke/blob/main/docs/profiles.md) | Profil anlegen, Suchreihenfolge, eigener Briefkopf |
+| [Datenvertrag](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/frontmatter.md) | jedes Frontmatter-Feld mit Beispiel |
+| [falzmarke-Markdown](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/markdown.md) | was im Brieftext möglich ist |
+| [Normmaße und Quellenlage](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/din5008.md) | Sollwerte und ihre Herkunft |
+| [Was falzmarke behauptet — und was nicht](https://github.com/blitzsicht/falzmarke/blob/main/docs/recht.md) | Grenzen der Normaussage |
+| [Aufbau des Repositorys](https://github.com/blitzsicht/falzmarke/blob/main/docs/architecture.md) | Schichten, Vendoring, warum das Paket unter `skill/` liegt |
+| [Roadmap](https://github.com/blitzsicht/falzmarke/blob/main/docs/ROADMAP.md) | in welcher Reihenfolge gearbeitet wird, und was noch offen ist |
+| [Changelog](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md) · [Releases](https://github.com/blitzsicht/falzmarke/releases) | was sich geändert hat |
 
 ## Mitmachen
 
-Fehlerberichte und Vorschläge sind willkommen — siehe [CONTRIBUTING.md](CONTRIBUTING.md).
+Fehlerberichte und Vorschläge sind willkommen — siehe [CONTRIBUTING.md](https://github.com/blitzsicht/falzmarke/blob/main/CONTRIBUTING.md).
 Bei einem Geometriefehler bitte die Ausgabe von `verify` mitschicken; ohne sie lässt sich nicht
 unterscheiden, ob das Layout oder die Messung danebenliegt.
 
-Sicherheitsrelevantes bitte nicht als Issue, sondern nach [SECURITY.md](SECURITY.md).
+Sicherheitsrelevantes bitte nicht als Issue, sondern nach [SECURITY.md](https://github.com/blitzsicht/falzmarke/blob/main/SECURITY.md).
 
 ## Herkunft und Dank
 
 **Markdown** wurde 2004 von [John Gruber](https://daringfireball.net/projects/markdown/) gemeinsam
 mit Aaron Swartz entworfen. Die Spezifikation dazu ist [CommonMark](https://commonmark.org/)
 (John MacFarlane und Mitwirkende). falzmarke setzt eine dokumentierte Teilmenge davon um
-— **[falzmarke-Markdown](skill/references/markdown.md)** — und weicht an drei Stellen bewusst
+— **[falzmarke-Markdown](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/markdown.md)** — und weicht an drei Stellen bewusst
 ab: HTML wird nie durchgereicht, Links werden nie gesetzt, und eine einzelne `2. Text`-Zeile
 ohne weitere Listenpunkte ist ein Fehler statt einer Liste.
 
 Das **Seitenlayout** stammt von [typst-letter-pro](https://github.com/Sematre/typst-letter-pro)
 (MIT) von Sematre und ist unverändert vendort — Prüfsumme in
-[`vendor/README.md`](skill/falzmarke/typst/vendor/README.md). falzmarke ergänzt die Schicht
+[`vendor/README.md`](https://github.com/blitzsicht/falzmarke/blob/main/skill/falzmarke/typst/vendor/README.md). falzmarke ergänzt die Schicht
 darüber: Datenvertrag, Profile, Markdown-Eingabe, Messung und den Skill.
 
 Gesetzt wird mit [Typst](https://typst.app) (Apache-2.0), geparst mit
@@ -340,7 +343,7 @@ Gesetzt wird mit [Typst](https://typst.app) (Apache-2.0), geparst mit
 [pdfplumber](https://github.com/jsvine/pdfplumber) (MIT) und
 [pypdf](https://github.com/py-pdf/pypdf) (BSD-3). Schriften: Libertinus und Source Sans 3
 (beide OFL 1.1). Die vollständige Aufstellung samt der Begründung, warum PyMuPDF (AGPL-3.0)
-ersetzt wurde, steht in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+ersetzt wurde, steht in [THIRD_PARTY_LICENSES.md](https://github.com/blitzsicht/falzmarke/blob/main/THIRD_PARTY_LICENSES.md).
 
 **Alle Abhängigkeiten des Programms sind permissiv lizenziert** — falzmarke lässt sich damit
 auch in geschlossene Systeme einbauen. Nicht permissiv ist allein
@@ -349,7 +352,7 @@ nicht beteiligt und wird nicht mitgeliefert.
 
 **DIN 5008** ist eine Norm des DIN Deutsches Institut für Normung e. V. falzmarke ist kein
 Produkt des DIN, steht in keiner Verbindung zum DIN und behauptet keine Zertifizierung. Wie die
-Maße gemessen wurden, steht in [`docs/normmasse.md`](docs/normmasse.md).
+Maße gemessen wurden, steht in [`docs/normmasse.md`](https://github.com/blitzsicht/falzmarke/blob/main/docs/normmasse.md).
 
 <!-- changelog:anfang -->
 
@@ -445,4 +448,4 @@ Davor liegen 10 weitere Versionen — der vollständige Verlauf steht in [`CHANG
 
 ## Lizenz
 
-[MIT](LICENSE)
+[MIT](https://github.com/blitzsicht/falzmarke/blob/main/LICENSE)

@@ -189,6 +189,57 @@ def _spans(seite) -> list[Span]:
     return sorted(ergebnis, key=lambda s: (round(s.y0, 1), s.x0))
 
 
+def _kurz(text: str, laenge: int = 22) -> str:
+    """Elementtext für den Bericht, gekürzt aber erkennbar."""
+    text = " ".join(text.split())
+    return text if len(text) <= laenge else text[: laenge - 1] + "…"
+
+
+def _satzspiegel(dokument, bericht: Bericht) -> None:
+    """Kein Text ausserhalb des Satzspiegels — auf JEDER Seite.
+
+    Bis hierher endete die Textmessung auf Seite 1: `seite = dokument.pages[0]`.
+    Ein mehrseitiger Brief konnte ab Seite 2 beliebig aus dem Satzspiegel laufen
+    und die Pruefung trotzdem bestehen (Issue #35). Genau diese Faelle entstehen
+    erst im Fliesstext: lange Ueberschriften, breite Tabellen, Codezeilen ohne
+    Trennmoeglichkeit, URLs.
+
+    Gemessen wird ueber ALLE Spans, ohne Ausnahmen fuer Briefkopf oder Fusszeile.
+    Das ist keine Nachlaessigkeit, sondern gemessen: In allen neun Beispielen
+    liegen saemtliche Spans auf saemtlichen Seiten exakt zwischen 25,00 und
+    190,00 mm — Briefkopf und Fusszeile eingeschlossen. Eine Ausnahmeliste waere
+    ein zweiter Ort, an dem ein Layoutfehler sich verstecken koennte.
+
+    Der Bericht nennt Seite UND Element: „ausserhalb" allein sagt niemandem, wo
+    er suchen soll.
+    """
+    for nummer, seite in enumerate(dokument.pages, start=1):
+        spans = _spans(seite)
+        if not spans:
+            continue
+
+        links = min(spans, key=lambda s: s.x0)
+        bericht.add(
+            f"Seite {nummer}, linker Rand", f"≥ {RAND_LINKS}",
+            f"{links.x0:.2f} bei „{_kurz(links.text)}“", "±0,3",
+            links.x0 >= RAND_LINKS - 0.3,
+        )
+
+        rechts = max(spans, key=lambda s: s.x1)
+        bericht.add(
+            f"Seite {nummer}, rechter Rand", f"≤ {RAND_RECHTS}",
+            f"{rechts.x1:.2f} bei „{_kurz(rechts.text)}“", "±0,3",
+            rechts.x1 <= RAND_RECHTS + 0.3,
+        )
+
+        unten = max(spans, key=lambda s: s.y1)
+        bericht.add(
+            f"Seite {nummer}, Abstand zur Blattkante", f"≥ {FUSS_MINDESTRAND}",
+            f"{SEITE_HOEHE - unten.y1:.2f} bei „{_kurz(unten.text)}“", "—",
+            SEITE_HOEHE - unten.y1 >= FUSS_MINDESTRAND,
+        )
+
+
 def _marken(seite) -> list[tuple[float, float, float]]:
     """Waagerechte Striche im Heftrand als (y, x_start, x_ende).
 
@@ -299,6 +350,8 @@ def pruefe(pdf_pfad: Path, form: str) -> Bericht:
     # Seitengröße
     bericht.wert("Seitenbreite", mm(seite.width), SEITE_BREITE, 0.1)
     bericht.wert("Seitenhöhe", mm(seite.height), SEITE_HOEHE, 0.1)
+
+    _satzspiegel(dokument, bericht)
 
     # Falz- und Lochmarken. Gesucht wird die nächstgelegene Marke, nicht die an
     # der Sollposition: Eine Marke bei 84,0 statt 87,0 mm ist ein verschobenes
