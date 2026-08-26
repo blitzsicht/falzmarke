@@ -8,7 +8,7 @@ Die Reihenfolge der Phasen folgt [ADR 0030](entscheidungen/0030-reihenfolge-der-
 Meilensteinen und offenen Issues erzeugt und nicht von Hand gepflegt: die Wahrheit
 steht im Issue, hier steht nur eine Sicht darauf.
 
-**99 offene Vorgänge** in 6 Phasen.
+**20 offene Vorgänge** in 6 Phasen.
 
 ## 1. Vor Verbreitung
 
