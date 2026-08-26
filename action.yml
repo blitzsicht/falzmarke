@@ -103,7 +103,10 @@ runs:
         if [ ${#dateien[@]} -eq 0 ]; then
           echo "::error::Kein Brief gefunden für: ${{ inputs.briefe }}"
           echo "Gesucht wurde ab $(pwd). Vorhanden sind:"
-          ls -1 2>/dev/null | head -20
+          # `printf` über das Glob statt `ls` oder `find -printf`: Ersteres
+          # verschluckt sich an Dateinamen mit Zeilenumbruch, Letzteres gibt es
+          # auf BSD/macOS nicht — und diese Aktion läuft auf fremden Runnern.
+          printf '%s\n' * 2>/dev/null | head -20
           exit 1
         fi
 
