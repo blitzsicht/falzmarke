@@ -1,0 +1,35 @@
+name: Öffentlichkeit der Issues
+
+# Prüft nach ADR 0031, ob ein öffentliches Issue Internes nennt: Namen anderer
+# Repositories, interne Pfade, Auftragsstruktur. Läuft wöchentlich und bei jedem
+# neuen oder geänderten Issue — das ist der Moment, in dem der Kontext mitrutscht.
+on:
+  schedule:
+    - cron: "43 6 * * 1"     # montags 06:43 UTC, nach der Roadmap
+  workflow_dispatch:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+
+      # Der Job meldet nur Nummer und Musterkennung, nie die gefundene Zeile:
+      # das Protokoll eines öffentlichen Repositorys ist öffentlich. Aus
+      # demselben Grund kommentiert er nichts am Issue.
+      - name: Issues gegen ADR 0031 halten
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HYGIENE_ZUSATZ: ${{ secrets.HYGIENE_ZUSATZ }}
+        run: python3 scripts/oeffentlichkeit.py

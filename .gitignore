@@ -40,7 +40,7 @@ node_modules/
 # sich der Film trotzdem nicht bauen laesst.
 docs/marke/video/erklaerfilm/public/
 
-# Handoffs und Sitzungsnotizen gehoeren nach blitzsicht-ops, nie hierher.
+# Handoffs und Sitzungsnotizen gehören nicht in dieses Repository.
 # Dieses Repo ist oeffentlich; ein Handoff traegt Kundennamen, interne Pfade
 # und Betriebsdetails. Der Ordner entsteht trotzdem immer wieder lokal, weil
 # Sitzungswerkzeuge ihn anlegen — ohne diese Zeile waere er beim naechsten
