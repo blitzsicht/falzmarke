@@ -119,6 +119,8 @@ def test_beide_bilder_stehen_mit_alternativtext_in_der_readme():
     """Ein Bild ohne Alternativtext ist fuer einen Teil der Leser gar nicht da."""
     readme = (REPO / "README.md").read_text(encoding="utf-8")
     for name in BILDER:
+        # Der Pfad ist absolut (…/raw/main/…), damit er auf PyPI nicht ins Leere
+        # zeigt — tests/test_readme_auf_pypi.py hält das fest.
         treffer = re.search(r"!\[([^\]]*)\]\([^)]*" + re.escape(name) + r"\)", readme)
         assert treffer, f"{name} wird in der README nicht eingebunden"
         assert len(treffer.group(1)) >= 20, (

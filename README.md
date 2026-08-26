@@ -57,7 +57,7 @@ OK    Abstand Betreff → Anrede (2 Leerzeilen): soll 12.70 ist 12.70 (tol ±0.2
 Die erste dieser Zeilen spricht von einem Strich, den man auf einem Vorschaubild
 kaum sieht — er ist 0,25 pt stark. Vergrößert sieht die Stelle so aus:
 
-![Ausschnitt vom linken Rand eines Briefes, neun mal sieben Millimeter groß: Eine gestrichelte grüne Hilfslinie markiert die Sollposition bei 105,00 Millimetern und trifft genau auf die kurze schwarze Falzmarke. Daneben das ganze Blatt verkleinert, mit einem Rahmen um die vergrößerte Stelle. Darunter steht die gemessene Position 105,00 Millimeter.](docs/assets/demo/falzmarke-detail.png)
+![Ausschnitt vom linken Rand eines Briefes, neun mal sieben Millimeter groß: Eine gestrichelte grüne Hilfslinie markiert die Sollposition bei 105,00 Millimetern und trifft genau auf die kurze schwarze Falzmarke. Daneben das ganze Blatt verkleinert, mit einem Rahmen um die vergrößerte Stelle. Darunter steht die gemessene Position 105,00 Millimeter.](https://github.com/blitzsicht/falzmarke/raw/main/docs/assets/demo/falzmarke-detail.png)
 
 Dort wird der Bogen gefaltet, damit die Anschrift im Fensterumschlag steht. Sitzt die
 Marke falsch, faltet der Stapel falsch — und das fällt erst nach dem Druck auf.
@@ -123,7 +123,7 @@ Das ist der Teil, an dem sich das Versprechen entscheidet — deshalb steht er v
   ![Zwei gleiche Ausschnitte nebeneinander. Links liegt die Falzmarke genau auf der gestrichelten
   Sollinie bei 105,00 Millimetern, darunter steht 105,00 Millimeter und der Hinweis, dass so
   ausgeliefert wird. Rechts liegt die Marke deutlich unterhalb der Sollinie, darunter steht 107,00
-  Millimeter und der Hinweis, dass verify hier anschlägt.](docs/assets/demo/falzmarke-gegenprobe.png)
+  Millimeter und der Hinweis, dass verify hier anschlägt.](https://github.com/blitzsicht/falzmarke/raw/main/docs/assets/demo/falzmarke-gegenprobe.png)
 
   Unterscheiden sich die beiden Ausschnitte nicht, zeigt der Ausschnitt die Marke gar nicht — dann
   ist das Bild oben wertlos, und `tests/test_detailbild.py` schlägt fehl.
@@ -358,91 +358,60 @@ Maße gemessen wurden, steht in [`docs/normmasse.md`](https://github.com/blitzsi
 
 ## Was sich zuletzt getan hat
 
-Die letzten zwei Versionen im Wortlaut. **Erzeugt aus [`CHANGELOG.md`](CHANGELOG.md) — dort ändern, dann `python3 scripts/changelog.py`.**
+Die letzten zwei Versionen im Wortlaut. **Erzeugt aus [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md) — dort ändern, dann `python3 scripts/changelog.py`.**
 
-### v0.6.0 — 25.08.2026
-
-#### Neu
-- **Video aus Code.** Die README zeigt oben ein GIF der echten CLI, aufgezeichnet mit
-  [vhs](https://github.com/charmbracelet/vhs) aus `docs/marke/video/readme.tape`. Dazu ein
-  Erklärfilm von 60 Sekunden in 16:9 und 9:16
-  (`docs/marke/video/erklaerfilm/`, Remotion). Nichts darin ist abgetippt: Die Szenentexte
-  kommen aus dem Textkanon, die Messzeilen aus einem echten `verify --json`-Lauf, das Blatt
-  ist der CI-Render von `examples/brief-mahnung.md`.
-- **Der Textkanon ist eine Datei geworden.** `docs/marke/texte.yaml` ist ab jetzt die einzige
-  Quelle für Claim, Untertitel und die Szenentexte; `docs/marke/texte.md` und die Szenendatei
-  des Films werden daraus erzeugt (`python3 scripts/texte.py`). Vorher trug dasselbe Produkt
-  drei Beschreibungen — im Banner, im Auftrag und in `pyproject` —, keine davon war die Quelle.
-- **`docs/marke/erscheinungsbild.md`** schreibt Farben, Schriften und Verwendung fest, mit
-  gemessenen Kontrastwerten und einem ausführbaren Rechenweg.
-- **Mahnung als neuntes Beispiel** (`examples/brief-mahnung.md`).
-- **`make`** als gemeinsamer Einstieg für Marke, Texte, GIF und Film.
+### v0.7.3 — 26.08.2026
 
 #### Behoben
-- **Der Banner ließ sich nicht neu bauen.** Seine HTML-Quelle verwies auf `/tmp/sp/` und
-  `/home/claude/fz/` — Pfade einer fremden Sandbox. Montserrat liegt jetzt als OFL-Schrift
-  unter `docs/marke/fonts/`, und `bash scripts/marke.sh` erzeugt Banner und Vorschaubild
-  reproduzierbar aus der HTML.
-- **Marken-Grün war als Text nicht barrierefrei.** `#3EB057` erreicht auf Weiß nur 2,78 : 1
-  und verfehlt WCAG AA — genau so stand der Zweitclaim im Banner. Für Text auf hellem Grund
-  gilt jetzt `#2F8642` (4,56 : 1, gleicher Farbton). Als Fläche bleibt `#3EB057`.
-- **`pyproject`-Beschreibung** entspricht dem Kanon statt einer vierten Formulierung.
+- **Der Schritt „Prüfsummen ausgeben" hat den Upload verhindert.** Er schrieb die Summen mit
+  `| tee dist/SHA256SUMS` in genau das Verzeichnis, das die Publish-Action vollständig
+  hochlädt. Sie prüft vorher jede Datei darin und bricht an der ersten ab, die kein
+  Distributions-Format ist — Lauf 32966455275:
 
-#### Hinweis zu Lizenzen
-Der Erklärfilm wird mit [Remotion](https://www.remotion.dev) erzeugt, und das ist die erste
-Komponente in diesem Repository, die **nicht** permissiv lizenziert ist. Sie ist am Programm
-nicht beteiligt und wird nicht mitgeliefert. Die fertigen MP4-Dateien sind Ergebnis, nicht
-Software, und stehen wie das übrige Repository unter MIT; wer den Film selbst neu rendert,
-braucht ab vier Beschäftigten eine Company License. Deshalb wird lokal gerendert und das
-Ergebnis eingecheckt, statt in CI zu bauen. Einzelheiten in `THIRD_PARTY_LICENSES.md`,
-Abschnitt „Nur für die Videoerzeugung". Die Aussage „Alle Abhängigkeiten sind permissiv
-lizenziert" heißt entsprechend jetzt „Alle Abhängigkeiten **des Programms**".
+  ```
+  Checking dist/falzmarke-0.7.2-py3-none-any.whl: PASSED
+  Checking dist/SHA256SUMS: ERROR InvalidDistribution: Unknown distribution format: 'SHA256SUMS'
+  ```
 
-### v0.5.2 — 25.08.2026
+  Das Paket selbst war in Ordnung. Die Summen stehen jetzt nur noch im Lauf-Protokoll; die
+  Action gibt sie mit `print-hash: true` ohnehin ein zweites Mal aus.
 
-#### Geändert
-- **Die CI-Aktionen hängen an vollständigen Commit-SHAs statt an Tags.** Ein Tag ist
-  verschiebbar: `actions/checkout@v4` zeigt heute auf einen Commit und morgen womöglich auf
-  einen anderen, ohne dass sich hier etwas ändert. Nur der SHA ist eine unveränderliche
-  Referenz. Die Version steht als Kommentar dahinter, damit lesbar bleibt, was gepinnt ist.
-  Alle sechs SHAs sind vor dem Festschreiben gegen ihr Repository geprüft worden — ein
-  falscher SHA bricht jeden Lauf, und bei `release.yml` fiele das erst beim nächsten Release auf.
-- **Voreinstellung `contents: read` je Workflow.** Die Jobs, die schreiben müssen, sagen das
-  weiterhin selbst — jetzt sichtbar als Ausnahme statt als Normalfall.
-- **Die README ist eine Produktseite statt einer Referenz.** Der erste Bildschirm beantwortet
-  jetzt, was falzmarke ist, was es löst und woran man sieht, dass es stimmt — mit dem Satz, um
-  den es geht: *Andere Werkzeuge erzeugen ein PDF. falzmarke prüft das Ergebnis.* Neu sind eine
-  Beweisleiste aus belegten Angaben, ein Vergleich mit dem typischen Arbeitsablauf (nicht mit
-  Produkten), Funktionen als Nutzen statt als Komponentenliste, und eine Beweissektion **vor**
-  der Installation — an ihr entscheidet sich das Versprechen, also steht sie nicht am Ende.
-- **Ein Abschnitt „Sicherheit"**, der ausschließlich nennt, was im Code steht und geprüft ist:
-  `safe_load` durchgängig, Markdown-Positivliste, Brieftext als maskierte Zeichenkette statt
-  Typst-Code, Ordnergrenze für Datei-Angaben samt Symlink-Auflösung, begrenztes
-  Typst-Wurzelverzeichnis, abgeschaltete Systemschriften, keine Netzwerkbibliothek im
-  Renderpfad. Ausdrücklich **nicht** „sicher", „gehärtet" oder „auditiert" — ein unabhängiges
-  Audit gibt es nicht.
-- **Referenzteile ausgelagert**: [`docs/cli.md`](docs/cli.md) (Befehle, Exit-Codes, was geprüft
-  wird), [`docs/profiles.md`](docs/profiles.md) (Profil anlegen, Suchreihenfolge, eigener
-  Briefkopf) und [`docs/architecture.md`](docs/architecture.md) (Schichten, Vendoring, warum das
-  Paket unter `skill/` liegt). Die README behält je eine Kurzfassung und einen benannten Link,
-  dazu eine Tabelle „Weiterlesen“.
+#### Hinzugefügt
+- **Ein Wächter vor dem Upload.** Ein neuer Schritt bricht ab, wenn in `dist/` etwas liegt, das
+  weder `.whl` noch `.tar.gz` ist. Das Entfernen des `tee` behebt diesen einen Fall; der
+  Wächter behebt die Fehlerklasse. Er schlägt fehl, wo es nichts kostet — statt nach der
+  Freigabe, im unumkehrbaren Job.
 
-#### Neu
-- **`.github/dependabot.yml`** für Versions-Updates von Actions und Python-Abhängigkeiten.
-  Security-Updates liefen bereits über die Repository-Einstellung.
-- **Das Release-Asset ist überprüfbar.** `falzmarke.skill` bekommt eine
-  Herkunftsbestätigung (`actions/attest-build-provenance`) und eine SHA-256-Summe in der
-  Release-Notiz sowie als eigene Datei. Der Prüfbefehl steht im README. Eine solche Bestätigung
-  belegt **Herkunft und Bauweg, nicht Fehlerfreiheit** — genau so ist es dort formuliert.
+Lauf 32966455275 brach — wie die drei davor — **vor** dem Upload ab; auf PyPI war zu diesem
+Zeitpunkt nichts gelandet.
+
+#### Angekommen
+**v0.7.3 liegt auf [PyPI](https://pypi.org/project/falzmarke/)** — der fünfte Anlauf, Lauf
+32972861001 am 26.08.2026. Gemessen, nicht vom grünen Job abgelesen:
+`pypi.org/pypi/falzmarke/json` → HTTP 200, Version 0.7.3, Wheel und sdist. In einer frischen
+Umgebung installiert (`pip install falzmarke`) und ein Brief gerendert: 33/33 Maße eingehalten.
+
+Damit gelten die kurzen Befehle: `pipx install falzmarke`, `uvx falzmarke`. Die README nennt sie
+jetzt, und `tests/test_installationswege.py` lässt sie zu (`AUF_PYPI = True`).
+
+#### Warum es diese Version gibt
+Wie schon bei 0.7.1 und 0.7.2: Das Ruleset `release-tags` lässt Tags weder verschieben noch
+löschen, und das Environment `pypi` erlaubt Deployments nur von Tags `v*`. Ein neuer Anlauf
+braucht deshalb eine neue Versionsnummer — v0.7.2 ist verbraucht.
+
+### v0.7.2 — 26.08.2026
 
 #### Behoben
-- **Drei veraltete Zähler.** Die README nannte „alle sieben Beispiele" (es sind acht) und
-  „28 Prüfungen" (es sind 30). Genau die Sorte Zahl, die bei jeder Änderung altert, ohne dass
-  ein Test anschlägt — sie ist jetzt raus oder aus der Wirklichkeit abgeleitet.
-- **Ein toter Verweis** in `docs/normmasse.md`: `skill/scripts/geometrie.py` gibt es nicht, die
-  Datei liegt unter `skill/falzmarke/`. Gefunden beim Prüfen aller 66 internen Verweise.
+- **Die Publish-Action konnte ihr eigenes Image nicht laden.** `pypa/gh-action-pypi-publish`
+  laeuft als Docker-Container und zieht ihr Image mit dem `action_ref` als Tag. Beim
+  SHA-Pinning ist das der Commit-SHA — und dafuer existiert im Registry kein Image, sie werden
+  nur fuer Release-Tags gebaut (`manifest unknown`). Die Action ist damit die eine Stelle, an
+  der die Hausregel „Actions auf Commit-SHAs pinnen" nicht anwendbar ist; sie steht jetzt als
+  begruendete Ausnahme auf `v1.14.2`, der auf denselben Commit zeigt.
 
-Davor liegen 10 weitere Versionen — der vollständige Verlauf steht in [`CHANGELOG.md`](CHANGELOG.md).
+Auch dieser Lauf brach **vor** dem Upload ab. Auf PyPI ist weiterhin nichts gelandet.
+
+Davor liegen 14 weitere Versionen — der vollständige Verlauf steht in [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md).
 
 <!-- changelog:ende -->
 

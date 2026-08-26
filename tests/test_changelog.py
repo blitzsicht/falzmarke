@@ -118,10 +118,18 @@ def test_die_ueberschriften_ordnen_sich_der_readme_unter(readme):
 
 def test_eine_aenderung_am_changelog_faellt_auf(tmp_path, monkeypatch, readme):
     """Gegenprobe: Ohne sie belegte der Aktualitätstest nur, dass zwei Dateien existieren."""
+    # Eine ganze Version oben anfuegen statt eine Rubrik zu treffen: „### Neu“
+    # gibt es nicht in jeder Version. Genau daran ist diese Gegenprobe nach dem
+    # Merge von v0.7.x einmal gescheitert — sie ersetzte nichts und war deshalb
+    # gruen, ohne etwas zu belegen.
+    quelle = changelog.QUELLE.read_text(encoding="utf-8")
+    kopf = changelog.VERSION_KOPF.search(quelle)
+    assert kopf, "CHANGELOG.md hat keine Versionsüberschrift — dann greift hier nichts"
     gefaelscht = tmp_path / "CHANGELOG.md"
     gefaelscht.write_text(
-        changelog.QUELLE.read_text(encoding="utf-8").replace(
-            "### Neu", "### Neu\n- **Ein Punkt, den die README nicht kennt.**", 1),
+        quelle[:kopf.start()]
+        + "## v99.0.0 — 01.01.2099\n\n### Neu\n- **Ein Punkt, den die README nicht kennt.**\n\n"
+        + quelle[kopf.start():],
         encoding="utf-8",
     )
     monkeypatch.setattr(changelog, "QUELLE", gefaelscht)

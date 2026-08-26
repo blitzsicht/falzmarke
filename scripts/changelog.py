@@ -34,6 +34,11 @@ ZIEL = REPO / "README.md"
 MARKE_START = "<!-- changelog:anfang -->"
 MARKE_ENDE = "<!-- changelog:ende -->"
 
+# Absolut, nicht relativ: Die README wird auch auf PyPI gerendert, und dort
+# zeigt ein relativer Verweis ins Leere. tests/test_readme_auf_pypi.py haelt
+# das fest — diese Zeile ist einmal dagegen gelaufen.
+CHANGELOG_URL = "https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md"
+
 # Zwei Versionen. Mehr macht aus der Produktseite ein Archiv; weniger zeigt
 # keine Bewegung. Wer alles will, folgt dem Link auf CHANGELOG.md.
 VERSIONEN = 2
@@ -74,7 +79,7 @@ def abschnitt() -> str:
         "## Was sich zuletzt getan hat",
         "",
         f"Die {'letzte Version' if len(gezeigt) == 1 else 'letzten ' + ZAHLWORT.get(len(gezeigt), str(len(gezeigt))) + ' Versionen'}"
-        " im Wortlaut. **Erzeugt aus [`CHANGELOG.md`](CHANGELOG.md) — dort ändern, dann"
+        f" im Wortlaut. **Erzeugt aus [`CHANGELOG.md`]({CHANGELOG_URL}) — dort ändern, dann"
         " `python3 scripts/changelog.py`.**",
         "",
     ]
@@ -84,7 +89,7 @@ def abschnitt() -> str:
     if aeltere:
         zeilen += [
             f"Davor liegen {aeltere} weitere Versionen — der vollständige Verlauf steht in"
-            " [`CHANGELOG.md`](CHANGELOG.md).",
+            f" [`CHANGELOG.md`]({CHANGELOG_URL}).",
             "",
         ]
     zeilen.append(MARKE_ENDE)
