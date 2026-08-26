@@ -195,7 +195,7 @@ def _kurz(text: str, laenge: int = 22) -> str:
     return text if len(text) <= laenge else text[: laenge - 1] + "…"
 
 
-def _satzspiegel(dokument, bericht: Bericht) -> None:
+def _satzspiegel(dokument, bericht: Bericht, briefseiten: int | None = None) -> None:
     """Kein Text ausserhalb des Satzspiegels — auf JEDER Seite.
 
     Bis hierher endete die Textmessung auf Seite 1: `seite = dokument.pages[0]`.
@@ -213,7 +213,7 @@ def _satzspiegel(dokument, bericht: Bericht) -> None:
     Der Bericht nennt Seite UND Element: „ausserhalb" allein sagt niemandem, wo
     er suchen soll.
     """
-    for nummer, seite in enumerate(dokument.pages, start=1):
+    for nummer, seite in enumerate(dokument.pages[:briefseiten], start=1):
         spans = _spans(seite)
         if not spans:
             continue
@@ -299,7 +299,7 @@ def _oeffne(pdf_pfad: Path):
         ) from fehler
 
 
-def _nicht_eingebettete_schriften(pdf_pfad: Path) -> list[str]:
+def _nicht_eingebettete_schriften(pdf_pfad: Path, briefseiten: int | None = None) -> list[str]:
     """Schriften ohne eingebettete Datei — sie werden beim Empfänger ersetzt.
 
     Ein Font-Deskriptor mit FontFile/FontFile2/FontFile3 trägt die Schrift im
@@ -319,7 +319,11 @@ def _nicht_eingebettete_schriften(pdf_pfad: Path) -> list[str]:
 
     offen = []
     leser = PdfReader(str(pdf_pfad))
-    for seite in leser.pages:
+    # Nur die Seiten, die falzmarke gesetzt hat: Eine angehaengte Anlage ist
+    # fremdes Papier. Ihre Schriften sind nicht unsere Zusage — und sie zu
+    # beanstanden hiesse, dem Absender einen Fehler vorzuwerfen, den er in
+    # einer Datei hat, die er nur weiterreicht.
+    for seite in leser.pages[:briefseiten]:
         schriften = (seite.get("/Resources") or {}).get("/Font") or {}
         for schluessel in schriften:
             schrift = schriften[schluessel].get_object()
@@ -338,10 +342,44 @@ def _nicht_eingebettete_schriften(pdf_pfad: Path) -> list[str]:
     return sorted(set(offen))
 
 
-def pruefe(pdf_pfad: Path, form: str) -> Bericht:
+def _briefseiten_aus_metadaten(pdf_pfad: Path) -> int | None:
+    """Wie viele Seiten der Brief hat — laut der Datei selbst.
+
+    anlagen.haenge_an schreibt das hinein. Ohne diesen Vermerk koennte `verify`
+    auf einer fertigen Datei nicht wissen, wo der Brief endet und die Anlage
+    beginnt, und wuerde die Anlage nach Briefregeln messen.
+    """
+    from pypdf import PdfReader
+
+    try:
+        angabe = (PdfReader(str(pdf_pfad)).metadata or {}).get("/falzmarke_Briefseiten")
+    except Exception:                                             # noqa: BLE001
+        return None
+    try:
+        zahl = int(str(angabe))
+    except (TypeError, ValueError):
+        return None
+    return zahl if zahl > 0 else None
+
+
+def pruefe(pdf_pfad: Path, form: str, briefseiten: int | None = None) -> Bericht:
+    """Misst den Brief. `briefseiten` begrenzt die Messung auf die ersten n Seiten.
+
+    Nötig, seit `anlagen_dateien` fremde PDFs hinten anhängen kann: Eine Anlage
+    trägt keine Kopfzeile mit Betreff, keine Seitenzählung und womöglich keine
+    eingebettete Schrift. Sie danach zu beurteilen, hiesse dem Absender einen
+    Fehler in einem Dokument vorzuwerfen, das er nur beilegt.
+
+    Ohne Angabe wird die Zahl aus den Metadaten gelesen (`/falzmarke_Briefseiten`,
+    von anlagen.haenge_an geschrieben) — so weiss auch ein `verify` auf einer
+    fertigen Datei, wo der Brief endet. Steht dort nichts, gilt das ganze
+    Dokument als Brief; das ist der Zustand aller Briefe ohne Anlagen.
+    """
     soll = FORM[form]
     bericht = Bericht()
     dokument = _oeffne(pdf_pfad)
+    if briefseiten is None:
+        briefseiten = _briefseiten_aus_metadaten(pdf_pfad)
     if not dokument.pages:
         dokument.close()
         raise PdfUnlesbar(f"{pdf_pfad.name} enthält keine Seite.")
@@ -351,7 +389,7 @@ def pruefe(pdf_pfad: Path, form: str) -> Bericht:
     bericht.wert("Seitenbreite", mm(seite.width), SEITE_BREITE, 0.1)
     bericht.wert("Seitenhöhe", mm(seite.height), SEITE_HOEHE, 0.1)
 
-    _satzspiegel(dokument, bericht)
+    _satzspiegel(dokument, bericht, briefseiten)
 
     # Falz- und Lochmarken. Gesucht wird die nächstgelegene Marke, nicht die an
     # der Sollposition: Eine Marke bei 84,0 statt 87,0 mm ist ein verschobenes
@@ -551,14 +589,15 @@ def pruefe(pdf_pfad: Path, form: str) -> Bericht:
     )
 
     # Schriften eingebettet
-    nicht_eingebettet = _nicht_eingebettete_schriften(pdf_pfad)
+    nicht_eingebettet = _nicht_eingebettete_schriften(pdf_pfad, briefseiten)
     bericht.wahr(
         "Schriften eingebettet", not nicht_eingebettet, "alle eingebettet",
         "fehlend: " + ", ".join(nicht_eingebettet) if nicht_eingebettet else "alle",
     )
 
-    # Folgeseiten
-    if len(dokument.pages) > 1:
+    # Folgeseiten — gezaehlt werden die Seiten des Briefes, nicht die der Datei.
+    brief_seitenzahl = briefseiten or len(dokument.pages)
+    if brief_seitenzahl > 1:
         zweite = dokument.pages[1]
         text = zweite.extract_text() or ""
         seitenzahl = f"Seite 2 von {len(dokument.pages)}"
