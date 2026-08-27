@@ -104,10 +104,16 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Wheel bauen und ohne Clone installieren
+      - name: Alles pruefen, was ohne Tag pruefbar ist
         run: |
-          python -m pip install --upgrade pip build
-          python -m build --wheel
+          # Derselbe Aufruf wie in release.yml vor dem Upload (Issue #76).
+          # Der Release-Job lief bisher erst am Tag zum ersten Mal vollstaendig,
+          # und jeder Fehlschlag kostete eine Versionsnummer, die niemand je
+          # wieder verwenden kann. Jetzt laeuft er bei jedem Push mit.
+          bash scripts/paket_pruefen.sh
+
+      - name: Das gebaute Wheel ohne Clone installieren
+        run: |
           python -m venv /tmp/frisch
           /tmp/frisch/bin/pip install dist/*.whl
 
