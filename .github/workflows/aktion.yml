@@ -54,19 +54,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          erwartet=$(ls -1 examples/*.md | wc -l | tr -d ' ')
+          # Über ein Array statt `ls | wc -l`: Ein Dateiname mit Zeilenumbruch
+          # würde sonst doppelt gezählt, und die Prüfung meldete eine Zahl, die
+          # es nicht gibt (shellcheck SC2012).
+          shopt -s nullglob
+          briefe=(examples/*.md)
+          erwartet=${#briefe[@]}
           gemeldet="${{ steps.lauf.outputs.anzahl }}"
           [ "$gemeldet" = "$erwartet" ] || {
             echo "::error::Aktion meldet $gemeldet Briefe, es sind $erwartet"; exit 1; }
 
-          pdfs=$(ls -1 aus/*.pdf | wc -l | tr -d ' ')
-          [ "$pdfs" = "$erwartet" ] || {
-            echo "::error::$pdfs PDFs statt $erwartet"; exit 1; }
+          pdfs=(aus/*.pdf)
+          [ "${#pdfs[@]}" = "$erwartet" ] || {
+            echo "::error::${#pdfs[@]} PDFs statt $erwartet"; exit 1; }
 
-          pngs=$(ls -1 aus/*.png 2>/dev/null | wc -l | tr -d ' ')
-          [ "$pngs" -gt 0 ] || { echo "::error::vorschau=true, aber kein PNG"; exit 1; }
+          pngs=(aus/*.png)
+          [ "${#pngs[@]}" -gt 0 ] || { echo "::error::vorschau=true, aber kein PNG"; exit 1; }
 
-          echo "OK  $gemeldet Briefe, $pdfs PDFs, $pngs Vorschauen"
+          echo "OK  $gemeldet Briefe, ${#pdfs[@]} PDFs, ${#pngs[@]} Vorschauen"
 
   mit-pypi:
     name: Der Weg, den fremde Repositories gehen
