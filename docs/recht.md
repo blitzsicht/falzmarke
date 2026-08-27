@@ -57,6 +57,27 @@ belegt ist. Was er sonst geändert hätte, kann er als Vorschlag ausgeben, ohne 
 anzufassen. Eine stille Ersetzung auf dünner Grundlage wäre der schlechteste Fall — der Brief
 sähe anders aus, als er geschrieben wurde, und niemand erführe warum.
 
+## Pflichtangaben in E-Mails
+
+Die DIN 5008 sagt nichts darüber, was in einem Geschäftsbrief stehen **muss** — das steht im
+Handelsrecht, und es gilt für E-Mails genauso wie für Papier. Seit dem EHUG (Gesetz über
+elektronische Handelsregister und Genossenschaftsregister sowie das Unternehmensregister, in
+Kraft am 1. Januar 2007) sind die Vorschriften über Geschäftsbriefe ausdrücklich auf
+Geschäftsbriefe „gleichviel welcher Form" gefasst; eine geschäftliche E-Mail ist damit erfasst.
+
+Wo das steht, hängt an der Rechtsform: § 37a HGB (eingetragener Kaufmann), § 125a HGB (OHG und
+KG), § 35a GmbHG, § 80 AktG, § 25a GenG. Verlangt werden dort — je nach Form — Rechtsform und
+Sitz, das Registergericht, die Registernummer und die Namen der Geschäftsführer, Vorstands- oder
+Aufsichtsratsmitglieder.
+
+**falzmarke prüft das nicht.** Welche Angaben eine Rechtsform braucht, entscheidet nicht ein
+Werkzeug, das den Text nicht kennt (ADR 0005). Der Linter meldet nur, ob im Profil überhaupt
+`email.pflichtangaben:` gesetzt ist — als Erinnerung, als Warnung, ohne den Lauf anzuhalten und
+ohne den Inhalt zu bewerten. Was dort steht, verantwortet der Absender.
+
+Das ist keine Rechtsberatung. Wer wissen will, was seine Rechtsform verlangt, fragt jemanden,
+der dafür haftet.
+
 ## Was ausdrücklich nicht behauptet wird
 
 - **Keine Zertifizierung.** falzmarke ist kein Produkt des DIN, steht in keiner Verbindung zum

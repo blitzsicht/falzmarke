@@ -296,3 +296,75 @@ def test_die_anlage_wird_nicht_von_selbst_erwaehnt(tmp_path):
 
 def test_die_warnung_haelt_den_lauf_nicht_an(tmp_path):
     assert _mit_anlage(tmp_path, "Hier ist etwas anderes.\n").anzahl_fehler == 0
+
+
+# ── Vollständigkeit: keine Regel ohne Auslöser ──────────────────────────────
+#
+# Die Fälle oben stehen einzeln und von Hand. Kommt eine Regel dazu, fällt hier
+# auf, dass niemand einen Auslöser dafür geschrieben hat — dasselbe Muster wie
+# `test_emitter_kennt_jeden_knoten` in test_emit_html.py. Die Regelmenge kommt
+# aus der Regeldatei, nicht aus einer zweiten Liste: Zwei gepflegte Listen
+# laufen auseinander, und die falsche fällt niemandem auf.
+
+def _profil_ohne(feld: str, tmp_path) -> Path:
+    """Das Beispielprofil, an einer Stelle beschnitten."""
+    profil = yaml.safe_load((PROFILE / "example.yaml").read_text(encoding="utf-8"))
+    if feld == "email":
+        del profil["email"]
+    else:
+        del profil["email"][feld]
+    ziel = tmp_path / "profile"
+    ziel.mkdir(exist_ok=True)
+    (ziel / "example.yaml").write_text(yaml.safe_dump(profil, allow_unicode=True),
+                                       encoding="utf-8")
+    return ziel
+
+
+def _loese_aus(regel: str, tmp_path):
+    """Ein Fall, der genau diese Regel melden muss."""
+    if regel == "email.betreff":
+        return linte(tmp_path, MAIL.replace("Angebot Nr. 2026-0815", "Angebot " + "sehr lang " * 9))
+    if regel == "email.datum":
+        return linte(tmp_path, MAIL + "datum: 2026-08-27\n")
+    if regel == "infoblock.email":
+        # Als **Brief**: Einen Informationsblock gibt es in einer Mail nicht,
+        # der Datenvertrag weist ihn dort ab, bevor die Adresse geprüft würde.
+        # Die Regel traegt trotzdem das Praefix `email`, weil sie eine
+        # E-Mail-Adresse prueft — nicht, weil sie zur E-Mail-Fassung gehoert.
+        return linte(tmp_path, BRIEF + "infoblock:\n  email: keine-adresse\n")
+    if regel == "email.anlage":
+        (tmp_path / "beleg-4711.pdf").write_bytes(b"%PDF-1.4 x")
+        return linte(tmp_path, MAIL + "anlagen_dateien: [beleg-4711.pdf]\n",
+                     "Kein Wort über den Anhang.\n")
+    if regel in ("email.profil", "email.absender", "email.pflichtangaben"):
+        feld = {"email.profil": "email", "email.absender": "absender",
+                "email.pflichtangaben": "pflichtangaben"}[regel]
+        pfad = tmp_path / "nachricht.md"
+        pfad.write_text(f"---\n{MAIL}---\nText der Nachricht.\n", encoding="utf-8")
+        return falzmarke.linte(pfad, profil_verzeichnis=_profil_ohne(feld, tmp_path))
+    raise AssertionError(f"kein Auslöser für {regel} — bitte einen ergänzen")
+
+
+def _regeln_der_regeldatei() -> set[str]:
+    from falzmarke import regeln as regelsatz
+    return {r["lint"] for r in regelsatz.alle()
+            if r.get("lint") and str(r["id"]).startswith("werkzeug.email")}
+
+
+def test_die_regelmenge_ist_nicht_leer():
+    """Sonst wäre die Parametrisierung unten still leer und damit grün."""
+    assert len(_regeln_der_regeldatei()) >= 7, sorted(_regeln_der_regeldatei())
+
+
+@pytest.mark.parametrize("regel", sorted(_regeln_der_regeldatei()))
+def test_zu_jeder_email_regel_gibt_es_einen_ausloeser(regel, tmp_path):
+    bericht = _loese_aus(regel, tmp_path)
+    assert regel in regeln(bericht), \
+        f"{regel} wurde nicht gemeldet, gemeldet wurde: {sorted(regeln(bericht))}"
+
+
+def test_der_gueltige_fall_loest_keine_einzige_davon_aus(tmp_path):
+    """Die Gegenrichtung. Ohne sie könnte jeder Auslöser oben auch ein Linter
+    sein, der bei jeder Datei alles meldet."""
+    bericht = linte(tmp_path, MAIL)
+    assert regeln(bericht) & _regeln_der_regeldatei() == set(), bericht.als_text("nachricht.md")

@@ -10,6 +10,12 @@ briefe/
 # Bildverweise im Repo tot, obwohl die Dateien lokal daliegen.
 !docs/renders/*.png
 !docs/assets/**/*.png
+# Ausgenommen: die Anlage der Beispielmail. Ohne sie bricht
+# examples/email/email-mahnung.md mit FileNotFoundError ab — beim Test wie bei
+# jedem, der das Beispiel nachvollzieht. Die Datei ist eingefroren, nicht
+# erzeugt: ein neuer Renderlauf liefert andere Bytes und laesst das Golden
+# tests/golden/email/email-mahnung.eml auffliegen. Genau so ist es gemeint.
+!examples/email/anlagen/*.pdf
 
 # Die Videoausgaben gehoeren ins Repo: das README bindet demo.gif direkt ein,
 # und tests/test_tape.py prueft demo.ascii gegen einen echten CLI-Lauf. Sie

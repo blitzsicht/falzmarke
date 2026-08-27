@@ -340,6 +340,11 @@ eine Datei erzeugt, haftet für ihren Inhalt; wer sie befördert, für Zustellun
 sind zwei Versprechen, und falzmarke gibt nur das erste
 ([ADR 0034](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0034-email-ist-ausgabe.md)).
 
+Wie die Datei aufgebaut ist, was bewusst fehlt und wo die Grenzen liegen:
+[Die E-Mail-Fassung](https://github.com/blitzsicht/falzmarke/blob/main/docs/email.md). Vier
+Beispiele liegen unter
+[`examples/email/`](https://github.com/blitzsicht/falzmarke/tree/main/examples/email/).
+
 ## Beispiele
 
 | Standardbrief | Einschreiben | Mehrseitig |
@@ -372,6 +377,7 @@ mit englischer Beschriftung (`sprache: en` — deutsche Maße, englische Wörter
 |---|---|
 | [Befehle](https://github.com/blitzsicht/falzmarke/blob/main/docs/cli.md) | alle Unterbefehle, Exit-Codes, was geprüft wird |
 | [Absenderprofile](https://github.com/blitzsicht/falzmarke/blob/main/docs/profiles.md) | Profil anlegen, Suchreihenfolge, eigener Briefkopf |
+| [Die E-Mail-Fassung](https://github.com/blitzsicht/falzmarke/blob/main/docs/email.md) | Aufbau der `.eml`, ihre Teile und Grenzen |
 | [Datenvertrag](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/frontmatter.md) | jedes Frontmatter-Feld mit Beispiel |
 | [falzmarke-Markdown](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/markdown.md) | was im Brieftext möglich ist |
 | [Normmaße und Quellenlage](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/din5008.md) | Sollwerte und ihre Herkunft |

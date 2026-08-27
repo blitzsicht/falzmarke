@@ -63,6 +63,22 @@ jobs:
             python skill/scripts/falzmarke.py preview "$datei" -o "docs/renders/$name.png" --ppi 110
           done
 
+      - name: E-Mail-Beispiele setzen
+        shell: bash
+        run: |
+          # Der Byte-Vergleich gegen die Goldens läuft in pytest. Hier geht es
+          # um den Weg über die Kommandozeile: dass der Befehl auf allen drei
+          # Plattformen dieselben Dateien schreibt und `verify --email` grün
+          # meldet. Ohne SOURCE_DATE_EPOCH — eine Nachricht ohne `Date` ist der
+          # Normalfall, und genau der soll hier laufen.
+          for datei in examples/email/*.md; do
+            name=$(basename "$datei" .md)
+            python skill/scripts/falzmarke.py email "$datei" -o "bau/$name" --html --txt
+            test -f "bau/$name.eml" && test -f "bau/$name.html" && test -f "bau/$name.txt"
+            python skill/scripts/falzmarke.py verify "bau/$name.eml" --email
+          done
+          echo "gesetzt: $(ls bau/*.eml | wc -l) Nachrichten"
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: renders-${{ matrix.os }}
