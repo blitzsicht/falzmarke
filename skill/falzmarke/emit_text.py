@@ -62,18 +62,28 @@ def absatz(inhalt: str) -> str:
     return inhalt
 
 
-def liste(punkte: list[list[str]], nummeriert: bool = False, start: int = 1,
+def liste(punkte: list[str], nummeriert: bool = False, start: int = 1,
           tiefe: int = 0) -> str:
-    """Je Punkt eine feste Zeile, Unterlisten schon eingerückt in den Punkten."""
+    """Je Punkt eine feste Zeile, Unterlisten schon eingerückt in den Punkten.
+
+    Fortsetzungszeilen — ein harter Umbruch im Punkt — werden um die Breite der
+    Marke eingerückt, damit sie unter dem Text stehen und nicht unter ihr. Ohne
+    das steht die zweite Zeile bündig links und ist von einem neuen, eigenen
+    Absatz nicht zu unterscheiden.
+
+    Die Marke ist bei Nummern breiter als bei Strichen (`10. ` gegen `- `),
+    deshalb wird ihre Länge gemessen statt geraten.
+    """
     einzug = EINZUG * tiefe
     zeilen = []
     for nummer, punkt in enumerate(punkte):
         marke = f"{start + nummer}. " if nummeriert else "- "
         kopf, *rest = punkt.split("\n")
         zeilen.append(f"{einzug}{marke}{kopf}")
-        # Fortsetzungen (harter Umbruch, Unterliste) hängen unter dem Text,
-        # nicht unter der Marke.
-        zeilen.extend(rest)
+        fortsetzung = " " * (len(einzug) + len(marke))
+        # Eine Unterliste bringt ihre eigene Einrückung schon mit; nur nackte
+        # Fortsetzungen aus einem harten Umbruch brauchen sie hier.
+        zeilen.extend(z if z.startswith(" ") else fortsetzung + z for z in rest)
     return "\n".join(zeilen)
 
 
@@ -107,6 +117,10 @@ def tabelle(zeilen: list[list[str]], ausrichtungen: list[str | None]) -> str:
                 zellen.append(inhalt.center(breiten[s]))
             else:
                 zellen.append(inhalt.ljust(breiten[s]))
+        # rstrip ist keine Kosmetik: Eine Zeile, die mit einem Leerzeichen
+        # endet, ist in format=flowed eine weiche Faltmarke. Ohne das würde
+        # eine Tabelle mit linksbündiger letzter Spalte beim Empfänger in den
+        # nächsten Absatz laufen.
         return " | ".join(zellen).rstrip()
 
     ausgabe = [_zeile(zeilen[0]), "-|-".join("-" * b for b in breiten)]
@@ -157,72 +171,88 @@ def _block(knoten, tiefe: int = 0) -> str:
     )
 
 
-def setze(bloecke) -> str:
-    """Geprüfter Baum -> Klartext, ungefaltet.
+def teile(bloecke) -> list[tuple[str, bool]]:
+    """Geprüfter Baum -> je Block sein Text und ob er fest bleiben muss.
 
-    Ungefaltet, weil `falte()` wissen muss, welche Zeile fest bleibt. Wer den
-    Textteil einer Mail baut, ruft danach `falte()`.
+    „Fest" heißt: nicht weich umbrechbar. Listen und Tabellen tragen ihre
+    Bedeutung in der Form — eine gefaltete Einrückung landet beim Entfalten
+    mitten im Satz, und eine gefaltete Tabellenspalte zerbricht.
+
+    Diese Auskunft entsteht hier, wo der Knotentyp bekannt ist, und wird an
+    `falte()` weitergereicht. Sie aus dem fertigen Text zurückzuraten wäre
+    möglich und war es auch — die Heuristik hielt „2. Mahnung: …" am
+    Satzanfang für einen Aufzählungspunkt und ein „A | B" im Fließtext für
+    eine Tabelle, und ließ beide Absätze ungefaltet stehen.
     """
-    gesetzt = []
+    ergebnis = []
     for b in bloecke:
         text = _block(b)
         if text.strip():
-            gesetzt.append((text, isinstance(b, (baum_modul.Liste, baum_modul.Tabelle))))
-    return "\n\n".join(t for t, _ in gesetzt) + "\n"
+            ergebnis.append((text, isinstance(b, (baum_modul.Liste, baum_modul.Tabelle))))
+    return ergebnis
 
 
-def _fest(zeile: str) -> bool:
-    """Zeilen, deren Form ihre Bedeutung trägt — die werden nicht gefaltet."""
-    nackt = zeile.lstrip()
-    if not nackt:
-        return False
-    if zeile.startswith(" "):                       # eingerückt: Unterliste, Fortsetzung
-        return True
-    if nackt.startswith("- ") or nackt.startswith("|"):
-        return True
-    if " | " in zeile:                              # Tabellenzeile
-        return True
-    if set(nackt) <= set("-|"):                     # Strichzeile unter dem Tabellenkopf
-        return True
-    return nackt[:1].isdigit() and ". " in nackt[:5]   # nummerierter Aufzählungspunkt
+def setze(bloecke) -> str:
+    """Geprüfter Baum -> Klartext, ungefaltet.
+
+    Für den Textteil einer Mail ist `falte()` der richtige Einstieg; diese
+    Funktion liefert denselben Text ohne Faltung — und ist das, wogegen der
+    Rundlauf von `falte()`/`entfalte()` geprüft wird.
+    """
+    return "\n\n".join(text for text, _ in teile(bloecke)) + "\n"
 
 
 def _falte_zeile(zeile: str, breite: int, delsp: bool) -> list[str]:
-    worte = zeile.split(" ")
+    """Eine Zeile in weich verbundene Stücke.
+
+    Geschnitten wird im Original, nicht aus Wörtern wieder zusammengesetzt:
+    Ein `split(" ")`/`join(" ")` verliert einen doppelten Zwischenraum, wenn
+    der Umbruch genau darauf fällt — stille Textänderung in einem Werkzeug,
+    dessen Zusage Genauigkeit ist.
+    """
     stuecke: list[str] = []
-    aktuell = ""
-    for wort in worte:
-        kandidat = f"{aktuell} {wort}" if aktuell else wort
-        if aktuell and len(kandidat) > breite:
-            stuecke.append(aktuell)
-            aktuell = wort
-        else:
-            aktuell = kandidat
-    stuecke.append(aktuell)
+    rest = zeile
+    while len(rest) > breite:
+        schnitt = rest.rfind(" ", 0, breite + 1)
+        if schnitt <= 0:
+            # Kein Faltpunkt innerhalb der Breite — ein überlanges Wort. Dann
+            # lieber hinter der Breite falten als das Wort zerschneiden.
+            schnitt = rest.find(" ", breite)
+            if schnitt <= 0:
+                break
+        stuecke.append(rest[:schnitt + 1])
+        rest = rest[schnitt + 1:]
+    stuecke.append(rest)
     # Alle bis auf die letzte bekommen die Faltmarke. Bei delsp löscht der
-    # Empfänger sie, deshalb muss der Wortzwischenraum davor stehen.
-    marke = "  " if delsp else " "
-    return [s + marke for s in stuecke[:-1]] + [stuecke[-1]]
+    # Empfänger sie, deshalb steht der Wortzwischenraum schon davor.
+    return [s + (" " if delsp else "") for s in stuecke[:-1]] + [stuecke[-1]]
 
 
-def falte(text: str, breite: int = BREITE, delsp: bool = True) -> str:
-    """Klartext -> `format=flowed`.
+def falte(bloecke, breite: int = BREITE, delsp: bool = True) -> str:
+    """Geprüfter Baum -> `format=flowed`.
+
+    Nimmt den Baum und nicht den fertigen Text, weil nur hier bekannt ist,
+    welche Zeile fest bleiben muss (siehe `teile()`).
 
     Erst falten, dann Space-Stuffing — die Reihenfolge steht in RFC 3676 §4.4
     und ist nicht beliebig: Wer zuerst stufft, faltet das gestuffte Leerzeichen
     mit und verschiebt es in die Zeilenmitte.
     """
-    ausgabe = []
-    for zeile in text.split("\n"):
-        stuecke = [zeile] if (_fest(zeile) or len(zeile) <= breite) \
-            else _falte_zeile(zeile, breite, delsp)
-        for s in stuecke:
-            # Space-Stuffing: was mit Leerzeichen, '>' oder 'From ' beginnt,
-            # sähe sonst wie ein Zitat oder eine mbox-Trennzeile aus.
-            if s.startswith((" ", ">")) or s.startswith("From "):
-                s = " " + s
-            ausgabe.append(s)
-    return "\n".join(ausgabe)
+    ausgabe: list[str] = []
+    bloecke_gesetzt = teile(bloecke)
+    for nummer, (text, fest) in enumerate(bloecke_gesetzt):
+        if nummer:
+            ausgabe.append("")            # Leerzeile zwischen den Blöcken
+        for zeile in text.split("\n"):
+            stuecke = [zeile] if (fest or len(zeile) <= breite) \
+                else _falte_zeile(zeile, breite, delsp)
+            for s in stuecke:
+                # Space-Stuffing: was mit Leerzeichen, '>' oder 'From ' beginnt,
+                # sähe sonst wie ein Zitat oder eine mbox-Trennzeile aus.
+                if s.startswith((" ", ">")) or s.startswith("From "):
+                    s = " " + s
+                ausgabe.append(s)
+    return "\n".join(ausgabe) + "\n"
 
 
 def entfalte(text: str, delsp: bool = True) -> str:

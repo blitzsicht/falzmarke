@@ -183,7 +183,8 @@ def test_unsabotierter_emitter_ist_gruen():
 def test_externes_stylesheet_faellt_auf(monkeypatch):
     seite = _seite_mit_sabotiertem_emitter(
         monkeypatch, "absatz",
-        lambda inhalt: f'<link rel="stylesheet" href="https://example.invalid/mail.css"><p>{inhalt}</p>',
+        lambda inhalt: '<link rel="stylesheet" href="https://example.invalid/m.css">'
+                       f"<p>{inhalt}</p>",
     )
     assert "externes Stylesheet oder externe Ressource" in _html.verstoesse(seite)
 
@@ -191,7 +192,8 @@ def test_externes_stylesheet_faellt_auf(monkeypatch):
 def test_zaehlpixel_faellt_auf(monkeypatch):
     seite = _seite_mit_sabotiertem_emitter(
         monkeypatch, "absatz",
-        lambda inhalt: f'<p>{inhalt}</p><img src="https://example.invalid/p.gif" alt="" width="1" height="1">',
+        lambda inhalt: f"<p>{inhalt}</p>"
+                       '<img src="https://example.invalid/p.gif" alt="" width="1">',
     )
     verstoesse = _html.verstoesse(seite)
     assert any("Zählpixel" in v for v in verstoesse), verstoesse

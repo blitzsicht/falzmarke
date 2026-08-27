@@ -94,16 +94,27 @@ def tabelle(zeilen: list[list[str]], ausrichtungen: list[str | None]) -> str:
     stil_tabelle = (
         f"border-collapse: collapse; margin: 0 0 {ABSTAND_UNTEN}; {TEXTSTIL}"
     )
+    if not zeilen:
+        return ""
+    # Alle Zeilen auf die breiteste bringen — wie im Text-Emitter. Eine Zeile
+    # mit einer Zelle weniger ergäbe sonst eine Tabelle, in der eine Spalte
+    # lautlos fehlt, während dieselbe Mail im Textteil eine leere Zelle zeigt.
+    spalten = max(len(z) for z in zeilen)
     teile = [f'<table style="{stil_tabelle}" cellpadding="0" cellspacing="0">']
     for nummer, zeile in enumerate(zeilen):
         teile.append("<tr>")
-        for spalte, inhalt in enumerate(zeile):
+        for spalte in range(spalten):
+            inhalt = zeile[spalte] if spalte < len(zeile) else ""
             richtung = AUSRICHTUNG.get(
                 ausrichtungen[spalte] if spalte < len(ausrichtungen) else None, "left"
             )
-            stil = f"border: 1px solid {RAHMEN}; padding: 5px 8px; text-align: {richtung}; {TEXTSTIL}"
+            stil = (f"border: 1px solid {RAHMEN}; padding: 5px 8px; "
+                    f"text-align: {richtung}; {TEXTSTIL}")
             if nummer == 0:
-                teile.append(f'<th style="{stil} font-weight: 600;">{inhalt}</th>')
+                # Fett zusätzlich semantisch, nicht nur als Stil — wie in
+                # emit.py. Wo das CSS nicht ankommt (Textansicht, Vorlesen),
+                # bleibt der Kopf sonst ein Datensatz wie jeder andere.
+                teile.append(f'<th style="{stil} font-weight: 600;">{stark(inhalt)}</th>')
             else:
                 teile.append(f'<td style="{stil}">{inhalt}</td>')
         teile.append("</tr>")
