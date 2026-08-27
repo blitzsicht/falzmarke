@@ -81,8 +81,8 @@ zur selben Änderung.
 
 Jede Regel trägt ihre Herkunft. Nur eine mehrfach belegte Regel darf als Fehler wirken; eine aus
 einer einzigen Quelle ist eine Warnung. Ein geänderter Wert braucht einen Beleg — die Norm, eine
-Maßzeichnung, eine Messung. Nicht die verbreitete Word-Vorlage: sie weicht nachweislich um
-mehrere Millimeter ab, siehe [`docs/normmasse.md`](docs/normmasse.md).
+Maßzeichnung, eine Messung. Nicht die verbreitete Word-Vorlage: sie wich in einer Messung um
+mehrere Millimeter von den Zeichnungen ab, siehe [`docs/normmasse.md`](docs/normmasse.md).
 
 **Normtext wird nie geladen, gescannt oder zitiert.** Übertragen werden Fundstellen und Werte,
 nie Wortlaut, Tabellen oder Abbildungen — siehe [`CLAUDE.md`](CLAUDE.md) und
