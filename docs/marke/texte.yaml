@@ -74,5 +74,14 @@ nutzen:
   ohne: "Frei gesetzt: jedes Mal ein anderes Blatt."
   mit: "Aus Norm und Profil: jedes Mal dasselbe."
 
+# Kernsaetze der Produktseite unter der Adresse oben (#80). Die Seite prueft ihr
+# ausgeliefertes HTML gegen diese Datei — was hier steht, ist der freigegebene
+# Wortlaut; Claim und Untertitel uebernimmt sie wortgleich von oben.
+# Die Voraussetzung steht hier, damit die Seite nie mehr verspricht als das
+# Werkzeug haelt: der Gespraechsweg ist nicht kostenlos, das Werkzeug schon.
+website:
+  cta_primaer: "In 5 Minuten zum fertigen Brief"
+  voraussetzung: "falzmarke kostet nichts (MIT-Lizenz). Der Gesprächsweg braucht einen Claude-Tarif mit Code-Ausführung; im Terminal läuft es ohne."
+
 # Ton: kurze Saetze, aktiv, konkret. Zahlen statt Adjektive ("105,0 mm" statt "praezise").
 # Keine Superlative, keine Ausrufezeichen, keine Emojis.
