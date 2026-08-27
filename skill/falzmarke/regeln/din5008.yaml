@@ -271,6 +271,9 @@ regeln:
     lint: anrede
     herkunft: einzeln_belegt
     quellen: [onlineprinters, letter_pro]
+    belegt_durch:
+      onlineprinters: >-
+        SCHWEIGT — „Komma“ kommt auf der Seite nicht vor.
     # wikipedia am 26.08.2026 entfernt: Der Artikel nennt das Wort „Komma" kein
     # einziges Mal — 13.020 Zeichen, ueber die API geholt und vollstaendig
     # durchsucht — und sagt zur Anrede ausdruecklich, ihr Textinhalt sei „hier
@@ -283,12 +286,21 @@ regeln:
     lint: gruss
     herkunft: einzeln_belegt
     quellen: [onlineprinters]
+    belegt_durch:
+      onlineprinters: >-
+        SCHWEIGT — „Grußformel“ steht nur im Titel eines verwandten Artikels,
+        nicht im Text.
     wirkung: warnung
 
   - id: text.anlagen_ohne_doppelpunkt
     titel: „Anlage“/„Anlagen“ ohne Doppelpunkt
     herkunft: einzeln_belegt
     quellen: [onlineprinters]
+    belegt_durch:
+      onlineprinters: >-
+        SCHWEIGT — „Anlage“ steht einmal, und zwar in „an die Anlagennummer
+        angehängt“ (Telefonanlage). Ein Treffer, der zu einer anderen Sache
+        gehört.
     wirkung: warnung
 
   - id: text.folgeseiten
@@ -303,6 +315,9 @@ regeln:
     lint: empfaenger
     herkunft: einzeln_belegt
     quellen: [onlineprinters]
+    belegt_durch:
+      onlineprinters: >-
+        SCHWEIGT — „Leerzeile“ kommt auf der Seite nicht vor.
     wirkung: warnung
 
   - id: text.vermerke_max_3
@@ -310,6 +325,11 @@ regeln:
     lint: vermerke
     herkunft: mehrfach_bestaetigt
     quellen: [massskizze_b, onlineprinters, letter_pro]
+    belegt_durch:
+      onlineprinters: >-
+        SCHWEIGT — die Zonen werden erwähnt, eine Zeilenzahl nicht. Die Regel ist
+        ohnehin abgeleitet (12,7 mm Zonenhöhe : 4,23 mm Zeilenhöhe), nicht
+        zitiert.
     wirkung: fehler
     bemerkung: Folgt aus der Zonenhöhe von 12,7 mm bei 4,23 mm Zeilenhöhe.
 
@@ -320,6 +340,11 @@ regeln:
     typografie: _datum
     herkunft: mehrfach_bestaetigt
     quellen: [wikipedia, onlineprinters, letter_pro]
+    belegt_durch:
+      onlineprinters: >-
+        SCHWEIGT — der Artikel nennt „korrekte Schreibweisen von Datum“ nur als
+        Thema der Norm und gibt kein Format an. Die Regel trägt Wikipedia, die
+        beide Formen ausdrücklich nennt.
     wirkung: fehler
     bemerkung: >-
       Wikipedia nennt beide Formen ausdrücklich. Der Linter prüft nur, dass ein
@@ -330,6 +355,11 @@ regeln:
     typografie: _abkuerzungen
     herkunft: mehrfach_bestaetigt
     quellen: [wikipedia, onlineprinters, letter_pro]
+    belegt_durch:
+      onlineprinters: >-
+        SCHWEIGT — der Artikel nennt „die richtige Abkürzung von Titeln“ als
+        Thema, aber keine Schreibregel. Die Regel trägt Wikipedia („a. a. O., d.
+        h., v. l. n. r., z. B.“).
     wirkung: fehler
     bemerkung: Wikipedia nennt „a. a. O., d. h., v. l. n. r., z. B.“ wörtlich.
 
@@ -337,6 +367,11 @@ regeln:
     titel: "Telefon „0941 620-9800“, international „+49 941 620-9800“"
     herkunft: einzeln_belegt
     quellen: [onlineprinters]
+    belegt_durch:
+      onlineprinters: >-
+        Absatz „Deutsche Norm mit internationaler Bedeutung“ (+49 89 8521476,
+        Durchwahl mit Bindestrich) und Absatz „Im Geschäftsbrief kommt es auf die
+        Details an“ (09161 6209800, 09161 620980-XX, Sondernummern)
     wirkung: warnung
 
   - id: schreibweise.zahlengliederung
@@ -344,36 +379,62 @@ regeln:
     typografie: _vor_angabe
     herkunft: einzeln_belegt
     quellen: [onlineprinters]
+    belegt_durch:
+      onlineprinters: >-
+        SCHWEIGT — „Dreiergruppen“ kommt auf der Seite nicht vor, „geschützt“
+        ebenso wenig.
     wirkung: warnung
 
   - id: schreibweise.iban
     titel: "IBAN in Vierergruppen"
     herkunft: einzeln_belegt
     quellen: [onlineprinters]
+    belegt_durch:
+      onlineprinters: >-
+        Absatz „Internationale Bankleitzahl (IBAN)“: Vierergruppen von links, Rest
+        als Zweiergruppe, Beispiel DE62 7625 1020 0221 0217 44
     wirkung: warnung
 
   - id: schreibweise.postfach
     titel: "Postfachnummer von rechts in Zweiergruppen"
     herkunft: einzeln_belegt
     quellen: [onlineprinters]
+    belegt_durch:
+      onlineprinters: >-
+        Absatz „Im Geschäftsbrief kommt es auf die Details an“: „Die
+        Postfachnummer wird von rechts beginnend zweistellig gegliedert“, Beispiel
+        89 09 32
     wirkung: warnung
 
   - id: schreibweise.uhrzeit
     titel: "Uhrzeit „11:30 Uhr“"
     herkunft: einzeln_belegt
     quellen: [onlineprinters]
+    belegt_durch:
+      onlineprinters: >-
+        Absatz zur Uhrzeit: „Nicht 11.30 Uhr, sondern 11:30 Uhr ist richtig“,
+        volle Stunden ohne Minutenangabe
     wirkung: warnung
 
   - id: schreibweise.geldbetrag
     titel: "Geldbetrag „1.234,56 EUR“, Währung nachgestellt"
     herkunft: einzeln_belegt
     quellen: [onlineprinters]
+    belegt_durch:
+      onlineprinters: >-
+        SCHWEIGT — „Währungen“ wird als Thema genannt, ein Format nicht. Das
+        Kürzel „EUR“ steht nirgends auf der Seite.
     wirkung: warnung
 
   - id: schreibweise.auslandsanschrift
     titel: Ort und Land in Großbuchstaben, Land auf Deutsch in der letzten Zeile
     herkunft: einzeln_belegt
     quellen: [onlineprinters]
+    belegt_durch:
+      onlineprinters: >-
+        Absatz „Im Geschäftsbrief kommt es auf die Details an“: Bestimmungsort und
+        -land in Großbuchstaben, Ort in der Landessprache (FIRENZE), Land deutsch
+        in der letzten Zeile, kein Länderkennzeichen
     wirkung: warnung
 
   - id: schreibweise.akademischer_grad
@@ -390,6 +451,9 @@ regeln:
     typografie: _einheiten
     herkunft: einzeln_belegt
     quellen: [onlineprinters]
+    belegt_durch:
+      onlineprinters: >-
+        SCHWEIGT — im Artikel nicht erwähnt.
     wirkung: warnung
 
   # ── Prüfungen des Werkzeugs, keine Normaussage ───────────────────────────

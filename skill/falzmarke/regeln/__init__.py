@@ -163,6 +163,45 @@ def unabhaengige_belege(regel: dict) -> set[str]:
     }
 
 
+#: Vorsatz im Feld `belegt_durch`, mit dem eine geprüfte Quelle als
+#: beitragslos gekennzeichnet ist. Ausgeschrieben statt als Bool, damit in der
+#: Regeldatei danebensteht, *warum* sie schweigt.
+SCHWEIGT = "SCHWEIGT"
+
+
+def schweigende_quellen() -> list[tuple[str, str]]:
+    """Paare (Regel, Quelle), bei denen die Quelle zur Regel nichts sagt.
+
+    Der Befund von Issue #31: Die Validierung prüft, ob eine Regel ihre
+    Zählstufe trägt — nicht, ob die genannte Quelle zur Sache überhaupt etwas
+    hergibt. Wo das nachgelesen wurde, steht das Ergebnis in `belegt_durch`.
+
+    Auch diese Funktion **misst nur**. Sie entfernt keine Quelle und stuft
+    nichts herab.
+    """
+    ergebnis = []
+    for regel in alle():
+        for quelle, fundstelle in (regel.get("belegt_durch") or {}).items():
+            if str(fundstelle).lstrip().startswith(SCHWEIGT):
+                ergebnis.append((regel["id"], quelle))
+    return sorted(ergebnis)
+
+
+def ohne_belegpruefung() -> list[tuple[str, str]]:
+    """Paare (Regel, Quelle), bei denen niemand nachgelesen hat.
+
+    Das ist der Rest von #31: `belegt_durch` fehlt. Nicht „kein Beleg" —
+    sondern „nicht geprüft", und die beiden dürfen nicht verwechselt werden.
+    """
+    ergebnis = []
+    for regel in alle():
+        geprueft = regel.get("belegt_durch") or {}
+        for name in _quellennamen(regel):
+            if name not in geprueft:
+                ergebnis.append((regel["id"], name))
+    return sorted(ergebnis)
+
+
 def stufe_traegt_nicht() -> list[str]:
     """Regeln auf `mehrfach_bestaetigt`, hinter denen nur eine Gruppe steht.
 
