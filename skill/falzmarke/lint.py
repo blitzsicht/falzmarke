@@ -49,13 +49,49 @@ INFOBLOCK_REIHENFOLGE = [
 ]
 
 PFLICHTFELDER = ("profil", "empfaenger", "datum", "betreff")
+EMAIL_PFLICHTFELDER = ("profil", "an", "betreff")
 
 # Der vollständige Datenvertrag: was im Frontmatter einer Briefdatei stehen darf.
 # Dokumentiert in references/frontmatter.md; ein Test hält beide zusammen.
 FRONTMATTER_FELDER = frozenset({
-    "profil", "form", "norm", "sprache", "empfaenger", "vermerke", "datum",
+    "profil", "typ", "form", "norm", "sprache", "empfaenger", "vermerke", "datum",
     "betreff", "betreff_kurz", "infoblock", "anrede", "gruss",
     "unterzeichner", "signatur", "anlagen", "anlagen_dateien", "verteiler",
+})
+
+# Dasselbe für `typ: email`. Bewusst eine eigene Liste statt einer gemeinsamen
+# mit Ausnahmen: Die beiden Erzeugnisse teilen sich zwar Felder, aber wer die
+# Listen zusammenlegt, muss an jeder Prüfung wieder unterscheiden — und vergisst
+# es an einer.
+EMAIL_FRONTMATTER_FELDER = frozenset({
+    "profil", "typ", "sprache", "an", "cc", "betreff", "anrede", "gruss",
+    "unterzeichner", "anlagen_dateien", "antwort_auf",
+    # `datum` ist hier bekannt, damit es die eigene Warnung auslöst statt als
+    # unbekanntes Feld zu gelten. Es wird nicht gesetzt — das tut der Client.
+    "datum",
+})
+
+TYPEN = ("brief", "email")
+
+#: Ein Feld des einen Erzeugnisses, das im anderen nichts bedeutet — mit dem
+#: Namen, der stattdessen gemeint ist. Ein Brief an eine Mailadresse und eine
+#: Mail an eine Postanschrift sind beides Dokumente, die niemanden erreichen.
+STATTDESSEN = {"brief": {"an": "empfaenger", "cc": "verteiler", "antwort_auf": None},
+               "email": {"empfaenger": "an", "verteiler": "cc", "vermerke": None,
+                         "form": None, "betreff_kurz": None, "infoblock": None,
+                         "signatur": None, "anlagen": None, "norm": None}}
+
+#: Betreffgrenze der Mail. RFC 5322 begrenzt die Kopfzeile auf 78 Zeichen; was
+#: darüber steht, wird gefaltet und in der Übersicht vieler Programme
+#: abgeschnitten. Das ist keine Aussage der Norm, sondern eine des Mediums.
+EMAIL_BETREFF_MAX = 78
+
+#: Der Abschnitt `email:` im Profil. Ohne Liste bliebe ein Tippfehler dort
+#: stumm — dieselbe Fehlerart, gegen die `_melde_unbekannte` im Frontmatter
+#: gebaut wurde.
+PROFIL_EMAIL_FELDER = frozenset({
+    "absender", "anzeigename", "position", "web", "datenschutz",
+    "pflichtangaben", "zusatz", "gruss", "logo",
 })
 
 INFOBLOCK_FELDER = frozenset(schluessel for schluessel, _ in INFOBLOCK_REIHENFOLGE)
@@ -201,8 +237,124 @@ def _melde_unbekannte(
         )
 
 
+def _adressen(wert) -> list[str]:
+    return [wert] if isinstance(wert, str) else [str(z) for z in (wert or [])]
+
+
+def pruefe_adressfeld(wert, feld: str, kopf_roh: str, bericht: Bericht) -> None:
+    """`erika@example.de` oder `Muster GmbH <post@example.de>` — sonst nichts.
+
+    Geparst wird mit `email.utils.parseaddr` aus der Standardbibliothek, nicht
+    mit einem eigenen Ausdruck: Die Klammerform ist in RFC 5322 festgelegt und
+    hat mehr Fälle, als ein handgeschriebenes Muster trifft.
+    """
+    from email.utils import parseaddr
+
+    for eintrag in _adressen(wert):
+        _, adresse = parseaddr(eintrag)
+        if not adresse or not EMAIL_MUSTER.match(adresse):
+            bericht.fehler(
+                _feldzeile(kopf_roh, feld), feld,
+                f"„{eintrag}“ ist keine E-Mail-Adresse",
+                "erwartet wird `name@beispiel.de` oder `Name <name@beispiel.de>`")
+
+
+def _pruefe_ausschluss(kopf: dict, typ: str, kopf_roh: str, bericht: Bericht) -> None:
+    """Felder des jeweils anderen Erzeugnisses melden, mit dem gemeinten Namen.
+
+    Ohne diese Prüfung liefe der Fall über `_melde_unbekannte` und läse sich als
+    „`empfaenger` ist kein Feld des Datenvertrags" — was in einem Briefwerkzeug
+    schlicht falsch klingt. Der Fehler ist nicht, dass es das Feld nicht gibt,
+    sondern dass es hier nichts bedeutet.
+    """
+    for feld, ersatz in STATTDESSEN[typ].items():
+        if kopf.get(feld) is None:
+            continue
+        womit = "Brief" if typ == "brief" else "E-Mail"
+        rat = f"`{feld}:` durch `{ersatz}:` ersetzen" if ersatz else f"`{feld}:` entfernen"
+        bericht.fehler(
+            _feldzeile(kopf_roh, feld), "typ",
+            f"`{feld}:` gibt es in einem {womit} nicht", rat)
+
+
+def pruefe_email_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
+    """Der Datenvertrag der E-Mail-Fassung (ADR 0034)."""
+    _melde_unbekannte(kopf.keys(), EMAIL_FRONTMATTER_FELDER, "frontmatter", kopf_roh, bericht)
+    _pruefe_ausschluss(kopf, "email", kopf_roh, bericht)
+
+    for feld in EMAIL_PFLICHTFELDER:
+        if not kopf.get(feld):
+            bericht.fehler(1, feld, "Pflichtfeld fehlt", f"`{feld}:` im Frontmatter ergänzen")
+
+    for feld in ("an", "cc"):
+        if kopf.get(feld):
+            pruefe_adressfeld(kopf[feld], feld, kopf_roh, bericht)
+
+    betreff = kopf.get("betreff")
+    if isinstance(betreff, str) and len(betreff) > EMAIL_BETREFF_MAX:
+        bericht.fehler(
+            _feldzeile(kopf_roh, "betreff"), "email.betreff",
+            f"{len(betreff)} Zeichen — mehr als {EMAIL_BETREFF_MAX}",
+            "kürzen; viele Programme schneiden die Übersicht früher ab")
+
+    antwort = kopf.get("antwort_auf")
+    if antwort and not (str(antwort).startswith("<") and str(antwort).endswith(">")):
+        bericht.fehler(
+            _feldzeile(kopf_roh, "antwort_auf"), "antwort_auf",
+            f"„{antwort}“ ist keine Message-ID",
+            "eine Message-ID steht in spitzen Klammern: `<kennung@beispiel.de>`")
+
+
+def pruefe_email_profil(profil: dict, bericht: Bericht) -> None:
+    """Der Abschnitt `email:` eines Profils.
+
+    Die Pflichtangaben je Rechtsform bleiben Hinweistext mit Quelle (ADR 0005).
+    Gemeldet wird nur, dass das Feld leer ist — welche Angaben eine GmbH
+    braucht, ist eine Rechtsfrage, und falzmarke beantwortet keine.
+    """
+    abschnitt = profil.get("email")
+    if not isinstance(abschnitt, dict):
+        bericht.fehler(
+            1, "email.profil", "das Profil hat keinen Abschnitt `email:`",
+            "`email:` mit mindestens `absender:` ergänzen — siehe references/frontmatter.md")
+        return
+
+    _melde_unbekannte(abschnitt.keys(), PROFIL_EMAIL_FELDER, "email.profil", "", bericht)
+
+    if not abschnitt.get("absender"):
+        bericht.fehler(
+            1, "email.absender", "`email.absender:` fehlt im Profil",
+            "die Absenderadresse steht im Profil, nicht im einzelnen Schreiben")
+    else:
+        pruefe_adressfeld(abschnitt["absender"], "email.absender", "", bericht)
+
+    if not abschnitt.get("pflichtangaben"):
+        bericht.warnung(
+            1, "email.pflichtangaben", "`email.pflichtangaben:` ist leer",
+            "je nach Rechtsform verlangt § 37a HGB bzw. § 35a GmbHG Angaben in "
+            "jeder Geschäftsmail — falzmarke prüft das nicht, es erinnert nur")
+
+
 def pruefe_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
+    typ = str(kopf.get("typ") or "brief")
+    if typ not in TYPEN:
+        bericht.fehler(
+            _feldzeile(kopf_roh, "typ"), "typ", f"`typ: {typ}` ist unbekannt",
+            "möglich sind: " + ", ".join(TYPEN))
+        typ = "brief"
+    if typ == "email":
+        pruefe_email_frontmatter(kopf, kopf_roh, bericht)
+        # `datum:` setzt der Mailclient beim Versand. Still übergehen wäre die
+        # Fehlerart, gegen die dieses Werkzeug antritt.
+        if kopf.get("datum") is not None:
+            bericht.warnung(
+                _feldzeile(kopf_roh, "datum"), "email.datum",
+                "`datum:` wird in einer E-Mail nicht gesetzt",
+                "der Mailclient setzt es beim Versand; die Zeile kann weg")
+        return
+
     _melde_unbekannte(kopf.keys(), FRONTMATTER_FELDER, "frontmatter", kopf_roh, bericht)
+    _pruefe_ausschluss(kopf, "brief", kopf_roh, bericht)
     if isinstance(kopf.get("infoblock"), dict):
         _melde_unbekannte(
             kopf["infoblock"].keys(), INFOBLOCK_FELDER, "infoblock", kopf_roh, bericht)
