@@ -1,0 +1,36 @@
+# Beispielprofil einer Privatperson — für Briefe ohne Firmenkopf:
+# Kündigung, Widerspruch, Bewerbung, Behördenschreiben (examples/brief-kuendigung.md ff.).
+# Echte Absenderdaten gehören nach profiles.local/ (gitignored) oder in ein
+# privates Repository, nie hierher.
+
+absender:
+  name: Erika Beispiel
+  strasse: Musterweg 12
+  plz: "93055"
+  ort: Regensburg
+
+ruecksendeangabe: Erika Beispiel · Musterweg 12 · 93055 Regensburg
+
+form: B
+
+briefkopf:
+  zeilen:
+    - Erika Beispiel
+    - Musterweg 12 · 93055 Regensburg
+    - Telefon 0170 1234567
+
+# Privatbrief: eine schlanke Fußzeile reicht — keine Bank, kein Register.
+fusszeile:
+  - - Erika Beispiel
+    - Musterweg 12
+    - 93055 Regensburg
+  - - Telefon 0170 1234567
+    - erika@example.de
+
+datumsformat: lang
+gruss: Mit freundlichen Grüßen
+unterzeichner: Erika Beispiel
+
+infoblock_defaults:
+  telefon: 0170 1234567
+  email: erika@example.de
