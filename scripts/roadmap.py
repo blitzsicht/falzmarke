@@ -36,6 +36,7 @@ ADR = "entscheidungen/0030-reihenfolge-der-roadmap.md"
 PHASEN = (
     "Vor Verbreitung",
     "Lange Schreiben",
+    "E-Mail",
     "Einfacher Zugang",
     "Dokumentpakete",
     "Beweis",
