@@ -16,6 +16,7 @@ Sicherheit vortäuscht.
 from __future__ import annotations
 
 import re
+import subprocess
 
 import pytest
 
@@ -28,8 +29,20 @@ AUFRUF = "bash scripts/paket_pruefen.sh"
 
 
 def test_das_skript_gibt_es_und_ist_ausfuehrbar():
+    """Gefragt wird Git, nicht das Dateisystem.
+
+    Erster Anlauf war `SKRIPT.stat().st_mode & 0o111` — auf Windows immer 0,
+    weil dort kein Ausführbar-Bit existiert. Der Test war damit auf einer der
+    drei Plattformen zwangsläufig rot und maß die falsche Sache: Entscheidend
+    ist der Modus, den Git speichert, denn danach richtet sich der Linux-Runner,
+    der das Skript ausführt.
+    """
     assert SKRIPT.is_file(), f"{SKRIPT} fehlt"
-    assert SKRIPT.stat().st_mode & 0o111, "das Skript ist nicht ausführbar"
+    eintrag = subprocess.run(
+        ["git", "ls-files", "-s", "scripts/paket_pruefen.sh"],
+        cwd=REPO, capture_output=True, text=True, check=True).stdout
+    assert eintrag.startswith("100755"), (
+        f"Git führt das Skript nicht als ausführbar: {eintrag.strip() or '— nicht getrackt —'}")
 
 
 @pytest.mark.parametrize("datei", [CI, RELEASE], ids=lambda p: p.name)
