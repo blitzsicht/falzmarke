@@ -20,6 +20,7 @@ auf 105,0 mm, endet der Lauf mit einem Fehler statt mit einem Brief, der nur ung
 
 <div align="center">
 
+**[falzmarke.com — Anleitung ohne Terminal](https://falzmarke.com)** ·
 **[⬇ Als Claude-Skill laden](https://github.com/blitzsicht/falzmarke/releases/latest/download/falzmarke.skill)** ·
 **[In 60 Sekunden ausprobieren](#in-60-sekunden)** ·
 **[Beispielbrief ansehen](https://github.com/blitzsicht/falzmarke/raw/main/docs/renders/brief-form-b.png)**
