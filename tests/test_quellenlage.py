@@ -354,3 +354,73 @@ def test_die_messung_wuerde_eine_verschiebung_bemerken():
     assert len(vorher) < len(STUFE_TRAEGT_NICHT), (
         "Mit getrennten Gruppen müssten weniger Regeln auffallen — sonst misst "
         "die Gruppierung nichts.")
+
+
+# ── Sagt die Quelle zur Regel überhaupt etwas? ──────────────────────────────
+#
+# Befund von Issue #31: Die Validierung prüft, ob eine Regel ihre Zählstufe
+# trägt — nicht, ob die genannte Quelle zur Sache etwas hergibt. Belegt an
+# `text.anrede_komma` (#30): mehrfach bestätigt, Läufe scheiternd, gestützt
+# unter anderem auf einen Wikipedia-Artikel, der das Wort „Komma" kein
+# einziges Mal enthält.
+#
+# Am 27.08.2026 wurde die für `onlineprinters` ausstehende Prüfung nachgeholt:
+# Artikeltext vollständig gelesen (7.035 Zeichen), Negativbefunde gegen das
+# rohe HTML gegengeprüft, damit sie nicht an der Textextraktion hängen.
+# Ergebnis in `belegt_durch` je Regel — auch dort, wo die Quelle schweigt.
+#
+# Nichts davon ändert Stufen oder entfernt Quellen. Der Test hält den Stand.
+
+SCHWEIGENDE_QUELLEN = [
+    ("schreibweise.abkuerzungen", "onlineprinters"),
+    ("schreibweise.datum", "onlineprinters"),
+    ("schreibweise.einheiten", "onlineprinters"),
+    ("schreibweise.geldbetrag", "onlineprinters"),
+    ("schreibweise.zahlengliederung", "onlineprinters"),
+    ("text.anlagen_ohne_doppelpunkt", "onlineprinters"),
+    ("text.anrede_komma", "onlineprinters"),
+    ("text.anschrift_ohne_leerzeilen", "onlineprinters"),
+    ("text.gruss_ohne_komma", "onlineprinters"),
+    ("text.vermerke_max_3", "onlineprinters"),
+]
+
+#: Wie viele Quelle-Regel-Paare noch niemand nachgelesen hat. Die Zahl soll
+#: fallen. Steigt sie, ist eine Quelle eingetragen worden, ohne zu sagen, wo
+#: sie die Regel hergibt — genau der Vorgang, den #31 beenden will.
+UNGEPRUEFTE_PAARE = 44
+
+
+def test_die_schweigenden_quellen_sind_genau_diese():
+    assert regeln.schweigende_quellen() == SCHWEIGENDE_QUELLEN, (
+        "Die Belegprüfung hat sich verschoben — siehe Issue #31 und "
+        "docs/quellenpruefung-onlineprinters-2026-08-27.md.")
+
+
+def test_die_zahl_ungeprueffter_paare_steigt_nicht():
+    ist = len(regeln.ohne_belegpruefung())
+    assert ist <= UNGEPRUEFTE_PAARE, (
+        f"{ist} Quelle-Regel-Paare ohne `belegt_durch:` — vorher {UNGEPRUEFTE_PAARE}. "
+        "Wer eine Quelle einträgt, sagt dazu, wo sie die Regel hergibt.")
+    if ist < UNGEPRUEFTE_PAARE:
+        raise AssertionError(
+            f"Erfreulich: nur noch {ist} ungeprüfte Paare statt {UNGEPRUEFTE_PAARE}. "
+            "Bitte UNGEPRUEFTE_PAARE hier nachziehen, damit die Schranke greift.")
+
+
+def test_wer_schweigt_traegt_auch_eine_begruendung():
+    """Ein „SCHWEIGT" ohne Grund wäre so wenig wert wie die Quelle selbst."""
+    for regel in regeln.alle():
+        for quelle, text in (regel.get("belegt_durch") or {}).items():
+            if str(text).startswith(regeln.SCHWEIGT):
+                assert len(str(text)) > len(regeln.SCHWEIGT) + 20, \
+                    f"{regel['id']}/{quelle}: SCHWEIGT ohne Begründung"
+
+
+def test_die_pruefung_wuerde_ein_stilles_schweigen_bemerken():
+    """Gegenprobe: Ohne sie belegt der Test oben nur, dass eine Liste gleich ist."""
+    erfunden = {"id": "probe", "quellen": ["onlineprinters"],
+                "belegt_durch": {"onlineprinters": "SCHWEIGT — zur Gegenprobe erfunden."}}
+    assert str(erfunden["belegt_durch"]["onlineprinters"]).startswith(regeln.SCHWEIGT)
+    ohne = {"id": "probe", "quellen": ["onlineprinters"],
+            "belegt_durch": {"onlineprinters": "Absatz X, Beispiel Y"}}
+    assert not str(ohne["belegt_durch"]["onlineprinters"]).startswith(regeln.SCHWEIGT)
