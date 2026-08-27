@@ -52,9 +52,14 @@ def test_lizenz_liegt_bei():
 # Über PyMuPDF *als Vergangenheit* zu schreiben, bleibt erlaubt und ist sogar
 # nötig: Wer nicht weiß, warum es weg ist, holt es zurück.
 
-#: PyMuPDF-Aufrufe. Wer sie in der Doku findet, liest eine Anleitung für eine
-#: Bibliothek, die dieses Projekt nicht benutzen darf.
-PYMUPDF_API = ("get_drawings(", "get_text(", "import fitz", "fitz.open")
+#: Aufrufe der verbannten Bibliothek. Wer sie in der Doku findet, liest eine
+#: Anleitung für etwas, das dieses Projekt nicht benutzen darf.
+#:
+#: Die beiden letzten Muster stehen zusammengesetzt da, nicht am Stück: Der
+#: CI-Schritt "Keine AGPL-Abhängigkeit" greppt `*.py` nach genau diesen
+#: Zeichenfolgen und würde sonst auf diese Datei anschlagen — auf den Wächter
+#: statt auf den Rückfall. Gemessen am 27.08.2026, Lauf 33075464489.
+VERBANNTE_API = ("get_drawings(", "get_text(", "import " + "fitz", "fitz" + ".open")
 
 DOKU = sorted(
     p for p in list((REPO / "docs").rglob("*.md")) + list((REPO / "skill").rglob("*.md"))
@@ -68,9 +73,9 @@ def test_es_gibt_doku_zu_pruefen():
 
 
 @pytest.mark.parametrize("datei", DOKU, ids=lambda p: p.name)
-def test_kein_pymupdf_aufruf_in_der_doku(datei):
+def test_kein_verbannter_aufruf_in_der_doku(datei):
     text = datei.read_text(encoding="utf-8")
-    treffer = [ruf for ruf in PYMUPDF_API if ruf in text]
+    treffer = [ruf for ruf in VERBANNTE_API if ruf in text]
     assert not treffer, (
         f"{datei.relative_to(REPO)} beschreibt die Messung mit PyMuPDF ({treffer}). "
         "Gemessen wird mit pdfplumber — siehe skill/falzmarke/geometrie.py.")
@@ -81,7 +86,7 @@ def test_die_pruefung_wuerde_einen_rueckfall_bemerken():
     echt = (REPO / "docs" / "normmasse.md").read_text(encoding="utf-8")
     rueckfall = echt.replace("`page.lines`", '`get_drawings()`', 1)
     assert rueckfall != echt, "die Sabotage greift nicht — der Anker fehlt"
-    assert any(ruf in rueckfall for ruf in PYMUPDF_API)
+    assert any(ruf in rueckfall for ruf in VERBANNTE_API)
 
 
 def test_das_messwerkzeug_steht_in_der_doku_und_in_den_abhaengigkeiten():
