@@ -92,6 +92,24 @@ niemanden erreichen. Ebenso entfallen `form`, `vermerke`, `infoblock`, `betreff_
 `datum:` wird nicht gesetzt: Das tut der Mailclient beim Versand. Steht es trotzdem da, sagt
 `lint` das, statt es still zu übergehen.
 
+### Die fertige Datei prüfen
+
+```
+falzmarke verify --email nachricht.eml
+```
+
+Gemessen wird **die Datei, nicht die Absicht** — wie beim PDF. Geprüft werden MIME-Aufbau und
+Reihenfolge der Alternativteile, Zeichensatz und Transfer-Encoding, `format=flowed`,
+Space-Stuffing, die Signaturtrennzeile, das Verbot von Skripten, externen Stylesheets,
+Zählpixeln und Layout-Tabellen im HTML, und ob Text- und HTML-Fassung dasselbe sagen.
+
+Liegt der `text/markdown`-Teil bei, wird zusätzlich geprüft, ob beide Fassungen die Quelle
+vollständig wiedergeben. Fehlt er, sagt der Bericht das ausdrücklich — eine übersprungene
+Prüfung soll nicht wie eine bestandene aussehen.
+
+Ausgabe und Exit-Codes sind die von `verify`; `--verbose` zeigt alle Prüfungen, `--json` gibt
+sie strukturiert aus.
+
 ### Der Abschnitt `email:` im Profil
 
 Die Absenderangaben stehen im Profil, nicht im einzelnen Schreiben:

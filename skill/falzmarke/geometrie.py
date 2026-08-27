@@ -98,6 +98,9 @@ class Pruefung:
 @dataclass
 class Bericht:
     pruefungen: list[Pruefung] = field(default_factory=list)
+    #: Was gezählt wird. Der Brief misst Maße, die E-Mail-Fassung Eigenschaften
+    #: der Datei — der Schlusssatz soll benennen, was tatsächlich geprüft wurde.
+    gegenstand: str = "Maße eingehalten"
 
     def add(self, name, soll, ist, toleranz, bestanden) -> None:
         self.pruefungen.append(Pruefung(name, str(soll), str(ist), str(toleranz), bestanden))
@@ -139,9 +142,10 @@ class Bericht:
         ]
         gesamt = len(self.pruefungen)
         if gescheitert:
-            zeilen.append(f"verify: {gesamt - len(gescheitert)}/{gesamt} Maße eingehalten")
+            zeilen.append(
+                f"verify: {gesamt - len(gescheitert)}/{gesamt} {self.gegenstand}")
         else:
-            zeilen.append(f"OK  verify: {gesamt}/{gesamt} Maße eingehalten")
+            zeilen.append(f"OK  verify: {gesamt}/{gesamt} {self.gegenstand}")
         return "\n".join(zeilen)
 
     def als_dict(self) -> dict:
