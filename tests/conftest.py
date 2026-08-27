@@ -20,6 +20,13 @@ sys.path.insert(0, str(SKILL))
 
 BEISPIELE = sorted((REPO / "examples").glob("*.md"))
 
+# Die Mail-Beispiele liegen bewusst eine Ebene tiefer. `examples/*.md` wird in
+# der CI und oben in BEISPIELE als **Brief** gerendert; eine Datei mit
+# `typ: email` bricht dort absichtlich ab (cli.py, `rendere`). Der Glob ist
+# nicht rekursiv — der Unterordner ist damit die Trennung, nicht eine
+# Ausnahmeliste, die jemand pflegen muesste.
+EMAIL_BEISPIELE = sorted((REPO / "examples" / "email").glob("*.md"))
+
 
 @pytest.fixture(scope="session")
 def gerendert(tmp_path_factory) -> dict[str, tuple[Path, str]]:
