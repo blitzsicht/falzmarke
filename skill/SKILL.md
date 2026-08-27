@@ -22,6 +22,9 @@ durch Leerzeilen zum Ausrichten.
 Kein PDF ohne grünen `check`. Der Ablauf ist immer `render` → Prüfbericht lesen → Vorschau
 zeigen. `render` ruft die Prüfung selbst auf und endet mit Code 2, wenn ein Maß nicht stimmt.
 
+Dasselbe gilt für die E-Mail-Fassung: **keine Nachricht ohne grünen `verify --email`.** Auch
+`email` ruft die Prüfung selbst auf und endet mit Code 2, wenn sie nicht besteht.
+
 ## Ablauf
 
 1. **Umgebung sicherstellen** (einmal je Sitzung):
@@ -59,6 +62,24 @@ zeigen. `render` ruft die Prüfung selbst auf und endet mit Code 2, wenn ein Ma�
 
 7. **Vorschau zeigen** und das PDF bereitstellen. Änderungswünsche in der `.md` einarbeiten und
    neu rendern — nie im PDF nachbessern.
+
+## Eine E-Mail statt eines Briefes
+
+Wer „schreib eine E-Mail an …" sagt, bekommt dieselbe Datei mit `typ: email` im Frontmatter —
+und `an:` statt `empfaenger:`. Die Felder stehen in `references/frontmatter.md`.
+
+```bash
+python3 scripts/falzmarke.py lint  briefe/2026-08-27_muster-gmbh_angebot.md
+python3 scripts/falzmarke.py email briefe/2026-08-27_muster-gmbh_angebot.md --html
+```
+
+Es entstehen `.eml` (die Nachricht) und mit `--html` eine Vorschau zum Öffnen im Browser. Diese
+Vorschau ist das, was gezeigt wird — nicht die `.eml`, die ist für das Mailprogramm.
+
+**falzmarke versendet nichts.** Es gibt keinen Versandbefehl und keine Option, die sendet; die
+`.eml` wird im Mailprogramm geöffnet und dort abgeschickt. Warum das so bleibt, steht in
+[ADR 0034](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0034-email-ist-ausgabe.md).
+Wer nach einem Versand fragt, bekommt diese Auskunft, keinen Behelf.
 
 ## Grenzen
 

@@ -25,7 +25,7 @@ from pathlib import Path
 
 from falzmarke import __version__ as VERSION_PAKET
 from falzmarke import lint as lint_modul
-from falzmarke.markdown import MarkdownFehler, konvertiere
+from falzmarke.markdown import MarkdownFehler, konvertiere, lies
 
 PAKET = Path(__file__).resolve().parent
 SKILL = PAKET.parent
@@ -813,6 +813,88 @@ def befehl_render(args) -> int:
     return EXIT_OK
 
 
+def setze_email(brief_pfad: Path, ausgabe: Path | None = None, *,
+                profil_verzeichnis: Path | None = None,
+                mit_quelle: bool = False) -> tuple[Path, list[Path]]:
+    """Setzt die E-Mail-Fassung. Gibt (.eml, alle geschriebenen Dateien) zurück.
+
+    Kein Versandweg — ADR 0034. Was hier entsteht, sind Dateien; ob und wann
+    sie jemand abschickt, entscheidet ein Mailprogramm, nicht dieses Werkzeug.
+    """
+    from falzmarke import eml as eml_modul
+
+    kopf, body_md, versatz = lies_brief(brief_pfad)
+    if str(kopf.get("typ") or "brief") != "email":
+        raise Eingabefehler(
+            f"{brief_pfad.name} trägt kein `typ: email` und ist damit ein Brief.\n"
+            "Für ein PDF `falzmarke render` verwenden."
+        )
+    profil, _ = lade_profil(kopf.get("profil", ""), profil_verzeichnis, brief_pfad)
+
+    try:
+        bloecke = lies(body_md, versatz)
+    except MarkdownFehler as fehler:
+        raise Eingabefehler(f"{brief_pfad.name}, {fehler}") from None
+    if not body_md.strip():
+        raise Eingabefehler(f"{brief_pfad.name}: Die Nachricht hat keinen Text.")
+
+    try:
+        nachricht = eml_modul.baue(kopf, profil, body_md, bloecke,
+                                   brief_pfad=brief_pfad, mit_quelle=mit_quelle)
+    except (ValueError, FileNotFoundError) as fehler:
+        raise Eingabefehler(f"{brief_pfad.name}: {fehler}") from None
+
+    ziel = Path(ausgabe) if ausgabe else brief_pfad.with_suffix("")
+    sprache = str(kopf.get("sprache") or profil.get("sprache") or "de")
+    dateien = eml_modul.schreibe(
+        nachricht, ziel,
+        html=eml_modul.begleit_html(kopf, profil, bloecke, sprache=sprache),
+        text=eml_modul.textteil(kopf, profil, bloecke),
+    )
+    return dateien[0], dateien
+
+
+def befehl_email(args) -> int:
+    from falzmarke import pruefung_eml
+
+    brief = Path(args.brief)
+    profile = Path(args.profiles) if args.profiles else None
+
+    # Dieselbe Reihenfolge wie beim Brief: Ein Eingabefehler soll Exit 1
+    # ergeben und kein Setzen kosten.
+    vorpruefung = linte(brief, profile)
+    if not vorpruefung.ok:
+        print(vorpruefung.als_text(brief.name), file=sys.stderr)
+        return EXIT_EINGABE
+    for befund in vorpruefung.befunde:
+        print(befund.als_zeile(brief.name), file=sys.stderr)
+
+    eml_pfad, dateien = setze_email(
+        brief, Path(args.output) if args.output else None,
+        profil_verzeichnis=profile, mit_quelle=args.mit_quelle)
+
+    behalten = {".eml"}
+    if args.html:
+        behalten.add(".html")
+    if args.txt:
+        behalten.add(".txt")
+    for datei in dateien:
+        if datei.suffix in behalten:
+            print(f"OK  geschrieben: {datei}")
+        else:
+            datei.unlink()
+
+    # `verify --email` läuft mit — dieselbe Zusage wie beim PDF: Was
+    # herauskommt, wird nachgemessen, nicht nur erzeugt.
+    bericht = pruefung_eml.pruefe(eml_pfad)
+    print(bericht.als_text(ausfuehrlich=args.verbose))
+    if not bericht.ok:
+        print("\nFEHLGESCHLAGEN — die Nachricht hält die eigenen Vorgaben nicht ein.",
+              file=sys.stderr)
+        return EXIT_GEOMETRIE
+    return EXIT_OK
+
+
 def befehl_verify(args) -> int:
     from falzmarke import geometrie
 
@@ -1078,6 +1160,17 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--json", action="store_true")
         p.add_argument("--verbose", action="store_true", help="alle Prüfungen zeigen")
         p.set_defaults(funktion=befehl_verify)
+
+    p = unter.add_parser("email", help="E-Mail-Fassung als .eml setzen und nachmessen")
+    p.add_argument("brief", help="Markdown-Datei mit `typ: email`")
+    p.add_argument("-o", "--output", help="Zielname ohne Endung")
+    p.add_argument("--html", action="store_true", help="die .html-Vorschau behalten")
+    p.add_argument("--txt", action="store_true", help="den Textteil als .txt behalten")
+    p.add_argument("--mit-quelle", dest="mit_quelle", action="store_true",
+                   help="die Markdown-Quelle als text/markdown-Teil mitschicken")
+    p.add_argument("--profiles")
+    p.add_argument("--verbose", action="store_true", help="alle Prüfungen zeigen")
+    p.set_defaults(funktion=befehl_email)
 
     p = unter.add_parser("preview", help="PNG der ersten Seite")
     p.add_argument("brief")

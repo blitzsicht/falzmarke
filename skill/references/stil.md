@@ -68,3 +68,35 @@ auch im Fließtext: `am 1. September 2026`, `unter 0941 620-9800`, `1.234,56 EUR
 
 Fristen immer mit Datum, nie nur mit Dauer: „bis zum 15. September 2026", nicht „innerhalb von
 14 Tagen" — der Empfänger soll nicht rechnen müssen.
+
+## Was eine E-Mail vom Brief unterscheidet
+
+Der Ton bleibt derselbe — sachlich, ohne Floskeln, in der Sprache des Empfängers. Anders ist die
+Form, und zwar aus einem Grund: Ein Brief wird gelesen, weil jemand ihn aufgemacht hat. Eine Mail
+steht in einer Liste mit dreißig anderen.
+
+**Ein Anliegen je Nachricht.** Wer zwei Dinge will, schreibt zwei Mails. Der Brief kann mehrere
+Punkte tragen, weil er als Ganzes gelesen wird; eine Mail wird überflogen, und der zweite Punkt
+geht verloren.
+
+**Kürzer.** Was im Brief drei Absätze braucht, hat in einer Mail zwei. Höflichkeitsschleifen —
+„ich hoffe, es geht Ihnen gut", „vielen Dank für Ihre Zeit" — entfallen ersatzlos.
+
+**Der Betreff nennt das Thema, nicht die Gattung.** „Angebot Nr. 2026-0815" statt „Angebot",
+„Termin am 3. September verschieben" statt „Terminanfrage". Er steht in einer Liste neben
+dreißig anderen und muss dort erkennbar sein. Über 60 Zeichen sieht ihn niemand ganz.
+
+**Am Ende steht eine konkrete Bitte**, mit Datum: „Bitte bestätigen Sie den Termin bis zum
+1. September 2026." Nicht „Ich freue mich auf Ihre Rückmeldung" — daraus folgt nichts.
+
+**Anlagen werden im Text genannt.** Der Empfänger soll wissen, dass etwas dabei ist, bevor er es
+sucht. `lint` erinnert daran, fügt aber keinen Satz ein: Ein Werkzeug, das ungefragt in einen
+Text schreibt, schreibt irgendwann den falschen.
+
+**Zitate nur bei einer Antwort.** Trägt das Frontmatter `antwort_auf:`, wird der beantwortete
+Punkt kurz aufgegriffen — in eigenen Worten, nicht als eingerückter Block. Ohne `antwort_auf:`
+gibt es nichts zu zitieren.
+
+**Keine Gestaltung.** Keine Farben, keine Schriftgrößen, keine Buttons, keine Logos außer dem des
+Profils. Was in Outlook, Gmail und Apple Mail gleich ankommen soll, ist schmal
+([ADR 0034](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0034-email-ist-ausgabe.md)).

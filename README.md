@@ -315,6 +315,31 @@ Geometrie, die danach gemessen wird.
 
 Die vollständige Liste: [falzmarke-Markdown](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/markdown.md).
 
+## Dieselbe Datei als E-Mail
+
+Ein Schreiben mit `typ: email` im Frontmatter wird keine PDF-Seite, sondern eine `.eml` —
+dieselbe Quelle, dasselbe Profil, dieselbe Signatur.
+
+```bash
+falzmarke email nachricht.md --html
+```
+
+```
+OK  geschrieben: nachricht.eml
+OK  geschrieben: nachricht.html
+OK  verify: 22/22 Prüfungen bestanden
+```
+
+Die `.eml` öffnet das Mailprogramm, die `.html` der Browser. Geprüft wird die **fertige Datei**:
+MIME-Aufbau, `format=flowed`, Space-Stuffing, die Signaturtrennzeile, und ob im HTML nichts
+steht, was dort nicht hingehört — kein Skript, kein externes Stylesheet, kein Zählpixel, keine
+Tabelle als Layout. `falzmarke verify --email` misst auch Dateien, die von woanders kommen.
+
+**falzmarke versendet nichts.** Es gibt keinen Versandbefehl und keine Option, die sendet: Wer
+eine Datei erzeugt, haftet für ihren Inhalt; wer sie befördert, für Zustellung und Nachweis. Das
+sind zwei Versprechen, und falzmarke gibt nur das erste
+([ADR 0034](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0034-email-ist-ausgabe.md)).
+
 ## Beispiele
 
 | Standardbrief | Einschreiben | Mehrseitig |
