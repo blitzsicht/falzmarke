@@ -19,6 +19,7 @@ prüfbar.
 
 from __future__ import annotations
 
+from falzmarke import baum as baum_modul
 from falzmarke import typografie
 
 
@@ -75,3 +76,55 @@ def tabelle(zeilen: list[list[str]], ausrichtungen: list[str | None]) -> str:
         teile.append("  " + ", ".join(zellen) + ",")
     teile.append(")")
     return "\n".join(teile)
+
+
+# ── Der Weg über den Baum ───────────────────────────────────────────────────
+#
+# Bis hierher steht, WIE ein einzelnes Element aussieht. Was folgt, geht den
+# geprueften Baum aus markdown.lies() ab und setzt ihn damit. Die Trennung ist
+# der Grund, warum eine zweite Ausgabeform daneben passt, ohne die Pruefung zu
+# verdoppeln: Der Baum kennt keine Zielsprache.
+
+
+def _inline(knoten) -> str:
+    """Ein Inline-Knoten oder eine Folge davon."""
+    if isinstance(knoten, tuple):
+        return "".join(_inline(k) for k in knoten)
+    if isinstance(knoten, baum_modul.Text):
+        return as_text(knoten.inhalt, typografie_anwenden=knoten.typografie)
+    if isinstance(knoten, baum_modul.Umbruch):
+        return umbruch()
+    if isinstance(knoten, baum_modul.Stark):
+        return stark(_inline(knoten.kinder))
+    if isinstance(knoten, baum_modul.Betont):
+        return betont(_inline(knoten.kinder))
+    return _block(knoten)
+
+
+def _block(knoten) -> str:
+    if isinstance(knoten, baum_modul.Absatz):
+        return absatz(_inline(knoten.kinder))
+    if isinstance(knoten, baum_modul.Liste):
+        return liste(
+            [_inline(p) for p in knoten.punkte],
+            nummeriert=knoten.nummeriert,
+            start=knoten.start,
+        )
+    if isinstance(knoten, baum_modul.Tabelle):
+        return tabelle(
+            [[_inline(z) for z in zeile] for zeile in knoten.zeilen],
+            list(knoten.ausrichtungen),
+        )
+    # Kein stilles Uebergehen: Ein Knoten, den dieser Emitter nicht kennt, ist
+    # ein Fehler im Werkzeug, kein Fehler des Briefes — und er darf nicht als
+    # leerer Absatz in einem Brief landen, den jemand abschickt.
+    raise TypeError(
+        f"Der Typst-Emitter kennt {type(knoten).__name__} nicht. "
+        "Neuer Knoten in baum.py? Dann gehört er auch hierher."
+    )
+
+
+def setze(bloecke) -> str:
+    """Geprüfter Baum -> Typst."""
+    gesetzt = [_block(b) for b in bloecke]
+    return "\n\n".join(b for b in gesetzt if b.strip()) + "\n"

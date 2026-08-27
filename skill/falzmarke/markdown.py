@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import re
 
-from falzmarke import emit
+from falzmarke import baum, emit
 
 MAX_LISTENTIEFE = 2
 
@@ -113,34 +113,36 @@ def _pruefe_rohtext(markdown: str, versatz: int) -> None:
     _pruefe_tabellen(markdown, versatz)
 
 
-def _inline(knoten, versatz: int) -> str:
-    """Inline-Inhalt eines Absatzes oder einer Zelle."""
+def _inline(knoten, versatz: int) -> tuple:
+    """Inline-Inhalt eines Absatzes oder einer Zelle, als Baumknoten."""
     teile = []
     for kind in knoten.children or []:
         typ = kind.type
         if typ == "text":
-            teile.append(emit.as_text(kind.content))
+            teile.append(baum.Text(kind.content))
         elif typ == "softbreak":
-            teile.append(emit.as_text(" ", typografie_anwenden=False))
+            # Ein weicher Umbruch ist ein Leerzeichen und sonst nichts — die
+            # typografischen Ersetzungen haben daran nichts zu suchen.
+            teile.append(baum.Text(" ", typografie=False))
         elif typ == "hardbreak":
-            teile.append(emit.umbruch())
+            teile.append(baum.Umbruch())
         elif typ == "strong":
-            teile.append(emit.stark(_inline(kind, versatz)))
+            teile.append(baum.Stark(_inline(kind, versatz)))
         elif typ == "em":
-            teile.append(emit.betont(_inline(kind, versatz)))
+            teile.append(baum.Betont(_inline(kind, versatz)))
         elif typ in ABLEHNUNG:
             raise MarkdownFehler(_zeile(kind, versatz), ABLEHNUNG[typ])
         elif typ == "inline":
-            teile.append(_inline(kind, versatz))
+            teile.extend(_inline(kind, versatz))
         else:
             raise MarkdownFehler(
                 _zeile(kind, versatz),
                 f"'{typ}' wird in einem Brief nicht gesetzt",
             )
-    return "".join(teile)
+    return tuple(teile)
 
 
-def _liste(knoten, versatz: int, tiefe: int) -> str:
+def _liste(knoten, versatz: int, tiefe: int) -> baum.Liste:
     if tiefe > MAX_LISTENTIEFE:
         raise MarkdownFehler(
             _zeile(knoten, versatz),
@@ -166,26 +168,26 @@ def _liste(knoten, versatz: int, tiefe: int) -> str:
         stuecke = []
         for kind in punkt.children or []:
             if kind.type == "paragraph":
-                stuecke.append(_inline(kind, versatz))
+                stuecke.extend(_inline(kind, versatz))
             elif kind.type in ("bullet_list", "ordered_list"):
                 stuecke.append(_liste(kind, versatz, tiefe + 1))
             else:
-                stuecke.append(_block(kind, versatz, tiefe))
-        inhalte.append("".join(stuecke))
+                stuecke.extend(_block(kind, versatz, tiefe))
+        inhalte.append(tuple(stuecke))
 
+    start = 1
     if knoten.type == "ordered_list":
         start = int(knoten.attrs.get("start", 1)) if knoten.attrs else 1
-        return emit.liste(inhalte, nummeriert=True, start=start)
-    return emit.liste(inhalte)
+    return baum.Liste(tuple(inhalte), nummeriert=knoten.type == "ordered_list", start=start)
 
 
-def _tabelle(knoten, versatz: int) -> str:
+def _tabelle(knoten, versatz: int) -> baum.Tabelle:
     zeilen, ausrichtungen = [], []
     for teil in knoten.children:
         for tr in teil.children:
             zellen = []
             for zelle in tr.children:
-                zellen.append(_inline(zelle, versatz))
+                zellen.append(_inline(zelle, versatz))  # Tupel von Inline-Knoten
                 if teil.type == "thead":
                     stil = (zelle.attrs or {}).get("style", "")
                     treffer = re.search(r"text-align:\s*(\w+)", str(stil))
@@ -193,29 +195,39 @@ def _tabelle(knoten, versatz: int) -> str:
             zeilen.append(zellen)
     if not zeilen:
         raise MarkdownFehler(_zeile(knoten, versatz), "leere Tabelle")
-    return emit.tabelle(zeilen, ausrichtungen or [None] * len(zeilen[0]))
+    return baum.Tabelle(
+        tuple(tuple(z) for z in zeilen),
+        tuple(ausrichtungen or [None] * len(zeilen[0])),
+    )
 
 
-def _block(knoten, versatz: int, tiefe: int = 1) -> str:
+def _block(knoten, versatz: int, tiefe: int = 1) -> tuple:
+    """Ein Block wird zu null, einem oder mehreren Baumknoten."""
     typ = knoten.type
     if typ in ABLEHNUNG:
         raise MarkdownFehler(_zeile(knoten, versatz), ABLEHNUNG[typ])
     if typ == "paragraph":
-        return emit.absatz(_inline(knoten, versatz))
+        return (baum.Absatz(_inline(knoten, versatz)),)
     if typ in ("bullet_list", "ordered_list"):
-        return _liste(knoten, versatz, tiefe)
+        return (_liste(knoten, versatz, tiefe),)
     if typ == "table":
-        return _tabelle(knoten, versatz)
+        return (_tabelle(knoten, versatz),)
     if typ not in ERLAUBT:
         raise MarkdownFehler(_zeile(knoten, versatz), f"'{typ}' wird in einem Brief nicht gesetzt")
-    return "".join(_block(k, versatz, tiefe) for k in knoten.children or [])
+    teile = []
+    for k in knoten.children or []:
+        teile.extend(_block(k, versatz, tiefe))
+    return tuple(teile)
 
 
-def konvertiere(markdown: str, zeilenversatz: int = 0) -> str:
-    """falzmarke-Markdown -> Typst.
+def lies(markdown: str, zeilenversatz: int = 0) -> tuple:
+    """falzmarke-Markdown -> geprüfter Baum (siehe baum.py).
 
     `zeilenversatz` ist die Zeilenzahl des Frontmatters, damit Fehlermeldungen
     die Zeile der Originaldatei nennen.
+
+    Hier endet die Prüfung: Was zurückkommt, ist zulässig. Ein Emitter muss
+    nicht mehr entscheiden, ob er etwas ablehnen darf.
     """
     from markdown_it import MarkdownIt
     from markdown_it.tree import SyntaxTreeNode
@@ -223,7 +235,19 @@ def konvertiere(markdown: str, zeilenversatz: int = 0) -> str:
     _pruefe_rohtext(markdown, zeilenversatz)
 
     parser = MarkdownIt("commonmark").enable("table")
-    baum = SyntaxTreeNode(parser.parse(markdown))
+    wurzel = SyntaxTreeNode(parser.parse(markdown))
 
-    bloecke = [_block(k, zeilenversatz) for k in baum.children]
-    return "\n\n".join(b for b in bloecke if b.strip()) + "\n"
+    bloecke = []
+    for kind in wurzel.children:
+        bloecke.extend(_block(kind, zeilenversatz))
+    return tuple(bloecke)
+
+
+def konvertiere(markdown: str, zeilenversatz: int = 0) -> str:
+    """falzmarke-Markdown -> Typst.
+
+    Der bisherige Weg in einem Aufruf: lesen, dann setzen. Bleibt, weil ihn
+    cli.py und die Tests benutzen — und weil „Markdown zu Typst" für den
+    Brief die richtige Beschreibung ist.
+    """
+    return emit.setze(lies(markdown, zeilenversatz))
