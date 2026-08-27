@@ -205,6 +205,71 @@ def brief_rendern(brief: str, profil=None, form: str | None = None,
         return ergebnis
 
 
+def email_setzen(nachricht: str, profil=None, als: str = "pfad",
+                 ziel: str | None = None, mit_quelle: bool = False) -> dict:
+    """Setzt die E-Mail-Fassung und misst sie nach.
+
+    nachricht    Markdown mit Frontmatter — der Text selbst, nicht ein Pfad.
+                 Das Frontmatter muss `typ: email` tragen.
+    profil       Name eines Profils auf dem Server oder ein ganzes
+                 Profil-Objekt. Fehlt beides, gilt das im Frontmatter genannte.
+    als          "pfad" (Vorgabe) oder "base64".
+    ziel         Wohin die Dateien sollen. Ohne Angabe in ein
+                 Temporärverzeichnis, das stehen bleibt — der zurückgegebene
+                 Pfad muss gültig sein.
+    mit_quelle   Die Markdown-Quelle als eigener Teil (ADR 0034, Punkt 3).
+                 Vorgabe ist ohne: Der Teil macht sichtbar, was im Brief nicht
+                 sichtbar wäre.
+
+    **Es wird nichts versendet.** Das Ergebnis sind Dateien; ob und wann sie
+    jemand abschickt, entscheidet ein Mailprogramm (ADR 0034). Der Messbericht
+    aus `verify --email` ist immer dabei — dieselbe Zusage wie beim Brief.
+    """
+    from falzmarke import pruefung_eml
+    from falzmarke.cli import setze_email
+
+    if als not in ("pfad", "base64"):
+        raise Eingabefehler(f"als ist „{als}“ — erlaubt sind „pfad“ und „base64“.")
+
+    with tempfile.TemporaryDirectory(prefix="falzmarke-mcp-") as tmp:
+        arbeit = Path(tmp)
+        name, verzeichnis, verworfen = _profilverzeichnis(profil, arbeit)
+
+        quelle = arbeit / "nachricht.md"
+        text = nachricht if nachricht.lstrip().startswith("---") else f"---\n---\n\n{nachricht}"
+        if name:
+            text = _kopf_ergaenzen(text, name, None)
+        quelle.write_text(text, encoding="utf-8")
+
+        ausgabe = Path(ziel) if ziel else Path(
+            tempfile.mkdtemp(prefix="falzmarke-")) / "nachricht"
+        eml_pfad, dateien = setze_email(quelle, ausgabe, profil_verzeichnis=verzeichnis,
+                                        mit_quelle=mit_quelle)
+        bericht = pruefung_eml.pruefe(eml_pfad)
+
+        ergebnis = {
+            "bestanden": bericht.ok,
+            "bericht": bericht.als_dict(),
+            "zusammenfassung": bericht.als_text(),
+            "versendet": False,
+        }
+        if verworfen:
+            ergebnis["verworfen"] = {
+                "felder": verworfen,
+                "grund": "Verweise auf Bilddateien neben dem Profil — die gibt es "
+                         "hier nicht. Wer ein Logo braucht, legt das Profil auf "
+                         "dem Server ab und nennt es beim Namen.",
+            }
+        if als == "base64":
+            ergebnis["eml_base64"] = base64.b64encode(eml_pfad.read_bytes()).decode("ascii")
+            ergebnis["dateiname"] = eml_pfad.name
+        else:
+            ergebnis["pfad"] = str(eml_pfad.resolve())
+            ergebnis["vorschau"] = str(
+                next(d for d in dateien if d.suffix == ".html").resolve())
+        return ergebnis
+
+
 def brief_pruefen(pdf_pfad: str | None = None, pdf_base64: str | None = None,
                   form: str | None = None) -> dict:
     """Misst ein bestehendes PDF nach — auch eines, das falzmarke nie gesehen hat.
@@ -256,7 +321,7 @@ def profile_auflisten() -> dict:
 
 # ── Server ──────────────────────────────────────────────────────────────────
 
-WERKZEUGE = (brief_rendern, brief_pruefen, profile_auflisten)
+WERKZEUGE = (brief_rendern, email_setzen, brief_pruefen, profile_auflisten)
 
 def _durchgereicht(werkzeug, ToolError):
     """Macht aus einem erwarteten Fehler eine Meldung, die den Client erreicht.
