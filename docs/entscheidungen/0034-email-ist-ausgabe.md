@@ -25,9 +25,15 @@ der Zweck des Formats, und es ist der Punkt, an dem falzmarkes Zuständigkeit en
 Betreff, Anrede, Absätze, Grußformel und Signatur sind dieselben wie im Brief. Sie kommen aus
 demselben geprüften Markdown-Baum, nicht aus einer zweiten Quelle.
 
-Der Zeilenumbruch ist es nicht. Ein Brief kennt seine Seitenbreite; eine E-Mail kennt sie nicht
-— nach Abschnitt 22 bricht das Programm des Empfängers um, und jede feste Breite kämpft dagegen.
-Deshalb `format=flowed` (RFC 3676) im Textteil und einspaltiges HTML ohne feste Breiten.
+Der Zeilenumbruch ist es nicht. Ein Brief kennt seine Seitenbreite; eine E-Mail kennt sie nicht:
+Das Programm des Empfängers bricht um, und jede feste Breite kämpft dagegen. Deshalb
+`format=flowed` (RFC 3676) im Textteil und einspaltiges HTML ohne feste Breiten.
+
+Die Norm behandelt die E-Mail in Abschnitt 22. Diese Zuordnung stammt aus Sekundärquellen und ist
+**nicht gegen den Originaltext geprüft** — sie steht hier als Fundstelle, nicht als Beleg. Was aus
+Abschnitt 22 tatsächlich als Regel gilt, gehört nach `skill/references/din5008.md` mit Quelle
+daneben, und zwar erst dann, wenn es dort mit derselben Sorgfalt eingetragen wird wie die
+Briefregeln. Bis dahin ist die Nummer eine Adresse, kein Nachweis.
 
 ### 3. Die Quelle reist mit — auf Verlangen
 
@@ -97,7 +103,7 @@ Millimeter geprüft" sagt, kann daneben nicht „kommt an" sagen.
 ## Was diese Entscheidung nicht ist
 
 Sie sagt nicht, dass die erzeugten Mails ungeprüft blieben. Für sie gilt dasselbe wie für die
-Briefe: Die Regeln aus Abschnitt 22 tragen ihre Herkunft wie alle anderen, und bis zum Normabgleich
+Briefe: Die E-Mail-Regeln tragen ihre Herkunft wie alle anderen, und bis zum Normabgleich
 ([#12](https://github.com/blitzsicht/falzmarke/issues/12)) stammen sie aus Sekundärquellen. Was
 aus einer einzelnen Quelle stammt, wirkt als Warnung, nicht als Fehler.
 
