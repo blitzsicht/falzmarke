@@ -8,21 +8,18 @@ Die Reihenfolge der Phasen folgt [ADR 0030](entscheidungen/0030-reihenfolge-der-
 Meilensteinen und offenen Issues erzeugt und nicht von Hand gepflegt: die Wahrheit
 steht im Issue, hier steht nur eine Sicht darauf.
 
-**19 offene Vorgänge** in 6 Phasen.
+**19 offene Vorgänge** in 7 Phasen.
 
 ## 1. Vor Verbreitung
 
 Belegarbeit, die vor einer starken Behauptung stehen muss. Sperrt seit ADR 0032 nicht mehr die Verbreitung selbst — nur die Wörter normgerecht, DIN-konform, normkonform und zertifiziert.
 
-**7 offen · 3 erledigt**
+**4 offen · 6 erledigt**
 
 | Nr. | Was | Typ | Priorität | Bereich | Zustand |
 |---|---|---|---|---|---|
 | [#12](https://github.com/blitzsicht/falzmarke/issues/12) | Normabgleich gegen den Originaltext der DIN 5008:2020-03 | Forschung | P0 | norm | maintainer |
 | [#16](https://github.com/blitzsicht/falzmarke/issues/16) | Quellenlage: vendorte Implementierung zählt als unabhängiger Beleg | Forschung | P0 | norm | maintainer |
-| [#35](https://github.com/blitzsicht/falzmarke/issues/35) | Briefkörper bleibt auf jeder Seite im Satzspiegel | Feature | P0 | verify, dialekt | — |
-| [#7](https://github.com/blitzsicht/falzmarke/issues/7) | Als Paket auf PyPI veröffentlichen | Aufgabe | P1 | ci | — |
-| [#13](https://github.com/blitzsicht/falzmarke/issues/13) | Schaufenster: die Falzmarke ist auf keinem Bild zu erkennen | Fehler | P1 | doku, marke | — |
 | [#18](https://github.com/blitzsicht/falzmarke/issues/18) | Form A steht nur auf der eigenen Layoutbasis — externer Beleg fehlt | Forschung | P1 | norm | — |
 | [#31](https://github.com/blitzsicht/falzmarke/issues/31) | Quellen stehen bei Regeln, zu denen sie schweigen — die Validierung merkt es nicht | Fehler | P1 | norm | maintainer |
 
@@ -30,38 +27,49 @@ Belegarbeit, die vor einer starken Behauptung stehen muss. Sperrt seit ADR 0032 
 
 Überschriften, Listen, Zitate, Code — lange und professionelle Schreiben
 
-**2 offen · 0 erledigt**
+**1 offen · 1 erledigt**
 
 | Nr. | Was | Typ | Priorität | Bereich | Zustand |
 |---|---|---|---|---|---|
 | [#26](https://github.com/blitzsicht/falzmarke/issues/26) | Dialekt 1.1: Struktur für lange Schreiben (Überschriften, Listen, Zitate, Code) | Epic | P1 | skill, dialekt | — |
-| [#11](https://github.com/blitzsicht/falzmarke/issues/11) | Englische Leitwörter und Datumsformate | Feature | P3 | i18n | — |
 
-## 3. Einfacher Zugang
+## 3. E-Mail
+
+Geschäftsmails nach DIN 5008 Abschnitt 22 aus derselben Quelle wie der Brief — als Datei, nicht als Versand (ADR 0029).
+
+**8 offen · 0 erledigt**
+
+| Nr. | Was | Typ | Priorität | Bereich | Zustand |
+|---|---|---|---|---|---|
+| [#60](https://github.com/blitzsicht/falzmarke/issues/60) | Entscheidung: E-Mail ist Ausgabe, nicht Kanal (ADR 0034) | — | P1 | recht, email | maintainer |
+| [#59](https://github.com/blitzsicht/falzmarke/issues/59) | E-Mail-Fassung nach DIN 5008 Abschnitt 22 aus derselben Quelle | — | P2 | skill, email | — |
+| [#61](https://github.com/blitzsicht/falzmarke/issues/61) | Markdown-Baum vom Typst-Emitter entkoppeln, HTML- und Text-Emitter (E3, E4) | — | P2 | skill, email | — |
+| [#62](https://github.com/blitzsicht/falzmarke/issues/62) | Profil-Abschnitt email: und Frontmatter typ: email (E1, E2) | — | P2 | profile, email | — |
+| [#63](https://github.com/blitzsicht/falzmarke/issues/63) | Aufbau der .eml und der Begleitdateien (E5) | — | P2 | email | — |
+| [#64](https://github.com/blitzsicht/falzmarke/issues/64) | Lint E7xx und verify --email (E6, E7) | — | P2 | norm, verify, email | — |
+| [#65](https://github.com/blitzsicht/falzmarke/issues/65) | Befehl email, Skill und MCP-Dienst (E8) | — | P2 | skill, mcp, email | — |
+| [#66](https://github.com/blitzsicht/falzmarke/issues/66) | Beispiele, Tests und Doku der E-Mail-Fassung (E9) | — | P2 | doku, email | — |
+
+## 4. Einfacher Zugang
 
 Dienst, MCP, Browser, Website
 
-**2 offen · 0 erledigt**
+**0 offen · 2 erledigt**
 
-| Nr. | Was | Typ | Priorität | Bereich | Zustand |
-|---|---|---|---|---|---|
-| [#5](https://github.com/blitzsicht/falzmarke/issues/5) | MCP-Server, damit andere KI-Clients Briefe setzen können | Feature | P1 | mcp | — |
-| [#6](https://github.com/blitzsicht/falzmarke/issues/6) | GitHub Action: Briefe im Repo rendern | Feature | P2 | ci | — |
+Nichts offen.
 
-## 4. Dokumentpakete
+## 5. Dokumentpakete
 
 Anlagen, Hybridbrief, Serienbrief, Ablage
 
-**4 offen · 0 erledigt**
+**2 offen · 2 erledigt**
 
 | Nr. | Was | Typ | Priorität | Bereich | Zustand |
 |---|---|---|---|---|---|
-| [#1](https://github.com/blitzsicht/falzmarke/issues/1) | Anlagen-PDFs an den Brief anhängen | Feature | P2 | hybridbrief | — |
 | [#3](https://github.com/blitzsicht/falzmarke/issues/3) | Serienbrief aus CSV oder JSON | Feature | P2 | skill | — |
-| [#42](https://github.com/blitzsicht/falzmarke/issues/42) | PDF/A-2b oder A-3b — die Stufe ist nie entschieden worden | Entscheidung | P2 | — | maintainer |
 | [#9](https://github.com/blitzsicht/falzmarke/issues/9) | Ablage in Paperless-NGX | Feature | P3 | hybridbrief | — |
 
-## 5. Beweis
+## 6. Beweis
 
 proof — Zustandsmodell, Signatur, Siegel
 
@@ -72,7 +80,7 @@ proof — Zustandsmodell, Signatur, Siegel
 | [#14](https://github.com/blitzsicht/falzmarke/issues/14) | Digitale Signatur des PDF (PAdES) — Entscheidung und Grenzen | Entscheidung | P2 | recht | maintainer |
 | [#19](https://github.com/blitzsicht/falzmarke/issues/19) | Beweiskette: Schichten proof und delivery (Rahmen für v0.7/v0.8) | Epic | P2 | recht | maintainer |
 
-## 6. Geparkt
+## 7. Geparkt
 
 Wartet auf eine Vorbedingung — nicht verworfen
 
