@@ -20,7 +20,7 @@ im Einzelnen arbeitet.
 ## Gegenprobe
 
 Die Werte wurden nicht aus einer Vorlage übernommen, sondern an einem gerenderten PDF gemessen
-(Typst 0.15, PyMuPDF) und anschließend gegen die Maßzeichnungen gehalten. Sie stimmen überein;
+(Typst 0.15, pdfplumber) und anschließend gegen die Maßzeichnungen gehalten. Sie stimmen überein;
 der Betreff steht in der Form-B-Zeichnung exakt bei 98,46 mm.
 
 In der Form-A-Zeichnung steht der Betreff bei 103,46 mm statt bei 80,46 mm. Das ist kein
@@ -37,10 +37,18 @@ vergleicht mit einem Fehler.
 
 ## Wie gemessen wird
 
-[`skill/falzmarke/geometrie.py`](../skill/falzmarke/geometrie.py) öffnet das erzeugte PDF und
-vermisst es: `get_drawings()` liefert die Falz- und Lochmarken als waagerechte Striche im
-Heftrand, `get_text("dict")` die Textkästen mit Position, Größe und Schriftschnitt. Verglichen
-wird gegen die Tabelle, mit benannten Toleranzen.
+[`skill/falzmarke/geometrie.py`](../skill/falzmarke/geometrie.py) öffnet das erzeugte PDF mit
+**pdfplumber** (MIT) und vermisst es: `page.lines` und `page.rects` liefern die Falz- und
+Lochmarken als kurze Striche im Heftrand — manche Erzeuger legen sie als sehr flache Rechtecke
+an, deshalb beide —, `page.extract_words(extra_attrs=["fontname", "size"])` die Wörter mit
+Position, Größe und Schriftschnitt. Die Metadaten und die PDF/A-Kennzeichnung liest **pypdf**
+(BSD-3). Verglichen wird gegen die Tabelle, mit benannten Toleranzen.
+
+Bis v0.4 lief die Messung über **PyMuPDF**. Das ist AGPL-3.0 oder kommerziell und hätte jede
+Firma, die falzmarke einbaut, in die AGPL gezwungen; seitdem hält ein eigener CI-Schritt jeden
+Rückweg zu. Der Wechsel war außerdem genauer: pdfplumber liefert die Zeilenoberkante statt der
+Ascender-Box und trifft die Sollwerte auf 0,01 mm — Anschrift 62,69 bei Soll 62,70, Betreff 98,45
+bei 98,46 —, wo PyMuPDF um 0,5 mm danebenlag.
 
 Zwei Dinge sind dabei nicht offensichtlich und haben je einen Fehlversuch gekostet:
 
