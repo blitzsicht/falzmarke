@@ -21,19 +21,42 @@ im Einzelnen arbeitet.
 
 Die Werte wurden nicht aus einer Vorlage übernommen, sondern an einem gerenderten PDF gemessen
 (Typst 0.15, pdfplumber) und anschließend gegen die Maßzeichnungen gehalten. Sie stimmen überein;
-der Betreff steht in der Form-B-Zeichnung exakt bei 98,46 mm.
+in der Form-B-Zeichnung liegt der Betreff bei 98,46 mm.
 
-In der Form-A-Zeichnung steht der Betreff bei 103,46 mm statt bei 80,46 mm. Das ist kein
-Widerspruch, sondern die Regel selbst: Der dort gezeichnete Informationsblock ist 63 mm hoch, und
-der Betreff folgt zwei Leerzeilen unter dem **tiefer reichenden** von Anschriftfeld und
-Informationsblock. Genau deshalb rechnet der Renderer die Position, statt sie zu setzen.
+**98,46 mm ist keine feste Betreffposition, sondern ein abgeleiteter Standardfall.** Die Regel
+lautet: Der Betreff folgt zwei Leerzeilen unter dem **tiefer reichenden** von Anschriftfeld und
+Informationsblock. Bei den Standardhöhen der Form B ergibt das 98,46 mm — bei einem längeren
+Informationsblock etwas anderes. Deshalb rechnet der Renderer die Position, statt sie zu setzen,
+und deshalb prüft `verify` sie relativ statt absolut. Wer 98,46 mm als Sollwert übernimmt, hat
+die Regel durch einen ihrer Werte ersetzt.
 
-**Die verbreitete Word-Vorlage zu diesen Zeichnungen ist nicht normgerecht.** Nachgemessen nach
-dem Rendern: Falz- und Lochmarken absolut verankert bei 84,0 / 144,0 / 185,0 mm statt bei
-87 / 148,5 / 192 mm, die Rücksendeangabe bei 36,9 mm statt in der Zone 27–32 mm, der
-Informationsblock bei x = 130 mm statt 125 mm. Die Marken sind absolut positioniert, der Fehler
-ist also unabhängig vom Programm, mit dem die Datei geöffnet wird. Wer damit vergleicht,
-vergleicht mit einem Fehler.
+Dieselbe Rechnung erklärt die Form-A-Zeichnung, in der der Betreff bei 103,46 mm steht statt bei
+80,46 mm: Der dort gezeichnete Informationsblock ist 63 mm hoch und reicht damit tiefer als das
+Anschriftfeld.
+
+**Diese Herleitung ist eine Rekonstruktion, keine Fundstelle.** Sie erklärt die Zeichnungen
+widerspruchsfrei, aber sie stützt sich auf die Zeichnungen selbst und nicht auf den Normtext. Was
+dort steht, ist bis zum [Normabgleich](recht.md#wie-sich-das-ändert) nicht bekannt; sollte die
+Norm die Positionen anders herleiten, ändert sich die Begründung — nicht unbedingt die Zahl.
+
+**Die verbreitete Word-Vorlage zu diesen Zeichnungen wich am 25.08.2026 von ihnen ab.**
+Nachgemessen nach dem Rendern:
+
+| | Vorlage | Zeichnung |
+|---|---|---|
+| Falz- und Lochmarken | 84,0 / 144,0 / 185,0 mm | 87 / 148,5 / 192 mm |
+| Rücksendeangabe | 36,9 mm | Zone 27–32 mm |
+| Informationsblock, x | 130 mm | 125 mm |
+
+Die Marken sind dort absolut positioniert; die Abweichung hängt also nicht am Programm, mit dem
+die Datei geöffnet wird. **Wer diese Vorlage als Vergleichsmaßstab nimmt, misst gegen andere
+Werte als die, die hier eingehalten werden.**
+
+Nicht behauptet wird, die Vorlage sei „nicht normgerecht". Gemessen wurde gegen die
+Maßzeichnungen, nicht gegen den Normtext — und solange der Abgleich mit dem Original aussteht,
+sagt falzmarke dieses Wort über niemanden, auch nicht über Fremde. Dass die Messung hier nicht
+Schritt für Schritt nachvollziehbar ist, gehört dazugesagt: Sie stammt aus einem einzelnen
+Durchgang am genannten Tag; die Vorlage kann sich seitdem geändert haben.
 
 ## Wie gemessen wird
 

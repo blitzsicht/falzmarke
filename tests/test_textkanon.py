@@ -62,7 +62,15 @@ KANAL_KURZTEXTE = {
 VERBOTEN = re.compile(r"\b(normgerecht|DIN-konform|normkonform|zertifiziert)\w*", re.I)
 
 # Wo diese Begriffe zulässig sind, weil sie etwas anderes verneinen oder
-# beschreiben — die Word-Vorlage ist nachweislich *nicht* normgerecht.
+# beschreiben. Der Regelfall ist die Selbstauskunft: falzmarke sagt über die
+# eigene Ausgabe ausdrücklich *nicht* „normgerecht", solange der Normabgleich
+# aussteht.
+#
+# Hier stand bis zum 27.08.2026: „die Word-Vorlage ist nachweislich *nicht*
+# normgerecht". Das war genau die Behauptung, die docs/normmasse.md inzwischen
+# zurückgenommen hat — gemessen wurde dort gegen die Maßzeichnungen, nicht
+# gegen den Normtext, und „nachweislich" trug die Messung nie. Eine Rücknahme
+# ist erst fertig, wenn sie überall steht, auch im Kommentar eines Tests.
 AUSNAHMEN = re.compile(r"(nicht|kein[e]?|keine[rms]?)\s+\S*\s*(normgerecht|DIN-konform|normkonform|zertifiziert)"
                        r"|(normgerecht|DIN-konform|normkonform|zertifiziert)\S*\s*(ist|sind)?\s*(nicht|kein)", re.I)
 
@@ -101,8 +109,9 @@ def test_die_pruefung_wuerde_eine_behauptung_bemerken():
     """Gegenprobe: Ohne sie belegt der Test oben nur, dass gerade nichts dasteht."""
     assert VERBOTEN.search("falzmarke erzeugt normgerechte Briefe.")
     assert not AUSNAHMEN.search("falzmarke erzeugt normgerechte Briefe.")
-    # Und die Verneinung darf nicht anschlagen:
-    satz = "Die verbreitete Word-Vorlage ist nicht normgerecht."
+    # Und die Verneinung darf nicht anschlagen — das ist der Fall, für den die
+    # Ausnahme da ist: über die eigene Ausgabe wird das Wort verneint.
+    satz = 'Kein „normgerecht“, kein „DIN-konform“ ohne den Satz oben.'
     assert AUSNAHMEN.search(satz), "Die Ausnahme greift bei der Verneinung nicht"
 
 
