@@ -134,6 +134,46 @@ def quellen() -> dict:
     return laden()["quellen"]
 
 
+def _quellennamen(regel: dict) -> list[str]:
+    """Die Quellen einer Regel als Namen — egal, wie sie notiert sind."""
+    return [q if isinstance(q, str) else q.get("quelle", str(q))
+            for q in (regel.get("quellen") or [])]
+
+
+def unabhaengige_belege(regel: dict) -> set[str]:
+    """Die Gruppen, aus denen eine Regel tatsächlich belegt ist.
+
+    Zwei Quellen derselben Gruppe sind **ein** Beleg, keine zwei. Gemessen am
+    27.08.2026: `massskizze_b` (Wikimedia Commons, 2013, CC0) und
+    `onlineprinters` (Magazin-Zeichnung, 2021) sind bis in den Fußtext
+    deckungsgleich — zwei Ansichten derselben Sache, die neun Regeln auf
+    `mehrfach_bestaetigt` hoben. Der Befund steht in
+    docs/quellenunabhaengigkeit-2026-08-27.md.
+
+    Diese Funktion **misst nur**. Sie stuft nichts herab: Was aus dem Befund
+    folgt, ist eine eigene Entscheidung und ein eigener Schritt — eine
+    Recherche, die im Vorbeigehen das Verhalten des Werkzeugs ändert, wäre
+    keine Recherche.
+    """
+    q = quellen()
+    return {
+        q[name].get("gruppe", name)
+        for name in _quellennamen(regel)
+        if q.get(name, {}).get("zaehlt") == ZAEHLT_VOLL
+    }
+
+
+def stufe_traegt_nicht() -> list[str]:
+    """Regeln auf `mehrfach_bestaetigt`, hinter denen nur eine Gruppe steht.
+
+    Der offene Rest von Issue #16. Die Liste ist in tests/test_quellenlage.py
+    als erwarteter Stand festgehalten — sie soll sich nicht unbemerkt ändern,
+    in keine Richtung.
+    """
+    return sorted(r["id"] for r in alle()
+                  if r.get("herkunft") == MEHRFACH and len(unabhaengige_belege(r)) < 2)
+
+
 @functools.lru_cache(maxsize=1)
 def _nach_lint() -> dict[str, dict]:
     return {r["lint"]: r for r in alle() if r.get("lint")}

@@ -54,6 +54,7 @@ quellen:
     titel: "Maßzeichnung „DIN 5008 Form B“, Wikimedia Commons"
     url: https://commons.wikimedia.org/wiki/File:DIN_5008_Form_B.svg
     art: sekundaerquelle
+    gruppe: formb_zeichnung_2013
     zaehlt: voll
     abgerufen: 2026-08-25
     bemerkung: >-
@@ -64,6 +65,7 @@ quellen:
     titel: "Maßzeichnung Form B im Onlineprinters-Magazin"
     url: https://www.onlineprinters.de/magazin/aufbau-geschaeftsbrief-nach-din-5008/
     art: sekundaerquelle
+    gruppe: formb_zeichnung_2013
     zaehlt: voll
     abgerufen: 2026-08-25
     bemerkung: >-
@@ -83,6 +85,7 @@ quellen:
     titel: "Maßzeichnung Form A im Onlineprinters-Magazin"
     url: https://www.onlineprinters.de/magazin/aufbau-geschaeftsbrief-nach-din-5008/
     art: sekundaerquelle
+    gruppe: onlineprinters_magazin
     zaehlt: voll
     abgerufen: 2026-08-26
     bemerkung: >-
@@ -101,6 +104,7 @@ quellen:
     titel: "KOMA-Script, DIN5008A.lco (TeX Live)"
     url: https://ctan.org/pkg/koma-script
     art: implementierung
+    gruppe: koma_script
     zaehlt: einzeln
     abgerufen: 2026-08-26
     bemerkung: >-
@@ -119,6 +123,7 @@ quellen:
     titel: "DIN 5008 in der deutschsprachigen Wikipedia"
     url: https://de.wikipedia.org/wiki/DIN_5008
     art: sekundaerquelle
+    gruppe: wikipedia
     zaehlt: voll
     abgerufen: 2026-08-25
     bemerkung: >-
@@ -126,10 +131,16 @@ quellen:
       unter der Oberkante, Fluchtlinie 25 mm, A4, Datumsformate und die
       Abkürzungsschreibung mit Leerzeichen. Die übrigen Detailmaße stehen dort
       nicht — die Quelle trägt weniger, als ihre Nennung vermuten lässt.
+      Eigene Gruppe: Der Artikeltext ist ein anderes Werk als die Zeichnung
+      auf Commons. Dass beide unter der Wikimedia Foundation liegen und der
+      Artikel die Zeichnung einbinden koennte, ist NICHT geprueft — zwei
+      Regeln (geometrie.seitenformat, geometrie.seitenraender) stuetzen ihre
+      Stufe auf genau dieses Paar. Siehe docs/quellenunabhaengigkeit-2026-08-27.md.
   letter_pro:
     titel: "typst-letter-pro v3.0.0"
     url: https://github.com/Sematre/typst-letter-pro
     art: implementierung
+    gruppe: letter_pro
     zaehlt: einzeln
     abgerufen: 2026-08-25
     bemerkung: >-
@@ -142,6 +153,7 @@ quellen:
     titel: "Messung am gerenderten PDF"
     url: docs/normmasse.md
     art: eigene_messung
+    gruppe: eigene_messung
     zaehlt: nie
     abgerufen: 2026-08-25
     bemerkung: >-

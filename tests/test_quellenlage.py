@@ -290,3 +290,67 @@ def test_letter_pro_traegt_einzeln_aber_nicht_voll():
     quellen = regeln_modul.quellen()
     assert quellen["letter_pro"]["zaehlt"] == regeln_modul.ZAEHLT_EINZELN
     assert quellen["eigene_messung"]["zaehlt"] == regeln_modul.ZAEHLT_NIE
+
+
+# ── Unabhängigkeit: zwei Ansichten derselben Sache sind ein Beleg ────────────
+#
+# Befund vom 27.08.2026 (docs/quellenunabhaengigkeit-2026-08-27.md): Die
+# Form-B-Zeichnung auf Wikimedia Commons (2013, CC0) und die im
+# Onlineprinters-Magazin (2021) sind bis in den Fußtext deckungsgleich. Sie
+# tragen deshalb dieselbe `gruppe:` — und neun Regeln, die ihre Stufe auf genau
+# dieses Paar stützen, stehen damit auf einem einzigen Beleg.
+#
+# Die Stufen sind **nicht** geändert. Der Test hält den Befund fest, damit er
+# sichtbar bleibt und sich nicht unbemerkt verschiebt: Wächst die Liste, ist
+# eine Regel dazugekommen, die zu stark belegt ist. Schrumpft sie, hat jemand
+# eine echte zweite Quelle nachgetragen — dann gehört die Zeile hier
+# angepasst, und das ist eine gute Nachricht.
+
+STUFE_TRAEGT_NICHT = [
+    "geometrie.betreffabstand",
+    "geometrie.form_b.anschriftfeld",
+    "geometrie.form_b.briefkopf",
+    "geometrie.form_b.falzmarken",
+    "geometrie.form_b.infoblock",
+    "geometrie.form_b.zonen",
+    "geometrie.grundzeilenhoehe",
+    "geometrie.lochmarke",
+    "text.vermerke_max_3",
+]
+
+
+def test_jede_quelle_traegt_eine_gruppe():
+    """Ohne Gruppe fiele eine Quelle stillschweigend als eigener Beleg durch."""
+    ohne = [n for n, d in regeln.quellen().items() if not d.get("gruppe")]
+    assert not ohne, f"Quellen ohne `gruppe:`: {ohne}"
+
+
+def test_der_offene_rest_ist_genau_dieser():
+    assert regeln.stufe_traegt_nicht() == STUFE_TRAEGT_NICHT, (
+        "Die Beleglage hat sich verschoben. Siehe "
+        "docs/quellenunabhaengigkeit-2026-08-27.md und Issue #16.")
+
+
+def test_die_messung_wuerde_eine_verschiebung_bemerken():
+    """Gegenprobe: Ohne sie belegt der Test oben nur, dass eine Liste gleich ist.
+
+    Wären die beiden Zeichnungen als unabhängig geführt — also in verschiedenen
+    Gruppen —, müsste die Liste kürzer werden. Genau so war es bis zum
+    27.08.2026.
+    """
+    echt = regeln.quellen()
+    getrennt = {n: dict(d) for n, d in echt.items()}
+    getrennt["onlineprinters"]["gruppe"] = "so-war-es-vorher"
+    assert getrennt["onlineprinters"]["gruppe"] != echt["onlineprinters"]["gruppe"], \
+        "die Sabotage greift nicht"
+
+    def belege(regel):
+        return {getrennt[n].get("gruppe", n)
+                for n in regeln._quellennamen(regel)
+                if getrennt.get(n, {}).get("zaehlt") == regeln.ZAEHLT_VOLL}
+
+    vorher = sorted(r["id"] for r in regeln.alle()
+                    if r.get("herkunft") == regeln.MEHRFACH and len(belege(r)) < 2)
+    assert len(vorher) < len(STUFE_TRAEGT_NICHT), (
+        "Mit getrennten Gruppen müssten weniger Regeln auffallen — sonst misst "
+        "die Gruppierung nichts.")
