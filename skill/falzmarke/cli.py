@@ -821,6 +821,9 @@ def befehl_verify(args) -> int:
         print(f"Datei nicht gefunden: {pdf}", file=sys.stderr)
         return EXIT_EINGABE
 
+    if getattr(args, "email", False):
+        return _verify_email(args, pdf)
+
     try:
         return _verify(args, pdf, geometrie)
     except geometrie.PdfUnlesbar as fehler:
@@ -843,6 +846,28 @@ def _verify(args, pdf: Path, geometrie) -> int:
             return EXIT_EINGABE
 
     bericht = geometrie.pruefe(pdf, form)
+    if args.json:
+        print(json.dumps(bericht.als_dict(), ensure_ascii=False, indent=2))
+    else:
+        print(bericht.als_text(ausfuehrlich=args.verbose))
+    return EXIT_OK if bericht.ok else EXIT_GEOMETRIE
+
+
+def _verify_email(args, pfad: Path) -> int:
+    """`verify --email`: misst die fertige Nachricht, nie die Absicht.
+
+    Derselbe Bericht, dieselben Exit-Codes wie beim PDF. Ein zweiter
+    Berichtstyp hieße, dass ein Aufrufer zwei Ausgaben auseinanderhalten muss,
+    um dieselbe Frage beantwortet zu bekommen.
+    """
+    from falzmarke import pruefung_eml
+
+    try:
+        bericht = pruefung_eml.pruefe(pfad)
+    except pruefung_eml.EmlUnlesbar as fehler:
+        print(f"FEHLER  {fehler}", file=sys.stderr)
+        return EXIT_EINGABE
+
     if args.json:
         print(json.dumps(bericht.als_dict(), ensure_ascii=False, indent=2))
     else:
@@ -1045,7 +1070,9 @@ def main(argv: list[str] | None = None) -> int:
         ("check", "frühere Schreibweise von verify"),
     ):
         p = unter.add_parser(name, help=hilfe)
-        p.add_argument("pdf")
+        p.add_argument("pdf", help="PDF — oder mit --email eine .eml")
+        p.add_argument("--email", action="store_true",
+                       help="eine .eml prüfen statt eines PDF")
         p.add_argument("--form", choices=["A", "B", "a", "b"],
                        help="ohne Angabe aus den Falzmarken erkannt")
         p.add_argument("--json", action="store_true")

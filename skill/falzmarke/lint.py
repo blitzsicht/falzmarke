@@ -17,6 +17,7 @@ import datetime as dt
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from email.utils import parseaddr
 from urllib.parse import urlparse
 
 from falzmarke import regeln
@@ -85,6 +86,10 @@ STATTDESSEN = {"brief": {"an": "empfaenger", "cc": "verteiler", "antwort_auf": N
 #: darüber steht, wird gefaltet und in der Übersicht vieler Programme
 #: abgeschnitten. Das ist keine Aussage der Norm, sondern eine des Mediums.
 EMAIL_BETREFF_MAX = 78
+
+#: Ab hier warnt der Linter. Die Vorschaufenster der gängigen Programme
+#: zeigen rund 60 Zeichen; was dahinter steht, liest niemand vor dem Öffnen.
+EMAIL_BETREFF_VORSCHAU = 60
 
 #: Der Abschnitt `email:` im Profil. Ohne Liste bliebe ein Tippfehler dort
 #: stumm — dieselbe Fehlerart, gegen die `_melde_unbekannte` im Frontmatter
@@ -290,12 +295,51 @@ def pruefe_email_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> Non
         if kopf.get(feld):
             pruefe_adressfeld(kopf[feld], feld, kopf_roh, bericht)
 
-    betreff = kopf.get("betreff")
-    if isinstance(betreff, str) and len(betreff) > EMAIL_BETREFF_MAX:
-        bericht.fehler(
-            _feldzeile(kopf_roh, "betreff"), "email.betreff",
-            f"{len(betreff)} Zeichen — mehr als {EMAIL_BETREFF_MAX}",
-            "kürzen; viele Programme schneiden die Übersicht früher ab")
+    betreff = str(kopf.get("betreff") or "").strip()
+    if betreff:
+        ort = _feldzeile(kopf_roh, "betreff")
+        # Dieselben zwei Regeln wie im Brief. Sie stehen hier noch einmal, weil
+        # der E-Mail-Zweig früh zurückkehrt — und weil sie in einer Mail aus
+        # einem anderen Grund gelten: Das Leitwort „Betreff:" steht im
+        # Vorschaufenster neben dem, was der Client ohnehin „Betreff" nennt.
+        if betreff.lower().startswith(("betreff:", "betreff ")):
+            bericht.fehler(ort, "betreff", "beginnt mit dem Leitwort „Betreff“",
+                           "das Leitwort entfällt — der Client schreibt es davor")
+        if betreff.endswith("."):
+            bericht.fehler(ort, "betreff", "endet mit einem Punkt",
+                           "der Betreff steht ohne Schlusspunkt")
+        if len(betreff) > EMAIL_BETREFF_MAX:
+            bericht.fehler(
+                ort, "email.betreff",
+                f"{len(betreff)} Zeichen — mehr als {EMAIL_BETREFF_MAX}",
+                "kürzen; viele Programme schneiden die Übersicht früher ab")
+        elif len(betreff) > EMAIL_BETREFF_VORSCHAU:
+            bericht.warnung(
+                ort, "email.betreff",
+                f"{len(betreff)} Zeichen — das Vorschaufenster zeigt oft "
+                f"nur {EMAIL_BETREFF_VORSCHAU}",
+                "was hinten steht, liest niemand vor dem Öffnen")
+
+    anrede = str(kopf.get("anrede") or "").strip()
+    if anrede and not anrede.endswith(","):
+        bericht.fehler(_feldzeile(kopf_roh, "anrede"), "anrede", "endet nicht mit Komma",
+                       "nach DIN endet die Anrede mit einem Komma")
+
+    gruss = str(kopf.get("gruss") or "").strip()
+    if gruss.endswith(","):
+        bericht.fehler(_feldzeile(kopf_roh, "gruss"), "gruss", "endet mit Komma",
+                       "die Grußformel steht ohne Komma")
+
+    # Zweimal dieselbe Adresse heißt: Der Empfänger bekommt die Mail zweimal,
+    # oder sein Server verwirft eine — beides bemerkt der Absender nicht.
+    for feld in ("an", "cc"):
+        adressen = [parseaddr(e)[1].casefold() for e in _adressen(kopf.get(feld))]
+        doppelt = sorted({a for a in adressen if adressen.count(a) > 1 and a})
+        if doppelt:
+            bericht.fehler(
+                _feldzeile(kopf_roh, feld), feld,
+                "dieselbe Adresse steht mehrfach: " + ", ".join(doppelt),
+                "jede Adresse einmal nennen")
 
     antwort = kopf.get("antwort_auf")
     if antwort and not (str(antwort).startswith("<") and str(antwort).endswith(">")):

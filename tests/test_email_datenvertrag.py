@@ -123,10 +123,23 @@ def test_betreff_ueber_78_zeichen(tmp_path):
 
 
 def test_betreff_genau_auf_der_grenze_ist_erlaubt(tmp_path):
-    """Die Grenze selbst muss durchgehen — sonst prüft der Test daneben."""
+    """Die Grenze selbst muss durchgehen — sonst prüft der Test daneben.
+
+    Kein *Fehler*; die Vorschauwarnung ab 60 Zeichen greift hier sehr wohl und
+    soll es auch (#64, E6).
+    """
     grad = "A" * lint_modul.EMAIL_BETREFF_MAX
+    bericht = linte(tmp_path, MAIL.replace("betreff: Angebot Nr. 2026-0815",
+                                           f"betreff: {grad}"))
+    assert bericht.anzahl_fehler == 0, bericht.als_text("nachricht.md")
+    assert warnungen(bericht) == {"email.betreff"}
+
+
+def test_kurzer_betreff_loest_keine_vorschauwarnung_aus(tmp_path):
+    """Gegenprobe: Ohne sie wüsste man nur, dass die Warnung feuert."""
+    kurz = "A" * (lint_modul.EMAIL_BETREFF_VORSCHAU - 1)
     assert linte(tmp_path, MAIL.replace("betreff: Angebot Nr. 2026-0815",
-                                        f"betreff: {grad}")).befunde == []
+                                        f"betreff: {kurz}")).befunde == []
 
 
 def test_datum_in_einer_mail_ist_eine_warnung_kein_fehler(tmp_path):
