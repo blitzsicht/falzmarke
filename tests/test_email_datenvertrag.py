@@ -251,3 +251,35 @@ def test_der_brief_wird_weiterhin_gesetzt(tmp_path):
     pfad.write_text(f"---\n{BRIEF}---\nText.\n", encoding="utf-8")
     pdf, _ = falzmarke.rendere(pfad, tmp_path / "aus.pdf", profil_verzeichnis=PROFILE)
     assert pdf.exists() and pdf.stat().st_size > 0
+
+
+# ── Anlagen werden genannt, nicht eingefügt ─────────────────────────────────
+
+def _mit_anlage(tmp_path, text: str):
+    (tmp_path / "angebot-2026-0815.pdf").write_bytes(b"%PDF-1.4 x")
+    return linte(tmp_path, MAIL + "anlagen_dateien: [angebot-2026-0815.pdf]\n", text)
+
+
+def test_nicht_genannte_anlage_wird_gemeldet(tmp_path):
+    bericht = _mit_anlage(tmp_path, "Hier ist etwas anderes.\n")
+    assert "email.anlage" in warnungen(bericht)
+
+
+def test_genannte_anlage_wird_nicht_gemeldet(tmp_path):
+    """Ohne diesen Fall wüsste man nur, dass die Warnung feuert."""
+    assert _mit_anlage(tmp_path, "Das Angebot 2026-0815 liegt bei.\n").befunde == []
+
+
+def test_die_anlage_wird_nicht_von_selbst_erwaehnt(tmp_path):
+    """Ein Werkzeug, das ungefragt Sätze in einen Brieftext schreibt, schreibt
+    irgendwann den falschen. Gemeldet wird, eingefügt nicht."""
+    pfad = tmp_path / "nachricht.md"
+    (tmp_path / "angebot-2026-0815.pdf").write_bytes(b"%PDF-1.4 x")
+    quelle = f"---\n{MAIL}anlagen_dateien: [angebot-2026-0815.pdf]\n---\nNur dieser Satz.\n"
+    pfad.write_text(quelle, encoding="utf-8")
+    falzmarke.linte(pfad, profil_verzeichnis=PROFILE)
+    assert pfad.read_text(encoding="utf-8") == quelle
+
+
+def test_die_warnung_haelt_den_lauf_nicht_an(tmp_path):
+    assert _mit_anlage(tmp_path, "Hier ist etwas anderes.\n").anzahl_fehler == 0
