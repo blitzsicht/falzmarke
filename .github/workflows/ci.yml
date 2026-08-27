@@ -43,8 +43,19 @@ jobs:
             echo "PyMuPDF ist installiert — es darf keine Abhängigkeit von falzmarke sein."
             exit 1
           fi
-          if grep -rn "pymupdf\|import fitz" --include="*.py" --include="*.txt" --include="*.toml" .; then
-            echo "PyMuPDF wird im Code referenziert."
+          # Gesucht wird der Rueckfall, nicht das Wort. Bis zum 27.08.2026 stand
+          # hier ein `grep "pymupdf"` ueber ganze Dateien — case-sensitiv. Dass
+          # der Docstring von geometrie.py seit v0.4 "PyMuPDF" erwaehnt, ohne
+          # rot zu werden, war reiner Zufall der Schreibweise; ein echter
+          # Rueckfall als `import PyMuPDF` waere durchgekommen. Und eine
+          # Pruefung, die das Wort verbietet, verbietet auch, den Grund
+          # aufzuschreiben — dann holt es beim naechsten Mal jemand zurueck.
+          if grep -rniE "^[[:space:]]*(import|from)[[:space:]]+(fitz|pymupdf)([[:space:]]|\.|$)" --include="*.py" .; then
+            echo "PyMuPDF wird importiert — es darf keine Abhängigkeit von falzmarke sein."
+            exit 1
+          fi
+          if grep -rniE "^[[:space:]]*[\"']?pymupdf" --include="*.txt" --include="*.toml" .; then
+            echo "PyMuPDF steht als Abhängigkeit."
             exit 1
           fi
           echo "OK  keine AGPL-Abhängigkeit"
