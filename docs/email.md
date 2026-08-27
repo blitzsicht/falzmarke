@@ -54,6 +54,23 @@ falten, entfalten, muss gleich sein.
 | `Date` | entsteht beim Versand. Ein Entwurf von gestern, der heute rausgeht, wäre sonst auf gestern datiert. **Ausnahme:** ist `SOURCE_DATE_EPOCH` gesetzt, steht das Datum drin — das ist der Weg zu einem reproduzierbaren Vergleich. |
 | ein Versandweg | falzmarke versendet nichts. Es gibt keinen Versandbefehl und keine Option, die sendet. |
 
+## Was ein Mailprogramm daraus macht
+
+Eine `.eml` ist eine **Nachricht**, kein Entwurf. Gemessen am 27.08.2026 in Apple Mail 16.0,
+Thunderbird 154.0 und Outlook für Mac 16.112.1: Alle drei öffnen die Datei in einem
+**Lesefenster** — mit Antworten und Weiterleiten, ohne Senden-Knopf. Auch die dafür gedachte
+Kopfzeile `X-Unsent: 1` ändert daran nichts; ausgerechnet Outlook, aus dessen Umfeld sie stammt,
+befolgt sie in dieser Fassung nicht.
+
+Wer aus der Datei eine ausgehende Mail machen will, hat zwei Wege:
+
+- **Weiterleiten** — funktioniert in allen drei Programmen und übernimmt Text, HTML und Anlage.
+- **Aus der `.html`-Vorschau kopieren** — dafür ist sie da, samt Vorschaukopf mit Empfänger und
+  Betreff.
+
+Das vollständige Protokoll mit Matrix und Gegenprobe:
+[`docs/mailprogramme-2026-08-27.md`](mailprogramme-2026-08-27.md).
+
 ## Grenzen
 
 - **Betreff:** höchstens 78 Zeichen. Darüber schneiden viele Übersichten ab.
