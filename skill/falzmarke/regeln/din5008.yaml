@@ -509,3 +509,14 @@ regeln:
       Nur eine Erinnerung, keine Rechtsprüfung (ADR 0005). Welche Angaben eine
       Rechtsform braucht, entscheidet nicht das Werkzeug — deshalb Warnung und
       deshalb kein Abgleich des Inhalts.
+
+  - id: werkzeug.email_anlage
+    titel: Anlage wird im Text genannt
+    lint: email.anlage
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      Nur ein Hinweis. Ein Werkzeug, das ungefragt Sätze in einen Brieftext
+      schreibt, schreibt irgendwann den falschen — deshalb wird gemeldet und
+      nicht eingefügt.

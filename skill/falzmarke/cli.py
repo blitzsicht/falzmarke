@@ -524,6 +524,8 @@ def linte(brief_pfad: Path, profil_verzeichnis: Path | None = None) -> lint_modu
 
     lint_modul.pruefe_frontmatter(kopf, kopf_roh, bericht)
     lint_modul.pruefe_body(body_md, versatz, bericht)
+    if str(kopf.get("typ") or "brief") == "email":
+        lint_modul.pruefe_email_anlagen(kopf, body_md, bericht)
 
     try:
         konvertiere(body_md, versatz)

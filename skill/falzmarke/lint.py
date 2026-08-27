@@ -335,6 +335,29 @@ def pruefe_email_profil(profil: dict, bericht: Bericht) -> None:
             "jeder Geschäftsmail — falzmarke prüft das nicht, es erinnert nur")
 
 
+def pruefe_email_anlagen(kopf: dict, body: str, bericht: Bericht) -> None:
+    """Jede Anlage soll im Text vorkommen — als Hinweis, nicht als Eingriff.
+
+    Ein Werkzeug, das ungefragt Sätze in einen Brieftext schreibt, schreibt
+    irgendwann den falschen. Gemeldet wird deshalb nur, dass der Dateiname
+    nirgends auftaucht; was daraus folgt, entscheidet der Absender.
+
+    Gesucht wird nach dem Namen **ohne** Endung: Im Fließtext steht „das
+    Angebot 2026-0815", nicht „angebot-2026-0815.pdf".
+    """
+    from pathlib import Path as _Pfad
+
+    unten = body.casefold()
+    for eintrag in _adressen(kopf.get("anlagen_dateien")):
+        stamm = _Pfad(str(eintrag)).stem
+        kerne = [stamm.casefold()] + [t for t in re.split(r"[-_.]", stamm.casefold()) if len(t) > 3]
+        if not any(k in unten for k in kerne):
+            bericht.warnung(
+                _feldzeile("", "anlagen_dateien"), "email.anlage",
+                f"„{eintrag}“ wird im Text nicht genannt",
+                "Anlagen im Text erwähnen — falzmarke fügt dafür keinen Satz ein")
+
+
 def pruefe_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
     typ = str(kopf.get("typ") or "brief")
     if typ not in TYPEN:
