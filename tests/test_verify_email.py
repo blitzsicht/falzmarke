@@ -38,9 +38,16 @@ def roh(profil) -> str:
     return eml.baue(KOPF, profil, QUELLE, md.lies(QUELLE), mit_quelle=True).as_string()
 
 
-def _pruefe(tmp_path, text: str):
+def _pruefe(tmp_path, text: str, zeilenende: str = "\n"):
+    """Schreibt die Nachricht und misst sie.
+
+    `zeilenende` ist ein Parameter, weil RFC 5322 CRLF vorschreibt und ein
+    Prüfer beides vertragen muss. Ohne `newline=""` setzt Python unter Windows
+    ohnehin CRLF ein — genau daran ist der erste Lauf gescheitert, und zwar
+    nur dort.
+    """
     pfad = tmp_path / "nachricht.eml"
-    pfad.write_text(text, encoding="utf-8")
+    pfad.write_text(text.replace("\n", zeilenende), encoding="utf-8", newline="")
     return pruefung_eml.pruefe(pfad)
 
 
@@ -70,6 +77,19 @@ def test_die_fehlende_pruefung_wird_benannt(tmp_path, profil):
     bericht = _pruefe(tmp_path, ohne)
     zeile = [p for p in bericht.pruefungen if p.name == "Vollständigkeit gegen die Quelle"][0]
     assert "nicht prüfbar" in zeile.ist
+
+
+@pytest.mark.parametrize("zeilenende", ["\n", "\r\n"], ids=["LF", "CRLF"])
+def test_beide_zeilenenden_werden_vertragen(tmp_path, roh, zeilenende):
+    """RFC 5322 schreibt CRLF vor. Eine Nachricht aus einem fremden Programm
+    bringt es mit — der Prüfer darf sie deshalb nicht beanstanden.
+
+    Der erste CI-Lauf war unter Linux und macOS grün und nur unter Windows rot:
+    Dort setzt Python beim Schreiben von selbst CRLF ein, und der Vergleich auf
+    den Signaturtrenner fand `-- \n` nicht mehr.
+    """
+    bericht = _pruefe(tmp_path, roh, zeilenende=zeilenende)
+    assert bericht.ok, bericht.als_text(ausfuehrlich=True)
 
 
 # ── Jede Prüfung wird rot ───────────────────────────────────────────────────

@@ -70,7 +70,7 @@ def _normalisiert(text: str) -> str:
     andere in Absätze gesetzt, und geschützte Leerzeichen stehen mal so, mal
     so. Was gleich sein muss, ist der Wortlaut.
     """
-    ohne_markup = re.sub(r"<[^>]+>", " ", text)
+    ohne_markup = re.sub(r"<[^>]+>", " ", text.replace("\r\n", "\n"))
     entschaerft = (ohne_markup.replace("&amp;", "&").replace("&lt;", "<")
                    .replace("&gt;", ">").replace("&quot;", '"').replace("&#x27;", "'"))
     zusammen = unicodedata.normalize("NFKC", entschaerft)
@@ -136,7 +136,12 @@ def _pruefe_textteil(teil, bericht: Bericht) -> None:
     bericht.wahr("delsp gesetzt", teil.get_param("delsp") in ("yes", "no"),
                  "yes oder no", teil.get_param("delsp") or "nicht gesetzt")
 
-    text = teil.get_content()
+    # RFC 5322 schreibt CRLF als Zeilenende vor — eine Nachricht aus einem
+    # fremden Programm bringt es mit, und Windows erzeugt es beim Schreiben von
+    # selbst. Ohne diese Zeile beanstandet der Prüfer den Signaturtrenner in
+    # jeder korrekt kodierten Datei. Gefunden hat es der Windows-Lauf in der
+    # CI; auf Linux und macOS war die Prüfung grün.
+    text = teil.get_content().replace("\r\n", "\n").replace("\r", "\n")
     zeilen = text.split("\n")
     laengste = max((len(z) for z in zeilen), default=0)
     bericht.add("Zeilenlänge im Textteil", f"<= {ZEILE_HART}", str(laengste), "—",
