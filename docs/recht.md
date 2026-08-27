@@ -57,6 +57,33 @@ belegt ist. Was er sonst geändert hätte, kann er als Vorschlag ausgeben, ohne 
 anzufassen. Eine stille Ersetzung auf dünner Grundlage wäre der schlechteste Fall — der Brief
 sähe anders aus, als er geschrieben wurde, und niemand erführe warum.
 
+## Was die Stufen derzeit wert sind
+
+Die Tabelle oben sagt, was eine Stufe **bedeutet**. Am 27.08.2026 wurde nachgezählt, was die
+Regeln tatsächlich tragen — und das Ergebnis gehört hierher, weil die Stufen unverändert
+geblieben sind.
+
+Von 23 Regeln mit Wirkung *Fehler* sind zehn Werkzeugprüfungen ohne Normbezug. Von den
+**dreizehn normbezogenen** trägt **keine einzige nachweislich zwei unabhängige Belege**:
+
+| | |
+|---|---|
+| 9 | stützen sich auf zwei Quellen, die **dieselbe Zeichnung** sind ([Befund](quellenunabhaengigkeit-2026-08-27.md)) |
+| 2 | die zweite Quelle **sagt zur Regel nichts** ([Befund](quellenpruefung-onlineprinters-2026-08-27.md)); es bleibt eine |
+| 2 | zwei Quellen desselben Trägers, Unabhängigkeit **ungeprüft** |
+
+Dazu sechs Warnungen, deren einzige Quelle zu ihnen schweigt.
+
+**Nach dem eigenen Maßstab müssten die betroffenen Regeln herabgestuft werden** — von Fehler auf
+Warnung, teils auf „offen". Das ist bewusst **nicht** geschehen: Der Normabgleich
+([unten](#wie-sich-das-ändert)) ersetzt ohnehin jede Herkunftsstufe durch eine Fundstelle und
+macht die Frage gegenstandslos. Bis dahin bleiben diese Regeln strenger, als ihr Beleg trägt.
+
+Das ist eine Entscheidung, keine Nachlässigkeit — und sie steht hier, damit niemand die Tabelle
+oben für eine Zusage hält, die sie im Einzelfall nicht einlöst. Die Sollwerte selbst sind davon
+unberührt: Sie sind an gerenderten PDFs gemessen und stimmen mit den Zeichnungen überein. Zur
+Debatte steht nicht, ob sie richtig sind, sondern wie stark sie belegt sind.
+
 ## Pflichtangaben in E-Mails
 
 Die DIN 5008 sagt nichts darüber, was in einem Geschäftsbrief stehen **muss** — das steht im
