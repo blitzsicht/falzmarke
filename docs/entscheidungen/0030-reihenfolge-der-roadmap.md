@@ -71,3 +71,6 @@ eigener Struktur, eigenem Prüfweg (`verify --email`) und eigenen Regeln (Abschn
 
 Die Phase ändert nichts an der Begründung oben: Belegbarkeit bleibt zuerst, und die E-Mail-Regeln
 tragen ihre Herkunft wie alle anderen — bis zum Normabgleich (#12) aus Sekundärquellen.
+
+Was die Phase inhaltlich festlegt — E-Mail ist Ausgabe, nicht Kanal —, steht in
+[0034](0034-email-ist-ausgabe.md).
