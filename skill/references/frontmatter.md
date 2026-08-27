@@ -5,6 +5,7 @@ darunter.
 
 ```yaml
 ---
+typ: brief                       # brief (Vorgabe) oder email — siehe „Die E-Mail-Fassung"
 profil: example                  # Pflicht. Dateiname (ohne .yaml) aus ~/.config/falzmarke/profiles/
 form: B                          # A oder B. Ohne Angabe gilt der Wert aus dem Profil
 norm: din5008                    # reserviert; derzeit nur din5008
@@ -55,6 +56,63 @@ Steht dort bereits ein ausformulierter Text, bleibt er unverändert.
 | `infoblock`-Werte | höchstens 32 Zeichen | Wertespalte ist 43 mm breit |
 | `anrede` | endet mit Komma | Norm |
 | `gruss` | ohne Komma | Norm |
+
+## Die E-Mail-Fassung
+
+Dieselbe Datei, mit `typ: email`. Sie erzeugt Dateien — `.eml`, `.html`, `.txt` — und versendet
+nichts; warum das so bleibt, steht in
+[ADR 0034](../../docs/entscheidungen/0034-email-ist-ausgabe.md).
+
+```yaml
+---
+typ: email
+profil: example
+an:                                     # Pflicht. Eine Adresse oder eine Liste
+  - erika.muster@example.de
+  - Muster GmbH <post@example.de>       # Klammerform nach RFC 5322
+cc: []                                  # optional, gleiche Form wie `an`
+betreff: Angebot Nr. 2026-0815          # Pflicht, höchstens 78 Zeichen
+anrede: Sehr geehrte Frau Muster,
+gruss: Mit freundlichen Grüßen
+unterzeichner: Erika Muster
+anlagen_dateien:                        # optional, als Anhang der Mail
+  - angebot-2026-0815.pdf
+antwort_auf: "<kennung@example.de>"     # optional, wird zu In-Reply-To
+sprache: de
+datum: 2026-08-25                       # wird NICHT gesetzt — `lint` warnt, siehe unten
+---
+```
+
+**Die beiden Welten schließen sich aus.** `empfaenger:` in einer Mail ist ein Fehler mit Hinweis
+auf `an:`, `an:` in einem Brief einer mit Hinweis auf `empfaenger:`. Das ist kein Formalismus:
+Eine Mail an eine Postanschrift und ein Brief an eine Mailadresse sind beides Dokumente, die
+niemanden erreichen. Ebenso entfallen `form`, `vermerke`, `infoblock`, `betreff_kurz`,
+`signatur`, `anlagen` und `norm` — sie beschreiben ein Blatt Papier.
+
+`datum:` wird nicht gesetzt: Das tut der Mailclient beim Versand. Steht es trotzdem da, sagt
+`lint` das, statt es still zu übergehen.
+
+### Der Abschnitt `email:` im Profil
+
+Die Absenderangaben stehen im Profil, nicht im einzelnen Schreiben:
+
+```yaml
+email:
+  absender: muster@example.de          # Pflicht
+  anzeigename: Erika Muster            # optional, sonst der Unterzeichner
+  position: Geschäftsführerin          # optional
+  web: www.example.de                  # optional
+  datenschutz: https://example.de/datenschutz   # optional, als Zeile in der Signatur
+  pflichtangaben: fusszeile            # woher die Angaben je Rechtsform kommen
+  zusatz:                              # optional, z. B. Vertraulichkeitshinweis
+    - Diese E-Mail enthält vertrauliche Informationen.
+  gruss: Mit freundlichen Grüßen       # ohne Angabe: `gruss` des Profils
+  logo: false                          # true = Logo als CID mit Alternativtext
+```
+
+`pflichtangaben` ist eine **Erinnerung, keine Rechtsprüfung**: `lint` warnt, wenn das Feld leer
+ist, und sonst nichts. Welche Angaben eine Rechtsform in jeder Geschäftsmail braucht, entscheidet
+nicht das Werkzeug (ADR 0005).
 
 ## Der Brieftext
 

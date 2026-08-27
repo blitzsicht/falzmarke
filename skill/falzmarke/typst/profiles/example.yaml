@@ -51,6 +51,19 @@ unterzeichner: Erika Muster
 firma_ueber_unterschrift: false
 
 # Werden in den Informationsblock übernommen, wenn der Brief nichts anderes sagt.
+# Für die E-Mail-Fassung (ADR 0034). Fehlt der Abschnitt, meldet `lint` das,
+# sobald ein Schreiben `typ: email` trägt — Briefe berührt er nicht.
+email:
+  absender: muster@example.de
+  anzeigename: Erika Muster
+  position: Geschäftsführerin
+  web: www.example.de
+  datenschutz: https://example.de/datenschutz
+  pflichtangaben: fusszeile
+  zusatz:
+    - Diese E-Mail enthält vertrauliche Informationen.
+  logo: false
+
 infoblock_defaults:
   ansprechpartner: Erika Muster
   telefon: 0941 620-9800

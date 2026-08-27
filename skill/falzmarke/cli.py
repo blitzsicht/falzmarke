@@ -229,6 +229,17 @@ def lade_profil(
 
 def baue_daten(kopf: dict, profil: dict, profil_pfad: Path, arbeitsverzeichnis: Path,
                brief_pfad: Path) -> dict:
+    # Ohne diesen Abbruch meldet der Renderer „Pflichtfelder fehlen: empfaenger,
+    # datum" — für ein Schreiben, das als E-Mail vollständig ist. Wer dann
+    # `empfaenger:` ergänzt, läuft in den Ausschluss des Linters. Zwei Fehler
+    # hintereinander, und keiner nennt die Ursache.
+    if str(kopf.get("typ") or "brief") == "email":
+        raise Eingabefehler(
+            "Dieses Schreiben trägt `typ: email` und wird deshalb nicht als Brief gesetzt.\n"
+            "Die E-Mail-Fassung erzeugt Dateien, kein PDF — der Befehl dafür entsteht in #65.\n"
+            "Bis dahin prüft `falzmarke lint` die Datei; für einen Brief `typ: email` entfernen."
+        )
+
     fehlend = [f for f in PFLICHTFELDER if not kopf.get(f)]
     if fehlend:
         raise Eingabefehler(f"Pflichtfelder fehlen: {', '.join(fehlend)}")
@@ -521,9 +532,15 @@ def linte(brief_pfad: Path, profil_verzeichnis: Path | None = None) -> lint_modu
 
     if kopf.get("profil"):
         try:
-            lade_profil(kopf["profil"], profil_verzeichnis, brief_pfad)
+            profil, _ = lade_profil(kopf["profil"], profil_verzeichnis, brief_pfad)
         except Eingabefehler as fehler:
             bericht.fehler(1, "profil", str(fehler).splitlines()[0])
+        else:
+            # Das Profil ist hier ohnehin geladen. Es wegzuwerfen und die
+            # Mail-Angaben erst beim Bauen der .eml zu vermissen, hieße den
+            # Fehler in den teuren Schritt zu verschieben.
+            if str(kopf.get("typ") or "brief") == "email":
+                lint_modul.pruefe_email_profil(profil, bericht)
     return bericht
 
 
