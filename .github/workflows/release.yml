@@ -128,40 +128,15 @@ jobs:
           echo "Tag: $TAG   pyproject: $PAKET"
           [ "$TAG" = "v$PAKET" ] || { echo "FEHL: Tag und Paketversion weichen ab."; exit 1; }
 
-      - name: Paket bauen
+      - name: Alles pruefen, was ohne Tag pruefbar ist
         run: |
-          # pytest und die Laufzeit-Abhaengigkeiten gehoeren dazu: Der Schritt
-          # unten faehrt tests/test_readme_auf_pypi.py, und dessen conftest legt
-          # skill/ auf den sys.path. Ohne sie brach der Lauf mit
-          # "No module named pytest" ab — nach dem Freigabeklick, aber noch VOR
-          # dem Upload (26.08.2026, Lauf 32961125084).
-          python -m pip install --upgrade pip build twine pytest
-          python -m pip install -r skill/requirements.txt
-          python -m build
-          ls -la dist/
-
-      - name: Metadaten pruefen
-        run: |
-          # twine check prueft, ob die Langbeschreibung rendert. Dass ihre Links
-          # und Bilder auch auflösen, prueft tests/test_readme_auf_pypi.py —
-          # twine sieht das nicht und meldet auch bei kaputten Bildern PASSED.
-          python -m twine check dist/*
-          python -m pytest tests/test_readme_auf_pypi.py -o addopts="" -q
-
-      - name: In dist/ liegt nur, was hochgeladen werden darf
-        run: |
-          # Die Publish-Action laedt dieses Verzeichnis vollstaendig hoch und
-          # prueft vorher jede Datei darin. An der ersten, die kein
-          # Distributions-Format ist, bricht sie ab — nach der Freigabe.
-          # Lieber hier abbrechen, wo es nichts kostet.
-          FREMD=$(find dist -maxdepth 1 -type f ! -name '*.whl' ! -name '*.tar.gz')
-          if [ -n "$FREMD" ]; then
-            echo "FEHL: dist/ enthaelt Dateien, die kein Paket sind:"
-            echo "$FREMD"
-            exit 1
-          fi
-          echo "dist/ enthaelt nur Pakete:"
-          ls -1 dist/
+          # Wortgleich derselbe Aufruf wie in ci.yml bei jedem Push (Issue #76).
+          # Bis dahin standen die Schritte hier ausgeschrieben und liefen erst am
+          # Tag zum ersten Mal — vier der fuenf Fehlschlaege der ersten
+          # Veroeffentlichung fielen deshalb erst nach dem Freigabeklick auf.
+          # Ein Skript statt zweier Schrittlisten: Eine Probe, die vom echten Job
+          # abweichen kann, prueft irgendwann etwas anderes als das, was passiert.
+          bash scripts/paket_pruefen.sh
 
       - name: Pruefsummen ausgeben
         run: |
