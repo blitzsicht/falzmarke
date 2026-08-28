@@ -92,10 +92,14 @@ elektronische Handelsregister und Genossenschaftsregister sowie das Unternehmens
 Kraft am 1. Januar 2007) sind die Vorschriften über Geschäftsbriefe ausdrücklich auf
 Geschäftsbriefe „gleichviel welcher Form" gefasst; eine geschäftliche E-Mail ist damit erfasst.
 
-Wo das steht, hängt an der Rechtsform: § 37a HGB (eingetragener Kaufmann), § 125a HGB (OHG und
+Wo das steht, hängt an der Rechtsform: § 37a HGB (eingetragener Kaufmann), § 125 HGB (OHG und
 KG), § 35a GmbHG, § 80 AktG, § 25a GenG. Verlangt werden dort — je nach Form — Rechtsform und
 Sitz, das Registergericht, die Registernummer und die Namen der Geschäftsführer, Vorstands- oder
 Aufsichtsratsmitglieder.
+
+Für Personengesellschaften stand das bis Ende 2023 in § 125a HGB. Das
+[MoPeG](https://www.gesetze-im-internet.de/hgb/__125.html) hat die Vorschrift zum 1. Januar 2024
+aufgehoben und den Inhalt nach § 125 HGB überführt.
 
 **falzmarke prüft das nicht.** Welche Angaben eine Rechtsform braucht, entscheidet nicht ein
 Werkzeug, das den Text nicht kennt (ADR 0005). Der Linter meldet nur, ob im Profil überhaupt
