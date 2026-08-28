@@ -419,3 +419,26 @@ regeln:
       und alles darunter verlöre seine Position. `wirkung: keine`, weil es dazu
       keine Prüfung gibt: Die Geometrieprüfung misst Ränder, Zonen und den
       untersten Text, nicht die Lage der Zeilen auf dem Raster (Issue #140).
+
+  - id: werkzeug.zitattiefe
+    titel: Zitate stehen bis zwei Ebenen ineinander
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Zwei Ebenen decken den Fall ab, für den es sie gibt: ein Zitat, das
+      seinerseits zitiert. Ab der dritten ist nicht mehr erkennbar, wer wen
+      wiedergibt — und genau das ist beim Zitieren der Punkt.
+
+  - id: werkzeug.wortlaut_unveraendert
+    titel: Ein wortgetreuer Auszug wird weder umbrochen noch typografisch geändert
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Der Typografie-Pass läuft im Auszug nicht: Ein Zitat, in dem aus einem
+      geraden Anführungszeichen ein typografisches und aus zwei Bindestrichen
+      ein Halbgeviertstrich wird, gibt nicht mehr wieder, was dastand. Aus
+      demselben Grund wird nicht umbrochen — der Auszug läuft ab 69 Zeichen je
+      Zeile aus dem Satzspiegel, und die Satzspiegelprüfung meldet das. Das ist
+      gewollt: lieber ein sichtbarer Befund als ein still veränderter Wortlaut.

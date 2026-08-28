@@ -86,8 +86,8 @@ Wer nach einem Versand fragt, bekommt diese Auskunft, keinen Behelf.
 - **Markdown-Teilmenge** (`references/markdown.md`): Absätze, `**fett**`, `*kursiv*`,
   Aufzählungen, nummerierte Listen, harter Umbruch (`\` am Zeilenende), Pipe-Tabellen.
   Alles andere bricht mit Zeilenangabe ab — Links, Bilder, Code und HTML immer.
-- **Zwischenüberschriften** (`#` bis `####`) und Aufzählungen tiefer als zwei Ebenen brauchen
-  `dialekt: "1.1"` im Frontmatter. Für einen gewöhnlichen Brief nicht setzen: Der hat einen
+- **Zwischenüberschriften** (`#` bis `####`), tiefere Aufzählungen, **Blockzitate** (`>`) und
+  **wortgetreue Auszüge** (Backticks) brauchen `dialekt: "1.1"` im Frontmatter. Für einen gewöhnlichen Brief nicht setzen: Der hat einen
   Betreff und keine Kapitel. Für Schriftsätze, Stellungnahmen und längere Behördenpost schon.
   **Ohne das Feld gilt Fassung 1.0** — ein bestehender Brief ändert sich nie.
 - **Anschrift**: höchstens 6 Zeilen, keine Leerzeilen.
@@ -109,7 +109,8 @@ Wer nach einem Versand fragt, bekommt diese Auskunft, keinen Behelf.
 - `references/frontmatter.md` — alle Felder mit Beispielen. Bei Unsicherheit über ein Feld lesen.
   Ein Feld, das dort nicht steht, lehnt `lint` ab — es gibt keine stillen Zusatzfelder.
 - `references/markdown.md` — **was im Brieftext erlaubt ist.** Vor dem ersten Brief lesen:
-  Links, Bilder, Code und HTML brechen ab; Überschriften nur ohne `dialekt: "1.1"`. Der
+  Links, Bilder und HTML brechen ab; Überschriften, Zitate und Code nur ohne
+  `dialekt: "1.1"`. Ein Auszug wird nie umbrochen und nie typografisch geändert. Der
   Typografie-Pass setzt geschützte Leerzeichen von selbst — von Hand eingefügte sind
   überflüssig.
 - `references/stil.md` — **vor dem Formulieren lesen.**

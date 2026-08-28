@@ -41,6 +41,12 @@ STANDARDFASSUNG = "1.0"
 #: versteckt. 1.0 kennt keine: dort ist jede Überschrift ein Fehler.
 MAX_UEBERSCHRIFT = {"1.0": 0, "1.1": 4}
 
+#: Wie tief Zitate ineinander stehen dürfen. Zwei Ebenen decken den Fall ab,
+#: für den es sie gibt: ein Zitat, das seinerseits zitiert. Ab der dritten ist
+#: nicht mehr erkennbar, wer wen wiedergibt — und genau das ist beim Zitieren
+#: der ganze Punkt. 1.0 kennt keine.
+MAX_ZITATTIEFE = {"1.0": 0, "1.1": 2}
+
 #: Wie tief Aufzählungen gehen dürfen, je Fassung.
 #: 1.0 blieb bei zwei Ebenen — mehr braucht ein Standardbrief nicht.
 #: In 1.1 sind 5 und 6 lesbar, aber selten gewollt: Sie erzeugen eine Warnung
@@ -101,7 +107,8 @@ ERLAUBT = {
 #: Diese Fassung ist abgeschlossen, sie beschreibt den Standardbrief.
 ZUSAETZLICH = {
     "1.0": frozenset(),
-    "1.1": frozenset({"heading", "heading_open", "inline"}),
+    "1.1": frozenset({"heading", "heading_open", "inline",
+                      "blockquote", "code_inline", "code_block", "fence"}),
 }
 
 # Was nicht gesetzt wird, und was der Schreibende stattdessen tun soll.
@@ -133,6 +140,16 @@ BENENNUNG = {
     "code_block": "Codeblöcke",
     "fence": "Codeblöcke",
 }
+
+#: Eine Sprachangabe am Codeblock (```python). Sie wird nicht ausgewertet —
+#: ein Geschäftsbrief zitiert wortgetreu, er stellt keinen Quelltext aus.
+#: Gemeldet wird sie trotzdem: Wer sie schreibt, erwartet Einfärbung, und
+#: stillschweigend nichts zu tun wäre genau die Sorte Überraschung, gegen die
+#: dieses Werkzeug antritt.
+HINWEIS_SPRACHE = (
+    "die Sprachangabe `{info}` wird nicht ausgewertet — ein Brief setzt Code "
+    "ohne Einfärbung; die Angabe kann weg"
+)
 
 
 def _meldung_fassung(typ: str) -> str:
@@ -263,6 +280,12 @@ def _inline(knoten, lage: Lage) -> tuple:
             teile.append(baum.Betont(_inline(kind, lage)))
         elif typ == "inline":
             teile.extend(_inline(kind, lage))
+        elif typ == "code_inline":
+            if not _gesetzt(typ, lage):
+                _lehne_ab(kind, lage)
+            # Kein Durchlauf durch _inline: Der Inhalt ist reiner Text und
+            # bleibt es. Ein Zitat, in dem aus " ein „ wird, ist keins mehr.
+            teile.append(baum.Wortlaut(kind.content, block=False))
         else:
             _lehne_ab(kind, lage)
     return tuple(teile)
@@ -342,6 +365,40 @@ def _ueberschrift(knoten, lage: Lage) -> baum.Ueberschrift:
     return baum.Ueberschrift(ebene, _inline(knoten, lage))
 
 
+def _zitat(knoten, lage: Lage, tiefe: int) -> baum.Zitat:
+    """`>` mit Absätzen, Listen und einem weiteren Zitat darin."""
+    grenze = MAX_ZITATTIEFE[lage.dialekt]
+    if tiefe > grenze:
+        raise MarkdownFehler(
+            _zeile(knoten, lage),
+            f"Zitate stehen bis {grenze} Ebenen ineinander — tiefer ist nicht mehr "
+            "erkennbar, wer wen wiedergibt",
+        )
+    teile = []
+    for kind in knoten.children or []:
+        if kind.type == "blockquote":
+            teile.append(_zitat(kind, lage, tiefe + 1))
+        else:
+            teile.extend(_block(kind, lage, zitattiefe=tiefe))
+    if not teile:
+        raise MarkdownFehler(_zeile(knoten, lage), "leeres Zitat")
+    return baum.Zitat(tuple(teile))
+
+
+def _wortlaut(knoten, lage: Lage) -> baum.Wortlaut:
+    """Ein Codeblock — eingerückt oder in Zaunzeichen.
+
+    `knoten.content` ist der Rohtext, wie ihn der Schreibende getippt hat.
+    Er geht ungefiltert weiter: Weder die typografischen Ersetzungen noch der
+    Emitter dürfen daran etwas ändern, sonst wäre der Auszug nicht mehr
+    wortgetreu.
+    """
+    info = (getattr(knoten, "info", "") or "").strip()
+    if info:
+        lage.melde(_zeile(knoten, lage), HINWEIS_SPRACHE.format(info=info))
+    return baum.Wortlaut(knoten.content, block=True)
+
+
 def _tabelle(knoten, lage: Lage) -> baum.Tabelle:
     zeilen, ausrichtungen = [], []
     for teil in knoten.children:
@@ -362,7 +419,7 @@ def _tabelle(knoten, lage: Lage) -> baum.Tabelle:
     )
 
 
-def _block(knoten, lage: Lage, tiefe: int = 1) -> tuple:
+def _block(knoten, lage: Lage, tiefe: int = 1, zitattiefe: int = 0) -> tuple:
     """Ein Block wird zu null, einem oder mehreren Baumknoten."""
     typ = knoten.type
     if typ == "paragraph":
@@ -371,15 +428,19 @@ def _block(knoten, lage: Lage, tiefe: int = 1) -> tuple:
         return (_liste(knoten, lage, tiefe),)
     if typ == "table":
         return (_tabelle(knoten, lage),)
-    if typ == "heading":
+    if typ in ("heading", "blockquote", "code_block", "fence"):
         if not _gesetzt(typ, lage):
             _lehne_ab(knoten, lage)
-        return (_ueberschrift(knoten, lage),)
+        if typ == "heading":
+            return (_ueberschrift(knoten, lage),)
+        if typ == "blockquote":
+            return (_zitat(knoten, lage, zitattiefe + 1),)
+        return (_wortlaut(knoten, lage),)
     if not _gesetzt(typ, lage):
         _lehne_ab(knoten, lage)
     teile = []
     for k in knoten.children or []:
-        teile.extend(_block(k, lage, tiefe))
+        teile.extend(_block(k, lage, tiefe, zitattiefe))
     return tuple(teile)
 
 

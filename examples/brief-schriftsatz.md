@@ -65,7 +65,25 @@ vorlegen.
 ### 2. Der Vortrag zum 24. Juni 2026
 
 Für den behaupteten späteren Termin nennt die Gegenseite keinen Beleg. Ein Protokoll dieses
-Datums existiert nicht.
+Datums existiert nicht. Die Anlage trägt für den 11. Juni 2026 den Eintrag
+
+```
+2026-06-11 09:14 abnahme az=12C345 status=ok
+```
+
+und für den 24. Juni gar keinen.
+
+### 3. Was die Gegenseite selbst geschrieben hat
+
+Aus der E-Mail vom 12. Juni 2026, 08:41 Uhr, zitieren wir wörtlich:
+
+> Die Anlage läuft seit gestern. Die drei Restpunkte holen wir bis Ende der Woche nach; an
+> der Abnahme ändert das nichts.
+>
+> > Für die Beschriftung brauchen wir noch die Klemmenliste — die kommt von euch.
+
+Der Satz „an der Abnahme ändert das nichts" stammt damit von der Gegenseite selbst. Das
+Kennzeichen der Nachricht lautet `M-2026-0612-0841`.
 
 # B. Rechtliche Würdigung
 

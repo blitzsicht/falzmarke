@@ -63,6 +63,36 @@ def ueberschrift(inhalt: str, ebene: int) -> str:
     return f"#heading(level: {ebene}, outlined: false)[{inhalt}]"
 
 
+def zitat(inhalt: str) -> str:
+    """Ein Blockzitat. Wie es aussieht, entscheidet `falzmarke.typ`."""
+    return f"#zitat[{inhalt}]"
+
+
+def wortlaut(inhalt: str, block: bool) -> str:
+    """Ein wortgetreuer Auszug — und die heikelste Stelle dieser Datei.
+
+    Ein Codeblock enthält per Definition Zeichen, die anderswo Bedeutung
+    tragen: `#import`, `#read`, `#eval`. Würde er als Markup gesetzt, führte
+    Typst sie aus — mit Dateizugriff auf dem Rechner des Setzenden.
+
+    Er geht deshalb als **Zeichenkette** an `raw()`, genau wie jeder andere
+    Text an `#text()`. In einer Zeichenkette gibt es keine Sonderzeichen mehr;
+    zu schützen sind nur Backslash und Anführungszeichen, die sie begrenzen —
+    und das tut `zeichenkette()`. Die Fehlerklasse ist damit geschlossen, nicht
+    verkleinert.
+
+    Keine Sprachangabe: `raw(lang: …)` färbt ein. Ein Geschäftsbrief zitiert
+    wortgetreu; Farbe wäre eine Deutung, die der Zitierende nicht getroffen
+    hat — und auf einem Schwarzweißdruck ohnehin verloren.
+
+    Der Typografie-Pass läuft hier **nicht**. Ein Auszug, in dem aus `"` ein „
+    und aus `--` ein – wird, ist kein Auszug mehr.
+    """
+    if block:
+        return f"#codeblock(raw({zeichenkette(inhalt)}, block: true))"
+    return f"#raw({zeichenkette(inhalt)})"
+
+
 def liste(punkte: list[str], nummeriert: bool = False, start: int = 1) -> str:
     zellen = ", ".join(f"[{p}]" for p in punkte)
     if nummeriert:
@@ -111,12 +141,18 @@ def _inline(knoten) -> str:
         return stark(_inline(knoten.kinder))
     if isinstance(knoten, baum_modul.Betont):
         return betont(_inline(knoten.kinder))
+    if isinstance(knoten, baum_modul.Wortlaut):
+        return wortlaut(knoten.inhalt, knoten.block)
     return _block(knoten)
 
 
 def _block(knoten) -> str:
     if isinstance(knoten, baum_modul.Absatz):
         return absatz(_inline(knoten.kinder))
+    if isinstance(knoten, baum_modul.Wortlaut):
+        return wortlaut(knoten.inhalt, knoten.block)
+    if isinstance(knoten, baum_modul.Zitat):
+        return zitat("\n".join(_block(k) for k in knoten.kinder))
     if isinstance(knoten, baum_modul.Ueberschrift):
         return ueberschrift(_inline(knoten.kinder), knoten.ebene)
     if isinstance(knoten, baum_modul.Liste):

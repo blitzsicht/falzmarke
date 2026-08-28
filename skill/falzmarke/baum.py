@@ -76,6 +76,36 @@ class Liste:
 
 
 @dataclass(frozen=True)
+class Zitat:
+    """Ein Blockzitat. Erst ab Dialekt 1.1.
+
+    `kinder` sind Blöcke — Absätze, Listen, ein weiteres Zitat. Ein Zitat ist
+    kein Absatz mit Einzug: Wer zitiert, gibt fremden Wortlaut wieder, und das
+    soll im PDF als solches stehen.
+    """
+
+    kinder: tuple = ()
+
+
+@dataclass(frozen=True)
+class Wortlaut:
+    """Ein wortgetreuer Auszug: Inline-Code oder ein Codeblock. Ab 1.1.
+
+    Der Inhalt ist **reiner Text und bleibt es**. Er geht nie durch die
+    typografischen Ersetzungen — ein Zitat, in dem aus `"` ein „ wird, ist
+    kein Zitat mehr — und er wird nie ausgewertet.
+
+    `block` unterscheidet den abgesetzten Block vom Stück mitten im Satz.
+    Eine Sprachangabe trägt der Knoten bewusst nicht: Ein Geschäftsbrief
+    zitiert wortgetreu, er stellt keinen Quelltext aus. Farbe wäre eine
+    Deutung, die der Zitierende nicht getroffen hat.
+    """
+
+    inhalt: str = ""
+    block: bool = False
+
+
+@dataclass(frozen=True)
 class Tabelle:
     """`zeilen[0]` ist die Kopfzeile; `ausrichtungen` hat eine Angabe je Spalte."""
 
@@ -85,7 +115,8 @@ class Tabelle:
 
 #: Alles, was in einem Brieftext stehen darf. Ein Emitter, der einen Knoten
 #: nicht kennt, soll abbrechen statt ihn zu übergehen — deshalb die Liste.
-KNOTEN = (Text, Umbruch, Stark, Betont, Absatz, Ueberschrift, Liste, Tabelle)
+KNOTEN = (Text, Umbruch, Stark, Betont, Absatz, Ueberschrift, Liste, Zitat,
+          Wortlaut, Tabelle)
 
 #: Knoten, die **nur** der Briefsatz setzt. Die E-Mail-Emitter kennen sie
 #: nicht — und sollen sie auch nicht stillschweigend übergehen.
@@ -97,5 +128,5 @@ KNOTEN = (Text, Umbruch, Stark, Betont, Absatz, Ueberschrift, Liste, Tabelle)
 #: verlangen den Nachweis in beide Richtungen: Der Emitter muss abbrechen,
 #: UND der Weg dorthin muss versperrt sein.
 #:
-#: `Ueberschrift` verlässt die Liste, sobald der HTML-Teil sie setzt.
-NUR_BRIEF = (Ueberschrift,)
+#: Ein Knoten verlässt die Liste, sobald der HTML-Teil ihn setzt.
+NUR_BRIEF = (Ueberschrift, Zitat, Wortlaut)

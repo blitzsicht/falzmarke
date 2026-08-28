@@ -598,7 +598,9 @@ def rendere(
 
         haupt = arbeit / "main.typ"
         haupt.write_text(
-            '#import "falzmarke.typ": brief\n'
+            # `zitat` und `codeblock` gehoeren zum Dialekt 1.1: Der Brieftext
+            # ruft sie auf, also muessen sie hier im Namensraum stehen.
+            '#import "falzmarke.typ": brief, zitat, codeblock\n'
             + kopf_import
             + "#let profil = json(bytes(sys.inputs.profil))\n"
             "#let daten = json(bytes(sys.inputs.daten))\n"
