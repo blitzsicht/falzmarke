@@ -87,17 +87,19 @@ Debatte steht nicht, ob sie richtig sind, sondern wie stark sie belegt sind.
 ## Pflichtangaben in E-Mails
 
 Die DIN 5008 sagt nichts darüber, was in einem Geschäftsbrief stehen **muss** — das steht im
-Handelsrecht, und es gilt für E-Mails genauso wie für Papier. Seit dem EHUG (Gesetz über
+Handelsrecht, und es gilt für E-Mails genauso wie für Papier. Seit dem [EHUG](https://www.buzer.de/gesetz/7443/index.htm) (Gesetz über
 elektronische Handelsregister und Genossenschaftsregister sowie das Unternehmensregister, in
 Kraft am 1. Januar 2007) sind die Vorschriften über Geschäftsbriefe ausdrücklich auf
 Geschäftsbriefe „gleichviel welcher Form" gefasst; eine geschäftliche E-Mail ist damit erfasst.
 
-Wo das steht, hängt an der Rechtsform: § 37a HGB (eingetragener Kaufmann), § 125 HGB (OHG und
-KG), § 35a GmbHG, § 80 AktG, § 25a GenG. Verlangt werden dort — je nach Form — Rechtsform und
+Wo das steht, hängt an der Rechtsform: [§ 37a HGB](https://www.gesetze-im-internet.de/hgb/__37a.html) (eingetragener
+Kaufmann), [§ 125 HGB](https://www.gesetze-im-internet.de/hgb/__125.html) (OHG und KG), [§ 35a GmbHG](https://www.gesetze-im-internet.de/gmbhg/__35a.html),
+[§ 80 AktG](https://www.gesetze-im-internet.de/aktg/__80.html), [§ 25a GenG](https://www.gesetze-im-internet.de/geng/__25a.html). Verlangt werden dort — je nach Form — Rechtsform und
 Sitz, das Registergericht, die Registernummer und die Namen der Geschäftsführer, Vorstands- oder
 Aufsichtsratsmitglieder.
 
-Für Personengesellschaften stand das bis Ende 2023 in § 125a HGB. Das
+Für Personengesellschaften stand das bis Ende 2023 in § 125a HGB — **ohne Verweis, denn die
+Vorschrift gibt es nicht mehr**; die amtliche Sammlung führt nur geltendes Recht. Das
 [MoPeG](https://www.gesetze-im-internet.de/hgb/__125.html) hat die Vorschrift zum 1. Januar 2024
 aufgehoben und den Inhalt nach § 125 HGB überführt.
 

@@ -69,7 +69,7 @@ typ: email
 profil: example
 an:                                     # Pflicht. Eine Adresse oder eine Liste
   - erika.muster@example.de
-  - Muster GmbH <post@example.de>       # Klammerform nach RFC 5322
+  - Muster GmbH <post@example.de>       # Klammerform nach [RFC 5322](https://www.rfc-editor.org/rfc/rfc5322)
 cc: []                                  # optional, gleiche Form wie `an`
 betreff: Angebot Nr. 2026-0815          # Pflicht, höchstens 78 Zeichen
 anrede: Sehr geehrte Frau Muster,
