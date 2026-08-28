@@ -320,6 +320,21 @@ def _profil_ohne(feld: str, tmp_path) -> Path:
     return ziel
 
 
+def _profil_mit(felder: dict, tmp_path) -> Path:
+    """Das Beispielprofil, im Abschnitt `email:` um Felder ergänzt.
+
+    Gegenstück zu `_profil_ohne`: Manche Regeln lösen erst aus, wenn etwas DA
+    ist — ein Feld mit unbekanntem Wert etwa.
+    """
+    profil = yaml.safe_load((PROFILE / "example.yaml").read_text(encoding="utf-8"))
+    profil.setdefault("email", {}).update(felder)
+    ziel = tmp_path / "profile"
+    ziel.mkdir(exist_ok=True)
+    (ziel / "example.yaml").write_text(yaml.safe_dump(profil, allow_unicode=True),
+                                       encoding="utf-8")
+    return ziel
+
+
 def _loese_aus(regel: str, tmp_path):
     """Ein Fall, der genau diese Regel melden muss."""
     if regel == "email.betreff":
@@ -350,6 +365,22 @@ def _loese_aus(regel: str, tmp_path):
         # `an` zu und nicht diese Regel.
         return linte(tmp_path, MAIL.replace("an: erika.muster@example.de",
                                             "an: müller@münchen.de"))
+    if regel == "email.anrede":
+        # Ein Wert, den das Feld nicht kennt — eine Aussage über den
+        # Datenvertrag, deshalb Fehler und nicht Warnung.
+        pfad = tmp_path / "nachricht.md"
+        pfad.write_text(f"---\n{MAIL}---\nText der Nachricht.\n", encoding="utf-8")
+        return falzmarke.linte(pfad, profil_verzeichnis=_profil_mit(
+            {"anrede": "hoeflich"}, tmp_path))
+    if regel == "email.anrede_ton":
+        # Profil siezt, Text duzt. Geändert wird nichts — nur gemeldet.
+        pfad = tmp_path / "nachricht.md"
+        pfad.write_text(f"---\n{MAIL}---\nHallo Erika, ich schicke dir das Angebot.\n",
+                        encoding="utf-8")
+        return falzmarke.linte(pfad, profil_verzeichnis=_profil_mit(
+            {"anrede": "sie"}, tmp_path))
+    if regel == "email.versalien":
+        return linte(tmp_path, MAIL, "Das ist WIRKLICH dringend.\n")
     if regel == "antwort_auf":
         # Message-IDs stehen nach RFC 5322 in spitzen Klammern.
         return linte(tmp_path, MAIL + "antwort_auf: ohne-spitze-klammern@example.de\n")
