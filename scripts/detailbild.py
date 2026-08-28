@@ -69,10 +69,11 @@ PPI = 600
 # (Issue #75). Gemessen am Render liegt die Marke bei 4,99 bis 7,49 mm; bei
 # 6 mm Fensterbreite ab 3,0 mm fuellt sie 42 % davon und traegt das Bild.
 #
-# Die Hoehe von 5 mm ist die Untergrenze, bei der die um 2 mm verschobene Marke
-# der Gegenprobe noch mit Rand im Bild liegt: 103,0 bis 108,0 mm fasst 105 und
-# 107.
-FENSTER_MM = (3.0, 103.0, 6.0, 5.0)
+# Die Hoehe von 4 mm ist die Untergrenze, bei der beide Zustaende mit Rand im
+# Bild liegen: 104,0 bis 108,0 mm setzt die richtige Marke auf ein Viertel und
+# die verschobene auf drei Viertel der Hoehe. Bei 5 mm lag oben und unten
+# spuerbar mehr Weiss als Motiv — am Standbild gesehen, nicht gerechnet.
+FENSTER_MM = (3.0, 104.0, 6.0, 4.0)
 
 # Verschiebung fuer die Gegenprobe, in Millimetern.
 # tests/test_gegenbeweis.py verschiebt die Marke auf 112 mm — dort ist der
