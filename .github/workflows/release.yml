@@ -46,14 +46,15 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref }}
 
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+
       - name: Skill packen
-        run: |
-          # claude.ai erwartet den Skill-Ordner mit SKILL.md an der Wurzel des Zips.
-          mkdir -p paket
-          cp -r skill paket/falzmarke
-          rm -rf paket/falzmarke/typst/profiles.local
-          cd paket && zip -rq ../falzmarke.skill falzmarke
-          cd .. && unzip -l falzmarke.skill | head -5
+        # Dasselbe Skript laeuft lokal vor dem Release. Wer die Schritte hier
+        # ausschreibt, hat zwei Fassungen, und die im Workflow laesst sich vor
+        # dem Tag nicht ausprobieren (#122).
+        run: bash scripts/skill_packen.sh
 
       - name: Pruefsumme bilden
         id: hash
