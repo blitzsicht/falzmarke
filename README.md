@@ -188,17 +188,17 @@ ist**. Die SHA-256-Summe steht in der Release-Notiz und als `falzmarke.skill.sha
 
 ## In 60 Sekunden
 
-Drei Wege, und sie können nicht dasselbe:
+Vier Wege, und sie können nicht dasselbe:
 
 | Weg | rendert ohne Netz | Größe | wofür |
 |---|---|---|---|
-| `falzmarke.skill` hochladen | **ja** — der Typst-Compiler reist mit | 33 MB | Claude, und jede Umgebung, die eine Datei annimmt |
+| `falzmarke.skill` hochladen | nein, der erste Lauf lädt nach | ~0,8 MB | claude.ai — der Upload-Dialog nimmt **höchstens 30 MB** |
+| `falzmarke-offline.skill` | **ja** — der Typst-Compiler reist mit | ~34 MB | Sandboxen ohne PyPI-Zugriff; **zu groß für den Upload-Dialog** |
 | `pipx` / `uvx` | nein, der erste Lauf lädt nach | ~1 MB | Terminal |
 | Repository klonen | nein, der erste Lauf lädt nach | ~1 MB | Mitarbeit am Werkzeug |
 
-Nur das Release-Paket bringt den Compiler mit. Wer den Skill **aus dem Repository** bezieht — etwa
-über eine Schnittstelle, die Repository-Dateien liest —, findet `skill/vendor/` leer und braucht
-für den ersten Lauf Netzzugriff. Der Grund steht in
+Die beiden Skill-Pakete unterscheiden sich in genau einer Datei: Das Offline-Paket trägt das
+`typst`-Wheel in `vendor/`, das schlanke nicht. Warum es zwei sind und nicht eines, steht in
 [`skill/vendor/README.md`](https://github.com/blitzsicht/falzmarke/blob/main/skill/vendor/README.md).
 
 ### Mit Claude
@@ -444,6 +444,31 @@ Maße gemessen wurden, steht in [`docs/normmasse.md`](https://github.com/blitzsi
 
 Die letzten zwei Versionen im Wortlaut. **Erzeugt aus [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md) — dort ändern, dann `python3 scripts/changelog.py`.**
 
+### v0.8.2 — 28.08.2026
+
+Das Skill-Paket ließ sich nicht mehr hochladen. Es gibt jetzt zwei.
+
+#### Behoben
+
+- **`falzmarke.skill` war zu groß für claude.ai.** Mit dem `typst`-Wheel aus v0.8.1 wog die
+  Datei 34,71 MB; der Upload-Dialog nimmt höchstens 30 MB und meldet wörtlich „Zip file must be
+  less than 30MB". Der Fehler fiel erst beim Einspielen auf — das Bauen gelang. Damit war der in
+  der README beschriebene Hauptweg seit v0.8.1 unbrauchbar.
+
+  Das Release trägt jetzt **zwei Pakete**: `falzmarke.skill` (~0,8 MB, überall einspielbar, der
+  erste Lauf lädt die Abhängigkeiten nach) und `falzmarke-offline.skill` (~34 MB, der
+  Typst-Compiler reist mit, rendert ohne PyPI). Sie unterscheiden sich in genau einer Datei.
+
+  Die Endung war nicht das Problem: Derselbe Dialog nennt `.zip` **und** `.skill` als zulässig.
+
+#### Geändert
+
+- **Die 30 MB stehen als Sollwert im Packskript**, nicht als Fußnote. `scripts/skill_packen.sh`
+  bricht ab, bevor ein Paket entsteht, das sich nicht einspielen lässt — und zwar vor dem
+  34-MB-Download, nicht danach. Eine Prüfung hält fest, dass der Wert nur an dieser einen Stelle
+  steht, und eine Gegenprobe, dass der Abbruch wirklich greift.
+- Der Offline-Nachweis in der CI läuft gegen `falzmarke-offline.skill` — dort ist das Wheel.
+
 ### v0.8.1 — 28.08.2026
 
 Das Skill-Paket rendert jetzt auch dort, wo es kein PyPI gibt.
@@ -474,79 +499,7 @@ Das Skill-Paket rendert jetzt auch dort, wo es kein PyPI gibt.
   die niemand je wieder aus der Historie bekäme — es wird beim Packen geladen. Ein Test hält
   fest, dass im Quellbaum keines liegt, und ein zweiter, dass `.gitignore` das abfängt. (#122)
 
-### v0.8.0 — 27.08.2026
-
-Der Brief bekommt eine zweite Ausgabeform: dieselbe Markdown-Datei wird zur E-Mail. Dazu kommen
-Anlagen, eine englische Beschriftung, ein MCP-Dienst und eine GitHub-Aktion für fremde
-Repositories.
-
-#### Neu
-
-- **Dieselbe Datei als E-Mail.** Ein Schreiben mit `typ: email` im Frontmatter wird keine
-  PDF-Seite, sondern eine `.eml` — dieselbe Quelle, dasselbe Profil, dieselbe Signatur.
-  `falzmarke email nachricht.md --html` schreibt die Nachricht, dazu auf Wunsch eine
-  HTML-Vorschau zum Kopieren und den Textteil, und misst das Ergebnis mit `verify --email` nach.
-  Aufbau, Teile und Grenzen stehen in [`docs/email.md`](https://github.com/blitzsicht/falzmarke/blob/main/docs/email.md). (#59, #63, #65)
-- **falzmarke versendet nichts.** Kein Versandbefehl, keine Option, die sendet, kein `smtplib`
-  im Baum. Wer eine Datei erzeugt, haftet für ihren Inhalt; wer sie befördert, für Zustellung
-  und Nachweis — das sind zwei Versprechen, und falzmarke gibt nur das erste
-  ([ADR 0034](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0034-email-ist-ausgabe.md)). Die Abwesenheit ist testgesichert,
-  nicht nur zugesagt. (#60)
-- **`verify --email` misst die fertige Nachricht.** Es öffnet die `.eml`, parst sie und prüft —
-  die Quelle wird nicht befragt. Ein Prüfer, der aus der Eingabe schließt, was herausgekommen
-  sein müsste, bestätigt nur den eigenen Bauplan. Deshalb misst er auch Dateien, die von
-  woanders kommen: MIME-Aufbau, Reihenfolge der Alternativen, `format=flowed` samt
-  Space-Stuffing, Signaturtrennzeile, Gleichlaut von Text und HTML, und ob im HTML weder Skript
-  noch externes Stylesheet noch Zählpixel steht. (#64)
-- **Anlagen hängen hinten an den Brief.** `anlagen_dateien:` nimmt PDFs auf, Pfade relativ zur
-  Briefdatei — ein Vorgang samt Anlagen bleibt ein Ordner, den man verschieben kann. Behauptet
-  wird dabei keine Konformität, die die Anlage nicht hat: Mit veraPDF gemessen, welche Aussage
-  nach dem Zusammenführen noch trägt. (#1)
-- **Englische Beschriftung.** `sprache: en` im Brief oder im Profil setzt Leitwörter,
-  Monatsnamen, „Anlagen", „Verteiler" und die Seitenzählung auf Englisch; der Brief schlägt das
-  Profil, wie bei `form`. Von 32 Prüfwerten sind 31 in beiden Sprachen bitgleich — die eine
-  Abweichung steht namentlich im Test, damit sie kein Freibrief wird. (#11)
-- **falzmarke spricht MCP.** `falzmarke mcp` startet einen stdio-Dienst mit vier Werkzeugen:
-  `brief_rendern`, `brief_pruefen`, `profile_auflisten` und `email_setzen`. Der Messbericht kommt
-  bei jedem Rendern mit — ein Dienst, der ein PDF zurückgibt und offenlässt, ob die Maße stimmen,
-  wäre ein PDF-Generator wie jeder andere. (#5, #65)
-- **Eine Aktion für fremde Repositories.** Wer seine Briefe versioniert, lässt sie bei jedem Push
-  setzen; die PDFs hängen als Artefakt am Lauf. Hält ein Brief die Maße nicht ein, wird der Lauf
-  rot und nennt Datei und Maß — ein Serienbrief-Archiv merkt einen verrutschten Betreff damit
-  beim Push und nicht beim Empfänger. (#6)
-- **Die Falzmarke ist auf einem Bild zu sehen.** Das Werkzeug heißt so, und auf keinem
-  Vorschaubild war eine zu erkennen: 0,25 pt sind bei 110 ppi 0,38 Pixel. `scripts/detailbild.py`
-  rendert mit 600 ppi und schneidet 9 × 7 mm am Blattrand heraus; die Maßzahl daneben kommt aus
-  `verify --json`, nicht aus dem Gedächtnis. (#13)
-
-#### Geändert
-
-- **Der Markdown-Baum kennt keine Zielsprache mehr.** `markdown.py` gab fertigen Typst-Code
-  zurück und rief den Emitter mitten in der Prüfung auf. Ein zweiter Emitter hätte damit die
-  Prüfung verdoppeln müssen, und eine verdoppelte Prüfung ist eine, die auseinanderläuft. Jetzt
-  baut `markdown.lies()` Knoten, und HTML-, Text- und Typst-Emitter gehen denselben Baum ab.
-  Am Brief ändert sich dadurch nichts — nachgemessen, nicht angenommen. (#61)
-- **Der Stil steht inline an jedem Element** der HTML-Fassung, nicht in einem `<style>`-Block:
-  Gmail entfernt ihn, Outlook lädt nichts von außen, und was nicht ankommt, kann man nicht
-  prüfen. (#61)
-
-#### Infrastruktur
-
-- **Vier Mail-Beispiele mit Golden-Dateien.** `examples/email/` läuft in der CI mit; die `.eml`
-  jedes Beispiels liegt byteweise in `tests/golden/email/` und fällt auf, wenn sich an der
-  Ausgabe etwas ändert, das niemand angesagt hat. Erneuert mit `scripts/golden_email.py`. Dazu
-  ein Wächter, der die `email`-Regeln aus der Regeldatei zieht und für jede einen Auslöser
-  verlangt. (#66)
-- **Pflichtangaben in E-Mails** stehen jetzt in [`docs/recht.md`](https://github.com/blitzsicht/falzmarke/blob/main/docs/recht.md) — seit dem EHUG
-  (2007) dieselben wie im Brief, mit Fundstelle und mit dem Hinweis, dass falzmarke sie nicht
-  prüft. (#66)
-- [ADR 0033](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0033-pdfa-stufe.md): PDF/A-2b bleibt Vorgabe, A-3b wird
-  wählbar und nur dort verwendet, wo tatsächlich eingebettet wird. Die Wahl fällt nicht zwischen
-  den Formaten, sondern zwischen einer Zusage und einer zutreffenden. (#42)
-- Die Aktion zählt Dateien statt Zeilen: `ls -1 | wc -l` zählt einen Dateinamen mit
-  Zeilenumbruch doppelt und meldet eine Zahl, die es nicht gibt. (#58)
-
-Davor liegen 16 weitere Versionen — der vollständige Verlauf steht in [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md).
+Davor liegen 17 weitere Versionen — der vollständige Verlauf steht in [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md).
 
 <!-- changelog:ende -->
 

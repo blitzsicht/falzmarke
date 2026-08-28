@@ -147,8 +147,65 @@ def test_das_skript_bricht_ab_wenn_kein_wheel_dabei_ist(tmp_path):
     lauf = subprocess.run(["bash", str(ziel)], capture_output=True, text=True,
                           encoding="utf-8", cwd=tmp_path)
     assert lauf.returncode != 0, (
-        "Das Skript hat ein Paket ohne Wheel gebaut und nichts gesagt.\n" + lauf.stdout[-800:])
+        "Das Skript hat ein Offline-Paket ohne Wheel gebaut und nichts gesagt.\n" + lauf.stdout[-800:])
     assert "kein Wheel" in lauf.stderr, f"Die Meldung nennt den Grund nicht: {lauf.stderr!r}"
+
+
+# ── Der Sollwert: 30 MB Uploadgrenze ────────────────────────────────────────
+
+#: Gemessen am 28.08.2026 am Dialog „Fähigkeit hochladen" von claude.ai. Der
+#: Wortlaut der Meldung steht hier, weil eine Zahl ohne ihren Anlass nach
+#: einem halben Jahr wie eine Schätzung aussieht.
+MELDUNG = "Zip file must be less than 30MB"
+MAX_MB = 30
+
+
+def test_die_grenze_steht_nur_an_einer_stelle():
+    """Ein Sollwert, eine Quelle. Zwei laufen auseinander, und die falsche gilt."""
+    text = SKRIPT.read_text(encoding="utf-8")
+    assert re.search(r"^MAX_MB=30$", text, re.M), (
+        "Die Uploadgrenze steht nicht als MAX_MB im Packskript.")
+    assert MELDUNG in text, (
+        f"Der Wortlaut der Meldung fehlt: {MELDUNG!r}. Eine Zahl ohne ihren "
+        "Anlass sieht später wie eine Schätzung aus.")
+
+
+def test_das_skript_baut_beide_pakete():
+    """Zwei Dateien, zwei Zwecke — sonst ist eine der beiden Gruppen versorgt
+    und die andere nicht."""
+    text = SKRIPT.read_text(encoding="utf-8")
+    for datei in ("falzmarke.skill", "falzmarke-offline.skill"):
+        assert datei in text, f"{datei} entsteht nicht"
+
+
+def test_das_skript_bricht_ab_wenn_das_schlanke_paket_zu_gross_wird(tmp_path):
+    """Der teuerste Fall ist der stille: Ein zu großes Paket faellt erst beim
+    Hochladen auf, also Tage nach dem Release — und dann steht die Datei schon
+    unter einem Tag, der sich nicht verschieben laesst.
+
+    Nachgewiesen am echten Skript mit auf 0 gesetzter Grenze. Das ist dieselbe
+    Lage wie ein zu grosses Paket, nur ohne 34 MB zu erzeugen.
+    """
+    if sys.platform.startswith("win"):
+        pytest.skip("bash und Symlinks — der Nachweis läuft auf den anderen beiden Plattformen")
+
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "skill").symlink_to(REPO / "skill", target_is_directory=True)
+
+    text = SKRIPT.read_text(encoding="utf-8")
+    sabotiert = text.replace("MAX_MB=30", "MAX_MB=0", 1)
+    assert sabotiert != text, "die Sabotage greift nicht — die Grenze heißt anders"
+    # Der Download kommt gar nicht mehr dran: Die Grenze wird geprueft, bevor
+    # 34 MB geladen werden. Genau das ist der Sinn der Reihenfolge.
+    ziel = tmp_path / "scripts" / "skill_packen.sh"
+    ziel.write_text(sabotiert, encoding="utf-8")
+
+    lauf = subprocess.run(["bash", str(ziel)], capture_output=True, text=True,
+                          encoding="utf-8", cwd=tmp_path)
+    assert lauf.returncode != 0, (
+        "Das Skript hat ein Paket über der Grenze gebaut und nichts gesagt.\n"
+        + lauf.stdout[-600:])
+    assert "zu gross fuer den Upload" in lauf.stderr, lauf.stderr
 
 
 def test_im_quellbaum_liegt_kein_wheel():

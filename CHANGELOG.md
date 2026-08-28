@@ -2,6 +2,31 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.8.2 — 28.08.2026
+
+Das Skill-Paket ließ sich nicht mehr hochladen. Es gibt jetzt zwei.
+
+### Behoben
+
+- **`falzmarke.skill` war zu groß für claude.ai.** Mit dem `typst`-Wheel aus v0.8.1 wog die
+  Datei 34,71 MB; der Upload-Dialog nimmt höchstens 30 MB und meldet wörtlich „Zip file must be
+  less than 30MB". Der Fehler fiel erst beim Einspielen auf — das Bauen gelang. Damit war der in
+  der README beschriebene Hauptweg seit v0.8.1 unbrauchbar.
+
+  Das Release trägt jetzt **zwei Pakete**: `falzmarke.skill` (~0,8 MB, überall einspielbar, der
+  erste Lauf lädt die Abhängigkeiten nach) und `falzmarke-offline.skill` (~34 MB, der
+  Typst-Compiler reist mit, rendert ohne PyPI). Sie unterscheiden sich in genau einer Datei.
+
+  Die Endung war nicht das Problem: Derselbe Dialog nennt `.zip` **und** `.skill` als zulässig.
+
+### Geändert
+
+- **Die 30 MB stehen als Sollwert im Packskript**, nicht als Fußnote. `scripts/skill_packen.sh`
+  bricht ab, bevor ein Paket entsteht, das sich nicht einspielen lässt — und zwar vor dem
+  34-MB-Download, nicht danach. Eine Prüfung hält fest, dass der Wert nur an dieser einen Stelle
+  steht, und eine Gegenprobe, dass der Abbruch wirklich greift.
+- Der Offline-Nachweis in der CI läuft gegen `falzmarke-offline.skill` — dort ist das Wheel.
+
 ## v0.8.1 — 28.08.2026
 
 Das Skill-Paket rendert jetzt auch dort, wo es kein PyPI gibt.
