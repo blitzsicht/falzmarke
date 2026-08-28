@@ -34,7 +34,14 @@ import detailbild                                                # noqa: E402
 
 BILDER = {
     "falzmarke-detail.png": "detail",
-    "falzmarke-gegenprobe.png": "gegenprobe",
+    "falzmarke-gegenprobe.gif": "wechsel",
+}
+
+#: Das Fertigkriterium je Dateiformat. Ein abgeschnittenes Bild ist an der
+#: Groesse nicht zu erkennen — PNG endet auf IEND, GIF auf das Semikolon.
+SCHLUSS = {
+    ".png": bytes.fromhex("0000000049454e44ae426082"),
+    ".gif": b";",
 }
 
 
@@ -42,6 +49,33 @@ BILDER = {
 def gebaut():
     """Ein Lauf fuer alle Pruefungen — er rendert zweimal bei 600 ppi."""
     return detailbild.baue()
+
+
+def _markenzeile(bild) -> int:
+    """Die Bildzeile der Falzmarke, gemessen innerhalb des Ausschnittrahmens.
+
+    Zwei Fallen, beide beim ersten Anlauf hineingetappt: Die **Rahmenlinien**
+    des Ausschnitts sind über die volle Breite dunkel und schlagen jede Marke;
+    die **Überschrift** darüber ebenso. Gesucht wird deshalb nur zwischen den
+    beiden durchgehenden Linien, und nur nach fast schwarzen Pixeln — die
+    Marke ist Tinte (Grauwert um 28), Rahmen und grüne Schrift liegen darüber.
+    """
+    grau = bild.convert("L")
+    breite, hoehe = grau.size
+    werte = list(grau.tobytes())
+
+    def dunkel(y: int, schwelle: int) -> int:
+        return sum(1 for x in werte[y * breite:(y + 1) * breite] if x < schwelle)
+
+    # Die Rahmenlinien: durchgehend, also fast so breit wie das Bild.
+    linien = [y for y in range(hoehe) if dunkel(y, 130) > breite * 0.8]
+    assert len(linien) >= 2, "kein Ausschnittrahmen gefunden — misst der Test das richtige Bild?"
+    oben, unten = linien[0] + 2, linien[-1] - 2
+
+    innen = range(oben, unten)
+    treffer = max(innen, key=lambda y: dunkel(y, 60))
+    assert dunkel(treffer, 60) > 50, "im Rahmen ist keine Marke zu finden"
+    return treffer
 
 
 def _abweichende_pixel(links, rechts, schwelle: int = 40) -> int:
@@ -109,9 +143,11 @@ def test_die_bilder_liegen_vollstaendig_im_repo():
     """
     for name in BILDER:
         pfad = REPO / "docs" / "assets" / "demo" / name
-        assert pfad.is_file(), f"{name} fehlt — bash scripts/demobilder.sh"
-        assert pfad.read_bytes()[-12:] == bytes.fromhex("0000000049454e44ae426082"), (
-            f"{name} endet nicht auf IEND — die Datei ist unvollständig."
+        assert pfad.is_file(), f"{name} fehlt — python3 scripts/detailbild.py"
+        schluss = SCHLUSS[pfad.suffix]
+        assert pfad.read_bytes()[-len(schluss):] == schluss, (
+            f"{name} endet nicht auf das Schlusszeichen seines Formats — "
+            "die Datei ist unvollständig."
         )
 
 
@@ -126,4 +162,63 @@ def test_beide_bilder_stehen_mit_alternativtext_in_der_readme():
         assert len(treffer.group(1)) >= 20, (
             f"{name} hat nur den Alternativtext „{treffer.group(1)}“ — zu kurz, um das "
             "Bild zu ersetzen."
+        )
+
+
+# ── Der Wechsel ─────────────────────────────────────────────────────────────
+
+def test_das_gif_hat_zwei_bilder_und_sie_unterscheiden_sich():
+    """Ein GIF mit einem Bild ist ein PNG mit Umweg, eines mit zwei gleichen ein Standbild."""
+    from PIL import Image, ImageSequence
+
+    pfad = REPO / "docs" / "assets" / "demo" / "falzmarke-gegenprobe.gif"
+    gif = Image.open(pfad)
+    assert gif.n_frames == 2, f"{gif.n_frames} Bilder statt zwei"
+    erst, zweit = (b.convert("RGB") for b in ImageSequence.Iterator(gif))
+    abweichend = _abweichende_pixel(erst, zweit)
+    assert abweichend > 500, (
+        f"Nur {abweichend} Pixel unterscheiden die beiden Bilder — der Wechsel zeigt nichts."
+    )
+
+
+def test_der_richtige_zustand_steht_zuerst():
+    """Wer nur das erste Bild sieht, soll die Marke auf der Sollinie sehen.
+
+    Manche Oberflächen spielen ein GIF nicht ab, sondern zeigen den ersten
+    Frame. Stünde dort der Fehlerfall, bewürbe das Bild das Gegenteil dessen,
+    was das Werkzeug leistet.
+
+    Gemessen wird die Marke selbst, nicht die Zahl darunter: die Bildzeile mit
+    den meisten dunklen Pixeln. Im richtigen Zustand liegt sie höher als im
+    verschobenen — der erste Anlauf dieses Tests prüfte `size[0] > 0` und hätte
+    nie rot werden können.
+    """
+    from PIL import Image, ImageSequence
+
+    pfad = REPO / "docs" / "assets" / "demo" / "falzmarke-gegenprobe.gif"
+    zeilen = [_markenzeile(b.convert("RGB"))
+              for b in ImageSequence.Iterator(Image.open(pfad))]
+    assert zeilen[0] < zeilen[1], (
+        f"Die Marke liegt im ersten Bild bei Zeile {zeilen[0]}, im zweiten bei {zeilen[1]} — "
+        "der Fehlerfall steht damit vorn."
+    )
+    assert zeilen[1] - zeilen[0] > 20, (
+        f"Nur {zeilen[1] - zeilen[0]} Pixel Unterschied — der Sprung ist nicht zu sehen."
+    )
+
+
+def test_die_masszahl_im_bild_stimmt_mit_dem_fenster():
+    """Gerundete Masszahlen behaupten einen Ausschnitt, den es nicht gibt.
+
+    Belegt am 27.08.2026: Nach einer Aenderung des Zuschnitts stand
+    „6 × 5 mm" im Bild, waehrend das Fenster 5,5 mm breit war — `:.0f` hatte
+    gerundet. Die Zahl im Bild ist das Einzige, woran ein Leser den Massstab
+    festmachen kann.
+    """
+    breite, hoehe = detailbild.FENSTER_MM[2], detailbild.FENSTER_MM[3]
+    for wert in (breite, hoehe):
+        gezeigt = detailbild._mass(wert)
+        zurueck = float(gezeigt.replace(",", "."))
+        assert abs(zurueck - wert) < 0.01, (
+            f"Das Bild zeigt „{gezeigt}“, das Fenster misst {wert} mm."
         )
