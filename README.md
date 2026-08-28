@@ -323,12 +323,14 @@ Der Text unter dem Frontmatter ist **falzmarke-Markdown**, eine dokumentierte Te
 | Harter Umbruch mit `\` am Zeilenende | `"Wort"` wird zu „Wort“ |
 | Pipe-Tabellen mit Ausrichtung | Tag und Monat bleiben zusammen: `25. August` |
 
-Links, Bilder, Code und HTML sind **Fehler** — mit Zeile, Grund und Korrektur, nie
+Links, Bilder und HTML sind **Fehler** — mit Zeile, Grund und Korrektur, nie
 stillschweigend. Auf Papier gibt es keinen Link, und ein Bild im Fließtext verschöbe die
 Geometrie, die danach gemessen wird.
 
-**Zwischenüberschriften** (`#` bis `####`) und tiefere Aufzählungen gibt es für lange Schreiben:
-`dialekt: "1.1"` im Frontmatter schaltet sie frei. Ohne das Feld gilt Fassung 1.0, und ein
+**Zwischenüberschriften** (`#` bis `####`), tiefere Aufzählungen, **Blockzitate** und
+**wortgetreue Auszüge** gibt es für lange Schreiben: `dialekt: "1.1"` im Frontmatter schaltet
+sie frei. Ein Auszug bleibt Zeichen für Zeichen stehen — keine typografischen Ersetzungen,
+kein Umbruch, keine Einfärbung, und nichts darin wird ausgeführt. Ohne das Feld gilt Fassung 1.0, und ein
 bestehender Brief rendert unverändert.
 
 Die vollständige Liste: [falzmarke-Markdown](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/markdown.md).

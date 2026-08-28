@@ -276,3 +276,68 @@ def test_style_block_faellt_auf(monkeypatch):
         lambda inhalt: f"<style>p {{ color: #000 }}</style><p>{inhalt}</p>",
     )
     assert "Style-Block statt Inline-Stil" in _html.verstoesse(seite)
+
+
+# ── Dialekt 1.1: der wortgetreue Auszug ─────────────────────────────────────
+#
+# `tests/test_wortlaut.py` belegt, dass im PDF `#eval("6*7")` steht und nicht
+# `42`. Für sich genommen belegt das wenig: Es könnte auch heissen, dass Typst
+# solche Anweisungen ohnehin nie ausführt, oder dass die Zeile gar nicht erst
+# ankommt. Erst dieser Test zeigt, dass die Grenze etwas VERHINDERT — mit einem
+# Emitter, der Markup statt einer Zeichenkette erzeugt, erscheint `42` wirklich.
+
+from falzmarke import emit as _emit                             # noqa: E402
+
+AUSWERTBAR = '#eval("6*7")'
+ERGEBNIS = "42"
+
+AUSZUGSBRIEF = """---
+profil: example
+dialekt: "1.1"
+empfaenger: [Muster GmbH, Musterstraße 1, 12345 Musterstadt]
+datum: 2026-08-28
+betreff: Auswertungsprobe
+anrede: Sehr geehrte Damen und Herren,
+---
+der Auszug lautet:
+
+```
+%s
+```
+""" % AUSWERTBAR
+
+
+def _pdf_text(tmp_path: Path, name: str) -> str:
+    import pdfplumber
+
+    brief = tmp_path / f"{name}.md"
+    brief.write_text(AUSZUGSBRIEF, encoding="utf-8")
+    pdf, _ = falzmarke.rendere(brief, tmp_path / f"{name}.pdf",
+                               profil_verzeichnis=falzmarke.TYPST_DIR / "profiles")
+    with pdfplumber.open(str(pdf)) as dokument:
+        return dokument.pages[0].extract_text()
+
+
+def test_der_echte_emitter_wertet_nicht_aus(tmp_path):
+    """Kontrollprobe."""
+    text = _pdf_text(tmp_path, "echt")
+    assert AUSWERTBAR in text.replace("\n", ""), text[:300]
+    assert ERGEBNIS not in text
+
+
+def test_ein_emitter_ohne_zeichenkette_wertet_wirklich_aus(tmp_path, monkeypatch):
+    """Die Gefahr ist real, nicht theoretisch.
+
+    Ohne diesen Nachweis wäre `raw(zeichenkette(...))` eine Vorsichtsmassnahme
+    gegen etwas, das vielleicht nie passiert wäre — und niemand wüsste, ob sie
+    nötig ist, wenn jemand sie später „vereinfacht".
+    """
+    monkeypatch.setattr(_emit, "wortlaut",
+                        lambda inhalt, block: f"#codeblock[{inhalt}]")
+    text = _pdf_text(tmp_path, "sabotiert")
+    assert ERGEBNIS in text, (
+        "Der sabotierte Emitter hat NICHT ausgewertet — dann belegt die "
+        "Kontrollprobe oben nicht, dass die Zeichenkette etwas verhindert.\n"
+        + text[:300]
+    )
+    assert AUSWERTBAR not in text.replace("\n", "")

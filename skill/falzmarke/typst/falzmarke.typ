@@ -21,6 +21,35 @@
 #let durchschuss = 12pt - 11pt
 #let leer(n) = n * zeile + durchschuss
 
+// Blockzitat und wortgetreuer Auszug (Dialekt 1.1).
+//
+// Auf Modulebene, nicht in `brief`: Der Brieftext wird ausserhalb der Funktion
+// ausgewertet, ein `let` darin waere fuer ihn unsichtbar. `main.typ` importiert
+// beide zusammen mit `brief` (siehe cli.py).
+//
+// Beide halten das 12-pt-Raster: Abstaende in `leer(n)`, Schriftgroesse
+// unveraendert. Beim Auszug ist das der Grund, warum er trotz
+// Festbreitenschrift in 11 pt steht — `top-edge` und `bottom-edge` sind in em
+// der Schriftgroesse gesetzt, also bleibt die Zeilenhoehe gleich, solange die
+// Groesse es tut.
+//
+// Kein Kasten, sondern ein Balken links: Ein Kasten braucht Innenabstaende,
+// und die sind in einem Zeilenraster nicht frei waehlbar. Der Balken kostet
+// keine Zeile.
+#let zitat(inhalt) = block(
+  above: leer(1), below: leer(1),
+  inset: (left: 6mm),
+  stroke: (left: 0.6pt + luma(120)),
+  inhalt,
+)
+
+#let codeblock(inhalt) = block(
+  above: leer(1), below: leer(1),
+  inset: (left: 6mm),
+  stroke: (left: 1.6pt + luma(160)),
+  inhalt,
+)
+
 // Kopfhöhe je Form; identisch mit letter-pro
 #let kopfhoehe = (A: 27mm, B: 45mm)
 
@@ -180,6 +209,11 @@
       text(size: 11pt, weight: stil.weight, style: stil.style, it.body),
     )
   }
+
+  // Wortgetreue Auszuege: Festbreite, keine Einfaerbung, gleiche Groesse.
+  // `raw` bringt von sich aus eine eigene Schriftgroesse mit; die wuerde das
+  // Raster brechen.
+  show raw: set text(font: ("DejaVu Sans Mono", "Menlo", "Consolas"), size: 11pt)
 
   set document(
     title: daten.betreff,
