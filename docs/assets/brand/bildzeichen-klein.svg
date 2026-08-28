@@ -1,0 +1,61 @@
+<!-- Bildzeichen falzmarke, Fassung fuer sehr kleine Groessen (16-24 px).
+     ABGELEITET, NICHT NEU GEZEICHNET: dieselbe Form wie bildzeichen.svg, nur mit
+     einer Kontur von 12 Einheiten in der Blattfarbe. Nichts ist umgefaerbt,
+     nichts verzerrt.
+
+     Warum es sie gibt — gemessen am gerenderten Bild:
+     Die zwei senkrechten Marken sind 20,4 Einheiten breit. Bei 16 px sind das
+     0,70 px, also weniger als ein Pixel: Sie erscheinen als blasser Fleck, nicht
+     als Strich. Mit der Kontur werden daraus 32,4 Einheiten = 1,12 px.
+
+     Warum 12 und nicht mehr: Bei 18 laeuft die geknickte Ecke zu — genau das
+     Detail, das das Zeichen ausmacht. Nachgesehen bei 16, 24 und 32 px.
+
+     NUR bis 24 px verwenden. Darueber ist bildzeichen.svg richtig; dort traegt
+     die Kontur nichts bei und macht die Ecke nur stumpf.
+     Siehe docs/marke/erscheinungsbild.md. -->
+<svg version="1.1" role="img" aria-label="falzmarke Bildzeichen, kleine Fassung" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="39.01 -17.17 463.58 463.58" xml:space="preserve">
+<title>falzmarke Bildzeichen, kleine Fassung</title>
+<style type="text/css">
+	.st0{fill:#121E2F;}
+	.st1{fill:#3EB057;}
+	.st2{fill:#FFFFFF;}
+	.st-mark{stroke:#121E2F;}
+	/* Auf dunklem Grund kehrt sich Tinte zu Papier um — beide Farben stehen
+	   schon in der Palette, es kommt keine neue dazu. Das gruene Dreieck und
+	   der weisse Haken darin bleiben, wie sie sind: Gruen traegt auf beiden
+	   Gruenden (6,00:1 auf dunkel, 2,78:1 auf hell, und es ist Flaeche, kein
+	   Text).
+
+	   Wirkt dort, wo der Browser das SVG als Favicon nimmt und die Medienabfrage
+	   darin auswertet — Firefox und Safari tun das, Chrome nur teilweise. Das
+	   ICO kann es grundsaetzlich nicht: Bitmaps tragen keine Medienabfrage.
+	   Siehe docs/marke/erscheinungsbild.md. */
+	@media (prefers-color-scheme: dark) {
+		.st0{fill:#FFFFFF;}
+		.st-mark{stroke:#FFFFFF;}
+	}
+</style>
+<g id="FALZMARKE">
+	<g>
+		<g id="paper">
+			<path class="st0 st-mark" d="M184.17,99.66V53.1c0-5.52-4.48-10-10-10s-10,4.48-10,10v46.55c0,5.52,4.48,10,10,10
+				S184.17,105.18,184.17,99.66z"  stroke-width="12" stroke-linejoin="round"/>
+			<path class="st0 st-mark" d="M164.17,329.54v46.55c0,5.52,4.48,10,10,10s10-4.48,10-10v-46.55c0-5.52-4.48-10-10-10
+				S164.17,324.01,164.17,329.54z"  stroke-width="12" stroke-linejoin="round"/>
+			<path class="st0 st-mark" d="M129.57,20h197.24v76.21c0,5.52,4.48,10,10,10h75.06v49.27h20V98.51c0-2.6-1.01-5.09-2.81-6.95l-2.22-2.3
+				c0,0,0,0,0,0L344,3.64c0,0,0,0,0,0l-0.57-0.59C341.54,1.1,338.94,0,336.23,0H119.57c-5.52,0-10,4.48-10,10v145.48h20V20z
+				 M346.81,35.31l49.24,50.9h-49.24V35.31z"  stroke-width="12" stroke-linejoin="round"/>
+			<polygon class="st0 st-mark" points="411.87,292.08 431.87,271.85 431.87,263.38 411.87,263.38 			"  stroke-width="12" stroke-linejoin="round"/>
+			<path class="st0 st-mark" d="M129.57,263.38h-20v155.82c0,5.52,4.48,10,10,10h155.68l20-20H129.57V263.38z"  stroke-width="12" stroke-linejoin="round"/>
+		</g>
+		<path id="green" class="st1" d="M411.87,292.08c-35.68,36.35-100.43,100.9-136.62,137.11c26.89,0.15,118.19-0.11,146.62,0
+			c5.52,0,10-4.48,10-10c-0.16-29.26,0.11-119.52,0-147.35L411.87,292.08z"/>
+		<path id="check_x5F_icon" class="st2" d="M403.36,357.21l-27.31,27.31l-7.94-7.94c-2.94-2.94-7.69-2.94-10.63,0
+			c-2.94,2.94-2.94,7.7,0,10.63l13.15,13.15c0.03,0.03,0.06,0.07,0.09,0.11s0.07,0.06,0.11,0.09c2.96,2.82,8.26,2.17,11.92-1.49
+			l3.93-3.93l27.31-27.31c3.71-3.71,4.33-9.09,1.39-12.02C412.45,352.88,407.07,353.5,403.36,357.21z"/>
+		
+	</g>
+</g>
+</svg>
