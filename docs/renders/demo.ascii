@@ -141,52 +141,8 @@
 
 
 
-
-
 ────────────────────────────────────────────────────────────────────────────────
 >
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-────────────────────────────────────────────────────────────────────────────────
->
-
-
 
 
 
@@ -261,6 +217,42 @@
 
 
 
+────────────────────────────────────────────────────────────────────────────────
+>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ────────────────────────────────────────────────────────────────────────────────
@@ -301,12 +293,8 @@
 
 
 
-
-
 ────────────────────────────────────────────────────────────────────────────────
 >
-
-
 
 
 
@@ -372,37 +360,46 @@ $
 
 
 
-────────────────────────────────────────────────────────────────────────────────
-$ cat examples/brief-mahnung.md
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
 ────────────────────────────────────────────────────────────────────────────────
 $ cat examples/brief-mahnung.md
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+$ cat examples/brief-mahnung.md
+
+
+
 
 
 
@@ -459,6 +456,9 @@ $
 
 
 
+
+
+
 ────────────────────────────────────────────────────────────────────────────────
 $ cat examples/brief-mahnung.md
 ---
@@ -488,6 +488,9 @@ $
 
 
 
+
+
+
 ────────────────────────────────────────────────────────────────────────────────
 $
 
@@ -517,32 +520,6 @@ $
 
 
 
-────────────────────────────────────────────────────────────────────────────────
-$ falzmarke render examples/brief-mahnung.md --png --verbose
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -575,8 +552,46 @@ $ falzmarke render examples/brief-mahnung.md --png --verbose
 
 
 
+
+
+
 ────────────────────────────────────────────────────────────────────────────────
 $ falzmarke render examples/brief-mahnung.md --png --verbose
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+$ falzmarke render examples/brief-mahnung.md --png --verbose
+
+
+
 
 
 
@@ -610,9 +625,9 @@ OK  PDF geschrieben: examples/brief-mahnung.pdf
 OK  Vorschau: examples/brief-mahnung.png
 OK    Seitenbreite: soll 210.00 ist 210.00 (tol ±0.1)
 OK    Seitenhöhe: soll 297.00 ist 297.00 (tol ±0.1)
-OK    Seite 1, linker Rand: soll ≥ 25.0 ist 25.00 bei „Beispiel“ (tol ±0,3)
-OK    Seite 1, rechter Rand: soll ≤ 190.0 ist 190.00 bei „GmbH“ (tol ±0,3)
-OK    Seite 1, Abstand zur Blattkante: soll ≥ 8.0 ist 14.30 bei „93055“ (tol —)
+OK    Seite 1, linker Rand: soll ≥ 25.0 ist 25.00 bei „falzmarke“ (tol ±0,3)
+OK    Seite 1, rechter Rand: soll ≤ 190.0 ist 190.00 bei „falzmarke“ (tol ±0,3)
+OK    Seite 1, Abstand zur Blattkante: soll ≥ 8.0 ist 14.30 bei „12345“ (tol —)
 OK    Falzmarke 1, y: soll 105.00 ist 105.00 (tol ±0.3)
 OK    Falzmarke 1, im Heftrand: soll x-Ende ≤ 20.0 ist 7.50 (tol —)
 OK    Falzmarke 2, y: soll 210.00 ist 210.00 (tol ±0.3)
@@ -633,15 +648,18 @@ OK    Betreff, Zeilenzahl: soll ≤ 2 ist 1 (tol —)
 OK    Betreff, y-Oberkante: soll 98.47 ist 98.45 (tol -1.74625/+0.6)
 OK    Betreff, x-links: soll 25.00 ist 25.00 (tol ±0.3)
 OK    Betreff ohne Leitwort: soll kein 'Betreff:' ist Zahlungserinnerung (tol —)
+OK    Betreff ohne Schlusspunkt: soll kein Punkt am Ende ist gserinnerung (tol —)
+OK    Abstand Anschrift → Betreff: soll 35.77 ist 35.77 (tol ±0.3)
+OK    Abstand Betreff → Anrede (2 Leerzeilen): soll 12.70 ist 12.70 (tol ±0.2)
 ────────────────────────────────────────────────────────────────────────────────
 $ falzmarke render examples/brief-mahnung.md --png --verbose
 OK  PDF geschrieben: examples/brief-mahnung.pdf
 OK  Vorschau: examples/brief-mahnung.png
 OK    Seitenbreite: soll 210.00 ist 210.00 (tol ±0.1)
 OK    Seitenhöhe: soll 297.00 ist 297.00 (tol ±0.1)
-OK    Seite 1, linker Rand: soll ≥ 25.0 ist 25.00 bei „Beispiel“ (tol ±0,3)
-OK    Seite 1, rechter Rand: soll ≤ 190.0 ist 190.00 bei „GmbH“ (tol ±0,3)
-OK    Seite 1, Abstand zur Blattkante: soll ≥ 8.0 ist 14.30 bei „93055“ (tol —)
+OK    Seite 1, linker Rand: soll ≥ 25.0 ist 25.00 bei „falzmarke“ (tol ±0,3)
+OK    Seite 1, rechter Rand: soll ≤ 190.0 ist 190.00 bei „falzmarke“ (tol ±0,3)
+OK    Seite 1, Abstand zur Blattkante: soll ≥ 8.0 ist 14.30 bei „12345“ (tol —)
 OK    Falzmarke 1, y: soll 105.00 ist 105.00 (tol ±0.3)
 OK    Falzmarke 1, im Heftrand: soll x-Ende ≤ 20.0 ist 7.50 (tol —)
 OK    Falzmarke 2, y: soll 210.00 ist 210.00 (tol ±0.3)
@@ -662,4 +680,7 @@ OK    Betreff, Zeilenzahl: soll ≤ 2 ist 1 (tol —)
 OK    Betreff, y-Oberkante: soll 98.47 ist 98.45 (tol -1.74625/+0.6)
 OK    Betreff, x-links: soll 25.00 ist 25.00 (tol ±0.3)
 OK    Betreff ohne Leitwort: soll kein 'Betreff:' ist Zahlungserinnerung (tol —)
+OK    Betreff ohne Schlusspunkt: soll kein Punkt am Ende ist gserinnerung (tol —)
+OK    Abstand Anschrift → Betreff: soll 35.77 ist 35.77 (tol ±0.3)
+OK    Abstand Betreff → Anrede (2 Leerzeilen): soll 12.70 ist 12.70 (tol ±0.2)
 ────────────────────────────────────────────────────────────────────────────────
