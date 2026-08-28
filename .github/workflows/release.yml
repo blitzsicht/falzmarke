@@ -105,9 +105,14 @@ jobs:
     # der Paketname bleibt dauerhaft belegt — auch nach dem Loeschen des Projekts
     # gibt PyPI ihn nicht wieder frei.
     #
-    # Deshalb drei Bremsen, von denen jede allein reichen wuerde:
-    #   1. `environment: pypi` traegt required_reviewers — GitHub haelt den Job
-    #      an und wartet auf eine Freigabe von Hand, auch nach dem Tag.
+    # Deshalb drei Bremsen:
+    #   1. `environment: pypi` traegt eine Wartezeit von 15 Minuten. GitHub
+    #      haelt den Job so lange an; wer nichts tut, veroeffentlicht, wer den
+    #      Lauf abbricht, nicht. Bis zum 28.08.2026 stand hier eine Freigabe von
+    #      Hand — sie wurde an einem Tag dreimal vergessen und hielt drei
+    #      fertige Fassungen zurueck, waehrend auf PyPI 0.7.3 lag. Was sie
+    #      damals verhinderte, faengt seit #76 `paket_pruefen.sh` bei jedem
+    #      Push. Begruendung: ADR 0036.
     #   2. Die Deployment-Branch-Policy laesst nur Tags `v*` zu.
     #   3. `needs: skill-paket` — laeuft erst, wenn das Release selbst steht.
     #
