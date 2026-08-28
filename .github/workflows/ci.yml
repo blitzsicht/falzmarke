@@ -129,6 +129,57 @@ jobs:
           /tmp/frisch/bin/falzmarke verify brief.pdf
           test -f brief.pdf && test -f brief.png
 
+  skill-paket:
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Skill-Paket bauen
+        run: |
+          # Derselbe Aufruf wie in release.yml (Issue #122). Der Pack-Schritt
+          # lief bisher erst am Tag zum ersten Mal, und das Ruleset laesst Tags
+          # weder verschieben noch loeschen — ein Fehlschlag dort kostet eine
+          # Versionsnummer. Jetzt laeuft er bei jedem Push mit.
+          bash scripts/skill_packen.sh
+
+      - name: Der Renderer kommt ohne PyPI zustande
+        run: |
+          # Der gemeldete Fall, nachgestellt: Eine Analyse-Sandbox bringt die
+          # vier verbreiteten Pakete mit, typst nicht — und hat kein PyPI.
+          # Nur hier laesst sich das pruefen: Das mitgelieferte Wheel ist fuer
+          # manylinux gebaut und auf keiner anderen Plattform installierbar.
+          mkdir -p /tmp/sandbox && cd /tmp/sandbox
+          unzip -q "$GITHUB_WORKSPACE/falzmarke.skill"
+          python -m venv v
+          v/bin/pip install --quiet pyyaml pdfplumber pypdf markdown-it-py
+
+          # Vorbedingung sichtbar machen: typst fehlt wirklich. Ohne diese
+          # Zeile bewiese ein gruener Lauf nur, dass typst schon da war.
+          if v/bin/python -c "import typst" 2>/dev/null; then
+            echo "FEHL: typst war schon installiert — der Test misst nichts."; exit 1
+          fi
+
+          # Ab hier ist PyPI unerreichbar.
+          export PIP_INDEX_URL=http://127.0.0.1:1/simple PIP_RETRIES=0 PIP_TIMEOUT=1
+          v/bin/python falzmarke/scripts/bootstrap.py
+          v/bin/python -c "import typst; print('typst aus dem Paket:', typst.__file__)"
+
+      - name: Gegenprobe — ohne das Wheel scheitert derselbe Lauf
+        run: |
+          # Ohne sie belegt der Schritt davor nur, dass er gruen ist.
+          cd /tmp/sandbox
+          v/bin/pip uninstall -y --quiet typst
+          rm -f falzmarke/vendor/*.whl
+          export PIP_INDEX_URL=http://127.0.0.1:1/simple PIP_RETRIES=0 PIP_TIMEOUT=1
+          if v/bin/python falzmarke/scripts/bootstrap.py; then
+            echo "FEHL: bootstrap meldete Erfolg ohne Wheel und ohne Netz."; exit 1
+          fi
+          echo "OK  Ohne Wheel und ohne Netz bricht bootstrap ab, wie vorgesehen."
+
   pdf-konformitaet:
     # Der einzige Job, dessen Urteil NICHT aus dieser Codebasis stammt.
     #
