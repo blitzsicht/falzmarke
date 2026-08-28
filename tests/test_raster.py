@@ -80,7 +80,10 @@ def test_die_pruefung_misst_ueberhaupt_etwas(gerendert):
     bericht = geometrie.pruefe(pdf, form)
     raster = [p for p in bericht.pruefungen if "Zeilenraster" in p.name]
     assert raster, "keine Rasterprüfung im Bericht"
-    treffer = re.search(r"(\d+) Abstände", raster[0].ist)
+    # Der Bericht sagt „15× eingehalten". Die Zahl davor ist die Zahl der
+    # gemessenen Abstände; die Formulierung wurde gekürzt, damit die Zeile in
+    # das Terminal der GIF-Aufnahme passt (tests/test_tape.py).
+    treffer = re.search(r"(\d+)×", raster[0].ist)
     assert treffer, raster[0].ist
     assert int(treffer.group(1)) >= 8, raster[0].ist
 
