@@ -92,9 +92,14 @@ regeln:
     quellen: [rfc5322]
     wirkung: fehler
     bemerkung: >-
-      Geprüft mit email.utils.parseaddr, nicht mit einem eigenen Ausdruck.
-      Wie weit diese Prüfung trägt, ist eine andere Frage — sie lässt heute
-      Adressen ohne Empfängerteil durch und wird gesondert nachgezogen.
+      Zerlegt mit email.utils.parseaddr, nicht mit einem eigenen Ausdruck —
+      die Klammerform hat mehr Fälle, als ein handgeschriebenes Muster trifft.
+      Die Form prüft danach lint.adresse_grund().
+
+      Hier stand, die Prüfung lasse Adressen ohne Empfängerteil durch. Das war
+      schon damals falsch: Nach parseaddr greift EMAIL_MUSTER, und `@firma.de`
+      fällt dort durch. Nachgemessen am 28.08.2026 gegen achtzehn Eingaben
+      (Issue #125).
     belegt_durch:
       rfc5322: "Abschnitt 3.4.1 — Addr-Spec Specification"
 
@@ -188,3 +193,19 @@ regeln:
       Übersichten schneiden ab, und wo genau, ist von Programm zu Programm
       verschieden. Damit ist es Praxis und keine Vorschrift, also eine Warnung.
       Die Schwelle selbst wird gesondert nachgezogen (Grenzen als Stufen).
+
+  - id: email.adresse_international
+    titel: Adresse mit Zeichen ausserhalb von ASCII
+    lint: email.adresse_international
+    ebene: praxis
+    herkunft: primaerquelle
+    quellen: [rfc6531]
+    wirkung: warnung
+    bemerkung: >-
+      RFC 6531 laesst solche Adressen zu; viele Server nehmen sie trotzdem nicht
+      an. Das ist eine Aussage ueber die Praxis, nicht ueber die Technik — nach
+      ADR 0035 also nie ein Fehler. Die Formpruefung laeuft davon getrennt
+      weiter: `max@-oe.de` bleibt ein Fehler, auch wenn die Adresse
+      international ist.
+    belegt_durch:
+      rfc6531: Abschnitt 3.2 — Extended Mailbox Address Syntax

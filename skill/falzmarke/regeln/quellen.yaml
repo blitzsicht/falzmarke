@@ -172,6 +172,14 @@ quellen:
     zaehlt: voll
     abgerufen: 2026-08-28
 
+  rfc6531:
+    titel: "RFC 6531 — SMTP Extension for Internationalized Email"
+    url: https://www.rfc-editor.org/rfc/rfc6531
+    art: primaerquelle
+    gruppe: rfc6531
+    zaehlt: voll
+    abgerufen: 2026-08-28
+
   rfc2045:
     titel: "RFC 2045 — MIME Part One: Format of Internet Message Bodies"
     url: https://www.rfc-editor.org/rfc/rfc2045
