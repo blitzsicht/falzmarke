@@ -2,6 +2,36 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.8.1 — 28.08.2026
+
+Das Skill-Paket rendert jetzt auch dort, wo es kein PyPI gibt.
+
+### Behoben
+
+- **Der Renderer kam in Sandboxen nie zustande.** Das Skill-Paket enthielt nur Quelltext;
+  `scripts/bootstrap.py` holte die fünf Abhängigkeiten beim ersten Lauf per `pip` nach. Ohne
+  Netzzugriff — und das ist der Normalfall in den Umgebungen, in denen ein Skill läuft —
+  schlug das fehl. Gemessen: Entpacken, Befehlszeile, `profiles` und `check` liefen, nur
+  `render` nicht, weil `typst` fehlte.
+
+  Das Paket bringt das `typst`-Wheel jetzt mit (`cp38-abi3`, gilt für jedes Python ab 3.8), und
+  `bootstrap.py` installiert **zuerst daraus** und erst danach von PyPI. Je Paket ein eigener
+  Aufruf: `pip install --no-index` bricht sonst komplett ab, sobald für eines der genannten
+  Pakete kein Wheel danebenliegt, und ein Vorrat mit nur `typst` hätte gar nichts ausgerichtet.
+  Bleibt danach etwas offen, nennt die Meldung das fehlende Paket beim Namen, statt am Renderer
+  zu scheitern. Das Paket wächst dadurch von 803 KB auf rund 34 MB. (#122)
+
+### Geändert
+
+- **Das Skill-Paket entsteht über ein Skript, das sich lokal ausführen lässt**
+  (`scripts/skill_packen.sh`) — dieselbe Begründung wie bei der Paketprobe: Wer die Schritte im
+  Workflow ausschreibt, hat zwei Fassungen, und die im Workflow lässt sich vor dem Tag nicht
+  ausprobieren. Das Skript bricht ab, wenn kein Wheel im Paket landet; ein Paket mit leerem
+  `vendor/` sähe von außen aus wie ein gelungener Lauf. (#122)
+- **Das Wheel liegt nicht im Repository.** 32,6 MB je typst-Fassung, die jeder Klon mitzöge und
+  die niemand je wieder aus der Historie bekäme — es wird beim Packen geladen. Ein Test hält
+  fest, dass im Quellbaum keines liegt, und ein zweiter, dass `.gitignore` das abfängt. (#122)
+
 ## v0.8.0 — 27.08.2026
 
 Der Brief bekommt eine zweite Ausgabeform: dieselbe Markdown-Datei wird zur E-Mail. Dazu kommen

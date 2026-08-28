@@ -52,3 +52,12 @@ docs/marke/video/erklaerfilm/public/
 # Sitzungswerkzeuge ihn anlegen — ohne diese Zeile waere er beim naechsten
 # `git add .` mit veroeffentlicht.
 thoughts/
+
+# Wheels reisen im Skill-Paket mit, nicht im Repository (#122).
+# 32,6 MB je typst-Fassung, die niemand je wieder aus der Historie bekaeme —
+# scripts/skill_packen.sh laedt sie beim Packen. tests/test_skillpaket.py
+# haelt beides fest: dass hier keines liegt und dass diese Zeile es abfaengt.
+skill/vendor/*.whl
+paket/
+falzmarke.skill
+falzmarke.skill.sha256

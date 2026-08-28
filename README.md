@@ -431,6 +431,36 @@ Maße gemessen wurden, steht in [`docs/normmasse.md`](https://github.com/blitzsi
 
 Die letzten zwei Versionen im Wortlaut. **Erzeugt aus [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md) — dort ändern, dann `python3 scripts/changelog.py`.**
 
+### v0.8.1 — 28.08.2026
+
+Das Skill-Paket rendert jetzt auch dort, wo es kein PyPI gibt.
+
+#### Behoben
+
+- **Der Renderer kam in Sandboxen nie zustande.** Das Skill-Paket enthielt nur Quelltext;
+  `scripts/bootstrap.py` holte die fünf Abhängigkeiten beim ersten Lauf per `pip` nach. Ohne
+  Netzzugriff — und das ist der Normalfall in den Umgebungen, in denen ein Skill läuft —
+  schlug das fehl. Gemessen: Entpacken, Befehlszeile, `profiles` und `check` liefen, nur
+  `render` nicht, weil `typst` fehlte.
+
+  Das Paket bringt das `typst`-Wheel jetzt mit (`cp38-abi3`, gilt für jedes Python ab 3.8), und
+  `bootstrap.py` installiert **zuerst daraus** und erst danach von PyPI. Je Paket ein eigener
+  Aufruf: `pip install --no-index` bricht sonst komplett ab, sobald für eines der genannten
+  Pakete kein Wheel danebenliegt, und ein Vorrat mit nur `typst` hätte gar nichts ausgerichtet.
+  Bleibt danach etwas offen, nennt die Meldung das fehlende Paket beim Namen, statt am Renderer
+  zu scheitern. Das Paket wächst dadurch von 803 KB auf rund 34 MB. (#122)
+
+#### Geändert
+
+- **Das Skill-Paket entsteht über ein Skript, das sich lokal ausführen lässt**
+  (`scripts/skill_packen.sh`) — dieselbe Begründung wie bei der Paketprobe: Wer die Schritte im
+  Workflow ausschreibt, hat zwei Fassungen, und die im Workflow lässt sich vor dem Tag nicht
+  ausprobieren. Das Skript bricht ab, wenn kein Wheel im Paket landet; ein Paket mit leerem
+  `vendor/` sähe von außen aus wie ein gelungener Lauf. (#122)
+- **Das Wheel liegt nicht im Repository.** 32,6 MB je typst-Fassung, die jeder Klon mitzöge und
+  die niemand je wieder aus der Historie bekäme — es wird beim Packen geladen. Ein Test hält
+  fest, dass im Quellbaum keines liegt, und ein zweiter, dass `.gitignore` das abfängt. (#122)
+
 ### v0.8.0 — 27.08.2026
 
 Der Brief bekommt eine zweite Ausgabeform: dieselbe Markdown-Datei wird zur E-Mail. Dazu kommen
@@ -503,46 +533,7 @@ Repositories.
 - Die Aktion zählt Dateien statt Zeilen: `ls -1 | wc -l` zählt einen Dateinamen mit
   Zeilenumbruch doppelt und meldet eine Zahl, die es nicht gibt. (#58)
 
-### v0.7.3 — 26.08.2026
-
-#### Behoben
-- **Der Schritt „Prüfsummen ausgeben" hat den Upload verhindert.** Er schrieb die Summen mit
-  `| tee dist/SHA256SUMS` in genau das Verzeichnis, das die Publish-Action vollständig
-  hochlädt. Sie prüft vorher jede Datei darin und bricht an der ersten ab, die kein
-  Distributions-Format ist — Lauf 32966455275:
-
-  ```
-  Checking dist/falzmarke-0.7.2-py3-none-any.whl: PASSED
-  Checking dist/SHA256SUMS: ERROR InvalidDistribution: Unknown distribution format: 'SHA256SUMS'
-  ```
-
-  Das Paket selbst war in Ordnung. Die Summen stehen jetzt nur noch im Lauf-Protokoll; die
-  Action gibt sie mit `print-hash: true` ohnehin ein zweites Mal aus.
-
-#### Hinzugefügt
-- **Ein Wächter vor dem Upload.** Ein neuer Schritt bricht ab, wenn in `dist/` etwas liegt, das
-  weder `.whl` noch `.tar.gz` ist. Das Entfernen des `tee` behebt diesen einen Fall; der
-  Wächter behebt die Fehlerklasse. Er schlägt fehl, wo es nichts kostet — statt nach der
-  Freigabe, im unumkehrbaren Job.
-
-Lauf 32966455275 brach — wie die drei davor — **vor** dem Upload ab; auf PyPI war zu diesem
-Zeitpunkt nichts gelandet.
-
-#### Angekommen
-**v0.7.3 liegt auf [PyPI](https://pypi.org/project/falzmarke/)** — der fünfte Anlauf, Lauf
-32972861001 am 26.08.2026. Gemessen, nicht vom grünen Job abgelesen:
-`pypi.org/pypi/falzmarke/json` → HTTP 200, Version 0.7.3, Wheel und sdist. In einer frischen
-Umgebung installiert (`pip install falzmarke`) und ein Brief gerendert: 33/33 Maße eingehalten.
-
-Damit gelten die kurzen Befehle: `pipx install falzmarke`, `uvx falzmarke`. Die README nennt sie
-jetzt, und `tests/test_installationswege.py` lässt sie zu (`AUF_PYPI = True`).
-
-#### Warum es diese Version gibt
-Wie schon bei 0.7.1 und 0.7.2: Das Ruleset `release-tags` lässt Tags weder verschieben noch
-löschen, und das Environment `pypi` erlaubt Deployments nur von Tags `v*`. Ein neuer Anlauf
-braucht deshalb eine neue Versionsnummer — v0.7.2 ist verbraucht.
-
-Davor liegen 15 weitere Versionen — der vollständige Verlauf steht in [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md).
+Davor liegen 16 weitere Versionen — der vollständige Verlauf steht in [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md).
 
 <!-- changelog:ende -->
 
