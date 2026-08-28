@@ -22,3 +22,23 @@ statt für eine einzelne Fassung.
 
 Wer offline arbeitet und mehr braucht, legt weitere Wheels hierher —
 `bootstrap.py` nimmt jedes, das passt.
+
+## Wer aus dem Repository baut, hat kein Wheel
+
+Das ist die Kehrseite der Entscheidung oben, und sie soll nicht überraschen: Ein Klon dieses
+Repositoriums — und ebenso jede Schnittstelle, die nur Repository-Dateien liest — findet dieses
+Verzeichnis **leer**. Der erste Lauf braucht dann Netzzugriff, so wie vor v0.8.1.
+
+Gemessen am 28.08.2026: Ein Werkzeug, das über einen GitHub-Zugriff Repository-Dateien und
+Release-Metadaten sieht, bekommt das 33-MB-Binärasset des Releases nicht als lokale Datei. Für
+solche Umgebungen ist der Weg deshalb **die `.skill`-Datei selbst**, nicht der Quellbaum.
+
+Wer offline arbeiten muss und nur den Quellbaum hat, legt das Wheel von Hand hierher:
+
+```bash
+python3 -m pip download --only-binary=:all: --no-deps \
+  --platform manylinux_2_17_x86_64 --python-version 3.8 --implementation cp --abi abi3 \
+  --dest skill/vendor "$(grep -E '^typst' skill/requirements.txt)"
+```
+
+Das ist derselbe Aufruf, den `scripts/skill_packen.sh` beim Packen ausführt.

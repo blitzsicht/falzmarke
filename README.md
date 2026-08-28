@@ -188,6 +188,19 @@ ist**. Die SHA-256-Summe steht in der Release-Notiz und als `falzmarke.skill.sha
 
 ## In 60 Sekunden
 
+Drei Wege, und sie können nicht dasselbe:
+
+| Weg | rendert ohne Netz | Größe | wofür |
+|---|---|---|---|
+| `falzmarke.skill` hochladen | **ja** — der Typst-Compiler reist mit | 33 MB | Claude, und jede Umgebung, die eine Datei annimmt |
+| `pipx` / `uvx` | nein, der erste Lauf lädt nach | ~1 MB | Terminal |
+| Repository klonen | nein, der erste Lauf lädt nach | ~1 MB | Mitarbeit am Werkzeug |
+
+Nur das Release-Paket bringt den Compiler mit. Wer den Skill **aus dem Repository** bezieht — etwa
+über eine Schnittstelle, die Repository-Dateien liest —, findet `skill/vendor/` leer und braucht
+für den ersten Lauf Netzzugriff. Der Grund steht in
+[`skill/vendor/README.md`](https://github.com/blitzsicht/falzmarke/blob/main/skill/vendor/README.md).
+
 ### Mit Claude
 
 1. **[`falzmarke.skill` herunterladen](https://github.com/blitzsicht/falzmarke/releases/latest/download/falzmarke.skill)**
