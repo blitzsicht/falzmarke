@@ -31,6 +31,16 @@ WORT = {
     regeln.EINZELN: "einzeln belegt",
     regeln.OFFEN: "offen",
     regeln.WERKZEUG: "Werkzeugprüfung",
+    regeln.PRIMAER: "Primärquelle",
+}
+
+#: Die zweite Achse (ADR 0035). Regeln ohne Ebene sind die Briefregeln.
+EBENE = {
+    regeln.EBENE_NORM: "Norm",
+    regeln.EBENE_RECHT: "Recht",
+    regeln.EBENE_TECHNIK: "Technik",
+    regeln.EBENE_PRAXIS: "Praxis",
+    regeln.EBENE_WERKZEUG: "Werkzeug",
 }
 
 WIRKUNG = {"fehler": "Fehler", "warnung": "Warnung", "keine": "wird nicht geprüft"}
@@ -43,10 +53,12 @@ def abschnitt() -> str:
         "",
         "## Quellenlage je Regel",
         "",
-        "**Erzeugt aus [`skill/falzmarke/regeln/din5008.yaml`](../falzmarke/regeln/din5008.yaml)"
+        "**Erzeugt aus [`din5008.yaml`](../falzmarke/regeln/din5008.yaml),"
+        " [`email.yaml`](../falzmarke/regeln/email.yaml) und"
+        " [`quellen.yaml`](../falzmarke/regeln/quellen.yaml)"
         " — dort ändern, dann `python3 scripts/quellenlage.py`.**",
         "",
-        "Alle Werte auf dieser Seite stammen aus Sekundärquellen. Der Abgleich mit dem",
+        "Alle Werte **zur DIN 5008** stammen aus Sekundärquellen. Der Abgleich mit dem",
         "Originaltext der DIN 5008:2020-03 einschließlich Berichtigung 1:2020-07 steht aus.",
         "Bis dahin wirkt nur als Fehler, was mehrfach belegt ist; eine Regel aus einer",
         "einzigen Quelle ist eine Warnung, und eine Regel ohne Beleg wird nicht geprüft.",
@@ -63,20 +75,27 @@ def abschnitt() -> str:
         "Regel nur in einem Kommentar, und **alle vierzehn** als mehrfach bestätigt",
         "geführten Regeln verfehlten sie.",
         "",
-        "| Regel | Herkunft | wirkt als | Quellen |",
-        "|---|---|---|---|",
+        "Die **Ebene** sagt, wovon eine Regel redet, die **Herkunft**, wie gut sie belegt",
+        "ist. Es gilt die schärfere der beiden Grenzen: Regeln der Ebenen Recht und Praxis",
+        "sind nie ein Fehler, auch wenn ihr Beleg es hergäbe ([ADR 0035](../../docs/entscheidungen/0035-vier-ebenen-fuer-email-regeln.md)).",
+        "Die Briefregeln tragen noch keine Ebene — für sie ist die Herkunft die einzige Achse.",
+        "",
+        "| Regel | Ebene | Herkunft | wirkt als | Quellen |",
+        "|---|---|---|---|---|",
     ]
     for regel in regeln.alle():
         namen = regel.get("quellen") or []
         belege = ", ".join(quellen[n]["titel"].strip('"') for n in namen) if namen else "—"
         zeilen.append(
-            f"| {regel['titel']} | {WORT[regel['herkunft']]} | "
+            f"| {regel['titel']} | {EBENE.get(regel.get('ebene'), '—')} | "
+            f"{WORT[regel['herkunft']]} | "
             f"{WIRKUNG.get(regel.get('wirkung'), '—')} | {belege} |")
 
     zeilen += ["", "### Die Quellen", ""]
     for name, quelle in quellen.items():
         art = {"sekundaerquelle": "Sekundärquelle", "implementierung": "Implementierung",
-               "eigene_messung": "eigene Messung"}.get(quelle["art"], quelle["art"])
+               "eigene_messung": "eigene Messung",
+               "primaerquelle": "Primärquelle"}.get(quelle["art"], quelle["art"])
         titel = quelle["titel"].strip('"')
         url = quelle["url"]
         zaehlt = {

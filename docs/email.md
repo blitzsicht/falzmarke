@@ -73,7 +73,13 @@ Das vollständige Protokoll mit Matrix und Gegenprobe:
 
 ## Grenzen
 
-- **Betreff:** höchstens 78 Zeichen. Darüber schneiden viele Übersichten ab.
+- **Betreff:** ab 78 Zeichen eine **Warnung**, kein Fehler. Die Zahl stammt aus RFC 5322,
+  Abschnitt 2.1.1 — dort steht aber etwas anderes, als hier bis v0.8.1 behauptet wurde: Begrenzt
+  ist die **Zeilenlänge** einer Kopfzeile („SHOULD be no more than 78 characters"), und ein
+  längerer Betreff wird gefaltet, nicht abgelehnt. Was oberhalb wirklich passiert, ist eine
+  Anzeigefrage: Übersichten schneiden ab, und wo genau, ist von Programm zu Programm verschieden.
+  Damit ist es Erfahrung und keine Vorschrift — Ebene **Praxis** nach
+  [ADR 0035](entscheidungen/0035-vier-ebenen-fuer-email-regeln.md), und Praxis ist nie ein Fehler.
 - **Zeilenlänge:** RFC 5322 erlaubt keine Zeile über 998 Zeichen.
 - **Anhänge:** zusammen höchstens 10 MB. Größeres lehnen viele Server ab, ohne es zu sagen.
 - **Bilder** dürfen nur aus der Nachricht selbst kommen (`cid:` oder `data:`) — kein externes

@@ -1,0 +1,286 @@
+# Das Quellen-Register — die einzige Stelle, an der eine Quelle beschrieben wird.
+#
+# Bis v0.8.1 stand dieser Block in `din5008.yaml`. Seit die E-Mail-Regeln eine
+# eigene Regeldatei haben (ADR 0035), zitieren ZWEI Regeldateien dieselben
+# Quellen: Die Ebene `norm` beruft sich fuer Abschnitt 22 auf dieselben
+# Sekundaerquellen wie die Briefregeln. Zwei Register waeren zwei Fassungen
+# derselben Sache — und genau das soll die Quellenlage verhindern.
+#
+# Wer eine Quelle ergaenzt, traegt sie hier ein; die Regeldateien nennen nur
+# noch ihren Namen.
+#
+#
+# ── zaehlt: wie weit eine Quelle traegt ────────────────────────────────────
+#
+#   voll     Externer Beleg. Zaehlt fuer `einzeln_belegt` UND `mehrfach_bestaetigt`.
+#
+#   einzeln  Beleg ja, unabhaengige Bestaetigung nein. Bisher nur `letter_pro`:
+#            vendort unter skill/falzmarke/typst/vendor/ — falzmarke SETZT damit
+#            das Layout. Ein Sollwert von dort wird gegen ein PDF geprueft, das
+#            dieselbe Quelle erzeugt hat; die Pruefung kann nicht rot werden.
+#            Als Hinweis darauf, wie jemand anders die Norm gelesen hat, bleibt
+#            der Eintrag wertvoll — als Bestaetigung des eigenen Ergebnisses ist
+#            er wertlos. Deshalb traegt er eine Regel, hebt sie aber nie auf
+#            `mehrfach_bestaetigt`.
+#
+#   nie      Zaehlt gar nicht. Bisher nur `eigene_messung`: Sie belegt, dass das
+#            Werkzeug einhaelt, was es sich vornimmt — nicht, dass das
+#            Vorgenommene der Norm entspricht.
+#
+# Bis v0.5.0 stand diese Zaehlung nur in diesem Kommentar und wurde von Hand
+# gesetzt. Gemessen am 25.08.2026: ALLE 14 als `mehrfach_bestaetigt` gefuehrten
+# Regeln verfehlten die damalige Definition (je 2 Sekundaerquellen + 1
+# Implementierung, verlangt waren 3 bzw. 1+2). Seitdem prueft
+# `regeln/__init__.py` die Zaehlung — eine Regel, die ihre Stufe nicht traegt,
+# laesst die Regeldatei abbrechen.
+#
+# Nach dem Normabgleich wird `herkunft` durch `DIN 5008:2020-03, Abschnitt …`
+# ersetzt und die Quellenliste entfällt.
+
+
+quellen:
+  massskizze_b:
+    titel: "Maßzeichnung „DIN 5008 Form B“, Wikimedia Commons"
+    url: https://commons.wikimedia.org/wiki/File:DIN_5008_Form_B.svg
+    art: sekundaerquelle
+    gruppe: formb_zeichnung_2013
+    zaehlt: voll
+    abgerufen: 2026-08-25
+    bemerkung: >-
+      Bemaßte Zeichnung von 2013. Aus den Pfaden gerendert und abgelesen; sie
+      nennt 45 / 85×45 / 17,7 / 27,3 / 125 / 75 / 8,46 / 105 / 210 / 148,5 /
+      25 / 20 / 4,23 mm. Nur Form B — ein Pendant für Form A gibt es dort nicht.
+  onlineprinters:
+    titel: "Maßzeichnung Form B im Onlineprinters-Magazin"
+    url: https://www.onlineprinters.de/magazin/aufbau-geschaeftsbrief-nach-din-5008/
+    art: sekundaerquelle
+    gruppe: formb_zeichnung_2013
+    zaehlt: voll
+    abgerufen: 2026-08-25
+    bemerkung: >-
+      Als Sichtreferenz gegengeprüft. Die dort angebotene Word-Vorlage wich am
+      25.08.2026 in vier Maßen von den Zeichnungen ab (docs/normmasse.md); die
+      Maßzeichnung selbst stimmt mit den übrigen Quellen überein. Ein Urteil
+      „nicht normgerecht" wird daraus nicht abgeleitet: Gemessen wurde gegen
+      die Zeichnungen, nicht gegen den Normtext.
+      **Die frühere Adresse (…/din-5008-vorlage/) ist tot** — sie leitet auf die
+      Magazin-Startseite um und wurde nie archiviert. Am 26.08.2026 durch die
+      tatsächliche Artikeladresse ersetzt.
+      Zur Unabhängigkeit von `massskizze_b` läuft eine Prüfung (Issue #16): Die
+      Bemaßungsstruktur beider Form-B-Zeichnungen ist deckungsgleich, und die
+      CC0-Lizenz der Wikimedia-Zeichnung erlaubt eine Übernahme ohne Nennung.
+      Solange dort keine Kontrollzeichnung vorliegt, bleibt die Stufe unverändert.
+  massskizze_a:
+    titel: "Maßzeichnung Form A im Onlineprinters-Magazin"
+    url: https://www.onlineprinters.de/magazin/aufbau-geschaeftsbrief-nach-din-5008/
+    art: sekundaerquelle
+    gruppe: onlineprinters_magazin
+    zaehlt: voll
+    abgerufen: 2026-08-26
+    bemerkung: >-
+      Eigene Form-A-Zeichnung (Datei `Vorlage_Geschaeftsbrief_DIN-5008_Form-A.jpg`,
+      hochgeladen 2021-07), Bezugsnorm DIN 5008:2020.
+      **Getrennt von `onlineprinters` geführt, obwohl im selben Artikel:** Für
+      Form A gibt es auf Wikimedia kein Pendant, diese Zeichnung kann also nicht
+      von dort abgeleitet sein — der Zweifel an der Form-B-Zeichnung trifft sie
+      nicht. Dieselbe Fundstelle, aber eine andere Belegkette.
+      Abgelesen und nachgerechnet: Briefkopf/Anschriftfeld ab 27, Anschriftzone
+      20 links und 45 hoch, Faltmarke 1 bei 87, Lochmarke bei 148,5, von dort
+      105 bis Faltmarke 2 (= 192) und nochmals 105 bis zur Blattkante.
+      87 + 105 + 105 = 297 mm — die Bemaßung geht auf A4 auf, was ein
+      Ablesefehler nicht täte.
+  koma_script:
+    titel: "KOMA-Script, DIN5008A.lco (TeX Live)"
+    url: https://ctan.org/pkg/koma-script
+    art: implementierung
+    gruppe: koma_script
+    zaehlt: einzeln
+    abgerufen: 2026-08-26
+    bemerkung: >-
+      **Nicht vendort** — im Gegensatz zu letter_pro setzt falzmarke nicht damit.
+      Der Sollwert käme also von außen, und die Prüfung kann rot werden.
+      **Zählt trotzdem nicht zur Bestätigung**, aus zwei Gründen. Erstens
+      bezeichnet das Handbuch die Datei selbst als „experimentellen" Parametersatz,
+      „angelehnt an" Variante A, der „nur eine einzige Interpretation der Norm"
+      umsetzt. Zweitens: `DIN5008A.lco` lädt `DINmtext` als Basis und ändert
+      zwölf Längen — aber keine der Kerngeometrie. Faltmarken 87/192 und
+      Anschriftfeld 27 stammen unverändert aus `DINmtext`, und das ist laut
+      Handbuch der Parametersatz nach **DIN 676**, nicht nach DIN 5008.
+      Dass der Autor gerade diese Werte nicht angepasst hat, ist stille
+      Zustimmung — aber keine eigenständige Normaussage.
+  wikipedia:
+    titel: "DIN 5008 in der deutschsprachigen Wikipedia"
+    url: https://de.wikipedia.org/wiki/DIN_5008
+    art: sekundaerquelle
+    gruppe: wikipedia
+    zaehlt: voll
+    abgerufen: 2026-08-25
+    bemerkung: >-
+      Nennt ausdrücklich nur: Anschriftfeld 32 mm (Form A) bzw. 50 mm (Form B)
+      unter der Oberkante, Fluchtlinie 25 mm, A4, Datumsformate und die
+      Abkürzungsschreibung mit Leerzeichen. Die übrigen Detailmaße stehen dort
+      nicht — die Quelle trägt weniger, als ihre Nennung vermuten lässt.
+      Eigene Gruppe: Der Artikeltext ist ein anderes Werk als die Zeichnung
+      auf Commons. Dass beide unter der Wikimedia Foundation liegen und der
+      Artikel die Zeichnung einbinden koennte, ist NICHT geprueft — zwei
+      Regeln (geometrie.seitenformat, geometrie.seitenraender) stuetzen ihre
+      Stufe auf genau dieses Paar. Siehe docs/quellenunabhaengigkeit-2026-08-27.md.
+  letter_pro:
+    titel: "typst-letter-pro v3.0.0"
+    url: https://github.com/Sematre/typst-letter-pro
+    art: implementierung
+    gruppe: letter_pro
+    zaehlt: einzeln
+    abgerufen: 2026-08-25
+    bemerkung: >-
+      Vendort unter skill/falzmarke/typst/vendor/, prüfsummengesichert. Die
+      Werte sind dort direkt nachlesbar (folding-mark-1-pos usw.).
+      **Zählt nicht zur Bestätigung**: falzmarke setzt das Layout mit dieser
+      Datei. Ein Sollwert von hier würde gegen ein PDF geprüft, das dieselbe
+      Quelle erzeugt hat — die Prüfung könnte nicht rot werden.
+  eigene_messung:
+    titel: "Messung am gerenderten PDF"
+    url: docs/normmasse.md
+    art: eigene_messung
+    gruppe: eigene_messung
+    zaehlt: nie
+    abgerufen: 2026-08-25
+    bemerkung: >-
+      **Keine unabhängige Quelle.** Sie belegt, dass das Werkzeug einhält, was
+      es sich vornimmt — nicht, dass das Vorgenommene der Norm entspricht.
+      Zählt deshalb nie zur Bestätigung.
+
+
+  # ── Primaerquellen: der Vorschriftentext selbst ──────────────────────────
+  #
+  # Diese Eintraege unterscheiden sich der Art nach von allen darueber. Eine
+  # Sekundaerquelle ist ein Referat ueber einen Text, den wir nicht haben —
+  # deshalb verlangt `mehrfach_bestaetigt` dort zwei unabhaengige davon. Ein
+  # RFC und ein Gesetz sind der Text. Es gibt nichts zu bestaetigen; es gibt
+  # nur nachzulesen. Dafuer steht die Herkunftsstufe `primaerquelle`.
+  #
+  # Genau diese Lage entsteht nach dem Normabgleich auch fuer die DIN-Regeln.
+  #
+  # `gruppe`: je Vorschrift eine eigene. Zwei Paragrafen desselben Gesetzes
+  # sind zwei Aussagen, keine zwei Ansichten einer Aussage.
+
+  rfc5322:
+    titel: "RFC 5322 — Internet Message Format"
+    url: https://www.rfc-editor.org/rfc/rfc5322
+    art: primaerquelle
+    gruppe: rfc5322
+    zaehlt: voll
+    abgerufen: 2026-08-28
+
+  rfc2045:
+    titel: "RFC 2045 — MIME Part One: Format of Internet Message Bodies"
+    url: https://www.rfc-editor.org/rfc/rfc2045
+    art: primaerquelle
+    gruppe: rfc2045
+    zaehlt: voll
+    abgerufen: 2026-08-28
+
+  rfc3676:
+    titel: "RFC 3676 — The Text/Plain Format and DelSp Parameters"
+    url: https://www.rfc-editor.org/rfc/rfc3676
+    art: primaerquelle
+    gruppe: rfc3676
+    zaehlt: voll
+    abgerufen: 2026-08-28
+
+  rfc2047:
+    titel: "RFC 2047 — MIME Part Three: Message Header Extensions for Non-ASCII Text"
+    url: https://www.rfc-editor.org/rfc/rfc2047
+    art: primaerquelle
+    gruppe: rfc2047
+    zaehlt: voll
+    abgerufen: 2026-08-28
+
+  rfc2231:
+    titel: "RFC 2231 — MIME Parameter Value and Encoded Word Extensions"
+    url: https://www.rfc-editor.org/rfc/rfc2231
+    art: primaerquelle
+    gruppe: rfc2231
+    zaehlt: voll
+    abgerufen: 2026-08-28
+
+  rfc7763:
+    titel: "RFC 7763 — The text/markdown Media Type"
+    url: https://www.rfc-editor.org/rfc/rfc7763
+    art: primaerquelle
+    gruppe: rfc7763
+    zaehlt: voll
+    abgerufen: 2026-08-28
+
+  hgb_37a:
+    titel: "§ 37a HGB — Angaben auf Geschäftsbriefen (eingetragener Kaufmann)"
+    url: https://www.gesetze-im-internet.de/hgb/__37a.html
+    art: primaerquelle
+    gruppe: hgb_37a
+    zaehlt: voll
+    abgerufen: 2026-08-28
+
+  hgb_125:
+    titel: "§ 125 HGB — Angaben auf Geschäftsbriefen (OHG und KG)"
+    url: https://www.gesetze-im-internet.de/hgb/__125.html
+    art: primaerquelle
+    gruppe: hgb_125
+    zaehlt: voll
+    abgerufen: 2026-08-28
+    bemerkung: >-
+      Bis Ende 2023 stand das in § 125a HGB. Das MoPeG hat die Vorschrift zum
+      1. Januar 2024 aufgehoben und den Inhalt nach § 125 HGB ueberfuehrt. Die
+      alte Nummer stand hier noch, als es sie nicht mehr gab — deshalb das
+      Abrufdatum an jedem Eintrag.
+
+  gmbhg_35a:
+    titel: "§ 35a GmbHG — Angaben auf Geschäftsbriefen"
+    url: https://www.gesetze-im-internet.de/gmbhg/__35a.html
+    art: primaerquelle
+    gruppe: gmbhg_35a
+    zaehlt: voll
+    abgerufen: 2026-08-28
+
+  aktg_80:
+    titel: "§ 80 AktG — Angaben auf Geschäftsbriefen"
+    url: https://www.gesetze-im-internet.de/aktg/__80.html
+    art: primaerquelle
+    gruppe: aktg_80
+    zaehlt: voll
+    abgerufen: 2026-08-28
+
+  geng_25a:
+    titel: "§ 25a GenG — Angaben auf Geschäftsbriefen"
+    url: https://www.gesetze-im-internet.de/geng/__25a.html
+    art: primaerquelle
+    gruppe: geng_25a
+    zaehlt: voll
+    abgerufen: 2026-08-28
+
+  uwg_7:
+    titel: "§ 7 UWG — Unzumutbare Belästigungen"
+    url: https://www.gesetze-im-internet.de/uwg_2004/__7.html
+    art: primaerquelle
+    gruppe: uwg_7
+    zaehlt: voll
+    abgerufen: 2026-08-28
+    bemerkung: >-
+      Der Grund, warum falzmarke keine Werbemails erzeugt (ADR 0035). Werbung
+      per E-Mail setzt eine Einwilligung voraus, deren Nachweis der Versender
+      fuehren muss — ein Werkzeug, das nichts versendet und niemanden kennt,
+      kann ihn nicht fuehren.
+
+  ehug:
+    titel: >-
+      EHUG — Gesetz über elektronische Handelsregister und Genossenschaftsregister
+      sowie das Unternehmensregister, ausgefertigt am 10.11.2006
+    url: https://www.buzer.de/gesetz/7443/index.htm
+    art: primaerquelle
+    gruppe: ehug
+    zaehlt: voll
+    abgerufen: 2026-08-28
+    bemerkung: >-
+      Seit dem Inkrafttreten am 1. Januar 2007 gelten die Vorschriften ueber
+      Geschaeftsbriefe „gleichviel welcher Form"; eine geschaeftliche E-Mail ist
+      damit erfasst. Nicht bei gesetze-im-internet.de: Dort stehen nur
+      konsolidierte Fassungen, und ein Aenderungsgesetz hat dort keine Seite.

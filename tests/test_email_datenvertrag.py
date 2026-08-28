@@ -336,6 +336,17 @@ def _loese_aus(regel: str, tmp_path):
         (tmp_path / "beleg-4711.pdf").write_bytes(b"%PDF-1.4 x")
         return linte(tmp_path, MAIL + "anlagen_dateien: [beleg-4711.pdf]\n",
                      "Kein Wort über den Anhang.\n")
+    if regel == "typ":
+        # Ein Briefeld in einer Mail: der Datenvertrag trennt die beiden.
+        return linte(tmp_path, MAIL + "empfaenger: [Muster GmbH, Musterstraße 1]\n")
+    if regel == "an":
+        return linte(tmp_path, MAIL.replace("an: erika.muster@example.de",
+                                            "an: keine-adresse"))
+    if regel == "cc":
+        return linte(tmp_path, MAIL + "cc: [auch-keine-adresse]\n")
+    if regel == "antwort_auf":
+        # Message-IDs stehen nach RFC 5322 in spitzen Klammern.
+        return linte(tmp_path, MAIL + "antwort_auf: ohne-spitze-klammern@example.de\n")
     if regel in ("email.profil", "email.absender", "email.pflichtangaben"):
         feld = {"email.profil": "email", "email.absender": "absender",
                 "email.pflichtangaben": "pflichtangaben"}[regel]
@@ -346,9 +357,18 @@ def _loese_aus(regel: str, tmp_path):
 
 
 def _regeln_der_regeldatei() -> set[str]:
+    """Die Regeln der E-Mail-Fassung — gefragt wird die Herkunftsdatei.
+
+    Bis v0.8.1 lief der Filter über das ID-Präfix `werkzeug.email`. Das war
+    ein Behelf und hat sich an zwei Stellen gerächt: `werkzeug.email_im_infoblock`
+    fiel hinein, obwohl es eine **Brief**regel ist (eine E-Mail-Adresse im
+    Informationsblock), und `typ`, `an`, `cc` und `antwort_auf` fielen heraus,
+    obwohl sie zum Datenvertrag der Mail gehören. Seit ADR 0035 stehen die
+    E-Mail-Regeln in einer eigenen Datei, und die ist die genauere Auskunft.
+    """
     from falzmarke import regeln as regelsatz
     return {r["lint"] for r in regelsatz.alle()
-            if r.get("lint") and str(r["id"]).startswith("werkzeug.email")}
+            if r.get("lint") and r.get("_datei") == "email.yaml"}
 
 
 def test_die_regelmenge_ist_nicht_leer():

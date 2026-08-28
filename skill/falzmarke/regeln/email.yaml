@@ -1,0 +1,190 @@
+# Die Regeln der E-Mail-Fassung, nach Ebenen getrennt (ADR 0035).
+#
+# Bis v0.8.1 standen sie in `din5008.yaml` und trugen alle dieselbe Angabe:
+# `herkunft: werkzeug`, `quellen: []`. Die RFC-Regel, die handelsrechtliche
+# Erinnerung und die Erfahrung mit einem Mailprogramm wirkten damit gleich
+# stark und sahen in der Meldung gleich aus. Eine Meldung, die „DIN" sagt, wo
+# Outlook-Praxis gemeint ist, ist von einer, die ihr Versprechen einloest, fuer
+# den Empfaenger nicht zu unterscheiden.
+#
+# Die Quellen stehen in `quellen.yaml` — dieselbe Datei, aus der sich auch
+# `din5008.yaml` bedient.
+#
+# ── ebene: wovon die Regel redet ───────────────────────────────────────────
+#
+#   norm      DIN 5008, Abschnitte 22 und 25.        darf Fehler sein
+#   recht     Handelsrecht, UWG.                     hoechstens Warnung
+#   technik   RFC 5322, 2045, 3676, 2047, 2231, 7763. darf Fehler sein
+#   praxis    Darstellungsverhalten von Mailprogrammen. hoechstens Warnung
+#   werkzeug  Der eigene Datenvertrag. Keine Aussage ueber die Welt.
+#                                                    darf Fehler sein
+#
+# Zu `werkzeug`: ADR 0035 nennt vier Ebenen. Beim Eintragen zeigte sich, dass
+# mehrere Regeln zu keiner davon gehoeren — `typ` trennt Brief und E-Mail,
+# `email.profil` faengt einen Tippfehler im Profil. Sie reden ueber die
+# Eingabe, nicht ueber Norm, Recht, Technik oder fremde Programme. Sie einer
+# der vier Ebenen zuzuschlagen waere eine Herkunftsbehauptung, die es nicht
+# gibt — genau der Fehler, den ADR 0035 abstellen soll. Deshalb die fuenfte.
+# Dieselbe Ueberlegung hat schon den vierten Wert von `herkunft` erzeugt; der
+# Nachtrag vom 28.08.2026 in ADR 0035 haelt es fest.
+#
+# `ebene` und `herkunft` sind zwei Achsen, und es gilt die schaerfere der
+# beiden Grenzen: `email.pflichtangaben` ist aus Primaerquellen belegt und
+# duerfte danach ein Fehler sein — die Ebene `recht` deckelt sie auf Warnung.
+
+regeln:
+
+  # ── Der eigene Datenvertrag ──────────────────────────────────────────────
+
+  - id: email.typ
+    titel: typ trennt Brief und E-Mail
+    lint: typ
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Deckt auch die Felder des jeweils anderen Erzeugnisses ab. Ein Brief an
+      eine Mailadresse und eine Mail an eine Postanschrift sind beides
+      Dokumente, die niemanden erreichen.
+
+  - id: email.datum
+    titel: datum wird in einer E-Mail nicht gesetzt
+    lint: email.datum
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      Der Mailclient setzt es beim Versand. Warnung statt Fehler, weil die
+      Zeile aus einem Brief stammen kann, der zur Mail umgeschrieben wurde.
+
+  - id: email.profil
+    titel: Profil hat einen Abschnitt email
+    lint: email.profil
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Deckt auch unbekannte Felder innerhalb des Abschnitts ab. Ohne die Liste
+      bliebe ein Tippfehler im Profil stumm.
+
+  - id: email.anlage
+    titel: Anlage wird im Text genannt
+    lint: email.anlage
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      Nur ein Hinweis. Ein Werkzeug, das ungefragt Sätze in einen Brieftext
+      schreibt, schreibt irgendwann den falschen — deshalb wird gemeldet und
+      nicht eingefügt.
+
+  # ── Technik: das Format schreibt es vor ──────────────────────────────────
+
+  - id: email.an
+    titel: an ist eine E-Mail-Adresse
+    lint: an
+    ebene: technik
+    herkunft: primaerquelle
+    quellen: [rfc5322]
+    wirkung: fehler
+    bemerkung: >-
+      Geprüft mit email.utils.parseaddr, nicht mit einem eigenen Ausdruck.
+      Wie weit diese Prüfung trägt, ist eine andere Frage — sie lässt heute
+      Adressen ohne Empfängerteil durch und wird gesondert nachgezogen.
+    belegt_durch:
+      rfc5322: "Abschnitt 3.4.1 — Addr-Spec Specification"
+
+  - id: email.cc
+    titel: cc ist eine E-Mail-Adresse
+    lint: cc
+    ebene: technik
+    herkunft: primaerquelle
+    quellen: [rfc5322]
+    wirkung: fehler
+    belegt_durch:
+      rfc5322: "Abschnitt 3.4.1 — Addr-Spec Specification"
+
+  - id: email.absender
+    titel: email.absender im Profil ist eine E-Mail-Adresse
+    lint: email.absender
+    ebene: technik
+    herkunft: primaerquelle
+    quellen: [rfc5322]
+    wirkung: fehler
+    bemerkung: Die Absenderadresse steht im Profil, nicht im einzelnen Schreiben.
+    belegt_durch:
+      rfc5322: "Abschnitt 3.4.1 — Addr-Spec Specification"
+
+  - id: email.antwort_auf
+    titel: antwort_auf ist eine Message-ID
+    lint: antwort_auf
+    ebene: technik
+    herkunft: primaerquelle
+    quellen: [rfc5322]
+    wirkung: fehler
+    bemerkung: Message-IDs stehen nach RFC 5322 in spitzen Klammern.
+    belegt_durch:
+      rfc5322: >-
+        Abschnitt 3.6.4 — Identification Fields: „The message identifier
+        (msg-id) syntax is a limited version of the addr-spec construct
+        enclosed in the angle bracket characters, '<' and '>'."
+
+  # ── Recht: das Werkzeug erinnert, es prüft nicht ─────────────────────────
+
+  - id: email.pflichtangaben
+    titel: email.pflichtangaben ist gesetzt
+    lint: email.pflichtangaben
+    ebene: recht
+    herkunft: primaerquelle
+    quellen: [hgb_37a, hgb_125, gmbhg_35a, aktg_80, geng_25a, ehug]
+    wirkung: warnung
+    bemerkung: >-
+      Nur eine Erinnerung, keine Rechtsprüfung (ADR 0005). Welche Angaben eine
+      Rechtsform braucht, entscheidet nicht das Werkzeug — deshalb Warnung und
+      deshalb kein Abgleich des Inhalts. Die Quellen belegen, DASS es die
+      Pflicht gibt und dass sie seit dem EHUG auch für E-Mails gilt; sie
+      belegen nicht, dass ein bestimmtes Profil ihr genügt.
+    belegt_durch:
+      hgb_37a: >-
+        Absatz 1 — zählt für den eingetragenen Kaufmann Firma, Bezeichnung
+        nach § 19 Abs. 1 Nr. 1, Ort der Handelsniederlassung, Registergericht
+        und Registernummer auf.
+      hgb_125: >-
+        Absatz 1 — Firma und Sitz der Gesellschaft, Registergericht und
+        Nummer. Seit dem MoPeG hier statt in § 125a.
+      gmbhg_35a: >-
+        Absatz 1 — „Auf allen Geschäftsbriefen gleichviel welcher Form, die an
+        einen bestimmten Empfänger gerichtet werden, müssen …". Diese Wendung
+        ist der Grund, aus dem die Pflicht auch für E-Mails gilt; sie steht im
+        geltenden Text selbst, nicht nur im Änderungsgesetz.
+      aktg_80: >-
+        Absatz 1 — gleicher Wortlaut „gleichviel welcher Form".
+      geng_25a: >-
+        Absatz 1 — gleicher Wortlaut „gleichviel welcher Form".
+      ehug: >-
+        Das Änderungsgesetz, das die Wendung „gleichviel welcher Form" 2007 in
+        die vier Vorschriften eingefügt hat. Historischer Beleg, nicht der
+        geltende Text — den tragen die Paragrafen oben selbst. Steht hier,
+        damit die Jahreszahl in docs/recht.md eine Fundstelle hat.
+
+  # ── Praxis: Erfahrung mit Programmen, nie ein Fehler ─────────────────────
+
+  - id: email.betreff_laenge
+    titel: Betreff der E-Mail höchstens 78 Zeichen
+    lint: email.betreff
+    ebene: praxis
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      Die Begründung stand bis v0.8.1 falsch da: „Aus RFC 5322: Die Kopfzeile
+      ist auf 78 Zeichen begrenzt." Das trifft nicht zu. RFC 5322 begrenzt die
+      ZEILENLÄNGE einer Kopfzeile; ein längerer Betreff wird gefaltet, nicht
+      abgelehnt. Was oberhalb wirklich passiert, ist eine Anzeigefrage —
+      Übersichten schneiden ab, und wo genau, ist von Programm zu Programm
+      verschieden. Damit ist es Praxis und keine Vorschrift, also eine Warnung.
+      Die Schwelle selbst wird gesondert nachgezogen (Grenzen als Stufen).
