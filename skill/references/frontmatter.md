@@ -130,7 +130,10 @@ email:
   zusatz:                              # optional, z. B. Vertraulichkeitshinweis
     - Diese E-Mail enthält vertrauliche Informationen.
   gruss: Mit freundlichen Grüßen       # ohne Angabe: `gruss` des Profils
-  logo: false                          # true = Logo als CID mit Alternativtext
+  logo: false                          # false, true (nimmt briefkopf.logo) oder ein Pfad
+  #                                    Rasterbild (PNG/JPG/GIF) — Outlook zeigt kein SVG.
+  #                                    Es muss auf hellem UND dunklem Grund tragen: ein Bild
+  #                                    schaltet die Farbe nicht um (Issue #154).
 ```
 
 `pflichtangaben` ist eine **Erinnerung, keine Rechtsprüfung**: `lint` warnt, wenn das Feld leer

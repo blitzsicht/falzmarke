@@ -57,87 +57,102 @@ MIME-Version: 1.0
 <meta charset=3D"utf-8">
 <meta name=3D"viewport" content=3D"width=3Ddevice-width, initial-scale=3D1">
 <meta name=3D"color-scheme" content=3D"light dark">
+<style type=3D"text/css">
+@media (prefers-color-scheme: dark) {
+  .fm-t { color: #e8e8e8 !important; }
+  .fm-l { color: #a8a8a8 !important; }
+  .fm-r { border-color: #4a4a4a !important; }
+}
+[data-ogsc] .fm-t { color: #e8e8e8 !important; }
+[data-ogsc] .fm-l { color: #a8a8a8 !important; }
+[data-ogsc] .fm-r { border-color: #4a4a4a !important; }
+</style>
 </head>
-<body style=3D"margin: 0; padding: 16px; font-family: -apple-system, 'Segoe U=
-I', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;=
- color: #1a1a1a;">
+<body class=3D"fm-t" style=3D"margin: 0; padding: 16px; font-family: -apple-s=
+ystem, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; lin=
+e-height: 1.45; color: #1a1a1a;">
 <div style=3D"max-width: 600px;">
-<p style=3D"margin: 0 0 12px; font-family: -apple-system, 'Segoe UI', Roboto,=
- Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a=
-1a1a;">Sehr geehrte Damen und Herren,</p>
-<p style=3D"margin: 0 0 12px; font-family: -apple-system, 'Segoe UI', Roboto,=
- Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a=
-1a1a;">wie besprochen erhalten Sie die Abrechnung der Veranstaltung. Die Einz=
-elbelege reichen wir auf Wunsch nach.</p>
-<table style=3D"border-collapse: collapse; margin: 0 0 12px; font-family: -ap=
-ple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px=
-; line-height: 1.45; color: #1a1a1a;" cellpadding=3D"0" cellspacing=3D"0"><tr=
-><th style=3D"border: 1px solid #c8c8c8; padding: 5px 8px; text-align: left; =
-font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;=
- font-size: 16px; line-height: 1.45; color: #1a1a1a; font-weight: 600;"><stro=
-ng>Position</strong></th><th style=3D"border: 1px solid #c8c8c8; padding: 5px=
- 8px; text-align: right; font-family: -apple-system, 'Segoe UI', Roboto, Helv=
-etica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a;=
- font-weight: 600;"><strong>Menge</strong></th><th style=3D"border: 1px solid=
- #c8c8c8; padding: 5px 8px; text-align: right; font-family: -apple-system, 'S=
-egoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height:=
- 1.45; color: #1a1a1a; font-weight: 600;"><strong>Betrag</strong></th></tr><t=
-r><td style=3D"border: 1px solid #c8c8c8; padding: 5px 8px; text-align: left;=
- font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif=
-; font-size: 16px; line-height: 1.45; color: #1a1a1a;">Technik und Aufbau</td=
-><td style=3D"border: 1px solid #c8c8c8; padding: 5px 8px; text-align: right;=
- font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif=
-; font-size: 16px; line-height: 1.45; color: #1a1a1a;">1</td><td style=3D"bor=
-der: 1px solid #c8c8c8; padding: 5px 8px; text-align: right; font-family: -ap=
-ple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px=
-; line-height: 1.45; color: #1a1a1a;">1.240,00 EUR</td></tr><tr><td style=3D"=
-border: 1px solid #c8c8c8; padding: 5px 8px; text-align: left; font-family: -=
-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16=
-px; line-height: 1.45; color: #1a1a1a;">Bestuhlung</td><td style=3D"border: 1=
-px solid #c8c8c8; padding: 5px 8px; text-align: right; font-family: -apple-sy=
-stem, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line=
--height: 1.45; color: #1a1a1a;">120</td><td style=3D"border: 1px solid #c8c8c=
-8; padding: 5px 8px; text-align: right; font-family: -apple-system, 'Segoe UI=
-', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; =
-color: #1a1a1a;">360,00 EUR</td></tr><tr><td style=3D"border: 1px solid #c8c8=
-c8; padding: 5px 8px; text-align: left; font-family: -apple-system, 'Segoe UI=
-', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; =
-color: #1a1a1a;">Betreuung vor Ort</td><td style=3D"border: 1px solid #c8c8c8=
+<p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, 'Seg=
+oe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1=
+.45; color: #1a1a1a;">Sehr geehrte Damen und Herren,</p>
+<p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, 'Seg=
+oe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1=
+.45; color: #1a1a1a;">wie besprochen erhalten Sie die Abrechnung der Veransta=
+ltung. Die Einzelbelege reichen wir auf Wunsch nach.</p>
+<table class=3D"fm-t" style=3D"border-collapse: collapse; margin: 0 0 12px; f=
+ont-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; =
+font-size: 16px; line-height: 1.45; color: #1a1a1a;" cellpadding=3D"0" cellsp=
+acing=3D"0"><tr><th class=3D"fm-t fm-r" style=3D"border: 1px solid #c8c8c8; p=
+adding: 5px 8px; text-align: left; font-family: -apple-system, 'Segoe UI', Ro=
+boto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color=
+: #1a1a1a; font-weight: 600;"><strong>Position</strong></th><th class=3D"fm-t=
+ fm-r" style=3D"border: 1px solid #c8c8c8; padding: 5px 8px; text-align: righ=
+t; font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-ser=
+if; font-size: 16px; line-height: 1.45; color: #1a1a1a; font-weight: 600;"><s=
+trong>Menge</strong></th><th class=3D"fm-t fm-r" style=3D"border: 1px solid #=
+c8c8c8; padding: 5px 8px; text-align: right; font-family: -apple-system, 'Seg=
+oe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1=
+.45; color: #1a1a1a; font-weight: 600;"><strong>Betrag</strong></th></tr><tr>=
+<td class=3D"fm-t fm-r" style=3D"border: 1px solid #c8c8c8; padding: 5px 8px;=
+ text-align: left; font-family: -apple-system, 'Segoe UI', Roboto, Helvetica,=
+ Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a;">Tech=
+nik und Aufbau</td><td class=3D"fm-t fm-r" style=3D"border: 1px solid #c8c8c8=
 ; padding: 5px 8px; text-align: right; font-family: -apple-system, 'Segoe UI'=
 , Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; c=
-olor: #1a1a1a;">8</td><td style=3D"border: 1px solid #c8c8c8; padding: 5px 8p=
-x; text-align: right; font-family: -apple-system, 'Segoe UI', Roboto, Helveti=
-ca, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a;">6=
-40,00 EUR</td></tr><tr><td style=3D"border: 1px solid #c8c8c8; padding: 5px 8=
-px; text-align: left; font-family: -apple-system, 'Segoe UI', Roboto, Helveti=
-ca, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a;">S=
-umme netto</td><td style=3D"border: 1px solid #c8c8c8; padding: 5px 8px; text=
--align: right; font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Ari=
-al, sans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a;"></td><td=
- style=3D"border: 1px solid #c8c8c8; padding: 5px 8px; text-align: right; fon=
-t-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; fo=
-nt-size: 16px; line-height: 1.45; color: #1a1a1a;">2.240,00 EUR</td></tr></ta=
-ble>
-<p style=3D"margin: 0 0 12px; font-family: -apple-system, 'Segoe UI', Roboto,=
- Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a=
-1a1a;">Bitte =C3=BCberweisen Sie den Betrag bis zum 15.=C2=A0November 2026 au=
-f das unten genannte Konto.</p>
-<p style=3D"margin: 0 0 12px; font-family: -apple-system, 'Segoe UI', Roboto,=
- Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a=
-1a1a;">Mit freundlichen Gr=C3=BC=C3=9Fen</p>
-<p style=3D"margin: 16px 0 0; border-top: 1px solid #c8c8c8; padding-top: 8px=
-; font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-seri=
-f; font-size: 16px; line-height: 1.45; color: #1a1a1a;">Erika Muster<br>Gesch=
-=C3=A4ftsf=C3=BChrerin</p>
-<p style=3D"margin: 10px 0 0; font-family: -apple-system, 'Segoe UI', Roboto,=
- Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a=
-1a1a;">Telefon 0941 620-9800<br>muster@example.de<br>www.example.de</p>
-<p style=3D"margin: 10px 0 0; font-family: -apple-system, 'Segoe UI', Roboto,=
- Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a=
-1a1a;">Beispiel GmbH<br>Musterweg 12<br>93055 Regensburg<br>Amtsgericht Regen=
-sburg HRB 12345<br>USt-IdNr. DE123456789<br>Gesch=C3=A4ftsf=C3=BChrerin: Erik=
-a Muster<br>https://example.de/datenschutz<br>Diese E-Mail enth=C3=A4lt vertr=
-auliche Informationen.</p>
+olor: #1a1a1a;">1</td><td class=3D"fm-t fm-r" style=3D"border: 1px solid #c8c=
+8c8; padding: 5px 8px; text-align: right; font-family: -apple-system, 'Segoe =
+UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45=
+; color: #1a1a1a;">1.240,00 EUR</td></tr><tr><td class=3D"fm-t fm-r" style=3D=
+"border: 1px solid #c8c8c8; padding: 5px 8px; text-align: left; font-family: =
+-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 1=
+6px; line-height: 1.45; color: #1a1a1a;">Bestuhlung</td><td class=3D"fm-t fm-=
+r" style=3D"border: 1px solid #c8c8c8; padding: 5px 8px; text-align: right; f=
+ont-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; =
+font-size: 16px; line-height: 1.45; color: #1a1a1a;">120</td><td class=3D"fm-=
+t fm-r" style=3D"border: 1px solid #c8c8c8; padding: 5px 8px; text-align: rig=
+ht; font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-se=
+rif; font-size: 16px; line-height: 1.45; color: #1a1a1a;">360,00 EUR</td></tr=
+><tr><td class=3D"fm-t fm-r" style=3D"border: 1px solid #c8c8c8; padding: 5px=
+ 8px; text-align: left; font-family: -apple-system, 'Segoe UI', Roboto, Helve=
+tica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a;"=
+>Betreuung vor Ort</td><td class=3D"fm-t fm-r" style=3D"border: 1px solid #c8=
+c8c8; padding: 5px 8px; text-align: right; font-family: -apple-system, 'Segoe=
+ UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.4=
+5; color: #1a1a1a;">8</td><td class=3D"fm-t fm-r" style=3D"border: 1px solid =
+#c8c8c8; padding: 5px 8px; text-align: right; font-family: -apple-system, 'Se=
+goe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: =
+1.45; color: #1a1a1a;">640,00 EUR</td></tr><tr><td class=3D"fm-t fm-r" style=
+=3D"border: 1px solid #c8c8c8; padding: 5px 8px; text-align: left; font-famil=
+y: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size=
+: 16px; line-height: 1.45; color: #1a1a1a;">Summe netto</td><td class=3D"fm-t=
+ fm-r" style=3D"border: 1px solid #c8c8c8; padding: 5px 8px; text-align: righ=
+t; font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-ser=
+if; font-size: 16px; line-height: 1.45; color: #1a1a1a;"></td><td class=3D"fm=
+-t fm-r" style=3D"border: 1px solid #c8c8c8; padding: 5px 8px; text-align: ri=
+ght; font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-s=
+erif; font-size: 16px; line-height: 1.45; color: #1a1a1a;">2.240,00 EUR</td><=
+/tr></table>
+<p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, 'Seg=
+oe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1=
+.45; color: #1a1a1a;">Bitte =C3=BCberweisen Sie den Betrag bis zum 15.=C2=A0N=
+ovember 2026 auf das unten genannte Konto.</p>
+<p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, 'Seg=
+oe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1=
+.45; color: #1a1a1a;">Mit freundlichen Gr=C3=BC=C3=9Fen</p>
+<p class=3D"fm-t fm-r" style=3D"margin: 16px 0 0; border-top: 1px solid #c8c8=
+c8; padding-top: 8px; font-family: -apple-system, 'Segoe UI', Roboto, Helveti=
+ca, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a;">E=
+rika Muster<br>Gesch=C3=A4ftsf=C3=BChrerin</p>
+<p class=3D"fm-t" style=3D"margin: 10px 0 0; font-family: -apple-system, 'Seg=
+oe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1=
+.45; color: #1a1a1a;">Telefon 0941 620-9800<br>muster@example.de<br>www.examp=
+le.de</p>
+<p class=3D"fm-l" style=3D"margin: 10px 0 0; font-family: -apple-system, 'Seg=
+oe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1=
+.45; color: #1a1a1a; font-size: 13px; color: #666;">Beispiel GmbH<br>Musterwe=
+g 12<br>93055 Regensburg<br>Amtsgericht Regensburg HRB 12345<br>USt-IdNr. DE1=
+23456789<br>Gesch=C3=A4ftsf=C3=BChrerin: Erika Muster<br>https://example.de/d=
+atenschutz<br>Diese E-Mail enth=C3=A4lt vertrauliche Informationen.</p>
 </div>
 </body>
 </html>

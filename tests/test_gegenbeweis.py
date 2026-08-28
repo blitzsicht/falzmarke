@@ -270,12 +270,18 @@ def test_bild_ohne_alternativtext_faellt_auf(monkeypatch):
 def test_style_block_faellt_auf(monkeypatch):
     """Der naheliegendste Rückfall beim Erweitern: den Stil aus den Elementen
     in einen `<style>`-Block ziehen, weil das HTML kürzer wird. Gmail entfernt
-    ihn, und die Mail käme unformatiert an."""
+    ihn, und die Mail käme unformatiert an.
+
+    Seit dem dunklen Farbschema ist genau EIN Block zulässig — der des
+    Werkzeugs, Zeichen für Zeichen verglichen (ADR 0034, Ergänzung vom
+    28.08.2026). Jeder weitere fällt auf, und das ist hier der Gegenstand.
+    """
     seite = _seite_mit_sabotiertem_emitter(
         monkeypatch, "absatz",
         lambda inhalt: f"<style>p {{ color: #000 }}</style><p>{inhalt}</p>",
     )
-    assert "Style-Block statt Inline-Stil" in _html.verstoesse(seite)
+    befunde = _html.verstoesse(seite)
+    assert any("Style-Block" in b or "Style-Blöcke" in b for b in befunde), befunde
 
 
 # ── Dialekt 1.1: der wortgetreue Auszug ─────────────────────────────────────

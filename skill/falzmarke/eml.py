@@ -178,6 +178,48 @@ def signatur_zeilen(profil: dict, kopf: dict) -> list[str]:
     return [zeile for block in signatur_bloecke(profil, kopf) for zeile in block]
 
 
+#: Die Kennung, unter der das Logo in der Nachricht steckt. Fest, weil sie an
+#: zwei Stellen gebraucht wird: im `<img src="cid:…">` und am Anhang selbst.
+LOGO_CID = "falzmarke-logo"
+
+#: Rasterformate. SVG steht bewusst nicht dabei: Outlook stellt es in Mails
+#: nicht dar, und ein Logo, das bei einem der drei großen Programme fehlt, ist
+#: schlimmer als keines — dann fehlt es überall gleich.
+#:
+#: Der Preis dafür steht in Issue #154: Ein Rasterbild schaltet seine Farbe im
+#: dunklen Schema nicht um. Wer ein Logo einschaltet, waehlt eines, das auf
+#: beiden Gruenden traegt — das Werkzeug prueft es nicht.
+LOGO_FORMATE = {".png": "png", ".jpg": "jpeg", ".jpeg": "jpeg", ".gif": "gif"}
+
+
+def logo_datei(profil: dict, profil_pfad: Path | None) -> Path | None:
+    """Die Bilddatei für die Signatur — oder None.
+
+    `email.logo` kennt drei Werte, und die Doku versprach sie, lange bevor es
+    sie gab: `false` (Vorgabe), `true` — dann gilt das Logo des Briefkopfs —
+    oder ein eigener Pfad.
+
+    Der Pfad wird nicht selbst zusammengesetzt: `cli.datei_aus_dem_profilordner`
+    hält die Grenze, dass eine Profildatei neben ihrem Profil liegt.
+    """
+    email_teil = profil.get("email") or {}
+    wert = email_teil.get("logo")
+    if not wert or profil_pfad is None:
+        return None
+    if wert is True:
+        wert = ((profil.get("briefkopf") or {}).get("logo"))
+        if not wert:
+            return None
+    from falzmarke import cli
+
+    pfad = cli.datei_aus_dem_profilordner(Path(profil_pfad), str(wert), "email.logo")
+    if pfad.suffix.lower() not in LOGO_FORMATE:
+        raise ValueError(
+            f"`email.logo` zeigt auf {pfad.name} — für eine Mail wird ein Rasterbild "
+            f"gebraucht ({', '.join(sorted(LOGO_FORMATE))}). Outlook stellt SVG nicht dar.")
+    return pfad
+
+
 def _mit_rahmen(kopf: dict, gruss, bloecke) -> list:
     """Anrede und Grußformel als Absätze in den Baum.
 
@@ -213,7 +255,8 @@ def textteil(kopf: dict, profil: dict, bloecke, breite: int = emit_text.BREITE) 
     return "\n".join(teile)
 
 
-def htmlteil(kopf: dict, profil: dict, bloecke, sprache: str = "de") -> str:
+def htmlteil(kopf: dict, profil: dict, bloecke, sprache: str = "de",
+             mit_logo: bool = False) -> str:
     """Dasselbe als HTML — derselbe Baum, andere Zielsprache."""
     email_teil = profil.get("email") or {}
     gruss = kopf.get("gruss") or email_teil.get("gruss") or profil.get("gruss")
@@ -230,8 +273,31 @@ def htmlteil(kopf: dict, profil: dict, bloecke, sprache: str = "de") -> str:
         rahmen = (f"border-top: 1px solid {emit_html.RAHMEN}; padding-top: 8px; "
                   if nummer == 0 else "")
         oben = "16px" if nummer == 0 else "10px"
+        # Der Rechtsblock steht kleiner und leiser: Pflichtangaben und
+        # Vertraulichkeitshinweis sind Beiwerk, nicht die Botschaft.
+        leise = nummer == 2
+        stil = (f"margin: {oben} 0 0; {rahmen}{emit_html.TEXTSTIL}"
+                + (" font-size: 13px; color: #666;" if leise else ""))
+        klassen = [emit_html.KLASSE_LEISE if leise else emit_html.KLASSE_TEXT]
+        if nummer == 0:
+            klassen.append(emit_html.KLASSE_LINIE)
+        if nummer == 0 and mit_logo:
+            # Das Logo steht IM ersten Block, nicht darüber: Sonst hinge es
+            # zwischen Grußformel und Trennlinie und sähe aus wie Teil der
+            # Nachricht. Als Tabelle, weil Outlook mit der Word-Engine rechnet
+            # und moderne Layoutverfahren ignoriert (#104).
+            name = emit_html.as_text(str((profil.get("absender") or {}).get("name") or ""))
+            inhalt = (
+                f'<table class="{emit_html.KLASSE_TEXT}" cellpadding="0" cellspacing="0" '
+                f'style="border-collapse: collapse;"><tr>'
+                f'<td style="padding: 0 12px 0 0; vertical-align: top;">'
+                f'<img src="cid:{LOGO_CID}" alt="{name}" height="40" '
+                f'style="display: block; border: 0; height: 40px; width: auto;"></td>'
+                f'<td class="{emit_html.KLASSE_TEXT}" style="vertical-align: top; '
+                f'{emit_html.TEXTSTIL}">{inhalt}</td></tr></table>'
+            )
         stuecke.append(
-            f'<p style="margin: {oben} 0 0; {rahmen}{emit_html.TEXTSTIL}">{inhalt}</p>'
+            f'<p class="{" ".join(klassen)}" style="{stil}">{inhalt}</p>'
         )
     return emit_html.dokument("\n".join(stuecke) + "\n", sprache=sprache)
 
@@ -248,12 +314,13 @@ def begleit_html(kopf: dict, profil: dict, bloecke, sprache: str = "de") -> str:
               ("Betreff", str(kopf.get("betreff") or ""))]
     stil = f"margin: 0 0 2px; {emit_html.TEXTSTIL} font-size: 14px; color: #555;"
     kopfzeilen = "".join(
-        f'<p style="{stil}"><strong>{emit_html.as_text(name)}:</strong> '
-        f"{emit_html.as_text(wert)}</p>"
+        f'<p class="{emit_html.KLASSE_LEISE}" style="{stil}">'
+        f"<strong>{emit_html.as_text(name)}:</strong> {emit_html.as_text(wert)}</p>"
         for name, wert in zeilen if wert
     )
     seite = htmlteil(kopf, profil, bloecke, sprache=sprache)
-    vorschau = (f'<div style="border-bottom: 1px solid {emit_html.RAHMEN}; '
+    vorschau = (f'<div class="{emit_html.KLASSE_LINIE}" '
+                f'style="border-bottom: 1px solid {emit_html.RAHMEN}; '
                 f'margin-bottom: 16px; padding-bottom: 10px;">{kopfzeilen}</div>')
     return seite.replace(f'<div style="max-width: {emit_html.BREITE_MAX};">',
                          f'<div style="max-width: {emit_html.BREITE_MAX};">{vorschau}', 1)
@@ -275,7 +342,8 @@ def _quellenhash(quelle: str) -> str:
 
 
 def baue(kopf: dict, profil: dict, quelle_md: str, bloecke, *,
-         brief_pfad: Path | None = None, mit_quelle: bool = False) -> EmailMessage:
+         brief_pfad: Path | None = None, mit_quelle: bool = False,
+         profil_pfad: Path | None = None) -> EmailMessage:
     """Die fertige Nachricht — ohne Message-ID, ohne Date, ohne Versandweg.
 
     `mit_quelle` hängt die Markdown-Quelle als eigenen Teil an (RFC 7763).
@@ -307,8 +375,9 @@ def baue(kopf: dict, profil: dict, quelle_md: str, bloecke, *,
     if epoch:
         nachricht["Date"] = formatdate(float(epoch), localtime=False)
 
+    logo = logo_datei(profil, profil_pfad)
     text = textteil(kopf, profil, bloecke)
-    html = htmlteil(kopf, profil, bloecke, sprache=sprache)
+    html = htmlteil(kopf, profil, bloecke, sprache=sprache, mit_logo=logo is not None)
 
     # quoted-printable, nie base64: Eine Mail, deren Textteil als base64
     # ankommt, ist in jedem Rohansicht-Fenster unlesbar — und die Rohansicht
@@ -319,6 +388,21 @@ def baue(kopf: dict, profil: dict, quelle_md: str, bloecke, *,
         nachricht.add_alternative(quelle_md, subtype="markdown", charset="utf-8",
                                   cte="quoted-printable", params={"variant": "CommonMark"})
     nachricht.add_alternative(html, subtype="html", charset="utf-8", cte="quoted-printable")
+
+    if logo is not None:
+        # `add_related` auf den HTML-Teil, nicht auf die Nachricht: Das Bild
+        # gehört zu dieser einen Darstellung. Als Anhang der Nachricht stünde es
+        # in jedem Client in der Anlagenliste — neben der Rechnung, die jemand
+        # wirklich verschickt hat.
+        #
+        # Es reist MIT. Eine Signatur, die ihr Logo über eine Adresse nachlädt,
+        # erscheint ohne Netz gar nicht, wartet auf „Bilder anzeigen" — und
+        # meldet dem Absender, wann und wo geöffnet wurde. Eine Adresse, die bei
+        # jedem Öffnen abgerufen wird, ist ein Zählpixel, ob so gemeint oder nicht.
+        html_teil = nachricht.get_payload()[-1]
+        html_teil.add_related(logo.read_bytes(), maintype="image",
+                              subtype=LOGO_FORMATE[logo.suffix.lower()],
+                              cid=f"<{LOGO_CID}>")
 
     anhaenge = _als_liste(kopf.get("anlagen_dateien"))
     if anhaenge:

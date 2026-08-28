@@ -840,7 +840,7 @@ def setze_email(brief_pfad: Path, ausgabe: Path | None = None, *,
             f"{brief_pfad.name} trägt kein `typ: email` und ist damit ein Brief.\n"
             "Für ein PDF `falzmarke render` verwenden."
         )
-    profil, _ = lade_profil(kopf.get("profil", ""), profil_verzeichnis, brief_pfad)
+    profil, profil_pfad = lade_profil(kopf.get("profil", ""), profil_verzeichnis, brief_pfad)
 
     try:
         bloecke = lies(body_md, versatz, dialekt=kopf.get("dialekt"), ziel="email")
@@ -851,7 +851,8 @@ def setze_email(brief_pfad: Path, ausgabe: Path | None = None, *,
 
     try:
         nachricht = eml_modul.baue(kopf, profil, body_md, bloecke,
-                                   brief_pfad=brief_pfad, mit_quelle=mit_quelle)
+                                   brief_pfad=brief_pfad, mit_quelle=mit_quelle,
+                                   profil_pfad=profil_pfad)
     except (ValueError, FileNotFoundError) as fehler:
         raise Eingabefehler(f"{brief_pfad.name}: {fehler}") from None
 
