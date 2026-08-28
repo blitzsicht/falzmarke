@@ -145,10 +145,10 @@ class Bericht:
         Linter läuft hier durch, und eine neue Prüfung erbt die Regel, ohne
         dass jemand daran denken muss.
         """
-        herkunft = regeln.herkunft_von_lint(regel)
-        if herkunft == regeln.OFFEN:
+        stufe = regeln.deckel_von_lint(regel)
+        if stufe == regeln.DECKEL_KEINE:
             return
-        if herkunft == regeln.EINZELN:
+        if stufe == regeln.DECKEL_WARNUNG:
             hinweis = regeln.quellenhinweis(regel)
             self.befunde.append(Befund(
                 zeile, regel, WARNUNG,

@@ -137,6 +137,27 @@ in ein Werkzeug, das nichts versendet. Der Nutzer soll aber erfahren, dass seine
 braucht — als Hinweis in der Dokumentation, nicht als Prüfung, die falzmarke gar nicht ausführen
 könnte.
 
+## Nachtrag vom 28.08.2026 — eine fünfte Ebene
+
+Beim Eintragen der Regeln zeigte sich, dass mehrere zu keiner der vier Ebenen gehören:
+`email.typ` trennt Brief und E-Mail, `email.profil` fängt einen Tippfehler im Profil,
+`email.datum` und `email.anlage` ebenso. Sie reden über die **Eingabe** — nicht über die Norm,
+nicht über das Recht, nicht über ein Format, nicht über fremde Programme.
+
+Sie einer der vier zuzuschlagen wäre eine Herkunftsbehauptung, die es nicht gibt — genau der
+Fehler, den dieser Eintrag abstellen soll. Deshalb kommt eine fünfte hinzu:
+
+| Ebene | Woher die Regel stammt | Darf höchstens sein |
+|---|---|---|
+| **Werkzeug** | Der eigene Datenvertrag | Fehler |
+
+Das ist dieselbe Überlegung, die schon den vierten Wert von `herkunft` erzeugt hat: Auch dort sah
+die Vorlage drei vor, und auch dort fehlte der Platz für Regeln, die gar keine Normaussage
+treffen. Der Kopfkommentar von `din5008.yaml` hält es seit v0.4.0 fest.
+
+Die Festlegungen 1 bis 8 bleiben unverändert. Insbesondere Festlegung 1 gilt weiter: Praxis und
+Recht sind nie ein Fehler.
+
 ## Warum
 
 Die E-Mail-Fassung erzeugt seit v0.8.0 gültige Nachrichten und misst sie nach. Woran sie sich

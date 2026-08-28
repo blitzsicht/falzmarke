@@ -104,13 +104,71 @@ def test_kein_fehler_aus_einer_einzigen_quelle():
     assert not zu_scharf, f"Als Fehler geführt, aber nicht mehrfach belegt: {zu_scharf}"
 
 
+def test_keine_regel_gibt_sich_schaerfer_als_sie_darf():
+    """`wirkung:` in der Regeldatei ist eine Behauptung — hier wird sie geprüft.
+
+    Ohne diese Prüfung könnte `wirkung: fehler` neben `ebene: praxis` stehen.
+    Der Linter täte das Richtige (er rechnet über `deckel()`), aber die
+    Regeldatei behauptete etwas anderes — und gelesen wird die Regeldatei.
+
+    Gemessen beim Schreiben dieser Prüfung, am 28.08.2026: Vier Regeln stehen
+    auf `warnung`, obwohl sie Fehler sein dürften — `werkzeug.tabulator`,
+    `werkzeug.umbruch`, `email.datum`, `email.anlage`. Das ist kein Fehler,
+    sondern eine Wahl: Sie werden über `bericht.warnung()` gemeldet, nicht über
+    `bericht.fehler()`. `deckel()` ist eine **Obergrenze**, keine Vorschrift.
+    Milder als erlaubt darf eine Regel sein; schärfer nicht.
+    """
+    zu_scharf = [
+        (r["id"], regeln.deckel(r))
+        for r in regeln.alle()
+        if r.get("wirkung") == "fehler" and regeln.deckel(r) != regeln.DECKEL_FEHLER
+    ]
+    assert not zu_scharf, (
+        "Als Fehler geführt, obwohl gedeckelt:\n  "
+        + "\n  ".join(f"{i}: darf höchstens {d!r} sein" for i, d in zu_scharf))
+
+
+def test_die_pruefung_wuerde_eine_zu_scharfe_regel_bemerken():
+    """Gegenprobe. Eine Praxis-Regel, die sich als Fehler ausgibt, muss auffallen."""
+    erfunden = {"id": "probe", "ebene": regeln.EBENE_PRAXIS,
+                "herkunft": regeln.MEHRFACH, "wirkung": "fehler"}
+    assert regeln.deckel(erfunden) == regeln.DECKEL_WARNUNG, (
+        "Die Ebene deckelt nicht — dann greift die Prüfung darüber ins Leere.")
+
+
 @pytest.mark.parametrize("herkunft, erwartet", [
     (regeln.MEHRFACH, lint.FEHLER),
     (regeln.WERKZEUG, lint.FEHLER),
+    (regeln.PRIMAER, lint.FEHLER),
     (regeln.EINZELN, lint.WARNUNG),
 ])
 def test_der_linter_stuft_nach_herkunft_ein(monkeypatch, herkunft, erwartet):
-    monkeypatch.setattr(regeln, "herkunft_von_lint", lambda _: herkunft)
+    """Die erste Achse allein — ohne Ebene entscheidet die Belegstärke."""
+    monkeypatch.setattr(regeln, "deckel_von_lint",
+                        lambda _: regeln.deckel({"herkunft": herkunft}))
+    monkeypatch.setattr(regeln, "quellenhinweis", lambda _: "")
+    bericht = lint.Bericht()
+    bericht.fehler(1, "probe", "Etwas stimmt nicht")
+    assert [b.schwere for b in bericht.befunde] == [erwartet]
+
+
+@pytest.mark.parametrize("ebene, erwartet", [
+    (regeln.EBENE_NORM, lint.FEHLER),
+    (regeln.EBENE_TECHNIK, lint.FEHLER),
+    (regeln.EBENE_WERKZEUG, lint.FEHLER),
+    (regeln.EBENE_RECHT, lint.WARNUNG),
+    (regeln.EBENE_PRAXIS, lint.WARNUNG),
+])
+def test_die_ebene_deckelt_auch_bei_bestem_beleg(monkeypatch, ebene, erwartet):
+    """Die Kernzusage von ADR 0035, und der Grund für die zweite Achse.
+
+    Der Beleg ist hier absichtlich der bestmögliche: `mehrfach_bestaetigt`
+    dürfte nach der ersten Achse ein Fehler sein. Bleibt eine Regel der Ebene
+    Recht oder Praxis trotzdem eine Warnung, dann deckelt die Ebene wirklich —
+    und der Eintrag ist umgesetzt und nicht nur beschrieben.
+    """
+    monkeypatch.setattr(regeln, "deckel_von_lint", lambda _: regeln.deckel(
+        {"herkunft": regeln.MEHRFACH, "ebene": ebene}))
     monkeypatch.setattr(regeln, "quellenhinweis", lambda _: "")
     bericht = lint.Bericht()
     bericht.fehler(1, "probe", "Etwas stimmt nicht")
@@ -118,7 +176,7 @@ def test_der_linter_stuft_nach_herkunft_ein(monkeypatch, herkunft, erwartet):
 
 
 def test_offene_regel_wird_gar_nicht_gemeldet(monkeypatch):
-    monkeypatch.setattr(regeln, "herkunft_von_lint", lambda _: regeln.OFFEN)
+    monkeypatch.setattr(regeln, "deckel_von_lint", lambda _: regeln.DECKEL_KEINE)
     bericht = lint.Bericht()
     bericht.fehler(1, "probe", "Etwas stimmt nicht")
     assert bericht.befunde == []
@@ -211,24 +269,42 @@ from falzmarke import regeln as regeln_modul
 
 
 def _regeldatei(tmp_path, aenderung):
-    """Die echte Regeldatei, an einer Stelle verändert."""
-    quelle = regeln_modul.DATEI.read_text(encoding="utf-8")
-    daten = yaml.safe_load(quelle)
+    """Der echte Bestand, an einer Stelle verändert.
+
+    Seit ADR 0035 sind es drei Dateien: ein Quellen-Register und zwei
+    Regeldateien. Der Helfer führt sie zusammen, lässt die Sabotage darauf los
+    und schreibt sie in einen eigenen Baum — das echte Repository wird nie
+    angefasst. Die Änderungsfunktion sieht `daten["regeln"]` und
+    `daten["quellen"]` wie zuvor.
+    """
+    quellen = yaml.safe_load(regeln_modul.QUELLDATEI.read_text(encoding="utf-8"))["quellen"]
+    regeln_ = []
+    for pfad in regeln_modul.REGELDATEIEN:
+        regeln_ += yaml.safe_load(pfad.read_text(encoding="utf-8"))["regeln"]
+    daten = {"regeln": regeln_, "quellen": quellen}
     aenderung(daten)
-    ziel = tmp_path / "din5008.yaml"
-    ziel.write_text(yaml.safe_dump(daten, allow_unicode=True), encoding="utf-8")
-    return ziel
+
+    ziel_q = tmp_path / "quellen.yaml"
+    ziel_q.write_text(yaml.safe_dump({"quellen": daten["quellen"]}, allow_unicode=True),
+                      encoding="utf-8")
+    ziel_r = tmp_path / "regeln.yaml"
+    ziel_r.write_text(yaml.safe_dump({"regeln": daten["regeln"]}, allow_unicode=True),
+                      encoding="utf-8")
+    return ziel_q, ziel_r
 
 
-def _laden(pfad):
-    """Die Regeldatei unter einem anderen Pfad laden, ohne den Cache zu stören."""
-    alt = regeln_modul.DATEI
+def _laden(pfade, ebene_pflicht=False):
+    """Den sabotierten Bestand laden, ohne den Cache zu stören."""
+    ziel_q, ziel_r = pfade
+    alt_q, alt_r = regeln_modul.QUELLDATEI, regeln_modul.REGELDATEIEN
     try:
-        regeln_modul.DATEI = pfad
+        regeln_modul.QUELLDATEI = ziel_q
+        regeln_modul.REGELDATEIEN = {ziel_r: ebene_pflicht}
         regeln_modul.laden.cache_clear()
         return regeln_modul.laden()
     finally:
-        regeln_modul.DATEI = alt
+        regeln_modul.QUELLDATEI = alt_q
+        regeln_modul.REGELDATEIEN = alt_r
         regeln_modul.laden.cache_clear()
 
 
@@ -424,3 +500,91 @@ def test_die_pruefung_wuerde_ein_stilles_schweigen_bemerken():
     ohne = {"id": "probe", "quellen": ["onlineprinters"],
             "belegt_durch": {"onlineprinters": "Absatz X, Beispiel Y"}}
     assert not str(ohne["belegt_durch"]["onlineprinters"]).startswith(regeln.SCHWEIGT)
+
+
+# ── Die zweite Achse: Ebenen (ADR 0035) ─────────────────────────────────────
+#
+# Die Prüfungen hier halten fest, was der Eintrag zusagt. Zu jeder gehört ihr
+# roter Fall: Eine Regeldatei, die alles annimmt, prüft nichts.
+
+def test_jede_email_regel_traegt_eine_ebene():
+    ohne = [r["id"] for r in regeln.alle()
+            if r.get("_datei") == "email.yaml" and r.get("ebene") not in regeln.EBENEN]
+    assert not ohne, (
+        f"E-Mail-Regeln ohne gültige Ebene: {ohne}. Ohne Ebene sagt die Meldung "
+        "nicht, wovon die Regel redet — und das ist der Grund für ADR 0035.")
+
+
+def test_eine_email_regel_ohne_ebene_laesst_die_datei_abbrechen(tmp_path):
+    """Gegenprobe. Ohne sie belegt der Test darüber nur, dass gerade alle eine haben."""
+    def kippen(daten):
+        for regel in daten["regeln"]:
+            if regel["id"] == "email.an":
+                regel.pop("ebene", None)
+    with pytest.raises(regeln_modul.Regelfehler) as fehler:
+        _laden(_regeldatei(tmp_path, kippen), ebene_pflicht=True)
+    assert "ebene=" in str(fehler.value), str(fehler.value)
+
+
+def test_eine_erfundene_ebene_wird_abgewiesen(tmp_path):
+    """Ein Tippfehler darf nicht als neue Ebene durchgehen."""
+    def kippen(daten):
+        for regel in daten["regeln"]:
+            if regel["id"] == "email.an":
+                regel["ebene"] = "techik"
+    with pytest.raises(regeln_modul.Regelfehler) as fehler:
+        _laden(_regeldatei(tmp_path, kippen))
+    assert "techik" in str(fehler.value), str(fehler.value)
+
+
+def test_dieselbe_id_in_zwei_regeldateien_wird_abgewiesen(tmp_path):
+    """Zwei Dateien, ein Namensraum. Die Meldung muss beide Dateien nennen,
+    sonst sucht jemand in der falschen."""
+    quellen = yaml.safe_load(regeln_modul.QUELLDATEI.read_text(encoding="utf-8"))
+    eine = yaml.safe_load(list(regeln_modul.REGELDATEIEN)[0].read_text(encoding="utf-8"))
+    doppelt = eine["regeln"][0]
+
+    (tmp_path / "q.yaml").write_text(yaml.safe_dump(quellen, allow_unicode=True),
+                                     encoding="utf-8")
+    for name in ("a.yaml", "b.yaml"):
+        (tmp_path / name).write_text(
+            yaml.safe_dump({"regeln": [doppelt]}, allow_unicode=True), encoding="utf-8")
+
+    alt_q, alt_r = regeln_modul.QUELLDATEI, regeln_modul.REGELDATEIEN
+    try:
+        regeln_modul.QUELLDATEI = tmp_path / "q.yaml"
+        regeln_modul.REGELDATEIEN = {tmp_path / "a.yaml": False, tmp_path / "b.yaml": False}
+        regeln_modul.laden.cache_clear()
+        with pytest.raises(regeln_modul.Regelfehler) as fehler:
+            regeln_modul.laden()
+    finally:
+        regeln_modul.QUELLDATEI, regeln_modul.REGELDATEIEN = alt_q, alt_r
+        regeln_modul.laden.cache_clear()
+    meldung = str(fehler.value)
+    assert "doppelt" in meldung and "a.yaml" in meldung and "b.yaml" in meldung, meldung
+
+
+@pytest.mark.parametrize("regelname, ebene", [
+    ("email.betreff", "Praxis"),
+    ("email.pflichtangaben", "Recht"),
+])
+def test_die_meldung_einer_gedeckelten_regel_nennt_die_ebene(regelname, ebene):
+    """Abnahmepunkt 1 aus dem Vorhaben: Die Meldungen nennen die Ebene.
+
+    Geprüft am fertigen Befundtext, nicht am Wörterbuch daneben — sonst wäre
+    belegt, dass der Hinweis existiert, nicht dass er ankommt.
+    """
+    bericht = lint.Bericht()
+    bericht.fehler(1, regelname, "Etwas stimmt nicht")
+    assert len(bericht.befunde) == 1
+    befund = bericht.befunde[0]
+    assert befund.schwere == lint.WARNUNG, "gedeckelt heißt Warnung"
+    assert f"Ebene: {ebene}" in befund.meldung, befund.meldung
+
+
+def test_eine_briefregel_traegt_keinen_ebenenhinweis():
+    """Die Gegenrichtung: Die Briefregeln haben keine Ebene, und ihre Meldungen
+    dürfen sich durch ADR 0035 nicht verändert haben."""
+    bericht = lint.Bericht()
+    bericht.fehler(1, "gruss", "Die Grußformel steht ohne Komma")
+    assert "Ebene:" not in bericht.befunde[0].meldung, bericht.befunde[0].meldung
