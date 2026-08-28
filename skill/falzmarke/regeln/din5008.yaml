@@ -416,9 +416,9 @@ regeln:
       Zwei Rasterzeilen über Ebene 1, eine über den übrigen; alle vier Ebenen in
       derselben Schriftgröße. Das folgt dem 12-pt-Raster des Werkzeugs, nicht
       einer Normaussage — eine größere Zeile wäre höher als eine Rasterzeile,
-      und alles darunter verlöre seine Position. `wirkung: keine`, weil es dazu
-      keine Prüfung gibt: Die Geometrieprüfung misst Ränder, Zonen und den
-      untersten Text, nicht die Lage der Zeilen auf dem Raster (Issue #140).
+      und alles darunter verlöre seine Position. `wirkung: keine`, weil dieser
+      Eintrag keine eigene Prüfung hat: Ein Abstand außerhalb des Rasters fällt
+      seit Issue #140 unter `werkzeug.zeilenraster` auf, nicht hier.
 
   - id: werkzeug.zitattiefe
     titel: Zitate stehen bis zwei Ebenen ineinander
@@ -442,3 +442,20 @@ regeln:
       demselben Grund wird nicht umbrochen — der Auszug läuft ab 69 Zeichen je
       Zeile aus dem Satzspiegel, und die Satzspiegelprüfung meldet das. Das ist
       gewollt: lieber ein sichtbarer Befund als ein still veränderter Wortlaut.
+
+  - id: werkzeug.zeilenraster
+    titel: Der Briefkörper steht auf dem 12-pt-Raster
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Keine eigene Aussage der Norm, sondern die Folge einer: Die Grundzeile
+      misst 12 pt, und jede „Leerzeile" ist genau eine davon. Daraus ergibt sich
+      die Betreffposition, die als `geometrie.betreffabstand` mehrfach belegt
+      ist. Ob die Zeilen dazwischen das Raster halten, war bis Issue #140 eine
+      Zusage des Satz-Quelltextes und sonst nichts — ein krummer Abstand
+      veränderte das PDF messbar, und alle Prüfungen blieben grün. Gemessen
+      werden die Abstände aufeinanderfolgender Zeilen des Briefkörpers, nicht
+      ihre absolute Lage: Ein Versatz soll einmal auffallen, nicht in jeder
+      Zeile darunter noch einmal. Tabellen sind ausgenommen (Issue #151).
+

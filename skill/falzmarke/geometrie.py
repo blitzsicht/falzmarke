@@ -244,6 +244,106 @@ def _satzspiegel(dokument, bericht: Bericht, briefseiten: int | None = None) -> 
         )
 
 
+#: Die Grundzeile des Satzes: 12 pt. Dieselbe Zahl steht in `falzmarke.typ`
+#: als `#let zeile`; `tests/test_raster.py` hält beide zusammen.
+GRUNDZEILE = 4.2333
+
+#: Schriftgröße des Briefkörpers. Briefkopf (8,5 pt), Informationsblock (10 pt)
+#: und Fußzeile (7 pt) folgen eigenen Rastern und werden hier nicht gemessen.
+KOERPER_PT = 11.0
+
+#: Ab hier steht kein Fließtext mehr, sondern Seitenzahl und Fußzeile. Beide
+#: sitzen im `footer` der Seite, also ausserhalb des Textflusses — im PDF ist
+#: ihnen das nicht anzusehen, ihre Lage schon. Gemessen an allen Beispielen:
+#: Der Fließtext endet spätestens bei 242,4 mm, die Seitenzahl steht bei 260,2.
+RASTER_BIS = 250.0
+
+#: Wie weit ein Zeilenabstand vom Vielfachen der Grundzeile abweichen darf.
+#: 0,06 Rasterzeilen sind 0,25 mm. Gemessen liegen die echten Abstände auf
+#: ±0,001 genau; die Toleranz fängt Rundung im PDF, nicht Layoutfehler.
+RASTER_TOLERANZ = 0.06
+
+
+def _tabellenbereiche(seite) -> list[tuple[float, float]]:
+    """y-Bereiche, in denen eine Tabelle steht — an ihren Rahmenlinien erkannt.
+
+    Warum Tabellen nicht mitgemessen werden: Die Höhe einer Tabellenzeile hängt
+    am Innenabstand der Zellen, nicht am Zeilenraster. Rastertreu wäre sie erst
+    bei 0,18 mm Innenabstand — dann kleben die Zellen aneinander. Das ist eine
+    Abwägung zwischen Raster und Lesbarkeit, und sie gehört entschieden, nicht
+    von einer Prüfung erzwungen (Issue #151).
+
+    Erkannt statt aufgelistet: Eine Ausnahmeliste wäre ein zweiter Ort, an dem
+    sich ein Layoutfehler verstecken könnte. Ein Tabellenrahmen dagegen ist
+    messbar — drei oder mehr waagerechte Linien gleicher Breite untereinander,
+    und zwar im Satzspiegel, nicht im Heftrand wie die Falzmarken.
+    """
+    waagerecht = [l for l in seite.lines if abs(l["y0"] - l["y1"]) < 0.3
+                  and mm(l["x1"] - l["x0"]) > 20.0
+                  and mm(l["x0"]) >= RAND_LINKS - 1.0]
+    if len(waagerecht) < 3:
+        return []
+    nach_breite: dict[int, list[float]] = {}
+    for linie in waagerecht:
+        schluessel = round(mm(linie["x1"] - linie["x0"]), 1)
+        nach_breite.setdefault(int(schluessel * 10), []).append(mm(linie["top"]))
+    bereiche = []
+    for hoehen in nach_breite.values():
+        if len(hoehen) >= 3:
+            bereiche.append((min(hoehen) - 0.5, max(hoehen) + 0.5))
+    return bereiche
+
+
+def _raster(dokument, bericht: Bericht, briefseiten: int | None = None) -> None:
+    """Der Briefkörper steht auf einem 12-pt-Raster — oder es fällt auf.
+
+    Jede „Leerzeile" der Norm ist genau eine Rasterzeile; darauf beruhen die
+    Abstände zwischen Betreff, Anrede, Text und Gruß. Bis Issue #140 war das
+    eine Zusage von `falzmarke.typ` und sonst nichts: Ein krummer Abstand
+    veränderte das PDF messbar, und alle 40 Prüfungen blieben grün.
+
+    Ein Rasterversatz ist die Fehlerart, die man auf einem Ausdruck nicht sieht
+    und auf zwei nebeneinandergelegten Blättern sofort — und er summiert sich.
+
+    Gemessen werden die Abstände aufeinanderfolgender Zeilen des Briefkörpers.
+    Nicht ihre absolute Lage: Ein einzelner Versatz soll einmal auffallen, nicht
+    in jeder Zeile darunter noch einmal.
+    """
+    for nummer, seite in enumerate(dokument.pages[:briefseiten], start=1):
+        tabellen = _tabellenbereiche(seite)
+        spans = [s for s in _spans(seite)
+                 if abs(s.groesse - KOERPER_PT) < 0.3 and s.y0 < RASTER_BIS]
+        if not spans:
+            continue
+        zeilen = sorted(_zeilen_gruppieren(spans), key=lambda g: min(s.y0 for s in g))
+        hoehen = [min(s.y0 for s in z) for z in zeilen]
+        # In einer Tabelle richtet sich die Zeilenhöhe nach dem Zellabstand.
+        # Auch der Ein- und Austritt zählt nicht: Er misst den Weg von einem
+        # Absatz in ein Element mit eigener Höhe.
+        in_tabelle = [any(a <= h <= b for a, b in tabellen) for h in hoehen]
+
+        schiefe = []
+        for i in range(1, len(hoehen)):
+            if in_tabelle[i] or in_tabelle[i - 1]:
+                continue
+            vielfaches = (hoehen[i] - hoehen[i - 1]) / GRUNDZEILE
+            if abs(vielfaches - round(vielfaches)) > RASTER_TOLERANZ:
+                schiefe.append((hoehen[i], vielfaches, _kurz(" ".join(s.text for s in zeilen[i]))))
+        gemessen = sum(1 for i in range(1, len(hoehen))
+                       if not (in_tabelle[i] or in_tabelle[i - 1]))
+        if not gemessen:
+            continue
+        if schiefe:
+            hoehe, vielfaches, text = schiefe[0]
+            ist = f"{vielfaches:.2f} Zeilen vor „{text}“ (Seite {nummer}, {hoehe:.2f} mm)"
+        else:
+            ist = f"{gemessen} Abstände, alle auf dem Raster"
+        bericht.add(
+            f"Seite {nummer}, Zeilenraster", "Vielfaches von 4,2333",
+            ist, f"±{RASTER_TOLERANZ} Zeilen", not schiefe,
+        )
+
+
 def _marken(seite) -> list[tuple[float, float, float]]:
     """Waagerechte Striche im Heftrand als (y, x_start, x_ende).
 
@@ -394,6 +494,7 @@ def pruefe(pdf_pfad: Path, form: str, briefseiten: int | None = None) -> Bericht
     bericht.wert("Seitenhöhe", mm(seite.height), SEITE_HOEHE, 0.1)
 
     _satzspiegel(dokument, bericht, briefseiten)
+    _raster(dokument, bericht, briefseiten)
 
     # Falz- und Lochmarken. Gesucht wird die nächstgelegene Marke, nicht die an
     # der Sollposition: Eine Marke bei 84,0 statt 87,0 mm ist ein verschobenes

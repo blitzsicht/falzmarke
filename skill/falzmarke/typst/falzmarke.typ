@@ -187,14 +187,16 @@
   // davon lebt ein Screenreader. Die Gliederungskennzeichnung (A. I. 1. a)
   // schreibt der Verfasser selbst in den Text.
   //
-  // Abstaende in `leer(n)`, also ganzen Rasterzeilen — sonst waere jede
-  // Ueberschrift ein Versatz, der sich ueber die Seite summiert.
+  // Abstaende in ganzen Rasterzeilen — sonst waere jede Ueberschrift ein
+  // Versatz, der sich ueber die Seite summiert. `above: leer(n)` setzt die
+  // Leerzeilen darueber, `below: durchschuss` die eine Rasterzeile darunter:
+  // Der Zeilenkasten misst 11 pt, der Durchschuss ergaenzt ihn auf 12 pt.
   //
-  // Das ist eine Zusage dieser Datei, KEINE gemessene Eigenschaft: Die
-  // Geometriepruefung misst Raender, Zonen und den untersten Text, nicht die
-  // Lage der Zeilen auf dem Raster. Nachgemessen mit einem krummen Abstand —
-  // das PDF aendert sich, und keine Pruefung schlaegt an. Wer hier etwas
-  // aendert, hat also kein Netz unter sich. Die Luecke steht als Issue #140.
+  // Seit Issue #140 ist das gemessen und keine blosse Zusage mehr — die
+  // Rasterpruefung haelt die Abstaende aufeinanderfolgender Zeilen des
+  // Briefkoerpers gegen 4,2333 mm. Mit `below: 0pt`, wie es hier bis zum
+  // Merge von #140 stand, sind es 11 pt statt 12; die Pruefung meldet das
+  // seither als „0.92 Zeilen" an jedem Absatz nach einer Ueberschrift.
   set heading(numbering: none, outlined: false)
   show heading: it => {
     let stil = (
@@ -205,7 +207,7 @@
     ).at(str(it.level))
     block(
       above: leer(stil.davor),
-      below: 0pt,
+      below: durchschuss,
       text(size: 11pt, weight: stil.weight, style: stil.style, it.body),
     )
   }
@@ -311,10 +313,17 @@
 
       // Unterschriftsraum: ueblich 3 Leerzeilen. Mit Signaturbild wird der Raum
       // vom Bild gefuellt, der Abstand darunter bleibt gleich.
+      //
+      // `3 * zeile - durchschuss` und nicht `2.5 * zeile`: Ein Bild hat keinen
+      // Zeilenkasten, also greift die Kompensation nicht, die `leer(n)` fuer
+      // Textbloecke einrechnet. Mit der alten Hoehe stand alles unter der
+      // Unterschrift 0,58 Rasterzeilen daneben — gemessen an sechs Beispielen,
+      // Issue #140. Sichtbar wird so etwas erst, wenn zwei Blaetter
+      // nebeneinanderliegen.
       if daten.at("signatur", default: none) != none {
         block(above: leer(1), below: 0pt, image(
           daten.signatur,
-          height: 2.5 * zeile,
+          height: 3 * zeile - durchschuss,
           alt: "Unterschrift " + daten.unterzeichner,
         ))
         block(above: leer(1), below: 0pt, daten.unterzeichner)
