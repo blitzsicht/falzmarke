@@ -55,8 +55,25 @@ OK    Betreff, y-Oberkante: soll 98.47 ist 97.91 (tol -1.75/+0.6)
 OK    Abstand Betreff → Anrede (2 Leerzeilen): soll 12.70 ist 12.70 (tol ±0.2)
 ```
 
-Die erste dieser Zeilen spricht von einem Strich, den man auf einem Vorschaubild
-kaum sieht — er ist 0,25 pt stark. Vergrößert sieht die Stelle so aus:
+Das sind vier von 33 Zeilen des Geometrieberichts. Der Film zeigt, wie die übrigen
+entstehen: Eine Linie fährt das Blatt ab und hält an jedem gemessenen Höhenmaß. Sie hält
+dort, wo die Messung es sagt — bei diesen Prüfungen ist der gemessene Wert zugleich die
+Stelle.
+
+![Ein Beispielbrief, daneben ein Textfeld. Eine grüne waagerechte Linie wandert von oben nach unten über das Blatt und hält nacheinander an acht Stellen: Rücksendeangabe bei 46,26 Millimetern, Infoblock bei 50,34, Anschrift erste Zeile bei 62,69 und letzte Zeile bei 77,86, Betreff bei 98,45, Falzmarke 1 bei 105,00, Lochmarke bei 148,50 und Falzmarke 2 bei 210,00. Bei jedem Halt stehen daneben der Name der Prüfung, Sollwert, gemessener Wert, Toleranz und das Wort eingehalten. Am Ende liegen alle acht Linien gleichzeitig auf dem Blatt und daneben steht: 33 von 33 Prüfungen eingehalten.](https://github.com/blitzsicht/falzmarke/raw/main/docs/assets/demo/messfilm.gif)
+
+Acht der 33 Geometrieprüfungen tragen eine Höhe auf dem Blatt; die übrigen messen Breiten,
+Abstände und Eigenschaften ohne Ort auf der Seite. Die Zahl 34 weiter oben zählt eine
+mehr: Nach einem `render` sieht die CLI zusätzlich die PDF/A-Konformität nach, und die
+liegt auf keinem Millimeter. Beide Zahlen stimmen, sie zählen Verschiedenes.
+
+Keine Zahl im Film ist abgetippt — sie kommen alle aus `verify --json`, und
+`tests/test_messfilm.py` hält den Film gegen einen frischen Messlauf. Verschiebt jemand
+die Falzmarke um 2 mm, muss der betroffene Halt rot werden; tut er es nicht, schlägt der
+Test fehl.
+
+Die erste Zeile des Berichts oben spricht von einem Strich, den man auf einem
+Vorschaubild kaum sieht — er ist 0,25 pt stark. Vergrößert sieht die Stelle so aus:
 
 ![Ausschnitt vom linken Rand eines Briefes, sechs mal vier Millimeter groß: Eine gestrichelte grüne Hilfslinie markiert die Sollposition bei 105,00 Millimetern und geht auf gleicher Höhe in die kurze schwarze Falzmarke über, die knapp die halbe Bildbreite einnimmt. Daneben das ganze Blatt verkleinert, mit einem Rahmen um die vergrößerte Stelle. Darunter steht die gemessene Position 105,00 Millimeter.](https://github.com/blitzsicht/falzmarke/raw/main/docs/assets/demo/falzmarke-detail.png)
 
