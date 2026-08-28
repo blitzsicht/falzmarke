@@ -59,14 +59,20 @@ PPI = 600
 # Ausschnittfenster in Millimetern (x-links, y-oben, Breite, Hoehe). Beide
 # Bilder benutzen dasselbe — was hier zu sehen ist, soll dort dasselbe bedeuten.
 #
-# Die Breite von 9 mm ist der Kern der Sache: Die Marke ist 0,088 mm stark
+# Die Fensterbreite ist der Kern der Sache: Die Marke ist 0,088 mm stark
 # (0,25 pt), also zeigt jedes Bild sie so dick, wie das Fenster schmal ist. Auf
-# 9 mm Fensterbreite wird daraus in der README-Darstellung gut ein halbes
-# Dutzend Pixel; auf den 210 mm des ganzen Blattes bleibt weniger als eines
-# uebrig — genau der Grund, aus dem sie auf den Vorschaubildern verschwand.
-# Die Hoehe von 7 mm ist die Untergrenze, bei der die verschobene Marke der
-# Gegenprobe noch im Bild liegt.
-FENSTER_MM = (0.0, 102.0, 9.0, 7.0)
+# den 210 mm des ganzen Blattes bleibt weniger als ein Pixel uebrig — genau der
+# Grund, aus dem sie auf den Vorschaubildern verschwand.
+#
+# Bis zum 27.08.2026 stand hier 9 x 7 mm. Der Ausschnitt war damit zu ueber
+# 80 % leere Flaeche, und das genannte Mass war im Bild nicht wiederzuerkennen
+# (Issue #75). Gemessen am Render liegt die Marke bei 4,99 bis 7,49 mm; bei
+# 6 mm Fensterbreite ab 3,0 mm fuellt sie 42 % davon und traegt das Bild.
+#
+# Die Hoehe von 5 mm ist die Untergrenze, bei der die um 2 mm verschobene Marke
+# der Gegenprobe noch mit Rand im Bild liegt: 103,0 bis 108,0 mm fasst 105 und
+# 107.
+FENSTER_MM = (3.0, 103.0, 6.0, 5.0)
 
 # Verschiebung fuer die Gegenprobe, in Millimetern.
 # tests/test_gegenbeweis.py verschiebt die Marke auf 112 mm — dort ist der
@@ -76,6 +82,11 @@ FENSTER_MM = (0.0, 102.0, 9.0, 7.0)
 # damit sicher ein Fehler — und zugleich so wenig, dass die Frage „faellt das
 # ueberhaupt auf?" ihre Berechtigung behaelt.
 SABOTAGE_MM = 107.0
+
+# Wie lange jedes der beiden Bilder im GIF steht. Lang genug, um die Marke zu
+# finden, kurz genug, dass der Sprung als Bewegung ankommt und nicht als zwei
+# Bilder. Der Wert ist am fertigen GIF nachgestellt worden, nicht gerechnet.
+BILDDAUER_MS = 1100
 
 # docs/marke/erscheinungsbild.md — vier Farben, kein zweiter Akzent. Die
 # Abweichung wird deshalb durch Zahl und Zeichen markiert, nicht durch Rot.
@@ -169,6 +180,17 @@ def _bild(pfad: Path):
     return Image.open(pfad).convert("RGB")
 
 
+def _mass(mm: float) -> str:
+    """Millimeterzahl fuer die Bildbeschriftung — ohne zu runden.
+
+    Ein `:.0f` machte aus 5,5 mm eine "6" und behauptete damit ein Mass, das im
+    Bild nicht zu finden war (Issue #75). Halbe Millimeter kommen mit Komma,
+    ganze ohne Nachkomma.
+    """
+    text = f"{mm:.1f}".rstrip("0").rstrip(".")
+    return text.replace(".", ",")
+
+
 def _schrift(groesse: int, fett: bool = False):
     from PIL import ImageFont
     datei = SCHRIFT_FETT if fett else SCHRIFT
@@ -215,7 +237,7 @@ def _sollinie(zeichner, y: float, breite: int, ausschnitt_mm, beschriftung, schr
     Strich auf dem Brief haelt.
     """
     x_links, _, fenster_breite, _ = ausschnitt_mm
-    bis = round((MARKE_X_MM[0] - x_links) / fenster_breite * breite) - 8
+    bis = round((MARKE_X_MM[0] - x_links) / fenster_breite * breite)
     x = 0
     while x < bis:
         zeichner.line([(x, y), (min(x + 16, bis), y)], fill=GRUEN, width=3)
@@ -288,7 +310,7 @@ def zeichne_detail(seite, mess: dict):
                   font=_schrift(34, fett=True), fill=TINTE)
     zeichner.text(
         (RAND, 90),
-        f"Ausschnitt am linken Blattrand, {FENSTER_MM[2]:.0f} × {FENSTER_MM[3]:.0f} mm",
+        f"Ausschnitt am linken Blattrand, {_mass(FENSTER_MM[2])} × {_mass(FENSTER_MM[3])} mm",
         font=_schrift(20), fill=GRAU,
     )
 
@@ -342,6 +364,58 @@ def zeichne_gegenprobe(seite, seite_sabotiert, mess: dict):
     return tafel
 
 
+def zeichne_wechsel(seite, seite_sabotiert, mess: dict) -> list:
+    """Zwei Einzelbilder derselben Stelle: richtig und um 2 mm verschoben.
+
+    Sie werden als GIF ausgegeben und wechseln sich ab. Das ist der Unterschied
+    zum bisherigen Bildpaar (Issue #75): Nebeneinander muss der Betrachter die
+    2 mm selbst herstellen — wer nicht schon weiss, worauf er achten soll, sieht
+    zweimal dasselbe. Im Wechsel springt die Marke, und das Springen ist die
+    Aussage.
+
+    Beide Einzelbilder sind bis auf die Marke gleich aufgebaut: gleicher
+    Ausschnitt, gleiche Sollinie an gleicher Stelle, gleiche Schriftzuege an
+    gleicher Position. Was sich bewegt, ist nur das, worum es geht.
+    """
+    from PIL import Image, ImageDraw
+
+    hoehe_bild = 420
+    breite_bild = round(hoehe_bild / FENSTER_MM[3] * FENSTER_MM[2])
+    oben = 128
+    y_soll = _y_im_ausschnitt(mess["soll"], FENSTER_MM, hoehe_bild)
+    versatz = SABOTAGE_MM - mess["soll"]
+
+    faelle = (
+        (seite, f"{mess['ist']:.2f} mm".replace(".", ","), "so wird ausgeliefert", GRUEN_TEXT),
+        (seite_sabotiert, f"{SABOTAGE_MM:.2f} mm".replace(".", ","),
+         f"{versatz:.0f} mm zu tief — verify schlägt an", TINTE),
+    )
+    frames = []
+    for quelle, kopf, fuss, farbe in faelle:
+        tafel = Image.new("RGB", (breite_bild + 2 * RAND, oben + hoehe_bild + 142), PAPIER)
+        zeichner = ImageDraw.Draw(tafel)
+        zeichner.text((RAND, 34), "Fällt ein Fehler von 2 mm auf?",
+                      font=_schrift(34, fett=True), fill=TINTE)
+        zeichner.text((RAND, 90),
+                      f"Derselbe Ausschnitt, {_mass(FENSTER_MM[2])} × "
+                      f"{_mass(FENSTER_MM[3])} mm — im Wechsel.",
+                      font=_schrift(20), fill=GRAU)
+
+        ausschnitt, _ = _ausschnitt(quelle, FENSTER_MM, hoehe_bild)
+        _sollinie(ImageDraw.Draw(ausschnitt), y_soll, ausschnitt.width, FENSTER_MM,
+                  f"Soll {mess['soll']:.2f} mm".replace(".", ","), _schrift(22))
+        tafel.paste(ausschnitt, (RAND, oben))
+        zeichner.rectangle(
+            [(RAND, oben), (RAND + ausschnitt.width - 1, oben + ausschnitt.height - 1)],
+            outline=GRAU, width=1,
+        )
+        zeichner.text((RAND, oben + hoehe_bild + 32), kopf,
+                      font=_schrift(30, fett=True), fill=farbe)
+        zeichner.text((RAND, oben + hoehe_bild + 78), fuss, font=_schrift(20), fill=GRAU)
+        frames.append(tafel)
+    return frames
+
+
 # ── Ablauf ──────────────────────────────────────────────────────────────────
 
 def baue() -> dict:
@@ -382,7 +456,7 @@ def baue() -> dict:
         return {
             "mess": mess,
             "detail": zeichne_detail(seite, mess),
-            "gegenprobe": zeichne_gegenprobe(seite, seite_falsch, mess),
+            "wechsel": zeichne_wechsel(seite, seite_falsch, mess),
             "ausschnitt_richtig": _ausschnitt(seite, FENSTER_MM, hoehe)[0],
             "ausschnitt_falsch": _ausschnitt(seite_falsch, FENSTER_MM, hoehe)[0],
             "seiten": (seite, seite_falsch),
@@ -428,12 +502,25 @@ def main() -> int:
         return 0
 
     ZIEL_DIR.mkdir(parents=True, exist_ok=True)
-    for schluessel, name in (("detail", "falzmarke-detail.png"),
-                             ("gegenprobe", "falzmarke-gegenprobe.png")):
-        bild = gebaut[schluessel]
-        pfad = ZIEL_DIR / name
-        bild.save(pfad, optimize=True)
-        print(f"  {pfad.relative_to(REPO)}  {bild.width}x{bild.height}")
+    detail = gebaut["detail"]
+    pfad = ZIEL_DIR / "falzmarke-detail.png"
+    detail.save(pfad, optimize=True)
+    print(f"  {pfad.relative_to(REPO)}  {detail.width}x{detail.height}")
+
+    # Der Wechsel als GIF. Pillow schreibt es selbst — VHS ist ein
+    # Terminal-Recorder und fuer Bildanimation der falsche Weg; die beiden
+    # Wege bleiben getrennt (Issue #75).
+    #
+    # Der richtige Zustand steht zuerst: Wer das GIF nur als Standbild sieht —
+    # etwa wenn eine Oberflaeche die Animation nicht abspielt —, sieht dann die
+    # Marke auf der Linie und nicht den Fehlerfall.
+    frames = gebaut["wechsel"]
+    gif = ZIEL_DIR / "falzmarke-gegenprobe.gif"
+    frames[0].save(gif, save_all=True, append_images=frames[1:],
+                   duration=BILDDAUER_MS, loop=0, optimize=True)
+    print(f"  {gif.relative_to(REPO)}  {frames[0].width}x{frames[0].height}, "
+          f"{len(frames)} Bilder à {BILDDAUER_MS} ms  "
+          f"{gif.stat().st_size / 1024:.0f} KB")
     BELEG.write_text(neu, encoding="utf-8")
     print(f"  {BELEG.relative_to(REPO)}  {PRUEFUNG}: {mess['ist']:.2f} mm")
     return 0
