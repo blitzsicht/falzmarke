@@ -55,8 +55,8 @@ EMAIL_PFLICHTFELDER = ("profil", "an", "betreff")
 # Der vollständige Datenvertrag: was im Frontmatter einer Briefdatei stehen darf.
 # Dokumentiert in references/frontmatter.md; ein Test hält beide zusammen.
 FRONTMATTER_FELDER = frozenset({
-    "profil", "typ", "form", "norm", "sprache", "empfaenger", "vermerke", "datum",
-    "betreff", "betreff_kurz", "infoblock", "anrede", "gruss",
+    "profil", "typ", "form", "norm", "dialekt", "sprache", "empfaenger", "vermerke",
+    "datum", "betreff", "betreff_kurz", "infoblock", "anrede", "gruss",
     "unterzeichner", "signatur", "anlagen", "anlagen_dateien", "verteiler",
 })
 
@@ -65,7 +65,7 @@ FRONTMATTER_FELDER = frozenset({
 # Listen zusammenlegt, muss an jeder Prüfung wieder unterscheiden — und vergisst
 # es an einer.
 EMAIL_FRONTMATTER_FELDER = frozenset({
-    "profil", "typ", "sprache", "an", "cc", "betreff", "anrede", "gruss",
+    "profil", "typ", "dialekt", "sprache", "an", "cc", "betreff", "anrede", "gruss",
     "unterzeichner", "anlagen_dateien", "antwort_auf",
     # `datum` ist hier bekannt, damit es die eigene Warnung auslöst statt als
     # unbekanntes Feld zu gelten. Es wird nicht gesetzt — das tut der Client.
@@ -218,6 +218,27 @@ def pruefe_datum(wert, zeile: int, bericht: Bericht) -> None:
         )
 
 
+def pruefe_dialekt(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
+    """Der Wert des Feldes `dialekt`.
+
+    Ein Tippfehler darf nicht stillschweigend zur alten Fassung führen: Der
+    Brief sähe dann anders aus als geschrieben, und die Meldung, die erklärt
+    warum, käme nie. Die Liste der Fassungen steht in `markdown.py` — hier
+    stünde sie ein zweites Mal und liefe auseinander.
+    """
+    from falzmarke import markdown as markdown_modul
+
+    wert = kopf.get("dialekt")
+    if wert is None:
+        return
+    try:
+        markdown_modul.pruefe_fassung(wert)
+    except markdown_modul.MarkdownFehler as fehler:
+        bericht.fehler(
+            _feldzeile(kopf_roh, "dialekt"), "dialekt", fehler.meldung,
+            "ohne das Feld gilt die Fassung 1.0 — bestehende Briefe ändern sich nicht")
+
+
 def _melde_unbekannte(
     schluessel, erlaubt: frozenset, regel: str, kopf_roh: str, bericht: Bericht
 ) -> None:
@@ -285,6 +306,7 @@ def _pruefe_ausschluss(kopf: dict, typ: str, kopf_roh: str, bericht: Bericht) ->
 def pruefe_email_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
     """Der Datenvertrag der E-Mail-Fassung (ADR 0034)."""
     _melde_unbekannte(kopf.keys(), EMAIL_FRONTMATTER_FELDER, "frontmatter", kopf_roh, bericht)
+    pruefe_dialekt(kopf, kopf_roh, bericht)
     _pruefe_ausschluss(kopf, "email", kopf_roh, bericht)
 
     for feld in EMAIL_PFLICHTFELDER:
@@ -422,6 +444,7 @@ def pruefe_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
 
     _melde_unbekannte(kopf.keys(), FRONTMATTER_FELDER, "frontmatter", kopf_roh, bericht)
     _pruefe_ausschluss(kopf, "brief", kopf_roh, bericht)
+    pruefe_dialekt(kopf, kopf_roh, bericht)
     if isinstance(kopf.get("infoblock"), dict):
         _melde_unbekannte(
             kopf["infoblock"].keys(), INFOBLOCK_FELDER, "infoblock", kopf_roh, bericht)

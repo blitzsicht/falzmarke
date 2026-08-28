@@ -77,6 +77,23 @@ def test_zu_breite_tabelle_wird_gefangen(tmp_path):
         [p.name for p in befunde]
 
 
+def test_ueberschrift_ohne_trennstelle_wird_gefangen(tmp_path):
+    """Der erste Fall aus Dialekt 1.1 — und ein anderer, als hier stand.
+
+    Der README dieses Ordners hielt fest, ein langes Wort laufe nicht ueber:
+    Typst bricht es um. Das stimmt **im Absatz**, nachgemessen. In einer
+    Ueberschrift stimmt es nicht — dort steht das Wort am Zeilenanfang, es gibt
+    keinen vorangehenden Umbruchpunkt, und Typst laesst es durchlaufen.
+    Gemessen: 359,35 mm statt hoechstens 190,00.
+
+    Genau dafuer war Issue #35 die Vorbedingung von #26.
+    """
+    pdf = _rendere(FIXTURES / "ueberschrift-ohne-trennstelle.md", tmp_path / "kopf.pdf")
+    befunde = _befunde(pdf)
+    assert any(p.name == "Seite 1, rechter Rand" for p in befunde), \
+        [p.name for p in befunde]
+
+
 def test_ueberlauf_auf_seite_zwei_wird_gefangen(tmp_path):
     """Der eigentliche Grund für Issue #35.
 

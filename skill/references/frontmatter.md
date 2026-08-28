@@ -9,6 +9,7 @@ typ: brief                       # brief (Vorgabe) oder email — siehe „Die E
 profil: example                  # Pflicht. Dateiname (ohne .yaml) aus ~/.config/falzmarke/profiles/
 form: B                          # A oder B. Ohne Angabe gilt der Wert aus dem Profil
 norm: din5008                    # reserviert; derzeit nur din5008
+dialekt: "1.1"                   # 1.0 (Vorgabe, wenn das Feld fehlt) oder 1.1
 sprache: de                      # de oder en. Beschriftung und Datum, nicht die Maße
 empfaenger:                      # Pflicht. 1 bis 6 Zeilen, keine Leerzeilen
   - Muster GmbH                  # Reihenfolge: Firma, Person, Straße, PLZ Ort, [LAND]
@@ -78,6 +79,7 @@ unterzeichner: Erika Muster
 anlagen_dateien:                        # optional, als Anhang der Mail
   - angebot-2026-0815.pdf
 antwort_auf: "<kennung@example.de>"     # optional, wird zu In-Reply-To
+dialekt: "1.1"                          # wie beim Brief; der HTML-Teil setzt 1.1 noch nicht
 sprache: de
 datum: 2026-08-25                       # wird NICHT gesetzt — `lint` warnt, siehe unten
 ---

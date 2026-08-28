@@ -527,10 +527,16 @@ def linte(brief_pfad: Path, profil_verzeichnis: Path | None = None) -> lint_modu
     if str(kopf.get("typ") or "brief") == "email":
         lint_modul.pruefe_email_anlagen(kopf, body_md, bericht)
 
+    hinweise: list = []
     try:
-        konvertiere(body_md, versatz)
+        konvertiere(body_md, versatz, dialekt=kopf.get("dialekt"),
+                    ziel=str(kopf.get("typ") or "brief"), hinweise=hinweise)
     except MarkdownFehler as fehler:
         bericht.fehler(fehler.zeile, "markdown", fehler.meldung)
+    # Was gesetzt wird, aber auffällt. Der Linter ist die Stelle, an der es
+    # jemand liest — die Prüfung selbst kann nur abbrechen oder durchlassen.
+    for hinweis in hinweise:
+        bericht.warnung(hinweis.zeile, "markdown", hinweis.meldung)
 
     if kopf.get("profil"):
         try:
@@ -575,7 +581,7 @@ def rendere(
         profil_daten = baue_profil_daten(profil, profil_pfad, arbeit)
 
         try:
-            body_typst = konvertiere(body_md, versatz)
+            body_typst = konvertiere(body_md, versatz, dialekt=kopf.get("dialekt"))
         except MarkdownFehler as fehler:
             raise Eingabefehler(f"{brief_pfad.name}, {fehler}") from None
         if not body_typst.strip():
@@ -832,7 +838,7 @@ def setze_email(brief_pfad: Path, ausgabe: Path | None = None, *,
     profil, _ = lade_profil(kopf.get("profil", ""), profil_verzeichnis, brief_pfad)
 
     try:
-        bloecke = lies(body_md, versatz)
+        bloecke = lies(body_md, versatz, dialekt=kopf.get("dialekt"), ziel="email")
     except MarkdownFehler as fehler:
         raise Eingabefehler(f"{brief_pfad.name}, {fehler}") from None
     if not body_md.strip():
@@ -990,6 +996,7 @@ def befehl_profiles(args) -> int:
 VORLAGE = """---
 profil: {profil}
 form: {form}
+dialekt: "1.1"
 empfaenger:
 {empfaenger}
 datum: {datum}

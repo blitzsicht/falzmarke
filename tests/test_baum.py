@@ -102,6 +102,7 @@ def test_jeder_knoten_aus_baum_wird_vom_emitter_gesetzt():
         baum.Stark: baum.Stark((baum.Text("x"),)),
         baum.Betont: baum.Betont((baum.Text("x"),)),
         baum.Absatz: baum.Absatz((baum.Text("x"),)),
+        baum.Ueberschrift: baum.Ueberschrift(1, (baum.Text("x"),)),
         baum.Liste: baum.Liste(((baum.Text("a"),), (baum.Text("b"),))),
         baum.Tabelle: baum.Tabelle((((baum.Text("a"),),),), (None,)),
     }

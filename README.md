@@ -323,9 +323,13 @@ Der Text unter dem Frontmatter ist **falzmarke-Markdown**, eine dokumentierte Te
 | Harter Umbruch mit `\` am Zeilenende | `"Wort"` wird zu „Wort“ |
 | Pipe-Tabellen mit Ausrichtung | Tag und Monat bleiben zusammen: `25. August` |
 
-Überschriften, Links, Bilder, Code und HTML sind **Fehler** — mit Zeile, Grund und Korrektur,
-nie stillschweigend. Auf Papier gibt es keinen Link, und ein Bild im Fließtext verschöbe die
+Links, Bilder, Code und HTML sind **Fehler** — mit Zeile, Grund und Korrektur, nie
+stillschweigend. Auf Papier gibt es keinen Link, und ein Bild im Fließtext verschöbe die
 Geometrie, die danach gemessen wird.
+
+**Zwischenüberschriften** (`#` bis `####`) und tiefere Aufzählungen gibt es für lange Schreiben:
+`dialekt: "1.1"` im Frontmatter schaltet sie frei. Ohne das Feld gilt Fassung 1.0, und ein
+bestehender Brief rendert unverändert.
 
 Die vollständige Liste: [falzmarke-Markdown](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/markdown.md).
 
@@ -415,7 +419,8 @@ mit Aaron Swartz entworfen. Die Spezifikation dazu ist [CommonMark](https://comm
 (John MacFarlane und Mitwirkende). falzmarke setzt eine dokumentierte Teilmenge davon um
 — **[falzmarke-Markdown](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/markdown.md)** — und weicht an drei Stellen bewusst
 ab: HTML wird nie durchgereicht, Links werden nie gesetzt, und eine einzelne `2. Text`-Zeile
-ohne weitere Listenpunkte ist ein Fehler statt einer Liste.
+ohne weitere Listenpunkte wird gemeldet — gesetzt mit erhaltenem Startwert, damit nichts still
+umnummeriert wird.
 
 Das **Seitenlayout** stammt von [typst-letter-pro](https://github.com/Sematre/typst-letter-pro)
 (MIT) von Sematre und ist unverändert vendort — Prüfsumme in

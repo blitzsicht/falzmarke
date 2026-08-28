@@ -17,7 +17,10 @@ ihre eigene Umgebung, und dabei geht die Vererbung verloren.
 
 Was der Dialekt nicht kennt, kommt hier auch nicht vor: Es gibt keine Links
 (`link` steht nicht in `markdown.ERLAUBT`), keine Überschriften, keine Zitate,
-keinen Code. Überschriften, Zitate und Code kommen mit Dialekt 1.1 (#26) — dann
+keinen Code. Seit Dialekt 1.1 setzt der Briefsatz Überschriften; hierher kommen
+sie trotzdem nicht — `markdown.py` lehnt sie bei `ziel="email"` ab, bevor der
+Knoten entsteht, und `baum.NUR_BRIEF` hält fest, dass das kein Versehen ist.
+Zitate und Code kommen mit den nächsten Teilvorgängen von #26 — dann
 hier ergänzt, nicht vorher auf Vorrat.
 
 Die Grenzen aus ADR 0034 gelten: keine Spalten, keine Buttons, keine Zählpixel,

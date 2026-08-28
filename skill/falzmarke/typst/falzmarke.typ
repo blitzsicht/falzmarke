@@ -147,6 +147,40 @@
   // Jede "Leerzeile" der Norm ist damit genau eine Rasterzeile.
   set par(justify: false, leading: durchschuss, spacing: leer(1))
 
+  // Zwischenueberschriften im Brieftext (Dialekt 1.1).
+  //
+  // Alle vier Ebenen stehen in 11 pt. Das ist keine Sparsamkeit, sondern eine
+  // Folge des Rasters: Eine groessere Zeile ist hoeher als eine Rasterzeile,
+  // und alles darunter verliert seine Position. Ein Geschaeftsbrief hat auch
+  // kein Schriftgroessen-Repertoire — er zeichnet mit Fett und Kursiv aus.
+  //
+  // Die Ebenen bleiben trotzdem vier: Sie stehen als Struktur im PDF, und
+  // davon lebt ein Screenreader. Die Gliederungskennzeichnung (A. I. 1. a)
+  // schreibt der Verfasser selbst in den Text.
+  //
+  // Abstaende in `leer(n)`, also ganzen Rasterzeilen — sonst waere jede
+  // Ueberschrift ein Versatz, der sich ueber die Seite summiert.
+  //
+  // Das ist eine Zusage dieser Datei, KEINE gemessene Eigenschaft: Die
+  // Geometriepruefung misst Raender, Zonen und den untersten Text, nicht die
+  // Lage der Zeilen auf dem Raster. Nachgemessen mit einem krummen Abstand —
+  // das PDF aendert sich, und keine Pruefung schlaegt an. Wer hier etwas
+  // aendert, hat also kein Netz unter sich. Die Luecke steht als Issue #140.
+  set heading(numbering: none, outlined: false)
+  show heading: it => {
+    let stil = (
+      "1": (weight: "bold", style: "normal", davor: 2),
+      "2": (weight: "bold", style: "normal", davor: 1),
+      "3": (weight: "bold", style: "italic", davor: 1),
+      "4": (weight: "regular", style: "italic", davor: 1),
+    ).at(str(it.level))
+    block(
+      above: leer(stil.davor),
+      below: 0pt,
+      text(size: 11pt, weight: stil.weight, style: stil.style, it.body),
+    )
+  }
+
   set document(
     title: daten.betreff,
     author: profil.absender.name,

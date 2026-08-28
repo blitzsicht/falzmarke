@@ -15,7 +15,7 @@ import pytest
 from falzmarke import baum
 from falzmarke import emit_html as html
 from falzmarke import markdown as md
-from conftest import BEISPIELE
+from conftest import BEISPIELE, BEISPIELE_10
 
 
 def _setze(quelle: str) -> str:
@@ -91,7 +91,7 @@ def test_dokument_hat_sprache_und_farbschema():
     assert f"max-width: {html.BREITE_MAX}" in seite
 
 
-@pytest.mark.parametrize("beispiel", BEISPIELE, ids=lambda p: p.stem)
+@pytest.mark.parametrize("beispiel", BEISPIELE_10, ids=lambda p: p.stem)
 def test_beispiele_setzen_ohne_verstoss(beispiel):
     quelle = beispiel.read_text(encoding="utf-8").split("---", 2)[2]
     seite = html.dokument(html.setze(md.lies(quelle)))
@@ -115,7 +115,8 @@ def test_emitter_kennt_jeden_knoten():
         baum.Liste: baum.Liste(((baum.Text("a"),), (baum.Text("b"),))),
         baum.Tabelle: baum.Tabelle((((baum.Text("a"),),),), (None,)),
     }
-    fehlend = [k.__name__ for k in baum.KNOTEN if k not in beispiele]
+    fehlend = [k.__name__ for k in baum.KNOTEN
+               if k not in beispiele and k not in baum.NUR_BRIEF]
     assert not fehlend, f"Diese Prüfung kennt {fehlend} nicht — baum.KNOTEN ist gewachsen"
 
     inline = (baum.Text, baum.Umbruch, baum.Stark, baum.Betont)

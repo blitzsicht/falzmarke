@@ -13,7 +13,7 @@ import pytest
 from falzmarke import baum
 from falzmarke import emit_text as text
 from falzmarke import markdown as md
-from conftest import BEISPIELE
+from conftest import BEISPIELE_10
 
 
 def _setze(quelle: str) -> str:
@@ -56,7 +56,7 @@ def test_tabelle_richtet_aus_und_trennt_den_kopf():
 # ── Faltung: geprüft gegen ihre Umkehrung ───────────────────────────────────
 
 @pytest.mark.parametrize("delsp", [True, False], ids=["delsp=yes", "delsp=no"])
-@pytest.mark.parametrize("beispiel", BEISPIELE, ids=lambda p: p.stem)
+@pytest.mark.parametrize("beispiel", BEISPIELE_10, ids=lambda p: p.stem)
 def test_rundlauf_ueber_alle_beispiele(beispiel, delsp):
     bloecke = md.lies(_brieftext(beispiel))
     gefaltet = text.falte(bloecke, delsp=delsp)
@@ -71,7 +71,7 @@ def test_der_rundlauf_misst_ueberhaupt_etwas():
     durchreicht.
     """
     gefaltet = [
-        text.falte(md.lies(_brieftext(b))) for b in BEISPIELE
+        text.falte(md.lies(_brieftext(b))) for b in BEISPIELE_10
     ]
     marken = sum(z.endswith(" ") for g in gefaltet for z in g.split("\n"))
     assert marken > 0, "kein einziger weicher Umbruch — der Rundlauf belegt nichts"
@@ -127,7 +127,8 @@ def test_emitter_kennt_jeden_knoten():
         baum.Liste: baum.Liste(((baum.Text("a"),), (baum.Text("b"),))),
         baum.Tabelle: baum.Tabelle((((baum.Text("a"),),),), (None,)),
     }
-    fehlend = [k.__name__ for k in baum.KNOTEN if k not in beispiele]
+    fehlend = [k.__name__ for k in baum.KNOTEN
+               if k not in beispiele and k not in baum.NUR_BRIEF]
     assert not fehlend, f"Diese Prüfung kennt {fehlend} nicht — baum.KNOTEN ist gewachsen"
 
     inline = (baum.Text, baum.Umbruch, baum.Stark, baum.Betont)

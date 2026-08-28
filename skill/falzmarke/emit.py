@@ -50,6 +50,19 @@ def absatz(inhalt: str) -> str:
     return f"#par[{inhalt}]"
 
 
+def ueberschrift(inhalt: str, ebene: int) -> str:
+    """Eine Zwischenüberschrift, ab Dialekt 1.1.
+
+    `#heading` statt fett gesetztem Text: Nur so steht die Gliederung als
+    Struktur im PDF, und davon lebt ein Screenreader. Wie sie aussieht,
+    entscheidet die `show`-Regel in `falzmarke.typ` — rastertreu, ohne
+    Schriftgrößenwechsel.
+
+    `outlined: false`, weil ein Brief kein Inhaltsverzeichnis hat.
+    """
+    return f"#heading(level: {ebene}, outlined: false)[{inhalt}]"
+
+
 def liste(punkte: list[str], nummeriert: bool = False, start: int = 1) -> str:
     zellen = ", ".join(f"[{p}]" for p in punkte)
     if nummeriert:
@@ -104,6 +117,8 @@ def _inline(knoten) -> str:
 def _block(knoten) -> str:
     if isinstance(knoten, baum_modul.Absatz):
         return absatz(_inline(knoten.kinder))
+    if isinstance(knoten, baum_modul.Ueberschrift):
+        return ueberschrift(_inline(knoten.kinder), knoten.ebene)
     if isinstance(knoten, baum_modul.Liste):
         return liste(
             [_inline(p) for p in knoten.punkte],
