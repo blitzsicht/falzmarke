@@ -31,7 +31,9 @@ def _setze(quelle: str) -> str:
 ])
 def test_absatz_setzt_wie_erwartet(quelle, erwartet):
     ausgabe = _setze(quelle)
-    assert ausgabe.startswith("<p style=")
+    # `class=` steht seit dem dunklen Farbschema davor — ohne sie bliebe der
+    # Absatz hell, weil der Inline-Stil gegen die Medienabfrage gewinnt.
+    assert ausgabe.startswith("<p class=") and " style=" in ausgabe
     assert f'">{erwartet}</p>' in ausgabe
 
 
@@ -51,7 +53,7 @@ def test_verschachtelte_liste_steckt_im_punkt():
 
 def test_tabelle_traegt_ausrichtung_und_rahmen():
     ausgabe = _setze("| A | B |\n|:--|--:|\n| 1 | 2 |\n")
-    assert "<th style=" in ausgabe and "font-weight: 600" in ausgabe
+    assert "<th class=" in ausgabe and "font-weight: 600" in ausgabe
     assert "text-align: left" in ausgabe and "text-align: right" in ausgabe
     assert f"1px solid {html.RAHMEN}" in ausgabe
 

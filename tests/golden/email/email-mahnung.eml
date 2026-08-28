@@ -58,42 +58,54 @@ MIME-Version: 1.0
 <meta charset=3D"utf-8">
 <meta name=3D"viewport" content=3D"width=3Ddevice-width, initial-scale=3D1">
 <meta name=3D"color-scheme" content=3D"light dark">
+<style type=3D"text/css">
+@media (prefers-color-scheme: dark) {
+  .fm-t { color: #e8e8e8 !important; }
+  .fm-l { color: #a8a8a8 !important; }
+  .fm-r { border-color: #4a4a4a !important; }
+}
+[data-ogsc] .fm-t { color: #e8e8e8 !important; }
+[data-ogsc] .fm-l { color: #a8a8a8 !important; }
+[data-ogsc] .fm-r { border-color: #4a4a4a !important; }
+</style>
 </head>
-<body style=3D"margin: 0; padding: 16px; font-family: -apple-system, 'Segoe U=
-I', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;=
- color: #1a1a1a;">
+<body class=3D"fm-t" style=3D"margin: 0; padding: 16px; font-family: -apple-s=
+ystem, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; lin=
+e-height: 1.45; color: #1a1a1a;">
 <div style=3D"max-width: 600px;">
-<p style=3D"margin: 0 0 12px; font-family: -apple-system, 'Segoe UI', Roboto,=
- Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a=
-1a1a;">Sehr geehrte Damen und Herren,</p>
-<p style=3D"margin: 0 0 12px; font-family: -apple-system, 'Segoe UI', Roboto,=
- Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a=
-1a1a;">unsere Rechnung Nr. 2026-0815 vom 10.=C2=A0Juli 2026 =C3=BCber 2.380,0=
-0 EUR ist bis heute nicht beglichen. Sie finden sie noch einmal im Anhang.</p>
-<p style=3D"margin: 0 0 12px; font-family: -apple-system, 'Segoe UI', Roboto,=
- Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a=
-1a1a;">Bitte =C3=BCberweisen Sie den Betrag bis zum 8.=C2=A0September 2026 au=
-f das unten genannte Konto.</p>
-<p style=3D"margin: 0 0 12px; font-family: -apple-system, 'Segoe UI', Roboto,=
- Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a=
-1a1a;">Sollte sich Ihre Zahlung mit dieser Nachricht gekreuzt haben, betracht=
-en Sie sie bitte als gegenstandslos.</p>
-<p style=3D"margin: 0 0 12px; font-family: -apple-system, 'Segoe UI', Roboto,=
- Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a=
-1a1a;">Mit freundlichen Gr=C3=BC=C3=9Fen</p>
-<p style=3D"margin: 16px 0 0; border-top: 1px solid #c8c8c8; padding-top: 8px=
-; font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-seri=
-f; font-size: 16px; line-height: 1.45; color: #1a1a1a;">Erika Muster<br>Gesch=
-=C3=A4ftsf=C3=BChrerin</p>
-<p style=3D"margin: 10px 0 0; font-family: -apple-system, 'Segoe UI', Roboto,=
- Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a=
-1a1a;">Telefon 0941 620-9800<br>muster@example.de<br>www.example.de</p>
-<p style=3D"margin: 10px 0 0; font-family: -apple-system, 'Segoe UI', Roboto,=
- Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a=
-1a1a;">Beispiel GmbH<br>Musterweg 12<br>93055 Regensburg<br>Amtsgericht Regen=
-sburg HRB 12345<br>USt-IdNr. DE123456789<br>Gesch=C3=A4ftsf=C3=BChrerin: Erik=
-a Muster<br>https://example.de/datenschutz<br>Diese E-Mail enth=C3=A4lt vertr=
-auliche Informationen.</p>
+<p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, 'Seg=
+oe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1=
+.45; color: #1a1a1a;">Sehr geehrte Damen und Herren,</p>
+<p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, 'Seg=
+oe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1=
+.45; color: #1a1a1a;">unsere Rechnung Nr. 2026-0815 vom 10.=C2=A0Juli 2026 =
+=C3=BCber 2.380,00 EUR ist bis heute nicht beglichen. Sie finden sie noch ein=
+mal im Anhang.</p>
+<p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, 'Seg=
+oe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1=
+.45; color: #1a1a1a;">Bitte =C3=BCberweisen Sie den Betrag bis zum 8.=C2=A0Se=
+ptember 2026 auf das unten genannte Konto.</p>
+<p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, 'Seg=
+oe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1=
+.45; color: #1a1a1a;">Sollte sich Ihre Zahlung mit dieser Nachricht gekreuzt =
+haben, betrachten Sie sie bitte als gegenstandslos.</p>
+<p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, 'Seg=
+oe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1=
+.45; color: #1a1a1a;">Mit freundlichen Gr=C3=BC=C3=9Fen</p>
+<p class=3D"fm-t fm-r" style=3D"margin: 16px 0 0; border-top: 1px solid #c8c8=
+c8; padding-top: 8px; font-family: -apple-system, 'Segoe UI', Roboto, Helveti=
+ca, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a;">E=
+rika Muster<br>Gesch=C3=A4ftsf=C3=BChrerin</p>
+<p class=3D"fm-t" style=3D"margin: 10px 0 0; font-family: -apple-system, 'Seg=
+oe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1=
+.45; color: #1a1a1a;">Telefon 0941 620-9800<br>muster@example.de<br>www.examp=
+le.de</p>
+<p class=3D"fm-l" style=3D"margin: 10px 0 0; font-family: -apple-system, 'Seg=
+oe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1=
+.45; color: #1a1a1a; font-size: 13px; color: #666;">Beispiel GmbH<br>Musterwe=
+g 12<br>93055 Regensburg<br>Amtsgericht Regensburg HRB 12345<br>USt-IdNr. DE1=
+23456789<br>Gesch=C3=A4ftsf=C3=BChrerin: Erika Muster<br>https://example.de/d=
+atenschutz<br>Diese E-Mail enth=C3=A4lt vertrauliche Informationen.</p>
 </div>
 </body>
 </html>

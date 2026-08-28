@@ -64,6 +64,38 @@ die in Outlook, Gmail und Apple Mail gleich ankommt — jede Mail-Umgebung strei
 weg, und der Schnitt durch alle drei ist schmal. Ein Zählpixel ist zusätzlich ein
 Datenschutzvorgang, den ein Werkzeug seinem Nutzer nicht unterschieben darf.
 
+#### Ergänzung vom 28.08.2026: ein `<style>`-Block für das dunkle Farbschema
+
+Oben steht „keine externen Stylesheets". Die Prüffunktion `emit_html.verstoesse()` verbot
+darüber hinaus **jeden** `<style>`-Block — eine Verschärfung, die hier nie beschlossen wurde.
+Sie fiel auf, als der dunkle Modus dazukam.
+
+**Inline-Stile können keine Medienabfrage tragen.** Das ist eine Eigenschaft der Sprache, keine
+Bequemlichkeit: Ohne `<style>` erscheint jede erzeugte Nachricht in einem dunklen Client als
+weißer Kasten mit hellem Text auf hellem Grund. Dunkle Clients sind längst der Normalfall.
+
+Zulässig ist deshalb **genau ein** Block, und er ist eine Konstante des Werkzeugs:
+
+- Er schaltet ausschließlich **Farben** um — Text, gedämpfter Text, Rahmen.
+- Er trägt zwei Mechanismen: `prefers-color-scheme` und `[data-ogsc]`, das Outlook stattdessen
+  setzt. Mit nur einem bleibt genau ein Programm hell.
+- **Nichts daran wird aus Eingabe oder Profil zusammengesetzt.** Das Werkzeug erzeugt ihn und
+  kennt seinen Inhalt vollständig.
+
+`verstoesse()` vergleicht ihn **Zeichen für Zeichen** gegen die Konstante. Ein zweiter Block, ein
+geänderter Block, ein zusätzliches Leerzeichen — alles bleibt ein Verstoß. Damit ist die
+Ausnahme nicht dehnbar, und sie ist geprüft statt zugesichert.
+
+Was das **nicht** aufweicht: Externe Stylesheets, Skripte, Hintergrundbilder, Zählpixel und
+Verweise auf Ressourcen im Stil bleiben verboten. Die Dunkelfarben sind fest und kommen nicht
+aus dem Profil — eine Markenfarbe, die auf Weiß trägt, trägt auf Dunkel selten, und ein Profil,
+das eigene Dunkelfarben mitbrächte, müsste jede davon gegen den dunklen Grund messen.
+
+Dazu eine zweite Prüfung, `emit_html.nicht_umschaltbar()`: Wer eine Farbe inline setzt, muss die
+Klasse tragen, die sie umschaltet. Der Fehler, gegen den sie gebaut ist, heißt **halb
+umgeschaltet** — beim Bildzeichen der Marke stand die helle Grundregel einmal nach der
+Medienabfrage, und das Blatt schaltete um, die Kontur nicht.
+
 ## Warum
 
 0029 hätte gereicht, wenn E-Mail wie ein Brief wäre. Sie ist es nicht — an genau einer Stelle:
