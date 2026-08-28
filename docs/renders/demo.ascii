@@ -1,4 +1,3 @@
->
 
 
 
@@ -11,6 +10,100 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
 
 
 
@@ -90,59 +183,10 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 ────────────────────────────────────────────────────────────────────────────────
 >
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-────────────────────────────────────────────────────────────────────────────────
->
 
 
 
@@ -217,42 +261,6 @@
 
 
 
-────────────────────────────────────────────────────────────────────────────────
->
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 ────────────────────────────────────────────────────────────────────────────────
@@ -293,8 +301,12 @@
 
 
 
+
+
 ────────────────────────────────────────────────────────────────────────────────
 >
+
+
 
 
 
@@ -360,9 +372,6 @@ $
 
 
 
-
-
-
 ────────────────────────────────────────────────────────────────────────────────
 $ cat examples/brief-mahnung.md
 
@@ -392,9 +401,6 @@ $ cat examples/brief-mahnung.md
 
 
 
-
-
-
 ────────────────────────────────────────────────────────────────────────────────
 $ cat examples/brief-mahnung.md
 
@@ -414,41 +420,6 @@ $ cat examples/brief-mahnung.md
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-────────────────────────────────────────────────────────────────────────────────
-$ cat examples/brief-mahnung.md
----
-profil: example-grafik
-form: B
-empfaenger:
-  - Muster GmbH
-  - Frau Erika Muster
-  - Musterstraße 1
-  - 12345 Musterstadt
-datum: 2026-08-25
-betreff: Zahlungserinnerung zu Rechnung Nr. 2026-0815
-infoblock:
-  unser_zeichen: EM
-anrede: Sehr geehrte Frau Muster,
----
-unsere Rechnung Nr. 2026-0815 vom 10. Juli 2026 über 2.380,00 Euro ist bis heute nicht beglichen.
-
-Wir bitten Sie, den Betrag bis zum **8. September 2026** auf das unten genannte Konto zu überweisen.
-
-Sollte sich Ihre Zahlung mit diesem Schreiben gekreuzt haben, betrachten Sie es bitte als gegenstandslos.
-$
 
 
 
@@ -488,6 +459,32 @@ $
 
 
 
+────────────────────────────────────────────────────────────────────────────────
+$ cat examples/brief-mahnung.md
+---
+profil: example-grafik
+form: B
+empfaenger:
+  - Muster GmbH
+  - Frau Erika Muster
+  - Musterstraße 1
+  - 12345 Musterstadt
+datum: 2026-08-25
+betreff: Zahlungserinnerung zu Rechnung Nr. 2026-0815
+infoblock:
+  unser_zeichen: EM
+anrede: Sehr geehrte Frau Muster,
+---
+unsere Rechnung Nr. 2026-0815 vom 10. Juli 2026 über 2.380,00 Euro ist bis heute nicht beglichen.
+
+Wir bitten Sie, den Betrag bis zum **8. September 2026** auf das unten genannte Konto zu überweisen.
+
+Sollte sich Ihre Zahlung mit diesem Schreiben gekreuzt haben, betrachten Sie es bitte als gegenstandslos.
+$
+
+
+
+
 
 
 
@@ -520,6 +517,32 @@ $
 
 
 
+────────────────────────────────────────────────────────────────────────────────
+$ falzmarke render examples/brief-mahnung.md --png --verbose
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -552,46 +575,8 @@ $ falzmarke render examples/brief-mahnung.md --png --verbose
 
 
 
-
-
-
 ────────────────────────────────────────────────────────────────────────────────
 $ falzmarke render examples/brief-mahnung.md --png --verbose
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-────────────────────────────────────────────────────────────────────────────────
-$ falzmarke render examples/brief-mahnung.md --png --verbose
-
-
-
 
 
 
@@ -648,9 +633,6 @@ OK    Betreff, Zeilenzahl: soll ≤ 2 ist 1 (tol —)
 OK    Betreff, y-Oberkante: soll 98.47 ist 98.45 (tol -1.74625/+0.6)
 OK    Betreff, x-links: soll 25.00 ist 25.00 (tol ±0.3)
 OK    Betreff ohne Leitwort: soll kein 'Betreff:' ist Zahlungserinnerung (tol —)
-OK    Betreff ohne Schlusspunkt: soll kein Punkt am Ende ist gserinnerung (tol —)
-OK    Abstand Anschrift → Betreff: soll 35.77 ist 35.77 (tol ±0.3)
-OK    Abstand Betreff → Anrede (2 Leerzeilen): soll 12.70 ist 12.70 (tol ±0.2)
 ────────────────────────────────────────────────────────────────────────────────
 $ falzmarke render examples/brief-mahnung.md --png --verbose
 OK  PDF geschrieben: examples/brief-mahnung.pdf
@@ -680,7 +662,4 @@ OK    Betreff, Zeilenzahl: soll ≤ 2 ist 1 (tol —)
 OK    Betreff, y-Oberkante: soll 98.47 ist 98.45 (tol -1.74625/+0.6)
 OK    Betreff, x-links: soll 25.00 ist 25.00 (tol ±0.3)
 OK    Betreff ohne Leitwort: soll kein 'Betreff:' ist Zahlungserinnerung (tol —)
-OK    Betreff ohne Schlusspunkt: soll kein Punkt am Ende ist gserinnerung (tol —)
-OK    Abstand Anschrift → Betreff: soll 35.77 ist 35.77 (tol ±0.3)
-OK    Abstand Betreff → Anrede (2 Leerzeilen): soll 12.70 ist 12.70 (tol ±0.2)
 ────────────────────────────────────────────────────────────────────────────────
