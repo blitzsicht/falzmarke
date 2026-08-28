@@ -28,6 +28,7 @@ import pytest
 from conftest import REPO
 
 SKRIPT = REPO / "scripts" / "skill_packen.sh"
+CI = REPO / ".github" / "workflows" / "ci.yml"
 RELEASE = REPO / ".github" / "workflows" / "release.yml"
 AUFRUF = "bash scripts/skill_packen.sh"
 VENDOR = REPO / "skill" / "vendor"
@@ -71,11 +72,34 @@ def test_das_skript_gibt_es_und_ist_ausfuehrbar():
         f"Git führt das Skript nicht als ausführbar: {eintrag.strip() or '— nicht getrackt —'}")
 
 
-def test_der_release_workflow_ruft_das_skript_auf():
-    assert AUFRUF in RELEASE.read_text(encoding="utf-8"), (
-        f"release.yml ruft {AUFRUF!r} nicht auf. Wer die Schritte dort wieder "
+@pytest.mark.parametrize("datei", [CI, RELEASE], ids=lambda p: p.name)
+def test_beide_workflows_rufen_dasselbe_skript(datei):
+    """Nicht nur der Release-Job, auch die CI.
+
+    Der Pack-Schritt lief anfangs ausschließlich am Tag — und das Ruleset lässt
+    Tags weder verschieben noch löschen. Ein Fehlschlag dort kostet eine
+    Versionsnummer, die niemand je wieder verwenden kann. Dieselbe Lehre wie
+    bei der Paketprobe (#76), nur eine Datei weiter.
+    """
+    assert AUFRUF in datei.read_text(encoding="utf-8"), (
+        f"{datei.name} ruft {AUFRUF!r} nicht auf. Wer die Schritte dort wieder "
         "ausschreibt, hat zwei Fassungen, die auseinanderlaufen — und die im "
-        "Workflow lässt sich vor dem Tag nicht ausprobieren.")
+        "Release-Workflow lässt sich vor dem Tag nicht ausprobieren.")
+
+
+def test_die_ci_weist_den_weg_ohne_netz_nach():
+    """Das Wheel ist für manylinux gebaut und auf keiner anderen Plattform
+    installierbar — der echte Nachweis kann nur auf dem Linux-Runner laufen.
+    Hier wird festgehalten, dass er dort auch wirklich steht.
+    """
+    text = CI.read_text(encoding="utf-8")
+    for satz, wozu in [
+        ("PIP_INDEX_URL=http://127.0.0.1:1/simple", "PyPI wird nicht unerreichbar gemacht"),
+        ("bootstrap.py", "bootstrap wird gar nicht aufgerufen"),
+        ("typst war schon installiert", "die Vorbedingung wird nicht sichtbar gemacht"),
+        ("rm -f falzmarke/vendor/*.whl", "die Gegenprobe ohne Wheel fehlt"),
+    ]:
+        assert satz in text, f"Der Nachweis in ci.yml trägt nicht: {wozu}"
 
 
 def test_die_pruefung_wuerde_ein_auseinanderlaufen_bemerken():
