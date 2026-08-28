@@ -68,14 +68,102 @@ daneben die Wortmarke.
 - **Nie:** verzerren, drehen, umfärben, mit Schlagschatten versehen, das Haken-Grün gegen eine
   andere Farbe tauschen, das Zeichen in einen farbigen Kreis setzen.
 
+### Das Bildzeichen ohne Wortmarke
+
+[`bildzeichen.svg`](../assets/brand/bildzeichen.svg) ist aus `logo.svg` abgeleitet, nicht neu
+gezeichnet: Die Gruppe `falzmarke_x5F_font` ist entfernt, sonst nichts geändert. Die `viewBox`
+ist der gemessene Inhalt plus 4 % Luft, quadratisch um die Mitte gelegt — gemessen am
+gerenderten Bild, nicht aus den Pfaden gerechnet.
+
+Wer es neu ableiten muss: dieselbe Gruppe entfernen, dann die Bounding Box am Rendering
+abnehmen. Was **nicht** passieren darf, ist Umfärben, Verzerren oder ein Antasten der grünen
+Ecke.
+
+### Zwei Fassungen, und warum
+
+| Größe | Datei | Warum |
+|---|---|---|
+| ab 32 px | `bildzeichen.svg` | originalgetreu |
+| 16–24 px | `bildzeichen-klein.svg` | sonst verschwinden die Marken |
+
+**Der Grund ist gemessen, nicht geschätzt.** Die zwei senkrechten Marken sind 20,4 Einheiten
+breit. Umgerechnet auf die Darstellungsgröße:
+
+| | Markenbreite |
+|---|---|
+| 16 px | **0,70 px** |
+| 24 px | 1,06 px |
+| 32 px | 1,41 px |
+
+Unter einem Pixel gibt es keinen Strich mehr, nur einen blassen Fleck — und die Marken sind das
+Namensgebende an diesem Zeichen. `bildzeichen-klein.svg` legt deshalb eine Kontur von 12
+Einheiten in der Blattfarbe auf alle Teile des Blattes: dieselbe Form, mehr Masse. Aus 20,4
+werden 32,4 Einheiten, bei 16 px also 1,12 px. Nachgemessen an der fertigen Bitmap: **12
+kräftig dunkle Pixel statt 3.**
+
+**Warum 12 und nicht mehr:** Bei 18 läuft die abgeknickte Ecke oben rechts zu — genau das
+Detail, das das Zeichen ausmacht. Verglichen wurde bei 16, 24 und 32 px.
+
+**Warum die kleine Fassung nicht überall:** Ab 32 px trägt die Kontur nichts bei und macht die
+Ecke nur stumpf. Wer im Zweifel ist, nimmt die originalgetreue Datei.
+
+### Favicon-Satz
+
+Alle Dateien liegen bei den Markendateien und sind aus den beiden SVG abgeleitet:
+
+| Datei | Größen | Quelle |
+|---|---|---|
+| `favicon.ico` | 16, 32, 48 | 16 aus der kleinen Fassung, 32 und 48 aus der originalgetreuen |
+| `apple-touch-icon.png` | 180 | originalgetreu |
+| `icon-512.png` | 512 | originalgetreu |
+| `bildzeichen.svg` | beliebig | ist selbst das SVG-Favicon |
+
+Das ICO trägt **größenspezifische** Bilder — die 16er-Bitmap ist nicht die herunterskalierte
+32er, sonst wäre die kleine Fassung wirkungslos. Wer den Satz neu erzeugt, prüft das nach: Die
+16er-Bitmap aus dem ICO muss byteidentisch mit dem Rendering von `bildzeichen-klein.svg` sein
+und sich vom Rendering der originalgetreuen Datei unterscheiden. Sind beide gleich, ist etwas
+schiefgegangen.
+
 ## Auf hellem und dunklem Grund
 
 Auf Papier steht das Zeichen unverändert.
 
-Auf dunklem Grund ist es **derzeit unbrauchbar**: Die Blattkontur ist Tinte `#121E2F` und
-verschwindet auf jedem dunklen Grund. `logo-dark.svg` existiert zwar, ist aber
-**byte-identisch mit `logo.svg`** — es gibt faktisch keine dunkle Variante. Wer das Zeichen
-auf dunklem Grund braucht, legt es bis dahin auf eine weiße Fläche mit Schutzraum.
+Auf dunklem Grund verschwindet die Blattkontur: Tinte `#121E2F` auf einem dunklen
+Tab-Hintergrund ergibt **1,01 : 1**. WCAG 1.4.11 verlangt für grafische Elemente 3,0 : 1 —
+übrig bliebe das grüne Dreieck.
+
+**Das Bildzeichen löst das, das volle Zeichen noch nicht.**
+
+`bildzeichen.svg` und `bildzeichen-klein.svg` kehren Tinte zu Papier um, sobald das Farbschema
+dunkel ist:
+
+```css
+@media (prefers-color-scheme: dark) {
+  .st0{fill:#FFFFFF;}      /* Blatt */
+  .st-mark{stroke:#FFFFFF;} /* Kontur der kleinen Fassung */
+}
+```
+
+Beide Farben stehen in der Tabelle oben; es kommt keine dazu. Das grüne Dreieck und der weiße
+Haken darin bleiben unverändert — Grün ist Fläche, kein Text, und trägt auf beiden Gründen
+(6,00 : 1 auf dunkel, 2,78 : 1 auf hell). Nachgemessen am Rendering: im dunklen Schema bleibt
+**kein einziges Tinte-Pixel** übrig, die 170 grünen bleiben. Der Kontrast steigt von 1,01 : 1
+auf **16,67 : 1**.
+
+Zwei Grenzen gehören dazu, sonst verspricht die Datei mehr, als sie hält:
+
+- **Nur wo der Browser das SVG nimmt** und die Medienabfrage darin auswertet. Firefox und
+  Safari tun das, Chrome nur teilweise.
+- **Das ICO kann es grundsätzlich nicht.** Bitmaps tragen keine Medienabfrage; `favicon.ico`
+  ist auf hellen Grund gezeichnet.
+
+Beim Schreiben zu beachten: Die helle Grundregel muss **vor** der Medienabfrage stehen. Steht
+sie danach, gewinnt sie bei gleicher Spezifität — dann schaltet das Blatt um und die Kontur
+nicht.
+
+`logo.svg` mit Wortmarke bleibt davon unberührt: `logo-dark.svg` ist weiterhin
+**byte-identisch mit `logo.svg`**, es gibt faktisch keine dunkle Variante des vollen Zeichens.
+Wer es auf dunklem Grund braucht, legt es auf eine weiße Fläche mit Schutzraum.
 
 ## Wie die Bilder entstehen
 
@@ -122,7 +210,6 @@ erzeugen wie das Produkt, ist nicht eingelöst. Das Zeichen ist gezeichnet, nich
 ## Offen
 
 - `logo-dark.svg` ist eine Kopie von `logo.svg` und trägt auf dunklem Grund nicht.
-- Kein Favicon, kein Bildzeichen ohne Wortmarke.
 - Die Wortmarke im SVG besteht aus Pfaden einer geometrischen Grotesk, nicht aus Source Sans 3.
   Solange sie Pfad bleibt, ist das folgenlos; neu gesetzt werden darf sie nur in Montserrat
   oder Source Sans 3.
