@@ -209,3 +209,43 @@ regeln:
       international ist.
     belegt_durch:
       rfc6531: Abschnitt 3.2 — Extended Mailbox Address Syntax
+
+  - id: email.anrede
+    titel: Das Feld `anrede` trägt einen bekannten Wert
+    lint: email.anrede
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Eine Aussage ueber den Datenvertrag, nicht ueber die Sprache: `sie` oder
+      `du`, sonst nichts. Ein Tippfehler duerfte nicht stillschweigend als „kein
+      Feld gesetzt" durchgehen — dann bliebe die Pruefung darunter wirkungslos,
+      ohne dass es jemand merkt.
+
+  - id: email.anrede_ton
+    titel: Anrede im Profil und im Text gehen auseinander
+    lint: email.anrede_ton
+    ebene: praxis
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      Meldet, wenn das Profil `du` sagt und im Text gesiezt wird oder umgekehrt.
+      **Geaendert wird nie etwas** — wie jemand seine Leser anspricht, entscheidet
+      er selbst. Bewusst schmal: kein `Ihr` am Satzanfang, weil es dort auch das
+      Possessiv der dritten Person Plural sein kann. Eine Warnung, die bei
+      gueltigem Text anschlaegt, kostet Vertrauen in alle anderen.
+
+  - id: email.versalien
+    titel: Woerter in Grossbuchstaben
+    lint: email.versalien
+    ebene: praxis
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      Das liest sich wie Schreien; fuer Betonung reicht Fettdruck. Erst ab vier
+      Buchstaben und ohne die bekannten Kuerzel — Rechtsformen, Bank- und
+      Registerangaben stehen so im Handelsregister. Zwei- und dreistellige
+      Kuerzel gibt es zu viele, um sie aufzuzaehlen.

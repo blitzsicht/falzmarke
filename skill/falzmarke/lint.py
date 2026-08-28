@@ -97,7 +97,29 @@ EMAIL_BETREFF_VORSCHAU = 60
 PROFIL_EMAIL_FELDER = frozenset({
     "absender", "anzeigename", "position", "web", "datenschutz",
     "pflichtangaben", "zusatz", "gruss", "logo",
+    # Seit #105: eigene Nummern für die Signatur. Fehlt `telefon`, gilt der
+    # Wert aus dem Informationsblock — kein Feld wurde umbenannt, wer nur den
+    # Informationsblock pflegt, bekommt dieselbe Signatur wie bisher.
+    "telefon", "mobil",
+    # Ob gesiezt oder geduzt wird. Steuert NUR Warnungen, nie eine Änderung am
+    # Text: Wie jemand seine Leser anspricht, entscheidet er selbst.
+    "anrede",
 })
+
+#: Die beiden Anreden, die das Profil kennt.
+ANREDEN = ("sie", "du")
+
+#: Wörter in Versalien, die keine sind: Rechtsformen, Bank- und Registerangaben.
+#: Sie stehen so im Handelsregister und lesen sich nicht wie Geschrei.
+VERSALIEN_ERLAUBT = frozenset({
+    "GMBH", "AG", "KG", "OHG", "UG", "EG", "EV", "SE", "GBR", "MBH",
+    "IBAN", "BIC", "HRA", "HRB", "USTID", "USTIDNR", "ID", "PLZ",
+    "EUR", "USD", "CHF", "AGB", "DIN", "ISO", "PDF", "URL", "EU", "DE",
+})
+
+#: Ab so vielen Buchstaben gilt ein Wort in Versalien als Geschrei. Zwei- und
+#: dreistellige Kürzel gibt es zu viele, um sie alle aufzuzählen.
+VERSALIEN_AB = 4
 
 INFOBLOCK_FELDER = frozenset(schluessel for schluessel, _ in INFOBLOCK_REIHENFOLGE)
 
@@ -499,6 +521,61 @@ def pruefe_email_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> Non
             "eine Message-ID steht in spitzen Klammern: `<kennung@beispiel.de>`")
 
 
+#: Höflichkeitsformen, großgeschrieben. `Ihr` fehlt bewusst: „Ihr" ist auch
+#: das Possessiv der dritten Person Plural und am Satzanfang nicht von der
+#: Anrede zu unterscheiden.
+SIEZEN = re.compile(r"(?<![.!?]\s)\b(Sie|Ihnen|Ihre[nmrs]?)\b")
+
+#: Dieselbe Vorsicht andersherum: `deren`, `dessen` und `da` fangen nicht mit
+#: `du` an, aber `dein` steckt in nichts anderem.
+DUZEN = re.compile(r"\b(du|dir|dich|dein(e[nmrs]?)?)\b")
+
+#: Ein Wort in Versalien. Bindestriche gehören dazu (`USt-IdNr`), Ziffern nicht.
+VERSALIEN = re.compile(r"\b[A-ZÄÖÜ][A-ZÄÖÜ-]{%d,}\b" % (VERSALIEN_AB - 2))
+
+
+def pruefe_email_ton(profil: dict, kopf: dict, body: str, bericht: Bericht) -> None:
+    """Anrede und Lautstärke — beides nur als Warnung (#105).
+
+    **Es wird nie etwas geändert.** Wie jemand seine Leser anspricht, entscheidet
+    er selbst; das Werkzeug sagt nur, wenn Profil und Text auseinandergehen.
+
+    Die Prüfung ist bewusst schmal gehalten. Eine Warnung, die bei gültigem Text
+    anschlägt, kostet Vertrauen in alle anderen — das war die Lehre aus der
+    Telefonprüfung (#133). Deshalb kein `Ihr` am Satzanfang und keine Kürzel
+    unter vier Buchstaben.
+    """
+    abschnitt = profil.get("email") or {}
+    anrede = str(abschnitt.get("anrede") or "").strip().lower()
+    text = "\n".join([str(kopf.get("anrede") or ""), body])
+
+    if anrede == "du":
+        treffer = sorted({m.group(0) for m in SIEZEN.finditer(text)})
+        if treffer:
+            bericht.warnung(
+                1, "email.anrede_ton",
+                "das Profil sagt `anrede: du`, im Text steht "
+                + ", ".join(f"„{w}“" for w in treffer[:3]),
+                "entweder das Profil oder den Text angleichen — geändert wird hier nichts")
+    elif anrede == "sie":
+        treffer = sorted({m.group(0).lower() for m in DUZEN.finditer(text)})
+        if treffer:
+            bericht.warnung(
+                1, "email.anrede_ton",
+                "das Profil sagt `anrede: sie`, im Text steht "
+                + ", ".join(f"„{w}“" for w in treffer[:3]),
+                "entweder das Profil oder den Text angleichen — geändert wird hier nichts")
+
+    geschrien = sorted({w for w in VERSALIEN.findall(body)
+                        if len(w.replace("-", "")) >= VERSALIEN_AB
+                        and w.replace("-", "").replace(".", "") not in VERSALIEN_ERLAUBT})
+    if geschrien:
+        bericht.warnung(
+            1, "email.versalien",
+            "in Großbuchstaben geschrieben: " + ", ".join(f"„{w}“" for w in geschrien[:3]),
+            "das liest sich wie Schreien — für Betonung reicht **fett**")
+
+
 def pruefe_email_profil(profil: dict, bericht: Bericht) -> None:
     """Der Abschnitt `email:` eines Profils.
 
@@ -521,6 +598,12 @@ def pruefe_email_profil(profil: dict, bericht: Bericht) -> None:
             "die Absenderadresse steht im Profil, nicht im einzelnen Schreiben")
     else:
         pruefe_adressfeld(abschnitt["absender"], "email.absender", "", bericht)
+
+    anrede = abschnitt.get("anrede")
+    if anrede is not None and str(anrede).strip().lower() not in ANREDEN:
+        bericht.fehler(
+            1, "email.anrede", f"`email.anrede: {anrede}` gibt es nicht",
+            "bekannt sind " + " und ".join(f"`{a}`" for a in ANREDEN))
 
     if not abschnitt.get("pflichtangaben"):
         bericht.warnung(

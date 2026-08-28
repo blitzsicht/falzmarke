@@ -122,6 +122,9 @@ email:
   anzeigename: Erika Muster            # optional, sonst der Unterzeichner
   position: Geschäftsführerin          # optional
   web: www.example.de                  # optional
+  telefon: 0941 620-9800               # optional, sonst der Wert aus infoblock_defaults
+  mobil: 0170 1234567                  # optional
+  anrede: sie                          # sie oder du — steuert NUR Warnungen
   datenschutz: https://example.de/datenschutz   # optional, als Zeile in der Signatur
   pflichtangaben: fusszeile            # woher die Angaben je Rechtsform kommen
   zusatz:                              # optional, z. B. Vertraulichkeitshinweis

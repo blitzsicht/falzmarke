@@ -32,16 +32,18 @@ Mit freundlichen Gr=C3=BC=C3=9Fen
 --=20
 Erika Muster
 Gesch=C3=A4ftsf=C3=BChrerin
+
 Telefon 0941 620-9800
 muster@example.de
 www.example.de
-https://example.de/datenschutz
+
 Beispiel GmbH
 Musterweg 12
 93055 Regensburg
 Amtsgericht Regensburg HRB 12345
 USt-IdNr. DE123456789
 Gesch=C3=A4ftsf=C3=BChrerin: Erika Muster
+https://example.de/datenschutz
 Diese E-Mail enth=C3=A4lt vertrauliche Informationen.
 
 --==falzmarke-0-8ad091b067df7617c6131e71==
@@ -81,11 +83,16 @@ r Saal ab 14 Uhr frei ist.</p>
 <p style=3D"margin: 16px 0 0; border-top: 1px solid #c8c8c8; padding-top: 8px=
 ; font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-seri=
 f; font-size: 16px; line-height: 1.45; color: #1a1a1a;">Erika Muster<br>Gesch=
-=C3=A4ftsf=C3=BChrerin<br>Telefon 0941 620-9800<br>muster@example.de<br>www.e=
-xample.de<br>https://example.de/datenschutz<br>Beispiel GmbH<br>Musterweg 12<=
-br>93055 Regensburg<br>Amtsgericht Regensburg HRB 12345<br>USt-IdNr. DE123456=
-789<br>Gesch=C3=A4ftsf=C3=BChrerin: Erika Muster<br>Diese E-Mail enth=C3=A4lt=
- vertrauliche Informationen.</p>
+=C3=A4ftsf=C3=BChrerin</p>
+<p style=3D"margin: 10px 0 0; font-family: -apple-system, 'Segoe UI', Roboto,=
+ Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a=
+1a1a;">Telefon 0941 620-9800<br>muster@example.de<br>www.example.de</p>
+<p style=3D"margin: 10px 0 0; font-family: -apple-system, 'Segoe UI', Roboto,=
+ Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a=
+1a1a;">Beispiel GmbH<br>Musterweg 12<br>93055 Regensburg<br>Amtsgericht Regen=
+sburg HRB 12345<br>USt-IdNr. DE123456789<br>Gesch=C3=A4ftsf=C3=BChrerin: Erik=
+a Muster<br>https://example.de/datenschutz<br>Diese E-Mail enth=C3=A4lt vertr=
+auliche Informationen.</p>
 </div>
 </body>
 </html>

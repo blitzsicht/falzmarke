@@ -57,48 +57,73 @@ def _adressliste(wert) -> str:
     return ", ".join(teile)
 
 
-def signatur_zeilen(profil: dict, kopf: dict) -> list[str]:
-    """Die Signatur als Liste von Zeilen, in der Reihenfolge aus #62.
+def signatur_bloecke(profil: dict, kopf: dict) -> list[list[str]]:
+    """Die Signatur in drei Blöcken (#105).
 
-    Grußformel · Name · Position · Firma · Anschrift · Telefon · E-Mail · Web ·
-    Pflichtangaben · Datenschutz · Zusatz.
+    | Block | Inhalt |
+    |---|---|
+    | Person | Anzeigename, Position |
+    | Kontakt | Telefon, Mobil, E-Mail, Web |
+    | Recht | Firma, Anschrift, Pflichtangaben, Datenschutz, Zusatz |
 
-    Was fehlt, fällt weg — ohne Lücke. Eine leere Zeile mitten in einer
-    Signatur sieht aus wie ein Fehler des Absenders, nicht wie ein fehlendes
-    Profilfeld.
+    Bis hierher war alles ein Block — dreizehn Zeilen am Stück, in denen der
+    Name so aussieht wie die Umsatzsteuer-Identifikationsnummer. Drei Blöcke
+    trennen, was verschieden ist: wer schreibt, wie man ihn erreicht, was das
+    Gesetz verlangt.
+
+    Die Reihenfolge INNERHALB der Blöcke bleibt fest und ist nicht einstellbar:
+    Eine Signatur, deren Reihenfolge jeder selbst wählt, ist keine Signatur
+    mehr, sondern ein Textfeld — und die Pflichtangaben rutschen dann
+    irgendwohin.
+
+    Was fehlt, fällt weg — ohne Lücke. Ein leerer Block erscheint nicht; eine
+    Leerzeile mitten in einer Signatur sieht aus wie ein Fehler des Absenders,
+    nicht wie ein fehlendes Profilfeld.
     """
     email_teil = profil.get("email") or {}
     absender = profil.get("absender") or {}
     pflicht = email_teil.get("pflichtangaben")
     vorgaben = profil.get("infoblock_defaults") or {}
-    zeilen: list[str] = []
 
+    # ── Person ──────────────────────────────────────────────────────────────
+    person: list[str] = []
     name = email_teil.get("anzeigename") or kopf.get("unterzeichner") or profil.get("unterzeichner")
     if name:
-        zeilen.append(str(name))
+        person.append(str(name))
     if email_teil.get("position"):
-        zeilen.append(str(email_teil["position"]))
+        person.append(str(email_teil["position"]))
 
+    # ── Kontakt ─────────────────────────────────────────────────────────────
+    #
+    # `telefon` und `mobil` stehen im Abschnitt `email:`; fehlt `telefon`, gilt
+    # der Wert aus dem Informationsblock. Kein Feld wurde umbenannt — wer nur
+    # den Informationsblock pflegt, bekommt dieselbe Signatur wie bisher.
+    kontakt: list[str] = []
+    telefon = email_teil.get("telefon") or vorgaben.get("telefon")
+    if telefon:
+        kontakt.append(f"Telefon {telefon}")
+    if email_teil.get("mobil"):
+        kontakt.append(f"Mobil {email_teil['mobil']}")
+    if email_teil.get("absender"):
+        kontakt.append(str(email_teil["absender"]))
+    if email_teil.get("web"):
+        kontakt.append(str(email_teil["web"]))
+
+    # ── Recht ───────────────────────────────────────────────────────────────
+    #
     # Firma und Anschrift kommen aus genau einer Quelle. Steht `pflichtangaben:
     # fusszeile`, liefert die Fußzeile beides — sie ist die für den Fuß eines
     # Briefes kuratierte Fassung. Beide Quellen zu nehmen ergab am
     # Beispielprofil vier doppelte Zeilen, zwei davon so umgebrochen, dass ein
     # Vergleich auf Zeilenebene sie nicht fand.
+    recht: list[str] = []
     if pflicht != "fusszeile":
         if absender.get("name"):
-            zeilen.append(str(absender["name"]))
+            recht.append(str(absender["name"]))
         strasse = str(absender["strasse"]) if absender.get("strasse") else ""
         ort = " ".join(str(absender[f]) for f in ("plz", "ort") if absender.get(f))
         if strasse or ort:
-            zeilen.append(" · ".join(t for t in (strasse, ort) if t))
-
-    if vorgaben.get("telefon"):
-        zeilen.append(f"Telefon {vorgaben['telefon']}")
-    if email_teil.get("absender"):
-        zeilen.append(str(email_teil["absender"]))
-    for wert in (email_teil.get("web"), email_teil.get("datenschutz")):
-        if wert:
-            zeilen.append(str(wert))
+            recht.append(" · ".join(t for t in (strasse, ort) if t))
 
     if pflicht == "fusszeile":
         # Spalte 1 trägt Firma und Anschrift, Spalte 4 die Registerangaben.
@@ -107,24 +132,50 @@ def signatur_zeilen(profil: dict, kopf: dict) -> list[str]:
         spalten = profil.get("fusszeile") or []
         for nummer in (0, 3):
             if nummer < len(spalten):
-                zeilen.extend(str(z) for z in spalten[nummer])
+                recht.extend(str(z) for z in spalten[nummer])
     elif pflicht:
-        zeilen.extend(_als_liste(pflicht))
+        recht.extend(_als_liste(pflicht))
 
-    zeilen.extend(_als_liste(email_teil.get("zusatz")))
+    # Der Datenschutzhinweis stand bis #105 zwischen Web und Firma, also im
+    # Kontaktteil. Er ist eine Rechtsangabe und steht jetzt bei den anderen.
+    if email_teil.get("datenschutz"):
+        recht.append(str(email_teil["datenschutz"]))
+    recht.extend(_als_liste(email_teil.get("zusatz")))
 
-    # Die Fußzeile eines Briefes trägt die Anschrift ein zweites Mal — auf
-    # Papier steht sie in einer anderen Spalte, in einer Signatur stünde sie
-    # zweimal untereinander. Gemessen am Beispielprofil: vier doppelte Zeilen.
+    # Über ALLE Blöcke, nicht je Block.
+    #
+    # Der historische Anlass — die Fußzeile trägt die Anschrift ein zweites Mal,
+    # vier doppelte Zeilen am Beispielprofil — ist heute schon durch die Weiche
+    # oben erledigt: `pflichtangaben: fusszeile` holt Firma und Anschrift aus
+    # genau einer Quelle. Am mitgelieferten Profil läuft diese Schleife deshalb
+    # leer, und ein Test, der nur dort misst, belegt nichts.
+    #
+    # Sie bleibt für den Fall, den die Weiche nicht abdeckt: dieselbe Zeile in
+    # ZWEI Blöcken. Wer seine Website in den Pflichtangaben wiederholt, hat sie
+    # im Kontakt- und im Rechtsteil; block-lokal entdoppelt stünde sie zweimal
+    # da. `tests/test_signatur.py` prüft genau diesen Fall — mit Gegenprobe.
     gesehen: set[str] = set()
-    einmalig = []
-    for zeile in zeilen:
-        schluessel = " ".join(zeile.split()).casefold()
-        if schluessel in gesehen:
-            continue
-        gesehen.add(schluessel)
-        einmalig.append(zeile)
-    return einmalig
+    bloecke: list[list[str]] = []
+    for block in (person, kontakt, recht):
+        einmalig = []
+        for zeile in block:
+            schluessel = " ".join(zeile.split()).casefold()
+            if schluessel in gesehen:
+                continue
+            gesehen.add(schluessel)
+            einmalig.append(zeile)
+        if einmalig:
+            bloecke.append(einmalig)
+    return bloecke
+
+
+def signatur_zeilen(profil: dict, kopf: dict) -> list[str]:
+    """Dieselbe Signatur, flach — für alles, was keine Blöcke braucht.
+
+    Bleibt, weil die Frage „steht diese Zeile in der Signatur?" häufiger ist
+    als die nach ihrer Gliederung.
+    """
+    return [zeile for block in signatur_bloecke(profil, kopf) for zeile in block]
 
 
 def _mit_rahmen(kopf: dict, gruss, bloecke) -> list:
@@ -153,9 +204,12 @@ def textteil(kopf: dict, profil: dict, bloecke, breite: int = emit_text.BREITE) 
     kern = emit_text.falte(_mit_rahmen(kopf, gruss, bloecke), breite=breite)
 
     teile = [kern]
-    signatur = signatur_zeilen(profil, kopf)
-    if signatur:
-        teile.append(f"{SIGNATUR_TRENNER}\n" + "\n".join(signatur) + "\n")
+    bloecke = signatur_bloecke(profil, kopf)
+    if bloecke:
+        # Eine Leerzeile zwischen den Blöcken — im Klartext ist das die einzige
+        # Gliederung, die es gibt, und sie überlebt jedes Mailprogramm.
+        gesetzt = "\n\n".join("\n".join(block) for block in bloecke)
+        teile.append(f"{SIGNATUR_TRENNER}\n" + gesetzt + "\n")
     return "\n".join(teile)
 
 
@@ -165,14 +219,19 @@ def htmlteil(kopf: dict, profil: dict, bloecke, sprache: str = "de") -> str:
     gruss = kopf.get("gruss") or email_teil.get("gruss") or profil.get("gruss")
 
     stuecke = [emit_html.setze(_mit_rahmen(kopf, gruss, bloecke)).rstrip("\n")]
-    signatur = signatur_zeilen(profil, kopf)
-    if signatur:
-        # Eine Signatur ist kein Absatz, sondern eine Folge kurzer Zeilen.
-        # `<br>` statt eigener Absätze, sonst reißt sie im Client auseinander.
-        inhalt = emit_html.umbruch().join(emit_html.as_text(z) for z in signatur)
+    for nummer, block in enumerate(signatur_bloecke(profil, kopf)):
+        # Innerhalb eines Blocks `<br>` statt eigener Absätze: Eine Signatur ist
+        # kein Fließtext, sondern eine Folge kurzer Zeilen — mit Absätzen risse
+        # sie im Client auseinander. ZWISCHEN den Blöcken ist der Absatz genau
+        # richtig, denn dort soll Luft sein.
+        inhalt = emit_html.umbruch().join(emit_html.as_text(z) for z in block)
+        # Die Trennlinie gehört an den ersten Block: Sie trennt die Signatur von
+        # der Nachricht, nicht die Blöcke voneinander.
+        rahmen = (f"border-top: 1px solid {emit_html.RAHMEN}; padding-top: 8px; "
+                  if nummer == 0 else "")
+        oben = "16px" if nummer == 0 else "10px"
         stuecke.append(
-            f'<p style="margin: 16px 0 0; border-top: 1px solid {emit_html.RAHMEN}; '
-            f'padding-top: 8px; {emit_html.TEXTSTIL}">{inhalt}</p>'
+            f'<p style="margin: {oben} 0 0; {rahmen}{emit_html.TEXTSTIL}">{inhalt}</p>'
         )
     return emit_html.dokument("\n".join(stuecke) + "\n", sprache=sprache)
 

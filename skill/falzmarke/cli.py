@@ -549,6 +549,9 @@ def linte(brief_pfad: Path, profil_verzeichnis: Path | None = None) -> lint_modu
             # Fehler in den teuren Schritt zu verschieben.
             if str(kopf.get("typ") or "brief") == "email":
                 lint_modul.pruefe_email_profil(profil, bericht)
+                # Braucht Profil UND Text — deshalb hier und nicht in einer der
+                # beiden Prüfungen, die nur eines von beidem sehen.
+                lint_modul.pruefe_email_ton(profil, kopf, body_md, bericht)
     return bericht
 
 
