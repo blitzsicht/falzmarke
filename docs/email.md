@@ -40,7 +40,7 @@ viele Empfänger den Textteil, obwohl beides da ist.
 Rohansicht-Fenster unlesbar — und die Rohansicht ist das, was von einer `.eml` als Vorlage übrig
 bleibt.
 
-**`format=flowed` nach RFC 3676**: Weiche Umbrüche tragen ein Leerzeichen am Zeilenende und
+**`format=flowed` nach [RFC 3676](https://www.rfc-editor.org/rfc/rfc3676)**: Weiche Umbrüche tragen ein Leerzeichen am Zeilenende und
 dürfen vom Empfängerprogramm neu umbrochen werden; Tabellen und Listenpunkte tragen ihre
 Bedeutung in der Form und bleiben fest. Zeilen, die mit einem Leerzeichen beginnen, werden
 gestopft (space-stuffing) und beim Lesen wieder entstopft. Geprüft wird das gegen die Umkehrung:
@@ -73,14 +73,14 @@ Das vollständige Protokoll mit Matrix und Gegenprobe:
 
 ## Grenzen
 
-- **Betreff:** ab 78 Zeichen eine **Warnung**, kein Fehler. Die Zahl stammt aus RFC 5322,
-  Abschnitt 2.1.1 — dort steht aber etwas anderes, als hier bis v0.8.1 behauptet wurde: Begrenzt
+- **Betreff:** ab 78 Zeichen eine **Warnung**, kein Fehler. Die Zahl stammt aus
+  [RFC 5322](https://www.rfc-editor.org/rfc/rfc5322), Abschnitt 2.1.1 — dort steht aber etwas anderes, als hier bis v0.8.1 behauptet wurde: Begrenzt
   ist die **Zeilenlänge** einer Kopfzeile („SHOULD be no more than 78 characters"), und ein
   längerer Betreff wird gefaltet, nicht abgelehnt. Was oberhalb wirklich passiert, ist eine
   Anzeigefrage: Übersichten schneiden ab, und wo genau, ist von Programm zu Programm verschieden.
   Damit ist es Erfahrung und keine Vorschrift — Ebene **Praxis** nach
   [ADR 0035](entscheidungen/0035-vier-ebenen-fuer-email-regeln.md), und Praxis ist nie ein Fehler.
-- **Zeilenlänge:** RFC 5322 erlaubt keine Zeile über 998 Zeichen.
+- **Zeilenlänge:** RFC 5322, Abschnitt 2.1.1 erlaubt keine Zeile über 998 Zeichen.
 - **Anhänge:** zusammen höchstens 10 MB. Größeres lehnen viele Server ab, ohne es zu sagen.
 - **Bilder** dürfen nur aus der Nachricht selbst kommen (`cid:` oder `data:`) — kein externes
   Stylesheet, kein Zählpixel, keine Tabelle als Layout.
