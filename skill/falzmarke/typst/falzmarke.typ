@@ -311,10 +311,17 @@
 
       // Unterschriftsraum: ueblich 3 Leerzeilen. Mit Signaturbild wird der Raum
       // vom Bild gefuellt, der Abstand darunter bleibt gleich.
+      //
+      // `3 * zeile - durchschuss` und nicht `2.5 * zeile`: Ein Bild hat keinen
+      // Zeilenkasten, also greift die Kompensation nicht, die `leer(n)` fuer
+      // Textbloecke einrechnet. Mit der alten Hoehe stand alles unter der
+      // Unterschrift 0,58 Rasterzeilen daneben — gemessen an sechs Beispielen,
+      // Issue #140. Sichtbar wird so etwas erst, wenn zwei Blaetter
+      // nebeneinanderliegen.
       if daten.at("signatur", default: none) != none {
         block(above: leer(1), below: 0pt, image(
           daten.signatur,
-          height: 2.5 * zeile,
+          height: 3 * zeile - durchschuss,
           alt: "Unterschrift " + daten.unterzeichner,
         ))
         block(above: leer(1), below: 0pt, daten.unterzeichner)

@@ -169,15 +169,22 @@ def test_gegenprobe_die_pruefung_haengt_am_gemessenen_wert(tmp_path, monkeypatch
 def test_pruefung_deckt_alle_seiten_ab(tmp_path):
     """Zählt nach, statt zu vertrauen.
 
-    Bei zwei Seiten müssen sechs Satzspiegel-Prüfungen entstehen — drei je
-    Seite. Fiele die Schleife auf `pages[0]` zurück, wären es drei, und die
-    Suite oben bliebe trotzdem grün, weil Seite 1 in Ordnung ist.
+    Bei zwei Seiten müssen acht seitenbezogene Prüfungen entstehen — vier je
+    Seite: linker Rand, rechter Rand, Abstand zur Blattkante und das Zeilenraster
+    (Issue #140). Fiele eine Schleife auf `pages[0]` zurück, wären es weniger,
+    und die Suite oben bliebe trotzdem grün, weil Seite 1 in Ordnung ist.
+
+    Die Zahl steht hier ausgeschrieben und nicht als `2 * irgendwas`: Wer eine
+    seitenbezogene Prüfung hinzufügt, soll sie hier bewusst mitziehen.
     """
     pdf = _rendere(FIXTURES / "ueberlauf-auf-seite-zwei.md", tmp_path / "seite2.pdf")
     bericht = geometrie.pruefe(pdf, "B")
     je_seite = [p for p in bericht.pruefungen
                 if p.name.startswith("Seite 1, ") or p.name.startswith("Seite 2, ")]
-    assert len(je_seite) == 6, [p.name for p in je_seite]
+    assert len(je_seite) == 8, [p.name for p in je_seite]
+    for seite in ("Seite 1, ", "Seite 2, "):
+        assert sum(1 for p in je_seite if p.name.startswith(seite)) == 4, \
+            f"{seite}wird nicht vollständig gemessen"
 
 
 # ── die Zahl im README altert nicht mehr still ──────────────────────────────
