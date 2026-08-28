@@ -102,6 +102,7 @@ PROFIL_EMAIL_FELDER = frozenset({
 INFOBLOCK_FELDER = frozenset(schluessel for schluessel, _ in INFOBLOCK_REIHENFOLGE)
 
 URL_MUSTER = re.compile(r"\bhttps?://\S*", re.I)
+#: Grobform einer E-Mail-Adresse. Was sie offenlässt, prüft `adresse_grund()`.
 EMAIL_MUSTER = re.compile(r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")
 #: Telefonnummer in der Schreibweise der Norm.
 #:
@@ -144,6 +145,81 @@ def telefon_grund(text: str) -> str:
         return ("hat eine Vorwahl von " + str(len(text.split(" ")[0]))
                 + " Stellen — mit der führenden Null sind drei bis sechs vorgesehen")
     return "folgt nicht der Schreibweise der Norm"
+
+
+#: Ein Domain-Label: Buchstaben, Ziffern, Bindestriche — aber nicht am Rand.
+#:
+#: `\w` statt `[A-Za-z0-9]`, damit internationale Namen (`ö.de`) hier NICHT
+#: durchfallen: Sie sind nach RFC 6531 zulässig und gehören nach ADR 0035 auf
+#: die Ebene Praxis, also zur Warnung — nicht zum Fehler. Der Unterstrich, den
+#: `\w` mitbringt, ist ausgeschlossen: In Domänennamen kommt er nicht vor.
+DOMAIN_LABEL = re.compile(r"^(?!-)(?!.*_)[\w-]+(?<!-)$")
+
+
+def adresse_grund(eintrag: str, adresse: str) -> str | None:
+    """Was an dieser Adresse nicht stimmt — oder None, wenn sie taugt.
+
+    `parseaddr` zerlegt die Klammerform nach RFC 5322; das bleibt so, ein
+    eigener Ausdruck träfe weniger Fälle. Geprüft wird hier, was `parseaddr`
+    **offenlässt** — und das ist mehr, als es auf den ersten Blick scheint.
+
+    Gemessen am 28.08.2026 gegen achtzehn Eingaben: Acht ungültige kamen durch,
+    darunter der doppelte Punkt (`max@firma..de`) und ein Bindestrich am Rand
+    eines Labels. Issue #125 nannte vier andere; zwei davon fing die Grobform
+    schon ab. Wer nur `parseaddr` betrachtet, unterschätzt die eine Hälfte und
+    übersieht die andere.
+    """
+    # `parseaddr` entfernt Leerzeichen aus der Adresse: „max@firma .de" wird zu
+    # „max@firma.de". Ein Tippfehler würde damit still zu einer ANDEREN, gültigen
+    # Adresse repariert und der Brief ginge dorthin. Genau das darf nicht sein.
+    innen = eintrag.strip()
+    if innen.endswith(">") and "<" in innen:
+        innen = innen[innen.rindex("<") + 1:-1].strip()
+    if innen != adresse and innen.replace(" ", "") == adresse:
+        return "enthält ein Leerzeichen — gemeint ist vermutlich " + f"`{adresse}`"
+
+    if adresse.count("@") != 1:
+        return "hat nicht genau ein `@`"
+    lokal, _, domain = adresse.partition("@")
+
+    if not lokal:
+        return "hat keinen Empfängerteil vor dem `@`"
+    if lokal.startswith(".") or lokal.endswith("."):
+        return "beginnt oder endet vor dem `@` mit einem Punkt"
+    if ".." in lokal:
+        return "hat zwei Punkte hintereinander vor dem `@`"
+
+    if "." not in domain:
+        return "hat keinen Punkt im Domänenteil — die Endung fehlt"
+    labels = domain.split(".")
+    if any(not teil for teil in labels):
+        return "hat einen leeren Teil im Domänennamen — zwei Punkte oder ein Punkt am Rand"
+    fehlerhaft = [teil for teil in labels if not DOMAIN_LABEL.match(teil)]
+    if fehlerhaft:
+        teil = fehlerhaft[0]
+        # Den tatsaechlichen Grund nennen, nicht den haeufigsten: Wer bei einem
+        # Unterstrich liest, Bindestriche stuenden falsch, sucht an der falschen
+        # Stelle.
+        if "_" in teil:
+            warum = "Unterstriche kommen in Domänennamen nicht vor"
+        elif teil.startswith("-") or teil.endswith("-"):
+            warum = "Bindestriche stehen nicht am Anfang oder Ende"
+        else:
+            warum = "erlaubt sind Buchstaben, Ziffern und Bindestriche"
+        return f"hat einen unzulässigen Teil im Domänennamen: `{teil}` — {warum}"
+    if len(labels[-1]) < 2 or not labels[-1].isalpha():
+        return "hat keine gültige Endung"
+    return None
+
+
+def adresse_ist_international(adresse: str) -> bool:
+    """Nicht-ASCII in der Adresse.
+
+    Nach RFC 6531 zulässig, von vielen Servern aber abgelehnt. Das ist eine
+    Aussage über die Praxis, nicht über die Technik — nach ADR 0035 also nie
+    ein Fehler, sondern eine Warnung.
+    """
+    return not adresse.isascii()
 ISO_DATUM = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -318,11 +394,23 @@ def pruefe_adressfeld(wert, feld: str, kopf_roh: str, bericht: Bericht) -> None:
 
     for eintrag in _adressen(wert):
         _, adresse = parseaddr(eintrag)
+        ort = _feldzeile(kopf_roh, feld)
         if not adresse or not EMAIL_MUSTER.match(adresse):
             bericht.fehler(
-                _feldzeile(kopf_roh, feld), feld,
+                ort, feld,
                 f"„{eintrag}“ ist keine E-Mail-Adresse",
                 "erwartet wird `name@beispiel.de` oder `Name <name@beispiel.de>`")
+            continue
+        grund = adresse_grund(eintrag, adresse)
+        if grund:
+            bericht.fehler(ort, feld, f"„{eintrag}“ {grund}",
+                           "erwartet wird `name@beispiel.de` oder `Name <name@beispiel.de>`")
+            continue
+        if adresse_ist_international(adresse):
+            bericht.warnung(
+                ort, "email.adresse_international",
+                f"„{adresse}“ enthält Zeichen ausserhalb von ASCII",
+                "nach RFC 6531 zulässig, aber viele Server nehmen solche Adressen nicht an")
 
 
 def _pruefe_ausschluss(kopf: dict, typ: str, kopf_roh: str, bericht: Bericht) -> None:

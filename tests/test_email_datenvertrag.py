@@ -344,6 +344,12 @@ def _loese_aus(regel: str, tmp_path):
                                             "an: keine-adresse"))
     if regel == "cc":
         return linte(tmp_path, MAIL + "cc: [auch-keine-adresse]\n")
+    if regel == "email.adresse_international":
+        # Nach RFC 6531 zulaessig, deshalb KEIN Fehler — die Regel liegt auf der
+        # Ebene Praxis und warnt nur. Die Form muss stimmen, sonst schlaege
+        # `an` zu und nicht diese Regel.
+        return linte(tmp_path, MAIL.replace("an: erika.muster@example.de",
+                                            "an: müller@münchen.de"))
     if regel == "antwort_auf":
         # Message-IDs stehen nach RFC 5322 in spitzen Klammern.
         return linte(tmp_path, MAIL + "antwort_auf: ohne-spitze-klammern@example.de\n")
