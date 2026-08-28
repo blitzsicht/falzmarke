@@ -16,10 +16,15 @@ cd "$(dirname "$0")/.."
 
 readonly CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 readonly QUELLE="docs/marke/quelle/social-preview.html"
+# Instagram braucht Hochformat. Die Quer-Fassung ist absolut auf 1280x640
+# positioniert und laesst sich nicht hochkant rendern — daher eine zweite Quelle
+# mit derselben SVG, denselben Farben und demselben Claim, nur untereinander.
+readonly QUELLE_INSTA="docs/marke/quelle/instagram.html"
 readonly ZIEL="docs/assets/brand"
 
 [ -x "$CHROME" ] || { echo "FEHLER: Google Chrome nicht gefunden unter $CHROME" >&2; exit 3; }
 [ -f "$QUELLE" ] || { echo "FEHLER: $QUELLE fehlt" >&2; exit 1; }
+[ -f "$QUELLE_INSTA" ] || { echo "FEHLER: $QUELLE_INSTA fehlt" >&2; exit 1; }
 
 # Ein PNG ist erst vollstaendig, wenn der IEND-Chunk dasteht: Laenge 00000000,
 # Typ "IEND" (49454e44), CRC (ae426082). Die Dateigroesse allein ist KEIN
@@ -34,14 +39,15 @@ png_vollstaendig() {
   [ -s "$1" ] && [ "$(tail -c 12 "$1" | xxd -p | tr -d '\n')" = "0000000049454e44ae426082" ]
 }
 
-# Rendert die Quelle in ein PNG. <ziel> <breite> <hoehe> <skalierung>
+# Rendert eine Quelle in ein PNG. <ziel> <breite> <hoehe> <skalierung> [quelle]
+# Ohne fuenftes Argument gilt $QUELLE (die Quer-Fassung).
 #
 # Chrome laeuft im Hintergrund und wird von uns beendet, sobald die Datei
 # vollstaendig und ihre Groesse ueber zwei Sekunden stabil ist. --headless=new
 # kehrt nach --screenshot nicht zuverlaessig von selbst zurueck; ein Vordergrund-
 # aufruf haengt dann bis zum Timeout, obwohl das Bild laengst geschrieben ist.
 rendere() {
-  local ziel="$1" breite="$2" hoehe="$3" skala="$4"
+  local ziel="$1" breite="$2" hoehe="$3" skala="$4" quelle="${5:-$QUELLE}"
   local profil pid wartezeit=0 g1 g2
   profil="$(mktemp -d)"
   rm -f "$ziel"
@@ -56,7 +62,7 @@ rendere() {
     --window-size="$breite,$hoehe" \
     --user-data-dir="$profil" \
     --virtual-time-budget=10000 \
-    --screenshot="$ziel" "file://$PWD/$QUELLE" >/dev/null 2>&1 &
+    --screenshot="$ziel" "file://$PWD/$quelle" >/dev/null 2>&1 &
   pid=$!
 
   while [ "$wartezeit" -lt 60 ]; do
@@ -85,9 +91,10 @@ rendere() {
 }
 
 mkdir -p "$ZIEL"
-echo "Markenbilder aus $QUELLE:"
+echo "Markenbilder aus $QUELLE (Instagram aus $QUELLE_INSTA):"
 rendere "$ZIEL/banner.png"          1280 640 2   # README-Kopf, 2560x1280
 rendere "$ZIEL/social-preview.png"  1280 640 1   # GitHub-Vorschau, 1280x640
+rendere "$ZIEL/instagram.png"       1080 1350 1 "$QUELLE_INSTA"  # Instagram-Feed, 4:5
 
 if [ "${1:-}" = "--verify" ]; then
   echo "Gegenprobe: zweimal rendern muss dieselbe Datei ergeben."
