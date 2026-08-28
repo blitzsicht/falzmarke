@@ -103,7 +103,47 @@ INFOBLOCK_FELDER = frozenset(schluessel for schluessel, _ in INFOBLOCK_REIHENFOL
 
 URL_MUSTER = re.compile(r"\bhttps?://\S*", re.I)
 EMAIL_MUSTER = re.compile(r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")
-TELEFON_MUSTER = re.compile(r"^\+?[\d]{2,4}(\s\d+)*(-\d+)?$")
+#: Telefonnummer in der Schreibweise der Norm.
+#:
+#: Bis Issue #133 stand hier `^\+?[\d]{2,4}(\s\d+)*(-\d+)?$` — zwei bis vier
+#: Ziffern für die Vorwahl. Deutsche Ortsnetzkennzahlen sind zwei- bis
+#: fünfstellig, mit der führenden Null also drei- bis sechsstellig. Alles ab
+#: `09401` wurde damit gemeldet, obwohl es richtig war: die Vorwahlen kleinerer
+#: Orte, ein erheblicher Teil aller Festnetzanschlüsse. Die Quelle der Regel
+#: nennt selbst `09161 6209800`.
+#:
+#: International steht die Kennzahl OHNE die Null hinter der Ländervorwahl —
+#: deshalb zwei Zweige statt einem. Vorher ging `+49 9401 …` durch und
+#: `09401 …` nicht: dieselbe Nummer, je nach Notation anders beurteilt.
+TELEFON_MUSTER = re.compile(r"^(?:\+\d{1,3}\s\d{1,5}|0\d{2,5})(?:\s\d+)*(?:-\d+)?$")
+
+#: Zeichen, die in einer Telefonnummer nach der Norm nicht vorkommen.
+TELEFON_FREMDZEICHEN = ("(", ")", "/", ".", ",", ";")
+
+
+def telefon_grund(text: str) -> str:
+    """Was an dieser Nummer nicht passt — als Satz, nicht als Musterform.
+
+    Die alte Meldung wiederholte nur die Sollform („Vorwahl mit Leerzeichen,
+    Durchwahl mit Bindestrich"). Im Fall, der Issue #133 auslöste, war beides
+    erfüllt; sie nannte also zwei Dinge, die stimmten, und verschwieg das
+    Eigentliche. Wer das liest — auch eine Maschine — fügt einen Bindestrich
+    ein, der dort nicht hingehört.
+    """
+    fremd = [z for z in TELEFON_FREMDZEICHEN if z in text]
+    if fremd:
+        return ("enthält " + ", ".join(f"`{z}`" for z in fremd)
+                + " — die Norm setzt Vorwahl und Rufnummer nur durch ein Leerzeichen ab")
+    if text != text.strip():
+        return "beginnt oder endet mit einem Leerzeichen"
+    if not text.startswith(("0", "+")):
+        return "beginnt weder mit `0` noch mit `+` — die Vorwahl fehlt"
+    if " " not in text:
+        return "hat kein Leerzeichen zwischen Vorwahl und Rufnummer"
+    if text.startswith("0") and not re.match(r"^0\d{2,5}\s", text):
+        return ("hat eine Vorwahl von " + str(len(text.split(" ")[0]))
+                + " Stellen — mit der führenden Null sind drei bis sechs vorgesehen")
+    return "folgt nicht der Schreibweise der Norm"
 ISO_DATUM = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -529,8 +569,9 @@ def pruefe_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
                                "Form: name@example.de")
             if schluessel in ("telefon", "fax") and not TELEFON_MUSTER.match(text):
                 bericht.warnung(
-                    ort, f"infoblock.{schluessel}", f"„{text}“ folgt nicht der Schreibweise nach DIN",
-                    "Vorwahl mit Leerzeichen, Durchwahl mit Bindestrich: 0941 620-9800",
+                    ort, f"infoblock.{schluessel}",
+                    f"„{text}“ {telefon_grund(text)}",
+                    "Schreibweise der Norm: 0941 620-9800, international +49 941 620-9800",
                 )
 
 
