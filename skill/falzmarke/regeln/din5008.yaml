@@ -363,3 +363,59 @@ regeln:
     wirkung: warnung
     bemerkung: Unsichtbar in jeder Vorschau — deshalb die Warnung.
 
+
+  - id: werkzeug.dialekt
+    titel: Das Feld `dialekt` trägt eine bekannte Fassung
+    lint: dialekt
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Keine Aussage der Norm, sondern eine über den Datenvertrag. Ein Tippfehler
+      dürfte nicht stillschweigend zur alten Fassung führen — der Brief sähe
+      dann anders aus als geschrieben, und die Meldung, die erklärt warum, käme
+      nie.
+
+  # ── Dialekt 1.1: lange Schreiben ─────────────────────────────────────────
+  #
+  # Alle drei tragen `werkzeug`, und das ist eine bewusste Angabe: Zu
+  # Zwischenüberschriften im Geschäftsbrief liegt **keine** der hier geführten
+  # Sekundärquellen etwas vor, was einen Sollwert trüge. Sie als
+  # `einzeln_belegt` zu führen wäre eine Quellenbehauptung, die es nicht gibt.
+  # Was nach dem Normabgleich (Abschnitte zu Hervorhebungen, Aufzählungen und
+  # Überschriften) dazukommt, ersetzt diese Einträge — nicht umgekehrt.
+
+  - id: werkzeug.ueberschrift_ebenen
+    titel: Zwischenüberschriften gehen bis vier Ebenen
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Abschnitt, Unterabschnitt, Punkt, Unterpunkt — die fünfte Ebene gliedert
+      nicht mehr, sie versteckt. Geprüft beim Lesen des Markdowns, nicht am PDF.
+      Ab Ebene 5 bricht es ab statt herabzustufen: Eine still zur vierten
+      gemachte fünfte Ebene wäre genau das stille Verändern, gegen das dieses
+      Werkzeug antritt.
+
+  - id: werkzeug.listentiefe
+    titel: Aufzählungen gehen bis sechs Ebenen (Fassung 1.0 bis zwei)
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Gestuft statt als Wand: bis Ebene 4 still, Ebene 5 und 6 mit Warnung, ab 7
+      Abbruch. Der Standardbrief (Fassung 1.0) bleibt bei zwei Ebenen — dort
+      ändert sich nichts.
+
+  - id: werkzeug.ueberschrift_abstaende
+    titel: Abstände über einer Zwischenüberschrift
+    herkunft: werkzeug
+    quellen: []
+    wirkung: keine
+    bemerkung: >-
+      Zwei Rasterzeilen über Ebene 1, eine über den übrigen; alle vier Ebenen in
+      derselben Schriftgröße. Das folgt dem 12-pt-Raster des Werkzeugs, nicht
+      einer Normaussage — eine größere Zeile wäre höher als eine Rasterzeile,
+      und alles darunter verlöre seine Position. `wirkung: keine`, weil es dazu
+      keine Prüfung gibt: Die Geometrieprüfung misst Ränder, Zonen und den
+      untersten Text, nicht die Lage der Zeilen auf dem Raster (Issue #140).

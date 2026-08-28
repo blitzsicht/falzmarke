@@ -32,6 +32,7 @@ def nur_text(markdown: str) -> str:
     PARK = "\x00"
     text = re.sub(r"\\(.)", lambda m: PARK + m.group(1), markdown)
     text = re.sub(r"^\s*\|.*$", "", text, flags=re.M)      # Tabellen: eigene Prüfung
+    text = re.sub(r"^\s*#{1,4}\s+", "", text, flags=re.M)  # Überschriften ab Dialekt 1.1
     text = re.sub(r"^\s*[-*+]\s+", "", text, flags=re.M)   # Aufzählungszeichen
     text = re.sub(r"^\s*\d+[.)]\s+", "", text, flags=re.M)
     text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)           # paariges fett

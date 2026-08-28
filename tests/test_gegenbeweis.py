@@ -114,6 +114,66 @@ def test_zu_kleiner_unterrand_faellt_auf(tmp_path):
     assert "Unterster Text, Abstand zur Blattkante" in _gescheitert(pdf, form)
 
 
+# ── Dialekt 1.1: Ueberschriften ─────────────────────────────────────────────
+#
+# Das Ueberschriften-Layout haelt das 12-pt-Raster ein und bleibt im
+# Satzspiegel. Beides waere ohne Gegenprobe nur eine Behauptung: Die
+# Satzspiegelpruefung ist auch dann gruen, wenn sie den Briefkoerper gar nicht
+# erreicht — und das Raster faellt bei einer Abweichung von einem Millimeter
+# nicht auf, wenn niemand danach sieht.
+
+SCHRIFTSATZ = REPO / "examples" / "brief-schriftsatz.md"
+
+#: Die Zeile in falzmarke.typ, an der das Ueberschriften-Layout haengt.
+HEADING_ANKER = '"1": (weight: "bold", style: "normal", davor: 2),'
+
+
+def _rendere_schriftsatz(tmp_path: Path, typst_dir: Path) -> tuple[Path, str]:
+    original = falzmarke.TYPST_DIR
+    falzmarke.TYPST_DIR = typst_dir
+    try:
+        return falzmarke.rendere(SCHRIFTSATZ, tmp_path / "sabotiert.pdf",
+                                 profil_verzeichnis=typst_dir / "profiles")
+    finally:
+        falzmarke.TYPST_DIR = original
+
+
+def test_der_schriftsatz_ist_unsabotiert_gruen(tmp_path):
+    """Kontrollprobe. Ohne sie misst die Sabotage unten nur die Kopie."""
+    kopie = _sabotiere(tmp_path, "falzmarke.typ", HEADING_ANKER, HEADING_ANKER)
+    pdf, form = _rendere_schriftsatz(tmp_path, kopie)
+    assert _gescheitert(pdf, form) == set()
+
+
+def test_ueberschrift_ausserhalb_des_satzspiegels_faellt_auf(tmp_path):
+    """Eine Ueberschrift, die nach links aus dem Satzspiegel gezogen wird.
+
+    Das ist der Fall, gegen den Issue #35 gebaut wurde, angewandt auf das neue
+    Element: Der Vordruck sitzt weiter richtig, nur der Text steht falsch. Vor
+    #35 waere dieser Brief gruen gewesen.
+    """
+    kopie = _sabotiere(
+        tmp_path, "falzmarke.typ",
+        "    block(\n      above: leer(stil.davor),",
+        "    block(\n      inset: (left: -12mm),\n      above: leer(stil.davor),",
+    )
+    pdf, form = _rendere_schriftsatz(tmp_path, kopie)
+    gescheitert = _gescheitert(pdf, form)
+    assert any(n.endswith("linker Rand") or n == "Textblock, x-links"
+               for n in gescheitert), gescheitert
+
+
+# Hier stand eine dritte Gegenprobe: ein krummer Abstand ueber der Ueberschrift
+# muesste das 12-pt-Raster verschieben und auffallen. Sie ist entfernt, weil sie
+# **nicht anschlug** — und zwar nicht, weil die Sabotage wirkungslos gewesen
+# waere: Das PDF aendert sich messbar (53.245 gegen 53.300 Byte bei
+# `above: leer(n) + 2,6mm`). Die Geometriepruefung misst Raender, Zonen und den
+# untersten Text, aber nicht, ob die Textzeilen auf dem Raster liegen.
+#
+# Ein Test, der das trotzdem behauptet haette, waere schlimmer als keiner. Die
+# Luecke steht als Issue #140; die Rasterzusage in `falzmarke.typ` nennt sich
+# seitdem eine Zusage und keine Messung.
+
 def test_verschobener_infoblock_faellt_auf(tmp_path):
     kopie = _sabotiere(
         tmp_path, "vendor/letter-pro-v3.0.0.typ",

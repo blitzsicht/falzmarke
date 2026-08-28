@@ -73,8 +73,6 @@ ABGELEHNT = [
     ("Text[^1] dazu\n\n[^1]: Anmerkung", "Fußnoten"),
     ("Ein <br> Umbruch", "HTML"),
     ("Ein <abc> Element", "HTML"),
-    ("1. Januar 2027 beginnt die Frist.", "einzelne nummerierte Zeile"),
-    ("2. Mahnung zur Rechnung 4711", "einzelne nummerierte Zeile"),
     ("- 5 °C waren es gestern.", "einzelner Strich"),
     ("- a\n  - b\n    - c\n  - d\n- e", "Ebenen"),
     ("| A | B |\n| 1 | 2 |", "Tabelle"),
@@ -93,6 +91,39 @@ def test_wird_abgelehnt(eingabe, grund):
     with pytest.raises(MarkdownFehler) as fehler:
         konvertiere(eingabe)
     assert grund in str(fehler.value), f"Erwartet '{grund}', bekam: {fehler.value}"
+
+
+# Bis Dialekt 1.1 waren diese beiden ein Fehler. Jetzt werden sie gesetzt UND
+# gemeldet — in beiden Fassungen. Wo vorher abgebrochen wurde, gab es keine
+# Ausgabe, die sich ändern könnte; ein gültiger Brief wird davon nicht ungültig.
+GESETZT_MIT_HINWEIS = [
+    ("1. Januar 2027 beginnt die Frist.", 1, "#enum(start: 1"),
+    ("2. Mahnung zur Rechnung 4711", 2, "#enum(start: 2"),
+]
+
+
+@pytest.mark.parametrize("eingabe,start,erwartet", GESETZT_MIT_HINWEIS,
+                         ids=[e[:34] for e, _, _ in GESETZT_MIT_HINWEIS])
+def test_einzelne_nummer_wird_gesetzt_und_gemeldet(eingabe, start, erwartet):
+    hinweise = []
+    ergebnis = konvertiere(eingabe, hinweise=hinweise)
+    # Der Startwert bleibt erhalten: Es wird nichts still umnummeriert.
+    assert erwartet in ergebnis, f"{erwartet!r} fehlt in:\n{ergebnis}"
+    assert len(hinweise) == 1, f"genau eine Meldung erwartet, bekam {hinweise}"
+    assert "den Punkt schützen" in hinweise[0].meldung
+
+
+def test_einzelne_nummer_meldet_auch_in_fassung_11():
+    """Die Herabstufung gilt für beide Fassungen, nicht nur die neue."""
+    hinweise = []
+    konvertiere("2. Mahnung zur Rechnung 4711", dialekt="1.1", hinweise=hinweise)
+    assert len(hinweise) == 1
+
+
+def test_ohne_hinweisliste_geht_die_meldung_nicht_verloren_sondern_der_brief_steht():
+    """Wer keine Liste mitgibt, bekommt trotzdem einen gesetzten Brief."""
+    ergebnis = konvertiere("2. Mahnung zur Rechnung 4711")
+    assert "#enum(start: 2" in ergebnis
 
 
 def test_geschuetzter_punkt_macht_die_zeile_zu_text():
