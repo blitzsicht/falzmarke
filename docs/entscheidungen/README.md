@@ -22,3 +22,4 @@ gelesen wird und die niemand nachpflegt.
 | [0032](0032-verbreitung-vor-normabgleich.md) | Verbreitung darf dem Normabgleich vorausgehen | 26.08.2026 |
 | [0033](0033-pdfa-stufe.md) | PDF/A-2b bleibt die Vorgabe, A-3b wird wählbar | 26.08.2026 |
 | [0034](0034-email-ist-ausgabe.md) | E-Mail ist Ausgabe, nicht Kanal | 27.08.2026 |
+| [0035](0035-vier-ebenen-fuer-email-regeln.md) | Vier Ebenen für E-Mail-Regeln | 28.08.2026 |
