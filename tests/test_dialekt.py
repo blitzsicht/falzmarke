@@ -178,6 +178,8 @@ from falzmarke import baum, emit_html, emit_text  # noqa: E402
 #: Je Knoten aus `baum.NUR_BRIEF` die Markdown-Syntax, die ihn erzeugt.
 NUR_BRIEF_PROBEN = {
     baum.Ueberschrift: ("# Ein Abschnitt\n", baum.Ueberschrift(1, (baum.Text("x"),))),
+    baum.Zitat: ("> Ein Zitat.\n", baum.Zitat((baum.Absatz((baum.Text("x"),)),))),
+    baum.Wortlaut: ("```\nein Auszug\n```\n", baum.Wortlaut("x", block=True)),
 }
 
 

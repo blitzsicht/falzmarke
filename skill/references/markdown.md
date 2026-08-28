@@ -72,6 +72,9 @@ Für Schriftsätze, Stellungnahmen und längere Behördenpost. Alles hier brauch
 |---|---|---|
 | `#` bis `####` | Zwischenüberschrift, vier Ebenen | ab `#####` Fehler |
 | Aufzählung tiefer als zwei Ebenen | eingerückte Unterpunkte | ab Ebene 5 Warnung, ab 7 Fehler |
+| `>` am Zeilenanfang | Blockzitat, eingerückt mit Balken | ab Ebene 3 Fehler |
+| `` `Text` `` | Festbreitenschrift im Satz | siehe Zeilenlänge unten |
+| ```` ``` ```` oder vier Leerzeichen Einzug | abgesetzter Auszug, Festbreite | siehe Zeilenlänge unten |
 
 **Alle vier Überschriftebenen stehen in derselben Schriftgröße** — fett, ab Ebene 3 kursiv. Das
 ist keine Sparsamkeit: Der Satz läuft auf einem 12-pt-Raster, und eine größere Zeile ist höher
@@ -91,6 +94,44 @@ Anschriftfeld, Informationsblock und Betreffposition bleiben, wo sie sind. Nachg
 Zeile, kann Typst es nicht umbrechen, und es läuft aus dem Satzspiegel. `render` fängt das und
 bricht mit Exit-Code 2 ab — der Bericht nennt Seite und Element.
 
+### Zitate
+
+`>` gibt fremden Wortlaut wieder. Darin dürfen Absätze und Aufzählungen stehen, und ein Zitat
+darf ein weiteres enthalten — mehr nicht: Ab der dritten Ebene ist nicht mehr erkennbar, wer
+wen wiedergibt, und genau das ist beim Zitieren der Punkt.
+
+### Wortgetreue Auszüge
+
+Backticks setzen Text in Festbreitenschrift: ein Aktenzeichen mitten im Satz, eine
+Protokollzeile als abgesetzter Block.
+
+**Was darin steht, bleibt Zeichen für Zeichen stehen.** Der Typografie-Pass läuft hier nicht —
+aus `"` wird kein „, aus `--` kein –. Ein Auszug, den das Werkzeug unterwegs verschönert, gibt
+nicht mehr wieder, was dastand.
+
+Aus demselben Grund wird **nicht umbrochen**. Eine Zeile, die nicht passt, läuft aus dem
+Satzspiegel, und `render` meldet das mit Exit-Code 2 statt still zu kürzen:
+
+| | passt bis | läuft über ab |
+|---|---|---|
+| abgesetzter Block | 68 Zeichen | 69 |
+| im Satz | 70 Zeichen | 71 |
+
+*Gemessen am 28.08.2026 mit der Festbreitenschrift, die der Renderer wählt; steht sie auf einem
+System nicht bereit, greift die nächste und der Wert weicht leicht ab. Der Block verliert die
+zwei Zeichen an seinen Einzug.* Wer längere Zeilen zitieren muss, teilt sie selbst — das
+Werkzeug tut es nicht für dich, weil jede Stelle, an der es umbräche, eine Entscheidung über
+fremden Wortlaut wäre.
+
+**Keine Einfärbung.** Eine Sprachangabe (```` ```python ````) wird nicht ausgewertet und
+gemeldet: Ein Geschäftsbrief zitiert wortgetreu, er stellt keinen Quelltext aus. Farbe wäre
+eine Deutung, die der Zitierende nicht getroffen hat — und auf einem Schwarzweißdruck ohnehin
+verloren.
+
+**Nichts darin wird ausgeführt.** Ein Auszug, der Anweisungen des Satzsystems enthält, wird
+sichtbar gesetzt und sonst nichts. Das ist geprüft, und zwar gegen einen absichtlich
+unsicheren Renderer, bei dem die Anweisung nachweislich ausgeführt *wird*.
+
 ### In E-Mails noch nicht
 
 `typ: email` lehnt diese Elemente ab, auch mit `dialekt: "1.1"`. Brief, HTML-Teil und Textteil
@@ -105,8 +146,8 @@ sagt das mit Zeile und Grund; es entsteht keine halb gesetzte Mail.
 | `===`/`---` unter einer Zeile | Auch in 1.1 nicht: Der Unterstrich kollidiert mit dem Frontmatter-Trenner. `#` schreiben. |
 | Links `[t](u)`, `[t][id]`, `<url>` | Auf Papier gibt es keinen Link. Die Adresse gehört ausgeschrieben in den Text. |
 | Bilder `![]()` | Logo und Unterschrift gehören ins Profil, nicht in den Fließtext. |
-| Code: `` `x` ``, eingerückt, ``` | Ein Geschäftsbrief setzt keinen Code. Text ohne Backticks schreiben. |
-| Blockzitat `>` | Kein Element des Geschäftsbriefs. |
+| Code **in Fassung 1.0** | Der Standardbrief setzt keinen Code. Für Auszüge: `dialekt: "1.1"`. |
+| Blockzitat `>` **in Fassung 1.0** | Dasselbe — mit `dialekt: "1.1"` möglich. |
 | HTML | Wird nie durchgereicht — weder gesetzt noch entfernt, sondern gemeldet. |
 | Trennlinie `---` allein | Wäre im Brief ein Fremdkörper und kollidiert mit dem Frontmatter-Trenner. |
 | `~~durchgestrichen~~`, `[^1]`, `- [ ]` | Nicht Teil der Teilmenge; die Meldung nennt die erkannte Syntax. |
