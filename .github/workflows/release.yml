@@ -56,28 +56,40 @@ jobs:
         # dem Tag nicht ausprobieren (#122).
         run: bash scripts/skill_packen.sh
 
-      - name: Pruefsumme bilden
+      - name: Pruefsummen bilden
         id: hash
         run: |
           sha256sum falzmarke.skill | tee falzmarke.skill.sha256
+          sha256sum falzmarke-offline.skill | tee falzmarke-offline.skill.sha256
           echo "sha256=$(cut -d' ' -f1 falzmarke.skill.sha256)" >> "$GITHUB_OUTPUT"
+          echo "sha256_offline=$(cut -d' ' -f1 falzmarke-offline.skill.sha256)" >> "$GITHUB_OUTPUT"
 
       # Belegt Herkunft und Bauweg der Datei — nicht ihre Fehlerfreiheit.
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
         with:
-          subject-path: falzmarke.skill
+          subject-path: |
+            falzmarke.skill
+            falzmarke-offline.skill
 
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65  # v2.6.2
         with:
           files: |
             falzmarke.skill
             falzmarke.skill.sha256
+            falzmarke-offline.skill
+            falzmarke-offline.skill.sha256
           tag_name: ${{ inputs.tag || github.ref_name }}
           generate_release_notes: true
           append_body: true
           body: |
-            **falzmarke.skill**
+            **falzmarke.skill** — fuer den Upload nach claude.ai. Der erste Lauf laedt die
+            Abhaengigkeiten nach und braucht dafuer Netz.
             `SHA-256: ${{ steps.hash.outputs.sha256 }}`
+
+            **falzmarke-offline.skill** — der Typst-Compiler reist mit, rendert ohne PyPI.
+            Ueber 30 MB und damit **zu gross fuer den Upload-Dialog von claude.ai**; gedacht
+            fuer Umgebungen, die Dateien anders beziehen.
+            `SHA-256: ${{ steps.hash.outputs.sha256_offline }}`
 
             Herkunft pruefen — belegt, aus welchem Lauf und welchem Commit die Datei stammt:
 

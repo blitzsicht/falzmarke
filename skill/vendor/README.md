@@ -23,6 +23,23 @@ statt für eine einzelne Fassung.
 Wer offline arbeitet und mehr braucht, legt weitere Wheels hierher —
 `bootstrap.py` nimmt jedes, das passt.
 
+## Warum es zwei Pakete gibt
+
+Weil eines nicht beides kann.
+
+**Gemessen am 28.08.2026** am Upload-Dialog von claude.ai, mit dem Wheel im Paket:
+
+> ⚠ Zip file must be less than 30MB
+
+34,71 MB gegen 30 MB. Die Endung war dabei nie das Problem — derselbe Dialog nennt `.zip`
+**und** `.skill` als zulässig. Es ist allein die Größe, und sie fällt erst beim Hochladen auf:
+Das Bauen gelingt, das Einspielen nicht.
+
+Seitdem entstehen zwei Dateien. `falzmarke.skill` bleibt schlank und lässt sich überall
+einspielen; `falzmarke-offline.skill` trägt das Wheel und rendert ohne Netz, überschreitet die
+Grenze aber zwangsläufig. `scripts/skill_packen.sh` führt die 30 MB als Sollwert und bricht ab,
+bevor ein Paket entsteht, das niemand hochladen kann.
+
 ## Wer aus dem Repository baut, hat kein Wheel
 
 Das ist die Kehrseite der Entscheidung oben, und sie soll nicht überraschen: Ein Klon dieses

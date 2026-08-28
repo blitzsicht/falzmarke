@@ -153,7 +153,7 @@ jobs:
           # Nur hier laesst sich das pruefen: Das mitgelieferte Wheel ist fuer
           # manylinux gebaut und auf keiner anderen Plattform installierbar.
           mkdir -p /tmp/sandbox && cd /tmp/sandbox
-          unzip -q "$GITHUB_WORKSPACE/falzmarke.skill"
+          unzip -q "$GITHUB_WORKSPACE/falzmarke-offline.skill"
           python -m venv v
           v/bin/pip install --quiet pyyaml pdfplumber pypdf markdown-it-py
 
