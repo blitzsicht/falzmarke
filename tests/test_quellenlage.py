@@ -314,10 +314,30 @@ def test_die_echte_regeldatei_traegt_ihre_stufen():
 
 
 def test_mehrfach_ohne_zwei_volle_quellen_wird_abgewiesen(tmp_path):
-    """Der Fall, der v0.5.0 vierzehnmal unbemerkt blieb."""
+    """Der Fall, der v0.5.0 vierzehnmal unbemerkt blieb.
+
+    Die Regel, an der gekippt wird, steht **nicht** fest im Test: Sie wird zur
+    Laufzeit gesucht. Hier stand bis zum 29.08.2026 `geometrie.form_a.masse`,
+    und mit der zweiten Form-A-Quelle aus Issue #18 verlor sie die Eigenschaft,
+    auf die dieser Test sich stützt — die Sabotage lief ins Leere, ohne dass
+    an der Prüfung etwas falsch war. Ein Testfall an der falschen Stelle.
+    """
+    quellen = regeln_modul.quellen()
+
+    def volle(regel):
+        return sum(1 for n in regel.get("quellen") or []
+                   if quellen[n].get("zaehlt") == regeln_modul.ZAEHLT_VOLL)
+
+    kandidaten = [r["id"] for r in regeln_modul.alle()
+                  if (r.get("quellen") or []) and volle(r) < 2]
+    assert kandidaten, (
+        "Keine Regel mehr mit weniger als zwei voll zählenden Quellen — dann "
+        "kann dieser Test nichts mehr sabotieren und belegt nichts.")
+    ziel = kandidaten[0]
+
     def kippen(daten):
         for regel in daten["regeln"]:
-            if regel["id"] == "geometrie.form_a.masse":
+            if regel["id"] == ziel:
                 regel["herkunft"] = "mehrfach_bestaetigt"
     with pytest.raises(regeln_modul.Regelfehler) as fehler:
         _laden(_regeldatei(tmp_path, kippen))
@@ -635,3 +655,55 @@ def test_und_dass_die_anderen_latex_vorlagen_geprueft_wurden():
     Suche ein. Die drei anderen bauen auf scrlttr2 — das steht dort."""
     bemerkung = regeln.quellen()["dinbrief"]["bemerkung"]
     assert "scrlttr2" in bemerkung
+
+
+# ── federwerk als Quelle für Form A (#18) ───────────────────────────────────
+
+def test_federwerk_steht_im_register():
+    quelle = regeln.quellen().get("federwerk")
+    assert quelle, "federwerk fehlt im Quellen-Register"
+    assert quelle["art"] == "sekundaerquelle"
+    assert quelle["gruppe"] == "federwerk", "eigene Belegkette, nicht die des Onlineprinters-Artikels"
+    assert quelle["zaehlt"] == "voll"
+    assert quelle.get("abgerufen"), "ohne Abrufdatum altert der Eintrag still"
+
+
+def test_es_belegt_form_a_und_nennt_alle_vier_masse():
+    """Eine Quelle, die nur einen Teil der Regel hergibt, dürfte nicht voll
+    zählen — das ist der Befund von #31. Diese nennt alle vier Maße."""
+    regel = [r for r in regeln.alle() if r["id"] == "geometrie.form_a.masse"][0]
+    assert "federwerk" in regel["quellen"]
+    fundstelle = regel.get("belegt_durch", {}).get("federwerk", "")
+    for mass in ("27", "87", "148,5", "192"):
+        assert mass in fundstelle, f"{mass} mm fehlt in der Fundstelle: {fundstelle}"
+
+
+def test_der_unterschied_zu_din_676_ist_benannt():
+    """Der Grund, warum diese Quelle mehr trägt als `koma_script` und
+    `dinbrief`: Sie schreibt die Maße der DIN 5008 zu, nicht der DIN 676.
+    Ohne diesen Satz wäre `zaehlt: voll` eine Behauptung ohne Begründung."""
+    bemerkung = regeln.quellen()["federwerk"]["bemerkung"]
+    assert "DIN 676" in bemerkung and "DIN 5008" in bemerkung
+    assert "2011" in bemerkung, "die Ausgabe, auf die sie sich beruft, gehört genannt"
+
+
+def test_form_a_traegt_jetzt_zwei_volle_quellen_bleibt_aber_warnung():
+    """Der Punkt, an dem diese Runde aufhört.
+
+    Mit `massskizze_a` und `federwerk` stehen zwei voll zählende Quellen aus
+    verschiedenen Gruppen hinter der Regel — die Zählung ließe
+    `mehrfach_bestaetigt` zu. Die Anhebung machte aus der Warnung einen Fehler
+    und änderte damit, was das Werkzeug tut. Das ist eine Entscheidung des
+    Betreibers (Issue #180), keine Folge einer Beleglage.
+
+    Dieser Test hält beides fest: dass die Beleglage reicht, und dass die Stufe
+    trotzdem nicht angehoben wurde. Fällt die erste Hälfte, ist eine Quelle
+    verschwunden; fällt die zweite, wurde nebenbei entschieden.
+    """
+    quellen = regeln.quellen()
+    regel = [r for r in regeln.alle() if r["id"] == "geometrie.form_a.masse"][0]
+    volle = [n for n in regel["quellen"] if quellen[n].get("zaehlt") == "voll"]
+    assert len(volle) >= 2, volle
+    assert len({quellen[n]["gruppe"] for n in volle}) >= 2, "zwei Quellen, aber eine Gruppe"
+    assert regel["herkunft"] == regeln.EINZELN
+    assert regel["wirkung"] == "warnung"
