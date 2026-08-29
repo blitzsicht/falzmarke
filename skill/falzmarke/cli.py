@@ -526,7 +526,7 @@ def linte(brief_pfad: Path, profil_verzeichnis: Path | None = None) -> lint_modu
     lint_modul.pruefe_frontmatter(kopf, kopf_roh, bericht)
     lint_modul.pruefe_body(body_md, versatz, bericht, kopf.get("dialekt"))
     if str(kopf.get("typ") or "brief") == "email":
-        lint_modul.pruefe_email_anlagen(kopf, body_md, bericht)
+        lint_modul.pruefe_email_anlagen(kopf, body_md, kopf_roh, bericht)
         # Dieselbe Auflösung wie in `eml._haenge_an`: relativ zum Brief, nicht
         # zum Arbeitsverzeichnis. Sonst misst der Linter eine andere Datei als
         # die, die angehängt wird.

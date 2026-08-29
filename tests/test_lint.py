@@ -501,3 +501,89 @@ def test_im_brief_gilt_die_grenze_nicht(tmp_path):
     """Ein Brief steht auf 165 mm fester Breite — dort bricht nichts um."""
     bericht = linte(tmp_path, KOPF, _tabelle(9))
     assert [b for b in bericht.befunde if b.regel == "email.tabelle_spalten"] == []
+
+
+# ── Die gemeldete Zeile ist die Zeile in der Datei (#184) ───────────────────
+#
+# Bis dahin nannte jede Frontmatter-Meldung eine Zeile zu viel. Aufgefallen ist
+# es keinem Test: Sie prüften, DASS ein Befund kommt, und an einer Stelle die
+# Zeile — die läuft aber über den Markdown-Parser, nicht über `_feldzeile`.
+# Der Weg durch das Frontmatter hatte keine Messung.
+#
+# Deshalb steht die Erwartung hier nicht als Zahl, sondern wird aus der Datei
+# gelesen. Eine feste Zahl hielte nur bis zum nächsten Feld im Kopf.
+
+def _zeile_in_der_datei(pfad, anfang: str) -> int:
+    zeilen = pfad.read_text(encoding="utf-8").splitlines()
+    treffer = [i for i, z in enumerate(zeilen, 1) if z.startswith(anfang)]
+    assert len(treffer) == 1, f"{anfang!r} steht {len(treffer)}× in der Datei"
+    return treffer[0]
+
+
+#: Zwei Felder an zwei verschiedenen Stellen des Kopfes, und zwei Kopflängen —
+#: eine Verschiebung um eins fiele bei nur einem Fall womöglich mit dem
+#: richtigen Wert zusammen.
+KURZ = """profil: example
+empfaenger: [Muster GmbH, Musterstraße 1, 12345 Musterstadt]
+datum: 2026-08-25
+betreff: Ein Betreff.
+anrede: Sehr geehrte Damen und Herren
+"""
+
+LANG = """profil: example
+form: B
+empfaenger: [Muster GmbH, Musterstraße 1, 12345 Musterstadt]
+vermerke: [Einschreiben]
+datum: 2026-08-25
+betreff_kurz: Kurz
+betreff: Ein Betreff.
+anrede: Sehr geehrte Damen und Herren
+"""
+
+
+@pytest.mark.parametrize("kopf", [KURZ, LANG], ids=["kurzer Kopf", "langer Kopf"])
+@pytest.mark.parametrize("feld,regel", [("betreff:", "betreff"), ("anrede:", "anrede")])
+def test_die_gemeldete_zeile_steht_wirklich_dort(tmp_path, kopf, feld, regel):
+    """Der Betreff endet auf einen Punkt, die Anrede ohne Komma — beide lösen
+    aus, und beide melden über `_feldzeile`."""
+    pfad = schreibe(tmp_path, kopf)
+    bericht = falzmarke.linte(pfad, profil_verzeichnis=PROFILE)
+    gemeldet = [b.zeile for b in bericht.befunde if b.regel == regel]
+    assert gemeldet, f"kein Befund für {regel} — dann misst dieser Test nichts"
+    assert gemeldet[0] == _zeile_in_der_datei(pfad, feld), (
+        f"{regel} gemeldet in Zeile {gemeldet[0]}, steht aber in Zeile "
+        f"{_zeile_in_der_datei(pfad, feld)}")
+
+
+def test_auch_in_einer_mail(tmp_path):
+    """Der Fall, an dem #184 aufgefallen ist: `datum:` gehört in eine Mail
+    nicht hinein, und die Meldung zeigte eine Zeile zu tief."""
+    kopf = """typ: email
+profil: example
+an: erika.muster@example.de
+betreff: Ein Betreff
+datum: 2026-08-29
+anrede: Sehr geehrte Frau Muster,
+"""
+    pfad = schreibe(tmp_path, kopf)
+    bericht = falzmarke.linte(pfad, profil_verzeichnis=PROFILE)
+    gemeldet = [b.zeile for b in bericht.befunde if b.regel == "email.datum"]
+    assert gemeldet == [_zeile_in_der_datei(pfad, "datum:")]
+
+
+def test_auch_der_hinweis_auf_eine_nicht_genannte_anlage(tmp_path):
+    """Der letzte Aufruf, der `_feldzeile` mit leerem Kopf bekam und deshalb
+    immer Zeile 1 meldete — dritter Punkt aus #184. Zeile 1 ist die
+    `---`-Zeile: eine Fundstelle, an der nie etwas steht."""
+    (tmp_path / "probe.pdf").write_bytes(b"%PDF-1.7\n")
+    kopf = """typ: email
+profil: example
+an: erika.muster@example.de
+betreff: Ein Betreff
+anrede: Sehr geehrte Frau Muster,
+anlagen_dateien: [probe.pdf]
+"""
+    pfad = schreibe(tmp_path, kopf, "Text ohne jede Erwähnung.\n")
+    bericht = falzmarke.linte(pfad, profil_verzeichnis=PROFILE)
+    gemeldet = [b.zeile for b in bericht.befunde if b.regel == "email.anlage"]
+    assert gemeldet == [_zeile_in_der_datei(pfad, "anlagen_dateien:")]

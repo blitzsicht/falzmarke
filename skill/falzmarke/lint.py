@@ -381,10 +381,26 @@ class Bericht:
 # ── Frontmatter ─────────────────────────────────────────────────────────────
 
 def _feldzeile(kopf_roh: str, feld: str) -> int:
-    """Die Zeile, in der ein Feld im Frontmatter steht — für die Meldung."""
+    """Die Zeile, in der ein Feld im Frontmatter steht — für die Meldung.
+
+    `kopf_roh` beginnt mit einem Zeilenumbruch: Beide Stellen, die es erzeugen,
+    schneiden mit `text.split("\n---", 2)[0][3:]`, und das entfernt die drei
+    Striche der Eröffnungszeile, nicht den Umbruch dahinter. Die erste Zeile
+    der Liste ist deshalb leer und steht für ebenjene `---`-Zeile — die
+    Zählung ab 1 trifft damit schon die Zeile in der Datei.
+
+    Bis Issue #184 stand hier `return nummer + 1`, gedacht als Ausgleich für
+    genau diese `---`-Zeile. Sie war aber bereits mitgezählt, und so nannte
+    **jede** Frontmatter-Meldung eine Zeile zu viel: `datum:` in Zeile 6 wurde
+    als Zeile 7 gemeldet. Niemandem aufgefallen, weil kein Test die gemeldete
+    Zahl je gegen die Datei gehalten hat — `tests/test_lint.py` tut das jetzt.
+    """
     for nummer, zeile in enumerate(kopf_roh.splitlines(), start=1):
         if zeile.strip().startswith(f"{feld}:"):
-            return nummer + 1
+            return nummer
+    # Ohne Frontmatter-Text — zwei Aufrufer geben `""` mit — bleibt nur der
+    # Dateianfang. Das ist keine Fundstelle, sondern das Eingeständnis, keine
+    # zu haben.
     return 1
 
 
@@ -937,7 +953,7 @@ def pruefe_anhanggroesse(kopf: dict, basis, kopf_roh: str, bericht: Bericht) -> 
     )
 
 
-def pruefe_email_anlagen(kopf: dict, body: str, bericht: Bericht) -> None:
+def pruefe_email_anlagen(kopf: dict, body: str, kopf_roh: str, bericht: Bericht) -> None:
     """Jede Anlage soll im Text vorkommen — als Hinweis, nicht als Eingriff.
 
     Ein Werkzeug, das ungefragt Sätze in einen Brieftext schreibt, schreibt
@@ -955,7 +971,7 @@ def pruefe_email_anlagen(kopf: dict, body: str, bericht: Bericht) -> None:
         kerne = [stamm.casefold()] + [t for t in re.split(r"[-_.]", stamm.casefold()) if len(t) > 3]
         if not any(k in unten for k in kerne):
             bericht.warnung(
-                _feldzeile("", "anlagen_dateien"), "email.anlage",
+                _feldzeile(kopf_roh, "anlagen_dateien"), "email.anlage",
                 f"„{eintrag}“ wird im Text nicht genannt",
                 "Anlagen im Text erwähnen — falzmarke fügt dafür keinen Satz ein")
 
