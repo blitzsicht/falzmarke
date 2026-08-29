@@ -267,3 +267,47 @@ regeln:
       kein Mailprogramm nennt seinen Wert. Nach ADR 0035 ist das die Ebene
       Praxis. Was das Werkzeug vorher tat: nichts. Die Anleitung sagte, das Logo
       muesse auf beiden Gruenden tragen, und niemand pruefte es (Issue #154).
+
+  - id: email.linkziel
+    titel: Ein Link zeigt auf https, http, mailto oder tel
+    lint: email.linkziel
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Eine Positivliste, und das ist der Punkt: Eine Sperrliste vergisst immer
+      eines. `javascript:`, `data:`, `vbscript:` und `file:` stehen deshalb
+      nirgends — sie sind nicht aufgezaehlt, sie sind schlicht nicht dabei. Ein
+      Verweis, der beim Empfaenger etwas ausfuehrt statt etwas zu zeigen, hat in
+      einer erzeugten Nachricht nichts zu suchen. Im Brief bleibt jeder Link ein
+      Fehler: Auf Papier gibt es nichts zum Anklicken (Issue #103).
+
+  - id: email.linktext
+    titel: Der Linktext sagt, wohin er fuehrt
+    lint: email.linktext
+    ebene: praxis
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      „hier" und „klicken Sie hier" sagen nichts. Ein Bildschirmleseprogramm
+      liest Links oft als Liste vor, losgeloest vom Satz drumherum — dort ist
+      „hier" nichts. Eine Aussage ueber die Lesbarkeit, nach ADR 0035 also nie
+      ein Fehler; geaendert wird der Text nie, denn wie jemand formuliert,
+      entscheidet er selbst.
+
+  - id: email.linkschema
+    titel: Unverschluesselte und verkuerzte Adressen
+    lint: email.linkschema
+    ebene: praxis
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      Zwei Faelle, eine Regel. `http://` uebertraegt unverschluesselt — wenn es
+      die Seite auch als `https://` gibt, gehoert die dorthin. Ein
+      Kurz-URL-Dienst verbirgt das Ziel, und ein Empfaenger, der nicht sieht,
+      wohin es geht, klickt zu Recht nicht. Beides ist Praxis und keine
+      Vorschrift. Die Liste der Dienste ist nicht vollstaendig und soll es nicht
+      sein — sie faengt die haeufigen.

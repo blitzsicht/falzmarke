@@ -529,14 +529,20 @@ def linte(brief_pfad: Path, profil_verzeichnis: Path | None = None) -> lint_modu
 
     hinweise: list = []
     try:
-        konvertiere(body_md, versatz, dialekt=kopf.get("dialekt"),
-                    ziel=str(kopf.get("typ") or "brief"), hinweise=hinweise)
+        # `lies` statt `konvertiere`: Hier wird geprüft, nicht gesetzt, und das
+        # Ergebnis wird ohnehin verworfen. `konvertiere` hängt `emit.setze` an
+        # — den **Typst**-Emitter, also den des Briefes. Für eine Mail ist das
+        # der falsche: Ein Link ist dort zulässig, und der Typst-Emitter kennt
+        # ihn zu Recht nicht (Issue #103). Er brach damit den Linter ab, statt
+        # dass dieser den Befund gemeldet hätte.
+        lies(body_md, versatz, dialekt=kopf.get("dialekt"),
+             ziel=str(kopf.get("typ") or "brief"), hinweise=hinweise)
     except MarkdownFehler as fehler:
-        bericht.fehler(fehler.zeile, "markdown", fehler.meldung)
+        bericht.fehler(fehler.zeile, fehler.regel, fehler.meldung)
     # Was gesetzt wird, aber auffällt. Der Linter ist die Stelle, an der es
     # jemand liest — die Prüfung selbst kann nur abbrechen oder durchlassen.
     for hinweis in hinweise:
-        bericht.warnung(hinweis.zeile, "markdown", hinweis.meldung)
+        bericht.warnung(hinweis.zeile, hinweis.regel, hinweis.meldung)
 
     if kopf.get("profil"):
         try:

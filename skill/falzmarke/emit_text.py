@@ -131,6 +131,44 @@ def tabelle(zeilen: list[list[str]], ausrichtungen: list[str | None]) -> str:
 # ── Der Weg über den Baum ───────────────────────────────────────────────────
 
 
+def link(ziel: str, inhalt: str) -> str:
+    """`Text: URL` — im Klartext steht die Adresse ausgeschrieben da.
+
+    Ein Klartextteil hat keine Verweise; ein Wort, hinter dem sich eine Adresse
+    verbirgt, waere dort ein Wort und sonst nichts. Der Empfaenger, der nur den
+    Textteil sieht — und die gibt es —, bekaeme den Link nie zu Gesicht.
+
+    Die Adresse geht NICHT durch die Typografie. Aus einem `-` duerfte kein
+    Halbgeviertstrich werden und aus `...` kein Auslassungszeichen, sonst
+    kopiert der Empfaenger eine Adresse, die es nicht gibt.
+
+    Stimmen Text und Adresse ueberein, wird die Adresse nur einmal gesetzt:
+    `https://example.de: https://example.de` liest sich wie ein Fehler.
+
+    Die Adresse steht in spitzen Klammern. Issue #103 schlug stattdessen eine
+    eigene Zeile vor, und der Grund dahinter ist richtig — nachgemessen an
+    einem Satz, der nach der Adresse weitergeht:
+
+        …Geschäftsbedingungen: https://example.de/agb.html, die seit August…
+
+    Das Komma klebt an der Adresse. Wer sie doppelklickt, nimmt es mit, und
+    Mailprogramme, die Adressen selbst erkennen, ziehen es in den Verweis.
+
+    Eine eigene Zeile loest das, zerreisst aber den Satz: Der Rest des Satzes
+    begaenne dann mit „, die seit August". Die Klammern loesen dasselbe Problem
+    und lassen den Satz stehen — sie sind die uebliche Abgrenzung fuer eine
+    Adresse im Fliesstext und werden beim Erkennen nicht mitgenommen.
+    """
+    adresse = as_text(ziel, typografie_anwenden=False)
+    # `mailto:` und `tel:` tragen dieselbe Angabe wie ihr Text, nur mit Schema
+    # davor. `info@example.de: <mailto:info@example.de>` sagt zweimal dasselbe;
+    # der Empfaenger braucht die Adresse, nicht die Schreibweise fuers Programm.
+    ohne_schema = adresse.split(":", 1)[1] if adresse.startswith(("mailto:", "tel:")) else adresse
+    if inhalt.strip() in (adresse.strip(), ohne_schema.strip()):
+        return f"<{adresse}>" if adresse == ohne_schema else inhalt
+    return f"{inhalt}: <{adresse}>"
+
+
 def _inline(knoten) -> str:
     if isinstance(knoten, tuple):
         return "".join(_inline(k) for k in knoten)
@@ -142,6 +180,8 @@ def _inline(knoten) -> str:
         return stark(_inline(knoten.kinder))
     if isinstance(knoten, baum_modul.Betont):
         return betont(_inline(knoten.kinder))
+    if isinstance(knoten, baum_modul.Link):
+        return link(knoten.ziel, _inline(knoten.kinder))
     return _block(knoten)
 
 

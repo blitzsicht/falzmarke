@@ -56,10 +56,17 @@ LISTENTIEFE_WARNUNG = {"1.0": 2, "1.1": 4}
 
 
 class MarkdownFehler(ValueError):
-    def __init__(self, zeile: int, meldung: str) -> None:
+    def __init__(self, zeile: int, meldung: str, regel: str = "markdown") -> None:
         super().__init__(f"Zeile {zeile}: {meldung}")
         self.zeile = zeile
         self.meldung = meldung
+        #: Unter welchem Namen der Befund im Bericht steht.
+        #:
+        #: Vorgabe `markdown` — so hiessen bis Issue #103 alle. Wo eine Regel im
+        #: Regelwerk steht, nennt sie sich hier auch so: Sonst behauptet
+        #: `regeln/email.yaml` eine Regel, die im Bericht unter einem anderen
+        #: Namen erscheint, und niemand kann die beiden zusammenbringen.
+        self.regel = regel
 
 
 @dataclass(frozen=True)
@@ -73,6 +80,8 @@ class Hinweis:
 
     zeile: int
     meldung: str
+    #: Wie bei `MarkdownFehler` — der Name der Regel, sonst `markdown`.
+    regel: str = "markdown"
 
 
 @dataclass
@@ -92,8 +101,8 @@ class Lage:
     ziel: str = "brief"
     hinweise: list = field(default_factory=list)
 
-    def melde(self, zeile: int, meldung: str) -> None:
-        self.hinweise.append(Hinweis(zeile, meldung))
+    def melde(self, zeile: int, meldung: str, regel: str = "markdown") -> None:
+        self.hinweise.append(Hinweis(zeile, meldung, regel))
 
 
 # Knotentypen, die in JEDER Fassung gesetzt werden.
@@ -213,6 +222,81 @@ def _gesetzt(typ: str, lage: Lage) -> bool:
     return typ in ZUSAETZLICH.get(lage.dialekt, frozenset())
 
 
+# ── Links (nur in E-Mails, Issue #103) ─────────────────────────────────────
+
+#: Die Schemata, die eine Geschaeftsmail braucht. Eine **Positivliste**, und
+#: das ist der Punkt: Eine Sperrliste vergisst immer eines. `javascript:`,
+#: `data:`, `vbscript:` und `file:` stehen deshalb nirgends — sie sind nicht
+#: aufgezaehlt, sie sind schlicht nicht dabei.
+#:
+#: Ein Schema ohne `//` ist gewollt: `mailto:` und `tel:` haben keines.
+LINKSCHEMATA = ("https://", "http://", "mailto:", "tel:")
+
+#: Linktexte, die nichts sagen. Ein Bildschirmleseprogramm liest Links oft als
+#: Liste vor — losgeloest vom Satz drumherum. „hier" ist in dieser Liste nichts.
+NICHTSSAGENDE_LINKTEXTE = frozenset({
+    "hier", "hier klicken", "klicken sie hier", "klick hier", "link", "mehr",
+    "weiterlesen", "diesen link", "diese seite", "hier entlang",
+})
+
+#: Kurz-URL-Dienste. Wer eine Geschaeftsmail schreibt, verbirgt sein Ziel nicht
+#: — und ein Empfaenger, der nicht sieht, wohin es geht, klickt zu Recht nicht.
+#: Die Liste ist nicht vollstaendig und soll es nicht sein: Sie faengt die
+#: haeufigen und meldet als Warnung, nicht als Fehler.
+KURZ_URL_DIENSTE = frozenset({
+    "bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd", "buff.ly",
+    "rebrand.ly", "cutt.ly", "shorturl.at", "s.id", "t.ly",
+})
+
+
+def _pruefe_link(ziel: str, text: str, zeile: int, lage: Lage) -> None:
+    """Ist diese Adresse zulaessig — und faellt an ihr etwas auf?
+
+    Fehler nur da, wo die Adresse selbst nicht taugt. Alles, was den Leser
+    betrifft und nicht die Technik, ist eine Warnung: Nach ADR 0035 gehoert
+    eine Aussage ueber die Praxis nie auf die Fehlerebene.
+    """
+    unten = ziel.strip().lower()
+    if not unten.startswith(LINKSCHEMATA):
+        if ":" not in unten:
+            # `/seite`, `seite.html`, `#anker`. Ein Doppelpunkt in der Meldung
+            # stuende dort, wo in der Eingabe keiner war.
+            raise MarkdownFehler(
+                zeile,
+                f"„{ziel.strip()}“ ist kein vollständiges Linkziel — eine E-Mail hat "
+                "keine Seite, zu der ein Pfad gehören könnte. Die vollständige "
+                "Adresse mit `https://` schreiben",
+                regel="email.linkziel")
+        schema = unten.split(":", 1)[0]
+        raise MarkdownFehler(
+            zeile,
+            f"`{schema}:` ist als Linkziel nicht zugelassen — erlaubt sind "
+            + ", ".join(f"`{s}`" for s in LINKSCHEMATA),
+            regel="email.linkziel")
+
+    if text.strip().lower().strip(" .!?›»„“\"'") in NICHTSSAGENDE_LINKTEXTE:
+        lage.melde(
+            zeile,
+            f"„{text.strip()}“ als Linktext sagt nichts — ein Bildschirmleseprogramm "
+            "liest Links oft ohne den Satz drumherum vor. Besser das Ziel benennen",
+            regel="email.linktext")
+
+    if unten.startswith("http://"):
+        lage.melde(
+            zeile,
+            "`http://` überträgt unverschlüsselt — wenn es die Seite gibt, `https://` nehmen",
+            regel="email.linkschema")
+
+    for dienst in KURZ_URL_DIENSTE:
+        if unten.startswith((f"https://{dienst}/", f"http://{dienst}/")):
+            lage.melde(
+                zeile,
+                f"`{dienst}` verbirgt das Ziel — in einer Geschäftsmail die "
+                "vollständige Adresse schreiben",
+                regel="email.linkschema")
+            break
+
+
 # Syntax, die CommonMark ohne Erweiterung als Text durchreicht. Ungeprüft
 # stünde sie wörtlich im Brief — mit Tilden und Klammern.
 ROHMUSTER = [
@@ -220,6 +304,20 @@ ROHMUSTER = [
     (re.compile(r"^\s*[-*+]\s+\[[ xX]\]\s"), "Aufgabenlisten werden nicht gesetzt — als gewöhnliche Aufzählung schreiben"),
     (re.compile(r"\[\^[^\]]+\]"), "Fußnoten werden nicht gesetzt — die Anmerkung in den Satz aufnehmen"),
 ]
+
+#: Linkziele, die markdown-it **selbst** verwirft — es macht daraus gar keinen
+#: Link, sondern laesst die Klammern als Text stehen.
+#:
+#: Das ist die richtige Entscheidung, aber ohne diesen Eintrag ist sie eine
+#: stille: Der Schreibende bekommt keinen Fehler, und im Brief steht dann
+#: woertlich `[Angebot](javascript:…)` — mit Klammern. Genau die Klasse Fehler,
+#: gegen die es ROHMUSTER gibt.
+#:
+#: Gemessen am 29.08.2026 mit markdown-it-py 4: `javascript:`, `data:`,
+#: `vbscript:` und `file:` werden verworfen; `ftp:` und relative Ziele kommen
+#: als Link durch und fallen an der Positivliste in `_pruefe_link`.
+GEFAEHRLICHE_LINKZIELE = re.compile(
+    r"\]\(\s*(javascript|data|vbscript|file)\s*:", re.I)
 
 # Eine einzelne Zeile, die wie ein Listenpunkt aussieht, aber keiner ist.
 EINZELNE_NUMMER = re.compile(r"^\s*(\d+)([.)])\s+(.*)$")
@@ -258,7 +356,30 @@ def _pruefe_rohtext(markdown: str, lage: Lage) -> None:
         for muster, meldung in ROHMUSTER:
             if muster.search(zeile):
                 raise MarkdownFehler(nummer, meldung)
+        treffer = GEFAEHRLICHE_LINKZIELE.search(zeile)
+        if treffer:
+            # Hier und nicht in `_pruefe_link`: markdown-it macht daraus gar
+            # keinen Link, also kommt dort nie etwas an. Ohne diese Zeile stünde
+            # `[Text](javascript:…)` wörtlich mit Klammern im Brief.
+            raise MarkdownFehler(
+                nummer,
+                f"`{treffer.group(1).lower()}:` ist als Linkziel nicht zugelassen — "
+                "es führt nicht zu einer Seite, sondern lässt beim Empfänger etwas "
+                "ausführen. Erlaubt sind "
+                + ", ".join(f"`{s}`" for s in LINKSCHEMATA),
+                regel="email.linkziel")
     _pruefe_tabellen(markdown, lage)
+
+
+def _nur_text(knoten) -> str:
+    """Der reine Text eines Linkinhalts — für die Prüfung auf „hier"."""
+    stuecke = []
+    for k in knoten:
+        if isinstance(k, baum.Text):
+            stuecke.append(k.inhalt)
+        elif isinstance(k, (baum.Stark, baum.Betont)):
+            stuecke.append(_nur_text(k.kinder))
+    return "".join(stuecke)
 
 
 def _inline(knoten, lage: Lage) -> tuple:
@@ -280,6 +401,15 @@ def _inline(knoten, lage: Lage) -> tuple:
             teile.append(baum.Betont(_inline(kind, lage)))
         elif typ == "inline":
             teile.extend(_inline(kind, lage))
+        elif typ == "link":
+            # Nur in einer E-Mail. Im Brief bleibt es bei der Ablehnung aus
+            # `ABLEHNUNG` — auf Papier gibt es nichts zum Anklicken.
+            if lage.ziel != "email":
+                _lehne_ab(kind, lage)
+            ziel = str((kind.attrs or {}).get("href", ""))
+            inhalt = _inline(kind, lage)
+            _pruefe_link(ziel, _nur_text(inhalt), _zeile(kind, lage), lage)
+            teile.append(baum.Link(ziel=ziel, kinder=inhalt))
         elif typ == "code_inline":
             if not _gesetzt(typ, lage):
                 _lehne_ab(kind, lage)

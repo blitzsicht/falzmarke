@@ -175,6 +175,16 @@ def _block(knoten) -> str:
             [[_inline(z) for z in zeile] for zeile in knoten.zeilen],
             list(knoten.ausrichtungen),
         )
+    if isinstance(knoten, baum_modul.Link):
+        # Ein Link kann hier nicht ankommen: `markdown.lies` lehnt ihn ab,
+        # sobald das Ziel ein Brief ist. Steht er trotzdem hier, hat jemand die
+        # Pruefung umgangen — und dann ist die Meldung wichtiger als ein
+        # Notbehelf, der die Adresse still verschluckt.
+        raise TypeError(
+            "Ein Link gehört nicht in einen Brief — auf Papier gibt es nichts "
+            "zum Anklicken. Zulässig ist er nur in `typ: email` (Issue #103); "
+            "kommt er hier an, hat `markdown.lies` ihn durchgelassen."
+        )
     # Kein stilles Uebergehen: Ein Knoten, den dieser Emitter nicht kennt, ist
     # ein Fehler im Werkzeug, kein Fehler des Briefes — und er darf nicht als
     # leerer Absatz in einem Brief landen, den jemand abschickt.

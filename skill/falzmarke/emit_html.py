@@ -182,6 +182,24 @@ def tabelle(zeilen: list[list[str]], ausrichtungen: list[str | None]) -> str:
 # ── Der Weg über den Baum ───────────────────────────────────────────────────
 
 
+def link(ziel: str, inhalt: str) -> str:
+    """Ein `<a>` — ohne Nachverfolgung und ohne Umleitung.
+
+    Kein `utm_`-Anhang, kein Zaehlpixel, keine Weiterleitung ueber einen
+    eigenen Dienst: Der Empfaenger bekommt die Adresse, die der Absender
+    geschrieben hat. Das ist dieselbe Zusage wie beim Logo — eine erzeugte
+    Nachricht laedt nichts von aussen und meldet nichts nach Hause (ADR 0034).
+
+    Die Farbe steht inline und schaltet mit `KLASSE_TEXT` um: Ein Link in
+    Systemblau steht auf dunklem Grund bei 2,3:1 und ist dort kaum zu lesen.
+    `text-decoration: underline` bleibt, damit er auch ohne Farbe erkennbar
+    ist — Farbe allein ist nach WCAG 1.4.1 kein Unterscheidungsmerkmal.
+    """
+    return (f'<a href="{as_text(ziel, typografie_anwenden=False)}" '
+            f'class="{KLASSE_TEXT}" style="color: inherit; '
+            f'text-decoration: underline;">{inhalt}</a>')
+
+
 def _inline(knoten) -> str:
     if isinstance(knoten, tuple):
         return "".join(_inline(k) for k in knoten)
@@ -189,6 +207,8 @@ def _inline(knoten) -> str:
         return as_text(knoten.inhalt, typografie_anwenden=knoten.typografie)
     if isinstance(knoten, baum_modul.Umbruch):
         return umbruch()
+    if isinstance(knoten, baum_modul.Link):
+        return link(knoten.ziel, _inline(knoten.kinder))
     if isinstance(knoten, baum_modul.Stark):
         return stark(_inline(knoten.kinder))
     if isinstance(knoten, baum_modul.Betont):

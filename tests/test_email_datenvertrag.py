@@ -396,6 +396,17 @@ def _loese_aus(regel: str, tmp_path):
         pfad = tmp_path / "nachricht.md"
         pfad.write_text(f"---\n{MAIL}---\nText der Nachricht.\n", encoding="utf-8")
         return falzmarke.linte(pfad, profil_verzeichnis=ziel)
+    if regel in ("email.linkziel", "email.linktext", "email.linkschema"):
+        # Je Regel ein eigener Link. `javascript:` bricht ab (Fehler), die
+        # beiden anderen setzen den Brief und melden nur (Warnung) — deshalb
+        # steht der Fehlerfall allein und die zwei Warnungen dürfen nicht
+        # zusammen in einem Text stehen, sonst prüfte jeder Fall beide.
+        text = {
+            "email.linkziel": "Bitte [prüfen](javascript:alert(1)).\n",
+            "email.linktext": "Die Bedingungen stehen [hier](https://example.de/agb).\n",
+            "email.linkschema": "Mehr unter [Bedingungen](http://example.de/agb).\n",
+        }[regel]
+        return linte(tmp_path, MAIL, text)
     if regel == "email.versalien":
         return linte(tmp_path, MAIL, "Das ist WIRKLICH dringend.\n")
     if regel == "antwort_auf":
