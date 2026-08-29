@@ -572,6 +572,9 @@ def rendere(
     profil_verzeichnis: Path | None = None,
     pdfa: bool = True,
     pdfua: bool = False,
+    #: Werte für `{{platzhalter}}` im Brieftext — nur der Serienbrief setzt sie.
+    #: `None` heisst: unveraendert der Weg, den jeder einzelne Brief nimmt.
+    ersetzungen: dict | None = None,
     format_name: str = "pdf",
     ppi: int = 120,
     anlagen_bericht: list | None = None,
@@ -599,7 +602,22 @@ def rendere(
         profil_daten = baue_profil_daten(profil, profil_pfad, arbeit)
 
         try:
-            body_typst = konvertiere(body_md, versatz, dialekt=kopf.get("dialekt"))
+            if ersetzungen is None:
+                body_typst = konvertiere(body_md, versatz, dialekt=kopf.get("dialekt"))
+            else:
+                # Der Serienbrief (#3). Zwischen Lesen und Setzen greift hier
+                # die Ersetzung — und genau dort, weil der Baum an dieser
+                # Stelle bereits geprüft ist: Was jetzt eingesetzt wird, läuft
+                # nie wieder durch den Parser und kann kein Markup mehr werden.
+                #
+                # Der Umweg über eine Datei mit rohem Ersatz wäre einfacher und
+                # falsch: Ein Empfänger namens `Müller & Söhne *GmbH*` stünde
+                # dann kursiv im Brief.
+                from falzmarke import emit as _emit
+                from falzmarke import serie as _serie
+
+                bloecke = lies(body_md, versatz, dialekt=kopf.get("dialekt"))
+                body_typst = _emit.setze(_serie.fuelle_bloecke(bloecke, ersetzungen))
         except MarkdownFehler as fehler:
             raise Eingabefehler(f"{brief_pfad.name}, {fehler}") from None
         if not body_typst.strip():
@@ -1044,6 +1062,96 @@ def befehl_mcp(args) -> int:
     return dienst.main()
 
 
+def befehl_serie(args) -> int:
+    """Eine Vorlage plus Datenquelle ergibt n Briefe (#3).
+
+    Der Aufbau folgt dem, was der Vorgang verlangt: Ein Datensatz, der nicht
+    durchgeht, bricht **diesen** ab und nicht die Serie. Bei zweihundert
+    Empfängern und einem zu langen Namen wäre das Gegenteil die falsche
+    Antwort — man hätte am Ende nichts statt hundertneunundneunzig Briefen.
+
+    Was den ganzen Lauf anhält, ist ein Fehler an der Vorlage oder der
+    Datenquelle: ein Platzhalter ohne Spalte, eine unlesbare Datei. Der beträfe
+    jeden Datensatz, und zweihundertmal dieselbe Meldung ist keine Hilfe.
+    """
+    import yaml
+
+    from falzmarke import serie
+
+    vorlage = Path(args.vorlage)
+    ziel = Path(args.ziel)
+    profile = Path(args.profiles) if args.profiles else None
+
+    try:
+        kopf, body_md, _versatz = lies_brief(vorlage)
+        saetze = serie.lies_daten(Path(args.daten))
+    except (Eingabefehler, serie.Seriefehler) as fehler:
+        print(str(fehler), file=sys.stderr)
+        return EXIT_EINGABE
+
+    if not saetze:
+        print(f"{Path(args.daten).name}: kein Datensatz.", file=sys.stderr)
+        return EXIT_EINGABE
+
+    # Die Vorlage wird EINMAL gegen die Spalten gehalten, nicht je Datensatz.
+    roh = vorlage.read_text(encoding="utf-8")
+    spalten = set(saetze[0])
+    try:
+        serie.pruefe_vorlage(serie.platzhalter(roh), spalten)
+    except serie.Seriefehler as fehler:
+        print(str(fehler), file=sys.stderr)
+        return EXIT_EINGABE
+
+    ziel.mkdir(parents=True, exist_ok=True)
+    bericht = serie.Bericht()
+
+    with tempfile.TemporaryDirectory(prefix="falzmarke-serie-") as tmp:
+        arbeit = Path(tmp)
+        for nummer, satz in enumerate(saetze, start=1):
+            # +2, weil Zeile 1 die Kopfzeile ist. Der Nutzer sucht die Zeile in
+            # SEINER Datei, nicht den Index im Programm.
+            zeile = nummer + 1 if Path(args.daten).suffix.lower() == ".csv" else nummer
+            name = serie.dateiname(satz, nummer, args.benennen)
+            ergebnis = serie.Ergebnis(zeile=zeile, name=name)
+            try:
+                # Das Frontmatter wird im Rohtext gefüllt — ein YAML-Wert ist
+                # bereits Text. Der Brieftext NICHT: Der geht als Vorlage in
+                # `rendere` und wird dort im geprüften Baum ersetzt.
+                gefuellt = serie.fuelle_kopf(kopf, satz)
+                einzeln = arbeit / f"{name}.md"
+                einzeln.write_text(
+                    "---\n" + yaml.safe_dump(gefuellt, allow_unicode=True, sort_keys=False)
+                    + "---\n" + body_md,
+                    encoding="utf-8")
+
+                pruefung = linte(einzeln, profile)
+                if not pruefung.ok:
+                    erster = next(b for b in pruefung.befunde if b.schwere == lint_modul.FEHLER)
+                    raise Eingabefehler(f"{erster.regel}: {erster.meldung}")
+
+                pdf, _ = rendere(einzeln, ziel / f"{name}.pdf",
+                                 profil_verzeichnis=profile, ersetzungen=satz)
+                ergebnis.pfad = pdf
+            except (Eingabefehler, serie.Seriefehler, ValueError, OSError) as fehler:
+                ergebnis.fehler = str(fehler).splitlines()[0]
+            bericht.ergebnisse.append(ergebnis)
+
+    print(bericht.als_text())
+
+    if args.sammel and bericht.geschrieben:
+        from falzmarke import anlagen
+
+        sammel = ziel / "serie.pdf"
+        erste = bericht.geschrieben[0].pfad
+        shutil.copy2(erste, sammel)
+        weitere = [e.pfad for e in bericht.geschrieben[1:] if e.pfad]
+        if weitere:
+            anlagen.haenge_an(sammel, weitere)
+        print(f"OK  Sammel-PDF: {sammel} ({len(bericht.geschrieben)} Briefe)")
+
+    return EXIT_OK if bericht.ok else EXIT_EINGABE
+
+
 def befehl_profiles(args) -> int:
     profile = finde_profile(Path(args.profiles) if args.profiles else None)
     if not profile:
@@ -1229,6 +1337,18 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--json", action="store_true")
         p.add_argument("--verbose", action="store_true", help="alle Prüfungen zeigen")
         p.set_defaults(funktion=befehl_verify)
+
+    p = unter.add_parser("serie", help="eine Vorlage plus Datenquelle ergibt n Briefe")
+    p.add_argument("vorlage", help="Markdown-Vorlage mit `{{platzhalter}}`")
+    p.add_argument("--daten", required=True, help="CSV- oder JSON-Datei mit den Datensätzen")
+    p.add_argument("--ziel", required=True, help="Ordner für die erzeugten PDFs")
+    p.add_argument("--benennen", metavar="SPALTE",
+                   help="Spalte, aus der der Dateiname gebildet wird "
+                        "(die laufende Nummer steht ohnehin davor)")
+    p.add_argument("--sammel", action="store_true",
+                   help="zusätzlich alle Briefe in einer Datei, für den Druck")
+    p.add_argument("--profiles", help="Profilverzeichnis")
+    p.set_defaults(funktion=befehl_serie)
 
     p = unter.add_parser("email", help="E-Mail-Fassung als .eml setzen und nachmessen")
     p.add_argument("brief", help="Markdown-Datei mit `typ: email`")

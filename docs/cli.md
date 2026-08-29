@@ -8,6 +8,7 @@ falzmarke render      BRIEF.md [-o AUS.pdf] [--png] [--no-pdfa] [--pdfua] [--ver
 falzmarke verify      AUS.pdf [--form A|B] [--json] [--verbose]
 falzmarke verify      NACHRICHT.eml --email [--json] [--verbose]
 falzmarke email       NACHRICHT.md [-o STAMM] [--html] [--txt] [--mit-quelle] [--verbose]
+falzmarke serie       VORLAGE.md --daten DATEN.csv --ziel ORDNER/ [--benennen SPALTE] [--sammel]
 falzmarke preview     BRIEF.md [-o AUS.png] [--ppi 120]
 falzmarke init        ZIEL.md --profil NAME [--empfaenger "Zeile|Zeile"] [--betreff "..."]
 falzmarke init-profil NAME [--ziel VERZEICHNIS]
@@ -18,6 +19,69 @@ falzmarke --version
 
 Aus einem Clone ohne Installation: `python3 skill/scripts/falzmarke.py …` — dasselbe Programm,
 nur ein anderer Aufrufweg.
+
+## Serienbrief
+
+```
+falzmarke serie vorlage.md --daten empfaenger.csv --ziel briefe/ --benennen nachname
+```
+
+Die Vorlage ist ein gewöhnlicher Brief mit **`{{spalte}}`** an den Stellen, die aus den Daten
+kommen — im Frontmatter wie im Text:
+
+```markdown
+---
+profil: example
+empfaenger:
+  - "{{firma}}"
+  - "{{strasse}}"
+  - "{{plz}} {{ort}}"
+datum: 2026-08-29
+betreff: Ihre Anfrage vom 14. August 2026
+anrede: "Sehr geehrte {{anrede}} {{nachname}},"
+---
+vielen Dank für Ihre Anfrage. Wir haben sie unter {{auftrag}} erfasst.
+```
+
+Die Datenquelle ist `.csv` oder `.json` — erkannt an der Endung, nicht am Inhalt. Eine CSV wird
+mit `utf-8-sig` gelesen, damit die Byte-Order-Mark aus Excel nicht in den ersten Spaltennamen
+gerät.
+
+| Option | |
+|---|---|
+| `--benennen SPALTE` | woraus der Dateiname gebildet wird; die laufende Nummer steht ohnehin davor |
+| `--sammel` | zusätzlich alle Briefe in einer Datei, für den Druck |
+
+### Ein Wert wird nie zu Markup
+
+Was aus der Datenquelle kommt, ist Text und bleibt Text. Ein Empfänger namens
+`Müller & Söhne *GmbH*` steht mit Sternchen im Brief, kein Kursivsatz; ein Auftrag `# 2026-0815`
+wird keine Überschrift.
+
+Das ist kein Zufall, sondern der Grund für den Weg: Ersetzt wird **nach** dem Parsen, im
+geprüften Baum. Was dort eingesetzt wird, läuft nie wieder durch den Parser — dieselbe
+Überlegung wie beim Typst-Emitter, der Text als Zeichenkette ausgibt statt als Markup. Eine
+Maskierliste (`*`, `_`, `#`, `[`, `` ` ``) wäre einfacher und irgendwann unvollständig.
+
+Aus demselben Grund läuft die Typografie nicht über den Wert: Aus `Nord -- Süd` wird kein
+Halbgeviertstrich. Im Vorlagentext greift sie weiterhin.
+
+### Ein Datensatz, ein Ergebnis
+
+Ein Datensatz, der nicht durchgeht, bricht **diesen** ab und nicht die Serie:
+
+```
+FEHL  Zeile 3: empfaenger: Leerzeilen sind im Anschriftfeld nicht zulässig.
+serie: 2/3 Briefe geschrieben
+```
+
+Die Zeilennummer ist die der Datenquelle, inklusive Kopfzeile — die Zeile, die man dort sucht.
+Der Rückgabewert ist 1, sobald ein Satz fehlt; die übrigen Briefe liegen trotzdem im Zielordner.
+
+Was den **ganzen** Lauf anhält, ist ein Fehler an der Vorlage oder der Datenquelle: ein
+Platzhalter ohne Spalte, eine fehlende Kopfzeile. Der beträfe jeden Datensatz, und
+zweihundertmal dieselbe Meldung ist keine Hilfe. Die Gegenrichtung ist ausdrücklich kein Fehler:
+Eine Spalte, auf die kein Platzhalter zeigt, ist bei einer Adressliste der Normalfall.
 
 ## Wie die Befehle zusammenhängen
 
