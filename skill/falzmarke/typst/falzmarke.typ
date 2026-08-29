@@ -36,12 +36,15 @@
 // Kein Kasten, sondern ein Balken links: Ein Kasten braucht Innenabstaende,
 // und die sind in einem Zeilenraster nicht frei waehlbar. Der Balken kostet
 // keine Zeile.
-#let zitat(inhalt) = block(
-  above: leer(1), below: leer(1),
-  inset: (left: 6mm),
-  stroke: (left: 0.6pt + luma(120)),
-  inhalt,
-)
+// `quote` statt eines blossen `block`: Ein Block ist im PDF ein Kasten ohne
+// Bedeutung — ein Screenreader liest einen eingerueckten Absatz vor und sagt
+// nicht, dass hier jemand zitiert wird. `#quote(block: true)` traegt die
+// Auszeichnung `/BlockQuote` in den Strukturbaum; nachgemessen mit pypdf, und
+// die Pruefung dazu steht in tests/test_struktur.py (Issue #138).
+//
+// Die Gestaltung bleibt dieselbe: Die show-Regel ersetzt das Aussehen, nicht
+// das Element — der Tag ueberlebt das, ebenfalls nachgemessen.
+#let zitat(inhalt) = quote(block: true, inhalt)
 
 #let codeblock(inhalt) = block(
   above: leer(1), below: leer(1),
@@ -197,6 +200,20 @@
   // Briefkoerpers gegen 4,2333 mm. Mit `below: 0pt`, wie es hier bis zum
   // Merge von #140 stand, sind es 11 pt statt 12; die Pruefung meldet das
   // seither als „0.92 Zeilen" an jedem Absatz nach einer Ueberschrift.
+  // Das Aussehen des Blockzitats. Es steht hier und nicht bei `#let zitat`,
+  // weil eine show-Regel den Kontext eines Dokuments braucht; das `#let`
+  // liefert nur noch das Element, damit die Auszeichnung entsteht.
+  //
+  // Kein Kasten, sondern ein Balken links: Ein Kasten braucht Innenabstaende,
+  // und die sind in einem Zeilenraster nicht frei waehlbar. Der Balken kostet
+  // keine Zeile.
+  show quote.where(block: true): it => block(
+    above: leer(1), below: leer(1),
+    inset: (left: 6mm),
+    stroke: (left: 0.6pt + luma(120)),
+    it.body,
+  )
+
   set heading(numbering: none, outlined: false)
   show heading: it => {
     let stil = (

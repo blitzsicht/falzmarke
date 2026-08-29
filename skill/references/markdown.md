@@ -138,6 +138,44 @@ unsicheren Renderer, bei dem die Anweisung nachweislich ausgeführt *wird*.
 entstehen aus derselben geprüften Quelle, und der HTML-Teil setzt sie noch nicht. Die Meldung
 sagt das mit Zeile und Grund; es entsteht keine halb gesetzte Mail.
 
+## Wie es im PDF ankommt
+
+Ein Element ist im PDF nicht dasselbe wie sein Aussehen. Neben dem, was man sieht, führt
+ein PDF einen **Strukturbaum** — dort steht, *was* jedes Stück ist. Für einen Screenreader
+ist das die einzige Quelle: Eine Überschrift, die nur größer und fetter gesetzt ist, liest er
+als gewöhnlichen Satz vor.
+
+Gemessen am 29.08.2026 mit pypdf, festgehalten in `tests/test_struktur.py`:
+
+| Was du schreibst | Auszeichnung im PDF |
+|---|---|
+| `# …` bis `#### …` | `/H1` … `/H4` |
+| `* …` und `1. …` | `/L` mit `/LI` |
+| `> …` | `/BlockQuote` |
+| ` ``` ` und `` ` `` | `/Code` |
+| Tabelle | `/Table` mit `/THead`, `/TH`, `/TR`, `/TD` |
+| `**…**` und `*…*` | `/Strong` und `/Em` |
+
+Das gilt **in beiden Fassungen** und unabhängig von `--pdfua`. Die Option ändert nur, ob sich
+das PDF im XMP als PDF/UA-1 zu erkennen gibt; die Struktur, auf die sie sich beruft, ist ohnehin
+da. In CI hält veraPDF beide Fassungen gegen ihre Standards.
+
+Zwei dieser Zeilen stimmten bis zu dieser Messung nicht: Ein Blockzitat war ein Kasten ohne
+Bedeutung, und die Kopfzeile einer Tabelle war fett gesetzt und sonst nichts (Issue #138).
+
+### Eine Überschrift bleibt bei ihrem Absatz
+
+Sie rutscht nie allein ans Seitenende. Das ist keine eigene Vorkehrung: Typst setzt
+Überschriften in einen Block, der ohne den folgenden Absatz nicht umbricht. Weil es die Zusage
+einer fremden Fassung ist und keine eigene, steht sie als Messung mit Gegenprobe in
+`tests/test_struktur.py` — zieht Typst sie zurück, wird der Test rot, statt dass es jemand an
+einem Ausdruck bemerkt.
+
+Ein **Zitat** darf dagegen umbrechen. Ein langer Auszug über einen Seitenwechsel zu verbieten
+hieße, ihn auf eine Seite zwingen zu müssen — und dafür gäbe es nur zwei Wege: die Schrift
+verkleinern oder den Wortlaut kürzen. Beides ändert, was dasteht, und genau das tut dieses
+Werkzeug nicht.
+
 ## Was abbricht — und warum
 
 | Syntax | Grund |
