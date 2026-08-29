@@ -9,6 +9,16 @@
   "schlusszeile": "33 von 33 Prüfungen eingehalten",
   "pruefungen_gesamt": 33,
   "sabotage_mm": 107.0,
+  "formate": {
+    "quer": [
+      1080,
+      812
+    ],
+    "hoch": [
+      1080,
+      1920
+    ]
+  },
   "stopps": [
     {
       "name": "Rücksendeangabe, y-Oberkante",

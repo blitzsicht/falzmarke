@@ -45,6 +45,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -283,12 +284,12 @@ def _zeile(zeichner, xy, text: str, schrift, fill, platz: int) -> None:
     zeichner.text(xy, text, font=schrift, fill=fill)
 
 
-def _seitenbild(seite, höhe: int):
+def _seitenbild(seite, hoehe: int):
     """Der Render, auf die Filmhöhe gebracht."""
     from PIL import Image
 
-    faktor = höhe / seite.height
-    return seite.resize((round(seite.width * faktor), höhe), Image.LANCZOS)
+    faktor = hoehe / seite.height
+    return seite.resize((round(seite.width * faktor), hoehe), Image.LANCZOS)
 
 
 def _grundbild(seitenbild, schlusstext: str):
@@ -300,8 +301,8 @@ def _grundbild(seitenbild, schlusstext: str):
     """
     from PIL import Image, ImageDraw
 
-    höhe = KOPF + BLATT_HOEHE + 84
-    tafel = Image.new("RGB", (BREITE, höhe), PAPIER)
+    hoehe = KOPF + BLATT_HOEHE + 84
+    tafel = Image.new("RGB", (BREITE, hoehe), PAPIER)
     z = ImageDraw.Draw(tafel)
 
     z.text((RAND, 32), "Jedes Maß am fertigen PDF", font=_schrift(34, fett=True), fill=TINTE)
@@ -346,12 +347,12 @@ def _tafel(grund, seitenbreite: int, y_mm: float, stopp: dict | None, fortschrit
     if stopp is not None:
         name_schrift = _schrift(28, fett=True)
         namenszeilen = _umbrich(z, stopp["name"], name_schrift, platz)
-        feld_höhe = len(namenszeilen) * 36 + 150
+        feld_hoehe = len(namenszeilen) * 36 + 150
 
         # Das Feld folgt der Linie, bleibt aber im Bild: ein Maß nahe der
         # Blattunterkante schöbe es sonst über den Rand, und die Angabe zum
         # letzten Halt wäre abgeschnitten.
-        kopf_y = min(max(y - 58, KOPF + 40), bild.height - feld_höhe)
+        kopf_y = min(max(y - 58, KOPF + 40), bild.height - feld_hoehe)
 
         for nummer, zeile in enumerate(namenszeilen):
             _zeile(z, (text_x, kopf_y + nummer * 36), zeile, name_schrift, TINTE, platz)
@@ -435,6 +436,178 @@ def baue_film(seite, bericht: dict) -> tuple[list, list[int]]:
     return frames, dauern
 
 
+# ── Hochformat 9:16 ─────────────────────────────────────────────────────────
+#
+# Warum es das gibt: Der Querformat-Film wird von Facebook, Instagram und
+# WhatsApp als Video behandelt und auf 9:16 beschnitten. Nachgesehen am
+# 29.08.2026 an einer echten Facebook-Vorschau: links fiel „Jedes Maß" weg,
+# rechts „Infoblock, y-Oberkan…". Ein Bild, das im Feed die Hälfte seiner
+# Aussage verliert, ist dort kein Bild.
+#
+# Warum das Hochformat hier nicht Notlösung ist, sondern die bessere Form:
+# A4 IST hochkant. Im Querformat liegt das Blatt links und daneben steht Luft;
+# hier steht es groß in der Mitte, und die Messwerte stehen darunter, wo sonst
+# nichts wäre. Der Brieftext ist dadurch sogar besser zu lesen.
+#
+# Beide Formate entstehen IMMER zusammen, nie einzeln. Zwei Fassungen, von denen
+# eine nachgezogen werden müsste, laufen genau dann auseinander, wenn es keiner
+# merkt — und die eine, die niemand ansieht, zeigt dann alte Zahlen.
+
+HOCH_BREITE, HOCH_HOEHE = 1080, 1920     # was Story, Status und Reel erwarten
+HOCH_RAND = 56
+HOCH_BLATT_HOEHE = 1104
+HOCH_KOPF = 272                          # Oberkante des Blattes
+
+
+def _hoch_spalte() -> int:
+    return HOCH_BREITE - 2 * HOCH_RAND
+
+
+def _hoch_y(mm: float) -> int:
+    return HOCH_KOPF + round(mm / BLATT_MM[1] * HOCH_BLATT_HOEHE)
+
+
+def _hoch_grundbild(seitenbild):
+    from PIL import Image, ImageDraw
+
+    tafel = Image.new("RGB", (HOCH_BREITE, HOCH_HOEHE), PAPIER)
+    z = ImageDraw.Draw(tafel)
+    platz = _hoch_spalte()
+
+    _zeile(z, (HOCH_RAND, 64), "Jedes Maß am fertigen PDF", _schrift(58, True), TINTE, platz)
+    _zeile(z, (HOCH_RAND, 138), "Die Linie hält dort, wo gemessen wurde —",
+           _schrift(30), GRAU, platz)
+    _zeile(z, (HOCH_RAND, 176), "die Zahl ist die Stelle.", _schrift(30), GRAU, platz)
+
+    x = (HOCH_BREITE - seitenbild.width) // 2
+    tafel.paste(seitenbild, (x, HOCH_KOPF))
+    z.rectangle([(x, HOCH_KOPF),
+                 (x + seitenbild.width - 1, HOCH_KOPF + seitenbild.height - 1)],
+                outline=GRAU, width=1)
+    _zeile(z, (HOCH_RAND, HOCH_HOEHE - 78),
+           "Beispielbrief, Form B — gesetzt und danach nachgemessen.",
+           _schrift(26), GRAU, platz)
+    return tafel, x
+
+
+def _hoch_tafel(grund, y_mm: float, stopp: dict | None, fortschritt: str):
+    from PIL import ImageDraw
+
+    bild = grund.copy()
+    z = ImageDraw.Draw(bild)
+    platz = _hoch_spalte()
+
+    y = _hoch_y(y_mm)
+    farbe = GRUEN if (stopp is None or stopp["bestanden"]) else ROT
+    # Über die volle Bildbreite, nicht nur über das Blatt: im Hochformat ist
+    # links und rechts Rand, und eine Linie, die dort endet, sähe aus wie ein
+    # Strich auf dem Papier statt wie ein Werkzeug.
+    z.line([(0, y), (HOCH_BREITE, y)], fill=farbe, width=5)
+    _zeile(z, (HOCH_RAND, 228), fortschritt, _schrift(26), GRAU, platz)
+
+    if stopp is not None:
+        oben = HOCH_KOPF + HOCH_BLATT_HOEHE + 56
+        for nummer, zeile in enumerate(
+                _umbrich(z, stopp["name"], _schrift(46, True), platz)):
+            _zeile(z, (HOCH_RAND, oben + nummer * 56), zeile, _schrift(46, True), TINTE, platz)
+        for nummer, zeile in enumerate((
+            f"soll   {_komma(stopp['soll'])}",
+            f"ist    {_komma(stopp['ist'])}",
+            f"tol    {_komma(stopp['toleranz'])}",
+        )):
+            _zeile(z, (HOCH_RAND, oben + 76 + nummer * 52), zeile, _schrift(40), TINTE, platz)
+        _zeile(z, (HOCH_RAND, oben + 252),
+               "eingehalten" if stopp["bestanden"] else "ABWEICHUNG",
+               _schrift(40, True), GRUEN_TEXT if stopp["bestanden"] else ROT, platz)
+    return bild
+
+
+def _hoch_schlussbild(grund, blatt_x: int, blattbreite: int, bericht: dict, halte: list[dict]):
+    from PIL import ImageDraw
+
+    bild = grund.copy()
+    z = ImageDraw.Draw(bild)
+    platz = _hoch_spalte()
+
+    # Marker an den Blatträndern statt Linien quer durch das Blatt. Acht Linien
+    # gleichzeitig durch den Brieftext sehen aus wie Durchstreichungen — im
+    # ersten Entwurf war „Umsetzung mit barrierefreier Navigation" durchgestrichen.
+    # Beim einzelnen Halt ist die durchgehende Linie richtig, hier nicht.
+    for stopp in halte:
+        y = _hoch_y(stopp["y_mm"])
+        z.line([(blatt_x - 44, y), (blatt_x + 26, y)], fill=GRUEN, width=5)
+        rechts = blatt_x + blattbreite
+        z.line([(rechts - 26, y), (rechts + 44, y)], fill=GRUEN, width=5)
+
+    oben = HOCH_KOPF + HOCH_BLATT_HOEHE + 56
+    _zeile(z, (HOCH_RAND, oben), schlusszeile(bericht), _schrift(50, True), TINTE, platz)
+    ohne_hoehe = len(bericht["pruefungen"]) - len(halte)
+    for nummer, zeile in enumerate((
+        f"{len(halte)} davon tragen eine Höhe auf dem Blatt.",
+        f"Die übrigen {ohne_hoehe} messen Breiten und Abstände.",
+        "Keine Zahl ist abgetippt —",
+        "jede kommt aus falzmarke verify.",
+    )):
+        _zeile(z, (HOCH_RAND, oben + 82 + nummer * 46), zeile, _schrift(32), GRAU, platz)
+    return bild
+
+
+def baue_hochfilm(seite, bericht: dict) -> tuple[list, list[int]]:
+    """Dieselben Halte, dieselben Zahlen — anderes Format."""
+    halte = stopps(bericht)
+    seitenbild = _seitenbild(seite, HOCH_BLATT_HOEHE)
+    grund, blatt_x = _hoch_grundbild(seitenbild)
+    gesamt = len(halte)
+
+    frames, dauern = [], []
+    vorher = 0.0
+    for nummer, stopp in enumerate(halte, start=1):
+        fortschritt = f"Maß {nummer} von {gesamt} mit Höhe"
+        for schritt in range(1, FAHRT_BILDER + 1):
+            y = vorher + (stopp["y_mm"] - vorher) * schritt / FAHRT_BILDER
+            frames.append(_hoch_tafel(grund, y, None, fortschritt))
+            dauern.append(FAHRT_MS)
+        frames.append(_hoch_tafel(grund, stopp["y_mm"], stopp, fortschritt))
+        dauern.append(HALT_MS)
+        vorher = stopp["y_mm"]
+
+    frames.append(_hoch_schlussbild(grund, blatt_x, seitenbild.width, bericht, halte))
+    dauern.append(SCHLUSS_MS)
+    return frames, dauern
+
+
+def schreibe_mp4(frames: list, dauern: list[int], ziel: Path) -> bool:
+    """MP4 aus den Einzelbildern. Ohne ffmpeg wird es übersprungen.
+
+    Story und Status nehmen ein GIF nicht als Animation an — sie zeigen das
+    erste Bild und sonst nichts. Dafür braucht es ein Video.
+
+    ffmpeg liegt in dieser Werkstatt bei der VHS-Aufnahme (.github/workflows/
+    video.yml), nicht in der Testkette. Fehlt es, entsteht kein MP4 und der
+    Lauf sagt das — er scheitert nicht daran, denn GIF und WebP sind vollständig.
+    """
+    if not shutil.which("ffmpeg"):
+        print("  (kein ffmpeg — messfilm-9x16.mp4 nicht erzeugt; GIF und WebP sind da)")
+        return False
+
+    with tempfile.TemporaryDirectory(prefix="falzmarke-mp4-") as tmp:
+        ordner = Path(tmp)
+        nummer = 0
+        for bild, dauer in zip(frames, dauern):
+            # 25 Bilder je Sekunde: jedes Einzelbild so oft wiederholen, wie es
+            # steht. Ein Video kennt keine Standzeit je Bild, ein GIF schon.
+            for _ in range(max(1, round(dauer / FAHRT_MS))):
+                bild.save(ordner / f"{nummer:04d}.png")
+                nummer += 1
+        subprocess.run([
+            "ffmpeg", "-y", "-loglevel", "error", "-framerate", str(round(1000 / FAHRT_MS)),
+            "-i", str(ordner / "%04d.png"),
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "20",
+            "-movflags", "+faststart", str(ziel),
+        ], check=True)
+    return True
+
+
 # ── Ablauf ──────────────────────────────────────────────────────────────────
 
 def baue(sabotiert: bool = False) -> dict:
@@ -461,8 +634,12 @@ def baue(sabotiert: bool = False) -> dict:
                 "Layouts wäre die teuerste Art, ihn zu verstecken."
             )
 
-        frames, dauern = baue_film(_bild(png), bericht)
-        return {"bericht": bericht, "stopps": halte, "frames": frames, "dauern": dauern}
+        seite = _bild(png)
+        frames, dauern = baue_film(seite, bericht)
+        hoch_frames, hoch_dauern = baue_hochfilm(seite, bericht)
+        return {"bericht": bericht, "stopps": halte,
+                "frames": frames, "dauern": dauern,
+                "hoch_frames": hoch_frames, "hoch_dauern": hoch_dauern}
 
 
 def beleg(gebaut: dict) -> dict:
@@ -475,6 +652,10 @@ def beleg(gebaut: dict) -> dict:
         "schlusszeile": schlusszeile(gebaut["bericht"]),
         "pruefungen_gesamt": len(gebaut["bericht"]["pruefungen"]),
         "sabotage_mm": SABOTAGE_MM,
+        "formate": {
+            "quer": [BREITE, KOPF + BLATT_HOEHE + 84],
+            "hoch": [HOCH_BREITE, HOCH_HOEHE],
+        },
         "stopps": [
             {"name": s["name"], "soll": s["soll"], "ist": s["ist"],
              "toleranz": s["toleranz"], "y_mm": s["y_mm"]}
@@ -527,6 +708,24 @@ def schreibe(gebaut: dict) -> None:
     kb = webp.stat().st_size / 1024
     print(f"  {webp.relative_to(REPO)}  {kb:.0f} KB"
           f"{'' if kb <= 200 else '   ÜBER dem 200-KB-Budget der Website'}")
+
+    # ── Hochformat ──────────────────────────────────────────────────────────
+    hoch, hoch_dauern = gebaut["hoch_frames"], gebaut["hoch_dauern"]
+
+    # Kein GIF im Hochformat, anders als beim Querformat. Dort gibt es einen
+    # Abnehmer — GitHub zeigt GIFs im README inline. Hier gibt es keinen: Story
+    # und Status nehmen ein GIF nicht als Animation an, sie zeigen das erste
+    # Bild und sonst nichts. Gemessen wären es 1957 KB, die im Repo lägen, ohne
+    # dass sie jemand ansieht. MP4 (403 KB) und WebP (224 KB) decken alles ab.
+    hoch_webp = ZIEL_DIR / "messfilm-9x16.webp"
+    hoch[0].save(hoch_webp, save_all=True, append_images=hoch[1:], duration=hoch_dauern,
+                 loop=0, quality=72, method=6, minimize_size=True)
+    print(f"  {hoch_webp.relative_to(REPO)}  {hoch_webp.stat().st_size / 1024:.0f} KB")
+
+    hoch_mp4 = ZIEL_DIR / "messfilm-9x16.mp4"
+    if schreibe_mp4(hoch, hoch_dauern, hoch_mp4):
+        print(f"  {hoch_mp4.relative_to(REPO)}  {hoch_mp4.stat().st_size / 1024:.0f} KB"
+              f"  — das für Story, Status und Reel")
 
 
 def main() -> int:
