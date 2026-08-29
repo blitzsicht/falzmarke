@@ -203,6 +203,32 @@ da. In CI hält veraPDF beide Fassungen gegen ihre Standards.
 Zwei dieser Zeilen stimmten bis zu dieser Messung nicht: Ein Blockzitat war ein Kasten ohne
 Bedeutung, und die Kopfzeile einer Tabelle war fett gesetzt und sonst nichts (Issue #138).
 
+### Eine Tabelle steht nicht auf dem Zeilenraster
+
+Der Briefkörper steht auf einem 12-pt-Raster: Jede „Leerzeile" der Norm ist genau eine
+Rasterzeile, und seit Issue #140 wird das gemessen. **Tabellen sind davon ausgenommen** — und das
+steht hier, weil es sonst still gälte.
+
+Gemessen am Beispiel mit Tabelle:
+
+| Abstand | in Rasterzeilen |
+|---|---|
+| Absatz → erste Tabellenzeile | 2,33 |
+| Tabellenzeile → Tabellenzeile | 1,58 |
+| letzte Tabellenzeile → Absatz | 2,33 |
+
+Alles unterhalb einer Tabelle steht damit auf einem anderen Raster als alles darüber. Auf einem
+einzelnen Blatt fällt das nicht auf; zwei nebeneinandergelegte Ausdrucke zeigen es sofort.
+
+Der Grund ist die Zeilenhöhe: Sie ist die Texthöhe plus zweimal der Innenabstand der Zelle. Bei
+11 pt und 1,4 mm Innenabstand ergibt das 6,68 mm — das 1,58-fache einer Rasterzeile. Rastertreu
+wäre sie erst bei 2,293 mm Innenabstand (dann wächst jede fünfzeilige Tabelle um 9 mm) oder bei
+0,176 mm (dann kleben die Zellen aneinander).
+
+**Ob es dabei bleibt, ist offen** — die Abwägung zwischen Raster und Lesbarkeit steht als
+[Issue #151](https://github.com/blitzsicht/falzmarke/issues/151) und gehört entschieden, nicht
+von einer Prüfung erzwungen. Bis dahin beschreibt dieser Abschnitt, was ist.
+
 ### Eine Überschrift bleibt bei ihrem Absatz
 
 Sie rutscht nie allein ans Seitenende. Das ist keine eigene Vorkehrung: Typst setzt
