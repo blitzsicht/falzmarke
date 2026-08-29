@@ -73,7 +73,7 @@ ABGELEHNT = [
     ("Text[^1] dazu\n\n[^1]: Anmerkung", "Fußnoten"),
     ("Ein <br> Umbruch", "HTML"),
     ("Ein <abc> Element", "HTML"),
-    ("- 5 °C waren es gestern.", "einzelner Strich"),
+    ("- 5 °C waren es gestern.", "Aufzählung mit einem einzigen Punkt"),
     ("- a\n  - b\n    - c\n  - d\n- e", "Ebenen"),
     ("| A | B |\n| 1 | 2 |", "Tabelle"),
 ]
@@ -233,3 +233,62 @@ def test_was_markdown_md_als_fehler_listet_bricht_auch_ab(tmp_path):
     assert not durchgerutscht, (
         "In references/markdown.md als Fehler gelistet, aber gesetzt: "
         + ", ".join(durchgerutscht))
+
+
+# ── Die Meldung nennt das Zeichen, das dasteht (#162) ───────────────────────
+#
+# Bis zum 29.08.2026 sprach sie fest von einem „einzelnen Strich am
+# Zeilenanfang" — auch bei `  * Untereintrag`, wo weder ein Strich steht noch
+# etwas am Zeilenanfang. Der Vorschlag zum Schützen lautete `\- 5 °C` und passte
+# auf keinen der beiden Punkte.
+#
+# Das ist mehr als ein Schönheitsfehler: Der Lauf bricht ab, es gibt keine
+# Ausgabe zum Vergleichen, und die Meldung ist die einzige Auskunft. Wer die
+# gemeinte Zeile sucht, sucht nach einem Strich und findet keinen.
+
+@pytest.mark.parametrize("zeichen", ["-", "*", "+"])
+def test_die_meldung_nennt_das_zeichen_das_dasteht(zeichen):
+    with pytest.raises(MarkdownFehler) as fehler:
+        konvertiere(f"{zeichen} Nur ein Punkt")
+    meldung = fehler.value.meldung
+    assert f"`{zeichen}`" in meldung, meldung
+    assert f"\\{zeichen}" in meldung, f"der Vorschlag zum Schützen nennt ein anderes Zeichen: {meldung}"
+
+
+@pytest.mark.parametrize("zeichen", ["-", "*", "+"])
+def test_und_nicht_das_einer_anderen_schreibweise(zeichen):
+    """Die Gegenprobe, und sie trägt hier alles.
+
+    Eine Meldung, die immer `-` sagt, bestünde den Test darüber für `-` und
+    wäre für `*` und `+` genau so falsch wie vorher. Erst der Ausschluss der
+    beiden anderen macht die Aussage.
+    """
+    with pytest.raises(MarkdownFehler) as fehler:
+        konvertiere(f"{zeichen} Nur ein Punkt")
+    meldung = fehler.value.meldung
+    for fremd in set("-*+") - {zeichen}:
+        assert f"`{fremd}`" not in meldung, f"nennt auch `{fremd}`: {meldung}"
+
+
+def test_die_meldung_nennt_die_regel_dahinter():
+    """Warum überhaupt abgebrochen wird, stand nirgends.
+
+    Die Regel ist vernünftig — eine Aufzählung mit einem Punkt ist keine — und
+    in einem Satz erklärt. Ohne sie liest sich der Abbruch wie eine Schrulle.
+    """
+    with pytest.raises(MarkdownFehler) as fehler:
+        konvertiere("- Nur ein Punkt")
+    assert "einzigen Punkt" in fehler.value.meldung
+
+
+def test_auch_eingerueckt_stimmt_das_zeichen():
+    """Der Fall aus dem Vorgang: zweite Ebene, Stern, nicht am Zeilenanfang."""
+    with pytest.raises(MarkdownFehler) as fehler:
+        konvertiere("Ein Absatz.\n\n  * Untereintrag")
+    assert "`*`" in fehler.value.meldung, fehler.value.meldung
+    assert "`-`" not in fehler.value.meldung
+
+
+def test_zwei_punkte_gehen_durch():
+    """Gegenprobe zur Regel selbst: Sie darf nicht jede Aufzählung ablehnen."""
+    assert konvertiere("- Erster Punkt\n- Zweiter Punkt")
