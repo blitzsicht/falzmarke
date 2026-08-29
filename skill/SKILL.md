@@ -140,9 +140,29 @@ sich also zusammen in einen Chat legen.
 | Exit | Was zu tun ist |
 |---|---|
 | 1 | Eingabefehler. Die Meldung nennt Feld und Zeile — dort korrigieren und erneut `lint`. |
-| 2 | Verifikation. Den Bericht wörtlich weitergeben. **Nach einem Versuch aufhören**, nicht am Layout herumprobieren. |
+| 2 | Verifikation. Den Bericht wörtlich weitergeben — er nennt bei einem Überlauf auch die `Ursache:` und was daran zu tun wäre. Diese eine Änderung an der **Eingabe** machen und erneut rendern. Sonst **aufhören**, nicht am Layout herumprobieren. |
 | 3 | Umgebung. `python3 scripts/bootstrap.py`, danach abbrechen, wenn es wieder scheitert. |
 | 4 | Renderer. Das ist ein Fehler im Werkzeug — als Issue melden, mit der `.md`. |
+
+### Was bei Exit 2 nicht geändert wird
+
+Der Bericht nennt die Ursache, damit **eine** gezielte Änderung möglich wird — nicht, damit so
+lange geändert wird, bis die Maße passen. Ein Brief, an dem jemand herumprobiert hat, bis
+`verify` grün war, ist am Ende ein Brief, den der Absender nicht geschrieben hat: gekürzter
+Betreff, gestrichener Absatz, weggelassene Empfängerzeile. Die Messung stimmt dann, und genau
+deshalb fällt es niemandem auf.
+
+Nie ohne Rückfrage geändert werden:
+
+- **Sachaussagen** — Beträge, Fristen, Aktenzeichen, Namen, Daten. Ein gekürzter Betrag ist ein
+  anderer Brief.
+- **Empfängerangaben.** Eine gestrichene Zeile im Anschriftfeld kann heißen, dass der Brief nicht
+  ankommt.
+- **Absätze im Fließtext.** Kürzen ist Redigieren, und das entscheidet der Absender.
+
+Vertretbar ist, was die Form betrifft und die Aussage nicht ändert — ein Umbruch in einer zu
+langen Codezeile, eine Tabelle mit zusammengefassten Spalten, der Hinweis, dass der Brief
+zweiseitig wird.
 
 ## Eigenes Profil anlegen
 

@@ -75,6 +75,18 @@ SEITE_HOEHE = 297.0
 LOCHMARKE = 148.5
 RAND_LINKS = 25.0
 RAND_RECHTS = 190.0          # 210 - 20
+
+#: Die nutzbare Textbreite. Ein Wort, das allein schon breiter ist, kann nirgends
+#: passen — es hat keine Trennstelle, sonst haette Typst es umbrochen.
+BREITE_SATZSPIEGEL = RAND_RECHTS - RAND_LINKS
+
+#: Ab wie vielen Zeichen ein wortgetreuer Auszug aus dem Satzspiegel laeuft.
+#:
+#: Gemessen am 28.08.2026 durch Einschachtelung (tests/fixtures/satzspiegel/
+#: README.md): Der Codeblock passt bis 68 Zeichen, ab 69 laeuft er ueber. Er
+#: verliert zwei Zeichen gegenueber Inline-Code an seinen Einzug. Der Wert gilt
+#: fuer die Festbreitenschrift, die `falzmarke.typ` waehlt.
+AUSZUG_ZEICHEN = 68
 INFOBLOCK_X = 125.0
 INFOBLOCK_X_RECHTS = 200.0
 ANSCHRIFT_X_RECHTS = 105.0   # 20 mm + 85 mm Fensterbreite
@@ -93,6 +105,16 @@ class Pruefung:
     ist: str
     toleranz: str
     bestanden: bool
+    #: Was in der EINGABE den Befund verursacht — und was daran zu tun waere.
+    #:
+    #: `soll/ist/toleranz` beschreibt das Symptom: „190,88 statt hoechstens
+    #: 190,00". Damit kann niemand etwas anfangen, der den Brief geschrieben hat
+    #: und nicht das Werkzeug. Die Ursache benennt das Element und den Weg
+    #: heraus (Issue #145).
+    #:
+    #: Leer, wo sie sich nicht sicher benennen laesst. Eine geratene Ursache ist
+    #: schlechter als keine: Sie schickt den Leser an die falsche Stelle.
+    ursache: str = ""
 
 
 @dataclass
@@ -102,8 +124,9 @@ class Bericht:
     #: der Datei — der Schlusssatz soll benennen, was tatsächlich geprüft wurde.
     gegenstand: str = "Maße eingehalten"
 
-    def add(self, name, soll, ist, toleranz, bestanden) -> None:
-        self.pruefungen.append(Pruefung(name, str(soll), str(ist), str(toleranz), bestanden))
+    def add(self, name, soll, ist, toleranz, bestanden, ursache: str = "") -> None:
+        self.pruefungen.append(
+            Pruefung(name, str(soll), str(ist), str(toleranz), bestanden, ursache))
 
     def wert(self, name, ist: float, soll: float, tol: float) -> None:
         self.add(name, f"{soll:.2f}", f"{ist:.2f}", f"±{tol}", abs(ist - soll) <= tol)
@@ -135,11 +158,16 @@ class Bericht:
         """
         gescheitert = [p for p in self.pruefungen if not p.bestanden]
         zeigen = self.pruefungen if ausfuehrlich else gescheitert
-        zeilen = [
-            f"{'OK  ' if p.bestanden else 'FEHL'}  {p.name}: "
-            f"soll {p.soll} ist {p.ist} (tol {p.toleranz})"
-            for p in zeigen
-        ]
+        zeilen = []
+        for p in zeigen:
+            zeilen.append(
+                f"{'OK  ' if p.bestanden else 'FEHL'}  {p.name}: "
+                f"soll {p.soll} ist {p.ist} (tol {p.toleranz})")
+            # Nur bei einem Befund und nur eingerueckt: Bei einem gruenen Lauf
+            # gaebe es nichts zu tun, und der ausfuehrliche Bericht wuerde
+            # doppelt so lang — er landet bei jedem Render im Kontext.
+            if p.ursache and not p.bestanden:
+                zeilen.append(f"        {p.ursache}")
         gesamt = len(self.pruefungen)
         if gescheitert:
             zeilen.append(
@@ -230,10 +258,12 @@ def _satzspiegel(dokument, bericht: Bericht, briefseiten: int | None = None) -> 
         )
 
         rechts = max(spans, key=lambda s: s.x1)
+        haelt = rechts.x1 <= RAND_RECHTS + 0.3
         bericht.add(
             f"Seite {nummer}, rechter Rand", f"≤ {RAND_RECHTS}",
             f"{rechts.x1:.2f} bei „{_kurz(rechts.text)}“", "±0,3",
-            rechts.x1 <= RAND_RECHTS + 0.3,
+            haelt,
+            ursache="" if haelt else _ursache_ueberlauf(rechts, _tabellenbereiche(seite)),
         )
 
         unten = max(spans, key=lambda s: s.y1)
@@ -262,6 +292,47 @@ RASTER_BIS = 250.0
 #: 0,06 Rasterzeilen sind 0,25 mm. Gemessen liegen die echten Abstände auf
 #: ±0,001 genau; die Toleranz fängt Rundung im PDF, nicht Layoutfehler.
 RASTER_TOLERANZ = 0.06
+
+
+def _ursache_ueberlauf(span: Span, tabellen: list[tuple[float, float]]) -> str:
+    """Warum dieser Text nach rechts hinausragt — oder "" , wenn unklar.
+
+    `soll/ist` sagt „190,88 statt hoechstens 190,00". Das ist das Symptom. Wer
+    den Brief geschrieben hat, sucht danach die Stelle in seiner Datei, und
+    „190,88" hilft ihm dabei nicht (Issue #145).
+
+    Gemessen am 29.08.2026 an allen vier Faellen, die `verify` heute ueberhaupt
+    zum Anschlagen bringen (`tests/fixtures/satzspiegel/`): Alle vier sind
+    Ueberlaeufe nach rechts, und alle vier sind hier unterscheidbar. Die
+    haeufigeren Faelle — zu langer Betreff, zu viele Anschriftzeilen — kommen
+    gar nicht bis hierher: Der Datenvertrag weist sie vorher ab, mit einer
+    Meldung, die die Ursache schon nennt.
+
+    Wo die Zuordnung nicht sicher ist, bleibt die Rueckgabe leer. Eine geratene
+    Ursache schickt den Leser an die falsche Stelle und ist schlechter als
+    keine.
+    """
+    if any(oben <= span.y0 <= unten for oben, unten in tabellen):
+        return ("Ursache: die Tabelle ist breiter als der Satzspiegel — Spalten "
+                "zusammenfassen, kürzer beschriften oder als Aufzählung setzen")
+
+    # Festbreitenschrift heisst hier zwingend wortgetreuer Auszug: Der Satz
+    # waehlt sie fuer nichts anderes (falzmarke.typ, `wortlaut`).
+    if "Mono" in span.font:
+        return ("Ursache: ein wortgetreuer Auszug wird nicht umbrochen — sonst wäre er "
+                f"nicht mehr wortgetreu. Er passt bis {AUSZUG_ZEICHEN} Zeichen je Zeile; "
+                "längere Zeilen umbrechen oder als Anlage beilegen")
+
+    # Ein Wort, das allein schon breiter ist als der Satzspiegel, hat keine
+    # Trennstelle — Typst haette es sonst umbrochen. Ob es in einer Ueberschrift
+    # oder im Fliesstext steht, laesst sich am Span nicht sicher sagen, und
+    # deshalb steht es hier auch nicht.
+    if span.x1 - span.x0 > BREITE_SATZSPIEGEL:
+        return (f"Ursache: „{_kurz(span.text)}“ ist ein einzelnes Wort ohne Trennstelle "
+                "und damit breiter als der Satzspiegel — ein Trennzeichen einfügen "
+                "oder umformulieren")
+
+    return ""
 
 
 def _tabellenbereiche(seite) -> list[tuple[float, float]]:
