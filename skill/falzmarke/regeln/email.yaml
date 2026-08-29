@@ -311,3 +311,21 @@ regeln:
       wohin es geht, klickt zu Recht nicht. Beides ist Praxis und keine
       Vorschrift. Die Liste der Dienste ist nicht vollstaendig und soll es nicht
       sein — sie faengt die haeufigen.
+
+  - id: email.floskel
+    titel: Wendungen, die nichts sagen
+    lint: email.floskel
+    ebene: praxis
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      „Ich hoffe, diese E-Mail erreicht Sie wohlauf" und Verwandtes sind nicht
+      falsch, sie sind leer: Die Zeile liesse sich streichen, ohne dass die
+      Nachricht etwas verloere. Genau das ist die Aufnahmebedingung der Liste,
+      und sie ist eng gemeint — „vielen Dank fuer die Unterlagen" steht nicht
+      drin, „vielen Dank fuer Ihre Zeit" schon.
+
+      Warnung und nie Fehler: Ob ein Satz leer ist, ist eine Aussage ueber den
+      Stil, nicht ueber die Technik (ADR 0035). Geaendert wird nichts — wie
+      jemand schreibt, entscheidet er selbst.

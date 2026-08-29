@@ -551,6 +551,38 @@ DUZEN = re.compile(r"\b(du|dir|dich|dein(e[nmrs]?)?)\b")
 VERSALIEN = re.compile(r"\b[A-ZÄÖÜ][A-ZÄÖÜ-]{%d,}\b" % (VERSALIEN_AB - 2))
 
 
+#: Wendungen, die nichts sagen — als Muster, nicht als Wortliste.
+#:
+#: Jede steht hier, weil sie **leer** ist: Sie liesse sich streichen, ohne dass
+#: die Nachricht etwas verloere. Das ist die Aufnahmebedingung, und sie ist eng
+#: gemeint. „Vielen Dank fuer die Unterlagen" bleibt draussen — der Dank gilt
+#: einer Sache. „Vielen Dank fuer Ihre Zeit" steht drin: Er gilt nichts.
+#:
+#: Warum Muster und keine Liste: Dieselbe Floskel kommt in Varianten —
+#: „ich hoffe, es geht Ihnen gut" und „ich hoffe, es geht dir gut". Sie einzeln
+#: aufzuzaehlen hiesse, beim naechsten Duzen eine zu vergessen.
+#:
+#: Bewusst NICHT dabei: „im Anhang finden Sie", „bei Rueckfragen stehe ich zur
+#: Verfuegung", „mit freundlichen Gruessen". Die ersten beiden tragen eine
+#: Information, die dritte ist die Grussformel. Eine Warnung, die bei
+#: gueltigem Text anschlaegt, kostet Vertrauen in alle anderen (#133).
+FLOSKELN = [
+    (re.compile(r"\bich hoffe,?\s+(?:diese|die)\s+(?:e-?mail|nachricht|zeilen)\b", re.I),
+     "„ich hoffe, diese E-Mail …“"),
+    (re.compile(r"\bich hoffe,?\s+es geht\s+(?:ihnen|dir|euch)\b", re.I),
+     "„ich hoffe, es geht Ihnen gut“"),
+    (re.compile(r"\bwollte (?:mich )?nur (?:kurz )?(?:melden|nachfragen|nachhaken)\b", re.I),
+     "„wollte mich nur kurz melden“"),
+    (re.compile(r"\bvielen dank für\s+(?:ihre|deine|eure)\s+zeit\b", re.I),
+     "„vielen Dank für Ihre Zeit“"),
+    (re.compile(r"\b(?:ich )?freue mich auf\s+(?:ihre|deine|eure)\s+(?:rückmeldung|antwort)\b", re.I),
+     "„ich freue mich auf Ihre Rückmeldung“"),
+    (re.compile(r"\bwie bereits (?:erwähnt|gesagt|besprochen)\s*,?\s*(?:möchte|wollte) ich\b", re.I),
+     "„wie bereits erwähnt, möchte ich …“"),
+    (re.compile(r"\bin diesem sinne\b", re.I), "„in diesem Sinne“"),
+]
+
+
 def pruefe_email_ton(profil: dict, kopf: dict, body: str, bericht: Bericht) -> None:
     """Anrede und Lautstärke — beides nur als Warnung (#105).
 
@@ -582,6 +614,20 @@ def pruefe_email_ton(profil: dict, kopf: dict, body: str, bericht: Bericht) -> N
                 "das Profil sagt `anrede: sie`, im Text steht "
                 + ", ".join(f"„{w}“" for w in treffer[:3]),
                 "entweder das Profil oder den Text angleichen — geändert wird hier nichts")
+
+    # Floskeln (#106). Warnung, nie Fehler: Ob ein Satz leer ist, ist eine
+    # Aussage ueber den Stil und nicht ueber die Technik — nach ADR 0035 die
+    # Ebene Praxis. Geaendert wird nichts; wie jemand schreibt, entscheidet er.
+    leer = []
+    for muster, name in FLOSKELN:
+        if muster.search(body):
+            leer.append(name)
+    if leer:
+        bericht.warnung(
+            1, "email.floskel",
+            "sagt nichts: " + ", ".join(leer[:3]),
+            "die Zeile liesse sich streichen, ohne dass die Nachricht etwas "
+            "verliert — dann sollte sie es auch")
 
     geschrien = sorted({w for w in VERSALIEN.findall(body)
                         if len(w.replace("-", "")) >= VERSALIEN_AB

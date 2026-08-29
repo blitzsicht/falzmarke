@@ -407,6 +407,8 @@ def _loese_aus(regel: str, tmp_path):
             "email.linkschema": "Mehr unter [Bedingungen](http://example.de/agb).\n",
         }[regel]
         return linte(tmp_path, MAIL, text)
+    if regel == "email.floskel":
+        return linte(tmp_path, MAIL, "Ich hoffe, es geht Ihnen gut.\n\nAnbei das Angebot.\n")
     if regel == "email.versalien":
         return linte(tmp_path, MAIL, "Das ist WIRKLICH dringend.\n")
     if regel == "antwort_auf":
