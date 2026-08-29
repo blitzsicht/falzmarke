@@ -898,6 +898,36 @@ def befehl_render(args) -> int:
     return EXIT_OK
 
 
+#: Was eine Begleitmail von ihrem Brief erbt, wenn sie es selbst nicht sagt.
+#:
+#: `betreff` und `profil`: Beide beschreiben denselben Vorgang, und zweimal
+#: gepflegt driften sie auseinander (Issue #78). Wer in der Mail einen eigenen
+#: Betreff schreibt, bekommt seinen — geerbt wird nur, was fehlt.
+#:
+#: **Nicht** dabei: `empfaenger`. Eine Postanschrift ist keine Mailadresse, und
+#: `an:` bleibt Pflicht der Mail. `datum` ebenso wenig — das setzt der
+#: Mailclient beim Versand, und ein geerbtes Briefdatum wäre eine Angabe über
+#: den falschen Vorgang.
+ERBT_VOM_BRIEF = ("betreff", "profil", "dialekt", "sprache")
+
+
+def _baue_nachricht(eml_modul, kopf, profil, body_md, bloecke,
+                    brief_pfad, mit_quelle, profil_pfad):
+    """Der Bau der Nachricht, einmal — mit und ohne Begleitbrief.
+
+    Als Funktion statt als Kopie: Der Begleitbrief lebt in einem
+    Arbeitsverzeichnis, das nur so lange bestehen darf, wie das PDF gelesen
+    wird. Damit steht der Bau innerhalb eines `with` und ohne Begleitbrief
+    ausserhalb — zwei Stellen, ein Ablauf.
+    """
+    try:
+        return eml_modul.baue(kopf, profil, body_md, bloecke,
+                              brief_pfad=brief_pfad, mit_quelle=mit_quelle,
+                              profil_pfad=profil_pfad)
+    except (ValueError, FileNotFoundError) as fehler:
+        raise Eingabefehler(f"{Path(brief_pfad).name}: {fehler}") from None
+
+
 def setze_email(brief_pfad: Path, ausgabe: Path | None = None, *,
                 profil_verzeichnis: Path | None = None,
                 mit_quelle: bool = False) -> tuple[Path, list[Path]]:
@@ -905,6 +935,11 @@ def setze_email(brief_pfad: Path, ausgabe: Path | None = None, *,
 
     Kein Versandweg — ADR 0034. Was hier entsteht, sind Dateien; ob und wann
     sie jemand abschickt, entscheidet ein Mailprogramm, nicht dieses Werkzeug.
+
+    Trägt die Nachricht ein Feld `brief:`, wird dieser Brief **jetzt gesetzt**
+    und sein PDF angehängt (Issue #78). Das ist der Unterschied zu
+    `anlagen_dateien:`, das vorhandene Dateien nimmt: Hier kann kein veraltetes
+    PDF mitreisen, weil es keines gibt, das älter wäre als dieser Aufruf.
     """
     from falzmarke import eml as eml_modul
 
@@ -914,6 +949,26 @@ def setze_email(brief_pfad: Path, ausgabe: Path | None = None, *,
             f"{brief_pfad.name} trägt kein `typ: email` und ist damit ein Brief.\n"
             "Für ein PDF `falzmarke render` verwenden."
         )
+    # Der Brief, der mitreist (#78). Er wird VOR dem Profil aufgelöst, weil die
+    # Mail ihr Profil von ihm erben kann.
+    if kopf.get("brief"):
+        quelle = Path(str(kopf["brief"]))
+        if not quelle.is_absolute():
+            quelle = brief_pfad.parent / quelle
+        if not quelle.is_file():
+            raise Eingabefehler(
+                f"{brief_pfad.name}: `brief: {kopf['brief']}` gibt es nicht.\n"
+                "Der Pfad ist relativ zur Nachricht.")
+        briefkopf, _, _ = lies_brief(quelle)
+        if str(briefkopf.get("typ") or "brief") == "email":
+            raise Eingabefehler(
+                f"{brief_pfad.name}: `brief:` zeigt auf {quelle.name}, und das trägt "
+                "selbst `typ: email`. Eine Nachricht kann keine Nachricht begleiten.")
+        # Erben, bevor irgendetwas davon gelesen wird.
+        for feld in ERBT_VOM_BRIEF:
+            if not kopf.get(feld) and briefkopf.get(feld):
+                kopf[feld] = briefkopf[feld]
+
     profil, profil_pfad = lade_profil(kopf.get("profil", ""), profil_verzeichnis, brief_pfad)
 
     try:
@@ -923,12 +978,27 @@ def setze_email(brief_pfad: Path, ausgabe: Path | None = None, *,
     if not body_md.strip():
         raise Eingabefehler(f"{brief_pfad.name}: Die Nachricht hat keinen Text.")
 
-    try:
-        nachricht = eml_modul.baue(kopf, profil, body_md, bloecke,
-                                   brief_pfad=brief_pfad, mit_quelle=mit_quelle,
-                                   profil_pfad=profil_pfad)
-    except (ValueError, FileNotFoundError) as fehler:
-        raise Eingabefehler(f"{brief_pfad.name}: {fehler}") from None
+    # Der Brief wird JETZT gesetzt, in einen Arbeitsordner. Damit kann kein
+    # veraltetes PDF mitreisen — es gibt keines, das älter wäre als dieser
+    # Aufruf. Genau das war der Punkt in #78: „ein veraltetes PDF in einer
+    # frischen Mail muss auffallen und nicht stillschweigend mitreisen."
+    if kopf.get("brief"):
+        quelle = Path(str(kopf["brief"]))
+        if not quelle.is_absolute():
+            quelle = brief_pfad.parent / quelle
+        with tempfile.TemporaryDirectory(prefix="falzmarke-begleit-") as arbeit:
+            pdf, _ = rendere(quelle, Path(arbeit) / f"{quelle.stem}.pdf",
+                             profil_verzeichnis=profil_verzeichnis)
+            # An `anlagen_dateien` anhängen statt es zu ersetzen: Wer daneben
+            # noch etwas beilegt, behält es.
+            kopf = dict(kopf)
+            kopf["anlagen_dateien"] = (
+                list(eml_modul._als_liste(kopf.get("anlagen_dateien"))) + [str(pdf)])
+            nachricht = _baue_nachricht(eml_modul, kopf, profil, body_md, bloecke,
+                                        brief_pfad, mit_quelle, profil_pfad)
+    else:
+        nachricht = _baue_nachricht(eml_modul, kopf, profil, body_md, bloecke,
+                                    brief_pfad, mit_quelle, profil_pfad)
 
     ziel = Path(ausgabe) if ausgabe else brief_pfad.with_suffix("")
     sprache = str(kopf.get("sprache") or profil.get("sprache") or "de")

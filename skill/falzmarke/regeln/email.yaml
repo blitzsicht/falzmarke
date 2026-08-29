@@ -329,3 +329,18 @@ regeln:
       Warnung und nie Fehler: Ob ein Satz leer ist, ist eine Aussage ueber den
       Stil, nicht ueber die Technik (ADR 0035). Geaendert wird nichts — wie
       jemand schreibt, entscheidet er selbst.
+
+  - id: email.brief
+    titel: Das Feld `brief` zeigt auf eine Markdown-Quelle
+    lint: brief
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Eine Aussage ueber den Datenvertrag. `brief:` nennt die QUELLE des
+      Schreibens, nicht sein PDF — gesetzt wird es beim Bauen der Nachricht, und
+      genau daran haengt die Zusage aus Issue #78: Ein veraltetes PDF kann nicht
+      mitreisen, weil es keines gibt, das aelter waere als dieser Aufruf. Wer
+      ein fertiges PDF anhaengen will, nimmt `anlagen_dateien:`; die Meldung
+      sagt das.
