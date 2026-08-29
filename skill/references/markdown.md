@@ -109,19 +109,30 @@ Protokollzeile als abgesetzter Block.
 aus `"` wird kein „, aus `--` kein –. Ein Auszug, den das Werkzeug unterwegs verschönert, gibt
 nicht mehr wieder, was dastand.
 
-Aus demselben Grund wird **nicht umbrochen**. Eine Zeile, die nicht passt, läuft aus dem
-Satzspiegel, und `render` meldet das mit Exit-Code 2 statt still zu kürzen:
+Aus demselben Grund **fügt das Werkzeug keinen Umbruch ein**. Den Satz daran hindern kann es
+nicht — was mit einer zu langen Zeile geschieht, hängt daran, ob sie ein Leerzeichen hat:
 
-| | passt bis | läuft über ab |
-|---|---|---|
-| abgesetzter Block | 68 Zeichen | 69 |
-| im Satz | 70 Zeichen | 71 |
+| | passt bis | ohne Leerzeichen | mit Leerzeichen |
+|---|---|---|---|
+| abgesetzter Block | 68 Zeichen | läuft aus dem Satzspiegel | Typst bricht sie um |
+| im Satz | 70 Zeichen | läuft aus dem Satzspiegel | Typst bricht sie um |
 
-*Gemessen am 28.08.2026 mit der Festbreitenschrift, die der Renderer wählt; steht sie auf einem
-System nicht bereit, greift die nächste und der Wert weicht leicht ab. Der Block verliert die
-zwei Zeichen an seinen Einzug.* Wer längere Zeilen zitieren muss, teilt sie selbst — das
-Werkzeug tut es nicht für dich, weil jede Stelle, an der es umbräche, eine Entscheidung über
-fremden Wortlaut wäre.
+Beides ist ein Befund, und beide werden gemeldet — aber an verschiedenen Stellen. Den Überlauf
+misst `render` am fertigen PDF und bricht mit Exit-Code 2 ab. Den Umbruch sieht dort niemand:
+Das PDF hält alle Maße ein, nur der Wortlaut ist ein anderer. **Deshalb meldet `lint` jede zu
+lange Auszugszeile an der Quelle**, mit ihrer Zeilennummer, bevor gesetzt wird — als Warnung,
+der Brief entsteht trotzdem.
+
+*Gemessen am 28.08.2026 (die Grenzen) und am 29.08.2026 (was darüber geschieht) mit der
+Festbreitenschrift, die der Renderer wählt; steht sie auf einem System nicht bereit, greift die
+nächste und der Wert weicht leicht ab. Der Block verliert die zwei Zeichen an seinen Einzug.*
+
+Für einen Auszug **im Satz** ist die Zahl nur eine obere Schranke: Er beginnt mitten in einer
+Zeile, und was vor ihm steht, nimmt ihm Platz — ein Auszug unter 70 Zeichen kann also trotzdem
+umbrechen. Sicher ist nur, dass alles darüber nirgends passt, und genau das meldet `lint`.
+
+Wer längere Zeilen zitieren muss, teilt sie selbst — das Werkzeug tut es nicht für dich, weil
+jede Stelle, an der es umbräche, eine Entscheidung über fremden Wortlaut wäre.
 
 **Keine Einfärbung.** Eine Sprachangabe (```` ```python ````) wird nicht ausgewertet und
 gemeldet: Ein Geschäftsbrief zitiert wortgetreu, er stellt keinen Quelltext aus. Farbe wäre

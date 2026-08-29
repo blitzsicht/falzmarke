@@ -139,3 +139,14 @@ def test_der_auszugswert_stimmt_mit_der_fixture_ueberein():
     text = (FIXTURES / "README.md").read_text(encoding="utf-8")
     assert f"| Codeblock | {geometrie.AUSZUG_ZEICHEN} Zeichen" in text, \
         f"AUSZUG_ZEICHEN = {geometrie.AUSZUG_ZEICHEN} steht so nicht im README der Fixtures"
+
+
+def test_der_inline_auszugswert_stimmt_mit_der_fixture_ueberein():
+    """70 Zeichen — dieselbe Bindung wie oben, für den Auszug im Satz.
+
+    Seit Issue #173 hängt an dieser Zahl eine Meldung des Linters. Stünde sie
+    hier anders als in der Messung, meldete er an der falschen Stelle.
+    """
+    text = (FIXTURES / "README.md").read_text(encoding="utf-8")
+    assert f"| Inline-Code | {geometrie.AUSZUG_ZEICHEN_INLINE} Zeichen" in text, \
+        f"AUSZUG_ZEICHEN_INLINE = {geometrie.AUSZUG_ZEICHEN_INLINE} steht so nicht im README"

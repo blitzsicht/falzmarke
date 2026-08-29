@@ -110,7 +110,9 @@ Wer nach einem Versand fragt, bekommt diese Auskunft, keinen Behelf.
   Ein Feld, das dort nicht steht, lehnt `lint` ab — es gibt keine stillen Zusatzfelder.
 - `references/markdown.md` — **was im Brieftext erlaubt ist.** Vor dem ersten Brief lesen:
   Links, Bilder und HTML brechen ab; Überschriften, Zitate und Code nur ohne
-  `dialekt: "1.1"`. Ein Auszug wird nie umbrochen und nie typografisch geändert. Der
+  `dialekt: "1.1"`. Ein Auszug wird nie typografisch geändert, und das Werkzeug bricht ihn
+  nicht um; eine Zeile über 68 Zeichen bricht allerdings der Satz um oder sie läuft über —
+  `lint` meldet sie deshalb vorher. Der
   Typografie-Pass setzt geschützte Leerzeichen von selbst — von Hand eingefügte sind
   überflüssig.
 - `references/stil.md` — **vor dem Formulieren lesen.**

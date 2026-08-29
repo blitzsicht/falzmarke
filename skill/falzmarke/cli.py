@@ -524,7 +524,7 @@ def linte(brief_pfad: Path, profil_verzeichnis: Path | None = None) -> lint_modu
     kopf_roh = brief_pfad.read_text(encoding="utf-8").split("\n---", 2)[0][3:]
 
     lint_modul.pruefe_frontmatter(kopf, kopf_roh, bericht)
-    lint_modul.pruefe_body(body_md, versatz, bericht)
+    lint_modul.pruefe_body(body_md, versatz, bericht, kopf.get("dialekt"))
     if str(kopf.get("typ") or "brief") == "email":
         lint_modul.pruefe_email_anlagen(kopf, body_md, bericht)
 

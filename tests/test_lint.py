@@ -195,6 +195,96 @@ def test_gueltige_url_geht_durch(tmp_path):
     assert bericht.ok
 
 
+# ── Wortgetreue Auszüge (Issue #173) ────────────────────────────────────────
+#
+# Eine Auszugszeile über der Grenze hat zwei Ausgänge, und bis Issue #173 fiel
+# nur einer auf: Ohne Leerzeichen läuft sie aus dem Satzspiegel, und `verify`
+# meldet das. Mit Leerzeichen bricht der Satz sie um — das PDF hält danach alle
+# Maße ein, nur der Wortlaut ist ein anderer.
+#
+# Deshalb steht hier zu jedem Fall SEIN Gegenstück: dieselbe Länge mit und ohne
+# Leerzeichen. Bleibt eine der beiden stumm, misst die Prüfung nur den halben
+# Fall — und genau so stand es vor diesem Vorgang da.
+
+KOPF_11 = KOPF + 'dialekt: "1.1"\n'
+
+#: 81 Zeichen mit Leerzeichen. Aus dem Vorgang: Im PDF steht sie auf zwei
+#: Zeilen, die zweite beginnt mit `temperatur=` — als wäre sie ein eigener
+#: Datensatz.
+PROTOKOLL = "06:14:02 anlage=4711 status=betriebsbereit ok last=0.62 temperatur=21.4 druck=4.8"
+
+#: 81 Zeichen ohne jede Umbruchstelle — der Fall, den `verify` schon fing.
+OHNE_LEERZEICHEN = "x" * 81
+
+#: 68 Zeichen, also genau an der Grenze. Muss stumm bleiben.
+GERADE_NOCH = "abcdefg " * 8 + "abcd"
+
+
+def _befunde_zu(tmp_path, body: str, kopf: str = None):
+    return [b for b in linte(tmp_path, kopf or KOPF_11, body).befunde if b.regel == "auszug"]
+
+
+def _im_block(zeile: str) -> str:
+    return f"Der Auszug lautet:\n\n```\n{zeile}\n```\n"
+
+
+@pytest.mark.parametrize("zeile,laenge", [(PROTOKOLL, 81), (OHNE_LEERZEICHEN, 81)])
+def test_zu_lange_auszugszeile_wird_gemeldet(tmp_path, zeile, laenge):
+    """Mit Leerzeichen und ohne — beide, sonst misst die Prüfung den halben Fall."""
+    befunde = _befunde_zu(tmp_path, _im_block(zeile))
+    assert len(befunde) == 1, f"kein Befund für eine {laenge}-Zeichen-Zeile"
+    assert str(laenge) in befunde[0].meldung
+    assert befunde[0].schwere == "Warnung", "der Brief soll trotzdem entstehen"
+
+
+def test_der_befund_nennt_die_zeile_in_der_quelldatei(tmp_path):
+    """Die Zeilennummer ist der Grund, warum die Prüfung hier steht und nicht
+    am PDF: Dort ist sie nicht mehr bekannt."""
+    pfad = schreibe(tmp_path, KOPF_11, _im_block(PROTOKOLL))
+    bericht = falzmarke.linte(pfad, profil_verzeichnis=PROFILE)
+    erwartet = pfad.read_text(encoding="utf-8").splitlines().index(PROTOKOLL) + 1
+    assert [b.zeile for b in bericht.befunde if b.regel == "auszug"] == [erwartet]
+
+
+def test_auszugszeile_an_der_grenze_bleibt_stumm(tmp_path):
+    """Ohne diesen Fall wüsste man nur, dass die Prüfung feuert — nicht, ob sie
+    trifft. 68 Zeichen passen, gemessen am 28.08.2026."""
+    assert len(GERADE_NOCH) == 68
+    assert _befunde_zu(tmp_path, _im_block(GERADE_NOCH)) == []
+
+
+def test_dieselbe_zeile_ausserhalb_eines_auszugs_bleibt_stumm(tmp_path):
+    """Fließtext darf umbrochen werden — dafür ist er da."""
+    assert _befunde_zu(tmp_path, f"{PROTOKOLL}\n") == []
+
+
+def test_ohne_dialekt_11_gilt_die_pruefung_nicht(tmp_path):
+    """Ohne 1.1 gibt es keine Auszüge: Backticks sind dann gewöhnlicher Text,
+    und den bricht der Satz zu Recht um."""
+    assert _befunde_zu(tmp_path, _im_block(PROTOKOLL), kopf=KOPF) == []
+
+
+def test_gegenprobe_die_pruefung_liest_den_sollwert(tmp_path, monkeypatch):
+    """Ein Prüfmittel, das nie stumm werden kann, misst nicht — es meldet.
+
+    Wird die Grenze hochgesetzt, muss der Befund verschwinden. Bleibt er, hängt
+    die Meldung an irgendetwas anderem als der gemessenen Zeilenlänge.
+    """
+    from falzmarke import geometrie
+    monkeypatch.setattr(geometrie, "AUSZUG_ZEICHEN", 500)
+    assert _befunde_zu(tmp_path, _im_block(PROTOKOLL)) == []
+
+
+@pytest.mark.parametrize("laenge,erwartet", [(71, 1), (70, 0)])
+def test_auszug_im_satz_ab_71_zeichen(tmp_path, laenge, erwartet):
+    """Im Satz sind es 70 statt 68 — der abgesetzte Block verliert zwei Zeichen
+    an seinen Einzug."""
+    inhalt = ("abcdefg " * 10)[:laenge]
+    assert len(inhalt) == laenge
+    befunde = _befunde_zu(tmp_path, f"Im Satz steht `{inhalt}` und dann Text.\n")
+    assert len(befunde) == erwartet
+
+
 # ── Verhalten der Befehle ───────────────────────────────────────────────────
 
 def test_render_bricht_vor_dem_setzen_ab(tmp_path):
