@@ -44,7 +44,7 @@ belegt (`application/pdf`, 41.640 Byte, `disposition=attachment`) — dass Thund
 
 Alle drei Programme zeigen ein **Lesefenster** — Antworten, Allen antworten, Weiterleiten,
 Archivieren. Kein Senden-Knopf, keine editierbaren Empfängerfelder. Das ist kein Fehler der
-Datei, sondern die Natur des Formats: Eine `.eml` nach RFC 5322 ist eine *Nachricht*. Ob ein
+Datei, sondern die Natur des Formats: Eine `.eml` nach [RFC 5322](https://www.rfc-editor.org/rfc/rfc5322) ist eine *Nachricht*. Ob ein
 Programm sie als Entwurf anlegt oder als eingegangene Post darstellt, entscheidet das Programm.
 
 ### Gegenprobe mit `X-Unsent: 1`

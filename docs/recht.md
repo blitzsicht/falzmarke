@@ -100,7 +100,7 @@ Aufsichtsratsmitglieder.
 
 Für Personengesellschaften stand das bis Ende 2023 in § 125a HGB — **ohne Verweis, denn die
 Vorschrift gibt es nicht mehr**; die amtliche Sammlung führt nur geltendes Recht. Das
-[MoPeG](https://www.gesetze-im-internet.de/hgb/__125.html) hat die Vorschrift zum 1. Januar 2024
+[MoPeG](https://www.buzer.de/51_MoPeG.htm) hat die Vorschrift zum 1. Januar 2024
 aufgehoben und den Inhalt nach § 125 HGB überführt.
 
 **falzmarke prüft das nicht.** Welche Angaben eine Rechtsform braucht, entscheidet nicht ein
