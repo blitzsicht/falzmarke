@@ -588,3 +588,50 @@ def test_eine_briefregel_traegt_keinen_ebenenhinweis():
     bericht = lint.Bericht()
     bericht.fehler(1, "gruss", "Die Grußformel steht ohne Komma")
     assert "Ebene:" not in bericht.befunde[0].meldung, bericht.befunde[0].meldung
+
+
+# ── dinbrief als Quelle (#134) ──────────────────────────────────────────────
+
+def test_dinbrief_steht_im_register():
+    quelle = regeln.quellen().get("dinbrief")
+    assert quelle, "dinbrief fehlt im Quellen-Register"
+    assert quelle["art"] == "implementierung"
+    assert quelle["gruppe"] == "dinbrief", "eigene Gruppe — es ist ein anderes Werk als KOMA-Script"
+    assert quelle["zaehlt"] == "einzeln"
+    assert quelle.get("abgerufen"), "ohne Abrufdatum altert der Eintrag still"
+
+
+def test_es_belegt_form_a_und_sagt_womit():
+    regel = [r for r in regeln.alle() if r["id"] == "geometrie.form_a.masse"][0]
+    assert "dinbrief" in regel["quellen"]
+    fundstelle = regel.get("belegt_durch", {}).get("dinbrief", "")
+    assert "addresshigh" in fundstelle, "die Fundstelle nennt den Befehl nicht"
+    assert "87" in fundstelle and "192" in fundstelle, fundstelle
+
+
+def test_form_a_steigt_dadurch_nicht_auf():
+    """Abnahmepunkt 3 aus #134, wörtlich: „Keine Regel steigt allein deshalb auf
+    mehrfach_bestaetigt, weil eine Quelle dazugekommen ist."
+
+    Der Grund steht in `quellen.yaml`: dinbrief beruft sich auf DIN 676, wie
+    `koma_script`. Zwei Umsetzungen derselben Grundlage sind keine zwei
+    Aussagen über DIN 5008 — und falzmarke misst DIN 5008.
+    """
+    regel = [r for r in regeln.alle() if r["id"] == "geometrie.form_a.masse"][0]
+    assert regel["herkunft"] == regeln.EINZELN, regel["herkunft"]
+    assert regel["wirkung"] == "warnung"
+
+
+def test_die_begruendung_nennt_din_676():
+    """Ohne sie wäre `zaehlt: einzeln` eine Behauptung ohne Grund — und der
+    nächste, der die Stufe anheben will, wüsste nicht, was zu klären ist."""
+    bemerkung = regeln.quellen()["dinbrief"]["bemerkung"]
+    assert "DIN 676" in bemerkung
+    assert "DIN 5008" in bemerkung, "der Unterschied muss benannt sein"
+
+
+def test_und_dass_die_anderen_latex_vorlagen_geprueft_wurden():
+    """Eine Absage ohne Nennung dessen, was geprüft wurde, lädt zur zweiten
+    Suche ein. Die drei anderen bauen auf scrlttr2 — das steht dort."""
+    bemerkung = regeln.quellen()["dinbrief"]["bemerkung"]
+    assert "scrlttr2" in bemerkung

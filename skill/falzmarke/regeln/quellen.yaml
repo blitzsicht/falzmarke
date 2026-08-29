@@ -108,6 +108,43 @@ quellen:
       Handbuch der Parametersatz nach **DIN 676**, nicht nach DIN 5008.
       Dass der Autor gerade diese Werte nicht angepasst hat, ist stille
       Zustimmung — aber keine eigenständige Normaussage.
+  dinbrief:
+    titel: "dinbrief — German letter DIN style (CTAN), Dokumentation v2.0"
+    url: https://ctan.org/pkg/dinbrief
+    art: implementierung
+    gruppe: dinbrief
+    zaehlt: einzeln
+    abgerufen: 2026-08-29
+    bemerkung: >-
+      Eine LaTeX-Klasse, die ihr Layout SELBST setzt — nicht ueber KOMA-Script.
+      Das unterscheidet sie von den ueblichen Briefvorlagen: Geprueft wurden am
+      29.08.2026 drei weitere freie LaTeX-Vorlagen (alexeyabel, puppe,
+      Overleaf-Template), und alle drei bauen auf `scrlttr2` auf, nennen keine
+      eigenen Masse und waeren damit dieselbe Gruppe wie `koma_script`.
+
+      dinbrief nennt seine Werte mit Variablennamen und Voreinstellung:
+      Anschriftfenster 85 mm breit und 40 mm hoch, Einrueckung 4 mm, untere
+      Fensterecke 90 mm (Form B) bzw. 72 mm (Form A), Bezugszeichenzeile
+      98,5 mm bzw. 80,5 mm, obere Faltmarke 105 mm bzw. 87 mm, untere 210 mm
+      bzw. 192 mm. `\addresshigh` heisst dort ausdruecklich „entsprechend der
+      Form A der DIN Norm", `\addressstd` „entsprechend der Form B".
+
+      **Zaehlt trotzdem nur einzeln**, und der Grund ist derselbe wie bei
+      `koma_script`: Die Dokumentation beruft sich auf **DIN 676** — auf die
+      Ausgabe von Dezember 1976 und den Entwurf von Mai 1991 — sowie auf
+      DIN 2107 fuer den Grundzeilenabstand von 4,23 mm. DIN 5008 wird genannt,
+      aber fuer die Schreibregeln, nicht fuer die Geometrie.
+
+      Damit belegt sie, was DIN 676 sagt, und nicht, was DIN 5008:2020 sagt.
+      Dass die Werte mit `koma_script` uebereinstimmen (87/192), ist deshalb
+      keine zweite Bestaetigung derselben Aussage, sondern zweimal dieselbe
+      Grundlage — vgl. den Befund zu zwei deckungsgleichen Zeichnungen in
+      docs/quellenunabhaengigkeit-2026-08-27.md.
+
+      Eigene `gruppe:` trotzdem: Es ist ein anderes Werk als KOMA-Script, mit
+      eigener Umsetzung und eigenen Variablennamen. Wer die Stufe spaeter
+      anhebt, muss die Frage nach DIN 676 gegen DIN 5008 beantworten, nicht die
+      nach der Unabhaengigkeit der beiden Implementierungen.
   wikipedia:
     titel: "DIN 5008 in der deutschsprachigen Wikipedia"
     url: https://de.wikipedia.org/wiki/DIN_5008

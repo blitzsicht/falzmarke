@@ -68,7 +68,14 @@ regeln:
   - id: geometrie.form_a.masse
     titel: Form A — Briefkopf 27 mm, Anschriftfeld ab 27 mm, Falzmarken 87 / 192 mm
     herkunft: einzeln_belegt
-    quellen: [massskizze_a, koma_script, letter_pro]
+    quellen: [massskizze_a, koma_script, letter_pro, dinbrief]
+    belegt_durch:
+      dinbrief: >-
+        `\addresshigh` setzt die Längen „entsprechend der Form A der DIN Norm":
+        obere Faltmarke 87 mm, untere 192 mm, Bezugszeichenzeile 80,5 mm,
+        untere Fensterecke 72 mm. Beruft sich dabei auf DIN 676 (Ausgabe
+        Dezember 1976 und Entwurf Mai 1991), nicht auf DIN 5008 — siehe
+        quellen.yaml.
     wirkung: warnung
     bemerkung: >-
       Schwächer belegt als Form B, und das ist erst durch diese Erhebung
@@ -76,6 +83,13 @@ regeln:
       Commons nicht; Wikipedia nennt im Text nur die 32 mm für den Beginn der
       Anschrift (= 27 mm Feldoberkante plus 5 mm Rücksendezone). Bleibt bis
       zum Normabgleich eine Warnung.
+
+      Seit dem 29.08.2026 steht `dinbrief` daneben (Issue #134) — die erste
+      Quelle für Form A, die falzmarke nicht selbst benutzt und die ihre Werte
+      ausdrücklich als Form A bezeichnet. Sie hebt die Stufe **nicht**: Wie
+      `koma_script` beruft sie sich auf DIN 676, nicht auf DIN 5008. Zwei
+      Umsetzungen derselben Grundlage sind keine zwei Aussagen über DIN 5008.
+      Was #18 fehlt, ist damit kleiner geworden, aber nicht erledigt.
 
   # ── Geometrie, formunabhängig ────────────────────────────────────────────
   - id: geometrie.seitenformat
