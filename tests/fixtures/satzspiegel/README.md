@@ -37,9 +37,9 @@ Deshalb liegt `ueberschrift-ohne-trennstelle.md` jetzt hier.
 
 ### Wo die Grenze liegt (gemessen 28.08.2026)
 
-Ein **wortgetreuer Auszug** wird nicht umbrochen — sonst waere er nicht mehr
-wortgetreu. Er laeuft also zwangslaeufig ueber, sobald die Zeile zu lang ist.
-Nachgemessen durch Einschachtelung:
+Ein **wortgetreuer Auszug** wird vom Werkzeug nicht umbrochen — sonst waere er
+nicht mehr wortgetreu. Bis wohin eine Zeile passt, ist durch Einschachtelung
+nachgemessen:
 
 | | passt bis | laeuft ueber ab |
 |---|---|---|
@@ -52,6 +52,23 @@ System nicht bereit, greift die naechste der Liste und der Wert weicht ab.
 
 Eine gewoehnliche Protokollzeile (77 Zeichen mit Zeitstempel und drei
 Feldern) liegt knapp darueber — der Fall ist also nicht konstruiert.
+
+### Ueberlauf ist nur der eine Ausgang (gemessen 29.08.2026, Issue #173)
+
+Hier stand: „Er laeuft also zwangslaeufig ueber, sobald die Zeile zu lang ist."
+Das gilt nur fuer eine Zeile **ohne Leerzeichen**. Hat sie eines, bricht Typst
+sie dort um — still, und das PDF haelt danach alle Masse ein:
+
+| Zeile | im PDF |
+|---|---|
+| 69 Zeichen ohne Leerzeichen | eine Zeile, Ueberlauf, `verify` rot |
+| 69 Zeichen mit Leerzeichen | **zwei Zeilen**, alle Masse eingehalten |
+| 81 Zeichen mit Leerzeichen | **zwei Zeilen**, alle Masse eingehalten |
+
+Deshalb liegt der Pruefgegenstand fuer diesen Fall nicht hier, sondern in
+`tests/test_lint.py`: Die Randmessung am PDF kann einen Umbruch gar nicht
+sehen. `codezeile-zu-lang.md` bleibt trotzdem, wofuer es gedacht war — es hat
+absichtlich kein Leerzeichen und loest den Ueberlauf aus.
 
 ### Noch nicht ausloesbar
 

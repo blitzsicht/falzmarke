@@ -453,9 +453,28 @@ regeln:
       Der Typografie-Pass läuft im Auszug nicht: Ein Zitat, in dem aus einem
       geraden Anführungszeichen ein typografisches und aus zwei Bindestrichen
       ein Halbgeviertstrich wird, gibt nicht mehr wieder, was dastand. Aus
-      demselben Grund wird nicht umbrochen — der Auszug läuft ab 69 Zeichen je
-      Zeile aus dem Satzspiegel, und die Satzspiegelprüfung meldet das. Das ist
-      gewollt: lieber ein sichtbarer Befund als ein still veränderter Wortlaut.
+      demselben Grund fügt das Werkzeug keinen Umbruch ein. Was es nicht kann,
+      ist den Satz daran hindern: Typst bricht eine zu lange Zeile an einem
+      Leerzeichen um, und acht Wege, ihm das abzugewöhnen, sind an Issue #173
+      gemessen und gescheitert. Deshalb wird eine zu lange Zeile gemeldet,
+      bevor sie gesetzt wird — siehe `werkzeug.auszug_zeilenlaenge`.
+
+  - id: werkzeug.auszug_zeilenlaenge
+    titel: Eine Zeile im wortgetreuen Auszug passt in den Satzspiegel
+    lint: auszug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      Eine Zeile über 68 Zeichen (im Fließtext über 70) hat zwei Ausgänge, und
+      bis Issue #173 fiel nur einer auf: Ohne Umbruchstelle läuft sie nach
+      rechts aus dem Satzspiegel, und `verify` meldet das. Mit einem
+      Leerzeichen bricht der Satz sie um — gemessen an einer 81 Zeichen langen
+      Protokollzeile, die im PDF auf zwei Zeilen steht, während der Lauf
+      „42/42 Maße eingehalten" meldet. Ein umbrochener Protokolleintrag ist
+      ein anderer Eintrag. Die Prüfung läuft deshalb an der Quelle, wo die
+      Zeilennummer noch bekannt ist. Warnung und nicht Fehler: Der Brief soll
+      trotzdem entstehen, damit sich das Ergebnis ansehen lässt.
 
   - id: werkzeug.zeilenraster
     titel: Der Briefkörper steht auf dem 12-pt-Raster

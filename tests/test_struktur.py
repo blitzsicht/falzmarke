@@ -399,9 +399,11 @@ def test_und_bleibt_dabei_ein_einziges_element(protokoll):
 def test_und_der_brief_haelt_alle_masse(tmp_path):
     """Die Abnahme aus #168: Er besteht die Maßprüfung vollständig.
 
-    Ein Auszug wird nicht umbrochen — er läuft ab 68 Zeichen je Zeile aus dem
-    Satzspiegel. Die Zeilen dieses Protokolls liegen darunter, und das ist kein
-    Zufall, sondern die Bedingung dafür, dass er nach `examples/` gehört.
+    Ein Auszug passt bis 68 Zeichen je Zeile. Die Zeilen dieses Protokolls
+    liegen darunter, und das ist kein Zufall, sondern die Bedingung dafür, dass
+    er nach `examples/` gehört: Darüber liefe die Zeile entweder aus dem
+    Satzspiegel, oder — hat sie ein Leerzeichen — der Satz bräche sie um, und
+    dann stünde ein anderer Wortlaut im Beispielbrief (Issue #173).
     """
     from falzmarke import cli, geometrie
 

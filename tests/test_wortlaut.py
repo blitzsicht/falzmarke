@@ -187,3 +187,66 @@ def test_am_pdf_wird_nichts_ausgewertet(tmp_path, zeile, verraeter):
         text = dokument.pages[0].extract_text()
     assert zeile in text.replace("\n", ""), f"die Zeile fehlt im PDF:\n{text[:400]}"
     assert verraeter not in text, f"ausgewertet! {verraeter!r} steht im PDF"
+
+
+# ── Was der Satz mit einer zu langen Zeile tut (Issue #173) ─────────────────
+
+def test_eine_zu_lange_auszugszeile_wird_vom_satz_umbrochen(tmp_path):
+    """Der unbequeme Befund, festgehalten statt behauptet.
+
+    Bis Issue #173 stand an vier Stellen im Repository, ein wortgetreuer Auszug
+    werde nicht umbrochen. Das gilt nur für eine Zeile OHNE Leerzeichen: Die
+    läuft aus dem Satzspiegel, und `verify` meldet sie. Hat die Zeile ein
+    Leerzeichen, bricht Typst sie dort um — still, und das PDF hält danach alle
+    Maße ein.
+
+    Acht Wege, Typst das abzugewöhnen, sind an #173 gemessen; nur geschützte
+    Leerzeichen wirken, und die ändern die Zeichen selbst. Der Umbruch bleibt
+    also — gemeldet wird er von `lint.pruefe_body()`, vor dem Rendern.
+
+    Dieser Test hält fest, was das Satzsystem heute tut. Bringt eine spätere
+    Fassung von Typst es fertig, fällt er auf, statt dass die Prüfung an der
+    Quelle unbemerkt überflüssig wird.
+    """
+    import pdfplumber
+
+    protokoll = ("06:14:02 anlage=4711 status=betriebsbereit ok "
+                 "last=0.62 temperatur=21.4 druck=4.8")
+    assert len(protokoll) == 81
+
+    brief = tmp_path / "b.md"
+    brief.write_text(f"{KOPF}der Auszug lautet:\n\n```\n{protokoll}\n```\n",
+                     encoding="utf-8")
+    subprocess.run(
+        [sys.executable, str(SKILL / "scripts" / "falzmarke.py"),
+         "render", str(brief), "-o", str(tmp_path / "b.pdf")],
+        capture_output=True, text=True, encoding="utf-8",
+    )
+    with pdfplumber.open(str(tmp_path / "b.pdf")) as dokument:
+        zeilen = dokument.pages[0].extract_text().splitlines()
+
+    assert protokoll not in zeilen, (
+        "die Zeile steht ungeteilt im PDF — dann bricht Typst nicht mehr um, "
+        "und die Prüfung in lint.pruefe_body() beschreibt einen Fall, den es "
+        "nicht mehr gibt")
+    assert any(z.startswith("temperatur=") for z in zeilen), (
+        f"erwartet war ein Umbruch vor „temperatur=“:\n{zeilen}")
+
+
+def test_dieselbe_laenge_ohne_leerzeichen_bleibt_eine_zeile(tmp_path):
+    """Das Gegenstück: ohne Umbruchstelle bleibt die Zeile ganz — und läuft
+    dafür aus dem Satzspiegel, wo `verify` sie fängt. Ohne diesen Fall wüsste
+    der Test oben nicht, ob das Leerzeichen den Unterschied macht."""
+    import pdfplumber
+
+    zeile = "x" * 81
+    brief = tmp_path / "b.md"
+    brief.write_text(f"{KOPF}der Auszug lautet:\n\n```\n{zeile}\n```\n", encoding="utf-8")
+    subprocess.run(
+        [sys.executable, str(SKILL / "scripts" / "falzmarke.py"),
+         "render", str(brief), "-o", str(tmp_path / "b.pdf")],
+        capture_output=True, text=True, encoding="utf-8",
+    )
+    with pdfplumber.open(str(tmp_path / "b.pdf")) as dokument:
+        zeilen = dokument.pages[0].extract_text().splitlines()
+    assert zeile in zeilen, f"die Zeile steht nicht ungeteilt im PDF:\n{zeilen}"

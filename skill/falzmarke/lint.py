@@ -147,6 +147,12 @@ VERSALIEN_AB = 4
 INFOBLOCK_FELDER = frozenset(schluessel for schluessel, _ in INFOBLOCK_REIHENFOLGE)
 
 URL_MUSTER = re.compile(r"\bhttps?://\S*", re.I)
+#: Der Zaun eines abgesetzten Auszugs, wie CommonMark ihn schreibt: drei oder
+#: mehr Backticks oder Tilden, bis zu drei Leerzeichen eingerückt.
+AUSZUG_ZAUN = re.compile(r"^ {0,3}(`{3,}|~{3,})")
+#: Ein Auszug im Fließtext. Gemessen wird, was zwischen den Backticks steht —
+#: das ist der Wortlaut, der unverändert bleiben soll.
+AUSZUG_INLINE = re.compile(r"`([^`\n]+)`")
 #: Grobform einer E-Mail-Adresse. Was sie offenlässt, prüft `adresse_grund()`.
 EMAIL_MUSTER = re.compile(r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")
 #: Telefonnummer in der Schreibweise der Norm.
@@ -961,8 +967,76 @@ def pruefe_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
 
 # ── Body ────────────────────────────────────────────────────────────────────
 
-def pruefe_body(body: str, versatz: int, bericht: Bericht) -> None:
+def pruefe_body(body: str, versatz: int, bericht: Bericht,
+                dialekt: object = None) -> None:
+    """Der Brieftext, Zeile für Zeile — vor dem Rendern.
+
+    Warum die Länge eines Auszugs hier gemessen wird und nicht am PDF
+    (Issue #173): Eine Zeile über `AUSZUG_ZEICHEN` hat genau zwei Ausgänge,
+    und nur der eine fiel bisher auf.
+
+    * **Ohne Umbruchstelle** läuft sie nach rechts aus dem Satzspiegel.
+      `verify` meldet das seit jeher.
+    * **Mit einem Leerzeichen** bricht der Satz sie um — still. Gemessen am
+      29.08.2026: eine 81 Zeichen lange Protokollzeile steht im PDF auf zwei
+      Zeilen, die zweite beginnt mit `temperatur=`, und der Lauf meldet
+      `42/42 Maße eingehalten`. Ein umbrochener Protokolleintrag ist ein
+      anderer Eintrag; genau dagegen ist der wortgetreue Auszug gebaut.
+
+    Typst lässt sich den Umbruch nicht abgewöhnen — acht Wege sind an #173
+    gemessen, nur geschützte Leerzeichen wirken, und die ändern die Zeichen
+    selbst. Bleibt, die Zeile zu melden, bevor sie gesetzt wird. Hier steht
+    dafür die Zeilennummer der Quelldatei; im PDF steht sie nicht mehr.
+
+    Gemeldet wird die Länge, nicht die Umbruchstelle. Wo Typst genau bricht,
+    hängt an der Position des letzten Leerzeichens — das wäre eine zweite
+    Behauptung, die altern kann, ohne dass es jemand merkt.
+    """
+    from falzmarke import markdown as markdown_modul
+    from falzmarke.geometrie import AUSZUG_ZEICHEN, AUSZUG_ZEICHEN_INLINE
+
+    # Auszüge gibt es erst ab Dialekt 1.1. Ohne ihn sind Backticks
+    # gewöhnlicher Text, und den darf der Satz umbrechen.
+    auszuege = str(dialekt or markdown_modul.STANDARDFASSUNG) != "1.0"
+
+    #: Das Zaunzeichen des offenen Auszugs, sonst leer.
+    zaun = ""
+
     for nummer, zeile in enumerate(body.splitlines(), start=1 + versatz):
+        zaun_zeile = AUSZUG_ZAUN.match(zeile)
+
+        if auszuege and zaun_zeile is None and zaun and len(zeile) > AUSZUG_ZEICHEN:
+            bericht.warnung(
+                nummer, "auszug",
+                f"die Zeile im wortgetreuen Auszug hat {len(zeile)} Zeichen und passt "
+                f"damit nicht in den Satzspiegel (bis {AUSZUG_ZEICHEN})",
+                "kürzen oder als Anlage beilegen — ohne Leerzeichen läuft sie über den "
+                "rechten Rand, mit Leerzeichen bricht der Satz sie um, und dann steht ein "
+                "anderer Wortlaut auf dem Papier",
+            )
+
+        if auszuege and zaun_zeile is None and not zaun:
+            for stelle in AUSZUG_INLINE.finditer(zeile):
+                inhalt = stelle.group(1)
+                if len(inhalt) <= AUSZUG_ZEICHEN_INLINE:
+                    continue
+                gekuerzt = inhalt if len(inhalt) <= 22 else inhalt[:22] + "…"
+                bericht.warnung(
+                    nummer, "auszug",
+                    f"der wortgetreue Auszug „{gekuerzt}“ hat {len(inhalt)} Zeichen und "
+                    f"passt damit in keine Zeile (bis {AUSZUG_ZEICHEN_INLINE})",
+                    "kürzen oder abgesetzt schreiben — sonst bricht der Satz ihn um. Ein "
+                    "kürzerer Auszug kann das ebenfalls, je nachdem, wo im Satz er "
+                    "beginnt; das zeigt erst das gesetzte PDF",
+                )
+
+        if zaun_zeile is not None:
+            marke = zaun_zeile.group(1)
+            if not zaun:
+                zaun = marke
+            elif marke[0] == zaun[0] and len(marke) >= len(zaun):
+                zaun = ""
+
         if zeile.endswith("  ") and zeile.strip():
             bericht.warnung(
                 nummer, "umbruch", "zwei Leerzeichen am Zeilenende erzeugen einen Umbruch",

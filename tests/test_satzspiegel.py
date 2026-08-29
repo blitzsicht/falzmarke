@@ -97,11 +97,16 @@ def test_ueberschrift_ohne_trennstelle_wird_gefangen(tmp_path):
 def test_zu_lange_codezeile_wird_gefangen(tmp_path):
     """Der zweite Fall aus Dialekt 1.1.
 
-    Ein wortgetreuer Auszug darf nicht umbrochen werden — sonst waere er nicht
-    mehr wortgetreu. Also laeuft er ueber, und das muss auffallen. Gemessen:
-    ein Auszug fasst 68 Zeichen je Zeile (Inline-Code 70, ihm fehlt der Einzug
-    des Blocks); ab 69 steht Text ausserhalb. Der Wert gilt fuer die
-    Festbreitenschrift, die `falzmarke.typ` waehlt — eine andere weicht ab.
+    Das Werkzeug bricht einen wortgetreuen Auszug nicht um — sonst waere er
+    nicht mehr wortgetreu. Gemessen: ein Auszug fasst 68 Zeichen je Zeile
+    (Inline-Code 70, ihm fehlt der Einzug des Blocks); ab 69 steht Text
+    ausserhalb. Der Wert gilt fuer die Festbreitenschrift, die `falzmarke.typ`
+    waehlt — eine andere weicht ab.
+
+    Die Fixture hat **kein Leerzeichen**, und das ist der Punkt: Nur dann laeuft
+    die Zeile ueber und diese Messung sieht sie. Hat sie eines, bricht Typst sie
+    dort um, das PDF haelt alle Masse ein — und der Fall gehoert nach
+    `tests/test_lint.py` (Issue #173).
     """
     pdf = _rendere(FIXTURES / "codezeile-zu-lang.md", tmp_path / "code.pdf")
     befunde = _befunde(pdf)

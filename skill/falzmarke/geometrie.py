@@ -80,13 +80,30 @@ RAND_RECHTS = 190.0          # 210 - 20
 #: passen — es hat keine Trennstelle, sonst haette Typst es umbrochen.
 BREITE_SATZSPIEGEL = RAND_RECHTS - RAND_LINKS
 
-#: Ab wie vielen Zeichen ein wortgetreuer Auszug aus dem Satzspiegel laeuft.
+#: Bis zu wie vielen Zeichen eine Zeile eines abgesetzten Auszugs passt.
 #:
 #: Gemessen am 28.08.2026 durch Einschachtelung (tests/fixtures/satzspiegel/
-#: README.md): Der Codeblock passt bis 68 Zeichen, ab 69 laeuft er ueber. Er
+#: README.md): Der Codeblock passt bis 68 Zeichen, ab 69 nicht mehr. Er
 #: verliert zwei Zeichen gegenueber Inline-Code an seinen Einzug. Der Wert gilt
 #: fuer die Festbreitenschrift, die `falzmarke.typ` waehlt.
+#:
+#: Was jenseits davon geschieht, haengt an der Zeile selbst — nachgemessen am
+#: 29.08.2026 (Issue #173): **Ohne** Umbruchstelle laeuft sie nach rechts aus
+#: dem Satzspiegel, und `pruefe()` meldet das. **Mit** einem Leerzeichen bricht
+#: Typst sie um, und dann meldet hier nichts mehr etwas: Das PDF haelt alle
+#: Masse ein, nur der Wortlaut ist ein anderer. Diesen Fall faengt
+#: `lint.pruefe_body()` an der Quelle ab, bevor gesetzt wird.
 AUSZUG_ZEICHEN = 68
+
+#: Dasselbe fuer einen Auszug im Fliesstext, der keinen Einzug traegt.
+#:
+#: Gemessen am 28.08.2026 (Inline-Code passt bis 70 Zeichen, ab 71 nicht mehr).
+#: Anders als beim abgesetzten Auszug ist der Wert nur eine **obere** Schranke:
+#: Ein Inline-Auszug beginnt mitten in einer Zeile, und was vor ihm steht,
+#: nimmt ihm Platz. Gemessen am 29.08.2026 brach ein 90 Zeichen langer Auszug
+#: hinter „Und im Satz: " nach 55 Zeichen um. Was hier durchgeht, kann also
+#: trotzdem umbrechen — sicher ist nur, dass alles darueber nirgends passt.
+AUSZUG_ZEICHEN_INLINE = 70
 INFOBLOCK_X = 125.0
 INFOBLOCK_X_RECHTS = 200.0
 ANSCHRIFT_X_RECHTS = 105.0   # 20 mm + 85 mm Fensterbreite
@@ -319,9 +336,9 @@ def _ursache_ueberlauf(span: Span, tabellen: list[tuple[float, float]]) -> str:
     # Festbreitenschrift heisst hier zwingend wortgetreuer Auszug: Der Satz
     # waehlt sie fuer nichts anderes (falzmarke.typ, `wortlaut`).
     if "Mono" in span.font:
-        return ("Ursache: ein wortgetreuer Auszug wird nicht umbrochen — sonst wäre er "
+        return ("Ursache: ein wortgetreuer Auszug wird vom Werkzeug nicht umbrochen — sonst wäre er "
                 f"nicht mehr wortgetreu. Er passt bis {AUSZUG_ZEICHEN} Zeichen je Zeile; "
-                "längere Zeilen umbrechen oder als Anlage beilegen")
+                "längere Zeilen kürzen oder als Anlage beilegen")
 
     # Ein Wort, das allein schon breiter ist als der Satzspiegel, hat keine
     # Trennstelle — Typst haette es sonst umbrochen. Ob es in einer Ueberschrift
