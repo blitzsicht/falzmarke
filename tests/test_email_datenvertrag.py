@@ -379,6 +379,23 @@ def _loese_aus(regel: str, tmp_path):
                         encoding="utf-8")
         return falzmarke.linte(pfad, profil_verzeichnis=_profil_mit(
             {"anrede": "sie"}, tmp_path))
+    if regel == "email.logo_kontrast":
+        # Ein Logo, das nur auf hellem Grund traegt: eine Flaeche in der Tinte
+        # der Marke. Auf dunklem Grund sind das 1,01:1 — der Wert, mit dem
+        # Issue #154 aufgemacht wurde. Gebaut statt gerendert, damit der
+        # Ausloeser eine Aussage ueber die MESSUNG ist und nicht ueber ein Bild.
+        from PIL import Image
+
+        ziel = _profil_mit({}, tmp_path)
+        (ziel / "assets").mkdir(exist_ok=True)
+        Image.new("RGBA", (8, 8), (0x12, 0x1E, 0x2F, 255)).save(ziel / "assets" / "dunkel.png")
+        profil = yaml.safe_load((ziel / "example.yaml").read_text(encoding="utf-8"))
+        profil["email"]["logo"] = "assets/dunkel.png"
+        (ziel / "example.yaml").write_text(yaml.safe_dump(profil, allow_unicode=True),
+                                           encoding="utf-8")
+        pfad = tmp_path / "nachricht.md"
+        pfad.write_text(f"---\n{MAIL}---\nText der Nachricht.\n", encoding="utf-8")
+        return falzmarke.linte(pfad, profil_verzeichnis=ziel)
     if regel == "email.versalien":
         return linte(tmp_path, MAIL, "Das ist WIRKLICH dringend.\n")
     if regel == "antwort_auf":

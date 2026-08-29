@@ -249,3 +249,21 @@ regeln:
       Buchstaben und ohne die bekannten Kuerzel — Rechtsformen, Bank- und
       Registerangaben stehen so im Handelsregister. Zwei- und dreistellige
       Kuerzel gibt es zu viele, um sie aufzuzaehlen.
+
+  - id: email.logo_kontrast
+    titel: Das Logo der Signatur traegt auf hellem und auf dunklem Grund
+    lint: email.logo_kontrast
+    ebene: praxis
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      Die Signatur schaltet ihre Farben um, sobald das Schema dunkel ist. Das
+      Logo kann das nicht: Es ist ein Rasterbild, und ein Rasterbild traegt
+      keine Medienabfrage. Gemessen wird der Anteil der sichtbaren Flaeche, der
+      gegen den jeweiligen Grund 3,0:1 erreicht (WCAG 1.4.11, Erfolgskriterium
+      fuer grafische Elemente); traegt weniger als die Haelfte, wird gewarnt.
+      Warnung und nicht Fehler, weil der dunkle Grund selbst geschaetzt ist —
+      kein Mailprogramm nennt seinen Wert. Nach ADR 0035 ist das die Ebene
+      Praxis. Was das Werkzeug vorher tat: nichts. Die Anleitung sagte, das Logo
+      muesse auf beiden Gruenden tragen, und niemand pruefte es (Issue #154).

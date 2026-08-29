@@ -16,6 +16,8 @@ from PIL import Image
 
 from conftest import REPO
 
+from falzmarke import farbe
+
 MARKE = REPO / "docs" / "assets" / "brand"
 LOGO = MARKE / "logo.svg"
 ZEICHEN = MARKE / "bildzeichen.svg"
@@ -151,14 +153,10 @@ TINTE, PAPIER = (0x12, 0x1E, 0x2F), (0xFF, 0xFF, 0xFF)
 DUNKLER_TAB = (0x1E, 0x1E, 0x1E)
 
 
-def _kontrast(vordergrund, hintergrund) -> float:
-    """WCAG 2.2, Verhältnis relativer Leuchtdichten."""
-    def leuchtdichte(farbe):
-        werte = [x / 255 for x in farbe]
-        werte = [x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4 for x in werte]
-        return 0.2126 * werte[0] + 0.7152 * werte[1] + 0.0722 * werte[2]
-    a, b = leuchtdichte(vordergrund), leuchtdichte(hintergrund)
-    return (max(a, b) + 0.05) / (min(a, b) + 0.05)
+# Die Formel stand hier als Kopie, bis das Logo der Mailsignatur sie ebenfalls
+# brauchte (#154). Zwei Kopien einer Rechenvorschrift driften — jetzt steht sie
+# in `falzmarke.farbe`, und beide Seiten rechnen mit derselben.
+_kontrast = farbe.kontrast
 
 
 def test_beide_svg_kehren_auf_dunklem_grund_um():

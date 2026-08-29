@@ -132,9 +132,34 @@ email:
   gruss: Mit freundlichen Grüßen       # ohne Angabe: `gruss` des Profils
   logo: false                          # false, true (nimmt briefkopf.logo) oder ein Pfad
   #                                    Rasterbild (PNG/JPG/GIF) — Outlook zeigt kein SVG.
-  #                                    Es muss auf hellem UND dunklem Grund tragen: ein Bild
-  #                                    schaltet die Farbe nicht um (Issue #154).
+  #                                    Es muss auf hellem UND dunklem Grund tragen; `lint`
+  #                                    misst das und warnt (Issue #154).
 ```
+
+### Warum das Logo im dunklen Schema nicht umschaltet
+
+Text, gedämpfter Text und Trennlinie der Signatur wechseln ihre Farbe, sobald das
+Mailprogramm dunkel steht. **Das Logo tut das nicht** — es ist ein Rasterbild, und ein
+Rasterbild trägt keine Medienabfrage. Ein SVG könnte es, wird von Outlook in Mails aber nicht
+dargestellt; ein Logo, das bei einem der drei großen Programme fehlt, ist schlechter als eines,
+das überall gleich aussieht.
+
+Zwei Wege stünden offen und sind bewusst nicht gegangen:
+
+| Weg | Warum nicht |
+|---|---|
+| Zwei Bilder, eines per `display: none` verborgen | Der `<style>`-Block einer erzeugten Nachricht ist nach ADR 0034 auf **Farbangaben** beschränkt. Eine Ausnahme, die auch Sichtbarkeit steuern darf, ist keine enge Ausnahme mehr — und die Enge ist der Grund, warum es die Ausnahme überhaupt gibt. |
+| `<picture>` mit `<source media="(prefers-color-scheme: dark)">` | Bräuchte keinen `<style>`-Block. Ob Outlook das darstellt, ist hier **nicht gemessen** — und eine Technik, die im wichtigsten Zielprogramm ungeprüft ist, wird nicht zur Vorgabe gemacht. Bleibt offen, falls jemand es misst. |
+
+Es bleibt also die Wahl des Absenders. Neu ist, dass sie nicht mehr nur in dieser Anleitung
+steht: `lint` öffnet das Bild, rechnet jeden sichtbaren Punkt gegen hellen (`#FFFFFF`) und
+dunklen Grund (`#1E1E1E`) und meldet `email.logo_kontrast`, wenn auf einem der beiden weniger
+als die Hälfte der Fläche 3,0:1 erreicht — die Schwelle aus WCAG 1.4.11 für grafische Elemente.
+
+Eine **Warnung**, kein Fehler: Welchen Ton ein dunkles Schema genau setzt, nennt kein
+Mailprogramm im Datenmodell; `#1E1E1E` ist ein begründeter Schätzwert. Nach ADR 0035 gehört
+eine Aussage über die Praxis nie auf die Fehlerebene.
+
 
 `pflichtangaben` ist eine **Erinnerung, keine Rechtsprüfung**: `lint` warnt, wenn das Feld leer
 ist, und sonst nichts. Welche Angaben eine Rechtsform in jeder Geschäftsmail braucht, entscheidet
