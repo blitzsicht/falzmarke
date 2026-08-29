@@ -450,12 +450,25 @@ def _liste(knoten, lage: Lage, tiefe: int) -> baum.Liste:
                 "zum Satz gehören, den Punkt schützen: `2\\. Mahnung`",
             )
         else:
-            # Beim Strich bleibt es beim Abbruch: Anders als bei einer Zahl ist
-            # dort nicht erkennbar, was gemeint war.
+            # Beim Aufzählungszeichen bleibt es beim Abbruch: Anders als bei
+            # einer Zahl ist dort nicht erkennbar, was gemeint war.
+            #
+            # Die Meldung nennt das Zeichen, das WIRKLICH dasteht (Issue #162).
+            # Bis zum 29.08.2026 sprach sie fest von einem „einzelnen Strich am
+            # Zeilenanfang" — auch bei `  * Untereintrag`, wo weder ein Strich
+            # steht noch etwas am Zeilenanfang. Wer die gemeinte Stelle sucht,
+            # sucht dann nach einem Strich und findet keinen; beim Fund kostete
+            # das drei Anläufe, obwohl die Zeilennummer stimmte.
+            #
+            # `knoten.markup` trägt das Zeichen — markdown-it hebt es auf, und
+            # es aus der Quellzeile zurückzurechnen wäre der umständlichere Weg
+            # zum selben Ergebnis.
+            zeichen = getattr(knoten, "markup", "") or "-"
             raise MarkdownFehler(
                 zeile,
-                "ein einzelner Strich am Zeilenanfang wird zum Aufzählungspunkt — soll er zum "
-                "Satz gehören, ihn schützen: `\\- 5 °C`",
+                f"`{zeichen}` beginnt eine Aufzählung, und eine Aufzählung mit einem "
+                f"einzigen Punkt ist keine — entweder einen zweiten Punkt ergänzen "
+                f"oder das Zeichen schützen: `\\{zeichen} 5 °C`",
             )
 
     inhalte = []
