@@ -132,6 +132,46 @@ verloren.
 sichtbar gesetzt und sonst nichts. Das ist geprüft, und zwar gegen einen absichtlich
 unsicheren Renderer, bei dem die Anweisung nachweislich ausgeführt *wird*.
 
+### Links — nur in E-Mails
+
+```markdown
+Die [Geschäftsbedingungen](https://example.de/agb) gelten seit August.
+Schreiben Sie an [info@example.de](mailto:info@example.de).
+```
+
+**Im Brief bleibt jeder Link ein Fehler.** Auf Papier gibt es nichts zum Anklicken; ein Wort,
+hinter dem sich eine Adresse verbirgt, ist dort ein Wort und sonst nichts. Wer eine Adresse
+nennen will, schreibt sie aus.
+
+Zugelassen sind `https:`, `http:`, `mailto:` und `tel:` — eine Positivliste, und das ist
+Absicht: Eine Sperrliste vergisst immer eines. `javascript:`, `data:`, `vbscript:` und `file:`
+stehen deshalb nirgends; sie sind nicht aufgezählt, sie sind schlicht nicht dabei. Ein relatives
+Ziel (`/seite`, `#anker`) ist ebenfalls ein Fehler: Eine E-Mail hat keine Seite, zu der ein Pfad
+gehören könnte.
+
+Gemeldet, aber nicht abgelehnt:
+
+| Warnung | Warum |
+|---|---|
+| Linktexte wie „hier" oder „klicken Sie hier" | Ein Bildschirmleseprogramm liest Links oft als Liste vor, losgelöst vom Satz. „hier" ist dort nichts. |
+| `http://` statt `https://` | überträgt unverschlüsselt |
+| Kurz-URL-Dienste (`bit.ly` und ähnliche) | Wer eine Geschäftsmail schreibt, verbirgt sein Ziel nicht |
+
+So kommt der Link an:
+
+| Fassung | Ergebnis |
+|---|---|
+| HTML-Teil | `<a href="…">` — ohne Nachverfolgung, ohne Umleitung, in der Textfarbe und unterstrichen (Farbe allein ist kein Unterscheidungsmerkmal) |
+| Klartext | `Bedingungen: <https://example.de/agb>` |
+
+Die spitzen Klammern im Klartext halten das Satzzeichen von der Adresse fern. Ohne sie steht
+dort `…/agb.html, die seit August` — wer die Adresse doppelklickt, nimmt das Komma mit, und
+Mailprogramme, die Adressen selbst erkennen, ziehen es in den Verweis.
+
+**Die Adresse geht nie durch die Typografie.** Aus einem `-` darf kein Halbgeviertstrich werden
+und aus `...` kein Auslassungszeichen — sonst kopiert der Empfänger eine Adresse, die es nicht
+gibt.
+
 ### In E-Mails noch nicht
 
 `typ: email` lehnt diese Elemente ab, auch mit `dialekt: "1.1"`. Brief, HTML-Teil und Textteil

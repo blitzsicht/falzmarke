@@ -106,6 +106,25 @@ class Wortlaut:
 
 
 @dataclass(frozen=True)
+class Link:
+    """Eine Adresse mit Text. Nur in E-Mails (Issue #103).
+
+    Im Brief bleibt der Link ein Fehler, und das ist keine Nachlaessigkeit: Auf
+    Papier gibt es nichts zum Anklicken. Wer eine Adresse nennen will, schreibt
+    sie aus — sonst steht dort ein Wort, hinter dem sich etwas verbirgt, das der
+    Leser nie sieht.
+
+    `ziel` ist die Adresse, `kinder` der sichtbare Text. Der Text geht durch
+    dieselbe Kette wie jeder andere — er darf fett sein, und die Typografie
+    laeuft darueber. **Die Adresse nicht:** Aus einem `-` in einer URL darf kein
+    Halbgeviertstrich werden, sonst zeigt der Link woandershin.
+    """
+
+    ziel: str = ""
+    kinder: tuple = ()
+
+
+@dataclass(frozen=True)
 class Tabelle:
     """`zeilen[0]` ist die Kopfzeile; `ausrichtungen` hat eine Angabe je Spalte."""
 
