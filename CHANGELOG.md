@@ -2,6 +2,27 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## Unveröffentlicht
+
+### Behoben
+
+- **Der Kontrast des Grün-Textes war gegen die falsche Fläche gemessen.**
+  `docs/marke/erscheinungsbild.md` nannte für `#2F8642` 4,56 : 1 und wies das als
+  gemessen aus. Das stimmte — gegen Papier. Auf der Website steht grüner Text
+  aber überwiegend auf `#F4F6F8` und `#EAF6EE`; dort fiel er auf 4,21 : 1 und
+  4,10 : 1 und verfehlte WCAG AA. Gefunden hat es axe-core auf falzmarke.com,
+  nicht das Erscheinungsbild: 57 Verstöße auf zehn Seiten.
+
+  Für Text auf hellem Grund gilt jetzt **`#2A783B`** — Papier 5,46 : 1, Karte
+  5,04 : 1, Marke 4,92 : 1. Als Fläche bleibt `#3EB057` unverändert.
+
+  Die eigentliche Ursache war nicht die Farbe, sondern die Messung: Die beiden
+  hellen Flächen hatten **keinen Namen** und tauchten deshalb in keiner Tabelle
+  auf. Sie stehen jetzt als eigene Zeilen im Erscheinungsbild, und das dort
+  eingebettete Prüfskript rechnet gegen alle vier Flächen statt gegen zwei — mit
+  einer Gegenprobe, die den abgelösten Wert weiterhin durchfallen lässt.
+  Website-seitig behoben in `customer-falzmarke` #27.
+
 ## v0.8.2 — 28.08.2026
 
 Das Skill-Paket ließ sich nicht mehr hochladen. Es gibt jetzt zwei.

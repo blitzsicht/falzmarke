@@ -11,20 +11,36 @@ Nachrechnen: siehe [Kontraste nachmessen](#kontraste-nachmessen).
 
 Vier Farben, dazu eine abgedunkelte Textvariante des Grüns.
 
-| Name | Wert | Wofür | auf Papier | auf Tinte |
-|---|---|---|---|---|
-| **Tinte** | `#121E2F` | Text, Blattkontur des Zeichens, Wortmarke | 16,77 : 1 | — |
-| **Papier** | `#FFFFFF` | Grund | — | 16,77 : 1 |
-| **Grün** | `#3EB057` | **nur Fläche**: Ecke des Zeichens, Balken, Marker | 2,78 : 1 | 6,03 : 1 |
-| **Grün, Text** | `#2F8642` | grüner Text auf hellem Grund | 4,56 : 1 | 3,68 : 1 |
-| **Grau** | `#5B6470` | Zweitrangiges: Fußzeilen, Bildunterschriften | 6,00 : 1 | 2,80 : 1 |
+| Name | Wert | Wofür | auf Papier | auf Karte | auf Marke | auf Tinte |
+|---|---|---|---|---|---|---|
+| **Tinte** | `#121E2F` | Text, Blattkontur des Zeichens, Wortmarke | 16,77 : 1 | 15,48 : 1 | 15,10 : 1 | — |
+| **Papier** | `#FFFFFF` | Grund | — | — | — | 16,77 : 1 |
+| **Karte** | `#F4F6F8` | helle Sektionsfläche, Karten | — | — | — | 15,48 : 1 |
+| **Marke** | `#EAF6EE` | Fläche der Beleg-Stärke-Marken | — | — | — | 15,10 : 1 |
+| **Grün** | `#3EB057` | **nur Fläche**: Ecke des Zeichens, Balken, Marker | 2,78 : 1 | 2,57 : 1 | 2,50 : 1 | 6,03 : 1 |
+| **Grün, Text** | `#2A783B` | grüner Text auf hellem Grund | 5,46 : 1 | 5,04 : 1 | 4,92 : 1 | 3,07 : 1 |
+| **Grau** | `#5B6470` | Zweitrangiges: Fußzeilen, Bildunterschriften | 6,00 : 1 | 5,54 : 1 | 5,40 : 1 | 2,80 : 1 |
+
+**Warum vier Flächen und nicht eine.** Bis zum 29.08.2026 stand hier nur „auf
+Papier". Das las sich vollständig und war es nicht: Auf der Website steht grüner
+Text überwiegend auf `#F4F6F8` und `#EAF6EE`, und dort fiel der alte Wert
+`#2F8642` auf 4,21 : 1 und 4,10 : 1 — unter WCAG AA. Gefunden hat es axe-core,
+nicht diese Tabelle: 57 Verstöße auf zehn Seiten.
+
+Die beiden Flächen gab es lange, sie hatten nur keinen Namen und standen
+hartkodiert im Kundenrepo. **Eine Fläche ohne Namen wird bei der nächsten
+Farbmessung wieder vergessen** — deshalb stehen sie jetzt hier und werden in
+`customer-falzmarke` als `--color-surface-alt` und `--color-surface-mark`
+geführt.
 
 ### Warum es zwei Grün gibt
 
 `#3EB057` erreicht auf Weiß nur **2,78 : 1** und verfehlt damit WCAG AA (4,5 : 1 für
 Fließtext, 3 : 1 für großen Text). Als Fläche ist das gleichgültig — als Text ist es ein
-Fehler. Wer grünen Text auf hellem Grund setzt, nimmt `#2F8642`: gleicher Farbton
-(133°), gleiche Sättigung, nur abgedunkelt, bis der Wert stimmt.
+Fehler. Wer grünen Text auf hellem Grund setzt, nimmt `#2A783B`: gleicher Farbton,
+nur abgedunkelt, bis der Wert **auf allen vier hellen Flächen** stimmt — nicht nur
+auf Papier. Der Vorgänger `#2F8642` hielt Papier mit 4,56 : 1 und fiel auf den
+beiden anderen Flächen durch.
 
 Auf dunklem Grund ist es umgekehrt: Dort trägt `#3EB057` mit 6,03 : 1 und wird für
 Bestätigungszeilen verwendet.
@@ -186,10 +202,25 @@ def lum(h):
     return 0.2126*c[0]+0.7152*c[1]+0.0722*c[2]
 def k(a,b):
     l1,l2 = sorted((lum(a),lum(b)), reverse=True); return (l1+0.05)/(l2+0.05)
+# Alle hellen Flaechen, nicht nur Papier. Genau diese Luecke liess 2026-08-29
+# 57 Kontrastverstoesse durchgehen: gemessen war gegen #FFFFFF, gesetzt wurde
+# der Text auf #F4F6F8 und #EAF6EE.
+FLAECHEN = [("Papier","#FFFFFF"),("Karte","#F4F6F8"),
+            ("Marke","#EAF6EE"),("Tinte","#121E2F")]
 for name, wert in [("Tinte","#121E2F"),("Gruen","#3EB057"),
-                   ("Gruen Text","#2F8642"),("Grau","#5B6470")]:
-    print(f"{name:11s} {wert}  auf Papier {k(wert,'#FFFFFF'):5.2f}:1"
-          f"  auf Tinte {k(wert,'#121E2F'):5.2f}:1")
+                   ("Gruen Text","#2A783B"),("Grau","#5B6470")]:
+    zeile = f"{name:11s} {wert} "
+    for fn, fw in FLAECHEN:
+        if fw == wert: continue
+        v = k(wert, fw)
+        zeile += f" auf {fn} {v:5.2f}:1{'!' if v < 4.5 else ' '}"
+    print(zeile)
+print()
+print("Ein '!' markiert einen Wert unter WCAG AA (4,5:1 fuer Fliesstext).")
+print("Gegenprobe — der abgeloeste Wert MUSS zwei '!' zeigen:")
+for fn, fw in FLAECHEN[:3]:
+    v = k("#2F8642", fw)
+    print(f"  #2F8642 auf {fn:7s} {v:5.2f}:1{' !' if v < 4.5 else ''}")
 PY
 ```
 
