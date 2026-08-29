@@ -114,6 +114,32 @@ EMAIL_BETREFF_MAX = 78
 #: zeigen rund 60 Zeichen; was dahinter steht, liest niemand vor dem Öffnen.
 EMAIL_BETREFF_VORSCHAU = 60
 
+#: Wie viel eine Nachricht größer wird als ihre Anhänge.
+#:
+#: MIME kodiert Anhänge base64: aus drei Byte werden vier. Der Faktor steht
+#: hier als Bruch und nicht als gerundete Prozentzahl — er ist keine Messung,
+#: sondern die Definition der Kodierung (RFC 2045, Abschnitt 6.8). Microsoft
+#: nennt dieselbe Größe in seiner Grenzentabelle als „an additional 33%
+#: translation encoding increase".
+#:
+#: Er ist der Grund, warum hier die Nachricht gemessen wird und nicht die
+#: Datei: Eine 9-MB-Datei geht als 12-MB-Nachricht hinaus, und die Grenzen der
+#: Empfänger gelten der Nachricht.
+KODIERUNGSAUFSCHLAG = 4 / 3
+
+#: Die Stufen, an denen ein Anhang auffällt — von der schärfsten Grenze zur
+#: weitesten. Jede mit ihrer Quelle, gemessen am 29.08.2026 (Issue #183);
+#: keine davon steht in einer Norm, deshalb Ebene `praxis` und nie ein Fehler.
+#:
+#: MB heißt hier 1 048 576 Byte. Weder Microsoft noch Google sagen, welche der
+#: beiden Bedeutungen sie meinen; die engere zu nehmen warnt eher zu früh als
+#: zu spät, und das ist die richtige Richtung für eine Warnung.
+EMAIL_ANHANG_STUFEN = (
+    (10 * 1_048_576, "ein lokaler Exchange-Server nimmt sie im Standard nicht an"),
+    (25 * 1_048_576, "auch ein persönliches Gmail-Konto nicht"),
+    (35 * 1_048_576, "auch ein Microsoft-365-Postfach im Standard nicht"),
+)
+
 #: Der Abschnitt `email:` im Profil. Ohne Liste bliebe ein Tippfehler dort
 #: stumm — dieselbe Fehlerart, gegen die `_melde_unbekannte` im Frontmatter
 #: gebaut wurde.
@@ -827,6 +853,56 @@ def pruefe_email_logo(profil: dict, profil_pfad, bericht: Bericht) -> None:
         f"erreichen {farbe.SCHWELLE:.0f}:1 nach WCAG 1.4.11)",
         "ein Logo in der Mail schaltet seine Farben nicht um — es muss auf "
         "beiden Gruenden lesbar sein, oder `email.logo` bleibt aus")
+
+
+def pruefe_anhanggroesse(kopf: dict, basis, kopf_roh: str, bericht: Bericht) -> None:
+    """Wie groß die Nachricht mit ihren Anhängen wird — in Stufen (Issue #183).
+
+    Bis dahin gab es dazu eine einzelne Grenze von 10 MB in `verify --email`,
+    ohne einen Satz, woher sie kommt. Sie war nicht falsch — es ist der
+    Standardwert einer lokalen Exchange-Server-Organisation —, aber darüber war
+    sofort Schluss, obwohl dieselbe Nachricht bei den meisten Empfängern
+    durchgeht. Genau das kritisiert #100 unter „Grenzen sind Wände statt
+    Stufen".
+
+    Gemeldet wird die höchste überschrittene Stufe, nicht jede: Wer 40 MB
+    anhängt, braucht nicht dreimal dasselbe zu lesen.
+
+    **Warnung, nie Fehler.** Welche Grenze gilt, hängt am Postfach des
+    Empfängers, und das kennt der Absender nicht. Die Ebene `praxis` deckelt
+    das in `regeln/email.yaml`, nicht die Wahl an dieser Stelle.
+    """
+    from pathlib import Path as _Pfad
+
+    dateien = [_Pfad(basis) / str(n) for n in _adressen(kopf.get("anlagen_dateien"))]
+    vorhanden = [d for d in dateien if d.is_file()]
+    if not vorhanden:
+        # Eine fehlende Datei meldet der Erzeuger mit Dateinamen; hier wäre es
+        # dieselbe Meldung ein zweites Mal.
+        return
+
+    roh = sum(d.stat().st_size for d in vorhanden)
+    nachricht = int(roh * KODIERUNGSAUFSCHLAG)
+
+    getroffen = [(grenze, grund) for grenze, grund in EMAIL_ANHANG_STUFEN
+                 if nachricht > grenze]
+    if not getroffen:
+        return
+    grenze, grund = getroffen[-1]
+    # `fehler()` und nicht `warnung()`, obwohl eine Warnung herauskommt: Nur
+    # dieser Weg läuft durch `regeln.deckel_von_lint`, und dort deckelt die
+    # Ebene `praxis` die Meldung auf eine Warnung und hängt den Hinweis an, der
+    # sagt warum (ADR 0035). Direkt gewarnt, wäre die Ebene in der Regeldatei
+    # bloß Zierde — gemessen am 29.08.2026: Die Regel auf `technik` und
+    # `fehler` umzustellen ließ jeden Test grün.
+    bericht.fehler(
+        _feldzeile(kopf_roh, "anlagen_dateien"), "email.anlage_groesse",
+        f"die Nachricht wird rund {nachricht / 1_048_576:.1f} MB groß "
+        f"({roh / 1_048_576:.1f} MB Dateien plus Kodierung) — mehr als "
+        f"{grenze // 1_048_576} MB, {grund}",
+        "die Anlage kleiner rechnen, aufteilen oder einen Link auf eine "
+        "Ablage schicken",
+    )
 
 
 def pruefe_email_anlagen(kopf: dict, body: str, bericht: Bericht) -> None:

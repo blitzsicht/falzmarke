@@ -194,6 +194,36 @@ regeln:
       verschieden. Damit ist es Praxis und keine Vorschrift, also eine Warnung.
       Die Schwelle selbst wird gesondert nachgezogen (Grenzen als Stufen).
 
+  - id: email.anlage_groesse
+    titel: Anhänge bleiben unter den Grenzen der Zielprogramme
+    lint: email.anlage_groesse
+    ebene: praxis
+    herkunft: primaerquelle
+    quellen: [microsoft_grenzen, gmail_grenzen]
+    wirkung: warnung
+    bemerkung: >-
+      Drei Stufen statt einer Wand (Issue #183). Bis dahin stand im Prüfer eine
+      einzelne Grenze von 10 MB ohne Begründung; sie war nicht falsch — das ist
+      der Standardwert einer lokalen Exchange-Server-Organisation —, aber
+      darüber war sofort Schluss, obwohl dieselbe Nachricht bei den meisten
+      Empfängern durchgeht.
+
+      Gemessen wird die **Nachricht**, nicht die Datei: MIME kodiert Anhänge
+      base64, vier Byte je drei. Microsoft nennt denselben Aufschlag in seiner
+      Grenzentabelle. Eine 9-MB-Datei wird als 12-MB-Nachricht verschickt — wer
+      die Dateigröße misst, misst an der Grenze vorbei.
+
+      Ebene `praxis`, also nie ein Fehler: Welche Grenze gilt, hängt am
+      Postfach des Empfängers, und das kennt der Absender nicht.
+    belegt_durch:
+      microsoft_grenzen: >-
+        Tabelle „Exchange Online limits", Zeile „Message size limit", Fußnote 1
+        (Standard 35 MB senden / 36 MB empfangen, einstellbar 1–150 MB) und
+        Fußnote 4 (10 MB als Standard einer Exchange-Server-Organisation);
+        zur Kodierung „an additional 33% translation encoding increase".
+      gmail_grenzen: >-
+        „For personal Gmail accounts, the limit is 25 MB."
+
   - id: email.adresse_international
     titel: Adresse mit Zeichen ausserhalb von ASCII
     lint: email.adresse_international

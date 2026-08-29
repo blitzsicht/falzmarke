@@ -285,6 +285,85 @@ def test_auszug_im_satz_ab_71_zeichen(tmp_path, laenge, erwartet):
     assert len(befunde) == erwartet
 
 
+# ── Anhanggrößen in Stufen (#183) ───────────────────────────────────────────
+#
+# Zu jeder Stufe gehört ihr Gegenstück knapp darunter. Ohne das wüsste man nur,
+# dass gewarnt wird — nicht, ob an der richtigen Stelle.
+
+KOPF_MAIL = """typ: email
+profil: example
+an: Sabine Kern <sabine.kern@example.de>
+betreff: Probe Anhanggrenze
+anrede: Sehr geehrte Frau Kern,
+anlagen_dateien: [probe.bin]
+"""
+
+
+def _mit_anhang(tmp_path, megabyte: float):
+    """Legt eine Mail mit einer Anlage dieser Größe an und lintet sie."""
+    (tmp_path / "probe.bin").write_bytes(b"\0" * int(megabyte * 1_048_576))
+    pfad = schreibe(tmp_path, KOPF_MAIL, "anbei die Datei probe.bin.\n\nViele Grüße\n")
+    bericht = falzmarke.linte(pfad, profil_verzeichnis=PROFILE)
+    return [b for b in bericht.befunde if b.regel == "email.anlage_groesse"]
+
+
+@pytest.mark.parametrize("megabyte,grenze", [(8, 10), (20, 25), (27, 35)])
+def test_ueber_einer_stufe_wird_gewarnt(tmp_path, megabyte, grenze):
+    """Die Dateigrößen liegen jeweils UNTER der Grenze, die Nachricht darüber —
+    das ist der Punkt: 20 MB Datei sind 26,7 MB Nachricht, und daran scheitert
+    ein Gmail-Konto, obwohl die Datei die 25 MB nicht erreicht."""
+    befunde = _mit_anhang(tmp_path, megabyte)
+    assert len(befunde) == 1, f"{megabyte} MB Datei ergaben {len(befunde)} Befunde"
+    assert f"{grenze} MB" in befunde[0].meldung, befunde[0].meldung
+    assert befunde[0].schwere == "Warnung", "Ebene praxis — nie ein Fehler"
+
+
+@pytest.mark.parametrize("megabyte", [0.5, 7])
+def test_darunter_bleibt_es_still(tmp_path, megabyte):
+    """7 MB werden zu 9,3 MB Nachricht und bleiben unter der ersten Stufe."""
+    assert _mit_anhang(tmp_path, megabyte) == []
+
+
+def test_nur_die_hoechste_stufe_wird_gemeldet(tmp_path):
+    """Wer 40 MB anhängt, braucht nicht dreimal dasselbe zu lesen."""
+    befunde = _mit_anhang(tmp_path, 40)
+    assert len(befunde) == 1
+    assert "35 MB" in befunde[0].meldung
+
+
+def test_gemessen_wird_die_nachricht_nicht_die_datei(tmp_path):
+    """Der eigentliche Befund aus #183: Die Grenzen der Empfänger gelten der
+    Nachricht, und MIME macht aus drei Byte vier. Wer die Dateigröße misst,
+    misst an der Grenze vorbei."""
+    befund = _mit_anhang(tmp_path, 20)[0]
+    assert "26.7 MB" in befund.meldung, befund.meldung
+    assert "20.0 MB Dateien" in befund.meldung, befund.meldung
+
+
+def test_eine_fehlende_anlage_meldet_hier_nichts(tmp_path):
+    """Die meldet der Erzeuger mit Dateinamen. Zweimal dieselbe Nachricht ist
+    keine doppelte Sicherheit, sondern doppelter Lärm."""
+    pfad = schreibe(tmp_path, KOPF_MAIL, "anbei die Datei probe.bin.\n")
+    bericht = falzmarke.linte(pfad, profil_verzeichnis=PROFILE)
+    assert [b for b in bericht.befunde if b.regel == "email.anlage_groesse"] == []
+
+
+def test_die_meldung_nennt_die_ebene(tmp_path):
+    """ADR 0035: Eine Meldung, die „DIN" sagt, wo Mailprogramm-Praxis gemeint
+    ist, ist von einer, die ihr Versprechen einlöst, nicht zu unterscheiden.
+    Der Hinweis kommt aus der Deckelung — er belegt zugleich, dass die Meldung
+    wirklich durch sie läuft."""
+    befund = _mit_anhang(tmp_path, 20)[0]
+    assert "Ebene: Praxis" in befund.meldung, befund.meldung
+
+
+def test_der_kodierungsaufschlag_ist_der_der_base64_kodierung(tmp_path):
+    """Vier Byte je drei — das ist keine Messung, sondern die Definition der
+    Kodierung. Eine gerundete Prozentzahl wäre eine zweite Wahrheit daneben."""
+    from falzmarke import lint as lint_modul
+    assert lint_modul.KODIERUNGSAUFSCHLAG == 4 / 3
+
+
 # ── Verhalten der Befehle ───────────────────────────────────────────────────
 
 def test_render_bricht_vor_dem_setzen_ab(tmp_path):
