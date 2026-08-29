@@ -81,7 +81,19 @@ Das vollständige Protokoll mit Matrix und Gegenprobe:
   Damit ist es Erfahrung und keine Vorschrift — Ebene **Praxis** nach
   [ADR 0035](entscheidungen/0035-vier-ebenen-fuer-email-regeln.md), und Praxis ist nie ein Fehler.
 - **Zeilenlänge:** RFC 5322, Abschnitt 2.1.1 erlaubt keine Zeile über 998 Zeichen.
-- **Anhänge:** zusammen höchstens 10 MB. Größeres lehnen viele Server ab, ohne es zu sagen.
+- **Anhänge:** in drei Stufen, jede mit ihrer Fundstelle (Issue #183). Gemessen wird die
+  **Nachricht**, nicht die Datei: MIME kodiert base64, vier Byte je drei — eine 20-MB-Datei
+  geht als 26,7-MB-Nachricht hinaus. Microsoft nennt denselben Aufschlag selbst.
+
+  | über | wer sie dann nicht mehr annimmt |
+  |---|---|
+  | 10 MB | ein lokaler Exchange-Server im Standard |
+  | 25 MB | auch ein persönliches Gmail-Konto |
+  | 35 MB | auch ein Microsoft-365-Postfach im Standard |
+
+  Warnung, nie Fehler: Welche Grenze gilt, hängt am Postfach des Empfängers, und das kennt der
+  Absender nicht — Ebene **Praxis**. Die binäre 10-MB-Prüfung in `verify --email` bleibt
+  vorerst daneben stehen; sie misst die entschlüsselte Größe und damit die falsche Zahl.
 - **Bilder** dürfen nur aus der Nachricht selbst kommen (`cid:` oder `data:`) — kein externes
   Stylesheet, kein Zählpixel, keine Tabelle als Layout.
 - Jede Anlage soll im Text vorkommen. Gemeldet wird nur, dass der Dateiname nirgends auftaucht;

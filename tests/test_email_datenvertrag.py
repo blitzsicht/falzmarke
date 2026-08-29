@@ -425,6 +425,12 @@ def _loese_aus(regel: str, tmp_path):
         pfad = tmp_path / "nachricht.md"
         pfad.write_text(f"---\n{MAIL}---\nText der Nachricht.\n", encoding="utf-8")
         return falzmarke.linte(pfad, profil_verzeichnis=_profil_ohne(feld, tmp_path))
+    if regel == "email.anlage_groesse":
+        # 20 MB Datei, 26,7 MB Nachricht: unter der Gmail-Grenze und trotzdem
+        # darüber. Genau der Fall, den die Dateigrößenmessung übersah (#183).
+        (tmp_path / "probe.bin").write_bytes(b"\0" * (20 * 1_048_576))
+        return linte(tmp_path, MAIL + "anlagen_dateien: [probe.bin]\n",
+                     "anbei die Datei probe.bin.\n")
     raise AssertionError(f"kein Auslöser für {regel} — bitte einen ergänzen")
 
 

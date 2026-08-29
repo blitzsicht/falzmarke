@@ -230,6 +230,41 @@ quellen:
   # `gruppe`: je Vorschrift eine eigene. Zwei Paragrafen desselben Gesetzes
   # sind zwei Aussagen, keine zwei Ansichten einer Aussage.
 
+  microsoft_grenzen:
+    titel: "Exchange Online limits — Microsoft Learn"
+    url: https://learn.microsoft.com/en-us/office365/servicedescriptions/exchange-online-service-description/exchange-online-limits
+    art: primaerquelle
+    gruppe: microsoft_365
+    zaehlt: voll
+    abgerufen: 2026-08-29
+    bemerkung: >-
+      Der Hersteller über das eigene Produkt — für die Frage, was ein
+      Microsoft-Postfach annimmt, die Primärquelle. Am 29.08.2026 im Volltext
+      gelesen. Genannt sind: Standard 35 MB beim Senden und 36 MB beim
+      Empfangen für Microsoft-Postfächer, einstellbar zwischen 1 und 150 MB;
+      10 MB als Standard einer lokalen Exchange-Server-Organisation
+      (Fußnote 4); 33 MB für Outlook auf iOS und Android.
+      Ausdrücklich zur Kodierung: „Messages that are routed outside of the
+      Microsoft datacenters are subject to an additional 33% translation
+      encoding increase." Die Grenzen gelten also der Nachricht, nicht der
+      Datei — das ist der Satz, auf dem `KODIERUNGSAUFSCHLAG` steht.
+      Keine Aussage über die DIN 5008; die Quelle trägt nur Regeln der Ebene
+      `praxis`.
+
+  gmail_grenzen:
+    titel: "Dateien an Gmail-Nachrichten anhängen — Google-Hilfe"
+    url: https://support.google.com/mail/answer/6584
+    art: primaerquelle
+    gruppe: google_workspace
+    zaehlt: voll
+    abgerufen: 2026-08-29
+    bemerkung: >-
+      „For personal Gmail accounts, the limit is 25 MB." Für Geschäfts- und
+      Schulkonten setzt die Grenze der Workspace-Administrator; die Seite nennt
+      dafür keinen Wert. **Sie unterscheidet nicht zwischen Dateigröße und
+      Nachrichtengröße** — nachgesehen am 29.08.2026, die Seite sagt dazu
+      nichts. Der Kodierungsaufschlag ist deshalb aus der Microsoft-Quelle
+      belegt, nicht aus dieser.
   rfc5322:
     titel: "RFC 5322 — Internet Message Format"
     url: https://www.rfc-editor.org/rfc/rfc5322
