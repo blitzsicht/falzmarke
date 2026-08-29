@@ -115,8 +115,17 @@ def tabelle(zeilen: list[list[str]], ausrichtungen: list[str | None]) -> str:
         "  inset: (x: 2mm, y: 1.4mm),",
     ]
     for nummer, zeile in enumerate(zeilen):
-        zellen = [f"[{stark(z)}]" if nummer == 0 else f"[{z}]" for z in zeile]
-        teile.append("  " + ", ".join(zellen) + ",")
+        if nummer == 0:
+            # `table.header` statt einer bloss fett gesetzten ersten Zeile: Fett
+            # ist eine Aussage ueber das Aussehen, `header` eine ueber die
+            # Bedeutung. Im PDF wird daraus `/TH` in einem `/THead` — ohne das
+            # liest ein Screenreader „Wert 1" vor, ohne je zu sagen, in welcher
+            # Spalte man ist (Issue #138). Nachgemessen mit pypdf,
+            # tests/test_struktur.py.
+            zellen = [f"[{stark(z)}]" for z in zeile]
+            teile.append("  table.header(" + ", ".join(zellen) + "),")
+        else:
+            teile.append("  " + ", ".join(f"[{z}]" for z in zeile) + ",")
     teile.append(")")
     return "\n".join(teile)
 

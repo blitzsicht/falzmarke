@@ -246,11 +246,18 @@ jobs:
 
       - name: Beispiele rendern
         run: |
-          mkdir -p bau
+          mkdir -p bau bau-ua
           for datei in examples/*.md; do
-            python skill/scripts/falzmarke.py render "$datei" -o "bau/$(basename "$datei" .md).pdf"
+            name=$(basename "$datei" .md)
+            python skill/scripts/falzmarke.py render "$datei" -o "bau/$name.pdf"
+            # Zusaetzlich die Barrierefreiheitsfassung (Issue #138). Sie ist
+            # nicht dieselbe Datei mit einem anderen Aufkleber: Sie erklaert
+            # sich als PDF/UA-1, und veraPDF prueft daraufhin den Strukturbaum
+            # mit. Ein Brief, dessen Ueberschriften nur fett gesetzt sind,
+            # besteht A-2b und faellt hier durch.
+            python skill/scripts/falzmarke.py render "$datei" -o "bau-ua/$name.pdf" --pdfua
           done
-          echo "gerendert: $(ls bau/*.pdf | wc -l)"
+          echo "gerendert: $(ls bau/*.pdf | wc -l) Archiv, $(ls bau-ua/*.pdf | wc -l) barrierefrei"
 
       - name: Konformität gegen ein fremdes Werkzeug halten
         run: |
@@ -258,6 +265,14 @@ jobs:
           # dass veraPDF es ablehnt. Ohne sie belegt ein grüner Lauf nur, dass
           # veraPDF gestartet ist.
           python scripts/pdf_konformitaet.py bau/*.pdf --gegenprobe examples/brief-form-b.md
+
+      - name: Und die Barrierefreiheitsfassung dazu
+        run: |
+          # Dieselbe Pruefung, andere Dateien: Das Skript liest die deklarierten
+          # Standards aus dem XMP und haelt jeden einzeln gegen veraPDF — bei
+          # diesen also A-2b UND UA-1. Ohne diesen Schritt war die Aussage
+          # „barrierefrei" im Haus nie von aussen geprueft.
+          python scripts/pdf_konformitaet.py bau-ua/*.pdf
 
       - name: Tests der Prüfung selbst
         run: python -m pytest tests/test_pdf_konformitaet.py -o addopts="" -q
