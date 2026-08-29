@@ -111,8 +111,18 @@ SABOTAGEN = [
     ("Kein Zählpixel",
      lambda s: s.replace("</body>", '<img src=3D"cid:x" alt=3D"x" width=3D"1" height=3D"1">'
                                     "</body>", 1)),
-    ("Tabellen sind Datentabellen",
+    # Der Name ist seit Issue #104 ein anderer: Eine Tabelle darf jetzt auch
+    # Layout sein, wenn sie es sagt. Die Sabotage bleibt dieselbe — aus den
+    # Kopfzellen der Datentabelle werden gewöhnliche, und dann ist sie weder
+    # das eine noch das andere.
+    ("Tabellen sind Daten oder gekennzeichnetes Layout",
      lambda s: s.replace("<th ", "<td ").replace("</th>", "</td>")),
+    # Und die Gegenrichtung: Der Umschlag verliert seine Kennzeichnung. Ohne
+    # diesen Fall prüfte die Sabotage oben nur die Datentabelle, und der
+    # Umschlag — der Grund, warum es die Marke überhaupt gibt — bliebe
+    # ungemessen.
+    ("Tabellen sind Daten oder gekennzeichnetes Layout",
+     lambda s: s.replace('role=3D"presentation" ', "", 1)),
     ("Text und HTML sagen dasselbe", lambda s: s.replace("besprochen", "besprochenXYZ", 1)),
     ("Quellteil ist CommonMark",
      lambda s: s.replace('variant="CommonMark"', 'variant="Markdown"', 1)),
@@ -286,3 +296,53 @@ def test_das_beispiel_mit_links_besteht_vollstaendig(tmp_path):
     bericht = pruefung_eml.pruefe(ziel)
     gescheitert = [p.name for p in bericht.pruefungen if not p.bestanden]
     assert not gescheitert, gescheitert
+
+
+# ── Der Umschlag und das Logo (#104) ────────────────────────────────────────
+
+def test_eine_mail_mit_logo_besteht_die_pruefung(tmp_path, profil):
+    """Der Befund, mit dem #104 messbar wurde.
+
+    Gemessen am 29.08.2026: Jede Nachricht mit `email.logo` im Profil fiel
+    durch `verify --email` — „Tabellen sind Datentabellen: 1 ohne <th>". Der
+    Signaturblock legt das Logo in eine Tabelle, und die trug weder Kopfzellen
+    noch eine Kennzeichnung als Layout.
+
+    Aufgefallen war es niemandem: Das Beispielprofil hat kein Logo, also
+    erzeugte kein einziger Test diese Tabelle. Ein Fehler, den kein Testfall
+    auslösen kann, ist von einem behobenen nicht zu unterscheiden.
+    """
+    from PIL import Image
+
+    logo = tmp_path / "logo.png"
+    Image.new("RGBA", (120, 40), (0x12, 0x4E, 0x8F, 255)).save(logo)
+    mit_logo = dict(profil)
+    mit_logo["email"] = dict(profil.get("email") or {}, logo="logo.png")
+
+    nachricht = eml.baue(KOPF, mit_logo, QUELLE, md.lies(QUELLE),
+                         mit_quelle=True, profil_pfad=tmp_path / "example.yaml")
+    bericht = _pruefe(tmp_path, nachricht.as_string())
+    assert bericht.ok, bericht.als_text(ausfuehrlich=True)
+
+
+def test_das_logo_traegt_beide_masse(tmp_path, profil):
+    """Breite UND Höhe als Attribut, die Breite aus dem Seitenverhältnis
+    gerechnet. Ohne Maße reserviert kein Client Platz, und wo Bilder blockiert
+    sind — der Normalfall in Outlook — steht der Alternativtext in einem
+    Kasten von null Pixeln."""
+    from PIL import Image
+
+    logo = tmp_path / "logo.png"
+    Image.new("RGBA", (120, 40), (0x12, 0x4E, 0x8F, 255)).save(logo)
+    html = eml.htmlteil(KOPF, profil, md.lies(QUELLE), mit_logo=True, logo_pfad=logo)
+    assert 'width="120" height="40"' in html, html[html.find("<img"):][:200]
+
+
+def test_ein_schmaleres_logo_bekommt_eine_andere_breite(tmp_path, profil):
+    """Sonst wäre die Breite eine feste Zahl und jedes andere Logo verzerrt."""
+    from PIL import Image
+
+    logo = tmp_path / "logo.png"
+    Image.new("RGBA", (40, 40), (0x12, 0x4E, 0x8F, 255)).save(logo)
+    html = eml.htmlteil(KOPF, profil, md.lies(QUELLE), mit_logo=True, logo_pfad=logo)
+    assert 'width="40" height="40"' in html

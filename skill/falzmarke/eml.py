@@ -255,8 +255,27 @@ def textteil(kopf: dict, profil: dict, bloecke, breite: int = emit_text.BREITE) 
     return "\n".join(teile)
 
 
+def logo_masse(pfad: Path, hoehe: int = 40) -> tuple[int, int]:
+    """Breite und Höhe des Logos in der Mail, auf `hoehe` skaliert.
+
+    Beide Werte gehören als Attribut an das Bild (Issue #104): Ohne sie
+    reserviert kein Client Platz. Die Nachricht springt beim Laden, und wo
+    Bilder blockiert sind — der Normalfall in Outlook — steht der
+    Alternativtext in einem Kasten von null Pixeln.
+
+    Gerechnet statt geraten: Die Breite folgt aus dem Seitenverhältnis der
+    Datei. Ein fester Wert wäre bei jedem anderen Logo verzerrt.
+    """
+    from PIL import Image
+
+    with Image.open(pfad) as bild:
+        breite, hoch = bild.size
+    return max(1, round(breite * hoehe / hoch)), hoehe
+
+
 def htmlteil(kopf: dict, profil: dict, bloecke, sprache: str = "de",
-             mit_logo: bool = False) -> str:
+             mit_logo: bool = False, logo_pfad: Path | None = None,
+             vorspann: str = "") -> str:
     """Dasselbe als HTML — derselbe Baum, andere Zielsprache."""
     email_teil = profil.get("email") or {}
     gruss = kopf.get("gruss") or email_teil.get("gruss") or profil.get("gruss")
@@ -287,19 +306,29 @@ def htmlteil(kopf: dict, profil: dict, bloecke, sprache: str = "de",
             # Nachricht. Als Tabelle, weil Outlook mit der Word-Engine rechnet
             # und moderne Layoutverfahren ignoriert (#104).
             name = emit_html.as_text(str((profil.get("absender") or {}).get("name") or ""))
+            breite, hoehe = logo_masse(logo_pfad) if logo_pfad else (0, 40)
+            # `role="presentation"`: Das ist Layout, keine Daten. Ohne die
+            # Marke liest ein Screenreader „Tabelle, zwei Spalten, Zelle eins"
+            # vor, bevor der Name kommt — und `verify --email` lehnt sie ab.
+            # Gemessen am 29.08.2026: Jede Mail mit Logo im Profil fiel dort
+            # durch („Tabellen sind Datentabellen: 1 ohne <th>"), und niemandem
+            # war es aufgefallen, weil das Beispielprofil kein Logo trägt.
+            masse = f'width="{breite}" height="{hoehe}" ' if breite else f'height="{hoehe}" '
             inhalt = (
-                f'<table class="{emit_html.KLASSE_TEXT}" cellpadding="0" cellspacing="0" '
+                f'<table role="presentation" class="{emit_html.KLASSE_TEXT}" '
+                f'cellpadding="0" cellspacing="0" border="0" '
                 f'style="border-collapse: collapse;"><tr>'
                 f'<td style="padding: 0 12px 0 0; vertical-align: top;">'
-                f'<img src="cid:{LOGO_CID}" alt="{name}" height="40" '
-                f'style="display: block; border: 0; height: 40px; width: auto;"></td>'
+                f'<img src="cid:{LOGO_CID}" alt="{name}" {masse}'
+                f'style="display: block; border: 0; height: {hoehe}px; '
+                f'width: {"auto" if not breite else f"{breite}px"};"></td>'
                 f'<td class="{emit_html.KLASSE_TEXT}" style="vertical-align: top; '
                 f'{emit_html.TEXTSTIL}">{inhalt}</td></tr></table>'
             )
         stuecke.append(
             f'<p class="{" ".join(klassen)}" style="{stil}">{inhalt}</p>'
         )
-    return emit_html.dokument("\n".join(stuecke) + "\n", sprache=sprache)
+    return emit_html.dokument("\n".join(stuecke) + "\n", sprache=sprache, vorspann=vorspann)
 
 
 def begleit_html(kopf: dict, profil: dict, bloecke, sprache: str = "de") -> str:
@@ -318,12 +347,10 @@ def begleit_html(kopf: dict, profil: dict, bloecke, sprache: str = "de") -> str:
         f"<strong>{emit_html.as_text(name)}:</strong> {emit_html.as_text(wert)}</p>"
         for name, wert in zeilen if wert
     )
-    seite = htmlteil(kopf, profil, bloecke, sprache=sprache)
     vorschau = (f'<div class="{emit_html.KLASSE_LINIE}" '
                 f'style="border-bottom: 1px solid {emit_html.RAHMEN}; '
                 f'margin-bottom: 16px; padding-bottom: 10px;">{kopfzeilen}</div>')
-    return seite.replace(f'<div style="max-width: {emit_html.BREITE_MAX};">',
-                         f'<div style="max-width: {emit_html.BREITE_MAX};">{vorschau}', 1)
+    return htmlteil(kopf, profil, bloecke, sprache=sprache, vorspann=vorschau)
 
 
 def _trennstring(quelle: str, zweck: str) -> str:
@@ -377,7 +404,8 @@ def baue(kopf: dict, profil: dict, quelle_md: str, bloecke, *,
 
     logo = logo_datei(profil, profil_pfad)
     text = textteil(kopf, profil, bloecke)
-    html = htmlteil(kopf, profil, bloecke, sprache=sprache, mit_logo=logo is not None)
+    html = htmlteil(kopf, profil, bloecke, sprache=sprache,
+                    mit_logo=logo is not None, logo_pfad=logo)
 
     # quoted-printable, nie base64: Eine Mail, deren Textteil als base64
     # ankommt, ist in jedem Rohansicht-Fenster unlesbar — und die Rohansicht

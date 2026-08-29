@@ -457,3 +457,47 @@ def test_die_feldliste_deckt_sich_mit_dem_datenvertrag(tmp_path):
 
     fehlend = dokumentiert - lint_modul.FRONTMATTER_FELDER
     assert not fehlend, f"In der Doku, aber vom Linter abgewiesen: {sorted(fehlend)}"
+
+
+# ── Breite Tabellen in einer Mail (#104) ────────────────────────────────────
+
+def _tabelle(spalten: int) -> str:
+    kopf = "| " + " | ".join(f"S{i}" for i in range(spalten)) + " |"
+    trenner = "|" + "---|" * spalten
+    zeile = "| " + " | ".join("x" for _ in range(spalten)) + " |"
+    return f"anbei die Übersicht:\n\n{kopf}\n{trenner}\n{zeile}\n"
+
+
+KOPF_MAIL_SCHLICHT = """typ: email
+profil: example
+an: erika.muster@example.de
+betreff: Probe Tabelle
+anrede: Sehr geehrte Frau Muster,
+"""
+
+
+@pytest.mark.parametrize("spalten,erwartet", [(4, 0), (5, 1), (9, 1)])
+def test_ab_fuenf_spalten_wird_gewarnt(tmp_path, spalten, erwartet):
+    """Vier bleiben still, fünf melden. Ohne den Fall darunter wüsste man nur,
+    dass gewarnt wird — nicht, ob an der richtigen Stelle."""
+    bericht = linte(tmp_path, KOPF_MAIL_SCHLICHT, _tabelle(spalten))
+    befunde = [b for b in bericht.befunde if b.regel == "email.tabelle_spalten"]
+    assert len(befunde) == erwartet
+    if erwartet:
+        assert befunde[0].schwere == "Warnung", "Ebene praxis — nie ein Fehler"
+
+
+def test_der_befund_zeigt_auf_die_kopfzeile(tmp_path):
+    """Gezählt wird an der Trennzeile, gemeldet die Kopfzeile darüber — dort
+    steht, was der Verfasser ändern muss."""
+    pfad = schreibe(tmp_path, KOPF_MAIL_SCHLICHT, _tabelle(5))
+    bericht = falzmarke.linte(pfad, profil_verzeichnis=PROFILE)
+    zeilen = pfad.read_text(encoding="utf-8").splitlines()
+    erwartet = next(i for i, z in enumerate(zeilen, 1) if z.startswith("| S0"))
+    assert [b.zeile for b in bericht.befunde if b.regel == "email.tabelle_spalten"] == [erwartet]
+
+
+def test_im_brief_gilt_die_grenze_nicht(tmp_path):
+    """Ein Brief steht auf 165 mm fester Breite — dort bricht nichts um."""
+    bericht = linte(tmp_path, KOPF, _tabelle(9))
+    assert [b for b in bericht.befunde if b.regel == "email.tabelle_spalten"] == []

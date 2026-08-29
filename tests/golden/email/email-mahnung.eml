@@ -72,7 +72,10 @@ MIME-Version: 1.0
 <body class=3D"fm-t" style=3D"margin: 0; padding: 16px; font-family: -apple-s=
 ystem, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; lin=
 e-height: 1.45; color: #1a1a1a;">
-<div style=3D"max-width: 600px;">
+<table role=3D"presentation" width=3D"600" align=3D"center" cellpadding=3D"0"=
+ cellspacing=3D"0" border=3D"0" style=3D"width: 100%; max-width: 600px; borde=
+r-collapse: collapse;">
+<tr><td style=3D"padding: 0;">
 <p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, 'Seg=
 oe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1=
 .45; color: #1a1a1a;">Sehr geehrte Damen und Herren,</p>
@@ -106,7 +109,8 @@ oe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1=
 g 12<br>93055 Regensburg<br>Amtsgericht Regensburg HRB 12345<br>USt-IdNr. DE1=
 23456789<br>Gesch=C3=A4ftsf=C3=BChrerin: Erika Muster<br>https://example.de/d=
 atenschutz<br>Diese E-Mail enth=C3=A4lt vertrauliche Informationen.</p>
-</div>
+</td></tr>
+</table>
 </body>
 </html>
 

@@ -81,6 +81,15 @@ Das vollständige Protokoll mit Matrix und Gegenprobe:
   Damit ist es Erfahrung und keine Vorschrift — Ebene **Praxis** nach
   [ADR 0035](entscheidungen/0035-vier-ebenen-fuer-email-regeln.md), und Praxis ist nie ein Fehler.
 - **Zeilenlänge:** RFC 5322, Abschnitt 2.1.1 erlaubt keine Zeile über 998 Zeichen.
+- **Der Umschlag ist eine Tabelle**, keine `div` (Issue #104). Das klassische Outlook rechnet mit
+  der Word-Engine und wertet `max-width` nicht aus; die Breite steht deshalb zweimal da — als
+  Attribut `width="600"`, das Word versteht, und als `width: 100%` mit `max-width` für alle
+  anderen, die dann auf schmalen Fenstern mitschrumpfen. Jede Layouttabelle trägt
+  `role="presentation"`: Ohne die Marke liest ein Screenreader sie als Datensatz vor, und die
+  Prüfung lehnt sie ab. Umgekehrt gilt dasselbe — eine Tabelle ohne `<th>` **und** ohne die Marke
+  ist ein Befund, egal welche der beiden Absichten dahinterstand.
+- **Tabellen ab fünf Spalten** werden gemeldet, mit dem Vorschlag, sie als PDF-Anlage
+  beizulegen. Die Zahl ist eine Setzung, keine Messung — deshalb eine Warnung.
 - **Anhänge:** in drei Stufen, jede mit ihrer Fundstelle (Issue #183). Gemessen wird die
   **Nachricht**, nicht die Datei: MIME kodiert base64, vier Byte je drei — eine 20-MB-Datei
   geht als 26,7-MB-Nachricht hinaus. Microsoft nennt denselben Aufschlag selbst.
@@ -94,7 +103,10 @@ Das vollständige Protokoll mit Matrix und Gegenprobe:
   Warnung, nie Fehler: Welche Grenze gilt, hängt am Postfach des Empfängers, und das kennt der
   Absender nicht — Ebene **Praxis**. Die binäre 10-MB-Prüfung in `verify --email` bleibt
   vorerst daneben stehen; sie misst die entschlüsselte Größe und damit die falsche Zahl.
-- **Bilder** dürfen nur aus der Nachricht selbst kommen (`cid:` oder `data:`) — kein externes
+- **Bilder** dürfen nur aus der Nachricht selbst kommen, und zwar als eigener Teil mit `cid:`.
+  `data:` stand hier bis Issue #104 daneben; es lädt zwar nichts nach, aber Gmail zeigt solche
+  Bilder in der Weiterleitungsansicht nicht an und Outlook hängt sie als namenlosen Anhang an.
+  Jedes Bild trägt Breite und Höhe als Attribut — ohne sie reserviert kein Client Platz. Kein externes
   Stylesheet, kein Zählpixel, keine Tabelle als Layout.
 - Jede Anlage soll im Text vorkommen. Gemeldet wird nur, dass der Dateiname nirgends auftaucht;
   falzmarke schreibt dafür **keinen** Satz in den Text.

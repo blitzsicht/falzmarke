@@ -29,7 +29,11 @@ from falzmarke.geometrie import Bericht
 ZEILE_HART = 998
 
 #: Bilder dürfen nur aus der Nachricht selbst kommen.
-ERLAUBTE_QUELLEN = ("cid:", "data:")
+#: Bilder duerfen nur aus der Nachricht selbst kommen — und zwar als eigener
+#: Teil mit `cid:`. `data:` stand hier bis Issue #104 daneben; es laedt zwar
+#: nichts nach, aber Gmail zeigt solche Bilder in der Weiterleitungsansicht
+#: nicht an und Outlook haengt sie als namenlosen Anhang an.
+ERLAUBTE_QUELLEN = ("cid:",)
 
 #: Die Signaturtrennzeile nach RFC 3676 §4.3: zwei Striche, ein Leerzeichen.
 #:
@@ -211,17 +215,28 @@ def _pruefe_htmlteil(teil, bericht: Bericht) -> None:
                  "vorhanden" if "max-width" in html else "fehlt")
 
     # Ein 1×1-Bild ist keine Abbildung, sondern eine Messung am Empfänger.
-    zaehlpixel = re.findall(r'<img\b[^>]*\b(?:width|height)\s*=\s*["\']?1["\']?', html, re.I)
+    #
+    # Der Wert muss GANZ „1" sein. Bis Issue #104 stand hier `["\']?1["\']?`
+    # ohne Abschluss, und das traf die führende Ziffer jeder Breite, die mit 1
+    # beginnt: `width="120"` galt als Zählpixel. Aufgefallen ist es erst, als
+    # das Logo Maße bekam — vorher trug kein erzeugtes Bild eine Breite, und
+    # die Prüfung konnte gar nicht falsch anschlagen.
+    zaehlpixel = re.findall(
+        r'<img\b[^>]*\b(?:width|height)\s*=\s*(?:"1"|\'1\'|1)(?=[\s>])', html, re.I)
     bericht.wahr("Kein Zählpixel", not zaehlpixel, "keins",
                  f"{len(zaehlpixel)} gefunden" if zaehlpixel else "keins")
 
-    # Eine Tabelle ohne <th> ist im Zweifel Layout, keine Daten. Layout in
-    # Tabellen liest jeder Screenreader als Datensatz vor.
-    tabellen = re.findall(r"<table\b.*?</table>", html, re.I | re.S)
-    ohne_kopf = [t for t in tabellen if "<th" not in t.lower()]
-    bericht.wahr("Tabellen sind Datentabellen", not ohne_kopf,
-                 "jede Tabelle mit <th>",
-                 f"{len(ohne_kopf)} ohne <th>" if ohne_kopf else "alle mit <th>")
+    # Jede Tabelle ist entweder Daten (mit <th>) oder Layout (mit
+    # role="presentation") — Layout in Tabellen liest ein Screenreader sonst
+    # als Datensatz vor. Bis Issue #104 verlangte diese Stelle <th> von JEDER
+    # Tabelle, auch vom Umschlag und vom Logoblock; eine Mail mit Logo fiel
+    # deshalb immer durch. Gemessen wird jetzt mit derselben Funktion, die der
+    # Emitter an sich selbst anlegt — zwei Fassungen derselben Regel liefen
+    # sonst auseinander.
+    offen = emit_html._layouttabellen_pruefen(html)
+    bericht.wahr("Tabellen sind Daten oder gekennzeichnetes Layout", not offen,
+                 "jede mit <th> oder role=presentation",
+                 f"{len(offen)} ohne beides" if offen else "alle gekennzeichnet")
 
 
 def _pruefe_gleichlaut(text_teil, html_teil, bericht: Bericht) -> None:

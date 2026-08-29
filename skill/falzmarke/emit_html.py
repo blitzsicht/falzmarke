@@ -40,6 +40,10 @@ SCHRIFTSTAPEL = "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif
 TINTE = "#1a1a1a"
 RAHMEN = "#c8c8c8"
 BREITE_MAX = "600px"
+#: Dieselbe Breite ohne Einheit — als Attribut, das die Word-Engine versteht.
+#: Steht hier abgeleitet und nicht als zweite Zahl: Zwei Stellen mit derselben
+#: Breite laufen auseinander, und die eine sähe man nur in Outlook.
+BREITE_ZAHL = BREITE_MAX.removesuffix("px")
 
 #: An jedem Block wiederholt, weil die Vererbung in Mail-Clients unzuverlässig ist.
 TEXTSTIL = f"font-family: {SCHRIFTSTAPEL}; font-size: 16px; line-height: 1.45; color: {TINTE};"
@@ -248,11 +252,19 @@ def setze(bloecke) -> str:
     return "\n".join(b for b in gesetzt if b.strip()) + "\n"
 
 
-def dokument(rumpf: str, sprache: str = "de") -> str:
+def dokument(rumpf: str, sprache: str = "de", vorspann: str = "") -> str:
     """Der Rumpf in einer vollständigen HTML-Datei.
 
     `color-scheme` sagt dem Client, dass die Seite beide Modi verträgt — ohne
     die Angabe invertieren einige den Text und lassen den Hintergrund stehen.
+
+    `vorspann` steht im Umschlag über dem Rumpf und ist nur für die
+    `.html`-Vorschau gedacht (An, Kopie, Betreff). Er ist ein Parameter und
+    keine nachträgliche Ersetzung: Bis Issue #104 schnitt `eml.begleit_html`
+    den Kopf mit `str.replace` an einer Zeichenkette ein, die den Umschlag
+    beschrieb. Als der Umschlag zur Tabelle wurde, traf die Ersetzung ins
+    Leere und der Vorschaukopf verschwand **stillschweigend** — gefangen hat
+    es ein Test, nicht der Emitter.
     """
     return (
         f'<!DOCTYPE html>\n<html lang="{html_modul.escape(sprache, quote=True)}">\n'
@@ -263,9 +275,23 @@ def dokument(rumpf: str, sprache: str = "de") -> str:
         f"{STILBLOCK}\n"
         "</head>\n"
         f'<body class="{KLASSE_TEXT}" style="margin: 0; padding: 16px; {TEXTSTIL}">\n'
-        f'<div style="max-width: {BREITE_MAX};">\n'
-        f"{rumpf}"
-        "</div>\n</body>\n</html>\n"
+        # Umschlag als Tabelle, nicht als `div` (Issue #104): Das klassische
+        # Outlook rechnet mit der Word-Engine und wertet `max-width` nicht aus
+        # — die Nachricht liefe dort über die volle Fensterbreite, während sie
+        # überall sonst bei 600 px bleibt. Die Breite steht deshalb ZWEIMAL da:
+        # als Attribut `width`, das Word versteht, und als `width: 100%` mit
+        # `max-width` für alle anderen, die dann mitschrumpfen. Ein einzelner
+        # Wert könnte nur eines von beidem.
+        #
+        # `role="presentation"` ist Pflicht und nicht Zierde: Ohne die Marke
+        # liest ein Screenreader den Umschlag als Datensatz vor, und die
+        # Prüfung in `verstoesse` lehnt ihn ab.
+        f'<table role="presentation" width="{BREITE_ZAHL}" align="center" '
+        f'cellpadding="0" cellspacing="0" border="0" '
+        f'style="width: 100%; max-width: {BREITE_MAX}; border-collapse: collapse;">\n'
+        f'<tr><td style="padding: 0;">\n'
+        f"{vorspann}{rumpf}"
+        "</td></tr>\n</table>\n</body>\n</html>\n"
     )
 
 
@@ -283,6 +309,11 @@ VERBOTEN = (
     (r"<link\b", "externes Stylesheet oder externe Ressource"),
     (r"<script\b", "Skript"),
     (r"<iframe\b", "eingebettetes Fremddokument"),
+    (r"<form\b", "Formular"),
+    # Ereignis-Attribute sind Skript ohne `<script>`. Die Liste ist bewusst
+    # eng: `\bon[a-z]+\s*=` traefe auch `<td on...>` in einem Wort wie
+    # `one=`, deshalb das Wortgrenzen-`\s` davor.
+    (r"\son[a-z]+\s*=", "Ereignis-Attribut — Skript ohne script-Element"),
     (r"background-image\s*:", "Hintergrundbild"),
     (r"url\(", "Verweis auf eine Ressource im Stil"),
 )
@@ -379,6 +410,63 @@ def verstoesse(html: str) -> list[str]:
         if not re.search(r'\balt\s*=', marke, re.IGNORECASE):
             gefunden.append("Bild ohne Alternativtext")
         quelle = re.search(r'\bsrc\s*=\s*["\']([^"\']*)', marke, re.IGNORECASE)
-        if quelle and not quelle.group(1).startswith(("cid:", "data:")):
+        if quelle and quelle.group(1).startswith("data:"):
+            # `data:` war bis Issue #104 erlaubt. Es laedt zwar nichts nach,
+            # aber Gmail zeigt solche Bilder in der Weiterleitungsansicht gar
+            # nicht an, und Outlook haengt sie als namenlosen Anhang an. Ein
+            # Bild, das die Nachricht mitbringt, gehoert als Teil mit `cid:`
+            # hinein — dann traegt es einen Namen und einen Typ.
+            gefunden.append("Bild als data:-URL — als eigener Teil mit cid: einbetten")
+        elif quelle and not quelle.group(1).startswith("cid:"):
             gefunden.append("Bild von außerhalb der Mail — auch ein Zählpixel ist eines")
+        if not re.search(r'\b(width|height)\s*=', marke, re.IGNORECASE):
+            # Ohne Maße reserviert kein Client Platz: Die Nachricht springt
+            # beim Laden, und wo Bilder blockiert sind, steht der Alternativtext
+            # in einem Kasten von null Pixeln.
+            gefunden.append("Bild ohne Breiten- oder Höhenangabe")
+    gefunden.extend(_layouttabellen_pruefen(html))
     return gefunden
+
+
+#: Eine Tabelle, die als Layout dient, traegt `role="presentation"`.
+#:
+#: Warum die Marke Pflicht ist: Ein Screenreader liest jede Tabelle als
+#: Datensatz vor — Zeile fuer Zeile, Zelle fuer Zelle, mit angesagter Position.
+#: Bei einem Umschlag oder einem Logo daneben ist das sinnlos. `role` schaltet
+#: das ab, und zugleich macht die Marke die Absicht pruefbar: Eine Tabelle ohne
+#: `<th>` UND ohne `role` ist entweder eine Datentabelle ohne Kopf oder ein
+#: unmarkiertes Layout, und beides ist ein Befund.
+LAYOUTMARKE = re.compile(r'role\s*=\s*["\']?presentation', re.IGNORECASE)
+
+
+def _layouttabellen_pruefen(html: str) -> list[str]:
+    """Jede Tabelle ist entweder Daten (mit `<th>`) oder Layout (mit `role`).
+
+    Gemessen am 29.08.2026: Eine Mail mit Logo im Profil fiel durch
+    `verify --email` — die Signaturtabelle um das Logo trug weder das eine noch
+    das andere. Aufgefallen ist es niemandem, weil das Beispielprofil kein Logo
+    hat und deshalb kein Test die Tabelle je erzeugte.
+    """
+    offen: list[str] = []
+    #: Je offene Tabelle: trägt sie die Layoutmarke, hat sie eine Kopfzelle.
+    stapel: list[list[bool]] = []
+    for treffer in re.finditer(r"<table\b([^>]*)>|</table\s*>|<th\b", html, re.IGNORECASE):
+        marke = treffer.group(0).lower()
+        if marke.startswith("</table"):
+            if stapel:
+                layout, kopf = stapel.pop()
+                if not layout and not kopf:
+                    offen.append("Tabelle ohne <th> und ohne role=presentation — "
+                                 "Daten oder Layout, eines von beidem muss dastehen")
+        elif marke.startswith("<th"):
+            # Gehört zur innersten offenen Tabelle. Genau deshalb ein Stapel
+            # und kein Paar-Muster: `<table>(.*?)</table>` fand beim Umschlag
+            # das Ende der INNEREN Tabelle, übersprang deren Anfang und ließ
+            # eine Datentabelle ohne Kopf unbemerkt durch. Gefangen hat das
+            # `test_jede_pruefung_kann_rot_werden` — die Sabotage `<th>` zu
+            # `<td>` blieb grün.
+            if stapel:
+                stapel[-1][1] = True
+        else:
+            stapel.append([bool(LAYOUTMARKE.search(treffer.group(1) or "")), False])
+    return offen

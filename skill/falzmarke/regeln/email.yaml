@@ -224,6 +224,22 @@ regeln:
       gmail_grenzen: >-
         „For personal Gmail accounts, the limit is 25 MB."
 
+  - id: email.tabelle_spalten
+    titel: Breite Tabellen tragen in einer Mail nicht
+    lint: email.tabelle_spalten
+    ebene: praxis
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      Ab fünf Spalten wird gewarnt. Die Zahl ist **keine Messung**, sondern
+      eine Setzung aus Issue #104: Ein Mailfenster ist schmal, auf dem Telefon
+      besonders, und eine Tabelle bricht dort in Zellen um, bis die Zeile nicht
+      mehr zusammengehört. Wo die Grenze genau liegt, hängt an Fenster,
+      Schriftgröße und Inhalt — deshalb eine Warnung mit einem Vorschlag und
+      keine Ablehnung. Der Vorschlag ist die PDF-Anlage: Dort steht die Tabelle
+      auf einer festen Breite und bleibt lesbar.
+
   - id: email.adresse_international
     titel: Adresse mit Zeichen ausserhalb von ASCII
     lint: email.adresse_international
