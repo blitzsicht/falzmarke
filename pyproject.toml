@@ -38,8 +38,15 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/blitzsicht/falzmarke"
-Documentation = "https://github.com/blitzsicht/falzmarke#readme"
+# Homepage zeigt auf die Website, nicht auf das Repository. Auf PyPI ist das der
+# prominenteste Link der Projektseite, und er ging bisher dorthin, wo ohnehin
+# schon fuenf andere hinzeigen. Wer ueber PyPI kommt, sucht meist keine
+# Quelltexte, sondern eine Anleitung — die steht auf falzmarke.com.
+#
+# Wirkt erst mit dem naechsten Release: PyPI zieht die Metadaten aus dem
+# hochgeladenen Paket, nicht aus dem Repository.
+Homepage = "https://falzmarke.com"
+Documentation = "https://falzmarke.com/anleitung/claude"
 Source = "https://github.com/blitzsicht/falzmarke"
 Changelog = "https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md"
 Releases = "https://github.com/blitzsicht/falzmarke/releases"
