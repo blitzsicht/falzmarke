@@ -114,6 +114,50 @@ def mitgeschnittene_zeilen() -> list[str]:
     return raus
 
 
+# ── Was die CLI ausgibt, muss in das Terminal der Aufnahme passen ──────────
+#
+# Gemessen am 28.08.2026 an einem roten Lauf der Video-Aktion (Merge von #140
+# auf main): Die neue Zeile
+#
+#   OK    Seite 1, Zeilenraster: soll Vielfaches von 4,2333 ist 7 Abstände,
+#         alle auf dem Raster (tol ±0.06 Zeilen)
+#
+# ist 110 Zeichen lang. Im Mitschnitt stand die schliessende Klammer allein in
+# der naechsten Zeile, und der Test darunter meldete beide Haelften als „Zeilen,
+# die kein Lauf erzeugt". Die Kopplung zwischen Ausgabebreite und Aufnahmebreite
+# war bis dahin nirgends festgehalten: Sie fiel erst auf main auf, nachdem der PR
+# gruen durchgelaufen war — die Video-Aktion laeuft nur dort.
+#
+# 109 ist deshalb keine Schaetzung aus Schriftgroesse und Pixelbreite, sondern
+# die Folge einer Beobachtung: 110 Zeichen passten nachweislich nicht mehr.
+#
+# In ZEICHEN, nicht in Bytes. Beim ersten Anlauf zu diesem Test war die Grenze
+# aus `awk '{print length}'` genommen — das zaehlt Bytes und meldete fuer
+# dieselbe Zeile 112. Mit der zu weiten Grenze blieb die Gegenprobe unten gruen,
+# und der Test haette den Fall, fuer den es ihn gibt, durchgelassen.
+MITSCHNITT_SPALTEN = 109
+
+
+def zu_breit(zeilen) -> list[str]:
+    return [z for z in zeilen if len(z) > MITSCHNITT_SPALTEN]
+
+
+def test_keine_ausgabezeile_ist_breiter_als_die_aufnahme(echte_ausgabe):
+    breit = zu_breit(echte_ausgabe)
+    assert not breit, (
+        "Diese Zeilen brechen im Mitschnitt um und machen die Video-Aktion rot:\n"
+        + "\n".join(f"{len(z)} Zeichen: {z}" for z in sorted(breit))
+    )
+
+
+def test_die_breitenpruefung_wuerde_eine_zu_lange_zeile_bemerken():
+    """Gegenprobe: ohne sie belegt der Test oben nur, dass er gelaufen ist."""
+    gerade_noch = "x" * MITSCHNITT_SPALTEN
+    eins_zuviel = "x" * (MITSCHNITT_SPALTEN + 1)
+    assert zu_breit([gerade_noch]) == []
+    assert zu_breit([eins_zuviel]) == [eins_zuviel]
+
+
 # ── Der Mitschnitt erfindet nichts ──────────────────────────────────────────
 
 def test_jede_zeile_im_gif_stammt_aus_einem_echten_lauf(echte_ausgabe):

@@ -337,7 +337,11 @@ def _raster(dokument, bericht: Bericht, briefseiten: int | None = None) -> None:
             hoehe, vielfaches, text = schiefe[0]
             ist = f"{vielfaches:.2f} Zeilen vor „{text}“ (Seite {nummer}, {hoehe:.2f} mm)"
         else:
-            ist = f"{gemessen} Abstände, alle auf dem Raster"
+            # Kurz gehalten: Diese Zeile stand mit 112 Zeichen an der Spitze
+            # aller Berichtszeilen (die naechstlange misst 87) und brach im
+            # Mitschnitt fuer das README-GIF um — der Terminal dort fasst 111.
+            # Dass alle Abstaende passen, sagt bereits das „OK" davor.
+            ist = f"{gemessen}× eingehalten"
         bericht.add(
             f"Seite {nummer}, Zeilenraster", "Vielfaches von 4,2333",
             ist, f"±{RASTER_TOLERANZ} Zeilen", not schiefe,
