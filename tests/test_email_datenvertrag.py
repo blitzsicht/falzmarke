@@ -425,6 +425,13 @@ def _loese_aus(regel: str, tmp_path):
         pfad = tmp_path / "nachricht.md"
         pfad.write_text(f"---\n{MAIL}---\nText der Nachricht.\n", encoding="utf-8")
         return falzmarke.linte(pfad, profil_verzeichnis=_profil_ohne(feld, tmp_path))
+    if regel == "email.tabelle_spalten":
+        # Fünf Spalten — genau an der Grenze aus #104.
+        return linte(tmp_path, MAIL,
+                     "anbei die Übersicht:\n\n"
+                     "| Pos | Artikel | Menge | Preis | Summe |\n"
+                     "|---|---|---|---|---|\n"
+                     "| 1 | Stuhl | 2 | 40,00 | 80,00 |\n")
     if regel == "email.anlage_groesse":
         # 20 MB Datei, 26,7 MB Nachricht: unter der Gmail-Grenze und trotzdem
         # darüber. Genau der Fall, den die Dateigrößenmessung übersah (#183).

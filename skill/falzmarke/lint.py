@@ -855,6 +855,38 @@ def pruefe_email_logo(profil: dict, profil_pfad, bericht: Bericht) -> None:
         "beiden Gruenden lesbar sein, oder `email.logo` bleibt aus")
 
 
+#: Ab wie vielen Spalten eine Tabelle in einer Mail gemeldet wird (#104).
+#: Keine Messung, sondern eine Setzung — siehe `regeln/email.yaml`.
+EMAIL_TABELLE_SPALTEN = 5
+
+#: Die Trennzeile einer Markdown-Tabelle: nur Striche, Doppelpunkte, Balken.
+#: An ihr wird gezählt und nicht an der Kopfzeile — sie hat je Spalte genau
+#: einen Eintrag, auch wenn eine Zelle leer ist.
+TABELLENTRENNER = re.compile(r"^\s*\|?[\s:|-]*-[\s:|-]*\|[\s:|-]*$")
+
+
+def pruefe_email_tabellen(body: str, versatz: int, bericht: Bericht) -> None:
+    """Wie breit eine Tabelle im Mailfenster wird (Issue #104).
+
+    Gezählt wird an der Trennzeile: `| --- | --- |` trägt je Spalte einen
+    Eintrag, auch wenn in der Kopfzeile eine Zelle leer bleibt. Gemeldet wird
+    die Kopfzeile darüber — dort steht, was der Verfasser ändern muss.
+    """
+    for nummer, zeile in enumerate(body.splitlines(), start=1 + versatz):
+        if not TABELLENTRENNER.match(zeile):
+            continue
+        spalten = len([t for t in zeile.strip().strip("|").split("|")])
+        if spalten < EMAIL_TABELLE_SPALTEN:
+            continue
+        bericht.fehler(
+            max(1, nummer - 1), "email.tabelle_spalten",
+            f"die Tabelle hat {spalten} Spalten — in einem Mailfenster bricht sie um, "
+            "bis eine Zeile nicht mehr zusammengehört",
+            "Spalten zusammenfassen oder die Tabelle als PDF-Anlage beilegen — "
+            "dort steht sie auf fester Breite",
+        )
+
+
 def pruefe_anhanggroesse(kopf: dict, basis, kopf_roh: str, bericht: Bericht) -> None:
     """Wie groß die Nachricht mit ihren Anhängen wird — in Stufen (Issue #183).
 

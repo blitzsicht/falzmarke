@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from falzmarke import eml, markdown as md
+from falzmarke import eml, emit_html, markdown as md
 from conftest import SKILL
 
 PROFIL_DATEI = SKILL / "falzmarke" / "typst" / "profiles" / "example.yaml"
@@ -256,3 +256,51 @@ def test_schreibe_ersetzt_eine_bestehende_fassung(profil, bloecke, tmp_path):
     ziel.with_suffix(".txt").write_text("alt", encoding="utf-8")
     eml.schreibe(_baue(profil, bloecke), ziel, html="<p>x</p>", text="neu")
     assert ziel.with_suffix(".txt").read_text(encoding="utf-8") == "neu"
+
+
+# ── Die erweiterte Grenze (#104) ────────────────────────────────────────────
+
+@pytest.mark.parametrize("html,erwartet", [
+    ('<img src="data:image/png;base64,iVBOR" alt="x" width="10" height="10">',
+     "data:-URL"),
+    ('<img src="cid:x" alt="x">', "Breiten- oder Höhenangabe"),
+    ('<form action="https://x.invalid"></form>', "Formular"),
+    ('<td onclick="x()">a</td>', "Ereignis-Attribut"),
+    ('<table><tr><td>a</td></tr></table>', "role=presentation"),
+])
+def test_was_eine_erzeugte_mail_nicht_enthalten_darf(html, erwartet):
+    """Die Liste aus #104. Jeder Fall einzeln, sonst deckt ein Treffer den
+    nächsten zu."""
+    gefunden = " | ".join(emit_html.verstoesse(html))
+    assert erwartet in gefunden, f"{erwartet!r} fehlt in: {gefunden!r}"
+
+
+@pytest.mark.parametrize("html", [
+    '<img src="cid:x" alt="x" width="120" height="40">',
+    '<table role="presentation"><tr><td>a</td></tr></table>',
+    '<table><tr><th>Kopf</th></tr><tr><td>a</td></tr></table>',
+])
+def test_und_was_sie_enthalten_darf(html):
+    """Ohne die Gegenstücke wüsste man nur, dass die Prüfung meldet — nicht,
+    ob sie trifft."""
+    assert emit_html.verstoesse(html) == []
+
+
+def test_eine_datentabelle_im_umschlag_wird_noch_gesehen():
+    """Der Fall, an dem das erste Muster scheiterte: `<table>(.*?)</table>`
+    fand beim Umschlag das Ende der INNEREN Tabelle und übersprang deren
+    Anfang — eine Datentabelle ohne Kopf blieb dadurch unbemerkt."""
+    html = ('<table role="presentation"><tr><td>'
+            '<table><tr><td>ohne Kopf</td></tr></table>'
+            "</td></tr></table>")
+    assert emit_html.verstoesse(html), "die innere Tabelle wurde übersehen"
+
+
+def test_der_umschlag_traegt_beide_breiten():
+    """Die Word-Engine liest das Attribut, alle anderen lesen den Stil. Ein
+    einzelner Wert könnte nur eines von beidem (#104)."""
+    seite = emit_html.dokument("<p>Text</p>")
+    assert 'width="600"' in seite, "das Attribut fehlt — Outlook liefe über die volle Breite"
+    assert "max-width: 600px" in seite, "der Stil fehlt — alle anderen schrumpfen nicht mit"
+    assert 'role="presentation"' in seite
+    assert '<div style="max-width' not in seite, "der alte div-Umschlag steht noch da"

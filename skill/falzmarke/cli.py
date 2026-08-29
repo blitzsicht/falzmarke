@@ -531,6 +531,7 @@ def linte(brief_pfad: Path, profil_verzeichnis: Path | None = None) -> lint_modu
         # zum Arbeitsverzeichnis. Sonst misst der Linter eine andere Datei als
         # die, die angehängt wird.
         lint_modul.pruefe_anhanggroesse(kopf, Path(brief_pfad).parent, kopf_roh, bericht)
+        lint_modul.pruefe_email_tabellen(body_md, versatz, bericht)
 
     hinweise: list = []
     try:
