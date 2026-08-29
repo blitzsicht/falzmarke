@@ -407,6 +407,11 @@ def _loese_aus(regel: str, tmp_path):
             "email.linkschema": "Mehr unter [Bedingungen](http://example.de/agb).\n",
         }[regel]
         return linte(tmp_path, MAIL, text)
+    if regel == "brief":
+        # `brief:` zeigt auf die Quelle, nicht auf das Ergebnis. Ein PDF im Feld
+        # ist der Fall, den jemand wirklich schreibt — er hat das PDF gerade
+        # gerendert und trägt seinen Namen ein (Issue #78).
+        return linte(tmp_path, MAIL + "brief: kuendigung.pdf\n")
     if regel == "email.floskel":
         return linte(tmp_path, MAIL, "Ich hoffe, es geht Ihnen gut.\n\nAnbei das Angebot.\n")
     if regel == "email.versalien":

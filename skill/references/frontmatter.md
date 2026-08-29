@@ -81,6 +81,10 @@ betreff: Angebot Nr. 2026-0815          # Pflicht, höchstens 78 Zeichen
 anrede: Sehr geehrte Frau Muster,
 gruss: Mit freundlichen Grüßen
 unterzeichner: Erika Muster
+brief: kuendigung.md                    # optional, der Brief, der mitreist
+#                                       Er wird beim Bauen gesetzt und als PDF
+#                                       angehängt; Betreff und Profil erbt die
+#                                       Mail von ihm (Issue #78).
 anlagen_dateien:                        # optional, als Anhang der Mail
   - angebot-2026-0815.pdf
 antwort_auf: "<kennung@example.de>"     # optional, wird zu In-Reply-To
@@ -165,6 +169,37 @@ Eine **Warnung**, kein Fehler: Welchen Ton ein dunkles Schema genau setzt, nennt
 Mailprogramm im Datenmodell; `#1E1E1E` ist ein begründeter Schätzwert. Nach ADR 0035 gehört
 eine Aussage über die Praxis nie auf die Fehlerebene.
 
+
+### Brief und Begleitmail in einem Zug
+
+Der häufigste Fall im Geschäftsverkehr: Das förmliche Schreiben geht als PDF im Anhang, und die
+Mail daneben sagt in drei Sätzen, worum es geht.
+
+```yaml
+# begleitmail.md
+typ: email
+an: service@example.de
+brief: kuendigung.md      # die QUELLE, nicht das PDF
+```
+
+Ein Aufruf — `falzmarke email begleitmail.md` — setzt den Brief, hängt sein PDF an und schreibt
+die `.eml`. Betreff, Profil, Dialekt und Sprache erbt die Mail vom Brief, wenn sie sie nicht
+selbst nennt; wer in der Mail einen eigenen Betreff schreibt, bekommt seinen.
+
+| erbt die Mail | erbt sie **nicht** | warum |
+|---|---|---|
+| `betreff`, `profil`, `dialekt`, `sprache` | | derselbe Vorgang, zweimal gepflegt driftet er |
+| | `an` | eine Postanschrift ist keine Mailadresse — `an:` bleibt Pflicht |
+| | `datum` | das setzt der Mailclient beim Versand |
+
+**`brief:` zeigt auf die Markdown-Quelle, nicht auf ein PDF.** Das ist der Unterschied zu
+`anlagen_dateien:`, das vorhandene Dateien nimmt: Hier kann kein veraltetes PDF mitreisen, weil
+es keines gibt, das älter wäre als dieser Aufruf. Ändert sich der Brief, ändert sich der Anhang.
+
+Beides zusammen geht: `brief:` ergänzt `anlagen_dateien:`, es ersetzt sie nicht.
+
+Versendet wird weiterhin nichts (ADR 0034). Und dass der Anhang im Text genannt wird, bleibt eine
+Warnung von `lint` — ein Werkzeug, das ungefragt Sätze schreibt, schreibt irgendwann den falschen.
 
 `pflichtangaben` ist eine **Erinnerung, keine Rechtsprüfung**: `lint` warnt, wenn das Feld leer
 ist, und sonst nichts. Welche Angaben eine Rechtsform in jeder Geschäftsmail braucht, entscheidet

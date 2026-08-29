@@ -52,6 +52,12 @@ INFOBLOCK_REIHENFOLGE = [
 PFLICHTFELDER = ("profil", "empfaenger", "datum", "betreff")
 EMAIL_PFLICHTFELDER = ("profil", "an", "betreff")
 
+#: Was eine Begleitmail von ihrem Brief erben kann und deshalb nicht selbst
+#: sagen muss (Issue #78). Die Liste steht doppelt — hier für den Datenvertrag,
+#: in `cli.ERBT_VOM_BRIEF` für das Erben selbst; ein Test hält beide zusammen.
+#: Zusammenzulegen hiesse, dass `lint` das ganze CLI-Modul lädt.
+ERBBARE_FELDER = ("betreff", "profil")
+
 # Der vollständige Datenvertrag: was im Frontmatter einer Briefdatei stehen darf.
 # Dokumentiert in references/frontmatter.md; ein Test hält beide zusammen.
 FRONTMATTER_FELDER = frozenset({
@@ -83,7 +89,7 @@ EINBETTUNG_PFLICHT = ("datei", "typ", "beschreibung")
 # es an einer.
 EMAIL_FRONTMATTER_FELDER = frozenset({
     "profil", "typ", "dialekt", "sprache", "an", "cc", "betreff", "anrede", "gruss",
-    "unterzeichner", "anlagen_dateien", "antwort_auf",
+    "unterzeichner", "anlagen_dateien", "antwort_auf", "brief",
     # `datum` ist hier bekannt, damit es die eigene Warnung auslöst statt als
     # unbekanntes Feld zu gelten. Es wird nicht gesetzt — das tut der Client.
     "datum",
@@ -470,15 +476,54 @@ def _pruefe_ausschluss(kopf: dict, typ: str, kopf_roh: str, bericht: Bericht) ->
             f"`{feld}:` gibt es in einem {womit} nicht", rat)
 
 
+def pruefe_begleitbrief(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
+    """`brief:` — der Brief, der als PDF an dieser Nachricht hängt (#78).
+
+    Geprüft wird hier nur, was ohne Dateizugriff feststeht. Ob die Datei
+    existiert und ob sie selbst eine Nachricht ist, meldet `setze_email` beim
+    Setzen: Der Linter soll eine Briefdatei nicht nebenbei mitlesen, sonst
+    wandert die halbe Prüfkette hierher.
+    """
+    wert = kopf.get("brief")
+    if not isinstance(wert, str) or not wert.strip():
+        bericht.fehler(
+            _feldzeile(kopf_roh, "brief"), "brief",
+            "`brief:` braucht den Pfad einer Briefdatei",
+            "relativ zur Nachricht, etwa `brief: kuendigung.md`")
+        return
+    if not wert.strip().lower().endswith(".md"):
+        bericht.fehler(
+            _feldzeile(kopf_roh, "brief"), "brief",
+            f"`brief: {wert}` ist keine Markdown-Datei",
+            "erwartet wird die QUELLE des Briefes, nicht sein PDF — gesetzt wird "
+            "er beim Bauen der Nachricht. Ein fertiges PDF gehört in "
+            "`anlagen_dateien:`")
+
+
 def pruefe_email_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
     """Der Datenvertrag der E-Mail-Fassung (ADR 0034)."""
     _melde_unbekannte(kopf.keys(), EMAIL_FRONTMATTER_FELDER, "frontmatter", kopf_roh, bericht)
     pruefe_dialekt(kopf, kopf_roh, bericht)
     _pruefe_ausschluss(kopf, "email", kopf_roh, bericht)
 
+    # `brief:` bringt Betreff und Profil mit (#78). Sie hier trotzdem zu
+    # verlangen hiesse, dieselbe Angabe zweimal zu fordern — genau das, wogegen
+    # die Kopplung gebaut ist. `an:` bleibt Pflicht: Eine Postanschrift ist
+    # keine Mailadresse, und der Brief trägt keine.
+    # `"brief" in kopf` und nicht `kopf.get("brief")`: Ein leeres Feld ist ein
+    # Tippfehler, kein fehlendes Feld — es wird unten gemeldet. Geerbt wird
+    # natürlich nur von einem echten Pfad.
+    genannt = "brief" in kopf
+    erbt = bool(kopf.get("brief"))
     for feld in EMAIL_PFLICHTFELDER:
-        if not kopf.get(feld):
-            bericht.fehler(1, feld, "Pflichtfeld fehlt", f"`{feld}:` im Frontmatter ergänzen")
+        if kopf.get(feld):
+            continue
+        if erbt and feld in ERBBARE_FELDER:
+            continue
+        bericht.fehler(1, feld, "Pflichtfeld fehlt", f"`{feld}:` im Frontmatter ergänzen")
+
+    if genannt:
+        pruefe_begleitbrief(kopf, kopf_roh, bericht)
 
     for feld in ("an", "cc"):
         if kopf.get(feld):
