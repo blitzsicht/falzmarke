@@ -38,7 +38,8 @@ import messfilm                                                      # noqa: E40
 #: Das Fertigkriterium je Dateiformat. Ein abgeschnittener Film ist an der
 #: Größe nicht zu erkennen — GIF endet auf das Semikolon, WebP trägt seine
 #: Länge im RIFF-Kopf.
-DATEIEN = ("messfilm.gif", "messfilm.webp", "messfilm.json")
+DATEIEN = ("messfilm.gif", "messfilm.webp", "messfilm.json",
+           "messfilm-9x16.webp")
 
 
 @pytest.fixture(scope="module")
@@ -109,9 +110,9 @@ def test_stopps_liegen_auf_dem_blatt(gebaut):
 
 def test_stopps_stehen_in_der_reihenfolge_der_seite(gebaut):
     """Die Linie fährt von oben nach unten und springt nicht zurück."""
-    höhen = [s["y_mm"] for s in gebaut["stopps"]]
-    assert höhen == sorted(höhen), (
-        f"Die Halte stehen nicht der Reihe nach: {höhen}. Der Film liefe dann "
+    hoehen = [s["y_mm"] for s in gebaut["stopps"]]
+    assert hoehen == sorted(hoehen), (
+        f"Die Halte stehen nicht der Reihe nach: {hoehen}. Der Film liefe dann "
         "auf und ab, und der Eindruck einer Abtastung wäre geschauspielert."
     )
 
@@ -272,3 +273,92 @@ def test_alt_text_nennt_keine_werte_die_es_nicht_gibt():
         f"Der Alt-Text nennt {sorted(ueberzaehlig)}, aber der Film zeigt diese "
         "Werte nicht. Vermutlich ein Rest aus einer früheren Fassung."
     )
+
+
+# ── 5. Das Hochformat ───────────────────────────────────────────────────────
+#
+# Es gibt es, weil Facebook, Instagram und WhatsApp den Querformat-Film als
+# Video behandeln und auf 9:16 beschneiden — nachgesehen am 29.08.2026 an einer
+# echten Facebook-Vorschau: links fiel „Jedes Maß" weg, rechts
+# „Infoblock, y-Oberkan…".
+
+def test_hochformat_hat_das_masz_das_die_dienste_erwarten(gebaut):
+    """1080 × 1920. Ein anderes Verhältnis wird wieder beschnitten."""
+    erstes = gebaut["hoch_frames"][0]
+    assert (erstes.width, erstes.height) == (messfilm.HOCH_BREITE, messfilm.HOCH_HOEHE)
+    assert erstes.height / erstes.width == pytest.approx(16 / 9, abs=0.01), (
+        f"{erstes.width}×{erstes.height} ist nicht 9:16 — Story und Status "
+        "schneiden dann wieder etwas weg."
+    )
+
+
+def test_beide_formate_zeigen_dieselben_zahlen(gebaut):
+    """Der eigentliche Grund, sie zusammen zu bauen.
+
+    Zwei Fassungen, von denen eine nachgezogen werden müsste, laufen genau dann
+    auseinander, wenn es keiner merkt — und die eine, die niemand ansieht, zeigt
+    dann alte Zahlen. Hier wird geprüft, dass beide aus demselben Bericht
+    stammen: gleiche Bildzahl, gleiche Standzeiten.
+    """
+    assert len(gebaut["hoch_frames"]) == len(gebaut["frames"]), (
+        "Die Formate haben verschieden viele Bilder — dann halten sie an "
+        "verschieden vielen Maßen."
+    )
+    assert gebaut["hoch_dauern"] == gebaut["dauern"], (
+        "Die Standzeiten unterscheiden sich; die Filme laufen verschieden lang "
+        "durch dieselben Halte."
+    )
+
+
+def test_hochformat_haelt_an_denselben_hoehen(gebaut):
+    """Die Umrechnung mm → Pixel ist im Hochformat eine andere, die Höhen sind dieselben.
+
+    Gegenprobe im selben Test: 20 mm weiter unten MUSS eine andere Bildzeile
+    herauskommen. Ohne sie hieße „stimmt überein" nur, dass zwei Formeln
+    dieselbe Konstante teilen.
+    """
+    for stopp in gebaut["stopps"]:
+        y = stopp["y_mm"]
+        gezeichnet = messfilm._hoch_y(y)
+        erwartet = messfilm.HOCH_KOPF + round(
+            y / messfilm.BLATT_MM[1] * messfilm.HOCH_BLATT_HOEHE)
+        assert gezeichnet == erwartet, f"„{stopp['name']}“: {gezeichnet} statt {erwartet}"
+        daneben = messfilm._hoch_y(min(y + 20.0, messfilm.BLATT_MM[1]))
+        assert daneben != gezeichnet, (
+            f"20 mm weiter unten kommt dieselbe Bildzeile heraus ({gezeichnet})."
+        )
+
+
+def test_der_beleg_nennt_beide_formate():
+    """messfilm.json hält fest, was tatsächlich entstanden ist."""
+    beleg = json.loads(messfilm.BELEG.read_text(encoding="utf-8"))
+    assert "formate" in beleg, "Der Beleg nennt die Formate nicht"
+    assert beleg["formate"]["hoch"] == [messfilm.HOCH_BREITE, messfilm.HOCH_HOEHE]
+
+
+# ── 6. Bezeichner tragen keine Umlaute ──────────────────────────────────────
+
+def test_kein_bezeichner_traegt_einen_umlaut():
+    """Deutsche Prosa mit Umlauten, Bezeichner ohne.
+
+    Am 28.08.2026 hat eine pauschale Umlaut-Ersetzung hier Variablen- und
+    Parameternamen mitgenommen (`höhe`, `feld_höhe`, `höhen`) und dabei auch
+    JSON-Schlüssel getroffen — `bericht["prüfungen"]` warf einen KeyError. Die
+    damalige Prüfung lief über ein Textmuster und sah Parameternamen nicht.
+    Diese hier geht über den Syntaxbaum und sieht jeden Bezeichner.
+
+    Python erlaubt Umlaute in Namen; das ist nicht der Punkt. Der Punkt ist,
+    dass sie hier nie Absicht waren.
+    """
+    import ast
+
+    for name in ("scripts/messfilm.py", "tests/test_messfilm.py"):
+        baum = ast.parse((REPO / name).read_text(encoding="utf-8"))
+        treffer = {
+            getattr(knoten, feld)
+            for knoten in ast.walk(baum)
+            for feld in ("name", "arg", "id", "attr")
+            if isinstance(getattr(knoten, feld, None), str)
+            and any(z in getattr(knoten, feld) for z in "äöüÄÖÜß")
+        }
+        assert not treffer, f"{name}: Bezeichner mit Umlaut — {sorted(treffer)}"
