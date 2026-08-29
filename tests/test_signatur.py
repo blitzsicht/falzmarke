@@ -112,24 +112,40 @@ def test_die_signatur_kommt_genau_einmal_vor(beispiel):
     """Die Gegenprobe aus #105, und sie gilt für beide Teile."""
     kopf, body, versatz = falzmarke.lies_brief(beispiel)
     profil = _profil(kopf["profil"])
-    bloecke = markdown.lies(body, versatz)
+    # Siehe test_email_beispiele: Mail-Fassung, also `ziel="email"`.
+    bloecke = markdown.lies(body, versatz, ziel="email")
     # Nicht am Namen messen: „Erika Muster" steht auch in
     # „Geschäftsführerin: Erika Muster" aus der Fußzeile. Zwei Rollen, kein
-    # Duplikat — die Adresse dagegen kommt genau einmal vor.
+    # Duplikat — die Adresse dagegen kommt in der Signatur genau einmal vor.
     adresse = profil["email"]["absender"]
 
     text = eml.textteil(kopf, profil, bloecke)
     assert text.count(eml.SIGNATUR_TRENNER) == 1, "der Signaturtrenner steht mehrfach"
-    assert text.count(adresse) == 1, f"im Textteil {text.count(adresse)}×"
+
+    # **Nur die Signatur zählt**, nicht der ganze Text. Bis zum 29.08.2026 stand
+    # hier `text.count(adresse)` über alles — und `email-links.md` machte es rot:
+    # Der Brieftext nennt „erika.muster@example.de", und der Absender
+    # „muster@example.de" steckt als Teilzeichenkette darin.
+    #
+    # Der Befund war falsch. Eine Adresse im Brieftext ist kein doppelter
+    # Signaturanhang, und genau den soll dieser Test finden — dass die Signatur
+    # nur einmal hängt, sagt der Trenner darüber. Es ist derselbe Fehler, vor
+    # dem `pruefung_eml._woerter` warnt: „Mengenvergleich, kein Substring."
+    signatur = text[text.index(eml.SIGNATUR_TRENNER):]
+    assert signatur.count(adresse) == 1, f"in der Signatur {signatur.count(adresse)}×"
 
     html = eml.htmlteil(kopf, profil, bloecke)
-    assert html.count(adresse) == 1, f"im HTML-Teil {html.count(adresse)}×"
+    # Im HTML gibt es keinen Trenner als Zeichenkette — dort grenzt die
+    # Trennlinie ab, und die hängt am ersten Signaturblock.
+    html_signatur = html[html.index("border-top"):]
+    assert html_signatur.count(adresse) == 1, \
+        f"in der HTML-Signatur {html_signatur.count(adresse)}×"
 
 
 def test_der_textteil_trennt_die_bloecke_durch_leerzeilen():
     kopf, body, versatz = falzmarke.lies_brief(EMAIL_BEISPIELE[0])
     profil = _profil(kopf["profil"])
-    text = eml.textteil(kopf, profil, markdown.lies(body, versatz))
+    text = eml.textteil(kopf, profil, markdown.lies(body, versatz, ziel="email"))
     signatur = text[text.index(eml.SIGNATUR_TRENNER):]
     assert signatur.count("\n\n") == 2, "zwei Leerzeilen für drei Blöcke erwartet"
 
@@ -137,7 +153,7 @@ def test_der_textteil_trennt_die_bloecke_durch_leerzeilen():
 def test_der_htmlteil_setzt_drei_absaetze():
     kopf, body, versatz = falzmarke.lies_brief(EMAIL_BEISPIELE[0])
     profil = _profil(kopf["profil"])
-    html = eml.htmlteil(kopf, profil, markdown.lies(body, versatz))
+    html = eml.htmlteil(kopf, profil, markdown.lies(body, versatz, ziel="email"))
     # Die Trennlinie gehört an den ersten Block, nicht an jeden.
     assert html.count("border-top") == 1, "die Trennlinie steht mehrfach"
 

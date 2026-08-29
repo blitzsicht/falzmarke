@@ -171,7 +171,9 @@ def test_der_parser_bekommt_alle_teile_zurueck(beispiel, tmp_path):
 @pytest.mark.parametrize("delsp", [True, False], ids=["delsp=yes", "delsp=no"])
 @pytest.mark.parametrize("beispiel", EMAIL_BEISPIELE, **IDS)
 def test_die_faltung_ist_umkehrbar(beispiel, delsp):
-    bloecke = md.lies(_brieftext(beispiel))
+    # `ziel="email"`: Ohne das gilt die Vorgabe `brief`, und dort ist ein
+    # Link ein Fehler (#103). Dieser Test misst die Mail-Fassung.
+    bloecke = md.lies(_brieftext(beispiel), ziel="email")
     gefaltet = text.falte(bloecke, delsp=delsp)
     assert text.entfalte(gefaltet, delsp=delsp) == text.setze(bloecke)
 
@@ -181,7 +183,7 @@ def test_die_faltung_misst_ueberhaupt_etwas():
     marken = sum(
         zeile.endswith(" ")
         for beispiel in EMAIL_BEISPIELE
-        for zeile in text.falte(md.lies(_brieftext(beispiel))).split("\n")
+        for zeile in text.falte(md.lies(_brieftext(beispiel), ziel="email")).split("\n")
     )
     assert marken > 0, "kein einziger weicher Umbruch — der Rundlauf belegt nichts"
 

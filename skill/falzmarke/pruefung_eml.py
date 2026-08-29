@@ -70,17 +70,46 @@ def _normalisiert(text: str) -> str:
     andere in Absätze gesetzt, und geschützte Leerzeichen stehen mal so, mal
     so. Was gleich sein muss, ist der Wortlaut.
     """
-    ohne_markup = re.sub(r"<[^>]+>", " ", text.replace("\r\n", "\n"))
+    roh = text.replace("\r\n", "\n")
+    # Im Klartext steht eine Adresse in spitzen Klammern — `<https://…>`, damit
+    # das folgende Satzzeichen nicht an ihr klebt (Issue #103). Für `<[^>]+>`
+    # sieht das aus wie ein Tag, und die Adresse verschwände aus dem Vergleich:
+    # Gemessen am 29.08.2026 an `email-links.md` fiel jede der vier Adressen
+    # heraus, auf BEIDEN Seiten — die Prüfung war dort still wirkungslos.
+    roh = re.sub(r"<((?:https?|mailto|tel):[^>\s]*)>", r" \1 ", roh)
+    # Und im HTML steht die Adresse nur im Attribut. Ohne diese Zeile fehlten
+    # genau die Ziele, deren Linktext NICHT die Adresse ist — gemessen an
+    # `email-links.md`: `…/agb-2026-08.html` und `tel:+4994162098000`, während
+    # `…/datenschutz` durchging, weil es auch in der Signatur steht.
+    #
+    # Nur `href`, nicht jedes Attribut: `src="cid:…"` und `style="…"` sind
+    # Markup, kein Wortlaut. Sie mitzuzählen hiesse, Stilangaben mit dem Text
+    # zu vergleichen.
+    roh = re.sub(r'<a\b[^>]*?href="([^"]*)"[^>]*>', r" \1 ", roh, flags=re.I)
+    ohne_markup = re.sub(r"<[^>]+>", " ", roh)
     entschaerft = (ohne_markup.replace("&amp;", "&").replace("&lt;", "<")
                    .replace("&gt;", ">").replace("&quot;", '"').replace("&#x27;", "'"))
     zusammen = unicodedata.normalize("NFKC", entschaerft)
     return " ".join(zusammen.split()).casefold()
 
 
+#: Zeichensetzung am Wortrand. Sie gehört zur Darstellung, nicht zum Wortlaut.
+#:
+#: Der Grund, gemessen am 29.08.2026: Im Klartext führt ein Link seine Adresse
+#: mit einem Doppelpunkt ein — `Geschäftsbedingungen: <https://…>`. Im HTML
+#: steht derselbe Text im `<a>`, und der Doppelpunkt gar nicht. Beide Fassungen
+#: sagen dasselbe; `geschäftsbedingungen:` und `geschäftsbedingungen` sind es
+#: als Zeichenkette aber nicht.
+#:
+#: Dasselbe an jeder Tag-Grenze: `<a…>erika@example.de</a>.` zerfällt beim
+#: Entfernen der Tags in zwei Tokens, im Klartext ist es eines.
+RANDZEICHEN = ".,;:!?()[]„“\"'»«›‹"
+
+
 def _woerter(text: str) -> set[str]:
     """Die Wortmenge eines Teils — für den Vergleich der Fassungen.
 
-    Zwei Feinheiten, beide gemessen:
+    Drei Feinheiten, alle gemessen:
 
     * **Nur Tokens mit Buchstabe oder Ziffer.** `-` ist im Text ein
       Aufzählungspunkt und im HTML ein `<li>`, `--` der Signaturtrenner und im
@@ -89,8 +118,12 @@ def _woerter(text: str) -> set[str]:
     * **Mengenvergleich, kein Substring.** `wort in text` findet auch, was nur
       Teil eines anderen Wortes ist — `-` etwa in „620-9800". Der Test wäre
       dann fast immer grün, und zwar aus dem falschen Grund.
+    * **Zeichensetzung am Rand fällt weg** (`RANDZEICHEN`). Sie steht in den
+      beiden Fassungen an verschiedenen Stellen, ohne dass der Wortlaut sich
+      unterscheidet.
     """
-    return {w for w in _normalisiert(text).split() if any(z.isalnum() for z in w)}
+    return {w.strip(RANDZEICHEN) for w in _normalisiert(text).split()
+            if any(z.isalnum() for z in w)} - {""}
 
 
 # ── Die einzelnen Prüfungen ─────────────────────────────────────────────────

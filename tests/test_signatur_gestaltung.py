@@ -33,7 +33,7 @@ def _seite(beispiel=None) -> str:
     beispiel = beispiel or EMAIL_BEISPIELE[0]
     kopf, body, versatz = falzmarke.lies_brief(beispiel)
     profil = yaml.safe_load((PROFILE / f"{kopf['profil']}.yaml").read_text(encoding="utf-8"))
-    return eml.htmlteil(kopf, profil, markdown.lies(body, versatz))
+    return eml.htmlteil(kopf, profil, markdown.lies(body, versatz, ziel="email"))
 
 
 # ── Der Dunkelblock, und warum er die einzige Ausnahme ist ──────────────────
@@ -125,7 +125,7 @@ def test_die_pruefung_bemerkt_ein_vergessenes_element():
 def test_auch_die_begleitseite_schaltet_um():
     kopf, body, versatz = falzmarke.lies_brief(EMAIL_BEISPIELE[0])
     profil = yaml.safe_load((PROFILE / f"{kopf['profil']}.yaml").read_text(encoding="utf-8"))
-    seite = eml.begleit_html(kopf, profil, markdown.lies(body, versatz))
+    seite = eml.begleit_html(kopf, profil, markdown.lies(body, versatz, ziel="email"))
     assert html.nicht_umschaltbar(seite) == []
     assert html.verstoesse(seite) == []
 
@@ -153,7 +153,7 @@ def profil_mit_logo(tmp_path):
 def _nachricht(profil, profil_pfad):
     beispiel = EMAIL_BEISPIELE[0]
     kopf, body, versatz = falzmarke.lies_brief(beispiel)
-    return eml.baue(kopf, profil, body, markdown.lies(body, versatz),
+    return eml.baue(kopf, profil, body, markdown.lies(body, versatz, ziel="email"),
                     brief_pfad=beispiel, profil_pfad=profil_pfad)
 
 
