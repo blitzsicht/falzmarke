@@ -865,9 +865,38 @@ def erkenne_form(pdf_pfad: Path) -> str | None:
     return beste if treffer[beste] >= 1 else None
 
 
-def pdfa_geprueft(pdf_pfad: Path) -> tuple[bool, str]:
-    """Liest die XMP-Metadaten und prüft auf PDF/A-2b."""
+#: Die Teile von PDF/A, die dieses Werkzeug erzeugt.
+#:
+#: 2 ist die Vorgabe, 3 kommt hinzu, sobald eine Datei eingebettet wird — PDF/A-2
+#: kennt keine beliebigen Dateien im Dokument (ADR 0033, Issue #114). Beide in
+#: Konformitätsgrad B: Grad A verlangt zusätzlich eine getaggte Struktur, und die
+#: liefert `--pdfua`.
+PDFA_TEILE = ("2", "3")
+
+
+def pdfa_stufe(pdf_pfad: Path) -> str | None:
+    """Welche PDF/A-Stufe behauptet diese Datei — `"2b"`, `"3b"` oder None.
+
+    Gelesen wird das XMP, nicht geraten: Was dort steht, ist die Aussage, die im
+    Umlauf ist. Ob sie stimmt, sagt nur ein Prüfwerkzeug wie veraPDF
+    (`scripts/pdf_konformitaet.py`).
+    """
     xmp = xmp_lesen(pdf_pfad)
-    teil_ok = "pdfaid:part>2" in xmp.replace(" ", "") or 'pdfaid:part="2"' in xmp
-    konformitaet_ok = "pdfaid:conformance>B" in xmp.replace(" ", "") or 'pdfaid:conformance="B"' in xmp
-    return (teil_ok and konformitaet_ok), xmp[:200]
+    kompakt = xmp.replace(" ", "")
+    teil = next((t for t in PDFA_TEILE
+                 if f"pdfaid:part>{t}" in kompakt or f'pdfaid:part="{t}"' in xmp), None)
+    if teil is None:
+        return None
+    if not ("pdfaid:conformance>B" in kompakt or 'pdfaid:conformance="B"' in xmp):
+        return None
+    return f"{teil}b"
+
+
+def pdfa_geprueft(pdf_pfad: Path) -> tuple[bool, str]:
+    """Trägt die Datei eine der Stufen, die falzmarke erzeugt?
+
+    Bis Issue #114 stand hier fest die 2. Ein Brief mit eingebetteter Datei ist
+    A-3b, und die Prüfung meldete ihn als „fehlt" — sie prüfte gegen eine Stufe
+    statt gegen die, die das Dokument behauptet.
+    """
+    return pdfa_stufe(pdf_pfad) is not None, xmp_lesen(pdf_pfad)[:200]

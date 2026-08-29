@@ -24,6 +24,7 @@ import tempfile
 from pathlib import Path
 
 from falzmarke import __version__ as VERSION_PAKET
+from falzmarke import emit as emit_modul
 from falzmarke import lint as lint_modul
 from falzmarke.markdown import MarkdownFehler, konvertiere, lies
 
@@ -586,6 +587,11 @@ def rendere(
     kopf, body_md, versatz = lies_brief(brief_pfad)
     profil, profil_pfad = lade_profil(kopf.get("profil", ""), profil_verzeichnis, brief_pfad)
 
+    # Was ins PDF gelegt wird. Der Datenvertrag hat die Einträge schon geprüft
+    # (`lint.pruefe_eingebettet`); hier steht nur noch, ob überhaupt etwas da
+    # ist — davon hängt die PDF/A-Stufe ab.
+    eingebettet = [e for e in (kopf.get("eingebettet") or []) if isinstance(e, dict)]
+
     with tempfile.TemporaryDirectory(prefix="falzmarke-") as tmp:
         arbeit = Path(tmp)
         baue_arbeitsverzeichnis(arbeit)
@@ -608,6 +614,30 @@ def rendere(
             kopf_import = '#import "briefkopf-eigen.typ": briefkopf as eigener-kopf\n'
             kopf_argument = ", briefkopf-eigen: eigener-kopf"
 
+        # Die eingebetteten Dateien: kopiert in den Arbeitsordner, weil Typst
+        # nur unterhalb seiner Wurzel lesen darf, und als `#pdf.attach` VOR dem
+        # Brieftext gesetzt. Sie erzeugen keine Ausgabe — sie legen die Datei in
+        # das PDF (Issue #114).
+        attach_zeilen = ""
+        for nummer, eintrag in enumerate(eingebettet, start=1):
+            quelle = Path(eintrag["datei"])
+            if not quelle.is_absolute():
+                quelle = brief_pfad.parent / quelle
+            if not quelle.is_file():
+                raise Eingabefehler(
+                    f"`eingebettet:` Eintrag {nummer}: {quelle} gibt es nicht.\n"
+                    "Der Pfad ist relativ zur Briefdatei.")
+            ziel = arbeit / f"anlage-{nummer}{quelle.suffix}"
+            shutil.copy2(quelle, ziel)
+            attach_zeilen += (
+                f"#pdf.attach({emit_modul.zeichenkette(ziel.name)}, "
+                f"mime-type: {emit_modul.zeichenkette(str(eintrag['typ']))}, "
+                f"description: {emit_modul.zeichenkette(str(eintrag['beschreibung']))}"
+                + (f", relationship: {emit_modul.zeichenkette(str(eintrag['beziehung']).lower())}"
+                   if eintrag.get("beziehung") else "")
+                + ")\n"
+            )
+
         haupt = arbeit / "main.typ"
         haupt.write_text(
             # `zitat` und `codeblock` gehoeren zum Dialekt 1.1: Der Brieftext
@@ -617,6 +647,7 @@ def rendere(
             + "#let profil = json(bytes(sys.inputs.profil))\n"
             "#let daten = json(bytes(sys.inputs.daten))\n"
             f"#show: brief.with(profil: profil, daten: daten{kopf_argument})\n\n"
+            + attach_zeilen
             + body_typst,
             encoding="utf-8",
         )
@@ -659,7 +690,13 @@ def rendere(
             # PDF/UA-1 setzt eine getaggte Struktur voraus; Typst 0.15 erzeugt
             # sie zusammen mit A-2b.
             # typst-py nimmt eine Liste oder einen String, kein Tupel.
-            argumente["pdf_standards"] = ["a-2b", "ua-1"] if pdfua else "a-2b"
+            #
+            # A-3b nur, wenn wirklich etwas eingebettet wird: PDF/A-2 kennt
+            # keine beliebigen Dateien im Dokument, A-3 lässt sie zu. Die Stufe
+            # wird verlangt, nicht stillschweigend umgestellt (ADR 0033) —
+            # `tests/test_einbetten.py` hält beide Richtungen fest.
+            stufe = "a-3b" if eingebettet else "a-2b"
+            argumente["pdf_standards"] = [stufe, "ua-1"] if pdfua else stufe
 
         try:
             typst.compile(**argumente)
@@ -822,10 +859,20 @@ def befehl_render(args) -> int:
     # Sie hier als Geometriebefund zu fuehren, wuerde EXIT_GEOMETRIE ergeben und
     # behaupten, die Masse stimmten nicht.
     kennzeichnung_gefallen = any(b["ohne_deklaration"] for b in anlagen_berichte)
+    # Erneut aus der Quelle statt durchgereicht: `rendere` gibt Pfad und Form
+    # zurück, keine Kopfdaten, und ein dritter Rückgabewert bräche jeden
+    # Aufrufer. Die Datei ist zu diesem Zeitpunkt ohnehin gelesen.
+    eingebettet_gefragt = bool(lies_brief(Path(args.brief))[0].get("eingebettet"))
     if not args.no_pdfa and not kennzeichnung_gefallen:
-        ist_pdfa, _ = geometrie.pdfa_geprueft(pdf)
-        bericht.wahr("PDF/A-2b", ist_pdfa, "pdfaid part 2, conformance B",
-                     "vorhanden" if ist_pdfa else "fehlt")
+        # Der Name der Prüfung nennt die Stufe, die das Dokument behauptet —
+        # nicht die, die es meistens hat. Ein Brief mit eingebetteter Datei ist
+        # A-3b, und „PDF/A-2b: fehlt" wäre dort eine Meldung über die falsche
+        # Sache (Issue #114).
+        stufe = geometrie.pdfa_stufe(pdf)
+        erwartet = "3b" if eingebettet_gefragt else "2b"
+        bericht.wahr(f"PDF/A-{erwartet}", stufe == erwartet,
+                     f"pdfaid part {erwartet[0]}, conformance B",
+                     f"PDF/A-{stufe}" if stufe else "fehlt")
     print(bericht.als_text(ausfuehrlich=args.verbose))
     if not bericht.ok:
         print("\nFEHLGESCHLAGEN — das PDF hält die Maße aus DIN 5008 nicht ein.", file=sys.stderr)

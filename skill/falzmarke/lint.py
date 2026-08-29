@@ -58,7 +58,24 @@ FRONTMATTER_FELDER = frozenset({
     "profil", "typ", "form", "norm", "dialekt", "sprache", "empfaenger", "vermerke",
     "datum", "betreff", "betreff_kurz", "infoblock", "anrede", "gruss",
     "unterzeichner", "signatur", "anlagen", "anlagen_dateien", "verteiler",
+    "eingebettet",
 })
+
+#: Die Beziehungswerte, die PDF/A-3 fuer eine eingebettete Datei kennt.
+#:
+#: Vier, nicht mehr — Typst setzt dieselbe Liste durch und bricht bei allem
+#: anderen ab (gemessen am 29.08.2026). Sie hier zu wiederholen ist trotzdem
+#: kein Doppel: `lint` soll den Fehler VOR dem Rendern nennen, mit Feld und
+#: Zeile, statt ihn als Compilerfehler durchzureichen.
+EINBETTUNG_BEZIEHUNGEN = ("data", "source", "alternative", "supplement")
+
+#: Was ein Eintrag unter `eingebettet:` tragen darf.
+EINBETTUNG_FELDER = frozenset({"datei", "typ", "beschreibung", "beziehung"})
+
+#: Und was er tragen MUSS. Alle drei verlangt PDF/A-3b, nicht falzmarke:
+#: Typst bricht ohne `mime-type` und ohne `description` ab. Die Datei versteht
+#: sich von selbst.
+EINBETTUNG_PFLICHT = ("datei", "typ", "beschreibung")
 
 # Dasselbe für `typ: email`. Bewusst eine eigene Liste statt einer gemeinsamen
 # mit Ausnahmen: Die beiden Erzeugnisse teilen sich zwar Felder, aber wer die
@@ -615,6 +632,50 @@ def pruefe_email_profil(profil: dict, bericht: Bericht,
             "jeder Geschäftsmail — falzmarke prüft das nicht, es erinnert nur")
 
 
+def pruefe_eingebettet(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
+    """`eingebettet:` — Dateien, die IM PDF stecken, nicht dahinter.
+
+    Der Unterschied zu `anlagen_dateien:` ist der ganze Punkt: Jene haengt
+    Seiten hinten an, das PDF wird laenger und ein Mensch blaettert hin. Diese
+    hier legt eine Datei **in** das PDF; sichtbar wird nichts, lesbar ist sie
+    fuer ein Programm. Das ist der Weg, auf dem spaeter eine Rechnung im
+    XML-Format mitreist (Issue #114, Grundlage fuer #111).
+
+    Wer etwas einbettet, bekommt PDF/A-**3b** statt 2b. Das ist keine
+    Bequemlichkeit, sondern die Stufe, die Einbettung ueberhaupt zulaesst:
+    PDF/A-2 kennt keine beliebigen Dateien im Dokument. Umgestellt wird nur auf
+    Verlangen — wer nichts einbettet, bekommt weiter 2b (ADR 0033).
+    """
+    eintraege = kopf.get("eingebettet")
+    if eintraege is None:
+        return
+    zeile = _feldzeile(kopf_roh, "eingebettet")
+    if not isinstance(eintraege, list) or not eintraege:
+        bericht.fehler(
+            zeile, "eingebettet", "`eingebettet:` braucht eine Liste von Einträgen",
+            "je Eintrag `datei:`, `typ:` und `beschreibung:` — siehe references/frontmatter.md")
+        return
+
+    for nummer, eintrag in enumerate(eintraege, start=1):
+        wo = f"Eintrag {nummer} unter `eingebettet:`"
+        if not isinstance(eintrag, dict):
+            bericht.fehler(zeile, "eingebettet", f"{wo} ist kein Abschnitt",
+                           "erwartet werden `datei:`, `typ:` und `beschreibung:`")
+            continue
+        _melde_unbekannte(eintrag.keys(), EINBETTUNG_FELDER, "eingebettet", kopf_roh, bericht)
+        for feld in EINBETTUNG_PFLICHT:
+            if not eintrag.get(feld):
+                bericht.fehler(
+                    zeile, "eingebettet", f"{wo}: `{feld}:` fehlt",
+                    "PDF/A-3b verlangt Dateiname, Medientyp und eine Beschreibung — "
+                    "ohne sie lehnt schon der Satz ab")
+        beziehung = eintrag.get("beziehung")
+        if beziehung is not None and str(beziehung).lower() not in EINBETTUNG_BEZIEHUNGEN:
+            bericht.fehler(
+                zeile, "eingebettet", f"{wo}: `beziehung: {beziehung}` gibt es nicht",
+                "PDF/A-3 kennt " + ", ".join(f"`{b}`" for b in EINBETTUNG_BEZIEHUNGEN))
+
+
 def pruefe_email_logo(profil: dict, profil_pfad, bericht: Bericht) -> None:
     """Ein Logo in der Signatur muss auf hellem UND dunklem Grund tragen.
 
@@ -725,6 +786,8 @@ def pruefe_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
 
     if kopf.get("datum") is not None:
         pruefe_datum(kopf["datum"], _feldzeile(kopf_roh, "datum"), bericht)
+
+    pruefe_eingebettet(kopf, kopf_roh, bericht)
 
     empfaenger = kopf.get("empfaenger")
     if empfaenger:
