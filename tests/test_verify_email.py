@@ -204,3 +204,85 @@ def test_cli_meldet_eine_fremde_datei_als_eingabefehler(tmp_path):
         capture_output=True, text=True, encoding="utf-8")
     assert lauf.returncode == 1
     assert "keine E-Mail-Datei" in lauf.stderr
+
+
+# ── Links in beiden Fassungen (#103, gefunden über das Beispiel aus #107) ────
+#
+# `examples/email/email-links.md` war der erste Brief mit Links, und er brachte
+# die Gleichheitsprüfung sofort auf 21/22. Drei Ursachen lagen übereinander;
+# jede für sich sah aus wie die ganze.
+
+def _wortmengen(quelle: str) -> tuple[set[str], set[str]]:
+    from falzmarke import pruefung_eml
+
+    return (pruefung_eml._woerter(quelle), pruefung_eml._woerter(quelle))
+
+
+def test_eine_adresse_in_spitzen_klammern_ist_kein_tag():
+    """Im Klartext steht `<https://…>` — für `<[^>]+>` sieht das aus wie Markup.
+
+    Ohne diese Behandlung fiel die Adresse aus dem Vergleich, und zwar auf
+    beiden Seiten: Die Prüfung war dort still wirkungslos, statt rot zu werden.
+    """
+    from falzmarke import pruefung_eml
+
+    woerter = pruefung_eml._woerter("Die Bedingungen: <https://example.de/agb.html> gelten.")
+    assert "https://example.de/agb.html" in woerter, woerter
+
+
+def test_ein_echtes_tag_bleibt_draussen():
+    """Gegenprobe. Ohne sie könnte die Ausnahme jedes Markup durchlassen."""
+    from falzmarke import pruefung_eml
+
+    woerter = pruefung_eml._woerter("<p class='x'>Text</p>")
+    assert woerter == {"text"}, woerter
+
+
+def test_zeichensetzung_am_wortrand_zaehlt_nicht():
+    """`Bedingungen:` im Text und `Bedingungen` im HTML sind dasselbe Wort."""
+    from falzmarke import pruefung_eml
+
+    assert pruefung_eml._woerter("Bedingungen: gelten") == \
+        pruefung_eml._woerter("<a>Bedingungen</a> gelten")
+
+
+def test_das_linkziel_im_attribut_zaehlt_mit():
+    """Im HTML steht die Adresse nur im `href` — sie ist trotzdem da."""
+    from falzmarke import pruefung_eml
+
+    woerter = pruefung_eml._woerter('<a href="https://example.de/agb">Bedingungen</a>')
+    assert "https://example.de/agb" in woerter, woerter
+
+
+def test_aber_nicht_jedes_attribut():
+    """Gegenprobe: `style` und `src` sind Markup, kein Wortlaut.
+
+    Zählte die Prüfung sie mit, vergliche sie Stilangaben mit dem Brieftext —
+    und ein echter Unterschied ginge in dem Rauschen unter.
+    """
+    from falzmarke import pruefung_eml
+
+    woerter = pruefung_eml._woerter('<img src="cid:logo" style="height: 40px" alt="x">')
+    assert "cid:logo" not in woerter, woerter
+    assert "40px" not in woerter, woerter
+
+
+def test_das_beispiel_mit_links_besteht_vollstaendig(tmp_path):
+    """Die Abnahme aus #107: Alle Beispiele laufen mit.
+
+    Und der Grund, warum es dieses Beispiel braucht: Ohne einen Brief mit Links
+    lief die Gleichheitsprüfung nie über einen — die drei Fehler oben wären
+    ungesehen geblieben.
+    """
+    from conftest import REPO
+
+    from falzmarke import cli
+
+    quelle = REPO / "examples" / "email" / "email-links.md"
+    assert quelle.is_file(), "das Beispiel mit Links fehlt"
+    ziel, _ = cli.setze_email(
+        quelle, tmp_path / "links",
+        profil_verzeichnis=SKILL / "falzmarke" / "typst" / "profiles")
+    bericht = pruefung_eml.pruefe(ziel)
+    gescheitert = [p.name for p in bericht.pruefungen if not p.bestanden]
+    assert not gescheitert, gescheitert
