@@ -161,3 +161,29 @@ def test_falzmarken_gelten_nicht_als_tabelle(gerendert):
     waagerecht = [l for l in seite.lines if abs(l["y0"] - l["y1"]) < 0.3]
     assert waagerecht, "keine Linien — der Test misst nichts"
     assert geometrie._tabellenbereiche(seite) == []
+
+
+# ── Die Ausnahme steht dokumentiert (#151) ──────────────────────────────────
+
+def test_die_tabellenausnahme_steht_in_der_referenz():
+    """Sie stand nur im Regelwerk und im Code-Kommentar.
+
+    Ein Nutzer, der die Referenz liest, erfuhr nichts davon — und wunderte sich,
+    warum unterhalb seiner Tabelle alles verschoben ist. #151 verlangt für den
+    Fall „bleibt wie es ist" ausdrücklich, dass es dokumentiert steht „statt
+    still zu gelten".
+    """
+    text = (REPO / "skill" / "references" / "markdown.md").read_text(encoding="utf-8")
+    assert "Tabellen sind davon ausgenommen" in text
+    assert "1,58" in text, "die gemessene Zahl fehlt — ohne sie ist es eine Behauptung"
+
+
+def test_und_nennt_die_offene_entscheidung():
+    """Der Abschnitt beschreibt den Ist-Zustand, er entscheidet ihn nicht.
+
+    Ohne den Verweis läse sich die Dokumentation wie ein abgeschlossener
+    Beschluss — und #151 wäre erledigt, ohne dass jemand entschieden hat.
+    """
+    text = (REPO / "skill" / "references" / "markdown.md").read_text(encoding="utf-8")
+    stelle = text[text.index("Eine Tabelle steht nicht auf dem Zeilenraster"):]
+    assert "151" in stelle[:2000], "der Verweis auf die offene Abwägung fehlt"
