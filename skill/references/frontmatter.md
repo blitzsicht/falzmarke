@@ -39,6 +39,11 @@ anlagen:                                # optional, der Vermerk im Brief
   - Angebot 2026-0815
 anlagen_dateien:                        # optional, PDFs hinten anhängen
   - angebot-2026-0815.pdf               # relativ zur Briefdatei
+eingebettet:                            # optional, Dateien IM PDF (dann PDF/A-3b)
+  - datei: rechnung.xml                 # relativ zur Briefdatei
+    typ: text/xml                       # Pflicht, PDF/A-3b verlangt ihn
+    beschreibung: Rechnungsdaten        # Pflicht
+    beziehung: data                     # optional: data, source, alternative, supplement
 verteiler:                              # optional
   - Herrn Max Muster
 ---
@@ -254,6 +259,34 @@ Tag und Monat nicht.
 Ein vollständiges Beispiel: [`examples/brief-englisch.md`](../../examples/brief-englisch.md).
 
 ## Anlagen beilegen
+
+### Eingebettete Dateien
+
+```yaml
+eingebettet:                            # optional, Dateien IM PDF
+  - datei: rechnung.xml                 # Pfad relativ zur Briefdatei
+    typ: text/xml                       # Medientyp — PDF/A-3b verlangt ihn
+    beschreibung: Rechnungsdaten        # ebenfalls Pflicht
+    beziehung: data                     # optional: data, source, alternative, supplement
+```
+
+**Das ist etwas anderes als `anlagen_dateien:`** und die Verwechslung wäre teuer:
+
+| | was passiert | wer es liest |
+|---|---|---|
+| `anlagen_dateien:` | Seiten werden hinten angehängt, das PDF wird länger | ein Mensch, der blättert |
+| `eingebettet:` | die Datei liegt **im** Dokument, sichtbar wird nichts | ein Programm |
+
+Wer etwas einbettet, bekommt **PDF/A-3b** statt 2b. Das ist keine Bequemlichkeit: PDF/A-2 kennt
+keine beliebigen Dateien im Dokument, PDF/A-3 lässt sie zu. Die Stufe wird **verlangt, nicht
+stillschweigend umgestellt** — wer nichts einbettet, bekommt weiter 2b (ADR 0033).
+
+`typ` und `beschreibung` sind Pflicht, und das kommt nicht von falzmarke: Der Satz bricht ohne
+sie ab, weil PDF/A-3b beide verlangt. `beziehung` kennt genau vier Werte; `data` ist der, den
+maschinenlesbare Daten zu einem Dokument tragen.
+
+Fehlt die Datei, bricht der Lauf ab. Ein PDF ohne seine Beilage sieht von außen aus wie eines
+mit — bei einer Rechnung wäre das der teure Fall.
 
 `anlagen:` und `anlagen_dateien:` sind zweierlei und unabhängig voneinander:
 

@@ -266,6 +266,35 @@ jobs:
           # veraPDF gestartet ist.
           python scripts/pdf_konformitaet.py bau/*.pdf --gegenprobe examples/brief-form-b.md
 
+      - name: Eine Datei im PDF — PDF/A-3b gegen dasselbe Werkzeug
+        run: |
+          # Issue #114: Ohne Einbettung gibt es kein ZUGFeRD, und ohne diesen
+          # Schritt ist „A-3b" eine Aussage, die nie ein fremdes Werkzeug
+          # gesehen hat. Das Skript liest die Stufe aus dem XMP und prueft
+          # gegen die, die das Dokument behauptet — hier also 3b statt 2b.
+          mkdir -p bau-3b
+          printf '<?xml version="1.0" encoding="UTF-8"?>\n<rechnung><betrag>2380.00</betrag></rechnung>\n' \
+            > bau-3b/daten.xml
+          cat > bau-3b/brief.md <<'BRIEF'
+          ---
+          profil: example
+          empfaenger: [Muster GmbH, Musterstraße 1, 12345 Musterstadt]
+          datum: 2026-08-29
+          betreff: Rechnung mit maschinenlesbaren Daten
+          eingebettet:
+            - datei: daten.xml
+              typ: text/xml
+              beschreibung: Rechnungsdaten
+              beziehung: data
+          ---
+          im Anhang die Rechnung, die Daten liegen ihr maschinenlesbar bei.
+          BRIEF
+          # Der Heredoc oben ist eingerueckt (YAML); die Einrueckung muss weg,
+          # sonst ist das Frontmatter keines.
+          sed -i 's/^          //' bau-3b/brief.md
+          python skill/scripts/falzmarke.py render bau-3b/brief.md -o bau-3b/brief.pdf
+          python scripts/pdf_konformitaet.py bau-3b/brief.pdf
+
       - name: Und die Barrierefreiheitsfassung dazu
         run: |
           # Dieselbe Pruefung, andere Dateien: Das Skript liest die deklarierten

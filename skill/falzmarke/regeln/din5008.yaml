@@ -459,3 +459,22 @@ regeln:
       ihre absolute Lage: Ein Versatz soll einmal auffallen, nicht in jeder
       Zeile darunter noch einmal. Tabellen sind ausgenommen (Issue #151).
 
+
+  - id: werkzeug.eingebettet
+    titel: Eine eingebettete Datei trägt Medientyp, Beschreibung und Beziehung
+    lint: eingebettet
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Keine Aussage der Norm — die DIN 5008 beschreibt ein Blatt Papier und
+      kennt keine Dateien im Dokument. Die Pflichtangaben kommen aus PDF/A-3b:
+      Ohne Medientyp und Beschreibung bricht schon der Satz ab (typst-py 0.15,
+      gemessen 29.08.2026), und die Beziehungsangabe kennt genau vier Werte.
+      Der Datenvertrag wiederholt beides, damit der Fehler mit Feld und Zeile
+      gemeldet wird statt als Compilerfehler.
+
+      Wer etwas einbettet, bekommt PDF/A-3b statt 2b — verlangt, nicht
+      stillschweigend umgestellt (ADR 0033). PDF/A-2 kennt keine beliebigen
+      Dateien im Dokument; ohne die Stufe gibt es keine Einbettung und ohne
+      Einbettung kein ZUGFeRD (Issue #114, Grundlage für #111).
