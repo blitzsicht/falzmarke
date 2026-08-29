@@ -576,7 +576,8 @@ def pruefe_email_ton(profil: dict, kopf: dict, body: str, bericht: Bericht) -> N
             "das liest sich wie Schreien — für Betonung reicht **fett**")
 
 
-def pruefe_email_profil(profil: dict, bericht: Bericht) -> None:
+def pruefe_email_profil(profil: dict, bericht: Bericht,
+                       profil_pfad=None) -> None:
     """Der Abschnitt `email:` eines Profils.
 
     Die Pflichtangaben je Rechtsform bleiben Hinweistext mit Quelle (ADR 0005).
@@ -605,11 +606,69 @@ def pruefe_email_profil(profil: dict, bericht: Bericht) -> None:
             1, "email.anrede", f"`email.anrede: {anrede}` gibt es nicht",
             "bekannt sind " + " und ".join(f"`{a}`" for a in ANREDEN))
 
+    pruefe_email_logo(profil, profil_pfad, bericht)
+
     if not abschnitt.get("pflichtangaben"):
         bericht.warnung(
             1, "email.pflichtangaben", "`email.pflichtangaben:` ist leer",
             "je nach Rechtsform verlangt § 37a HGB bzw. § 35a GmbHG Angaben in "
             "jeder Geschäftsmail — falzmarke prüft das nicht, es erinnert nur")
+
+
+def pruefe_email_logo(profil: dict, profil_pfad, bericht: Bericht) -> None:
+    """Ein Logo in der Signatur muss auf hellem UND dunklem Grund tragen.
+
+    Die Signatur schaltet ihre Farben um, sobald das Schema dunkel ist — Text,
+    gedaempfter Text und Trennlinie. **Das Logo kann das nicht.** Es ist ein
+    Rasterbild, und ein Rasterbild hat keine Farbe, die eine Medienabfrage
+    aendern koennte; SVG waere umschaltbar, wird von Outlook aber nicht
+    dargestellt (`eml.LOGO_FORMATE`).
+
+    Der Ausweg ueber zwei Bilder und eine `display`-Regel steht nicht offen: Der
+    `<style>`-Block einer erzeugten Nachricht ist nach ADR 0034 auf Farbangaben
+    beschraenkt, und eine Ausnahme, die auch Sichtbarkeit steuert, ist keine
+    enge Ausnahme mehr. Es bleibt die Wahl des Absenders — und die wird hier
+    gemessen statt vorausgesetzt (Issue #154).
+
+    Warnung, nicht Fehler: Ob ein Logo traegt, ist eine Aussage ueber die
+    Wahrnehmung auf einem Grund, den kein Mailprogramm im Datenmodell nennt.
+    Nach ADR 0035 gehoert das auf die Ebene Praxis.
+    """
+    if profil_pfad is None:
+        return
+    from falzmarke import eml
+
+    try:
+        bild = eml.logo_datei(profil, profil_pfad)
+    except ValueError:
+        # Das Format meldet `eml.baue` beim Setzen mit eigener Meldung. Hier
+        # nochmal zu melden hiesse, denselben Fehler zweimal zu erzaehlen.
+        return
+    if bild is None or not bild.is_file():
+        return
+
+    from falzmarke import farbe
+
+    try:
+        ohne = farbe.logo_grund_ohne_halt(bild)
+    except Exception as fehler:                      # noqa: BLE001
+        # Ein unlesbares Bild ist NICHT stillschweigend in Ordnung: Es faellt
+        # sonst erst beim Empfaenger auf, und dort als fehlendes Logo.
+        bericht.warnung(
+            1, "email.logo_kontrast", f"`{bild.name}` liess sich nicht messen: {fehler}",
+            "das Bild muss ein lesbares Rasterbild sein — sonst kommt es beim "
+            "Empfaenger gar nicht an")
+        return
+    if not ohne:
+        return
+
+    bericht.warnung(
+        1, "email.logo_kontrast",
+        f"`{bild.name}` traegt auf {' und '.join(ohne)} Grund nicht "
+        f"(unter {int(farbe.ANTEIL_MINDEST * 100)} % der sichtbaren Flaeche "
+        f"erreichen {farbe.SCHWELLE:.0f}:1 nach WCAG 1.4.11)",
+        "ein Logo in der Mail schaltet seine Farben nicht um — es muss auf "
+        "beiden Gruenden lesbar sein, oder `email.logo` bleibt aus")
 
 
 def pruefe_email_anlagen(kopf: dict, body: str, bericht: Bericht) -> None:

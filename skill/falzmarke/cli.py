@@ -540,7 +540,7 @@ def linte(brief_pfad: Path, profil_verzeichnis: Path | None = None) -> lint_modu
 
     if kopf.get("profil"):
         try:
-            profil, _ = lade_profil(kopf["profil"], profil_verzeichnis, brief_pfad)
+            profil, profil_datei = lade_profil(kopf["profil"], profil_verzeichnis, brief_pfad)
         except Eingabefehler as fehler:
             bericht.fehler(1, "profil", str(fehler).splitlines()[0])
         else:
@@ -548,7 +548,10 @@ def linte(brief_pfad: Path, profil_verzeichnis: Path | None = None) -> lint_modu
             # Mail-Angaben erst beim Bauen der .eml zu vermissen, hieße den
             # Fehler in den teuren Schritt zu verschieben.
             if str(kopf.get("typ") or "brief") == "email":
-                lint_modul.pruefe_email_profil(profil, bericht)
+                # Der Pfad wird mitgegeben, weil eine Profildatei auf Dateien
+                # neben sich zeigen kann (`email.logo`) — ohne ihn bliebe die
+                # Logo-Pruefung stumm, statt zu melden, dass sie nicht lief.
+                lint_modul.pruefe_email_profil(profil, bericht, profil_datei)
                 # Braucht Profil UND Text — deshalb hier und nicht in einer der
                 # beiden Prüfungen, die nur eines von beidem sehen.
                 lint_modul.pruefe_email_ton(profil, kopf, body_md, bericht)

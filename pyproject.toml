@@ -30,6 +30,11 @@ dependencies = [
     "pdfplumber>=0.11",
     "pypdf>=5",
     "markdown-it-py>=4,<5",
+    # Kam bisher schon mit pdfplumber; seit Issue #154 wird es direkt benutzt
+    # (falzmarke/farbe.py misst das Signaturlogo). Eine Abhaengigkeit, auf die
+    # man sich verlaesst, gehoert genannt — sonst haengt sie daran, dass ein
+    # anderes Paket sie zufaellig weiter mitbringt.
+    "pillow>=10",
 ]
 
 [project.urls]
