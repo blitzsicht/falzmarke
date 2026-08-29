@@ -68,8 +68,13 @@ regeln:
   - id: geometrie.form_a.masse
     titel: Form A — Briefkopf 27 mm, Anschriftfeld ab 27 mm, Falzmarken 87 / 192 mm
     herkunft: einzeln_belegt
-    quellen: [massskizze_a, koma_script, letter_pro, dinbrief]
+    quellen: [massskizze_a, federwerk, koma_script, letter_pro, dinbrief]
     belegt_durch:
+      federwerk: >-
+        Nennt Form A getrennt von Form B und schreibt die Werte der DIN 5008
+        zu: Kopfzeile 27 mm, Faltmarke 1 bei 87 mm, Lochmarke bei 148,5 mm,
+        Faltmarke 2 bei 192 mm — alle vier Maße dieser Regel, gemessen von der
+        oberen Blattkante.
       dinbrief: >-
         `\addresshigh` setzt die Längen „entsprechend der Form A der DIN Norm":
         obere Faltmarke 87 mm, untere 192 mm, Bezugszeichenzeile 80,5 mm,
@@ -89,7 +94,19 @@ regeln:
       ausdrücklich als Form A bezeichnet. Sie hebt die Stufe **nicht**: Wie
       `koma_script` beruft sie sich auf DIN 676, nicht auf DIN 5008. Zwei
       Umsetzungen derselben Grundlage sind keine zwei Aussagen über DIN 5008.
-      Was #18 fehlt, ist damit kleiner geworden, aber nicht erledigt.
+
+      Am selben Tag kam `federwerk` dazu (Issue #18) und schließt die Lücke,
+      um die es dort ging: eine externe Quelle, die alle vier Maße dieser Regel
+      nennt und sie **der DIN 5008** zuschreibt, nicht der DIN 676. Damit steht
+      Form A nicht mehr auf der eigenen Layoutbasis.
+
+      **Die Stufe bleibt trotzdem `einzeln_belegt` — und das ist jetzt eine
+      offene Entscheidung, keine Beleglage.** Mit `massskizze_a` und
+      `federwerk` trägt die Regel zwei voll zählende Quellen aus verschiedenen
+      Gruppen; die Zählung in `regeln/__init__.py` ließe `mehrfach_bestaetigt`
+      zu. Die Anhebung machte aus der Warnung einen Fehler und änderte damit,
+      was das Werkzeug tut. Das gehört entschieden, nicht nebenbei mitgenommen
+      — siehe Issue #180.
 
   # ── Geometrie, formunabhängig ────────────────────────────────────────────
   - id: geometrie.seitenformat

@@ -89,6 +89,35 @@ quellen:
       105 bis Faltmarke 2 (= 192) und nochmals 105 bis zur Blattkante.
       87 + 105 + 105 = 297 mm — die Bemaßung geht auf A4 auf, was ein
       Ablesefehler nicht täte.
+  federwerk:
+    titel: "Faltmarken und Lochmarken auf Briefblättern nach DIN 5008 (Federwerk)"
+    url: https://federwerk.de/faltmarken-lochmarken-auf-briefblaettern/
+    art: sekundaerquelle
+    gruppe: federwerk
+    zaehlt: voll
+    abgerufen: 2026-08-29
+    bemerkung: >-
+      Vollständig gelesen am 29.08.2026 (Rohtext aus dem HTML, nicht aus einer
+      Zusammenfassung). Nennt beide Formen getrennt und schreibt die Werte
+      ausdrücklich der DIN 5008 zu: „Die DIN 5008 gibt die Positionen jeweils
+      gemessen von der oberen Blattkante an; die Maßangaben für die Faltmarken
+      unterscheiden sich deshalb für die Briefblätter der Formen A und B."
+      Form A: Kopfzeile 27 mm, Faltmarke 1 bei 87 mm, Lochmarke bei 148,5 mm,
+      Faltmarke 2 bei 192 mm. Form B: 105 / 148,5 / 210 mm.
+
+      **Der Unterschied zu `koma_script` und `dinbrief`:** Die beiden berufen
+      sich auf DIN 676 und belegen damit, was DIN 676 sagt. Diese Quelle nennt
+      DIN 5008 als Herkunft der Maße. DIN 676 kommt nur einmal vor, und zwar
+      für die Entstehungsgeschichte der Marken im Grafikprogramm — nicht als
+      Herkunft der Zahlen.
+
+      **Was sie nicht ist:** eine bemaßte Zeichnung, und keine Berufung auf die
+      Ausgabe 2020-03. Sie bezieht sich auf die „Schreib- und Gestaltungsregeln
+      für die Textverarbeitung" vom April 2011. Das steht der Stufe `voll`
+      nicht entgegen — `massskizze_b` ist eine Zeichnung von 2013 und zählt
+      ebenso —, gehört aber genannt: Belegt ist damit der Stand 2011, nicht
+      geprüft, ob 2020-03 daran etwas geändert hat. Diese Frage beantwortet
+      erst der Normabgleich (#12).
   koma_script:
     titel: "KOMA-Script, DIN5008A.lco (TeX Live)"
     url: https://ctan.org/pkg/koma-script
