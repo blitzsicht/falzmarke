@@ -35,6 +35,7 @@ DEPS = {
     "pdfplumber": "pdfplumber>=0.11",
     "pypdf": "pypdf>=5",
     "markdown_it": "markdown-it-py>=4,<5",
+    "PIL": "pillow>=10",
 }
 
 #: Wheels, die mit dem Skill-Paket ausgeliefert werden. Im Quellbaum ist das
