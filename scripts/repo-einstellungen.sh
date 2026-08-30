@@ -157,9 +157,25 @@ if [ ${#CHECKS[@]} -gt 0 ]; then
   CHECK_JSON=$(printf '%s\n' "${CHECKS[@]}" | python3 -c 'import json,sys; print(json.dumps([{"context": z.strip()} for z in sys.stdin if z.strip()]))')
 fi
 
-RULESET_MAIN=$(python3 - "$DURCHSETZUNG" "$CHECK_JSON" <<'PY'
+# Die GitHub-Actions-App darf am Ruleset vorbei. Nicht aus Bequemlichkeit:
+# `ci.yml`, Job `renders-aktualisieren`, pusht nach jedem Merge als
+# `github-actions[bot]` direkt auf main („Renders aktualisiert [skip ci]").
+# Mit `enforcement: active` und leerer Bypass-Liste wird genau dieser Push
+# abgewiesen — der Job schlaegt fehl und die Renders altern still.
+#
+# Die Kennung ist gemessen, nicht angenommen:
+#   gh api repos/blitzsicht/falzmarke/commits/main/check-runs \
+#     --jq '[.check_runs[].app | {id, slug}] | unique'
+#   -> [{"id":15368,"slug":"github-actions"}]
+#
+# Was das kostet: GitHub kennt keine feinere Stufe. Der Bot ist damit von ALLEN
+# Regeln dieses Rulesets ausgenommen, nicht nur vom PR-Zwang. Fuer Menschen
+# bleibt alles, wie es ist.
+ACTIONS_APP_ID=15368
+
+RULESET_MAIN=$(python3 - "$DURCHSETZUNG" "$CHECK_JSON" "$ACTIONS_APP_ID" <<'PY'
 import json, sys
-durchsetzung, checks = sys.argv[1], json.loads(sys.argv[2])
+durchsetzung, checks, app_id = sys.argv[1], json.loads(sys.argv[2]), int(sys.argv[3])
 regeln = [
     {"type": "deletion"},
     {"type": "non_fast_forward"},
@@ -177,7 +193,8 @@ if checks:
         "required_status_checks": checks}})
 print(json.dumps({
     "name": "main", "target": "branch", "enforcement": durchsetzung,
-    "bypass_actors": [],
+    "bypass_actors": [
+        {"actor_id": app_id, "actor_type": "Integration", "bypass_mode": "always"}],
     "conditions": {"ref_name": {"include": ["refs/heads/main"], "exclude": []}},
     "rules": regeln,
 }))
