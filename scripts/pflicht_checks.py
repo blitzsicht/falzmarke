@@ -61,6 +61,18 @@ def _matrix_ausschluesse(job: dict) -> list[dict]:
     return [e for e in (matrix.get("exclude") or []) if isinstance(e, dict)]
 
 
+def _matrix_include_ohne_achsen(job: dict) -> list[dict]:
+    """Eine Matrix ohne eigene Achsen, die nur über `include` definiert ist —
+    das Standard-Muster für heterogene Kombinationen, z. B.
+    `include: [{os: ubuntu-latest, python: '3.11'}, ...]`. GitHub führt dafür
+    einen eigenen Job je Eintrag aus, mit einem aus dessen Werten
+    abgeleiteten Checknamen. Ohne diese Sonderbehandlung trüge `analysiere()`
+    nur den nackten Jobnamen ein — einen Check, den GitHub nie meldet, weil
+    es tatsächlich einen je Eintrag gibt (Issue #196)."""
+    matrix = ((job.get("strategy") or {}).get("matrix")) or {}
+    return [e for e in (matrix.get("include") or []) if isinstance(e, dict)]
+
+
 def _durch_exclude_ausgeschlossen(kombi: dict, ausschluesse: list[dict]) -> bool:
     """GitHub überspringt eine Kombination, sobald ein `exclude`-Eintrag in
     allen seinen Achsen mit ihr übereinstimmt — er muss nicht jede Achse der
@@ -86,7 +98,13 @@ def analysiere(workflow: Path = STANDARD_WORKFLOW) -> tuple[list[str], list[str]
         anzeige = _anzeigename(job_id, job)
         achsen = _matrix_achsen(job)
         if not achsen:
-            checks.append(anzeige)
+            include_kombis = _matrix_include_ohne_achsen(job)
+            if not include_kombis:
+                checks.append(anzeige)
+                continue
+            for kombi in include_kombis:
+                anzeige_werte = ", ".join(str(w) for w in kombi.values())
+                checks.append(f"{anzeige} ({anzeige_werte})")
             continue
         schluessel = list(achsen.keys())
         ausschluesse = _matrix_ausschluesse(job)

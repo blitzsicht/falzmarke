@@ -191,6 +191,44 @@ def test_gegenprobe_ohne_exclude_erscheint_die_kombination_wieder(tmp_path):
     assert "tests (macos-latest, 3.11)" in pflicht_checks.pflicht_checks(pfad)
 
 
+def test_matrix_nur_include_erzeugt_eine_kombination_je_eintrag(tmp_path):
+    """Standard-GitHub-Actions-Muster: eine Matrix ohne eigene Achsen, die
+    ausschließlich über `include` definiert ist. GitHub führt dafür zwei
+    eigene Jobs mit je eigenem, aus den Werten abgeleiteten Checknamen aus —
+    nicht den nackten Jobnamen `tests` einmal, wie es die alte Logik ohne
+    Achsen getan hätte (Issue #196, über `include` statt über `name:`)."""
+    pfad = _schreibe(tmp_path, textwrap.dedent("""\
+        tests:
+          strategy:
+            matrix:
+              include:
+                - os: ubuntu-latest
+                  python: "3.11"
+                - os: macos-latest
+                  python: "3.12"
+          runs-on: ${{ matrix.os }}
+          steps: []
+    """))
+    assert pflicht_checks.pflicht_checks(pfad) == [
+        "tests (ubuntu-latest, 3.11)",
+        "tests (macos-latest, 3.12)",
+    ]
+
+
+def test_gegenprobe_ohne_include_erscheint_nur_der_nackte_jobname(tmp_path):
+    """Ohne diese Gegenprobe würde der Test oben nur belegen, dass irgendwie
+    zwei Checks herauskommen — nicht, dass wirklich `include` dafür
+    verantwortlich ist."""
+    pfad = _schreibe(tmp_path, textwrap.dedent("""\
+        tests:
+          strategy:
+            matrix: {}
+          runs-on: ubuntu-latest
+          steps: []
+    """))
+    assert pflicht_checks.pflicht_checks(pfad) == ["tests"]
+
+
 def test_analysiere_meldet_ausgeschlossene_jobs_getrennt(tmp_path):
     pfad = _schreibe(tmp_path, textwrap.dedent("""\
         veroeffentlichen:
