@@ -152,6 +152,45 @@ def test_matrix_mit_zwei_achsen_wird_zum_kartesischen_produkt(tmp_path):
     ]
 
 
+def test_matrix_exclude_entfernt_die_kombination(tmp_path):
+    """GitHub führt eine per `exclude` genannte Kombination nie aus. Landet sie
+    trotzdem als Pflicht-Check im Ruleset, wartet main auf einen Check, den es
+    nie geben wird — dieselbe Namensfalle wie bei `name:`, nur über `exclude`
+    statt über den Anzeigenamen ausgelöst."""
+    pfad = _schreibe(tmp_path, textwrap.dedent("""\
+        tests:
+          strategy:
+            matrix:
+              os: [ubuntu-latest, macos-latest]
+              python: ["3.11", "3.12"]
+              exclude:
+                - os: macos-latest
+                  python: "3.11"
+          runs-on: ${{ matrix.os }}
+          steps: []
+    """))
+    assert pflicht_checks.pflicht_checks(pfad) == [
+        "tests (ubuntu-latest, 3.11)",
+        "tests (ubuntu-latest, 3.12)",
+        "tests (macos-latest, 3.12)",
+    ]
+
+
+def test_gegenprobe_ohne_exclude_erscheint_die_kombination_wieder(tmp_path):
+    """Ohne diese Gegenprobe würde der Test oben nur belegen, dass irgendeine
+    Kombination fehlt — nicht, dass wirklich `exclude` der Grund war."""
+    pfad = _schreibe(tmp_path, textwrap.dedent("""\
+        tests:
+          strategy:
+            matrix:
+              os: [ubuntu-latest, macos-latest]
+              python: ["3.11", "3.12"]
+          runs-on: ${{ matrix.os }}
+          steps: []
+    """))
+    assert "tests (macos-latest, 3.11)" in pflicht_checks.pflicht_checks(pfad)
+
+
 def test_analysiere_meldet_ausgeschlossene_jobs_getrennt(tmp_path):
     pfad = _schreibe(tmp_path, textwrap.dedent("""\
         veroeffentlichen:

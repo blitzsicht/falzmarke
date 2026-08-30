@@ -41,11 +41,18 @@ hinweis "Admin-Rechte auf $REPO vorhanden."
 # Jobschlüssel. Ein Ruleset, das nicht existierende Checks verlangt, blockiert
 # den Branch dauerhaft: GitHub wartet auf etwas, das nie kommt.
 echo "== Status-Checks aus .github/workflows/ci.yml ableiten =="
+# Bewusst kein `done < <(python3 ...)`: Der Exit-Code einer Prozess-Substitution
+# geht unter `set -e` verloren (die while-Schleife liest nur den Dateideskriptor,
+# ihr eigener Exit-Code zählt für -e — nicht der des erzeugenden Prozesses).
+# Stürzt pflicht_checks.py ab, bliebe CHECKS dadurch still leer, das Ruleset
+# bekäme keine Pflicht-Checks und main wäre ungeschützt. Die Zuweisung
+# `CHECKS_ROH=$(...)` dagegen gibt ihren eigenen Exit-Code an -e weiter.
+CHECKS_ROH=$(python3 scripts/pflicht_checks.py)
 CHECKS=()
 while IFS= read -r name; do
   [ -z "$name" ] && continue
   CHECKS+=("$name")
-done < <(python3 scripts/pflicht_checks.py)
+done <<< "$CHECKS_ROH"
 if [ ${#CHECKS[@]} -eq 0 ]; then
   hinweis "Kein Job in ci.yml gefunden — das Ruleset bekommt KEINE Status-Checks."
   hinweis "Sonst wäre der Branch gesperrt, bis ein Check existiert, den es nie gibt."

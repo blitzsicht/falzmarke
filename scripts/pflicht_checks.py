@@ -56,6 +56,23 @@ def _matrix_achsen(job: dict) -> dict[str, list]:
     }
 
 
+def _matrix_ausschluesse(job: dict) -> list[dict]:
+    matrix = ((job.get("strategy") or {}).get("matrix")) or {}
+    return [e for e in (matrix.get("exclude") or []) if isinstance(e, dict)]
+
+
+def _durch_exclude_ausgeschlossen(kombi: dict, ausschluesse: list[dict]) -> bool:
+    """GitHub überspringt eine Kombination, sobald ein `exclude`-Eintrag in
+    allen seinen Achsen mit ihr übereinstimmt — er muss nicht jede Achse der
+    Matrix nennen. Ohne diese Prüfung landet eine Kombination, die GitHub nie
+    ausführt, als Pflicht-Check im Ruleset und main wartet auf einen Check,
+    den es nie geben wird."""
+    return any(
+        all(kombi.get(achse) == wert for achse, wert in ausschluss.items())
+        for ausschluss in ausschluesse
+    )
+
+
 def analysiere(workflow: Path = STANDARD_WORKFLOW) -> tuple[list[str], list[str]]:
     """(Pflicht-Checks, wegen `if:` ausgeschlossene Jobs) — nur aus der Datei."""
     daten = yaml.safe_load(workflow.read_text(encoding="utf-8")) or {}
@@ -72,9 +89,13 @@ def analysiere(workflow: Path = STANDARD_WORKFLOW) -> tuple[list[str], list[str]
             checks.append(anzeige)
             continue
         schluessel = list(achsen.keys())
-        for kombi in itertools.product(*(achsen[k] for k in schluessel)):
-            werte = ", ".join(str(w) for w in kombi)
-            checks.append(f"{anzeige} ({werte})")
+        ausschluesse = _matrix_ausschluesse(job)
+        for werte in itertools.product(*(achsen[k] for k in schluessel)):
+            kombi = dict(zip(schluessel, werte))
+            if _durch_exclude_ausgeschlossen(kombi, ausschluesse):
+                continue
+            anzeige_werte = ", ".join(str(w) for w in werte)
+            checks.append(f"{anzeige} ({anzeige_werte})")
     return checks, ausgeschlossen
 
 
