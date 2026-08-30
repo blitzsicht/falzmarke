@@ -27,11 +27,33 @@ nicht reproduzieren lässt, ist unklar, was der Fix behebt.
 An einen Pull Request gehört, was du gemessen hast — nicht, was du erwartest:
 
 - die Ausgabe von `pytest`, nicht die Behauptung, sie sei grün;
-- bei Layoutänderungen die neu erzeugten Bilder aus `docs/renders/`;
+- bei Layoutänderungen die neu erzeugten Bilder aus `docs/renders/` — **mit committet**, siehe unten;
 - bei einer neuen Prüfung die Gegenprobe und ihr Ergebnis am sabotierten Stand;
 - bei einem behobenen Fehler die Reproduktion von vorher.
 
 Die PR-Vorlage fragt genau danach.
+
+## Die Bilder im Repository gehören in deinen Pull Request
+
+`docs/renders/` enthält die gerenderten Beispielbriefe und die Aufzeichnung fürs README. Beides
+liegt im Repository, weil README und PyPI-Seite direkt darauf zeigen — kein Job schreibt sie
+nachträglich hinein.
+
+Das war einmal anders: Bis zum 30.08.2026 committete die CI sie nach jedem Merge selbst auf
+`main`. Solange das so war, konnte das Ruleset `main` nicht scharf gestellt werden, denn ein
+Ruleset gilt für alle Akteure ohne Bypass — und die GitHub-Actions-App lässt sich auf Repo-Ebene
+nicht als Ausnahme eintragen (Issue #188).
+
+Wenn deine Änderung das Layout oder eine Ausgabezeile der CLI berührt:
+
+| Was | Woher |
+|---|---|
+| die Briefbilder | Artefakt `renders-ubuntu-latest` an jedem CI-Lauf — oder lokal `falzmarke preview` |
+| `demo.gif`, `demo.mp4`, `demo.ascii` | Artefakt `aufzeichnung` des Workflows „Video" — oder lokal mit [`vhs`](https://github.com/charmbracelet/vhs) über `docs/marke/video/readme.tape` |
+| `docs/ROADMAP.md` | Artefakt `roadmap` des wöchentlichen Laufs |
+
+Das altert nicht still: `tests/test_tape.py` hält `docs/renders/demo.ascii` gegen einen frischen
+Lauf der CLI und wird rot, sobald das Bild etwas zeigt, was das Programm nicht mehr ausgibt.
 
 ## Bevor du einen Pull Request öffnest
 
