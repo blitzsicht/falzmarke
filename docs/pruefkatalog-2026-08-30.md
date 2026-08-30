@@ -20,24 +20,24 @@ Wo eine Aussage nicht überprüft werden konnte, steht das als eigener Zustand d
 
 | Forderung | Urteil | Arbeit? |
 |---|---|---|
-| §2 Norm-Beweiskette maschinenlesbar | teilweise | Formalia |
-| §3 Dependency Single Source of Truth | **offen** | **ja** |
-| §4 CI als Quality Gate | teilweise | Konfiguration |
-| §5 Supply-Chain (veraPDF ungeprüft) | **teilweise** | **ja** |
-| §6 Architektur modularisieren | Bestand unter anderen Namen | nein |
-| §7 Typsicherheit (ruff/mypy in CI) | teilweise | ja, klein |
-| §8 API und Datenvertrag | schon da | Notiz |
-| §10 Security adversarial | teilweise | ja |
-| §11 Property-based Testing | offen | ja |
-| §12 Fehlerdiagnostik mit IDs | teilweise | ja |
-| §13 Doku trennen | teilweise | Geschmack |
-| §0.2 Gegenproben-Pflicht | teilweise | **ja** |
+| Abschnitt 2 Norm-Beweiskette maschinenlesbar | teilweise | Formalia |
+| Abschnitt 3 Dependency Single Source of Truth | **offen** | **ja** |
+| Abschnitt 4 CI als Quality Gate | teilweise | Konfiguration |
+| Abschnitt 5 Supply-Chain (veraPDF ungeprüft) | **teilweise** | **ja** |
+| Abschnitt 6 Architektur modularisieren | Bestand unter anderen Namen | nein |
+| Abschnitt 7 Typsicherheit (ruff/mypy in CI) | teilweise | ja, klein |
+| Abschnitt 8 API und Datenvertrag | schon da | Notiz |
+| Abschnitt 10 Security adversarial | teilweise | ja |
+| Abschnitt 11 Property-based Testing | offen | ja |
+| Abschnitt 12 Fehlerdiagnostik mit IDs | teilweise | ja |
+| Abschnitt 13 Doku trennen | teilweise | Geschmack |
+| Abschnitt 0.2 Gegenproben-Pflicht | teilweise | **ja** |
 
 ---
 
 ## Was echte Arbeit bedeutet
 
-### 1. `pillow` fehlt in zwei von drei Abhängigkeitslisten (§3)
+### 1. `pillow` fehlt in zwei von drei Abhängigkeitslisten (Abschnitt 3)
 
 `pyproject.toml:37` führt `pillow>=10` als Runtime-Abhängigkeit — seit Issue #154 wird es direkt
 benutzt. In `skill/requirements.txt` (5 Zeilen) und im `DEPS`-Dict in
@@ -54,7 +54,7 @@ und `pypdf` *genannt* sind — kein Listenvergleich.
 ganze Fehlerklasse. Gegenprobe: eine Abhängigkeit aus einer Liste entfernen, Test muss rot
 werden.
 
-### 2. veraPDF wird ungeprüft heruntergeladen und ausgeführt (§5)
+### 2. veraPDF wird ungeprüft heruntergeladen und ausgeführt (Abschnitt 5)
 
 `.github/workflows/ci.yml:215-218` lädt `https://software.verapdf.org/releases/verapdf-installer.zip`
 — Latest-URL ohne feste Version, Entpacken über den Glob `verapdf-greenfield-*`, **kein SHA-256,
@@ -71,7 +71,7 @@ als er zu tragen scheint.
 
 **Zu tun:** Version und Digest festnageln, Digest vor der Ausführung prüfen.
 
-### 3. Die Pflicht-Checks werden aus einem Laufzeit-Zustand abgeleitet (§4)
+### 3. Die Pflicht-Checks werden aus einem Laufzeit-Zustand abgeleitet (Abschnitt 4)
 
 `scripts/repo-einstellungen.sh:38` ermittelt die Pflicht-Checks des Rulesets aus dem **letzten
 CI-Lauf** und übernimmt nur Jobs mit `conclusion=="success"`.
@@ -94,7 +94,7 @@ Nebenbefund zur Namensfalle: Der Job heißt in der Check-Liste
 `PDF-Konformität (veraPDF, fremdes Werkzeug)`, nicht `pdf-konformitaet`. Ein geratener Context
 hätte jeden Pull Request dauerhaft blockiert.
 
-### 4. Die Lint-Regeln haben keine Gegenproben (§0.2)
+### 4. Die Lint-Regeln haben keine Gegenproben (Abschnitt 0.2)
 
 `tests/test_gegenbeweis.py` enthält 17 Testfunktionen, davon 3 Kontrollproben und rund 13 echte
 Sabotagen. Sie decken **Geometrie und Emitter** ab: Falzmarke, Lochmarke, Betreff, Anschrift,
@@ -112,7 +112,7 @@ meldet.
 Das ist die größte echte Lücke, die die Messung gefunden hat, und sie liegt genau im
 Selbstverständnis des Projekts.
 
-### 5. Zwei uneinheitliche Diagnose-Formate (§12)
+### 5. Zwei uneinheitliche Diagnose-Formate (Abschnitt 12)
 
 `--json` gibt es für `lint` und `verify` (`cli.py:808, 1092, 1114`, dokumentiert in
 `docs/cli.md:5-9,126`) — aber die beiden Berichte haben verschiedene Formen:
@@ -128,7 +128,7 @@ Der Katalog fordert `FM-GEO-001`-Kennungen. Die gepunkteten Regelnamen leisten d
 sprechender; was wirklich fehlt, ist die **Vereinheitlichung** und die Angabe der Quelle im
 Befund.
 
-### 6. Kein Linting und keine Typprüfung in der CI (§7)
+### 6. Kein Linting und keine Typprüfung in der CI (Abschnitt 7)
 
 `pyproject.toml:90-92` konfiguriert `ruff` nur rudimentär (`line-length`, `target-version`, keine
 Regelauswahl). Weder ruff noch mypy/pyright laufen in einem CI-Job — `ci.yml` vollständig
@@ -138,7 +138,7 @@ Dataclasses sind dagegen längst Standard (allein `baum.py` 12× `@dataclass(fro
 Zustände sind validierte String-Konstanten mit harter Prüfung (`FEHLER`/`WARNUNG` `lint.py:25`,
 `FASSUNGEN = ("1.0", "1.1")` `markdown.py:33`). Enums fehlen — das ist Geschmack, kein Mangel.
 
-### 7. Kein Property-based Testing, Angriffsprotokoll veraltet (§10, §11)
+### 7. Kein Property-based Testing, Angriffsprotokoll veraltet (Abschnitt 10, Abschnitt 11)
 
 Hypothesis ist nirgends eingebunden. Die Sicherheitslage ist dagegen substanziell:
 `docs/angriff-2026-08-25.md` ist ein systematisches Angriffsprotokoll **einschließlich der
@@ -155,7 +155,7 @@ geprüft worden.
 
 ## Was der Katalog fordert und schon dasteht
 
-### §6 Architektur — der teuerste Vorschlag, ohne Gewinn
+### Abschnitt 6 Architektur — der teuerste Vorschlag, ohne Gewinn
 
 Der Katalog schlägt vor, `skill/falzmarke/` in `core/`, `letter/`, `email/`, `pdf/`,
 `integrations/`, `cli/` umzubauen. Die 17 Module sind bereits nach Verantwortung geschnitten und
@@ -174,7 +174,7 @@ E-Mail-Setzung (`setze_email:936`) und 13 Befehls-Handler. Das Herausziehen von 
 Datenaufbau wäre eine echte Verbesserung — das große Schema bringt nichts, was die jetzige
 Schneidung nicht leistet.
 
-### §2 Norm-Beweiskette — vorhanden, anders geschnitten
+### Abschnitt 2 Norm-Beweiskette — vorhanden, anders geschnitten
 
 `skill/falzmarke/regeln/din5008.yaml` führt 45 Regeln mit `id`, `titel`, `herkunft`, `quellen`,
 `wirkung`, `belegt_durch`, `bemerkung`; `quellen.yaml` ergänzt je Quelle `art`, `url`, `gruppe`,
@@ -194,7 +194,7 @@ Als eigene Felder fehlen: `wert`, `einheit`, `toleranz`, `fundstelle`, `normfass
 `geometrie.py`. Das ist Formalia — die Mechanik dahinter ist stärker als das, was der Katalog
 beschreibt.
 
-### §8 Datenvertrag — steht
+### Abschnitt 8 Datenvertrag — steht
 
 `dialekt:` wird real ausgewertet: `pruefe_fassung` (`markdown.py:590-604`) lehnt unbekannte
 Fassungen mit Fehler ab, die Fassung steuert Grenzen (`MAX_LISTENTIEFE[lage.dialekt]`,
@@ -204,7 +204,7 @@ Neun ADRs liegen in `docs/entscheidungen/`.
 
 Es fehlt eine geschriebene Deprecation-Regel. Gelebt wird sie über den Fassungsmechanismus.
 
-### §13 Dokumentation — vorhanden, andere Namen
+### Abschnitt 13 Dokumentation — vorhanden, andere Namen
 
 `docs/architecture.md`, `docs/recht.md` (= legal), `SECURITY.md`, sowie
 `normabgleich-pruefliste.md`, `quellenunabhaengigkeit-2026-08-27.md` und `angriff-2026-08-25.md`
@@ -217,7 +217,7 @@ Befehle aus der README wirklich aus, `test_installationswege.py` und `test_chang
 den Rest. Die README ist mit 532 Zeilen kein Zwei-Minuten-Dokument; das zu kürzen ist eine
 Geschmacksfrage, kein Mangel.
 
-### §15 Release Engineering — weitgehend erfüllt
+### Abschnitt 15 Release Engineering — weitgehend erfüllt
 
 `release.yml` hängt `falzmarke.skill`, `falzmarke-offline.skill` und je eine `.sha256` an
 (Z. 74-82), erzeugt Attestation über `attest-build-provenance` (Z. 68), gleicht Tag gegen Version
