@@ -113,6 +113,38 @@ die Form an den Falzmarken.
 Textteil. **Versendet wird nichts** — es gibt keinen Versandbefehl und keine Option, die sendet
 (ADR 0034). Einzelheiten in [Die E-Mail-Fassung](email.md).
 
+## Einen bestehenden Brief zurücklesen
+
+```bash
+falzmarke einlesen alter-brief.pdf -o neu.md
+falzmarke einlesen alter-brief.pdf --json
+```
+
+Erzeugt aus einem fertigen PDF ein falzmarke-Markdown — **als Gerüst mit benannten Lücken, nicht
+als fertigen Brief.** Ein Frontmatter-Feld wird nur gesetzt, wenn es belegbar ist; sonst steht es
+als Kommentar mit Begründung im Gerüst:
+
+```yaml
+# empfaenger: <nicht erkannt: keine Falz- und Lochmarken im Heftrand — das Blatt
+#              trägt kein DIN-5008-Raster, Positionen sagen hier nichts>
+#   Kandidat: Steuerberatung Dr. Ledermann
+```
+
+Ein **Kandidat ist kein Wert.** Er steht im Kommentar, weil er so aussieht wie einer — entschieden
+wird er von dem, der den Brief liest. Der Grund dafür ist keine Vorsicht um ihrer selbst willen:
+Ein falsch erkannter Empfänger fällt erst im gedruckten Brief auf, und dann beim Falschen.
+
+Wie viel erkannt wird, hängt am Raster: Trägt das Blatt Falz- und Lochmarken, sind seine
+Positionen aussagekräftig und Empfänger, Datum, Betreff und Anrede werden gelesen. Ohne sie —
+also bei den meisten alten Briefen aus Word — kommt der Text mit, und die Felder bleiben Lücken
+mit Kandidaten.
+
+`profil` ist **immer** eine Lücke, auch bei einem Brief, den falzmarke selbst gesetzt hat: Das
+Absenderprofil ist eine lokale Datei und steht in keinem PDF.
+
+Der Befehl endet mit `0`, auch wenn Lücken bleiben — sie sind das erwartete Ergebnis, kein
+Fehler. Für die maschinelle Auswertung gibt es `--json`.
+
 ## Exit-Codes
 
 | Code | Bedeutung |
