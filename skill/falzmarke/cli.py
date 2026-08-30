@@ -1251,6 +1251,78 @@ anrede: Sehr geehrte Damen und Herren,
 """
 
 
+def befehl_einlesen(args) -> int:
+    """Ein bestehendes PDF als falzmarke-Markdown-Gerüst (#191).
+
+    Lücken sind hier KEIN Fehler, sondern das erwartete Ergebnis: Bei einem
+    Brief ohne DIN-Raster ist die Lücke die einzige ehrliche Antwort. Der
+    Befehl endet deshalb mit EXIT_OK, auch wenn Felder offen bleiben — ein
+    Skript, das den Exit-Code prüft, soll nicht bei jedem Altbrief „scheitern".
+
+    Für die maschinelle Auswertung gibt es `--json`, wie bei `lint` und
+    `verify`. Einen sechsten Exit-Code einzuführen wäre eine Änderung am
+    öffentlichen Vertrag (docs/cli.md nennt 0–4) und für dieses Feature nicht
+    nötig.
+    """
+    from falzmarke.einlesen import PdfUnlesbar, lies_pdf
+
+    try:
+        ergebnis = lies_pdf(Path(args.pdf))
+    except PdfUnlesbar as fehler:
+        print(f"FEHL  {fehler}", file=sys.stderr)
+        return EXIT_EINGABE
+
+    if args.json:
+        import json as _json
+
+        print(_json.dumps({
+            "quelle": ergebnis.quelle,
+            "form": ergebnis.form,
+            "felder": ergebnis.felder,
+            "luecken": [
+                {"feld": l.feld, "grund": l.grund, "kandidat": l.kandidat}
+                for l in ergebnis.luecken
+            ],
+            "koerper": ergebnis.koerper,
+        }, ensure_ascii=False, indent=2))
+        return EXIT_OK
+
+    markdown = ergebnis.als_markdown()
+    if args.ziel:
+        ziel = Path(args.ziel)
+        if ziel.exists() and not args.ueberschreiben:
+            print(f"{ziel} gibt es schon — nichts überschrieben.", file=sys.stderr)
+            return EXIT_EINGABE
+        ziel.parent.mkdir(parents=True, exist_ok=True)
+        ziel.write_text(markdown, encoding="utf-8")
+        print(f"OK  Gerüst geschrieben: {ziel}")
+    else:
+        print(markdown)
+
+    if not ergebnis.luecken:
+        return EXIT_OK
+
+    # Die Lücken werden GENANNT, nicht gezählt: "3 Felder fehlen" sagt niemandem,
+    # was zu tun ist. Auf stderr, damit `falzmarke einlesen x.pdf > y.md` sauber
+    # bleibt.
+    print(
+        f"\nHINWEIS  {len(ergebnis.luecken)} Feld(er) konnten nicht belegt werden "
+        f"und stehen als Kommentar im Gerüst:",
+        file=sys.stderr,
+    )
+    for luecke in ergebnis.luecken:
+        print(f"  {luecke.feld}: {luecke.grund}", file=sys.stderr)
+        if luecke.kandidat:
+            erste = luecke.kandidat.split("\n")[0]
+            print(f"    Kandidat (ungeprüft): {erste}", file=sys.stderr)
+    print(
+        "\nHier wird bewusst nicht geraten: Ein falsch erkannter Empfänger fällt\n"
+        "erst im gedruckten Brief auf. Die Lücken füllt, wer den Brief liest.",
+        file=sys.stderr,
+    )
+    return EXIT_OK
+
+
 def befehl_init(args) -> int:
     ziel = Path(args.ziel)
     if ziel.exists():
@@ -1449,6 +1521,17 @@ def main(argv: list[str] | None = None) -> int:
     p = unter.add_parser("profiles", help="verfügbare Absenderprofile auflisten")
     p.add_argument("--profiles", dest="profiles")
     p.set_defaults(funktion=befehl_profiles)
+
+    p = unter.add_parser(
+        "einlesen", help="ein bestehendes PDF als Markdown-Gerüst zurücklesen"
+    )
+    p.add_argument("pdf")
+    p.add_argument("-o", "--ziel", help="Zieldatei (ohne sie: Ausgabe auf stdout)")
+    p.add_argument(
+        "--ueberschreiben", action="store_true", help="vorhandene Zieldatei ersetzen"
+    )
+    p.add_argument("--json", action="store_true", help="Befund maschinenlesbar")
+    p.set_defaults(funktion=befehl_einlesen)
 
     p = unter.add_parser("init", help="Frontmatter-Vorlage schreiben")
     p.add_argument("ziel")
