@@ -1,11 +1,14 @@
 name: Roadmap
 
-# Bewusst **kein** push-Auslöser. Dieser Job schreibt auf main zurück; auf push
-# gestellt würde er sich selbst auslösen und bräuchte einen Schleifenschutz.
-# Genau dafür stand bisher "[skip ci]" im Bot-Commit von ci.yml — und genau das
-# hat v0.6.0 fast gekostet: GitHub überspringt daraufhin JEDEN Workflow für den
-# Commit, auch das Release (siehe Kommentar in release.yml). Wöchentlich plus
-# von Hand braucht den Schutz nicht.
+# Bewusst **kein** push-Auslöser: Wöchentlich plus von Hand genügt für eine
+# Seite, die sich mit der Planung ändert, nicht mit jedem Commit.
+#
+# Dieser Job schrieb bis zum 30.08.2026 auf main zurück und brauchte deshalb
+# einen Schleifenschutz. Dafür stand einmal "[skip ci]" im Bot-Commit von
+# ci.yml — und genau das hat v0.6.0 fast gekostet: GitHub überspringt
+# daraufhin JEDEN Workflow für den Commit, auch das Release (siehe Kommentar
+# in release.yml). Geschrieben wird hier nichts mehr (Issue #188); die
+# erzeugte Seite liegt als Artefakt bereit.
 on:
   schedule:
     - cron: "17 6 * * 1"     # montags 06:17 UTC
@@ -20,7 +23,6 @@ jobs:
   roadmap:
     runs-on: ubuntu-latest
     permissions:
-      contents: write        # die erzeugte Seite zurückschreiben
       issues: read           # Meilensteine und offene Issues lesen
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -34,17 +36,35 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 scripts/roadmap.py
 
-      - name: Committen, falls sich etwas geändert hat
+      - name: Abweichung melden, falls sich etwas geändert hat
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/ROADMAP.md
-          # Die Seite trägt bewusst kein Standdatum. Ohne eines gibt es hier nur
-          # dann einen Commit, wenn sich an der Planung wirklich etwas geändert
-          # hat — sonst stünde jede Woche ein leerer Commit in der Geschichte.
-          if git diff --staged --quiet; then
-            echo "Roadmap unverändert — nichts zu committen."
-          else
-            git commit -m "Roadmap aus den Issues aktualisiert"
-            git push
+          # Bis zum 30.08.2026 committete dieser Schritt die Seite direkt auf
+          # main. Damit konnte das Ruleset `main` nie auf `active` — es gilt
+          # für alle Akteure ohne Bypass, und die Actions-App lässt sich auf
+          # Repo-Ebene nicht als Bypass eintragen (422, Issue #188).
+          #
+          # Die Seite trägt bewusst kein Standdatum. Ohne eines meldet sich
+          # dieser Schritt nur, wenn sich an der Planung wirklich etwas
+          # geändert hat — sonst gäbe es jede Woche einen Treffer ohne Inhalt.
+          if git diff --quiet -- docs/ROADMAP.md; then
+            echo "Roadmap unverändert — nichts zu tun." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
+          {
+            echo "## Die Roadmap ist veraltet"
+            echo
+            echo "\`docs/ROADMAP.md\` weicht von den Issues ab. Die neue Fassung"
+            echo "liegt als Artefakt \`roadmap\` an diesem Lauf — herunterladen und"
+            echo "in einen Pull Request aufnehmen."
+            echo
+            echo '```diff'
+            git diff -- docs/ROADMAP.md | head -100
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Erzeugte Seite als Artefakt ablegen
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: roadmap
+          path: docs/ROADMAP.md
+          if-no-files-found: error

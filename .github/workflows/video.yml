@@ -9,11 +9,14 @@ name: Video
 # Video im Haus; dieser Lauf misst nur die eingecheckten Dateien.
 #
 # Alle Actions sind auf Commit-SHAs gepinnt, nicht auf Tags. Ein Tag laesst sich
-# verschieben; wer ihn kontrolliert, bekaeme hier Code in einen Job mit
-# `contents: write`, der auf main zurueckschreibt. Das wiegt bei
+# verschieben; wer ihn kontrolliert, bekaeme hier Code in den Lauf, der die
+# Aufnahme erzeugt, die spaeter im README steht. Das wiegt bei
 # charmbracelet/vhs-action besonders schwer — sie ist die einzige Action hier,
 # die nicht von GitHub selbst kommt. Die Version steht als Kommentar daneben,
 # damit beim Aktualisieren sichtbar bleibt, was gepinnt ist.
+#
+# Der Job hatte bis zum 30.08.2026 `contents: write` und schrieb die Aufnahme
+# direkt auf main. Beides ist weg — die Begruendung steht beim letzten Schritt.
 
 on:
   push:
@@ -31,8 +34,6 @@ permissions:
 jobs:
   gif:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
@@ -69,34 +70,40 @@ jobs:
           pip install pytest
           python -m pytest tests/test_tape.py -q
 
-      - name: Aufzeichnung zurueckschreiben
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/renders/demo.gif docs/renders/demo.mp4 docs/renders/demo.ascii
-          # KEIN Marker der Form "skip ci" in dieser Nachricht. Er stand hier
-          # einmal mit der Begruendung, er verhindere die Selbstausloesung.
-          # Dagegen wirken bereits ZWEI andere Dinge, unabhaengig voneinander:
-          #
-          #   1. Der paths-Filter oben nennt readme.tape, den Beispielbrief,
-          #      skill/falzmarke/** und diese Datei — aber NICHT docs/renders/**.
-          #      Genau und nur die schreibt dieser Schritt.
-          #   2. Ein Push mit dem GITHUB_TOKEN loest grundsaetzlich keine
-          #      Workflow-Laeufe aus. Das ist GitHubs eigene Rekursionsbremse.
-          #
-          # Der Marker war gegen die Schleife also doppelt ueberfluessig — und
-          # richtete echten Schaden an: Ein Tag auf so einen Commit liess den
-          # Release-Workflow gar nicht anlaufen. Genau so ging v0.6.0 verloren,
-          # und das Ruleset "release-tags" laesst Tags nicht verschieben.
-          #
-          # Was hier NICHT das Problem war: Die Aufzeichnung ist geprueft. Der
-          # Schritt "Mitschnitt gegen die echte CLI halten" laeuft weiter oben im
-          # selben Job, auf genau diesen Dateien, bevor sie zurueckgeschrieben
-          # werden. Punkt 2 heisst allerdings auch: ein Folgelauf prueft sie NIE.
-          # Wer sich hier auf CI verlaesst, verlaesst sich auf nichts.
-          #
-          # Wer docs/renders/** jemals in den paths-Filter aufnimmt, hebelt nur
-          # Punkt 1 aus. Dann gehoert hier ein Abbruch hin, kein Marker.
-          git diff --staged --quiet || git commit -m "GIF neu aufgezeichnet"
-          git push
+      - name: Aufzeichnung als Artefakt ablegen
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: aufzeichnung
+          path: |
+            docs/renders/demo.gif
+            docs/renders/demo.mp4
+            docs/renders/demo.ascii
+          if-no-files-found: error
+
+      # Warum hier nichts mehr auf main geschrieben wird (Issue #188)
+      #
+      # Bis zum 30.08.2026 committete dieser Schritt die Aufnahme direkt auf
+      # main. Damit konnte das Ruleset `main` nie auf `active`: Ein Ruleset
+      # gilt fuer ALLE Akteure ohne Bypass, das GITHUB_TOKEN eingeschlossen,
+      # und die Actions-App laesst sich nicht als Bypass eintragen — GitHub
+      # antwortet mit 422 "Actor GitHub Actions integration must be part of
+      # the ruleset source or owner organization". Sie ist keine INSTALLIERTE
+      # App.
+      #
+      # Ein Bot-PR statt eines Bot-Pushes waere keine Loesung, sondern eine
+      # Sackgasse: Ein mit dem GITHUB_TOKEN erzeugter PR loest keine
+      # Workflow-Laeufe aus (GitHubs Rekursionsbremse — derselbe Mechanismus,
+      # der den frueheren "[skip ci]"-Marker hier ueberfluessig machte). Er
+      # bekaeme nie die vier Pflicht-Checks und bliebe fuer immer offen.
+      #
+      # Was der Marker "[skip ci]" hier einmal anrichtete, bleibt der Grund,
+      # ihn nie zurueckzuholen: GitHub ueberspringt daraufhin JEDEN Workflow
+      # fuer den Commit, auch das Release. Genau so ging v0.6.0 verloren, und
+      # das Ruleset "release-tags" laesst Tags nicht verschieben.
+      #
+      # Die Aufnahme kommt jetzt im Pull Request des Menschen mit, der die
+      # Ausgabe geaendert hat (CONTRIBUTING.md). Das altert nicht still:
+      # tests/test_tape.py haelt docs/renders/demo.ascii gegen einen frischen
+      # Lauf der CLI und wird rot, sobald das Bild etwas zeigt, was das
+      # Programm nicht mehr ausgibt. Der Schritt "Mitschnitt gegen die echte
+      # CLI halten" weiter oben faehrt genau diesen Test.
