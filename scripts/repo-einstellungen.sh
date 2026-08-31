@@ -131,12 +131,16 @@ JSON
 fi
 
 echo "== Ruleset main =="
-# Enforcement: "evaluate" meldet Verstöße, blockiert aber nicht. Erst wenn die
-# Regeln nachweislich zum Ablauf passen, auf "active" stellen — über
-# FALZMARKE_RULESET_AKTIV=1.
-DURCHSETZUNG="evaluate"
-[ "${FALZMARKE_RULESET_AKTIV:-0}" = "1" ] && DURCHSETZUNG="active"
-hinweis "Durchsetzung: $DURCHSETZUNG (mit FALZMARKE_RULESET_AKTIV=1 scharf schalten)"
+# Enforcement: "active" blockiert, "evaluate" meldet nur. Bis #190 war
+# "evaluate" der Default, weil noch offen war, ob die Regeln zum Ablauf passen.
+# Sie passen — das Ruleset steht seither auf "active". Ein gewöhnlicher Lauf
+# ohne Umgebungsvariablen hätte es trotzdem auf "evaluate" zurückgestuft und
+# damit den Schutz von main entwaffnet, mit einer einzigen Hinweiszeile mitten
+# in langer Ausgabe (Issue #201). Deshalb ist "active" jetzt der Normalfall und
+# das Herunterstufen der begründungspflichtige Sonderfall.
+DURCHSETZUNG="active"
+[ "${FALZMARKE_RULESET_EVALUATE:-0}" = "1" ] && DURCHSETZUNG="evaluate"
+hinweis "Durchsetzung: $DURCHSETZUNG (mit FALZMARKE_RULESET_EVALUATE=1 nur beobachten)"
 
 CHECK_JSON="[]"
 if [ ${#CHECKS[@]} -gt 0 ]; then
@@ -170,12 +174,28 @@ print(json.dumps({
 PY
 )
 
+#: Eine Herunterstufung von "active" auf "evaluate" nimmt main den Schutz. Sie
+#: stand bis Issue #201 als eine Zeile unter vielen in der Ausgabe und war
+#: dadurch faktisch unsichtbar. Deshalb wird der Ist-Zustand vorher gelesen und
+#: der Fall eigens gemeldet — in beiden Betriebsarten, auch im Trockenlauf.
+warne_bei_herunterstufung() {
+  local name="$1" vorher="$2" nachher="$3"
+  [ "$vorher" = "active" ] || return 0
+  [ "$nachher" != "active" ] || return 0
+  printf '\n  !! ACHTUNG: Ruleset %s wird von active auf %s herabgestuft.\n' "$name" "$nachher"
+  printf '     main ist danach NICHT mehr geschuetzt — Verstoesse werden nur noch gemeldet.\n'
+  printf '     Ist das nicht gewollt: Lauf abbrechen und FALZMARKE_RULESET_EVALUATE leer lassen.\n\n'
+}
+
 setze_ruleset() {
   local name="$1" inhalt="$2"
-  local vorhanden
+  local vorhanden vorher nachher
   vorhanden=$(gh api "repos/$REPO/rulesets" --jq ".[] | select(.name==\"$name\") | .id" 2>/dev/null || true)
+  vorher=$(gh api "repos/$REPO/rulesets" --jq ".[] | select(.name==\"$name\") | .enforcement" 2>/dev/null || true)
+  nachher=$(printf '%s' "$inhalt" | python3 -c 'import json,sys; print(json.load(sys.stdin)["enforcement"])')
+  warne_bei_herunterstufung "$name" "$vorher" "$nachher"
   if [ "$TROCKEN" = "1" ]; then
-    hinweis "[trocken] Ruleset '$name' $([ -n "$vorhanden" ] && echo "aktualisieren (id $vorhanden)" || echo anlegen)"
+    hinweis "[trocken] Ruleset '$name' $([ -n "$vorhanden" ] && echo "aktualisieren (id $vorhanden, jetzt: ${vorher:-keins})" || echo anlegen) -> $nachher"
     printf '%s' "$inhalt" | python3 -m json.tool | sed 's/^/      /'
     return
   fi
@@ -231,5 +251,5 @@ echo "  2. Discussions › Kategorien anlegen"
 echo "  3. PyPI: Trusted Publisher für $REPO, Workflow release.yml, Environment pypi"
 echo "  4. Organisation $OWNER: 2FA erzwingen, zweiten Owner eintragen"
 echo
-echo "Erst wenn die CI die endgültigen Jobnamen hat und ein Lauf grün war:"
-echo "  FALZMARKE_RULESET_AKTIV=1 $0 $REPO   # schaltet das main-Ruleset scharf"
+echo "Das main-Ruleset steht per Vorgabe auf active. Nur zum Beobachten, ohne zu blocken:"
+echo "  FALZMARKE_RULESET_EVALUATE=1 $0 $REPO   # stuft main auf evaluate zurück"
