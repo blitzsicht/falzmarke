@@ -25,6 +25,7 @@ Default zurückdreht, käme daran vorbei. Diese Tests werden rot.
 
 from __future__ import annotations
 
+import os
 import subprocess
 
 import pytest
@@ -51,11 +52,25 @@ def _entscheidungszeilen() -> str:
 
 
 def _durchsetzung(**umgebung: str) -> str:
+    """Fährt die Entscheidungszeilen in bash und gibt DURCHSETZUNG zurück.
+
+    Die Umgebung wird geerbt und nur um die FALZMARKE_RULESET_*-Variablen
+    bereinigt, nicht ersetzt. Ein `env={"PATH": …}` ohne den Rest ließ die
+    Windows-CI scheitern: Git Bash startet dort, findet aber seine eigene
+    Laufzeitumgebung nicht mehr und endet mit Exit 1 (gemessen in Lauf
+    33382792073, PR #202). Das Bereinigen ist trotzdem nötig — sonst würde
+    eine im Terminal gesetzte Variable den Standardfall verfälschen.
+    """
+    basis = {
+        schluessel: wert
+        for schluessel, wert in os.environ.items()
+        if not schluessel.startswith("FALZMARKE_RULESET")
+    }
     fertig = subprocess.run(
         ["bash", "-c", _entscheidungszeilen() + '\nprintf "%s" "$DURCHSETZUNG"'],
         capture_output=True,
         text=True,
-        env={"PATH": "/usr/bin:/bin", **umgebung},
+        env={**basis, **umgebung},
         check=True,
     )
     return fertig.stdout
