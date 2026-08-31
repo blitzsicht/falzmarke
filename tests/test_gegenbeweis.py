@@ -7,6 +7,7 @@ Testsuite nur, dass sie grün ist, nicht dass sie misst.
 
 from __future__ import annotations
 
+import re
 import shutil
 from pathlib import Path
 
@@ -14,6 +15,8 @@ import pytest
 
 from falzmarke import geometrie
 from falzmarke import cli as falzmarke
+from falzmarke import lint as _lint
+from falzmarke import regeln as _regeln
 from conftest import REPO
 
 BEISPIEL = REPO / "examples" / "brief-form-b.md"
@@ -347,3 +350,134 @@ def test_ein_emitter_ohne_zeichenkette_wertet_wirklich_aus(tmp_path, monkeypatch
         + text[:300]
     )
     assert AUSWERTBAR not in text.replace("\n", "")
+
+
+# ── Lint-Regeln: die Prüfung selbst sabotiert (Issue #197) ──────────────────
+#
+# Die Sabotagen oben brechen ein ERZEUGNIS (Typst-Vorlage, HTML-Emitter) und
+# verlangen, dass eine zweite, unabhängige Messung es bemerkt. Für die
+# Schreibregeln im Linter gibt es diese zweite Messung nicht — Eingabe und
+# Prüfung laufen an derselben Stelle. `test_lint.py`s Positiv-/Negativtests
+# zeigen deshalb nur, dass die UNVERÄNDERTE Prüfung bei präparierter Eingabe
+# meldet; eine invertierte Bedingung oder ein verstellter Schwellwert bliebe
+# grün, weil kein Test je gegen eine sabotierte Prüfung läuft.
+#
+# Sabotiert wird hier deshalb die Prüfung selbst — eine Konstante, an der die
+# Regel hängt —, nicht ihr Ergebnis. Erste Staffel: die Regeln mit
+# `wirkung: fehler`, die aus mehrfach belegten Quellen stammen (sie dürfen
+# laut `deckel()` überhaupt Fehler sein und wiegen deshalb am schwersten).
+
+LINT_KOPF = """profil: example
+empfaenger: [Muster GmbH, Musterstraße 1, 12345 Musterstadt]
+datum: 2026-08-25
+betreff: Ein Betreff
+anrede: Sehr geehrte Damen und Herren,
+"""
+
+
+def _linte(tmp_path: Path, kopf: str) -> _lint.Bericht:
+    brief = tmp_path / "brief.md"
+    brief.write_text(f"---\n{kopf}---\nText des Briefes.\n", encoding="utf-8")
+    return falzmarke.linte(brief, profil_verzeichnis=falzmarke.TYPST_DIR / "profiles")
+
+
+def _fehlerregeln(bericht: _lint.Bericht) -> set[str]:
+    return {b.regel for b in bericht.befunde if b.schwere == _lint.FEHLER}
+
+
+def _sabotiere_konstante(monkeypatch, name: str, alt, neu) -> None:
+    """Ersetzt eine Konstante von `lint` für die Dauer des Tests.
+
+    Derselbe Anker-Check wie bei `_sabotiere()` oben, nur für eine
+    Python-Konstante statt für eine Typst-Datei: Ohne ihn würde ein
+    inzwischen anders lautender Wert stillschweigend etwas anderes
+    sabotieren, als der Test behauptet.
+    """
+    wert = getattr(_lint, name)
+    assert wert == alt, f"Ankerwert veraltet: lint.{name} ist {wert!r}, erwartet {alt!r}"
+    monkeypatch.setattr(_lint, name, neu)
+
+
+def _sabotiere_regex(monkeypatch, name: str, alt: str, neu: str) -> None:
+    """Wie `_sabotiere_konstante`, aber für ein kompiliertes Suchmuster.
+
+    Zwei gleich kompilierte `re.Pattern` sind in Python nicht `==`
+    (Objektidentität) — verglichen wird deshalb der Quelltext des Musters.
+    """
+    wert = getattr(_lint, name)
+    assert wert.pattern == alt, f"Ankerwert veraltet: lint.{name} ist {wert.pattern!r}"
+    monkeypatch.setattr(_lint, name, re.compile(neu))
+
+
+#: Lint-Regeln, für die es unten eine Sabotage-Gegenprobe gibt. Wächst mit
+#: jeder weiteren Staffel aus Issue #197 — `test_lint_gegenbeweis_deckung`
+#: hält die Zahl gegen die Kandidatenmenge, damit die Abdeckung nicht still
+#: veraltet.
+LINT_REGELN_MIT_GEGENBEWEIS = {"vermerke", "datum"}
+
+
+def test_lint_gegenbeweis_deckung():
+    """Wie viele der Regeln, die überhaupt Fehler sein dürfen, eine Sabotage-
+    Gegenprobe haben. Ohne diese Zählung altert die Lücke aus Issue #197
+    still weiter, statt beim Wachsen der Regeldatei aufzufallen."""
+    kandidaten = {
+        r["lint"] for r in _regeln.alle()
+        if r.get("lint") and r.get("wirkung") == "fehler"
+        and r.get("herkunft") == _regeln.MEHRFACH
+    }
+    unbekannt = LINT_REGELN_MIT_GEGENBEWEIS - kandidaten
+    assert not unbekannt, (
+        f"Gegenprobe für Regel(n), die es als Kandidat so nicht (mehr) gibt: {unbekannt}")
+    print(
+        f"\nLint-Gegenbeweis-Abdeckung: {len(LINT_REGELN_MIT_GEGENBEWEIS)}/{len(kandidaten)} "
+        "Regeln mit wirkung: fehler aus mehrfach belegten Quellen "
+        f"(offen: {sorted(kandidaten - LINT_REGELN_MIT_GEGENBEWEIS)})."
+    )
+
+
+def test_lint_unsabotiert_ist_gruen(tmp_path):
+    """Kontrollprobe: Die bekannt schlechte Eingabe wird OHNE Sabotage erkannt.
+
+    Ohne sie würden die Sabotage-Tests unten nichts beweisen — ein Befund, der
+    von Anfang an nie kam, kann durch die Sabotage nicht verschwinden.
+    """
+    bericht = _linte(tmp_path, LINT_KOPF + "vermerke: [Eins, Zwei, Drei, Vier]\n")
+    assert "vermerke" in _fehlerregeln(bericht)
+    bericht = _linte(tmp_path, LINT_KOPF.replace("datum: 2026-08-25", "datum: 20260825"))
+    assert "datum" in _fehlerregeln(bericht)
+
+
+def test_verstellter_vermerke_schwellwert_faellt_nicht_mehr_auf(tmp_path, monkeypatch):
+    """Der Schwellwert IST die Regel `text.vermerke_max_3` — wird er
+    verstellt, darf das nur diese eine Prüfung merken, sonst nichts."""
+    _sabotiere_konstante(monkeypatch, "VERMERKE_MAX_ZEILEN", 3, 99)
+    bericht = _linte(tmp_path, LINT_KOPF + "vermerke: [Eins, Zwei, Drei, Vier]\n")
+    assert "vermerke" not in _fehlerregeln(bericht), (
+        "Die Sabotage hat nicht gewirkt — vier Vermerke wären mit dem "
+        "verstellten Schwellwert nicht mehr zu beanstanden"
+    )
+    assert bericht.ok, (
+        "Die Sabotage hat mehr als die eine Regel getroffen:\n" + bericht.als_text("brief.md")
+    )
+
+
+def test_verstelltes_iso_datum_faellt_nicht_mehr_auf(tmp_path, monkeypatch):
+    """`ISO_DATUM` erzwingt Bindestriche, obwohl `date.fromisoformat` seit
+    Python 3.11 auch das Basisformat `20260825` annähme (Kommentar bei
+    `pruefe_datum`, `lint.py:407`). Wird das Muster durchlässig, rutscht genau
+    dieser eine Fall durch die Prüfung."""
+    _sabotiere_regex(
+        monkeypatch, "ISO_DATUM", r"^\d{4}-\d{2}-\d{2}$", r"^\d{4}-?\d{2}-?\d{2}$")
+    bericht = _linte(tmp_path, LINT_KOPF.replace("datum: 2026-08-25", "datum: 20260825"))
+    assert "datum" not in _fehlerregeln(bericht), (
+        "Die Sabotage hat nicht gewirkt — 20260825 ohne Bindestriche wäre mit "
+        "dem durchlässigen Muster nicht mehr zu beanstanden"
+    )
+    assert bericht.ok, (
+        "Die Sabotage hat mehr als die eine Lücke getroffen:\n" + bericht.als_text("brief.md")
+    )
+
+    # Ein Datum, das auch `date.fromisoformat` ablehnt, bleibt erkannt — die
+    # Sabotage trifft nur die eine Lücke, nicht die ganze Prüfung.
+    bericht = _linte(tmp_path, LINT_KOPF.replace("datum: 2026-08-25", "datum: morgen"))
+    assert "datum" in _fehlerregeln(bericht)
