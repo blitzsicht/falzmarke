@@ -16,8 +16,14 @@ if [ "${1:-}" = "--trocken" ]; then TROCKEN=1; shift; fi
 REPO="${1:?Aufruf: $0 [--trocken] OWNER/REPO}"
 OWNER="${REPO%%/*}"
 
-BESCHREIBUNG="DIN-5008-Briefe aus Markdown — als PDF/A gesetzt, auf den Millimeter geprüft. Skill für KI-Agenten und CLI."
-HOMEPAGE_WUNSCH="${FALZMARKE_HOMEPAGE:-}"
+BESCHREIBUNG="Auf den Millimeter geprüft, nicht nur behauptet: DIN-5008-Briefe aus Markdown, als PDF/A gesetzt. Skill für KI-Agenten und CLI."
+# Der Default gehört ins Repository, nicht in eine undokumentierte Variable: Bis
+# 30.08.2026 hieß eine leere FALZMARKE_HOMEPAGE „überschreib die Homepage mit der
+# Release-Seite“, und niemand außer diesem Skript kannte die Variable — ein Lauf
+# ohne sie verlor den Verweis auf falzmarke.com, obwohl die Domain die ganze Zeit
+# antwortete (Issue #199). FALZMARKE_HOMEPAGE bleibt nur noch als Override für Forks.
+STANDARD_HOMEPAGE="https://falzmarke.com"
+HOMEPAGE_WUNSCH="${FALZMARKE_HOMEPAGE:-$STANDARD_HOMEPAGE}"
 
 tue() {
   if [ "$TROCKEN" = "1" ]; then printf '  [trocken] %s\n' "$*"; else "$@"; fi
@@ -61,16 +67,14 @@ else
 fi
 
 echo "== Homepage =="
-if [ -z "$HOMEPAGE_WUNSCH" ]; then
-  HOMEPAGE="https://github.com/$REPO/releases/latest"
-  hinweis "Keine Domain angegeben (FALZMARKE_HOMEPAGE) — Homepage zeigt auf die Release-Seite."
-elif curl -s -o /dev/null -w '%{http_code}' -L --max-time 10 "$HOMEPAGE_WUNSCH" | grep -qE '^(200|301|302)$'; then
-  HOMEPAGE="$HOMEPAGE_WUNSCH"
-  hinweis "$HOMEPAGE_WUNSCH antwortet — wird als Homepage gesetzt."
-else
-  HOMEPAGE="https://github.com/$REPO/releases/latest"
-  hinweis "$HOMEPAGE_WUNSCH antwortet nicht — Homepage zeigt stattdessen auf die Release-Seite."
-fi
+# Die bisherige Homepage wird auch im Trockenlauf abgefragt (reines Lesen, wie die
+# Admin-Prüfung oben) — ohne sie könnte scripts/homepage.py einen stillen Rückfall
+# auf die Release-Seite nicht von einem lauten unterscheiden (Issue #199).
+BISHERIGE_HOMEPAGE=$(gh api "repos/$REPO" --jq '.homepage // empty' 2>/dev/null || true)
+HOMEPAGE_AUSGABE=$(python3 scripts/homepage.py --repo "$REPO" --domain "$HOMEPAGE_WUNSCH" --bisher "$BISHERIGE_HOMEPAGE")
+HOMEPAGE=$(printf '%s\n' "$HOMEPAGE_AUSGABE" | sed -n '1p')
+HOMEPAGE_MELDUNG=$(printf '%s\n' "$HOMEPAGE_AUSGABE" | sed -n '2p')
+hinweis "$HOMEPAGE_MELDUNG"
 
 echo "== Allgemein, Features, Merge-Regeln =="
 tue gh repo edit "$REPO" \
