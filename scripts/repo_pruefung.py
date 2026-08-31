@@ -119,7 +119,9 @@ def _pruefe_durchsetzung(name: str, rulesets: list[dict] | None, rulesets_fehler
         return Abgleich(label, SOLL_ENFORCEMENT, None, rulesets_fehler)
     gefunden = next((r for r in rulesets if r.get("name") == name), None)
     if gefunden is None:
-        return Abgleich(label, SOLL_ENFORCEMENT, None, f"Ruleset '{name}' existiert nicht im Repo")
+        # Die Rulesets-Abfrage lief durch — das Fehlen ist keine unbekannte
+        # Größe, sondern eine feststehende Abweichung vom Soll "active".
+        return Abgleich(label, SOLL_ENFORCEMENT, "fehlt")
     return Abgleich(label, SOLL_ENFORCEMENT, gefunden.get("enforcement"))
 
 

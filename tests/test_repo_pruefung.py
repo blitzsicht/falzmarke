@@ -154,12 +154,17 @@ def test_gegenprobe_unveraenderte_rulesets_sind_gruen():
 
 
 def test_fehlendes_ruleset_ist_eine_abweichung_nicht_ein_absturz():
+    """Die Rulesets-Abfrage lief durch (kein Netz-/Admin-Fehler) — das Fehlen
+    von 'release-tags' steht damit fest und ist eine echte Abweichung, kein
+    dritter Zustand. Sonst würde ein gelöschtes Pflicht-Ruleset harmloser
+    behandelt als ein bloß zurückgestuftes (Exit 2 statt Exit 1)."""
     antworten = _vollstaendige_antworten()
     antworten[f"repos/{REPO_NAME}/rulesets"] = [_ruleset("main", 1, "active")]
     ergebnisse = repo_pruefung.pruefe(REPO_NAME, api=_api(antworten), workflow=CI)
     abgleich = _finde(ergebnisse, "'release-tags': enforcement")
-    assert abgleich.unbekannt
+    assert not abgleich.unbekannt
     assert not abgleich.stimmt
+    assert repo_pruefung.austrittscode(ergebnisse) == 1
 
 
 # ── Pflicht-Check-Liste: Gegenprobe ─────────────────────────────────────────
