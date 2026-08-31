@@ -35,6 +35,38 @@ from conftest import REPO
 SKRIPT = REPO / "scripts" / "repo-einstellungen.sh"
 
 
+def _bash_taugt() -> tuple[bool, str]:
+    """Laesst sich `bash` hier ueberhaupt fuer einen Einzeiler benutzen?
+
+    Auf den Windows-Runnern von GitHub scheitert `subprocess.run(["bash", ...])`
+    mit Exit 1 und ohne Ausgabe (PR #202, Laeufe 33382792073 und 33383227023).
+    Die Ursache ist von hier aus nicht feststellbar — deshalb wird sie nicht
+    geraten, sondern gemessen: Diese Sonde faehrt einen trivialen Befehl und
+    nimmt die Fehlerausgabe in den Skip-Grund auf. Der erscheint im
+    pytest-Bericht (`-rs`) und benennt damit die Ursache dort, wo sie auftritt.
+
+    Uebersprungen wird nur die *Verhaltens*pruefung. Dass der Default auf
+    "active" steht, prueft `test_der_default_ist_active_strukturell` ohne bash
+    auf jeder Plattform — ein Test, der nur uebersprungen wird, belegt nichts.
+    """
+    try:
+        fertig = subprocess.run(
+            ["bash", "-c", 'printf ok'], capture_output=True, text=True
+        )
+    except OSError as fehler:
+        return False, f"bash nicht startbar: {fehler}"
+    if fertig.returncode != 0 or fertig.stdout != "ok":
+        return False, (
+            f"bash antwortet nicht wie erwartet: rc={fertig.returncode} "
+            f"stdout={fertig.stdout!r} stderr={fertig.stderr!r}"
+        )
+    return True, ""
+
+
+BASH_TAUGT, BASH_GRUND = _bash_taugt()
+ohne_bash = pytest.mark.skipif(not BASH_TAUGT, reason=BASH_GRUND)
+
+
 def _entscheidungszeilen() -> str:
     """Die Zeilen aus dem echten Skript, die DURCHSETZUNG festlegen.
 
@@ -76,6 +108,26 @@ def _durchsetzung(**umgebung: str) -> str:
     return fertig.stdout
 
 
+def test_der_default_ist_active_strukturell():
+    """Faengt den gedrehten Default auf jeder Plattform, auch ohne bash.
+
+    Das ist bewusst eine Struktur- und keine Wortlautpruefung: Sie liest die
+    Zeilen aus der echten Datei und haelt fest, dass die *erste* Zuweisung
+    "active" ist und die Bedingung herunterstuft. Wer den Default umdreht,
+    kommt daran nicht vorbei — auch dort nicht, wo die bash-Pruefung unten
+    uebersprungen wird.
+    """
+    zeilen = _entscheidungszeilen().splitlines()
+    assert zeilen[0].strip() == 'DURCHSETZUNG="active"', (
+        f"Die erste Zuweisung lautet {zeilen[0].strip()!r} statt "
+        'DURCHSETZUNG="active" — der Default waere wieder der stumpfe Zustand.'
+    )
+    bedingung = "\n".join(zeilen[1:])
+    assert "FALZMARKE_RULESET_EVALUATE" in bedingung
+    assert 'DURCHSETZUNG="evaluate"' in bedingung
+
+
+@ohne_bash
 def test_ohne_jede_umgebungsvariable_bleibt_active():
     assert _durchsetzung() == "active", (
         "Ein Lauf ohne Umgebungsvariablen würde main entwaffnen — genau der "
@@ -83,15 +135,18 @@ def test_ohne_jede_umgebungsvariable_bleibt_active():
     )
 
 
+@ohne_bash
 def test_gegenprobe_die_variable_stuft_herunter():
     """Ohne diesen Fall belegt der erste Test nur, dass irgendwas 'active' sagt."""
     assert _durchsetzung(FALZMARKE_RULESET_EVALUATE="1") == "evaluate"
 
 
+@ohne_bash
 def test_leere_variable_stuft_nicht_herunter():
     assert _durchsetzung(FALZMARKE_RULESET_EVALUATE="") == "active"
 
 
+@ohne_bash
 def test_die_alte_variable_hat_keine_wirkung_mehr():
     """`FALZMARKE_RULESET_AKTIV=1` war der alte Weg zum Scharfschalten.
 
@@ -108,6 +163,7 @@ def test_die_alte_variable_kommt_nirgends_mehr_vor():
     )
 
 
+@ohne_bash
 @pytest.mark.parametrize(
     "vorher,nachher,erwartet_warnung",
     [
