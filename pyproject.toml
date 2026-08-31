@@ -1,7 +1,7 @@
 [project]
 name = "falzmarke"
 version = "0.8.2"
-description = "DIN-5008-Briefe aus Markdown, am fertigen PDF nachgemessen. Sollwerte aus Sekundärquellen."
+description = "Am fertigen PDF nachgemessen: DIN-5008-Briefe aus Markdown. Sollwerte aus Sekundärquellen."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }

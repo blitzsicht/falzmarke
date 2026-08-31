@@ -100,6 +100,27 @@ def test_github_beschreibung_passt_in_das_feld(kanon):
     assert len(kanon["github_beschreibung"]) <= 120
 
 
+def test_github_beschreibung_nennt_die_pruefung_vor_dem_massenmerkmal(kanon):
+    """Issue #204, wie schon #199/#205 fuer scripts/repo-einstellungen.sh:
+    'DIN-5008-Briefe aus Markdown' gibt es laut Messung achtmal auf GitHub,
+    das Nachmessen am fertigen PDF nirgends. Der Kanon muss deshalb mit der
+    Pruefung beginnen, nicht mit dem, was es schon gibt."""
+    beschreibung = kanon["github_beschreibung"]
+    pos_pruefung = beschreibung.index("nachgemessen")
+    pos_markdown = beschreibung.index("DIN-5008-Briefe aus Markdown")
+    assert pos_pruefung < pos_markdown, beschreibung
+
+
+def test_die_positionspruefung_wuerde_die_alte_reihenfolge_bemerken():
+    """Gegenprobe: ohne sie belegt der Test oben nur, dass beide Woerter
+    irgendwo im Satz stehen — nicht, dass die Reihenfolge wirklich geprueft
+    wird."""
+    alte_beschreibung = "DIN-5008-Briefe aus Markdown, am fertigen PDF nachgemessen. Sollwerte aus Sekundärquellen."
+    pos_pruefung = alte_beschreibung.index("nachgemessen")
+    pos_markdown = alte_beschreibung.index("DIN-5008-Briefe aus Markdown")
+    assert pos_pruefung > pos_markdown
+
+
 # ── Der Kanon behauptet nichts Unbelegtes ───────────────────────────────────
 
 def alle_texte(wert) -> list[str]:
