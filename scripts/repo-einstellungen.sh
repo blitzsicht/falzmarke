@@ -31,45 +31,31 @@ if ! gh api "repos/$REPO" --jq '.permissions.admin' 2>/dev/null | grep -q true; 
 fi
 hinweis "Admin-Rechte auf $REPO vorhanden."
 
-# Die Status-Checks werden aus dem letzten Lauf abgeleitet, nicht geraten.
-# Ein Ruleset, das nicht existierende Checks verlangt, blockiert den Branch
-# dauerhaft: GitHub wartet auf etwas, das nie kommt.
-echo "== Status-Checks aus dem letzten CI-Lauf ableiten =="
-LAUF=$(gh run list --repo "$REPO" --workflow=ci.yml --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)
+# Die Status-Checks stammen aus .github/workflows/ci.yml, nicht aus einem
+# CI-Lauf (Issue #196): Ein aus dem letzten Lauf abgeleiteter Check fehlt in
+# der Liste, wenn sein Job zum Zeitpunkt der Ableitung noch läuft — dieselbe
+# Anfrage liefert dann je nach Zeitpunkt eine andere Liste. scripts/
+# pflicht_checks.py liest nur die Workflow-Datei: Ein Job mit `if:`-Bedingung
+# auf main/push bleibt ausgeschlossen (der berechtigte Teil der alten Logik),
+# und ein Job mit `name:` erscheint unter dem angezeigten Namen, nicht dem
+# Jobschlüssel. Ein Ruleset, das nicht existierende Checks verlangt, blockiert
+# den Branch dauerhaft: GitHub wartet auf etwas, das nie kommt.
+echo "== Status-Checks aus .github/workflows/ci.yml ableiten =="
+# Bewusst kein `done < <(python3 ...)`: Der Exit-Code einer Prozess-Substitution
+# geht unter `set -e` verloren (die while-Schleife liest nur den Dateideskriptor,
+# ihr eigener Exit-Code zählt für -e — nicht der des erzeugenden Prozesses).
+# Stürzt pflicht_checks.py ab, bliebe CHECKS dadurch still leer, das Ruleset
+# bekäme keine Pflicht-Checks und main wäre ungeschützt. Die Zuweisung
+# `CHECKS_ROH=$(...)` dagegen gibt ihren eigenen Exit-Code an -e weiter.
+CHECKS_ROH=$(python3 scripts/pflicht_checks.py)
 CHECKS=()
-if [ -n "$LAUF" ]; then
-  # Nur Jobs, die auch bei einem Pull Request laufen. Ein Job mit
-  # `if: github.ref == 'refs/heads/main'` erscheint bei einem PR nie — als
-  # Pflicht-Check würde er jeden PR unbegrenzt warten lassen.
-  NUR_MAIN=$(python3 - <<'PYEOF'
-import re, sys, pathlib
-try:
-    import yaml
-    daten = yaml.safe_load(pathlib.Path(".github/workflows/ci.yml").read_text(encoding="utf-8"))
-except Exception:
-    sys.exit(0)
-for name, job in (daten.get("jobs") or {}).items():
-    bedingung = str(job.get("if", ""))
-    if "refs/heads/main" in bedingung or "event_name == 'push'" in bedingung:
-        print(name)
-PYEOF
-)
-  while IFS= read -r name; do
-    [ -z "$name" ] && continue
-    ausgeschlossen=0
-    while IFS= read -r nm; do
-      [ -n "$nm" ] && [ "$name" = "$nm" ] && ausgeschlossen=1
-    done <<< "$NUR_MAIN"
-    if [ "$ausgeschlossen" = "1" ]; then
-      hinweis "übersprungen (läuft nur auf main): $name"
-    else
-      CHECKS+=("$name")
-    fi
-  done < <(gh api "repos/$REPO/actions/runs/$LAUF/jobs" --jq '.jobs[] | select(.conclusion=="success") | .name')
-fi
+while IFS= read -r name; do
+  [ -z "$name" ] && continue
+  CHECKS+=("$name")
+done <<< "$CHECKS_ROH"
 if [ ${#CHECKS[@]} -eq 0 ]; then
-  hinweis "Kein erfolgreicher CI-Lauf gefunden — das Ruleset bekommt KEINE Status-Checks."
-  hinweis "Sonst wäre der Branch gesperrt, bis die Checks das erste Mal laufen."
+  hinweis "Kein Job in ci.yml gefunden — das Ruleset bekommt KEINE Status-Checks."
+  hinweis "Sonst wäre der Branch gesperrt, bis ein Check existiert, den es nie gibt."
 else
   hinweis "Gefunden: ${CHECKS[*]}"
 fi
