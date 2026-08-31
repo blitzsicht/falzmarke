@@ -83,8 +83,18 @@ def test_rueckfall_trotz_vorher_gesetzter_echter_domain_ist_eine_warnung():
         REPO_NAME, "https://falzmarke.com", "https://falzmarke.com", pruefen=_immer(False)
     )
     assert homepage_ == RELEASE_SEITE
-    assert meldung.startswith("WARNUNG:")
-    assert "https://falzmarke.com" in meldung
+    # Die ganze Meldung vergleichen, nicht einen Teilstring suchen. Ein
+    # `"https://falzmarke.com" in meldung` sieht fuer CodeQL wie eine
+    # URL-Pruefung aus (py/incomplete-url-substring-sanitization, hoch) — hier
+    # ist es zwar nur eine Zusicherung auf einen Meldungstext, aber der
+    # Vergleich ist ohnehin die staerkere Pruefung: Er haelt auch fest, DASS
+    # die bisherige Homepage genannt und als ersetzt bezeichnet wird, nicht
+    # nur dass die Zeichenkette irgendwo vorkommt.
+    assert meldung == (
+        "WARNUNG: https://falzmarke.com antwortet nicht — Homepage zeigt auf "
+        "die Release-Seite zurück. Bisher war https://falzmarke.com gesetzt — "
+        "das wird jetzt ersetzt."
+    )
 
 
 def test_gegenprobe_ohne_rueckfall_gibt_es_keine_warnung():
