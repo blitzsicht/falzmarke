@@ -18,7 +18,7 @@ import shutil
 import subprocess
 import sys
 
-from conftest import REPO
+from conftest import REPO, ohne_bash
 
 sys.path.insert(0, str(REPO / "scripts"))
 
@@ -162,18 +162,14 @@ def _setz_zeile() -> str:
     raise AssertionError("keine Zuweisung DURCHSETZUNG=$(...) im Skript gefunden")
 
 
-def test_eine_sabotage_an_der_quelle_wirkt_in_beide_richtungen(tmp_path, monkeypatch):
-    """Die Gegenprobe aus dem Issue, beide Richtungen an einem Strang.
+def _verstellte_werkstatt(tmp_path) -> Path:
+    """Eine Kopie von scripts/ mit verstelltem Sollwert.
 
-    Wird der eine Sollwert verstellt, muss BEIDES mitgehen: Der Setz-Lauf
-    schreibt den verstellten Wert, und der Wächter verlangt ihn. Ginge nur
-    eines mit, gäbe es die zweite Stelle noch — dann belegte der Test bloß,
-    dass irgendwo eine Zeichenkette steht.
+    Das ganze Verzeichnis, nicht nur die eine Datei: `repo_pruefung.py` stellt
+    beim Import sein EIGENES Verzeichnis an den Anfang von sys.path. Laege dort
+    die echte durchsetzung.py, verdraengte sie die verstellte — der Test waere
+    gruen, ohne die Sabotage je gesehen zu haben.
     """
-    # Das ganze Verzeichnis, nicht nur die eine Datei: `repo_pruefung.py` stellt
-    # beim Import sein EIGENES Verzeichnis an den Anfang von sys.path. Läge dort
-    # die echte durchsetzung.py, verdrängte sie die verstellte — der Test wäre
-    # grün, ohne je die Sabotage gesehen zu haben.
     werkstatt = tmp_path / "scripts"
     shutil.copytree(REPO / "scripts", werkstatt)
     ziel = werkstatt / "durchsetzung.py"
@@ -181,28 +177,50 @@ def test_eine_sabotage_an_der_quelle_wirkt_in_beide_richtungen(tmp_path, monkeyp
         'STANDARD = "active"', 'STANDARD = "verstellt"', 1)
     assert 'STANDARD = "verstellt"' in verstellt, "die Sabotage hat nicht gegriffen"
     ziel.write_text(verstellt, encoding="utf-8")
+    return werkstatt
 
-    # Setz-Richtung: die echte Zeile aus dem Skript, gegen das verstellte Modul.
+
+def test_die_pruef_richtung_folgt_der_quelle(tmp_path, monkeypatch):
+    """Wird der eine Sollwert verstellt, verlangt der Waechter den verstellten.
+
+    Diese Haelfte braucht kein bash und laeuft deshalb auf jeder Plattform —
+    die Setz-Richtung unten wird auf den Windows-Runnern uebersprungen, und ein
+    Test, der nur uebersprungen wird, belegt nichts.
+    """
+    monkeypatch.syspath_prepend(str(_verstellte_werkstatt(tmp_path)))
+    for modul in ("durchsetzung", "repo_pruefung"):
+        sys.modules.pop(modul, None)
+    try:
+        import repo_pruefung as frisch                            # noqa: PLC0415
+        ergebnisse = frisch.pruefe(
+            "blitzsicht/falzmarke",
+            api=lambda pfad: [] if pfad.endswith("/rulesets") else {"homepage": ""},
+            workflow=REPO / ".github" / "workflows" / "ci.yml",
+            domain_pruefen=lambda _: True)
+        soll_werte = {e.soll for e in ergebnisse if "enforcement" in e.name}
+        assert soll_werte == {"verstellt"}, soll_werte
+    finally:
+        # Die echten Module zurueck in den Cache, sonst erbt der naechste Test
+        # die verstellte Fassung. Eine Sabotage, die ueberlebt, ist schlimmer
+        # als keine — sie macht fremde Tests gruen oder rot aus falschem Grund.
+        for modul in ("durchsetzung", "repo_pruefung"):
+            sys.modules.pop(modul, None)
+
+
+@ohne_bash
+def test_die_setz_richtung_folgt_derselben_quelle(tmp_path):
+    """Und der Setz-Lauf schreibt denselben verstellten Wert.
+
+    Zusammen mit dem Test darueber ist das die Gegenprobe aus dem Issue: Ginge
+    nur eine Richtung mit, gaebe es die zweite Stelle noch — dann belegte der
+    Test bloss, dass irgendwo eine Zeichenkette steht.
+
+    Gefahren wird die ECHTE Zeile aus repo-einstellungen.sh, aus der Datei
+    gelesen statt nachgebaut. Ein nachgebauter Aufruf bewiese nur, dass das
+    Modul funktioniert, nicht dass das Skript es benutzt.
+    """
+    _verstellte_werkstatt(tmp_path)
     fertig = subprocess.run(["bash", "-c", f"{_setz_zeile()}\nprintf '%s' \"$DURCHSETZUNG\""],
                             cwd=tmp_path, capture_output=True, text=True)
     assert fertig.returncode == 0, fertig.stderr
     assert fertig.stdout == "verstellt", (fertig.stdout, fertig.stderr)
-
-    # Prüf-Richtung: derselbe verstellte Wert wird zum Sollwert des Wächters.
-    monkeypatch.syspath_prepend(str(werkstatt))
-    for modul in ("durchsetzung", "repo_pruefung"):
-        sys.modules.pop(modul, None)
-    import repo_pruefung as frisch                                # noqa: PLC0415
-    ergebnisse = frisch.pruefe(
-        "blitzsicht/falzmarke",
-        api=lambda pfad: [] if pfad.endswith("/rulesets") else {"homepage": ""},
-        workflow=REPO / ".github" / "workflows" / "ci.yml",
-        domain_pruefen=lambda _: True)
-    soll_werte = {e.soll for e in ergebnisse if "enforcement" in e.name}
-    assert soll_werte == {"verstellt"}, soll_werte
-
-    # Aufräumen: die echten Module zurück in den Cache, sonst erbt der nächste
-    # Test die verstellte Fassung. Eine Sabotage, die überlebt, ist schlimmer
-    # als keine — sie macht fremde Tests grün oder rot aus falschem Grund.
-    for modul in ("durchsetzung", "repo_pruefung"):
-        sys.modules.pop(modul, None)
