@@ -8,6 +8,7 @@ Sache. Das Programm selbst schreibt seit v0.2.0 immer UTF-8.
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
 
@@ -67,3 +68,42 @@ def gerendert(tmp_path_factory) -> dict[str, tuple[Path, str]]:
 @pytest.fixture(scope="session")
 def beispiel_pfade() -> list[Path]:
     return BEISPIELE
+
+
+# ── bash-Sonde ──────────────────────────────────────────────────────────────
+#
+# Stand bis #212 in tests/test_ruleset_durchsetzung.py. Sie hierher zu ziehen
+# statt sie ein zweites Mal zu schreiben, ist dieselbe Regel, die dieser
+# Vorgang im Produktivcode durchsetzt: zwei Kopien, die gleich sein muessen,
+# halten sich nicht von selbst gleich.
+
+def _bash_taugt() -> tuple[bool, str]:
+    """Laesst sich `bash` hier ueberhaupt fuer einen Einzeiler benutzen?
+
+    Auf den Windows-Runnern von GitHub scheitert `subprocess.run(["bash", ...])`
+    mit Exit 1 und ohne Ausgabe (PR #202, Laeufe 33382792073 und 33383227023).
+    Die Ursache ist von hier aus nicht feststellbar — deshalb wird sie nicht
+    geraten, sondern gemessen: Diese Sonde faehrt einen trivialen Befehl und
+    nimmt die Fehlerausgabe in den Skip-Grund auf. Der erscheint im
+    pytest-Bericht (`-rs`) und benennt damit die Ursache dort, wo sie auftritt.
+
+    Uebersprungen wird nur die *Verhaltens*pruefung. Dass der Default auf
+    "active" steht, prueft `test_der_default_ist_active_strukturell` ohne bash
+    auf jeder Plattform — ein Test, der nur uebersprungen wird, belegt nichts.
+    """
+    try:
+        fertig = subprocess.run(
+            ["bash", "-c", 'printf ok'], capture_output=True, text=True
+        )
+    except OSError as fehler:
+        return False, f"bash nicht startbar: {fehler}"
+    if fertig.returncode != 0 or fertig.stdout != "ok":
+        return False, (
+            f"bash antwortet nicht wie erwartet: rc={fertig.returncode} "
+            f"stdout={fertig.stdout!r} stderr={fertig.stderr!r}"
+        )
+    return True, ""
+
+
+BASH_TAUGT, BASH_GRUND = _bash_taugt()
+ohne_bash = pytest.mark.skipif(not BASH_TAUGT, reason=BASH_GRUND)

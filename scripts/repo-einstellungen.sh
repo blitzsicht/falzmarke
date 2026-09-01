@@ -158,8 +158,19 @@ echo "== Ruleset main =="
 # damit den Schutz von main entwaffnet, mit einer einzigen Hinweiszeile mitten
 # in langer Ausgabe (Issue #201). Deshalb ist "active" jetzt der Normalfall und
 # das Herunterstufen der begründungspflichtige Sonderfall.
-DURCHSETZUNG="active"
-[ "${FALZMARKE_RULESET_EVALUATE:-0}" = "1" ] && DURCHSETZUNG="evaluate"
+# Der Wert kommt aus scripts/durchsetzung.py — derselben Datei, gegen die
+# repo_pruefung.py prüft (Issue #212). Bis dahin stand er hier ein zweites Mal,
+# und eine Sabotage genau hier blieb stumm: --pruefen macht oben ein `exec` auf
+# den Prüfer, diese Zeile wird dabei nie erreicht. Der Wächter konnte den Wert,
+# den dieses Skript setzt, gar nicht sehen.
+#
+# Zuweisung statt Prozess-Substitution, aus demselben Grund wie bei CHECKS_ROH
+# oben: Stürzt das Modul ab, muss der Lauf abbrechen und nicht mit leerem
+# DURCHSETZUNG weitermachen — ein Ruleset ohne enforcement wäre kein Schutz.
+DURCHSETZUNG=$(python3 scripts/durchsetzung.py --ruleset main --grund)
+# release-tags bekommt immer den strengen Wert — auch er aus dem Modul, sonst
+# stuende der Sollwert wieder an einer zweiten Stelle.
+DURCHSETZUNG_TAGS=$(python3 scripts/durchsetzung.py --ruleset release-tags)
 hinweis "Durchsetzung: $DURCHSETZUNG (mit FALZMARKE_RULESET_EVALUATE=1 nur beobachten)"
 
 CHECK_JSON="[]"
@@ -200,6 +211,13 @@ PY
 #: der Fall eigens gemeldet — in beiden Betriebsarten, auch im Trockenlauf.
 warne_bei_herunterstufung() {
   local name="$1" vorher="$2" nachher="$3"
+  # "active" steht hier bewusst als Literal und nicht als Variable: Diese
+  # Funktion wird von tests/test_ruleset_durchsetzung.py aus der Datei
+  # ausgeschnitten und EINZELN gefahren. Eine globale Variable waere dort leer,
+  # und `[ "$vorher" = "" ]` traefe dann auf ein noch gar nicht existierendes
+  # Ruleset zu — die Warnung erschiene beim ERSTEN Anlegen, wo nichts verloren
+  # geht. Damit der Wert trotzdem nicht vom Sollwert abdriften kann, haelt
+  # tests/test_durchsetzung.py beide zusammen.
   [ "$vorher" = "active" ] || return 0
   [ "$nachher" != "active" ] || return 0
   printf '\n  !! ACHTUNG: Ruleset %s wird von active auf %s herabgestuft.\n' "$name" "$nachher"
@@ -228,7 +246,7 @@ setze_ruleset() {
 setze_ruleset "main" "$RULESET_MAIN"
 
 echo "== Ruleset release-tags =="
-RULESET_TAGS='{"name":"release-tags","target":"tag","enforcement":"active","bypass_actors":[],
+RULESET_TAGS='{"name":"release-tags","target":"tag","enforcement":"'"$DURCHSETZUNG_TAGS"'","bypass_actors":[],
 "conditions":{"ref_name":{"include":["refs/tags/v*"],"exclude":[]}},
 "rules":[{"type":"deletion"},{"type":"non_fast_forward"},{"type":"update"}]}'
 setze_ruleset "release-tags" "$RULESET_TAGS"

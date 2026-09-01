@@ -17,7 +17,7 @@ gelebten Zustand:
 
     Homepage                        scripts/homepage.py (bestimme(): STANDARD_DOMAIN,
                                     bei toter Domain die Release-Seite — #210)
-    Ruleset-`enforcement` je Ruleset  Konstante hier (seit #201: "active")
+    Ruleset-`enforcement` je Ruleset  scripts/durchsetzung.py (soll())
     Pflicht-Check-Liste (Ruleset main) scripts/pflicht_checks.py
 
 Die API-Abfrage steckt hinter dem injizierbaren `api`-Callable (Vorbild:
@@ -42,18 +42,19 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import durchsetzung                                               # noqa: E402
 import homepage                                                   # noqa: E402
 import pflicht_checks                                             # noqa: E402
 
-#: Der Sollwert seit #201: main UND release-tags stehen auf "active". Anders
-#: als das `DURCHSETZUNG` in repo-einstellungen.sh kennt dieser Wert keinen
-#: Override (FALZMARKE_RULESET_EVALUATE) — --pruefen misst den Sollzustand,
-#: nicht eine für einen einzelnen Lauf gewählte Ausnahme.
-SOLL_ENFORCEMENT = "active"
+# Der Sollwert der Durchsetzung steht in scripts/durchsetzung.py — derselben
+# Datei, aus der auch repo-einstellungen.sh ihn liest (Issue #212). Bis dahin
+# stand er hier ein zweites Mal, und eine Sabotage am Wert im Setz-Skript blieb
+# stumm: `--pruefen` macht dort ein `exec` auf dieses Skript, die Zeile wird nie
+# erreicht. Zwei Werte, die gleich sein müssen, ohne dass etwas sie gleich hält.
 RULESET_NAMEN = ("main", "release-tags")
 
 
@@ -146,16 +147,17 @@ def _pruefe_homepage(repo: str, api: Callable[[str], Any],
     return Abgleich("Homepage", soll, ist, ebenso_gueltig=ebenso)
 
 
-def _pruefe_durchsetzung(name: str, rulesets: list[dict] | None, rulesets_fehler: str | None) -> Abgleich:
+def _pruefe_durchsetzung(name: str, rulesets: list[dict] | None,
+                         rulesets_fehler: str | None, soll_wert: str) -> Abgleich:
     label = f"Ruleset '{name}': enforcement"
     if rulesets is None:
-        return Abgleich(label, SOLL_ENFORCEMENT, None, rulesets_fehler)
+        return Abgleich(label, soll_wert, None, rulesets_fehler)
     gefunden = next((r for r in rulesets if r.get("name") == name), None)
     if gefunden is None:
         # Die Rulesets-Abfrage lief durch — das Fehlen ist keine unbekannte
-        # Größe, sondern eine feststehende Abweichung vom Soll "active".
-        return Abgleich(label, SOLL_ENFORCEMENT, "fehlt")
-    return Abgleich(label, SOLL_ENFORCEMENT, gefunden.get("enforcement"))
+        # Größe, sondern eine feststehende Abweichung vom Sollwert.
+        return Abgleich(label, soll_wert, "fehlt")
+    return Abgleich(label, soll_wert, gefunden.get("enforcement"))
 
 
 def _pruefe_pflicht_checks(
@@ -186,6 +188,7 @@ def pruefe(
     api: Callable[[str], Any] = gh_api_json,
     workflow: Path = pflicht_checks.STANDARD_WORKFLOW,
     domain_pruefen: Callable[[str], bool] = homepage.domain_antwortet,
+    umgebung: Mapping[str, str] | None = None,
 ) -> list[Abgleich]:
     """Die drei Abgleiche aus dem Issue — nie schreibend, nie CI-Lauf-abhängig.
 
@@ -203,8 +206,13 @@ def pruefe(
     else:
         rulesets_fehler = None
 
+    # Je Ruleset gefragt, nicht einmal für alle: Der Sonderfall gilt nur für
+    # main. `release-tags` setzt repo-einstellungen.sh fest auf den strengen
+    # Wert — erwartete der Wächter dort ebenfalls `evaluate`, meldete er eine
+    # Abweichung gegen einen Zustand, den der Setz-Lauf nie herstellt.
     for name in RULESET_NAMEN:
-        ergebnisse.append(_pruefe_durchsetzung(name, rulesets, rulesets_fehler))
+        ergebnisse.append(_pruefe_durchsetzung(
+            name, rulesets, rulesets_fehler, durchsetzung.soll(name, umgebung)))
     ergebnisse.append(_pruefe_pflicht_checks(repo, rulesets, rulesets_fehler, api, workflow))
     return ergebnisse
 
@@ -225,6 +233,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--repo", required=True, help="OWNER/REPO")
     args = parser.parse_args()
+
+    # Eine Ausnahme, die niemand sieht, ist der stille Ausfall, gegen den
+    # dieses Skript gebaut ist. Steht sie vor den Ergebnissen, liest sie auch,
+    # wer nur die erste Zeile ansieht (Issue #212).
+    if text := durchsetzung.grund():
+        print(f"AUSNAHME        Ruleset-Durchsetzung: {text}")
 
     ergebnisse = pruefe(args.repo)
     for e in ergebnisse:
