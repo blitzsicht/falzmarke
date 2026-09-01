@@ -89,8 +89,16 @@ def _vollstaendige_antworten(
     }
 
 
-def _pruefen(**kwargs) -> list[repo_pruefung.Abgleich]:
-    return repo_pruefung.pruefe(REPO_NAME, api=_api(_vollstaendige_antworten(**kwargs)), workflow=CI)
+def _pruefen(*, domain_antwortet: bool = True, **kwargs) -> list[repo_pruefung.Abgleich]:
+    """`domain_antwortet` wird injiziert, nie wirklich abgefragt (Issue #210).
+
+    Der Sollwert der Homepage hängt seither davon ab: Antwortet die Domain
+    nicht, ist die Release-Seite der richtige Wert und nicht der falsche. Ohne
+    diesen Parameter ginge jeder Test hier ins Netz — und wäre damit von der
+    Erreichbarkeit von falzmarke.com abhängig statt von seiner eigenen Aussage.
+    """
+    return repo_pruefung.pruefe(REPO_NAME, api=_api(_vollstaendige_antworten(**kwargs)),
+                                workflow=CI, domain_pruefen=lambda _: domain_antwortet)
 
 
 def _finde(ergebnisse: list[repo_pruefung.Abgleich], teilname: str) -> repo_pruefung.Abgleich:
@@ -127,6 +135,82 @@ def test_gegenprobe_unveraenderte_homepage_ist_gruen():
     assert abgleich.stimmt
 
 
+# ── Homepage: der legitime Rückfall (#210) ──────────────────────────────────
+#
+# `scripts/homepage.py` kennt einen dokumentierten Rückfall: Antwortet die
+# Domain nicht, ist die Release-Seite der richtige Wert. Der Wächter verglich
+# bis #210 unbedingt gegen STANDARD_DOMAIN und meldete dann ABWEICHUNG für
+# genau diesen Normalfall. Ein Wächter, der grundlos anschlägt, wird
+# abgeschaltet — dann ist er schlechter als keiner.
+
+
+def test_der_rueckfall_auf_die_release_seite_ist_keine_abweichung():
+    """Domain antwortet nicht, Homepage steht deshalb auf der Release-Seite."""
+    ergebnisse = _pruefen(domain_antwortet=False,
+                          homepage_wert=homepage.release_seite(REPO_NAME))
+    abgleich = _finde(ergebnisse, "Homepage")
+    assert abgleich.stimmt, abgleich
+    assert repo_pruefung.austrittscode(ergebnisse) == 0
+
+
+def test_die_release_seite_bei_erreichbarer_domain_ist_sehr_wohl_eine_abweichung():
+    """Die Gegenprobe dazu — ohne sie hätte der Fix den Wächter an dieser
+    Stelle nur blind gemacht: Dann wäre die Release-Seite immer in Ordnung,
+    auch wenn jemand die Homepage von Hand darauf zurückgestellt hat."""
+    ergebnisse = _pruefen(domain_antwortet=True,
+                          homepage_wert=homepage.release_seite(REPO_NAME))
+    abgleich = _finde(ergebnisse, "Homepage")
+    assert not abgleich.stimmt, abgleich
+    assert abgleich.soll == homepage.STANDARD_DOMAIN
+    assert repo_pruefung.austrittscode(ergebnisse) == 1
+
+
+def test_bei_toter_domain_ist_die_domain_selbst_ebenso_in_ordnung():
+    """Der Fall, den das Issue nicht bedacht hat — und der häufigere.
+
+    Fällt die Domain aus, ohne dass jemand `repo-einstellungen.sh` fährt, steht
+    die Homepage weiter auf der Domain. Verlangte der Wächter dann die
+    Release-Seite, schlüge er bei jedem Netzhänger an: Der Fehlalarm aus #210
+    wäre nicht behoben, sondern nur auf den anderen Fall verschoben.
+
+    Welcher der beiden Werte dasteht, hängt allein am Zeitpunkt des letzten
+    Setz-Laufs. Beide sind legitim; keiner ist eine Verstellung.
+    """
+    ergebnisse = _pruefen(domain_antwortet=False, homepage_wert=homepage.STANDARD_DOMAIN)
+    abgleich = _finde(ergebnisse, "Homepage")
+    assert abgleich.stimmt, abgleich
+    assert repo_pruefung.austrittscode(ergebnisse) == 0
+
+
+def test_bei_erreichbarer_domain_gibt_es_keine_zweite_gueltige_fassung():
+    """Gegenprobe zur Nachsicht oben: Sie gilt nur bei toter Domain.
+
+    Wäre `ebenso_gueltig` immer gefüllt, ginge die Release-Seite dauerhaft
+    durch — und der Fall aus #199, bei dem der Verweis auf falzmarke.com still
+    verloren ging, fiele nie wieder auf.
+    """
+    assert _finde(_pruefen(domain_antwortet=True), "Homepage").ebenso_gueltig == ()
+    assert _finde(_pruefen(domain_antwortet=False), "Homepage").ebenso_gueltig \
+        == (homepage.STANDARD_DOMAIN,)
+
+
+def test_eine_fremde_domain_faellt_auch_bei_totem_netz_auf():
+    """Die zweite Gegenprobe: Der Rückfall entschuldigt die Release-Seite, nicht
+    jeden beliebigen Wert. Steht dort etwas Drittes, hat jemand verstellt — und
+    das bleibt eine Abweichung, ob die Domain nun antwortet oder nicht."""
+    ergebnisse = _pruefen(domain_antwortet=False,
+                          homepage_wert="https://verstellt.example")
+    abgleich = _finde(ergebnisse, "Homepage")
+    assert not abgleich.stimmt, abgleich
+    assert abgleich.soll == homepage.release_seite(REPO_NAME)
+
+
+def test_bei_erreichbarer_domain_bleibt_der_sollwert_die_domain():
+    """Kontrollprobe: Der eingebaute Rückfall darf den Normalfall nicht
+    verschieben. Sonst prüfte der Wächter dauerhaft gegen die Release-Seite."""
+    assert _finde(_pruefen(domain_antwortet=True), "Homepage").soll == homepage.STANDARD_DOMAIN
+
+
 # ── Ruleset-Durchsetzung: Gegenprobe je Ruleset ─────────────────────────────
 
 
@@ -160,10 +244,40 @@ def test_fehlendes_ruleset_ist_eine_abweichung_nicht_ein_absturz():
     behandelt als ein bloß zurückgestuftes (Exit 2 statt Exit 1)."""
     antworten = _vollstaendige_antworten()
     antworten[f"repos/{REPO_NAME}/rulesets"] = [_ruleset("main", 1, "active")]
-    ergebnisse = repo_pruefung.pruefe(REPO_NAME, api=_api(antworten), workflow=CI)
+    ergebnisse = repo_pruefung.pruefe(REPO_NAME, api=_api(antworten), workflow=CI,
+                                      domain_pruefen=lambda _: True)
     abgleich = _finde(ergebnisse, "'release-tags': enforcement")
     assert not abgleich.unbekannt
     assert not abgleich.stimmt
+    assert repo_pruefung.austrittscode(ergebnisse) == 1
+
+
+def test_fehlendes_main_ruleset_wird_ebenso_erkannt():
+    """Derselbe Fall wie oben, nur für `main` — den Fall, für den der Wächter
+    überhaupt existiert.
+
+    Beide laufen durch `_pruefe_durchsetzung`, nur anders parametrisiert; das
+    Regressionsrisiko ist klein. Aber `main` war der einzige Sollwert ohne
+    eigenen Testfall, und ein Fehler, den kein Testfall auslösen kann, ist von
+    einem behobenen nicht zu unterscheiden.
+
+    Fehlt `main`, betrifft das zwei Abgleiche: die Durchsetzung steht fest als
+    Abweichung, die Pflicht-Check-Liste wird unbekannt (ohne Ruleset gibt es
+    keine Liste). Exit 1 — die Abweichung wiegt schwerer als der fehlende Wert.
+    """
+    antworten = _vollstaendige_antworten()
+    antworten[f"repos/{REPO_NAME}/rulesets"] = [_ruleset("release-tags", 2, "active")]
+    ergebnisse = repo_pruefung.pruefe(REPO_NAME, api=_api(antworten), workflow=CI,
+                                      domain_pruefen=lambda _: True)
+
+    durchsetzung = _finde(ergebnisse, "'main': enforcement")
+    assert not durchsetzung.unbekannt, durchsetzung
+    assert not durchsetzung.stimmt
+    assert durchsetzung.ist == "fehlt"
+
+    checkliste = _finde(ergebnisse, "Pflicht-Check-Liste")
+    assert checkliste.unbekannt, checkliste
+
     assert repo_pruefung.austrittscode(ergebnisse) == 1
 
 
