@@ -75,6 +75,15 @@ def _teil(nachricht, art: str):
 #: aus dem Vergleich — die Prüfung wäre dort still wirkungslos statt rot.
 MARKDOWN_LINK = re.compile(r"\[([^\]\n]*)\]\(\s*<?([^)\s>]*)>?(?:\s+[^)]*)?\)")
 
+#: Die Nummerierung am Zeilenanfang: `1. `, `2) `, mit oder ohne Einzug.
+#:
+#: Höchstens drei Ziffern, und das ist der ganze Trick: `2026. Ein gutes Jahr.`
+#: sieht wie ein Listenpunkt aus, ist aber keiner — Listen laufen nicht bis in
+#: die Tausender. Ohne die Grenze verschwände die Jahreszahl aus dem Vergleich,
+#: und zwar unbemerkt: Sie fiele auf BEIDEN Seiten weg, die Prüfung bliebe grün
+#: und wäre dort still wirkungslos.
+LISTENZIFFER = re.compile(r"(?m)^[ \t]*\d{1,3}[.)][ \t]+")
+
 
 def _markdown_link(treffer: "re.Match[str]") -> str:
     """Löst einen Markdown-Link in seinen Wortlaut auf: Linktext und Ziel.
@@ -111,6 +120,18 @@ def _normalisiert(text: str) -> str:
     so. Was gleich sein muss, ist der Wortlaut.
     """
     roh = text.replace("\r\n", "\n")
+    # Zuerst, weil danach die Zeilenstruktur verschwindet: Die Ziffern einer
+    # nummerierten Liste stehen NUR im Klartext. Im HTML setzt der Browser sie
+    # über den CSS-Counter von `<ol>`, im Textstrom stehen sie dort nicht. Sie
+    # zu vergleichen meldete einen Unterschied, den es nicht gibt — genau ein
+    # fehlendes "Wort" je Listenpunkt, und weil `email` die Prüfung selbst
+    # aufruft, war damit JEDE Mail mit nummerierter Liste blockiert (#216).
+    #
+    # Entfernt wird die Nummerierung, nicht der Punkt: Fehlt eine ganze Zeile
+    # in einer der beiden Fassungen, wird das weiterhin rot. Verglichen wird
+    # nur die Ziffer nicht mehr — und die erzeugt ohnehin derselbe Emitter, der
+    # auch die Liste setzt.
+    roh = LISTENZIFFER.sub(" ", roh)
     # In der Quelle steht der Link in Markdown-Syntax, in beiden gesetzten
     # Fassungen aufgelöst. Ohne diese Zeile überlebt die Klammer mitten im
     # Token: `bedingungen](https://example.de/agb` steht in keiner Fassung, und

@@ -417,6 +417,85 @@ def test_klammern_ohne_link_verschlucken_nichts():
         assert wort in mehrzeilig, (wort, mehrzeilig)
 
 
+# ── Nummerierte Listen (#216) ───────────────────────────────────────────────
+#
+# Die Ziffern einer nummerierten Liste stehen nur im Klartext. Im HTML setzt
+# der Browser sie über den CSS-Counter von `<ol>`; im Textstrom kommen sie dort
+# nicht vor. Die Gleichheitsprüfung meldete deshalb genau ein fehlendes "Wort"
+# je Listenpunkt — gemessen am 01.09.2026: 21/22 bei zwei Punkten, 20/22 bei
+# drei.
+#
+# Weil `email` die Prüfung selbst aufruft und bei Fehlschlag mit Code 2 endet,
+# war damit JEDE Nachricht mit nummerierter Liste blockiert. Die Listenform ist
+# in `references/markdown.md` ausdrücklich zugelassen; der Umweg über "Frage 1 —"
+# als Absatz kostet die Bedeutung, die eine Nummerierung trägt.
+
+
+def test_eine_nummerierte_liste_besteht_die_pruefung(tmp_path, profil):
+    """Der gemeldete Fall, an der echten Nachricht gemessen."""
+    quelle = ("hier eine nummerierte Liste:\n\n"
+              "1. erste Frage\n2. zweite Frage\n3. dritte Frage\n")
+    nachricht = eml.baue(KOPF, profil, quelle, md.lies(quelle, ziel="email"), mit_quelle=True)
+    bericht = _pruefe(tmp_path, nachricht.as_string())
+    assert bericht.ok, bericht.als_text(ausfuehrlich=True)
+
+
+def test_eine_bindestrich_liste_bleibt_gruen(tmp_path, profil):
+    """Kontrollprobe aus dem Issue: Die Aufzählung war nie das Problem.
+
+    Ohne sie belegte der Test darüber nur, dass Listen irgendwie durchgehen —
+    nicht, dass die Behandlung der Ziffern die Ursache war.
+    """
+    quelle = "hier eine Aufzählung:\n\n- erster Punkt\n- zweiter Punkt\n"
+    nachricht = eml.baue(KOPF, profil, quelle, md.lies(quelle, ziel="email"), mit_quelle=True)
+    assert _pruefe(tmp_path, nachricht.as_string()).ok
+
+
+def test_ein_fehlender_listenpunkt_faellt_weiter_auf():
+    """Die wichtigere Hälfte: Der Fix darf nicht blind machen.
+
+    Weggeschnitten wird die Nummerierung, nicht der Punkt. Fehlt eine ganze
+    Zeile in einer der beiden Fassungen, muss das weiterhin rot werden —
+    sonst hätte die Prüfung an dieser Stelle nur aufgehört zu messen.
+    """
+    text = "1. erste Frage\n2. zweite Frage\n3. dritte Frage"
+    html = "<ol><li>erste Frage</li><li>dritte Frage</li></ol>"
+    fehlend = pruefung_eml._woerter(text) - pruefung_eml._woerter(html)
+    assert fehlend == {"zweite"}, fehlend
+
+
+def test_eine_zahl_im_fliesstext_bleibt_erhalten():
+    """Gegenprobe gegen Übergriff: Nur die Nummerierung am Zeilenanfang faellt
+    weg. Eine Zahl mitten im Satz ist Wortlaut und wird weiter verglichen —
+    ginge sie verloren, fiele ein falscher Betrag nicht mehr auf."""
+    woerter = pruefung_eml._woerter("wir liefern 3 Stück zu 12,50 Euro")
+    assert "3" in woerter and "12,50" in woerter, woerter
+
+    # Und der schärfere Fall: eine Ziffer MIT Punkt, aber mitten in der Zeile.
+    # Ohne den Zeilenanker verschwände hier die 5 — auf beiden Seiten, also
+    # ohne dass die Prüfung rot würde. Genau die stille Wirkungslosigkeit, vor
+    # der `RANDZEICHEN` und die Link-Behandlung ihre Kommentare tragen.
+    mitten = pruefung_eml._woerter("das steht in Abschnitt 5. Dort auch die Frist")
+    assert "5" in mitten, mitten
+
+
+def test_eine_jahreszahl_am_zeilenanfang_bleibt_erhalten():
+    """Die Grenze ist bei drei Ziffern gezogen.
+
+    `2026. Ein gutes Jahr.` sieht wie ein Listenpunkt aus, ist aber keiner —
+    Listen laufen nicht bis in die Tausender. Ohne die Grenze verschwaende die
+    Jahreszahl aus dem Vergleich, und zwar unbemerkt: Sie faellt auf BEIDEN
+    Seiten weg, die Pruefung bliebe gruen und waere dort still wirkungslos.
+    """
+    assert "2026" in pruefung_eml._woerter("2026. Ein gutes Jahr."), \
+        pruefung_eml._woerter("2026. Ein gutes Jahr.")
+
+
+def test_auch_die_klammerform_zaehlt_als_nummerierung():
+    """`1)` ist dieselbe Liste mit anderem Zeichen."""
+    assert pruefung_eml._woerter("1) erster\n2) zweiter") == {"erster", "zweiter"}
+
+
 # ── Der Umschlag und das Logo (#104) ────────────────────────────────────────
 
 def test_eine_mail_mit_logo_besteht_die_pruefung(tmp_path, profil):
