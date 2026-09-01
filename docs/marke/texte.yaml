@@ -22,7 +22,7 @@ untertitel:
 fusszeile: "Claude-Skill · CLI · PDF/A · Hybridbrief"
 adresse: "falzmarke.com"
 
-github_beschreibung: "DIN-5008-Briefe aus Markdown, am fertigen PDF nachgemessen. Sollwerte aus Sekundärquellen."
+github_beschreibung: "Am fertigen PDF nachgemessen: DIN-5008-Briefe aus Markdown. Sollwerte aus Sekundärquellen."
 
 # Die Befehle, die im Film und im GIF gezeigt werden duerfen.
 # Seit v0.7.3 (26.08.2026) liegt das Paket auf PyPI, `pipx install falzmarke` gibt es
