@@ -283,6 +283,20 @@ def test_das_beispiel_mit_links_besteht_vollstaendig(tmp_path):
     Und der Grund, warum es dieses Beispiel braucht: Ohne einen Brief mit Links
     lief die Gleichheitsprüfung nie über einen — die drei Fehler oben wären
     ungesehen geblieben.
+
+    `mit_quelle=True` steht hier seit #213 und ist kein Beiwerk: Ohne das Flag
+    trägt die Nachricht keinen `text/markdown`-Teil, `_pruefe_quellteil` meldet
+    dann „nicht prüfbar" — und das zählt als bestanden. Genau daran lief der
+    Fehler vorbei. Von den drei Achsen Links, Quellteil und `pruefe()` deckten
+    die Tests je zwei ab, gekreuzt hat sie keiner:
+
+    * dieser Test hatte Links und `pruefe()`, aber keinen Quellteil,
+    * `test_email_beispiele.py::test_der_quellteil_traegt_genau_die_quelle`
+      hat Links und Quellteil, ruft aber `pruefe()` nicht auf,
+    * die Fixture `roh` hat Quellteil und `pruefe()`, doch `QUELLE` führt
+      keinen Link.
+
+    Wer das Flag hier entfernt, macht die Lücke wieder auf.
     """
     from conftest import REPO
 
@@ -292,10 +306,115 @@ def test_das_beispiel_mit_links_besteht_vollstaendig(tmp_path):
     assert quelle.is_file(), "das Beispiel mit Links fehlt"
     ziel, _ = cli.setze_email(
         quelle, tmp_path / "links",
-        profil_verzeichnis=SKILL / "falzmarke" / "typst" / "profiles")
+        profil_verzeichnis=SKILL / "falzmarke" / "typst" / "profiles",
+        mit_quelle=True)
     bericht = pruefung_eml.pruefe(ziel)
     gescheitert = [p.name for p in bericht.pruefungen if not p.bestanden]
     assert not gescheitert, gescheitert
+
+
+# ── Markdown-Links in der Quelle (#213) ─────────────────────────────────────
+#
+# `--mit-quelle` hängt die rohe Markdown-Quelle an und hält sie gegen die
+# gesetzten Fassungen. Die Link-Syntax `[Text](URL)` überlebt diesen Vergleich
+# nicht: In Text und HTML ist der Link aufgelöst, in der Quelle steht er in
+# Klammern. Gemessen am 01.09.2026 fiel dadurch jede Mail mit Link auf 24/26,
+# gemeldet mit Token wie `blitzsicht](https://…` — reinen Syntaxresten.
+#
+# Das Gewicht liegt in der Folge, nicht im Fehlalarm: Regel 0 verlangt ein
+# grünes `verify --email` vor dem Versand. War das für jede Mail mit Link
+# unerreichbar, erzieht die Regel dazu, ein rotes verify zu übergehen.
+
+
+@pytest.mark.parametrize("ziel", [
+    "https://example.de/agb",
+    "mailto:info@example.de",
+    "tel:+4994162098000",
+], ids=["https", "mailto", "tel"])
+def test_ein_link_in_der_quelle_gilt_als_vollstaendig(tmp_path, profil, ziel):
+    """Alle drei Schemata der Positivliste, an der echten Nachricht gemessen.
+
+    Nicht auf der Ebene der Wortmengen, sondern über `pruefe()`: Der Fehler
+    entstand im Zusammenspiel von Quellteil und gesetzter Fassung, und genau
+    das baut `eml.baue(..., mit_quelle=True)` hier auf.
+    """
+    quelle = f"wie besprochen gelten die [Bedingungen des Hauses]({ziel}) seit August.\n"
+    nachricht = eml.baue(KOPF, profil, quelle,
+                         md.lies(quelle, ziel="email"), mit_quelle=True)
+    bericht = _pruefe(tmp_path, nachricht.as_string())
+    assert bericht.ok, bericht.als_text(ausfuehrlich=True)
+
+
+def test_ein_link_mit_titel_zaehlt_auch():
+    """CommonMark erlaubt `[Text](URL "Titel")`. Der Titel ist Beiwerk, Text
+    und Ziel sind Wortlaut — beide stehen in den gesetzten Fassungen."""
+    woerter = pruefung_eml._woerter('Die [Bedingungen](https://example.de/agb "AGB") gelten.')
+    assert "bedingungen" in woerter, woerter
+    assert "https://example.de/agb" in woerter, woerter
+
+
+def test_ein_fehlendes_wort_im_linktext_faellt_weiter_auf():
+    """Die wichtigere Hälfte der Prüfung: Der Fix darf nicht blind machen.
+
+    Ohne diese Gegenprobe belegten die Tests oben nur, dass etwas grün ist —
+    eine Normalisierung, die den ganzen Link samt Linktext verschluckt, wäre
+    ebenso grün und hätte die Prüfung an dieser Stelle still abgeschaltet.
+    Hier fehlt `Entwicklung` in der gesetzten Fassung wirklich.
+    """
+    quelle = "siehe [Forschung und Entwicklung](https://example.de/f) hier"
+    gesetzt = "siehe Forschung: <https://example.de/f> hier"
+    fehlend = ({w for w in pruefung_eml._woerter(quelle) if len(w) > 3}
+               - pruefung_eml._woerter(gesetzt))
+    assert fehlend == {"entwicklung"}, fehlend
+
+
+def test_ist_der_linktext_die_adresse_zaehlt_das_schema_nicht():
+    """`[erika@example.de](mailto:erika@example.de)` — das Ziel wiederholt nur
+    den Linktext.
+
+    Der Setzer lässt die Wiederholung im Klartext weg; gemessen an
+    `email-links.md` steht dort `erika.muster@example.de.` und kein zweites
+    `<mailto:…>`. Verlangte die Prüfung das Schema trotzdem, wäre das derselbe
+    Fehlalarm aus #213 eine Ebene tiefer — und der Grund, warum der erste
+    Anlauf dieses Fixes das Beispiel noch nicht bestand.
+    """
+    quelle = "schreiben Sie an [erika@example.de](mailto:erika@example.de)."
+    gesetzt = "schreiben Sie an erika@example.de."
+    fehlend = ({w for w in pruefung_eml._woerter(quelle) if len(w) > 3}
+               - pruefung_eml._woerter(gesetzt))
+    assert not fehlend, fehlend
+
+
+def test_ein_abweichendes_linkziel_faellt_sehr_wohl_auf():
+    """Die Gegenprobe zur Ausnahme darüber — ohne sie wäre jedes Ziel egal.
+
+    Zeigt der Link woandershin, als sein Text behauptet, ist das kein
+    Schema-Präfix mehr, sondern ein Unterschied im Wortlaut. Genau der Fall,
+    den ein Empfänger nicht sieht und die Prüfung sehen muss.
+    """
+    quelle = "schreiben Sie an [erika@example.de](mailto:fremd@example.com)."
+    gesetzt = "schreiben Sie an erika@example.de."
+    fehlend = ({w for w in pruefung_eml._woerter(quelle) if len(w) > 3}
+               - pruefung_eml._woerter(gesetzt))
+    assert fehlend == {"mailto:fremd@example.com"}, fehlend
+
+
+def test_klammern_ohne_link_verschlucken_nichts():
+    """Gegenprobe gegen Übergriff.
+
+    `[1] steht unten (siehe Anhang)` ist keine Link-Syntax — dazwischen steht
+    Text. Griffe die Normalisierung trotzdem zu, verschwände er aus dem
+    Vergleich, und die Prüfung wäre dort still wirkungslos statt rot. Dasselbe
+    über einen Zeilenumbruch hinweg: eine offene `[` darf nicht bis zur
+    nächsten Klammer irgendwo weiter unten fressen.
+    """
+    einzeilig = pruefung_eml._woerter("Anmerkung [1] steht unten (siehe Anhang) danach.")
+    for wort in ("anmerkung", "steht", "unten", "siehe", "anhang", "danach"):
+        assert wort in einzeilig, (wort, einzeilig)
+
+    mehrzeilig = pruefung_eml._woerter("Anfang [nicht geschlossen\nzweite Zeile (klammer) Ende")
+    for wort in ("anfang", "nicht", "geschlossen", "zweite", "zeile", "klammer", "ende"):
+        assert wort in mehrzeilig, (wort, mehrzeilig)
 
 
 # ── Der Umschlag und das Logo (#104) ────────────────────────────────────────

@@ -67,6 +67,42 @@ def _teil(nachricht, art: str):
     return None
 
 
+#: Ein Link in Markdown-Quelltext: `[Text](Ziel)`, dazu der optionale
+#: CommonMark-Titel und die Winkelklammer-Form `[Text](<Ziel>)`.
+#:
+#: `[^\]\n]` hält die Klammer auf einer Zeile. Ohne das frisst eine offene `[`
+#: bis zur nächsten `](` irgendwo weiter unten und nimmt allen Text dazwischen
+#: aus dem Vergleich — die Prüfung wäre dort still wirkungslos statt rot.
+MARKDOWN_LINK = re.compile(r"\[([^\]\n]*)\]\(\s*<?([^)\s>]*)>?(?:\s+[^)]*)?\)")
+
+
+def _markdown_link(treffer: "re.Match[str]") -> str:
+    """Löst einen Markdown-Link in seinen Wortlaut auf: Linktext und Ziel.
+
+    Beides steht in den gesetzten Fassungen — der Text im Klartext wie im
+    `<a>`, das Ziel als `<https://…>` bzw. im `href`. Nur in der Quelle steckt
+    es in Klammern, und die überleben den Vergleich nicht: `--mit-quelle` wurde
+    dadurch bei JEDER Mail mit Link rot (Issue #213, gemessen am 01.09.2026:
+    24/26 statt 26/26 wegen Token wie `bedingungen](https://example.de/agb`).
+    `RANDZEICHEN` greift nicht, es entfernt Zeichensetzung nur am Wortrand.
+
+    **Die Ausnahme:** Ist das Ziel nur der Linktext mit einem Schema davor —
+    `[erika@example.de](mailto:erika@example.de)` —, trägt es nichts bei, und
+    der Setzer lässt die Wiederholung im Klartext weg (gemessen an
+    `email-links.md`: dort steht `erika.muster@example.de.`, kein zweites
+    `<mailto:…>`). Das Schema als Pflichtwort zu verlangen, wäre derselbe
+    Fehlalarm eine Ebene tiefer.
+
+    Scharf bleibt die Prüfung dadurch: Weicht das Ziel vom Linktext ab, zählen
+    weiter beide — und im Gleichlauf-Fall wird der Linktext ohnehin geprüft,
+    er *ist* die Adresse.
+    """
+    text, ziel = treffer.group(1), treffer.group(2)
+    if ziel.split(":", 1)[-1].lstrip("/") == text.strip():
+        return f" {text} "
+    return f" {text} {ziel} "
+
+
 def _normalisiert(text: str) -> str:
     """Für den Vergleich von Text- und HTML-Fassung.
 
@@ -75,6 +111,20 @@ def _normalisiert(text: str) -> str:
     so. Was gleich sein muss, ist der Wortlaut.
     """
     roh = text.replace("\r\n", "\n")
+    # In der Quelle steht der Link in Markdown-Syntax, in beiden gesetzten
+    # Fassungen aufgelöst. Ohne diese Zeile überlebt die Klammer mitten im
+    # Token: `bedingungen](https://example.de/agb` steht in keiner Fassung, und
+    # `--mit-quelle` wurde deshalb bei JEDER Mail mit Link rot (Issue #213,
+    # gemessen 01.09.2026: 24/26 statt 26/26). RANDZEICHEN greift hier nicht,
+    # es entfernt Zeichensetzung nur am Wortrand.
+    #
+    # Beides zählt zum Wortlaut: der Linktext (\1) und das Ziel (\2). Der
+    # optionale CommonMark-Titel `[Text](URL "Titel")` ist Beiwerk und fällt
+    # weg. `[^\]\n]` hält die Klammer auf einer Zeile — sonst frisst eine
+    # offene `[` bis zur nächsten `](` irgendwo weiter unten und nimmt allen
+    # Text dazwischen aus dem Vergleich. Die Winkelklammer-Form `[Text](<URL>)`
+    # wird hier mit erledigt, deshalb steht die Zeile VOR der nächsten.
+    roh = MARKDOWN_LINK.sub(_markdown_link, roh)
     # Im Klartext steht eine Adresse in spitzen Klammern — `<https://…>`, damit
     # das folgende Satzzeichen nicht an ihr klebt (Issue #103). Für `<[^>]+>`
     # sieht das aus wie ein Tag, und die Adresse verschwände aus dem Vergleich:
