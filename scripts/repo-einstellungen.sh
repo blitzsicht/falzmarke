@@ -3,18 +3,34 @@
 #
 #   scripts/repo-einstellungen.sh --trocken blitzsicht/falzmarke   # nur zeigen
 #   scripts/repo-einstellungen.sh blitzsicht/falzmarke             # anwenden
+#   scripts/repo-einstellungen.sh --pruefen blitzsicht/falzmarke   # nur vergleichen
 #
 # Voraussetzung: gh auth login mit Admin-Rechten auf dem Repository.
+# --pruefen braucht keine Admin-Rechte — ein fehlender Zugriff ergibt je Wert
+# den dritten Zustand "nicht geprüft" statt eines harten Abbruchs (#206).
 #
 # Warum ein Trockenlauf: Ein Ruleset mit Status-Checks, die es nicht gibt,
 # sperrt den Branch vollständig — kein Merge, kein Push, auch nicht für den
 # Admin. Dieser Fehler fällt sonst erst auf, wenn niemand mehr arbeiten kann.
+#
+# Warum ein Prüfmodus: Homepage, Ruleset-Durchsetzung und Pflicht-Check-Liste
+# sind alle drei schon einmal am 31.08.2026 vom Sollwert abgewichen (#196,
+# #199, #201) — gefunden hat es jedes Mal ein Mensch beim Nachmessen, nie ein
+# Lauf dieses Skripts. --pruefen schreibt nichts, sondern vergleicht nur.
 set -euo pipefail
 
 TROCKEN=0
-if [ "${1:-}" = "--trocken" ]; then TROCKEN=1; shift; fi
-REPO="${1:?Aufruf: $0 [--trocken] OWNER/REPO}"
+PRUEFEN=0
+case "${1:-}" in
+  --trocken) TROCKEN=1; shift ;;
+  --pruefen) PRUEFEN=1; shift ;;
+esac
+REPO="${1:?Aufruf: $0 [--trocken|--pruefen] OWNER/REPO}"
 OWNER="${REPO%%/*}"
+
+if [ "$PRUEFEN" = "1" ]; then
+  exec python3 scripts/repo_pruefung.py --repo "$REPO"
+fi
 
 BESCHREIBUNG="Auf den Millimeter geprüft, nicht nur behauptet: DIN-5008-Briefe aus Markdown, als PDF/A gesetzt. Skill für KI-Agenten und CLI."
 # Der Default gehört ins Repository, nicht in eine undokumentierte Variable: Bis
