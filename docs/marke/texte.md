@@ -28,7 +28,7 @@ Sekundaer, nie allein: *Nachgemessen, nicht geschätzt.*
 
 - Fusszeile: Claude-Skill · CLI · PDF/A · Hybridbrief
 - Adresse: falzmarke.com
-- GitHub-Beschreibung (90 Zeichen): `DIN-5008-Briefe aus Markdown, am fertigen PDF nachgemessen. Sollwerte aus Sekundärquellen.`
+- GitHub-Beschreibung (90 Zeichen): `Am fertigen PDF nachgemessen: DIN-5008-Briefe aus Markdown. Sollwerte aus Sekundärquellen.`
 
 
 ## Installationsbefehle
