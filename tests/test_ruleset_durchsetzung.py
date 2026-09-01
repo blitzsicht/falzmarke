@@ -27,10 +27,15 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 
 import pytest
 
 from conftest import REPO
+
+sys.path.insert(0, str(REPO / "scripts"))
+
+import durchsetzung                                              # noqa: E402
 
 SKRIPT = REPO / "scripts" / "repo-einstellungen.sh"
 
@@ -111,20 +116,30 @@ def _durchsetzung(**umgebung: str) -> str:
 def test_der_default_ist_active_strukturell():
     """Faengt den gedrehten Default auf jeder Plattform, auch ohne bash.
 
-    Das ist bewusst eine Struktur- und keine Wortlautpruefung: Sie liest die
-    Zeilen aus der echten Datei und haelt fest, dass die *erste* Zuweisung
-    "active" ist und die Bedingung herunterstuft. Wer den Default umdreht,
-    kommt daran nicht vorbei — auch dort nicht, wo die bash-Pruefung unten
-    uebersprungen wird.
+    Die Aussage ist dieselbe wie seit #201 — der Default ist "active", und nur
+    FALZMARKE_RULESET_EVALUATE stuft herunter. Seit #212 steht die Entscheidung
+    aber nicht mehr in diesem Skript, sondern in scripts/durchsetzung.py: Der
+    Wert stand zweimal im Repo, und eine Sabotage an der Fassung hier blieb
+    stumm, weil --pruefen vorher per `exec` in den Pruefer springt.
+
+    Geprueft wird deshalb beides: dass das Skript die Quelle fragt statt selbst
+    zu entscheiden, und dass die Quelle die richtige Antwort gibt. Wer den
+    Default umdreht, kommt an der zweiten Haelfte nicht vorbei — auch dort
+    nicht, wo die bash-Pruefung unten uebersprungen wird.
     """
     zeilen = _entscheidungszeilen().splitlines()
-    assert zeilen[0].strip() == 'DURCHSETZUNG="active"', (
-        f"Die erste Zuweisung lautet {zeilen[0].strip()!r} statt "
-        'DURCHSETZUNG="active" — der Default waere wieder der stumpfe Zustand.'
+    erste = zeilen[0].strip()
+    assert erste.startswith("DURCHSETZUNG=$(") and "durchsetzung.py" in erste, (
+        f"Die erste Zuweisung lautet {erste!r} — sie muss den Wert aus "
+        "scripts/durchsetzung.py holen, sonst steht der Sollwert wieder "
+        "zweimal im Repo (#212)."
     )
-    bedingung = "\n".join(zeilen[1:])
-    assert "FALZMARKE_RULESET_EVALUATE" in bedingung
-    assert 'DURCHSETZUNG="evaluate"' in bedingung
+
+    # Und die Entscheidung selbst, an ihrem neuen Ort.
+    assert durchsetzung.soll("main", {}) == "active", "der Default ist nicht mehr active"
+    assert durchsetzung.soll("main", {"FALZMARKE_RULESET_EVALUATE": "1"}) == "evaluate", \
+        "die Variable stuft nicht mehr herunter"
+    assert durchsetzung.UMGEBUNGSVARIABLE == "FALZMARKE_RULESET_EVALUATE"
 
 
 @ohne_bash

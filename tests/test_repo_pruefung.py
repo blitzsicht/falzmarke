@@ -24,6 +24,7 @@ from conftest import REPO
 sys.path.insert(0, str(REPO / "scripts"))
 
 import homepage                                                  # noqa: E402
+import durchsetzung                                              # noqa: E402
 import repo_pruefung                                              # noqa: E402
 
 REPO_NAME = "blitzsicht/falzmarke"
@@ -74,9 +75,9 @@ def _vollstaendige_antworten(
     if homepage_wert == "unveraendert":
         homepage_wert = homepage.STANDARD_DOMAIN
     if main_enforcement == "unveraendert":
-        main_enforcement = repo_pruefung.SOLL_ENFORCEMENT
+        main_enforcement = durchsetzung.STANDARD
     if tags_enforcement == "unveraendert":
-        tags_enforcement = repo_pruefung.SOLL_ENFORCEMENT
+        tags_enforcement = durchsetzung.STANDARD
     if checks is None:
         checks = SOLL_CHECKS
     return {
@@ -89,7 +90,8 @@ def _vollstaendige_antworten(
     }
 
 
-def _pruefen(*, domain_antwortet: bool = True, **kwargs) -> list[repo_pruefung.Abgleich]:
+def _pruefen(*, domain_antwortet: bool = True,
+             umgebung: dict[str, str] | None = None, **kwargs) -> list[repo_pruefung.Abgleich]:
     """`domain_antwortet` wird injiziert, nie wirklich abgefragt (Issue #210).
 
     Der Sollwert der Homepage hängt seither davon ab: Antwortet die Domain
@@ -98,7 +100,8 @@ def _pruefen(*, domain_antwortet: bool = True, **kwargs) -> list[repo_pruefung.A
     Erreichbarkeit von falzmarke.com abhängig statt von seiner eigenen Aussage.
     """
     return repo_pruefung.pruefe(REPO_NAME, api=_api(_vollstaendige_antworten(**kwargs)),
-                                workflow=CI, domain_pruefen=lambda _: domain_antwortet)
+                                workflow=CI, domain_pruefen=lambda _: domain_antwortet,
+                                umgebung=umgebung or {})
 
 
 def _finde(ergebnisse: list[repo_pruefung.Abgleich], teilname: str) -> repo_pruefung.Abgleich:
@@ -279,6 +282,60 @@ def test_fehlendes_main_ruleset_wird_ebenso_erkannt():
     assert checkliste.unbekannt, checkliste
 
     assert repo_pruefung.austrittscode(ergebnisse) == 1
+
+
+# ── Der bewusst gewählte Sonderfall (#212) ──────────────────────────────────
+#
+# `FALZMARKE_RULESET_EVALUATE=1` ist der Weg, den #201 geschaffen hat, um main
+# beobachtend zu fahren. Verlangte der Wächter dann weiter `active`, meldete er
+# dauerhaft eine Abweichung für einen Zustand, den der Maintainer gewählt hat —
+# dieselbe Falle wie #210. Er trägt den Sonderfall deshalb mit, sagt ihn aber.
+
+
+def test_beobachtend_gefahrenes_main_ist_keine_abweichung():
+    """Der Fall aus der Acceptance-Criteria-Zeile: Variable gesetzt UND main
+    tatsächlich auf evaluate — Setz-Lauf und Wächter sind sich einig."""
+    ergebnisse = _pruefen(umgebung={durchsetzung.UMGEBUNGSVARIABLE: "1"},
+                          main_enforcement="evaluate")
+    assert _finde(ergebnisse, "'main': enforcement").stimmt
+    assert repo_pruefung.austrittscode(ergebnisse) == 0
+
+
+def test_release_tags_bleibt_streng_auch_im_sonderfall():
+    """Die Ausnahme gilt nur für main.
+
+    `repo-einstellungen.sh` setzt release-tags fest auf den strengen Wert.
+    Erwartete der Wächter dort ebenfalls `evaluate`, meldete er eine Abweichung
+    gegen einen Zustand, den der Setz-Lauf nie herstellt — ein Fehlalarm, den
+    niemand beheben kann, ohne den Tag-Schutz aufzugeben.
+    """
+    ergebnisse = _pruefen(umgebung={durchsetzung.UMGEBUNGSVARIABLE: "1"},
+                          main_enforcement="evaluate")
+    assert _finde(ergebnisse, "'release-tags': enforcement").stimmt
+    assert repo_pruefung.austrittscode(ergebnisse) == 0
+
+
+def test_ohne_die_variable_bleibt_evaluate_eine_abweichung():
+    """Die Gegenprobe — ohne sie wäre `evaluate` immer in Ordnung und der
+    Schutz von main könnte still verschwinden, genau wie in #201."""
+    ergebnisse = _pruefen(main_enforcement="evaluate")
+    abgleich = _finde(ergebnisse, "'main': enforcement")
+    assert not abgleich.stimmt, abgleich
+    assert abgleich.soll == "active"
+    assert repo_pruefung.austrittscode(ergebnisse) == 1
+
+
+def test_die_variable_allein_macht_active_nicht_falsch_ohne_meldung():
+    """Umgekehrt: Variable gesetzt, main steht aber noch auf active.
+
+    Das ist eine echte Abweichung — der Setz-Lauf hätte herabgestuft. Sie zu
+    melden ist richtig; verschwiegen würde sonst, dass die gewählte Ausnahme
+    gar nicht angekommen ist.
+    """
+    ergebnisse = _pruefen(umgebung={durchsetzung.UMGEBUNGSVARIABLE: "1"})
+    abgleich = _finde(ergebnisse, "'main': enforcement")
+    assert not abgleich.stimmt
+    assert abgleich.soll == "evaluate" and abgleich.ist == "active"
 
 
 # ── Pflicht-Check-Liste: Gegenprobe ─────────────────────────────────────────
