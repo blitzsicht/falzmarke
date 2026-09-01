@@ -2,26 +2,124 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
-## Unveröffentlicht
+## v0.9.0 — 01.09.2026
+
+Aus einem Brief werden viele. Serienbriefe, Brief und Begleitmail in einem Zug, lange Schreiben
+mit Überschriften und Zitaten — und ein Weg zurück aus einem bestehenden Brief ins Markdown.
+
+### Neu
+
+- **Serienbrief aus CSV oder JSON.** Eine Vorlage plus Datenquelle ergibt n Briefe:
+  `falzmarke serie vorlage.md --daten empfaenger.csv --ziel briefe/`. (#3)
+- **Brief und Begleitmail in einem Zug** — das PDF hängt an der eigenen Mail. Beides konnte das
+  Werkzeug seit der E-Mail-Phase, bisher aber nur nacheinander. (#78)
+- **Lange Schreiben: Überschriften, Listen, Zitate und wörtliche Auszüge.** Dialekt 1.1 führt
+  ein Versionsfeld ein und schreibt nieder, was 1.0 und 1.1 jeweils zulassen; darauf bauen die
+  neuen Elemente auf. Die Abnahme misst am fertigen PDF, ob ein langes Schreiben mit allem
+  darin trägt — nicht nur jedes Element für sich. (#135, #136, #137, #138)
+- **Einen bestehenden Brief einlesen.** Alle zwölf Befehle gingen bisher in eine Richtung:
+  Markdown → PDF. Wer einen alten Brief neu setzen wollte, tippte ihn ab. Das Einlesen liefert
+  ein Gerüst mit **benannten Lücken** statt geratener Inhalte — was es nicht weiß, behauptet es
+  nicht. (#191)
+- **PDF/A-3b: eine Datei im PDF statt dahinter.** Die Einbettung, die ADR 0033 als wählbare
+  Stufe entschieden und in ein eigenes Issue verwiesen hatte. Sie ist die Vorbedingung für
+  ZUGFeRD. (#114)
+- **Die Signatur bekommt drei Blöcke — und ein Gesicht.** Person, Kontakt und Recht stehen
+  getrennt statt in einem Block; dazu Logo, Farbe und ein dunkles Schema. Ob das Logo auf
+  dunklem Grund trägt, wird seither gemessen, nicht angenommen. (#105, #142, #154)
+- **Was in einer Geschäftsmail steht — und was nicht.** Ein Abschnitt in der Stilreferenz, wie
+  es ihn für den Brief gibt: Betreff → Anrede → Grund des Schreibens → Information → gewünschte
+  Handlung → Frist → Gruß → Signatur. (#106)
+- **Links gibt es in E-Mails.** Im Brief bleiben sie ein Fehler — auf Papier gibt es keinen
+  Link, in einer E-Mail gibt es ihn. Dazu ein Beispiel mit Links und sechs Prüfungen, die daran
+  anschlugen. (#103, #107)
+- **Ein Bildzeichen ohne Wortmarke**, für Browser-Tabs und überall dort, wo das volle Zeichen
+  mit Schrift zu klein würde. (#82)
+- **Vier Anlässe, die im Beispielbestand fehlten**, dazu eine Markenkarte im Hochformat. (#139,
+  #146)
+
+### Geändert
+
+- **Form A steht nicht mehr auf der eigenen Layoutbasis.** Die Maße nannten als einzige Quelle
+  `typst-letter-pro` — und die liegt unter `skill/falzmarke/typst/vendor/`. falzmarke setzte das
+  Layout damit und belegte es mit sich selbst. Form A trägt jetzt einen externen Beleg. (#18)
+- **Anhanggrenzen in Stufen statt einer Wand**, mit Fundstelle je Stufe statt einer einzigen
+  Grenze ohne Begründung. (#183)
+- **Adressen werden auf Form geprüft, nicht nur zerlegt.** `email.utils.parseaddr` aus der
+  Standardbibliothek ließ vier von acht ungültigen Adressen durch. (#125)
+- **Das 12-pt-Zeilenraster wird gemessen.** Der Briefsatz rechnet in einer Grundzeile von
+  4,2333 mm, und jede „Leerzeile" der Norm ist genau eine Rasterzeile. Darauf beruhen alle
+  Abstände zwischen Betreff, Anrede, Text und Gruß — geprüft wurde bisher alles außer dem
+  Raster selbst. (#140)
+- **Zitieren, ohne den Wortlaut anzufassen**, und ein Auszug, der über den Seitenwechsel läuft.
+  (#137, #168)
+- **Eine zweite freie Umsetzung als Quelle: dinbrief.** Die Quellenlage einer Regel wiegt
+  schwerer, wenn sie nicht von einer einzigen fremden Umsetzung abhängt. (#134)
+- **Was im PDF steht, ist jetzt auch als das ausgezeichnet, was es ist.** (#138)
+- **Die Fundstellenprüfung wächst mit** dem Regelbestand, statt eine gepflegte Zahl zu führen.
+  (#124)
+- **PyPI-Freigabe: eine Wartezeit statt einer Freigabe von Hand** (ADR 0036). (#132)
 
 ### Behoben
 
+- **Telefonnummern mit fünf- oder sechsstelliger Vorwahl wurden als abweichend gemeldet** — also
+  die Vorwahlen kleinerer Orte und damit ein erheblicher Teil aller deutschen
+  Festnetzanschlüsse. Gefunden beim ersten Einsatz an einem echten Absenderprofil. (#133)
+- **Der HTML-Teil kam in Outlook nicht an, wie er gedacht war.** (#104)
+- **Jede Frontmatter-Meldung nannte eine Zeile zu viel.** (#184)
+- **Eine zu lange Auszugszeile wird gemeldet, bevor sie gesetzt wird** — vorher fiel sie erst
+  im fertigen PDF auf. (#173)
+- **Die Meldung nennt das Zeichen, das wirklich dasteht.** Eine einelementige Liste wurde als
+  „einzelner Strich" gemeldet, auch wenn dort ein Stern stand. (#162)
+- **Ein Befund nennt die Stelle in der Eingabe, nicht nur das Maß.** (#163)
+- **`pillow` fehlte in `requirements.txt` und im Bootstrap** — es war nur transitiv vorhanden
+  und hätte mit der nächsten Abhängigkeitsänderung still verschwinden können. (#194)
+- **Auf PyPI zeigten alle sechs Links aufs Repository**, keiner auf die Website. (#178)
 - **Der Kontrast des Grün-Textes war gegen die falsche Fläche gemessen.**
-  `docs/marke/erscheinungsbild.md` nannte für `#2F8642` 4,56 : 1 und wies das als
-  gemessen aus. Das stimmte — gegen Papier. Auf der Website steht grüner Text
-  aber überwiegend auf `#F4F6F8` und `#EAF6EE`; dort fiel er auf 4,21 : 1 und
-  4,10 : 1 und verfehlte WCAG AA. Gefunden hat es axe-core auf falzmarke.com,
-  nicht das Erscheinungsbild: 57 Verstöße auf zehn Seiten.
+  `docs/marke/erscheinungsbild.md` nannte für `#2F8642` 4,56 : 1 und wies das als gemessen aus.
+  Das stimmte — gegen Papier. Auf der Website steht grüner Text aber überwiegend auf `#F4F6F8`
+  und `#EAF6EE`; dort fiel er auf 4,21 : 1 und 4,10 : 1 und verfehlte WCAG AA. Gefunden hat es
+  axe-core auf falzmarke.com, nicht das Erscheinungsbild: 57 Verstöße auf zehn Seiten.
 
-  Für Text auf hellem Grund gilt jetzt **`#2A783B`** — Papier 5,46 : 1, Karte
-  5,04 : 1, Marke 4,92 : 1. Als Fläche bleibt `#3EB057` unverändert.
+  Für Text auf hellem Grund gilt jetzt **`#2A783B`** — Papier 5,46 : 1, Karte 5,04 : 1, Marke
+  4,92 : 1. Als Fläche bleibt `#3EB057` unverändert.
 
-  Die eigentliche Ursache war nicht die Farbe, sondern die Messung: Die beiden
-  hellen Flächen hatten **keinen Namen** und tauchten deshalb in keiner Tabelle
-  auf. Sie stehen jetzt als eigene Zeilen im Erscheinungsbild, und das dort
-  eingebettete Prüfskript rechnet gegen alle vier Flächen statt gegen zwei — mit
-  einer Gegenprobe, die den abgelösten Wert weiterhin durchfallen lässt.
-  Website-seitig behoben in `customer-falzmarke` #27.
+  Die eigentliche Ursache war nicht die Farbe, sondern die Messung: Die beiden hellen Flächen
+  hatten **keinen Namen** und tauchten deshalb in keiner Tabelle auf. Sie stehen jetzt als
+  eigene Zeilen im Erscheinungsbild, und das dort eingebettete Prüfskript rechnet gegen alle
+  vier Flächen statt gegen zwei — mit einer Gegenprobe, die den abgelösten Wert weiterhin
+  durchfallen lässt. Website-seitig behoben in `customer-falzmarke` #27. (#182)
+- **Im Feed verlor der Film die Hälfte seiner Aussage**, und die Berichtszeile passte nicht mehr
+  in die Aufnahme. (#164, #158)
+- **Die Schaufensterbilder zeigten einen Wert, gemessen werden dreiunddreißig.** (#159)
+- **Dass Tabellenzeilen nicht auf dem Raster stehen, steht jetzt in der Referenz.** Ob es so
+  bleibt, ist offen (#151). (#177)
+
+### Infrastruktur
+
+Diese Punkte ändern nichts am erzeugten Brief. Sie stehen hier, weil vier davon dieselbe
+Fehlerart betreffen: Eine Einstellung des Repositories wurde aus dem **Zustand des Aufrufs**
+abgeleitet statt aus einem Wert im Repository — und fiel jedes Mal nur auf, weil ein Mensch
+nachgemessen hat.
+
+- **Kein Workflow schreibt mehr auf `main`.** (#188)
+- **Die Pflicht-Checks des Rulesets kommen aus `ci.yml`, nicht aus dem letzten CI-Lauf.** Lief
+  die CI beim Scharfstellen noch, fehlte ein Job in der Liste, ohne dass sich am Workflow etwas
+  geändert hätte — das Ruleset verlor einen Pflicht-Check. (#196)
+- **Das `main`-Ruleset bleibt scharf, wenn niemand etwas anderes verlangt.** `active` ist jetzt
+  der Default; ein Herunterstufen braucht `FALZMARKE_RULESET_EVALUATE=1` und wird eigens
+  gemeldet. Vorher hätte ein gewöhnlicher Lauf ohne Umgebungsvariablen den Schutz von `main`
+  entwaffnet. (#201)
+- **Die Homepage des Repositories hängt nicht mehr an einer ungesetzten Variablen.** (#199)
+- **Ein Drift-Wächter meldet, wenn die gelebten Einstellungen von den Sollwerten abweichen** —
+  `repo-einstellungen.sh --pruefen`, ohne zu schreiben. Er deckt Homepage, Ruleset-Durchsetzung
+  und Pflicht-Check-Liste ab; Beschreibung, Topics und Labels folgen. (#206)
+- **Die Lint-Regeln haben Gegenproben.** Bis dahin waren nur Geometrie und Emitter sabotiert:
+  Eine Prüfung, deren Bedingung man versehentlich invertiert, wäre grün geblieben. (#197)
+- **Ein externer Prüfkatalog wurde gegen den Bestand gemessen**, statt als Bauplan übernommen zu
+  werden. (#193)
+- **Die Textkanon-Beschreibung nennt die PDF-Prüfung zuerst**, nicht das, was es auf GitHub
+  achtmal gibt. (#204)
 
 ## v0.8.2 — 28.08.2026
 
