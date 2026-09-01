@@ -15,7 +15,8 @@ Dieses Skript setzt nichts. Es vergleicht drei Sollwerte — dieselben, die
 `scripts/repo-einstellungen.sh` auch anwendet — gegen den über die GitHub-API
 gelebten Zustand:
 
-    Homepage                        scripts/homepage.py (STANDARD_DOMAIN)
+    Homepage                        scripts/homepage.py (bestimme(): STANDARD_DOMAIN,
+                                    bei toter Domain die Release-Seite — #210)
     Ruleset-`enforcement` je Ruleset  Konstante hier (seit #201: "active")
     Pflicht-Check-Liste (Ruleset main) scripts/pflicht_checks.py
 
@@ -68,6 +69,12 @@ class Abgleich:
     soll: Any
     ist: Any | None
     fehler: str | None = None
+    #: Weitere Werte, die ebenso in Ordnung sind — leer, wo es genau einen
+    #: richtigen gibt. Gebraucht bei toter Domain (#210): Dann sind Domain UND
+    #: Release-Seite legitim, weil der Setz-Lauf je nach Zeitpunkt das eine
+    #: oder das andere hinterlassen hat. Nur den einen zu verlangen hiesse,
+    #: den Fehlalarm bloss auf den anderen Fall zu verschieben.
+    ebenso_gueltig: tuple[Any, ...] = ()
 
     @property
     def unbekannt(self) -> bool:
@@ -75,7 +82,7 @@ class Abgleich:
 
     @property
     def stimmt(self) -> bool:
-        return not self.unbekannt and self.ist == self.soll
+        return not self.unbekannt and self.ist in (self.soll, *self.ebenso_gueltig)
 
 
 def gh_api_json(pfad: str) -> Any:
@@ -105,12 +112,38 @@ def _checks_aus_regeln(regeln: list[dict]) -> list[str]:
     return []
 
 
-def _pruefe_homepage(repo: str, api: Callable[[str], Any]) -> Abgleich:
+def _pruefe_homepage(repo: str, api: Callable[[str], Any],
+                     domain_pruefen: Callable[[str], bool]) -> Abgleich:
+    """Der Sollwert ist nicht unbedingt STANDARD_DOMAIN (Issue #210).
+
+    `homepage.bestimme()` kennt einen dokumentierten Rückfall: Antwortet die
+    Domain nicht, ist die Release-Seite der richtige Wert und nicht der
+    falsche. Bis #210 verglich diese Stelle unbedingt gegen STANDARD_DOMAIN
+    und meldete für genau diesen Normalfall eine ABWEICHUNG — ein Fehlalarm,
+    der wie "jemand hat die Homepage verstellt" aussieht.
+
+    Solange `--pruefen` nur von Hand läuft, liest ein Mensch die Ausgabe im
+    Zusammenhang. Automatisiert (#211) wird der Fehlalarm real, und ein
+    Wächter, der grundlos anschlägt, wird abgeschaltet — dann ist er
+    schlechter als keiner.
+
+    Dieselbe Entscheidung wie im Setz-Lauf zu treffen heisst nicht, sie
+    aufzuweichen: Steht dort etwas Drittes, bleibt es eine Abweichung, und bei
+    erreichbarer Domain ist die Release-Seite weiterhin eine.
+    """
     try:
         daten = api(f"repos/{repo}")
     except Exception as fehler:                                   # noqa: BLE001
         return Abgleich("Homepage", homepage.STANDARD_DOMAIN, None, _fehlertext(fehler))
-    return Abgleich("Homepage", homepage.STANDARD_DOMAIN, daten.get("homepage") or "")
+    ist = daten.get("homepage") or ""
+    soll, _ = homepage.bestimme(repo, homepage.STANDARD_DOMAIN, ist, pruefen=domain_pruefen)
+    # Antwortet die Domain nicht, hat `bestimme` die Release-Seite gewählt —
+    # aber die Domain selbst ist dann genauso in Ordnung: Sie steht dort, bis
+    # der nächste Setz-Lauf umstellt, und ein Ausfall ist keine Verstellung.
+    # Beides zuzulassen ist der Unterschied zwischen einem Wächter und einem
+    # Wecker, der bei jedem Netzhänger klingelt.
+    ebenso = () if soll == homepage.STANDARD_DOMAIN else (homepage.STANDARD_DOMAIN,)
+    return Abgleich("Homepage", soll, ist, ebenso_gueltig=ebenso)
 
 
 def _pruefe_durchsetzung(name: str, rulesets: list[dict] | None, rulesets_fehler: str | None) -> Abgleich:
@@ -152,9 +185,15 @@ def pruefe(
     *,
     api: Callable[[str], Any] = gh_api_json,
     workflow: Path = pflicht_checks.STANDARD_WORKFLOW,
+    domain_pruefen: Callable[[str], bool] = homepage.domain_antwortet,
 ) -> list[Abgleich]:
-    """Die drei Abgleiche aus dem Issue — nie schreibend, nie CI-Lauf-abhängig."""
-    ergebnisse = [_pruefe_homepage(repo, api)]
+    """Die drei Abgleiche aus dem Issue — nie schreibend, nie CI-Lauf-abhängig.
+
+    `domain_pruefen` ist austauschbar wie `api` (Vorbild: `pruefen` in
+    homepage.py). Die Tests kommen dadurch ohne Netz aus — sonst hinge ihr
+    Ergebnis an der Erreichbarkeit von falzmarke.com statt an ihrer Aussage.
+    """
+    ergebnisse = [_pruefe_homepage(repo, api, domain_pruefen)]
 
     rulesets: list[dict] | None
     try:
