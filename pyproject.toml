@@ -53,7 +53,7 @@ Releases = "https://github.com/blitzsicht/falzmarke/releases"
 Issues = "https://github.com/blitzsicht/falzmarke/issues"
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "fonttools>=4"]
+dev = ["pytest>=9.1.1", "fonttools>=4"]
 # Der MCP-Dienst ist bewusst nicht in der Grundausstattung: Das SDK bringt
 # 28 Pakete mit, darunter uvicorn, starlette, cryptography und opentelemetry.
 # Ein Werkzeug, das offline Briefe setzt, schleppt die nicht mit.
