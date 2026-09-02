@@ -155,7 +155,12 @@ python3 scripts/changelog.py --buendeln v0.9.2
 ```
 
 Das sammelt die Fragmente, schreibt sie als Versionsabschnitt nach `CHANGELOG.md`, leert
-`changelog.d/` und erneuert den Abschnitt „Was sich zuletzt getan hat" in der README.
+`changelog.d/` und erneuert den Abschnitt „Was sich zuletzt getan hat" in der README. Kurz:
+`make buendeln VERSION=v0.9.2`.
+
+Vergessen geht nicht: `release.yml` bricht ab, solange `changelog.d/` beim Tag nicht leer ist —
+sonst erschiene eine Version, in der die Punkte der letzten Vorgänge stillschweigend fehlen, und
+auf PyPI ist die Nummer dann unwiderruflich belegt.
 
 `CHANGELOG.md` bleibt die Quelle für alles Veröffentlichte; der README-Abschnitt wird daraus
 erzeugt (`python3 scripts/changelog.py`, oder `make changelog`) — ihn nie von Hand ändern. Wer

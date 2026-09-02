@@ -9,7 +9,8 @@ Jeder Vorgang, der das Werkzeug ändert, legt seinen Changelog-Punkt als **eigen
 sie ist der Pull Request nicht mergebar.
 
 Beim Release bündelt `python3 scripts/changelog.py --buendeln v0.9.2` die Fragmente zu einem
-Versionsabschnitt in `CHANGELOG.md` und leert das Verzeichnis.
+Versionsabschnitt in `CHANGELOG.md` und leert das Verzeichnis. Wer das vergisst, kommt nicht
+durch: `release.yml` bricht vor dem Packen ab, solange `changelog.d/` nicht leer ist.
 
 Vier Rubriken: `neu`, `geaendert`, `behoben`, `infrastruktur`. Ausgenommen von der Pflicht sind
 Abhängigkeits-Aktualisierungen, Vorgänge, die ausschließlich `docs/`, Markdown im

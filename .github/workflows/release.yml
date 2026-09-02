@@ -50,6 +50,25 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Kein Eintrag darf liegenbleiben
+        # Wer `scripts/changelog.py --buendeln` vergisst, veroeffentlicht eine
+        # Version, in der die Punkte der letzten Vorgaenge fehlen — und merkt es
+        # nicht, weil ein fehlender Punkt nichts meldet. Auf PyPI ist die
+        # Nummer dann unwiderruflich belegt (ADR 0036), die Luecke bleibt.
+        #
+        # Der Schritt steht VOR dem Packen: Bricht er ab, entsteht kein
+        # GitHub-Release und kein Tag-Artefakt, das jemand fuer gueltig haelt.
+        run: |
+          uebrig=$(find changelog.d -name '*.md' 2>/dev/null | sort)
+          if [ -n "$uebrig" ]; then
+            echo "FEHLER: changelog.d/ ist nicht leer — diese Punkte fehlen in der Version:"
+            echo "$uebrig"
+            echo
+            echo "Vor dem Tag: python3 scripts/changelog.py --buendeln ${GITHUB_REF_NAME}"
+            exit 1
+          fi
+          echo "changelog.d/ ist leer — alle Punkte stehen in CHANGELOG.md."
+
       - name: Skill packen
         # Dasselbe Skript laeuft lokal vor dem Release. Wer die Schritte hier
         # ausschreibt, hat zwei Fassungen, und die im Workflow laesst sich vor

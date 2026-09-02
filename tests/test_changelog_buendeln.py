@@ -124,3 +124,39 @@ def test_die_wirklich_abgelegten_fragmente_taugen():
 def test_das_verzeichnis_ueberlebt_ein_leeres_release():
     """`.gitkeep` hält es im Git, sonst wäre es nach dem Bündeln verschwunden."""
     assert (changelog.FRAGMENTE / ".gitkeep").is_file()
+
+
+# --- der Weg zum Release ---------------------------------------------------
+
+def test_das_release_bricht_ab_wenn_eintraege_liegenbleiben():
+    """Wer `--buendeln` vergisst, veröffentlicht eine Version mit Lücken.
+
+    Die Punkte der letzten Vorgänge fehlten dann still — und auf PyPI ist die
+    Nummer unwiderruflich belegt (ADR 0036), die Lücke bleibt. Der Schritt steht
+    vor dem Packen, damit gar kein Release entsteht.
+
+    Dieser Test hält ihn fest: Ohne ihn ließe sich der Wächter aus release.yml
+    entfernen, ohne dass etwas rot wird.
+    """
+    import yaml
+
+    release = REPO / ".github" / "workflows" / "release.yml"
+    daten = yaml.safe_load(release.read_text(encoding="utf-8"))
+    schritte = daten["jobs"]["skill-paket"]["steps"]
+    namen = [s.get("name", "") for s in schritte]
+
+    assert "Kein Eintrag darf liegenbleiben" in namen
+    waechter = schritte[namen.index("Kein Eintrag darf liegenbleiben")]
+    assert "changelog.d" in waechter["run"]
+    assert "exit 1" in waechter["run"]
+
+    # Vor dem Packen, nicht danach: Ein Abbruch hinterher hätte das
+    # GitHub-Release schon erzeugt.
+    assert namen.index("Kein Eintrag darf liegenbleiben") < namen.index("Skill packen")
+
+
+def test_das_makefile_kennt_den_buendel_aufruf():
+    """Sonst steht der Handgriff nur in der Doku und niemand findet ihn."""
+    makefile = (REPO / "Makefile").read_text(encoding="utf-8")
+    assert "buendeln:" in makefile
+    assert "--buendeln" in makefile
