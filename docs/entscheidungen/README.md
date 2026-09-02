@@ -24,3 +24,4 @@ gelesen wird und die niemand nachpflegt.
 | [0034](0034-email-ist-ausgabe.md) | E-Mail ist Ausgabe, nicht Kanal | 27.08.2026 |
 | [0035](0035-vier-ebenen-fuer-email-regeln.md) | Vier Ebenen für E-Mail-Regeln | 28.08.2026 |
 | [0036](0036-pypi-wartezeit-statt-freigabe.md) | Eine Wartezeit statt einer Freigabe von Hand | 28.08.2026 |
+| [0037](0037-changelog-fragmente.md) | Ein Changelog-Eintrag je Vorgang, als eigene Datei | 02.09.2026 |

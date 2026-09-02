@@ -67,6 +67,9 @@ done
 
 Alle Tests grün, alle acht Beispiele ohne `FEHL`-Zeile.
 
+Dazu der Changelog-Eintrag — eine Datei in `changelog.d/`, siehe „Den Changelog ändern" weiter
+unten. Er ist Pflicht, nicht Kür: Ohne ihn ist der Vorgang nicht mergebar.
+
 ## Herkunft der Beiträge (DCO)
 
 Beiträge laufen über das
@@ -112,10 +115,56 @@ nie Wortlaut, Tabellen oder Abbildungen — siehe [`CLAUDE.md`](CLAUDE.md) und
 
 ## Den Changelog ändern
 
-`CHANGELOG.md` ist die Quelle. Der Abschnitt „Was sich zuletzt getan hat" in der README wird
-daraus erzeugt (`python3 scripts/changelog.py`, oder `make changelog`) — ihn nie von Hand
-ändern. Wer eine Version einträgt, lässt das Skript laufen und nimmt die geänderte README mit
-in denselben Commit; sonst zeigt die Produktseite einen Stand, den es nicht mehr gibt, und
+**Jeder Pull Request, der das Werkzeug ändert, legt eine Datei in `changelog.d/` ab.** Ohne sie
+wird der Pflicht-Check „Changelog-Eintrag" rot und der Vorgang lässt sich nicht mergen.
+
+```
+changelog.d/229.infrastruktur.md
+              ↑        ↑
+        Vorgangsnummer  Rubrik: neu · geaendert · behoben · infrastruktur
+```
+
+Inhalt ist der Listenpunkt **im Wortlaut**, so wie er später im Changelog stehen soll — keine
+Kurzfassung, denn er wandert unverändert bis in die README auf PyPI:
+
+```markdown
+- **Kurz, was sich ändert.** Ein, zwei Sätze, warum es das gibt. (#229)
+```
+
+Ausgenommen sind Abhängigkeits-Aktualisierungen, Vorgänge, die nur `docs/`, nur Markdown im
+Wurzelverzeichnis oder nur `tests/` anfassen — und Einzelfälle, denen ein Maintainer das Label
+`ohne-changelog` gibt. Die Ausnahme greift nur, wenn **alle** geänderten Pfade hineinfallen: Wer
+Code und Doku zugleich ändert, trägt ein. `skill/references/din5008.md` zählt dabei
+ausdrücklich nicht als Doku — dort stehen die Sollwerte der Normregeln.
+
+### Warum nicht direkt in CHANGELOG.md
+
+Weil mehrere Zweige gleichzeitig dieselben Zeilen träfen. Ein `## Unveröffentlicht`-Abschnitt
+wäre bei jedem zweiten Vorgang ein Merge-Konflikt.
+
+Der eigentliche Anlass war aber ein anderer: `CHANGELOG.md` hatte **keinen Ort für einen
+Eintrag ohne Version**. Wer eintragen wollte, hätte eine Versionsüberschrift erfinden müssen.
+Also trug niemand ein — von 46 Vorgängen zwischen v0.8.2 und v0.9.0 hat einer die Datei
+angefasst, und nach dem Nachtragen von 39 Einträgen von Hand waren es bei den nächsten vier
+wieder null (#229).
+
+### Beim Release
+
+```bash
+python3 scripts/changelog.py --buendeln v0.9.2
+```
+
+Das sammelt die Fragmente, schreibt sie als Versionsabschnitt nach `CHANGELOG.md`, leert
+`changelog.d/` und erneuert den Abschnitt „Was sich zuletzt getan hat" in der README. Kurz:
+`make buendeln VERSION=v0.9.2`.
+
+Vergessen geht nicht: `release.yml` bricht ab, solange `changelog.d/` beim Tag nicht leer ist —
+sonst erschiene eine Version, in der die Punkte der letzten Vorgänge stillschweigend fehlen, und
+auf PyPI ist die Nummer dann unwiderruflich belegt.
+
+`CHANGELOG.md` bleibt die Quelle für alles Veröffentlichte; der README-Abschnitt wird daraus
+erzeugt (`python3 scripts/changelog.py`, oder `make changelog`) — ihn nie von Hand ändern. Wer
+ihn stehen lässt, zeigt auf der Produktseite einen Stand, den es nicht mehr gibt, und
 `tests/test_changelog.py` schlägt fehl.
 
 ## Die vendorte Datei

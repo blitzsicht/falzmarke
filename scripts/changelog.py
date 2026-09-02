@@ -7,8 +7,9 @@ Fassung derselben Sache driftet auseinander. Dieses Repository hat dafuer schon
 ein Muster: docs/ROADMAP.md kommt aus den Issues, die Quellenlage aus
 din5008.yaml. Der README-Abschnitt kommt also aus CHANGELOG.md.
 
-    python3 scripts/changelog.py            # Abschnitt in die README schreiben
-    python3 scripts/changelog.py --pruefen  # nur melden, ob er auf dem Stand ist
+    python3 scripts/changelog.py                  # Abschnitt in die README schreiben
+    python3 scripts/changelog.py --pruefen        # nur melden, ob er auf dem Stand ist
+    python3 scripts/changelog.py --buendeln v0.9.2  # changelog.d/ zur Version buendeln
 
 Uebernommen wird der WORTLAUT der juengsten Versionen, nicht eine Kurzfassung.
 Der naheliegende Weg waere gewesen, je Punkt nur den fett gesetzten Anfang zu
@@ -24,6 +25,7 @@ heil bleibt.
 
 from __future__ import annotations
 
+import datetime
 import re
 import sys
 from pathlib import Path
@@ -47,6 +49,79 @@ VERSIONEN = 2
 ZAHLWORT = {2: "zwei", 3: "drei", 4: "vier", 5: "fünf"}
 
 VERSION_KOPF = re.compile(r"^## (v\d+\.\d+\.\d+.*)$", re.MULTILINE)
+
+# --- Fragmente -------------------------------------------------------------
+#
+# CHANGELOG.md hat keinen Ort fuer einen Vorgang ohne Version: Wer eintragen
+# will, muesste eine Versionsueberschrift erfinden. Also trug niemand ein — von
+# 46 Vorgaengen zwischen v0.8.2 und v0.9.0 hat einer die Datei angefasst, und
+# nach dem Nachtragen von Hand waren es bei den naechsten vier wieder null.
+#
+# Deshalb legt jeder Vorgang seinen Punkt als eigene Datei ab. Kein
+# `## Unveroeffentlicht`-Abschnitt: Mehrere Zweige gleichzeitig traefen dort
+# dieselben Zeilen, Konflikte waeren der Normalfall statt der Ausnahme
+# (Issue #229).
+
+FRAGMENTE = REPO / "changelog.d"
+
+# Die vier Rubriken — die eine Stelle. Sowohl der Buendler unten als auch der
+# Pruefer in scripts/changelog_pflicht.py lesen von hier. Derselbe Sollwert an
+# zwei Stellen war die Fehlerklasse aus #212: Sie waren gleich, aber nichts
+# hielt sie gleich.
+#
+# Der Bestand kannte fuenf Ueberschriften. "Neu" (8x) und "Hinzugefuegt" (4x)
+# meinten dasselbe und sind hier zusammengefuehrt; die Schreibweise im Dateinamen
+# ist umlautfrei, damit sie auf jedem Dateisystem gleich heisst.
+RUBRIKEN = {
+    "neu": "Neu",
+    "geaendert": "Geändert",
+    "behoben": "Behoben",
+    "infrastruktur": "Infrastruktur",
+}
+
+FRAGMENT_NAME = re.compile(r"^(?P<vorgang>[A-Za-z0-9_-]+)\.(?P<rubrik>[a-z]+)\.md$")
+
+
+def fragment_mangel(pfad: Path) -> str | None:
+    """Was an diesem Fragment nicht stimmt — oder None, wenn es taugt.
+
+    Geprueft wird beides, Name und Rumpf. Ein Fragment mit unbekannter Rubrik
+    fiele beim Buendeln stillschweigend unter den Tisch, ein leeres erzeugte
+    einen leeren Punkt: beides faellt erst auf, wenn die Version schon draussen
+    ist.
+    """
+    treffer = FRAGMENT_NAME.match(pfad.name)
+    if not treffer:
+        return (f"{pfad.name}: Name muss „<vorgang>.<rubrik>.md“ lauten, "
+                f"z. B. „229.infrastruktur.md“.")
+    rubrik = treffer.group("rubrik")
+    if rubrik not in RUBRIKEN:
+        return (f"{pfad.name}: „{rubrik}“ ist keine Rubrik. Gültig: "
+                + ", ".join(RUBRIKEN) + ".")
+    if not pfad.read_text(encoding="utf-8").strip():
+        return f"{pfad.name}: leer. Ein leeres Fragment wird zu einem leeren Punkt."
+    return None
+
+
+def fragmente(verzeichnis: Path = FRAGMENTE) -> list[tuple[str, str, str]]:
+    """(rubrik, vorgang, rumpf) je Fragment — in Kanon-Reihenfolge, dann nach Name.
+
+    Bricht ab, sobald eines nicht taugt: Ein uebergangenes Fragment waere ein
+    Punkt, den niemand vermisst, weil niemand weiss, dass er fehlt.
+    """
+    gefunden = sorted(p for p in verzeichnis.glob("*.md") if p.is_file())
+    maengel = [m for m in (fragment_mangel(p) for p in gefunden) if m]
+    if maengel:
+        raise SystemExit("Fragmente in changelog.d/ sind unbrauchbar:\n  "
+                         + "\n  ".join(maengel))
+    eintraege = []
+    for pfad in gefunden:
+        treffer = FRAGMENT_NAME.match(pfad.name)
+        assert treffer  # oben geprueft
+        eintraege.append((treffer.group("rubrik"), treffer.group("vorgang"),
+                          pfad.read_text(encoding="utf-8").strip("\n")))
+    reihenfolge = list(RUBRIKEN)
+    return sorted(eintraege, key=lambda e: (reihenfolge.index(e[0]), e[1]))
 
 
 def versionen(text: str) -> list[tuple[str, str]]:
@@ -110,7 +185,71 @@ def eingesetzt(text: str) -> str:
     )
 
 
+def gebuendelt(version: str, datum: str, verzeichnis: Path = FRAGMENTE) -> str:
+    """Der Versionsabschnitt aus den Fragmenten — schreibt nichts."""
+    eintraege = fragmente(verzeichnis)
+    if not eintraege:
+        raise SystemExit(
+            f"{verzeichnis.name}/ ist leer — es gibt nichts zu bündeln.\n"
+            "Eine Version ohne einen einzigen Punkt wäre ein leerer Abschnitt, "
+            "und der fällt erst auf, wenn sie draußen ist."
+        )
+    zeilen = [f"## {version} — {datum}", ""]
+    letzte_rubrik = None
+    for rubrik, _vorgang, rumpf in eintraege:
+        if rubrik != letzte_rubrik:
+            zeilen += [f"### {RUBRIKEN[rubrik]}", ""]
+            letzte_rubrik = rubrik
+        zeilen += [rumpf, ""]
+    return "\n".join(zeilen)
+
+
+def buendeln(version: str, datum: str | None = None,
+             verzeichnis: Path = FRAGMENTE, quelle: Path = QUELLE) -> int:
+    """Fragmente zu einem Versionsabschnitt in CHANGELOG.md — und dann weg.
+
+    Die Fragmente werden geloescht, weil sie sonst bei der naechsten Version ein
+    zweites Mal erschienen. Sie stehen ab jetzt im Changelog; das ist die Quelle.
+    """
+    if not version.startswith("v"):
+        version = f"v{version}"
+    datum = datum or datetime.date.today().strftime("%d.%m.%Y")
+    eintraege = fragmente(verzeichnis)
+    abschnitt_neu = gebuendelt(version, datum, verzeichnis)
+
+    text = quelle.read_text(encoding="utf-8")
+    treffer = VERSION_KOPF.search(text)
+    if not treffer:
+        raise SystemExit(f"{quelle.name} enthält keine Versionsüberschrift.")
+    if f"## {version} " in text:
+        raise SystemExit(
+            f"{quelle.name} kennt {version} schon. Eine Versionsnummer wird nie "
+            "wiederverwendet — auf PyPI ist sie unwiderruflich belegt (ADR 0036)."
+        )
+    quelle.write_text(
+        text[: treffer.start()] + abschnitt_neu + "\n" + text[treffer.start():],
+        encoding="utf-8",
+    )
+    uebernommen = len(eintraege)
+    for pfad in sorted(verzeichnis.glob("*.md")):
+        pfad.unlink()
+    rubriken = sorted({r for r, _, _ in eintraege}, key=list(RUBRIKEN).index)
+    print(f"OK  {quelle.name} trägt {version} — {uebernommen} Punkte aus "
+          f"{verzeichnis.name}/ in {len(rubriken)} Rubriken "
+          f"({', '.join(RUBRIKEN[r] for r in rubriken)})")
+    return 0
+
+
 def main() -> int:
+    if "--buendeln" in sys.argv:
+        stelle = sys.argv.index("--buendeln")
+        if stelle + 1 >= len(sys.argv):
+            raise SystemExit(
+                "--buendeln braucht die Version, z. B. „--buendeln v0.9.2“."
+            )
+        buendeln(sys.argv[stelle + 1])
+        # Weiter im Standardpfad: Der Auszug in der README muss die frisch
+        # gebuendelte Version zeigen, sonst steht sie nur in CHANGELOG.md.
     text = ZIEL.read_text(encoding="utf-8")
     neu = eingesetzt(text)
     if "--pruefen" in sys.argv:
