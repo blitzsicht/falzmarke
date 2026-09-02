@@ -917,3 +917,5 @@ def pdfa_geprueft(pdf_pfad: Path) -> tuple[bool, str]:
     statt gegen die, die das Dokument behauptet.
     """
     return pdfa_stufe(pdf_pfad) is not None, xmp_lesen(pdf_pfad)[:200]
+
+# Probe zur Gegenprobe von #229 — wird nicht gemergt.
