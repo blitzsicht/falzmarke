@@ -306,6 +306,46 @@ jobs:
       - name: Tests der Prüfung selbst
         run: python -m pytest tests/test_pdf_konformitaet.py -o addopts="" -q
 
+  changelog:
+    # Ein Vorgang, der das Werkzeug aendert, traegt einen Punkt in den Verlauf
+    # ein — sonst laesst er sich nicht mergen (Issue #229).
+    #
+    # Zweimal fiel die Nacharbeit fuer ein halbes Hundert Vorgaenge auf einmal
+    # an: Von 46 Vorgaengen zwischen v0.8.2 und v0.9.0 hat einer CHANGELOG.md
+    # angefasst, und nach dem Nachtragen von 39 Eintraegen von Hand waren es bei
+    # den naechsten vier wieder null. Der Grund war strukturell — es gab keinen
+    # Ort fuer einen Eintrag ohne Version. Den gibt es jetzt: changelog.d/.
+    #
+    # Dieser Job steht bewusst HIER und nicht in einem eigenen Workflow.
+    # scripts/pflicht_checks.py liest nur ci.yml; ein Job daneben waere zwar
+    # gelaufen, aber nie im Ruleset gelandet und haette damit nichts verhindert.
+    # `if:` traegt keinen der NUR_MAIN_MARKER — der Job zaehlt als Pflicht-Check
+    # und erscheint dort unter seinem `name:`, nicht unter dem Jobschluessel.
+    name: Changelog-Eintrag
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read       # `gh pr view` liest Dateien, Autor und Labels
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Einen Punkt im Verlauf verlangen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NUMMER: ${{ github.event.pull_request.number }}
+        run: |
+          # Die Angaben kommen in EINEM Stueck als JSON zum Pruefer. Der
+          # naheliegende Weg — Labels als Wortliste durch die Shell reichen und
+          # unquoted expandieren — zerlegt „good first issue" in drei Labels.
+          gh pr view "$NUMMER" --repo "$GITHUB_REPOSITORY" \
+            --json files,author,labels > /tmp/pr.json
+          python3 scripts/changelog_pflicht.py --pr-json /tmp/pr.json
+
 # Hier stand bis zum 30.08.2026 der Job `renders-aktualisieren` (Issue #188).
 #
 # Er lud nach jedem Merge das Artefakt `renders-ubuntu-latest` herunter — das

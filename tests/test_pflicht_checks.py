@@ -36,9 +36,14 @@ import pflicht_checks                                            # noqa: E402
 CI = REPO / ".github" / "workflows" / "ci.yml"
 SKRIPT = REPO / "scripts" / "repo-einstellungen.sh"
 
-# Die am 30.08.2026 von Hand gesetzten sechs Pflicht-Checks (Issue #196,
-# Zwischenstand). Der Job `tests` hat eine Matrix mit drei Betriebssystemen,
-# also drei Checks; die übrigen drei Jobs haben keine Matrix.
+# Die Pflicht-Checks des Rulesets `main`. Der Job `tests` hat eine Matrix mit
+# drei Betriebssystemen, also drei Checks; die übrigen vier Jobs haben keine
+# Matrix — zusammen sieben.
+#
+# Am 30.08.2026 waren es sechs, von Hand gesetzt (Issue #196, Zwischenstand).
+# Wer hier einen Job ergänzt, ergänzt auch diese Liste und fährt danach
+# `bash scripts/repo-einstellungen.sh` — sonst verlangt das Ruleset weiter die
+# alte Menge, und der neue Check läuft, ohne etwas zu verhindern.
 ERWARTET = [
     "tests (ubuntu-latest)",
     "tests (macos-latest)",
@@ -46,10 +51,15 @@ ERWARTET = [
     "frischklon",
     "skill-paket",
     "PDF-Konformität (veraPDF, fremdes Werkzeug)",
+    # Seit Issue #229: ein Vorgang ohne Punkt im Verlauf lässt sich nicht mergen.
+    # Der Job steht in ci.yml und nicht in einem eigenen Workflow, weil
+    # `analysiere()` nur diese Datei liest — daneben wäre er gelaufen, aber nie
+    # im Ruleset gelandet.
+    "Changelog-Eintrag",
 ]
 
 
-def test_die_sechs_checks_aus_dem_echten_ci_yml():
+def test_die_sieben_checks_aus_dem_echten_ci_yml():
     assert pflicht_checks.pflicht_checks(CI) == ERWARTET
 
 
@@ -249,7 +259,8 @@ def test_die_datei_ist_gueltiges_yaml_mit_pyyaml_lesbar():
     kaputt, wären alle anderen Tests hier bedeutungslos, weil sie mit
     synthetischen Dateien arbeiten."""
     daten = yaml.safe_load(CI.read_text(encoding="utf-8"))
-    assert set(daten["jobs"]) == {"tests", "frischklon", "skill-paket", "pdf-konformitaet"}
+    assert set(daten["jobs"]) == {"tests", "frischklon", "skill-paket",
+                                 "pdf-konformitaet", "changelog"}
 
 
 # ── Das Skript ruft keinen CI-Lauf mehr ab ──────────────────────────────────

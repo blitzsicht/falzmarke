@@ -1,0 +1,14 @@
+Dieses Verzeichnis sammelt die Changelog-Punkte der Vorgänge, die seit der
+letzten Version gemergt wurden. Beim Release bündelt
+
+    python3 scripts/changelog.py --buendeln v0.9.2
+
+sie zu einem Versionsabschnitt in CHANGELOG.md und leert das Verzeichnis
+wieder. Die Datei hier hält es im Git, wenn gerade nichts darin liegt.
+
+Je Vorgang eine Datei „<vorgang>.<rubrik>.md“, Rubriken: neu, geaendert,
+behoben, infrastruktur. Inhalt ist der Listenpunkt im Wortlaut — er wandert
+unverändert bis in die README auf PyPI.
+
+Warum nicht direkt in CHANGELOG.md: Mehrere Zweige gleichzeitig träfen dort
+dieselben Zeilen. Konflikte wären der Normalfall statt der Ausnahme (#229).
