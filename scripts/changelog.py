@@ -10,6 +10,7 @@ din5008.yaml. Der README-Abschnitt kommt also aus CHANGELOG.md.
     python3 scripts/changelog.py                  # Abschnitt in die README schreiben
     python3 scripts/changelog.py --pruefen        # nur melden, ob er auf dem Stand ist
     python3 scripts/changelog.py --buendeln v0.9.2  # changelog.d/ zur Version buendeln
+    python3 scripts/changelog.py --buendeln v0.9.2 --seit v0.9.1   # Startpunkt selbst setzen
 
 Uebernommen wird der WORTLAUT der juengsten Versionen, nicht eine Kurzfassung.
 Der naheliegende Weg waere gewesen, je Punkt nur den fett gesetzten Anfang zu
@@ -80,6 +81,87 @@ RUBRIKEN = {
 }
 
 FRAGMENT_NAME = re.compile(r"^(?P<vorgang>[A-Za-z0-9_-]+)\.(?P<rubrik>[a-z]+)\.md$")
+
+# Abhaengigkeits-Vorgaenge sind vom Eintrag ausgenommen (ADR 0037) — sie kommen
+# im Dutzend und tragen einzeln nichts bei. Die Begruendung dort lautet, sie
+# erschienen beim Release als Sammelpunkt. Genau den schrieb niemand: Er stand
+# in keiner Anleitung, und kein Werkzeug verlangte ihn. Damit war die Bauart
+# wiederhergestellt, gegen die #229 gebaut wurde — eine Erwartung ohne
+# Durchsetzung. Jetzt erzeugt ihn `--buendeln` selbst (Issue #233).
+#
+# Der Anker ist der Autor des Squash-Commits, nicht sein Betreff: Den Betreff
+# schreibt beim Merge ein Mensch, den Autor uebernimmt GitHub vom Vorgang. Am
+# 02.09.2026 an f626515 gemessen — dort steht `dependabot[bot]`.
+#
+# Drei Schreibweisen, weil derselbe Bot je nach Kanal anders heisst: `gh pr view`
+# meldet `app/dependabot`, git-Autor und REST-API `dependabot[bot]`. Wer nur eine
+# eintraegt, baut einen Filter, der nie trifft — und ein nie treffender Filter
+# sieht aus wie „keine Aktualisierungen".
+BOT_AUTOREN = ("dependabot[bot]", "app/dependabot", "dependabot-preview[bot]")
+
+
+def bot_vorgaenge(seit: str | None = None, repo: Path | None = None) -> list[str]:
+    """Betreffzeilen der Abhaengigkeits-Vorgaenge seit dem letzten Versions-Tag.
+
+    Liest den git-Verlauf, nicht das Netz. Bricht ab, wenn der Verlauf nicht
+    lesbar ist: Eine leere Liste aus einem fehlgeschlagenen Aufruf ist von einer
+    leeren Liste aus „nichts passiert" nicht zu unterscheiden, und der Unterschied
+    entscheidet, ob ein Punkt im Changelog fehlt.
+    """
+    import subprocess
+
+    def git(*args: str) -> str:
+        fertig = subprocess.run(("git", "-C", str(repo or REPO)) + args,
+                                capture_output=True, text=True, encoding="utf-8")
+        if fertig.returncode != 0:
+            raise SystemExit(
+                "Der git-Verlauf ist nicht lesbar — „git " + " ".join(args) + "“ "
+                f"endete mit {fertig.returncode}:\n{fertig.stderr.strip()}\n\n"
+                "Ohne ihn liesse sich nicht sagen, ob seit der letzten Version "
+                "Abhängigkeiten aktualisiert wurden. Ein stillschweigend fehlender "
+                "Punkt fällt niemandem auf; deshalb hier Abbruch statt leerer Liste."
+            )
+        return fertig.stdout.strip()
+
+    if not seit:
+        # `git describe` scheitert hier mit 128 und „No names found", wenn es
+        # keinen Versions-Tag gibt. Das ist KEIN Lesefehler, sondern ein
+        # handhabbarer Zustand — die erste Version hat keinen Vorgaenger, und
+        # ein flacher Klon (actions/checkout ohne fetch-tags) hat gar keine.
+        # Deshalb hier eine eigene Meldung mit dem Ausweg, statt der grossen
+        # „Verlauf nicht lesbar"-Meldung, die zum Ausweg nichts sagt.
+        import subprocess as _sp
+        fertig = _sp.run(("git", "-C", str(repo or REPO), "describe", "--tags",
+                          "--abbrev=0", "--match", "v*"),
+                         capture_output=True, text=True, encoding="utf-8")
+        if fertig.returncode != 0:
+            raise SystemExit(
+                "Kein Versions-Tag gefunden, ab dem gezählt werden könnte.\n\n"
+                "Ist das die erste Version, oder liegen die Tags nicht vor (flacher "
+                "Klon), dann den Startpunkt angeben:\n\n"
+                "    python3 scripts/changelog.py --buendeln v0.9.2 --seit <commit-oder-tag>\n\n"
+                f"git meldete: {fertig.stderr.strip()}"
+            )
+        seit = fertig.stdout.strip()
+    zeilen: list[str] = []
+    for autor in BOT_AUTOREN:
+        # -F, sonst ist das Muster ein Regex: In `dependabot[bot]` waere `[bot]`
+        # eine Zeichenklasse, und der Filter faende nichts. Die leere Liste sieht
+        # dann aus wie „keine Aktualisierungen" — gemessen am 02.09.2026:
+        # ohne -F null Treffer, mit -F einer (f626515).
+        ausgabe = git("log", "-F", f"{seit}..HEAD", f"--author={autor}", "--format=%s")
+        zeilen += [z for z in ausgabe.splitlines() if z.strip()]
+    return sorted(dict.fromkeys(zeilen))
+
+
+def sammelpunkt(zeilen: list[str]) -> str | None:
+    """Der eine Punkt fuer alle Abhaengigkeits-Vorgaenge — oder None."""
+    if not zeilen:
+        return None
+    if len(zeilen) == 1:
+        return f"- **Abhängigkeiten aktualisiert.** {zeilen[0]}"
+    return ("- **Abhängigkeiten aktualisiert.**\n"
+            + "\n".join(f"  - {z}" for z in zeilen))
 
 
 def fragment_mangel(pfad: Path) -> str | None:
@@ -185,10 +267,17 @@ def eingesetzt(text: str) -> str:
     )
 
 
-def gebuendelt(version: str, datum: str, verzeichnis: Path = FRAGMENTE) -> str:
-    """Der Versionsabschnitt aus den Fragmenten — schreibt nichts."""
+def gebuendelt(version: str, datum: str, verzeichnis: Path = FRAGMENTE,
+               zusatz: str | None = None) -> str:
+    """Der Versionsabschnitt aus den Fragmenten — schreibt nichts.
+
+    `zusatz` ist der Sammelpunkt der Abhaengigkeits-Vorgaenge. Er kommt als
+    Argument herein statt aus dem git-Verlauf, damit diese Funktion rein bleibt:
+    gleiche Eingabe, gleiche Ausgabe, kein Unterprozess. Beschafft wird er in
+    `buendeln()`.
+    """
     eintraege = fragmente(verzeichnis)
-    if not eintraege:
+    if not eintraege and not zusatz:
         raise SystemExit(
             f"{verzeichnis.name}/ ist leer — es gibt nichts zu bündeln.\n"
             "Eine Version ohne einen einzigen Punkt wäre ein leerer Abschnitt, "
@@ -201,11 +290,24 @@ def gebuendelt(version: str, datum: str, verzeichnis: Path = FRAGMENTE) -> str:
             zeilen += [f"### {RUBRIKEN[rubrik]}", ""]
             letzte_rubrik = rubrik
         zeilen += [rumpf, ""]
+    if zusatz:
+        # Ans Ende von „Infrastruktur" — der Rubrik, unter der solche Punkte
+        # seit jeher stehen. Fehlt sie, wird sie hier angelegt; sie ist die
+        # letzte im Kanon, also stimmt die Reihenfolge in beiden Faellen.
+        if letzte_rubrik != "infrastruktur":
+            zeilen += [f"### {RUBRIKEN['infrastruktur']}", ""]
+        zeilen += [zusatz, ""]
     return "\n".join(zeilen)
 
 
+#: Sentinel: „nicht angegeben" ist etwas anderes als „ausdruecklich kein
+#: Sammelpunkt". None waere beides zugleich.
+_AUS_GIT = object()
+
+
 def buendeln(version: str, datum: str | None = None,
-             verzeichnis: Path = FRAGMENTE, quelle: Path = QUELLE) -> int:
+             verzeichnis: Path = FRAGMENTE, quelle: Path = QUELLE,
+             zusatz: object = _AUS_GIT, seit: str | None = None) -> int:
     """Fragmente zu einem Versionsabschnitt in CHANGELOG.md — und dann weg.
 
     Die Fragmente werden geloescht, weil sie sonst bei der naechsten Version ein
@@ -215,7 +317,9 @@ def buendeln(version: str, datum: str | None = None,
         version = f"v{version}"
     datum = datum or datetime.date.today().strftime("%d.%m.%Y")
     eintraege = fragmente(verzeichnis)
-    abschnitt_neu = gebuendelt(version, datum, verzeichnis)
+    if zusatz is _AUS_GIT:
+        zusatz = sammelpunkt(bot_vorgaenge(seit))
+    abschnitt_neu = gebuendelt(version, datum, verzeichnis, zusatz)
 
     text = quelle.read_text(encoding="utf-8")
     treffer = VERSION_KOPF.search(text)
@@ -234,9 +338,14 @@ def buendeln(version: str, datum: str | None = None,
     for pfad in sorted(verzeichnis.glob("*.md")):
         pfad.unlink()
     rubriken = sorted({r for r, _, _ in eintraege}, key=list(RUBRIKEN).index)
-    print(f"OK  {quelle.name} trägt {version} — {uebernommen} Punkte aus "
-          f"{verzeichnis.name}/ in {len(rubriken)} Rubriken "
-          f"({', '.join(RUBRIKEN[r] for r in rubriken)})")
+    print(f"OK  {quelle.name} trägt {version} — "
+          f"{uebernommen} {'Punkt' if uebernommen == 1 else 'Punkte'} aus "
+          f"{verzeichnis.name}/ in {len(rubriken)} "
+          f"{'Rubrik' if len(rubriken) == 1 else 'Rubriken'} "
+          f"({', '.join(RUBRIKEN[r] for r in rubriken) or 'keine'})")
+    if zusatz:
+        print("    dazu ein Sammelpunkt für die Abhängigkeits-Vorgänge "
+              "aus dem git-Verlauf")
     return 0
 
 
@@ -247,7 +356,13 @@ def main() -> int:
             raise SystemExit(
                 "--buendeln braucht die Version, z. B. „--buendeln v0.9.2“."
             )
-        buendeln(sys.argv[stelle + 1])
+        seit = None
+        if "--seit" in sys.argv:
+            wo = sys.argv.index("--seit")
+            if wo + 1 >= len(sys.argv):
+                raise SystemExit("--seit braucht einen Commit oder Tag.")
+            seit = sys.argv[wo + 1]
+        buendeln(sys.argv[stelle + 1], seit=seit)
         # Weiter im Standardpfad: Der Auszug in der README muss die frisch
         # gebuendelte Version zeigen, sonst steht sie nur in CHANGELOG.md.
     text = ZIEL.read_text(encoding="utf-8")

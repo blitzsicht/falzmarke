@@ -62,7 +62,7 @@ def test_der_wortlaut_ueberlebt_ungekuerzt(tmp_path):
 def test_der_abschnitt_kommt_vor_die_bisher_juengste_version(tmp_path):
     verzeichnis = verzeichnis_mit(tmp_path, **{"216__behoben__md": "- Etwas."})
     quelle = changelog_mit(tmp_path)
-    changelog.buendeln("v0.9.2", "02.09.2026", verzeichnis, quelle)
+    changelog.buendeln("v0.9.2", "02.09.2026", verzeichnis, quelle, zusatz=None)
     text = quelle.read_text(encoding="utf-8")
     assert text.index("## v0.9.2") < text.index("## v0.9.1")
     assert text.startswith("# Änderungen")
@@ -71,14 +71,15 @@ def test_der_abschnitt_kommt_vor_die_bisher_juengste_version(tmp_path):
 def test_die_fragmente_sind_danach_weg(tmp_path):
     """Sonst erschienen sie bei der nächsten Version ein zweites Mal."""
     verzeichnis = verzeichnis_mit(tmp_path, **{"216__behoben__md": "- Etwas."})
-    changelog.buendeln("v0.9.2", "02.09.2026", verzeichnis, changelog_mit(tmp_path))
+    changelog.buendeln("v0.9.2", "02.09.2026", verzeichnis, changelog_mit(tmp_path),
+                       zusatz=None)
     assert list(verzeichnis.glob("*.md")) == []
 
 
 def test_ohne_v_davor_geht_auch(tmp_path):
     verzeichnis = verzeichnis_mit(tmp_path, **{"216__behoben__md": "- Etwas."})
     quelle = changelog_mit(tmp_path)
-    changelog.buendeln("0.9.2", "02.09.2026", verzeichnis, quelle)
+    changelog.buendeln("0.9.2", "02.09.2026", verzeichnis, quelle, zusatz=None)
     assert "## v0.9.2 — 02.09.2026" in quelle.read_text(encoding="utf-8")
 
 
@@ -95,7 +96,8 @@ def test_eine_schon_vergebene_version_bricht_ab(tmp_path):
     """Auf PyPI ist eine Nummer unwiderruflich belegt (ADR 0036)."""
     verzeichnis = verzeichnis_mit(tmp_path, **{"216__behoben__md": "- Etwas."})
     with pytest.raises(SystemExit, match="schon"):
-        changelog.buendeln("v0.9.1", "02.09.2026", verzeichnis, changelog_mit(tmp_path))
+        changelog.buendeln("v0.9.1", "02.09.2026", verzeichnis, changelog_mit(tmp_path),
+                           zusatz=None)
 
 
 def test_ein_untaugliches_fragment_bricht_ab_statt_es_zu_uebergehen(tmp_path):
@@ -160,3 +162,138 @@ def test_das_makefile_kennt_den_buendel_aufruf():
     makefile = (REPO / "Makefile").read_text(encoding="utf-8")
     assert "buendeln:" in makefile
     assert "--buendeln" in makefile
+
+
+# --- der Sammelpunkt der Abhängigkeits-Vorgänge (#233) ---------------------
+
+def _bot_repo(tmp_path, *autoren):
+    """Ein winziges git-Repo mit einem Tag und je einem Commit pro Autor."""
+    import subprocess
+
+    def git(*args):
+        subprocess.run(("git", "-C", str(tmp_path)) + args, check=True,
+                       capture_output=True, text=True)
+
+    git("init", "-q", "-b", "main")
+    git("config", "user.email", "probe@example.de")
+    git("config", "user.name", "Probe")
+    (tmp_path / "a.txt").write_text("1", encoding="utf-8")
+    git("add", "-A")
+    git("commit", "-qm", "Anfang")
+    git("tag", "v0.0.1")
+    for nummer, autor in enumerate(autoren, start=1):
+        (tmp_path / "a.txt").write_text(str(nummer + 1), encoding="utf-8")
+        git("add", "-A")
+        git("commit", "-qm", f"paket-{nummer} von 1 auf 2 (#{nummer})",
+            f"--author={autor} <bot@example.de>")
+    return tmp_path
+
+
+def test_der_bot_wird_im_verlauf_gefunden(tmp_path):
+    """Der Anker ist der Autor des Squash-Commits, nicht sein Betreff.
+
+    Den Betreff schreibt beim Merge ein Mensch; den Autor übernimmt GitHub vom
+    Vorgang. Am 02.09.2026 an `f626515` gemessen: dort steht `dependabot[bot]`.
+    """
+    repo = _bot_repo(tmp_path, "dependabot[bot]")
+    assert changelog.bot_vorgaenge("v0.0.1", repo) == ["paket-1 von 1 auf 2 (#1)"]
+
+
+def test_die_eckigen_klammern_sind_kein_regex(tmp_path):
+    """Der Fehler, der diesen Test erzwungen hat.
+
+    `git log --author` nimmt einen **Regex**. In `dependabot[bot]` wäre `[bot]`
+    eine Zeichenklasse — der Filter fände nichts, und die leere Liste sähe aus
+    wie „keine Aktualisierungen". Erst `-F` macht daraus einen festen Text.
+    Gemessen: ohne `-F` null Treffer, mit `-F` einer.
+
+    Ein Autor, den das Regex-Muster fälschlich träfe, gibt es hier nicht — der
+    Test prüft die Gegenrichtung: Der echte Name MUSS gefunden werden.
+    """
+    repo = _bot_repo(tmp_path, "dependabot[bot]")
+    assert changelog.bot_vorgaenge("v0.0.1", repo), "der Filter trifft nicht"
+
+
+def test_ein_mensch_landet_nicht_im_sammelpunkt(tmp_path):
+    """Sonst wäre der Punkt immer voll und niemals aussagekräftig."""
+    repo = _bot_repo(tmp_path, "siluri")
+    assert changelog.bot_vorgaenge("v0.0.1", repo) == []
+
+
+def test_ein_unlesbarer_verlauf_bricht_ab_statt_leer_zu_melden(tmp_path):
+    """„Nicht geprüft" ist kein „nichts passiert" (claim-verification)."""
+    kein_repo = tmp_path / "leer"
+    kein_repo.mkdir()
+    with pytest.raises(SystemExit, match="nicht lesbar"):
+        changelog.bot_vorgaenge("v0.0.1", kein_repo)
+
+
+def test_ein_vorgang_wird_eine_zeile():
+    assert changelog.sammelpunkt(["a von 1 auf 2 (#1)"]) == \
+        "- **Abhängigkeiten aktualisiert.** a von 1 auf 2 (#1)"
+
+
+def test_mehrere_vorgaenge_werden_eine_unterliste():
+    punkt = changelog.sammelpunkt(["a (#1)", "b (#2)"])
+    assert punkt.startswith("- **Abhängigkeiten aktualisiert.**\n")
+    assert "  - a (#1)" in punkt and "  - b (#2)" in punkt
+
+
+def test_ohne_vorgang_entsteht_kein_punkt():
+    """Sonst stünde in jeder Version eine leere Überschrift „Infrastruktur"."""
+    assert changelog.sammelpunkt([]) is None
+
+
+def test_der_sammelpunkt_legt_die_rubrik_an_wenn_sie_fehlt(tmp_path):
+    verzeichnis = verzeichnis_mit(tmp_path, **{"1__behoben__md": "- Etwas."})
+    abschnitt = changelog.gebuendelt("v0.9.2", "02.09.2026", verzeichnis,
+                                     "- **Abhängigkeiten aktualisiert.** x (#1)")
+    assert abschnitt.count("### Infrastruktur") == 1
+    assert abschnitt.index("### Behoben") < abschnitt.index("### Infrastruktur")
+
+
+def test_der_sammelpunkt_verdoppelt_die_rubrik_nicht(tmp_path):
+    verzeichnis = verzeichnis_mit(tmp_path, **{"1__infrastruktur__md": "- Etwas."})
+    abschnitt = changelog.gebuendelt("v0.9.2", "02.09.2026", verzeichnis,
+                                     "- **Abhängigkeiten aktualisiert.** x (#1)")
+    assert abschnitt.count("### Infrastruktur") == 1
+
+
+def test_allein_der_sammelpunkt_traegt_eine_version(tmp_path):
+    """Eine Version, in der nur Abhängigkeiten stiegen, ist keine leere Version."""
+    verzeichnis = verzeichnis_mit(tmp_path)
+    abschnitt = changelog.gebuendelt("v0.9.2", "02.09.2026", verzeichnis,
+                                     "- **Abhängigkeiten aktualisiert.** x (#1)")
+    assert "### Infrastruktur" in abschnitt and "x (#1)" in abschnitt
+
+
+def test_ein_repo_ohne_tag_nennt_den_ausweg(tmp_path):
+    """Der Test, der gefehlt hat.
+
+    Lokal lief alles grün, in der CI fielen vier Tests: `actions/checkout` holt
+    keine Tags, `git describe --tags` endet mit 128, und der Abbruch griff. Das
+    war zweimal falsch — die Tests hingen am git-Verlauf, obwohl sie das Bündeln
+    prüfen, und ein Repo ohne Tag (die erste Version!) hatte keinen Ausweg.
+
+    Jetzt nennt die Meldung `--seit`. „Lokal grün" belegt nichts über eine
+    Umgebung, die anders beschaffen ist.
+    """
+    repo = _bot_repo(tmp_path)          # ein Repo mit Commit, aber ohne v-Tag
+    import subprocess
+    subprocess.run(("git", "-C", str(repo), "tag", "-d", "v0.0.1"),
+                   check=True, capture_output=True)
+    with pytest.raises(SystemExit, match="--seit"):
+        changelog.bot_vorgaenge(None, repo)
+
+
+def test_mit_seit_geht_es_auch_ohne_tag(tmp_path):
+    """Die Gegenprobe: Der Ausweg muss auch wirklich hinausführen."""
+    repo = _bot_repo(tmp_path, "dependabot[bot]")
+    erster = subprocess_ausgabe(repo, "rev-list", "--max-parents=0", "HEAD")
+    assert changelog.bot_vorgaenge(erster, repo) == ["paket-1 von 1 auf 2 (#1)"]
+
+
+def subprocess_ausgabe(repo, *args):
+    import subprocess
+    return subprocess.run(("git", "-C", str(repo)) + args, check=True,
+                          capture_output=True, text=True).stdout.strip()

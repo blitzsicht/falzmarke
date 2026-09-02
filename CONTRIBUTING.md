@@ -131,8 +131,9 @@ Kurzfassung, denn er wandert unverändert bis in die README auf PyPI:
 - **Kurz, was sich ändert.** Ein, zwei Sätze, warum es das gibt. (#229)
 ```
 
-Ausgenommen sind Abhängigkeits-Aktualisierungen, Vorgänge, die nur `docs/`, nur Markdown im
-Wurzelverzeichnis oder nur `tests/` anfassen — und Einzelfälle, denen ein Maintainer das Label
+Ausgenommen sind Abhängigkeits-Aktualisierungen — für die erzeugt `--buendeln` beim Release
+selbst einen Sammelpunkt aus dem git-Verlauf, da musst du nichts tun —, Vorgänge, die nur
+`docs/`, nur Markdown im Wurzelverzeichnis oder nur `tests/` anfassen — und Einzelfälle, denen ein Maintainer das Label
 `ohne-changelog` gibt. Die Ausnahme greift nur, wenn **alle** geänderten Pfade hineinfallen: Wer
 Code und Doku zugleich ändert, trägt ein. `skill/references/din5008.md` zählt dabei
 ausdrücklich nicht als Doku — dort stehen die Sollwerte der Normregeln.
