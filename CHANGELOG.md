@@ -2,6 +2,29 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.9.2 — 02.09.2026
+
+### Infrastruktur
+
+- **Ein Vorgang ohne Changelog-Eintrag lässt sich nicht mehr mergen.** Von 46 Vorgängen
+  zwischen v0.8.2 und v0.9.0 hatte **einer** `CHANGELOG.md` angefasst; nach dem Nachtragen von
+  39 Einträgen von Hand waren es bei den nächsten vier wieder null. Der Grund war strukturell:
+  Es gab keinen Ort für einen Eintrag ohne Version. Den gibt es jetzt — je Vorgang eine Datei
+  in `changelog.d/`, die beim Release zu einem Versionsabschnitt gebündelt wird
+  (`scripts/changelog.py --buendeln`). Der Pflicht-Check „Changelog-Eintrag" verlangt sie;
+  ausgenommen sind Abhängigkeits-Aktualisierungen, reine Doku, reine Tests und Vorgänge mit
+  dem Label `ohne-changelog`. (#229)
+
+- **Der Sammelpunkt für Abhängigkeits-Aktualisierungen entsteht von selbst.** Sie sind vom
+  Changelog-Eintrag ausgenommen, und ADR 0037 versprach, sie erschienen beim Release „als
+  Sammelpunkt" — den aber niemand schrieb: Er stand in keiner Anleitung, kein Werkzeug verlangte
+  ihn. Damit war die Bauart wiederhergestellt, gegen die #229 gebaut wurde. Jetzt liest
+  `scripts/changelog.py --buendeln` den git-Verlauf seit dem letzten Versions-Tag und erzeugt den
+  Punkt selbst. Ist der Verlauf nicht lesbar, bricht es ab, statt stillschweigend nichts zu
+  melden. (#233)
+
+- **Abhängigkeiten aktualisiert.** action-gh-release von 2.6.2 auf 3.0.3 (#222)
+
 ## v0.9.1 — 01.09.2026
 
 `verify` schlug bei zwei ganz gewöhnlichen Dingen fehl: einem Link und einer nummerierten Liste.
