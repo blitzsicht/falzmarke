@@ -468,6 +468,41 @@ Maße gemessen wurden, steht in [`docs/normmasse.md`](https://github.com/blitzsi
 
 Die letzten zwei Versionen im Wortlaut. **Erzeugt aus [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md) — dort ändern, dann `python3 scripts/changelog.py`.**
 
+### v0.9.1 — 01.09.2026
+
+`verify` schlug bei zwei ganz gewöhnlichen Dingen fehl: einem Link und einer nummerierten Liste.
+Beide Male fehlte inhaltlich nichts — die Prüfung verglich Darstellungsreste.
+
+**v0.9.0 ist nicht auf PyPI erschienen.** Der Fehler unten (#213) war dreizehn Minuten vor dem
+Tag gemeldet worden; die Veröffentlichung wurde deshalb angehalten. Auf PyPI folgt v0.9.0
+zusammen mit dieser Fassung. Das GitHub-Release v0.9.0 mit den Skill-Paketen ist unverändert
+gültig.
+
+#### Behoben
+
+- **`verify --email` schlug bei jeder nummerierten Liste fehl.** Der HTML-Teil setzt die Liste
+  als `<ol><li>`; die Ziffern erzeugt der Browser über CSS-Counter und stehen deshalb **nicht im
+  Textstrom**. Der Textteil schreibt sie aus (`1. `, `2. `). Die Prüfung „Text und HTML sagen
+  dasselbe" zählte sie als fehlende Wörter — einen je Listenpunkt. (#216)
+- **`verify --mit-quelle` schlug bei jedem Markdown-Link fehl.** Verglichen wurde die rohe
+  Quelle Token für Token gegen den gesetzten Text, und die Markdown-Schreibweise für Links
+  überlebt das nicht:
+  Gemeldet wurden Syntaxreste wie `Blitzsicht](https://…`, während inhaltlich nichts fehlte.
+  Damit war Regel 0 — „kein Versand ohne grünen `verify --email`" — für jede Mail mit Link
+  unerfüllbar. Das ist die schlechtere Sorte Fehlalarm: Sie trainiert darauf, ein rotes `verify`
+  zu übergehen. (#213)
+
+#### Infrastruktur
+
+- **Der Sollwert der Ruleset-Durchsetzung steht nur noch an einer Stelle.** Er stand zweimal:
+  `DURCHSETZUNG` in `scripts/repo-einstellungen.sh` setzte ihn, `SOLL_ENFORCEMENT` in
+  `scripts/repo_pruefung.py` prüfte dagegen — zwei unabhängige Konstanten, die nichts
+  zusammenhielt. Der Wächter prüfte also gegen eine Kopie, die nichts setzt. Beide lesen jetzt
+  aus `scripts/durchsetzung.py`. (#212)
+- **Der Drift-Wächter schlägt keinen Fehlalarm mehr, wenn die Domain nicht antwortet.**
+  Steht die Homepage dann auf der Release-Seite, ist das der dokumentierte Rückfall und keine
+  Abweichung. Ein Wächter, der grundlos anschlägt, wird abgeschaltet. (#210)
+
 ### v0.9.0 — 01.09.2026
 
 Aus einem Brief werden viele. Serienbriefe, Brief und Begleitmail in einem Zug, lange Schreiben
@@ -587,32 +622,7 @@ nachgemessen hat.
 - **Die Textkanon-Beschreibung nennt die PDF-Prüfung zuerst**, nicht das, was es auf GitHub
   achtmal gibt. (#204)
 
-### v0.8.2 — 28.08.2026
-
-Das Skill-Paket ließ sich nicht mehr hochladen. Es gibt jetzt zwei.
-
-#### Behoben
-
-- **`falzmarke.skill` war zu groß für claude.ai.** Mit dem `typst`-Wheel aus v0.8.1 wog die
-  Datei 34,71 MB; der Upload-Dialog nimmt höchstens 30 MB und meldet wörtlich „Zip file must be
-  less than 30MB". Der Fehler fiel erst beim Einspielen auf — das Bauen gelang. Damit war der in
-  der README beschriebene Hauptweg seit v0.8.1 unbrauchbar.
-
-  Das Release trägt jetzt **zwei Pakete**: `falzmarke.skill` (~0,8 MB, überall einspielbar, der
-  erste Lauf lädt die Abhängigkeiten nach) und `falzmarke-offline.skill` (~34 MB, der
-  Typst-Compiler reist mit, rendert ohne PyPI). Sie unterscheiden sich in genau einer Datei.
-
-  Die Endung war nicht das Problem: Derselbe Dialog nennt `.zip` **und** `.skill` als zulässig.
-
-#### Geändert
-
-- **Die 30 MB stehen als Sollwert im Packskript**, nicht als Fußnote. `scripts/skill_packen.sh`
-  bricht ab, bevor ein Paket entsteht, das sich nicht einspielen lässt — und zwar vor dem
-  34-MB-Download, nicht danach. Eine Prüfung hält fest, dass der Wert nur an dieser einen Stelle
-  steht, und eine Gegenprobe, dass der Abbruch wirklich greift.
-- Der Offline-Nachweis in der CI läuft gegen `falzmarke-offline.skill` — dort ist das Wheel.
-
-Davor liegen 18 weitere Versionen — der vollständige Verlauf steht in [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md).
+Davor liegen 19 weitere Versionen — der vollständige Verlauf steht in [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md).
 
 <!-- changelog:ende -->
 

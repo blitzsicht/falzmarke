@@ -2,6 +2,41 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.9.1 — 01.09.2026
+
+`verify` schlug bei zwei ganz gewöhnlichen Dingen fehl: einem Link und einer nummerierten Liste.
+Beide Male fehlte inhaltlich nichts — die Prüfung verglich Darstellungsreste.
+
+**v0.9.0 ist nicht auf PyPI erschienen.** Der Fehler unten (#213) war dreizehn Minuten vor dem
+Tag gemeldet worden; die Veröffentlichung wurde deshalb angehalten. Auf PyPI folgt v0.9.0
+zusammen mit dieser Fassung. Das GitHub-Release v0.9.0 mit den Skill-Paketen ist unverändert
+gültig.
+
+### Behoben
+
+- **`verify --email` schlug bei jeder nummerierten Liste fehl.** Der HTML-Teil setzt die Liste
+  als `<ol><li>`; die Ziffern erzeugt der Browser über CSS-Counter und stehen deshalb **nicht im
+  Textstrom**. Der Textteil schreibt sie aus (`1. `, `2. `). Die Prüfung „Text und HTML sagen
+  dasselbe" zählte sie als fehlende Wörter — einen je Listenpunkt. (#216)
+- **`verify --mit-quelle` schlug bei jedem Markdown-Link fehl.** Verglichen wurde die rohe
+  Quelle Token für Token gegen den gesetzten Text, und die Markdown-Schreibweise für Links
+  überlebt das nicht:
+  Gemeldet wurden Syntaxreste wie `Blitzsicht](https://…`, während inhaltlich nichts fehlte.
+  Damit war Regel 0 — „kein Versand ohne grünen `verify --email`" — für jede Mail mit Link
+  unerfüllbar. Das ist die schlechtere Sorte Fehlalarm: Sie trainiert darauf, ein rotes `verify`
+  zu übergehen. (#213)
+
+### Infrastruktur
+
+- **Der Sollwert der Ruleset-Durchsetzung steht nur noch an einer Stelle.** Er stand zweimal:
+  `DURCHSETZUNG` in `scripts/repo-einstellungen.sh` setzte ihn, `SOLL_ENFORCEMENT` in
+  `scripts/repo_pruefung.py` prüfte dagegen — zwei unabhängige Konstanten, die nichts
+  zusammenhielt. Der Wächter prüfte also gegen eine Kopie, die nichts setzt. Beide lesen jetzt
+  aus `scripts/durchsetzung.py`. (#212)
+- **Der Drift-Wächter schlägt keinen Fehlalarm mehr, wenn die Domain nicht antwortet.**
+  Steht die Homepage dann auf der Release-Seite, ist das der dokumentierte Rückfall und keine
+  Abweichung. Ein Wächter, der grundlos anschlägt, wird abgeschaltet. (#210)
+
 ## v0.9.0 — 01.09.2026
 
 Aus einem Brief werden viele. Serienbriefe, Brief und Begleitmail in einem Zug, lange Schreiben
