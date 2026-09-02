@@ -10,6 +10,7 @@ din5008.yaml. Der README-Abschnitt kommt also aus CHANGELOG.md.
     python3 scripts/changelog.py                  # Abschnitt in die README schreiben
     python3 scripts/changelog.py --pruefen        # nur melden, ob er auf dem Stand ist
     python3 scripts/changelog.py --buendeln v0.9.2  # changelog.d/ zur Version buendeln
+    python3 scripts/changelog.py --buendeln v0.9.2 --seit v0.9.1   # Startpunkt selbst setzen
 
 Uebernommen wird der WORTLAUT der juengsten Versionen, nicht eine Kurzfassung.
 Der naheliegende Weg waere gewesen, je Punkt nur den fett gesetzten Anfang zu
@@ -122,7 +123,26 @@ def bot_vorgaenge(seit: str | None = None, repo: Path | None = None) -> list[str
             )
         return fertig.stdout.strip()
 
-    seit = seit or git("describe", "--tags", "--abbrev=0", "--match", "v*")
+    if not seit:
+        # `git describe` scheitert hier mit 128 und „No names found", wenn es
+        # keinen Versions-Tag gibt. Das ist KEIN Lesefehler, sondern ein
+        # handhabbarer Zustand — die erste Version hat keinen Vorgaenger, und
+        # ein flacher Klon (actions/checkout ohne fetch-tags) hat gar keine.
+        # Deshalb hier eine eigene Meldung mit dem Ausweg, statt der grossen
+        # „Verlauf nicht lesbar"-Meldung, die zum Ausweg nichts sagt.
+        import subprocess as _sp
+        fertig = _sp.run(("git", "-C", str(repo or REPO), "describe", "--tags",
+                          "--abbrev=0", "--match", "v*"),
+                         capture_output=True, text=True, encoding="utf-8")
+        if fertig.returncode != 0:
+            raise SystemExit(
+                "Kein Versions-Tag gefunden, ab dem gezählt werden könnte.\n\n"
+                "Ist das die erste Version, oder liegen die Tags nicht vor (flacher "
+                "Klon), dann den Startpunkt angeben:\n\n"
+                "    python3 scripts/changelog.py --buendeln v0.9.2 --seit <commit-oder-tag>\n\n"
+                f"git meldete: {fertig.stderr.strip()}"
+            )
+        seit = fertig.stdout.strip()
     zeilen: list[str] = []
     for autor in BOT_AUTOREN:
         # -F, sonst ist das Muster ein Regex: In `dependabot[bot]` waere `[bot]`
@@ -280,8 +300,14 @@ def gebuendelt(version: str, datum: str, verzeichnis: Path = FRAGMENTE,
     return "\n".join(zeilen)
 
 
+#: Sentinel: „nicht angegeben" ist etwas anderes als „ausdruecklich kein
+#: Sammelpunkt". None waere beides zugleich.
+_AUS_GIT = object()
+
+
 def buendeln(version: str, datum: str | None = None,
-             verzeichnis: Path = FRAGMENTE, quelle: Path = QUELLE) -> int:
+             verzeichnis: Path = FRAGMENTE, quelle: Path = QUELLE,
+             zusatz: object = _AUS_GIT, seit: str | None = None) -> int:
     """Fragmente zu einem Versionsabschnitt in CHANGELOG.md — und dann weg.
 
     Die Fragmente werden geloescht, weil sie sonst bei der naechsten Version ein
@@ -291,7 +317,8 @@ def buendeln(version: str, datum: str | None = None,
         version = f"v{version}"
     datum = datum or datetime.date.today().strftime("%d.%m.%Y")
     eintraege = fragmente(verzeichnis)
-    zusatz = sammelpunkt(bot_vorgaenge())
+    if zusatz is _AUS_GIT:
+        zusatz = sammelpunkt(bot_vorgaenge(seit))
     abschnitt_neu = gebuendelt(version, datum, verzeichnis, zusatz)
 
     text = quelle.read_text(encoding="utf-8")
@@ -329,7 +356,13 @@ def main() -> int:
             raise SystemExit(
                 "--buendeln braucht die Version, z. B. „--buendeln v0.9.2“."
             )
-        buendeln(sys.argv[stelle + 1])
+        seit = None
+        if "--seit" in sys.argv:
+            wo = sys.argv.index("--seit")
+            if wo + 1 >= len(sys.argv):
+                raise SystemExit("--seit braucht einen Commit oder Tag.")
+            seit = sys.argv[wo + 1]
+        buendeln(sys.argv[stelle + 1], seit=seit)
         # Weiter im Standardpfad: Der Auszug in der README muss die frisch
         # gebuendelte Version zeigen, sonst steht sie nur in CHANGELOG.md.
     text = ZIEL.read_text(encoding="utf-8")

@@ -62,7 +62,7 @@ def test_der_wortlaut_ueberlebt_ungekuerzt(tmp_path):
 def test_der_abschnitt_kommt_vor_die_bisher_juengste_version(tmp_path):
     verzeichnis = verzeichnis_mit(tmp_path, **{"216__behoben__md": "- Etwas."})
     quelle = changelog_mit(tmp_path)
-    changelog.buendeln("v0.9.2", "02.09.2026", verzeichnis, quelle)
+    changelog.buendeln("v0.9.2", "02.09.2026", verzeichnis, quelle, zusatz=None)
     text = quelle.read_text(encoding="utf-8")
     assert text.index("## v0.9.2") < text.index("## v0.9.1")
     assert text.startswith("# Änderungen")
@@ -71,14 +71,15 @@ def test_der_abschnitt_kommt_vor_die_bisher_juengste_version(tmp_path):
 def test_die_fragmente_sind_danach_weg(tmp_path):
     """Sonst erschienen sie bei der nächsten Version ein zweites Mal."""
     verzeichnis = verzeichnis_mit(tmp_path, **{"216__behoben__md": "- Etwas."})
-    changelog.buendeln("v0.9.2", "02.09.2026", verzeichnis, changelog_mit(tmp_path))
+    changelog.buendeln("v0.9.2", "02.09.2026", verzeichnis, changelog_mit(tmp_path),
+                       zusatz=None)
     assert list(verzeichnis.glob("*.md")) == []
 
 
 def test_ohne_v_davor_geht_auch(tmp_path):
     verzeichnis = verzeichnis_mit(tmp_path, **{"216__behoben__md": "- Etwas."})
     quelle = changelog_mit(tmp_path)
-    changelog.buendeln("0.9.2", "02.09.2026", verzeichnis, quelle)
+    changelog.buendeln("0.9.2", "02.09.2026", verzeichnis, quelle, zusatz=None)
     assert "## v0.9.2 — 02.09.2026" in quelle.read_text(encoding="utf-8")
 
 
@@ -95,7 +96,8 @@ def test_eine_schon_vergebene_version_bricht_ab(tmp_path):
     """Auf PyPI ist eine Nummer unwiderruflich belegt (ADR 0036)."""
     verzeichnis = verzeichnis_mit(tmp_path, **{"216__behoben__md": "- Etwas."})
     with pytest.raises(SystemExit, match="schon"):
-        changelog.buendeln("v0.9.1", "02.09.2026", verzeichnis, changelog_mit(tmp_path))
+        changelog.buendeln("v0.9.1", "02.09.2026", verzeichnis, changelog_mit(tmp_path),
+                           zusatz=None)
 
 
 def test_ein_untaugliches_fragment_bricht_ab_statt_es_zu_uebergehen(tmp_path):
@@ -263,3 +265,35 @@ def test_allein_der_sammelpunkt_traegt_eine_version(tmp_path):
     abschnitt = changelog.gebuendelt("v0.9.2", "02.09.2026", verzeichnis,
                                      "- **Abhängigkeiten aktualisiert.** x (#1)")
     assert "### Infrastruktur" in abschnitt and "x (#1)" in abschnitt
+
+
+def test_ein_repo_ohne_tag_nennt_den_ausweg(tmp_path):
+    """Der Test, der gefehlt hat.
+
+    Lokal lief alles grün, in der CI fielen vier Tests: `actions/checkout` holt
+    keine Tags, `git describe --tags` endet mit 128, und der Abbruch griff. Das
+    war zweimal falsch — die Tests hingen am git-Verlauf, obwohl sie das Bündeln
+    prüfen, und ein Repo ohne Tag (die erste Version!) hatte keinen Ausweg.
+
+    Jetzt nennt die Meldung `--seit`. „Lokal grün" belegt nichts über eine
+    Umgebung, die anders beschaffen ist.
+    """
+    repo = _bot_repo(tmp_path)          # ein Repo mit Commit, aber ohne v-Tag
+    import subprocess
+    subprocess.run(("git", "-C", str(repo), "tag", "-d", "v0.0.1"),
+                   check=True, capture_output=True)
+    with pytest.raises(SystemExit, match="--seit"):
+        changelog.bot_vorgaenge(None, repo)
+
+
+def test_mit_seit_geht_es_auch_ohne_tag(tmp_path):
+    """Die Gegenprobe: Der Ausweg muss auch wirklich hinausführen."""
+    repo = _bot_repo(tmp_path, "dependabot[bot]")
+    erster = subprocess_ausgabe(repo, "rev-list", "--max-parents=0", "HEAD")
+    assert changelog.bot_vorgaenge(erster, repo) == ["paket-1 von 1 auf 2 (#1)"]
+
+
+def subprocess_ausgabe(repo, *args):
+    import subprocess
+    return subprocess.run(("git", "-C", str(repo)) + args, check=True,
+                          capture_output=True, text=True).stdout.strip()
