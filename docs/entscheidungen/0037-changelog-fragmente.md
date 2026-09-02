@@ -16,6 +16,13 @@ Vier Rubriken: `neu`, `geaendert`, `behoben`, `infrastruktur`. Ausgenommen von d
 Abhängigkeits-Aktualisierungen, Vorgänge, die ausschließlich `docs/`, Markdown im
 Wurzelverzeichnis oder `tests/` anfassen, und Einzelfälle mit dem Label `ohne-changelog`.
 
+**Nachtrag 02.09.2026 (#233):** Der Satz „sie erscheinen beim Release als Sammelpunkt" stand
+zuerst hier als Absichtserklärung — also als Erwartung ohne Durchsetzung, genau die Bauart, gegen
+die dieser Eintrag geschrieben wurde. Er ist jetzt eingelöst: `--buendeln` liest den git-Verlauf
+seit dem letzten Versions-Tag nach Commits des Abhängigkeits-Bots und erzeugt den Punkt selbst.
+Der Anker ist der **Autor** des Squash-Commits, nicht sein Betreff — den Betreff schreibt beim
+Merge ein Mensch.
+
 ## Warum
 
 `CHANGELOG.md` hatte keinen Ort für einen Eintrag ohne Version. Wer eintragen wollte, hätte eine

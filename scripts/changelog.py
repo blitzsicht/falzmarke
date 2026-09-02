@@ -81,6 +81,68 @@ RUBRIKEN = {
 
 FRAGMENT_NAME = re.compile(r"^(?P<vorgang>[A-Za-z0-9_-]+)\.(?P<rubrik>[a-z]+)\.md$")
 
+# Abhaengigkeits-Vorgaenge sind vom Eintrag ausgenommen (ADR 0037) — sie kommen
+# im Dutzend und tragen einzeln nichts bei. Die Begruendung dort lautet, sie
+# erschienen beim Release als Sammelpunkt. Genau den schrieb niemand: Er stand
+# in keiner Anleitung, und kein Werkzeug verlangte ihn. Damit war die Bauart
+# wiederhergestellt, gegen die #229 gebaut wurde — eine Erwartung ohne
+# Durchsetzung. Jetzt erzeugt ihn `--buendeln` selbst (Issue #233).
+#
+# Der Anker ist der Autor des Squash-Commits, nicht sein Betreff: Den Betreff
+# schreibt beim Merge ein Mensch, den Autor uebernimmt GitHub vom Vorgang. Am
+# 02.09.2026 an f626515 gemessen — dort steht `dependabot[bot]`.
+#
+# Drei Schreibweisen, weil derselbe Bot je nach Kanal anders heisst: `gh pr view`
+# meldet `app/dependabot`, git-Autor und REST-API `dependabot[bot]`. Wer nur eine
+# eintraegt, baut einen Filter, der nie trifft — und ein nie treffender Filter
+# sieht aus wie „keine Aktualisierungen".
+BOT_AUTOREN = ("dependabot[bot]", "app/dependabot", "dependabot-preview[bot]")
+
+
+def bot_vorgaenge(seit: str | None = None, repo: Path | None = None) -> list[str]:
+    """Betreffzeilen der Abhaengigkeits-Vorgaenge seit dem letzten Versions-Tag.
+
+    Liest den git-Verlauf, nicht das Netz. Bricht ab, wenn der Verlauf nicht
+    lesbar ist: Eine leere Liste aus einem fehlgeschlagenen Aufruf ist von einer
+    leeren Liste aus „nichts passiert" nicht zu unterscheiden, und der Unterschied
+    entscheidet, ob ein Punkt im Changelog fehlt.
+    """
+    import subprocess
+
+    def git(*args: str) -> str:
+        fertig = subprocess.run(("git", "-C", str(repo or REPO)) + args,
+                                capture_output=True, text=True, encoding="utf-8")
+        if fertig.returncode != 0:
+            raise SystemExit(
+                "Der git-Verlauf ist nicht lesbar — „git " + " ".join(args) + "“ "
+                f"endete mit {fertig.returncode}:\n{fertig.stderr.strip()}\n\n"
+                "Ohne ihn liesse sich nicht sagen, ob seit der letzten Version "
+                "Abhängigkeiten aktualisiert wurden. Ein stillschweigend fehlender "
+                "Punkt fällt niemandem auf; deshalb hier Abbruch statt leerer Liste."
+            )
+        return fertig.stdout.strip()
+
+    seit = seit or git("describe", "--tags", "--abbrev=0", "--match", "v*")
+    zeilen: list[str] = []
+    for autor in BOT_AUTOREN:
+        # -F, sonst ist das Muster ein Regex: In `dependabot[bot]` waere `[bot]`
+        # eine Zeichenklasse, und der Filter faende nichts. Die leere Liste sieht
+        # dann aus wie „keine Aktualisierungen" — gemessen am 02.09.2026:
+        # ohne -F null Treffer, mit -F einer (f626515).
+        ausgabe = git("log", "-F", f"{seit}..HEAD", f"--author={autor}", "--format=%s")
+        zeilen += [z for z in ausgabe.splitlines() if z.strip()]
+    return sorted(dict.fromkeys(zeilen))
+
+
+def sammelpunkt(zeilen: list[str]) -> str | None:
+    """Der eine Punkt fuer alle Abhaengigkeits-Vorgaenge — oder None."""
+    if not zeilen:
+        return None
+    if len(zeilen) == 1:
+        return f"- **Abhängigkeiten aktualisiert.** {zeilen[0]}"
+    return ("- **Abhängigkeiten aktualisiert.**\n"
+            + "\n".join(f"  - {z}" for z in zeilen))
+
 
 def fragment_mangel(pfad: Path) -> str | None:
     """Was an diesem Fragment nicht stimmt — oder None, wenn es taugt.
@@ -185,10 +247,17 @@ def eingesetzt(text: str) -> str:
     )
 
 
-def gebuendelt(version: str, datum: str, verzeichnis: Path = FRAGMENTE) -> str:
-    """Der Versionsabschnitt aus den Fragmenten — schreibt nichts."""
+def gebuendelt(version: str, datum: str, verzeichnis: Path = FRAGMENTE,
+               zusatz: str | None = None) -> str:
+    """Der Versionsabschnitt aus den Fragmenten — schreibt nichts.
+
+    `zusatz` ist der Sammelpunkt der Abhaengigkeits-Vorgaenge. Er kommt als
+    Argument herein statt aus dem git-Verlauf, damit diese Funktion rein bleibt:
+    gleiche Eingabe, gleiche Ausgabe, kein Unterprozess. Beschafft wird er in
+    `buendeln()`.
+    """
     eintraege = fragmente(verzeichnis)
-    if not eintraege:
+    if not eintraege and not zusatz:
         raise SystemExit(
             f"{verzeichnis.name}/ ist leer — es gibt nichts zu bündeln.\n"
             "Eine Version ohne einen einzigen Punkt wäre ein leerer Abschnitt, "
@@ -201,6 +270,13 @@ def gebuendelt(version: str, datum: str, verzeichnis: Path = FRAGMENTE) -> str:
             zeilen += [f"### {RUBRIKEN[rubrik]}", ""]
             letzte_rubrik = rubrik
         zeilen += [rumpf, ""]
+    if zusatz:
+        # Ans Ende von „Infrastruktur" — der Rubrik, unter der solche Punkte
+        # seit jeher stehen. Fehlt sie, wird sie hier angelegt; sie ist die
+        # letzte im Kanon, also stimmt die Reihenfolge in beiden Faellen.
+        if letzte_rubrik != "infrastruktur":
+            zeilen += [f"### {RUBRIKEN['infrastruktur']}", ""]
+        zeilen += [zusatz, ""]
     return "\n".join(zeilen)
 
 
@@ -215,7 +291,8 @@ def buendeln(version: str, datum: str | None = None,
         version = f"v{version}"
     datum = datum or datetime.date.today().strftime("%d.%m.%Y")
     eintraege = fragmente(verzeichnis)
-    abschnitt_neu = gebuendelt(version, datum, verzeichnis)
+    zusatz = sammelpunkt(bot_vorgaenge())
+    abschnitt_neu = gebuendelt(version, datum, verzeichnis, zusatz)
 
     text = quelle.read_text(encoding="utf-8")
     treffer = VERSION_KOPF.search(text)
@@ -234,9 +311,14 @@ def buendeln(version: str, datum: str | None = None,
     for pfad in sorted(verzeichnis.glob("*.md")):
         pfad.unlink()
     rubriken = sorted({r for r, _, _ in eintraege}, key=list(RUBRIKEN).index)
-    print(f"OK  {quelle.name} trägt {version} — {uebernommen} Punkte aus "
-          f"{verzeichnis.name}/ in {len(rubriken)} Rubriken "
-          f"({', '.join(RUBRIKEN[r] for r in rubriken)})")
+    print(f"OK  {quelle.name} trägt {version} — "
+          f"{uebernommen} {'Punkt' if uebernommen == 1 else 'Punkte'} aus "
+          f"{verzeichnis.name}/ in {len(rubriken)} "
+          f"{'Rubrik' if len(rubriken) == 1 else 'Rubriken'} "
+          f"({', '.join(RUBRIKEN[r] for r in rubriken) or 'keine'})")
+    if zusatz:
+        print("    dazu ein Sammelpunkt für die Abhängigkeits-Vorgänge "
+              "aus dem git-Verlauf")
     return 0
 
 
