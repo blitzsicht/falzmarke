@@ -1,6 +1,6 @@
 typst>=0.15,<0.16
 pyyaml>=6
 pdfplumber>=0.11
-pypdf>=5
+pypdf>=6.16.2
 markdown-it-py>=4,<5
 pillow>=10
