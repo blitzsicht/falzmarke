@@ -71,6 +71,38 @@ Wer aus der Datei eine ausgehende Mail machen will, hat zwei Wege:
 Das vollständige Protokoll mit Matrix und Gegenprobe:
 [`docs/mailprogramme-2026-08-27.md`](mailprogramme-2026-08-27.md).
 
+### Die Datei dorthin bekommen: `--oeffnen`
+
+```bash
+falzmarke email nachricht.md --oeffnen
+```
+
+Übergibt die fertige `.eml` dem Programm, das im System für `.eml` eingetragen ist. Das erspart
+den Weg über den Dateimanager — und sonst nichts.
+
+**Was es zusagt:** Die Nachricht ist danach im Mailprogramm, mit Empfänger, Betreff, beiden
+Teilen und den Anhängen.
+
+**Was es nicht zusagt:** dass sie dort ein Entwurf ist. Der Befund oben gilt unverändert; der
+nächste Handgriff heißt weiterhin „Weiterleiten". Ein Werkzeug kann nicht zusagen, was das
+Programm des Nutzers entscheidet.
+
+Drei Eigenschaften, die dazugehören:
+
+- **Nur auf Verlangen.** Ohne das Flag öffnet nichts — sonst risse eine Serie von dreißig
+  Nachrichten dreißig Fenster auf.
+- **Erst nach der Prüfung.** Was `verify --email` nicht besteht, wird nicht geöffnet.
+- **Ein Fehlschlag ist kein Fehler des Befehls.** Kein zugeordnetes Programm, kein Bildschirm,
+  ein Starter, den es nicht gibt: Das meldet sich auf der Fehlerausgabe, nennt den Pfad und
+  lässt den Exit-Code bei 0.
+
+Auf einem Rechner ohne Bildschirm — gesetztes `CI`, unter Linux fehlendes `DISPLAY` — wird gar
+nicht erst gestartet. `FALZMARKE_OEFFNEN=nie` schaltet es überall ab, `=immer` überstimmt die
+Erkennung.
+
+Die Begründung, warum das Werkzeug hier eine Datei übergibt und kein Mailprogramm steuert, steht
+in [ADR 0038](entscheidungen/0038-oeffnen-ist-kein-versand.md).
+
 ## Grenzen
 
 - **Betreff:** ab 78 Zeichen eine **Warnung**, kein Fehler. Die Zahl stammt aus
