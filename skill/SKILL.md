@@ -74,16 +74,27 @@ und `an:` statt `empfaenger:`. Die Felder stehen in `references/frontmatter.md`.
 
 ```bash
 python3 scripts/falzmarke.py lint  briefe/2026-08-27_muster-gmbh_angebot.md
-python3 scripts/falzmarke.py email briefe/2026-08-27_muster-gmbh_angebot.md --html
+python3 scripts/falzmarke.py email briefe/2026-08-27_muster-gmbh_angebot.md --html --oeffnen
 ```
 
 Es entstehen `.eml` (die Nachricht) und mit `--html` eine Vorschau zum Öffnen im Browser. Diese
 Vorschau ist das, was gezeigt wird — nicht die `.eml`, die ist für das Mailprogramm.
 
+**`--oeffnen` gehört im Gespräch dazu**, sobald ein Mensch die Nachricht wirklich abschicken
+will: Es übergibt die fertige `.eml` dem Programm, das im System dafür eingetragen ist, und
+erspart die Suche im Dateimanager. Weglassen, wenn die Nachricht bloß erzeugt oder geprüft wird,
+und immer weglassen bei Serien — dreißig Nachrichten wären dreißig Fenster.
+
+Zwei Sätze, die dabei nicht fehlen dürfen, weil sie gemessen sind: Die Nachricht erscheint dort
+als **Lesefenster, nicht als Entwurf** — der nächste Handgriff heißt „Weiterleiten". Und wenn
+kein Programm aufgeht, ist die Datei trotzdem fertig; der Befehl endet mit 0 und nennt den Pfad.
+
 **falzmarke versendet nichts.** Es gibt keinen Versandbefehl und keine Option, die sendet; die
 `.eml` wird im Mailprogramm geöffnet und dort abgeschickt. Warum das so bleibt, steht in
 [ADR 0034](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0034-email-ist-ausgabe.md).
-Wer nach einem Versand fragt, bekommt diese Auskunft, keinen Behelf.
+Wer nach einem Versand fragt, bekommt diese Auskunft, keinen Behelf. Auch `--oeffnen` ist keiner:
+Es übergibt eine Datei ans Betriebssystem und steuert kein Mailprogramm
+([ADR 0038](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0038-oeffnen-ist-kein-versand.md)).
 
 ## Grenzen
 

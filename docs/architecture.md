@@ -41,6 +41,12 @@ ruft es direkt auf, ohne dass etwas eingerichtet sein müsste.
 | `markdown` → `emit` | Brieftext in Typst-Aufrufe übersetzen | Sonderzeichen durchreichen |
 | `typst/falzmarke.typ` | Layout setzen | Werte erfinden |
 | `geometrie` | fertiges PDF messen | das PDF verändern |
+| `oeffnen` | eine fertige Datei ans Betriebssystem übergeben | etwas erzeugen, prüfen oder ein Programm steuern |
+
+`oeffnen` ist die einzige Schicht mit einer Wirkung außerhalb des Prozesses und deshalb das
+einzige Modul, das `subprocess` einbindet — nachgemessen in `tests/test_befehl_email.py`. Es
+wird spät und nur aus der Befehlsschicht importiert: `dienst` lädt `cli` auf Modulebene, ein
+Import weiter oben läge damit in jedem MCP-Prozess ([ADR 0038](entscheidungen/0038-oeffnen-ist-kein-versand.md)).
 
 Die Sollwerte stehen an **einer** Stelle (`falzmarke/regeln/din5008.yaml`) und gelten für
 Prüfung und Testsuite gemeinsam. Die Normreferenz

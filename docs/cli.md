@@ -7,7 +7,7 @@ falzmarke lint        BRIEF.md [--json]
 falzmarke render      BRIEF.md [-o AUS.pdf] [--png] [--no-pdfa] [--pdfua] [--verbose]
 falzmarke verify      AUS.pdf [--form A|B] [--json] [--verbose]
 falzmarke verify      NACHRICHT.eml --email [--json] [--verbose]
-falzmarke email       NACHRICHT.md [-o STAMM] [--html] [--txt] [--mit-quelle] [--verbose]
+falzmarke email       NACHRICHT.md [-o STAMM] [--html] [--txt] [--mit-quelle] [--oeffnen] [--verbose]
 falzmarke serie       VORLAGE.md --daten DATEN.csv --ziel ORDNER/ [--benennen SPALTE] [--sammel]
 falzmarke preview     BRIEF.md [-o AUS.png] [--ppi 120]
 falzmarke init        ZIEL.md --profil NAME [--empfaenger "Zeile|Zeile"] [--betreff "..."]
@@ -113,6 +113,15 @@ die Form an den Falzmarken.
 Textteil. **Versendet wird nichts** — es gibt keinen Versandbefehl und keine Option, die sendet
 (ADR 0034). Einzelheiten in [Die E-Mail-Fassung](email.md).
 
+`--oeffnen` übergibt die fertige `.eml` dem **Standardprogramm** des Systems — dem, das dort für
+`.eml` eingetragen ist. falzmarke sucht keine Anwendung aus und kennt keinen Programmnamen; wer
+ein anderes will, ändert die Zuordnung im System. Übergeben wird erst **nach** der Prüfung: Was
+`verify --email` nicht besteht, geht in kein Mailprogramm (ADR 0038).
+
+**Öffnen ist nicht Senden.** Die Nachricht erscheint dort als Lesefenster, nicht als Entwurf —
+gemessen in drei Programmen, siehe [Die E-Mail-Fassung](email.md). Der nächste Handgriff heißt
+weiterhin „Weiterleiten".
+
 ## Einen bestehenden Brief zurücklesen
 
 ```bash
@@ -154,6 +163,11 @@ Fehler. Für die maschinelle Auswertung gibt es `--json`.
 | 2 | Geometrieprüfung gescheitert — mit Soll, Ist und Toleranz |
 | 3 | Umgebung unvollständig |
 | 4 | Fehler im Renderer — bitte als Issue melden |
+
+Ein gescheitertes `--oeffnen` ändert den Code **nicht**: Die Nachricht ist geschrieben und
+gemessen, und das ist die Zusage des Befehls. Es meldet sich auf der Fehlerausgabe und nennt
+den Pfad (ADR 0038). Sonst hinge der Erfolg eines Serienlaufs an der Fensterverwaltung des
+Rechners.
 
 Die Codes sind für Automatisierung gedacht: `lint` und `verify` geben mit `--json` denselben
 Befund maschinenlesbar aus.

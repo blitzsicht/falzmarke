@@ -1053,6 +1053,26 @@ def befehl_email(args) -> int:
         print("\nFEHLGESCHLAGEN — die Nachricht hält die eigenen Vorgaben nicht ein.",
               file=sys.stderr)
         return EXIT_GEOMETRIE
+
+    # Der einzige Schritt mit einer Wirkung außerhalb dieses Prozesses — und er
+    # steht hinter der Messung: Was seine eigene Prüfung nicht besteht, wird
+    # niemandem ins Mailprogramm gelegt, wo der nächste Handgriff
+    # „Weiterleiten" heißt (Regel 0 im Skill, ADR 0038 Punkt 3).
+    #
+    # Spät importiert, damit `subprocess` nicht in jedem Prozess liegt, der
+    # `falzmarke.cli` lädt — der MCP-Dienst tut das auf Modulebene.
+    if args.oeffnen:
+        from falzmarke import oeffnen as oeffnen_modul
+
+        grund = oeffnen_modul.oeffne(eml_pfad)
+        if grund:
+            # Kein anderer Exit-Code: Die Datei ist geschrieben und gemessen,
+            # das ist die Zusage des Befehls (ADR 0038, Punkt 4).
+            print(f"HINWEIS  nicht geöffnet: {grund}\n"
+                  f"         Die Nachricht liegt fertig da: {eml_pfad}",
+                  file=sys.stderr)
+        else:
+            print(f"OK  geöffnet: {eml_pfad}")
     return EXIT_OK
 
 
@@ -1504,6 +1524,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--txt", action="store_true", help="den Textteil als .txt behalten")
     p.add_argument("--mit-quelle", dest="mit_quelle", action="store_true",
                    help="die Markdown-Quelle als text/markdown-Teil mitschicken")
+    p.add_argument("--oeffnen", action="store_true",
+                   help="die fertige .eml dem Standardprogramm übergeben")
     p.add_argument("--profiles")
     p.add_argument("--verbose", action="store_true", help="alle Prüfungen zeigen")
     p.set_defaults(funktion=befehl_email)
