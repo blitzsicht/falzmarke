@@ -388,6 +388,11 @@ def _pruefe_blindkopie(nachricht, text_teil, html_teil, bericht: Bericht) -> Non
     adressen = [a for _, a in getaddresses([str(roh)]) if a]
     bericht.wahr("Blindkopie ist auswertbar", bool(adressen),
                  "mindestens eine Adresse", str(roh))
+    if not adressen:
+        # Ohne Adresse hätte die Prüfung unten eine leere Menge gegen den Text
+        # zu halten und wäre zwangsläufig grün — eine bestandene Zeile, die
+        # nichts belegt. Dieselbe Überlegung wie beim fehlenden Bcc oben.
+        return
 
     sichtbar = "\n".join(
         teil.get_content() for teil in (text_teil, html_teil) if teil is not None)

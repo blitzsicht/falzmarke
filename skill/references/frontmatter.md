@@ -59,7 +59,7 @@ Steht dort bereits ein ausformulierter Text, bleibt er unverändert.
 | `empfaenger` | 1 bis 6 Zeilen, keine Leerzeile | Anschriftzone ist 27,3 mm hoch |
 | `vermerke` | höchstens 3 Zeilen | Zusatz- und Vermerkzone ist 12,7 mm hoch |
 | `betreff` | höchstens 2 Zeilen | Norm |
-| `infoblock`-Werte | höchstens 32 Zeichen | Wertespalte ist 43 mm breit |
+| `infoblock`-Werte | höchstens 21 Zeichen | die Wertespalte beginnt bei 157 mm, der Satzspiegel endet bei 190 — nutzbar sind 33 mm |
 | `anrede` | endet mit Komma | Norm |
 | `gruss` | ohne Komma | Norm |
 

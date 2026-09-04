@@ -379,6 +379,18 @@ def begleit_html(kopf: dict, profil: dict, bloecke, sprache: str = "de") -> str:
     return htmlteil(kopf, profil, bloecke, sprache=sprache, vorspann=vorschau)
 
 
+def blindkopie_hinweis(adressen: str) -> str:
+    """Was zu einem gesetzten Bcc zu sagen ist — an genau einer Stelle.
+
+    Beide Aufrufwege brauchen denselben Satz: die Kommandozeile im Terminal,
+    der MCP-Dienst als Feld seiner Antwort. Stünde er zweimal im Code,
+    driftete er auseinander — genau das ist bei der `Date`-Begründung
+    passiert, die nach #236 an sechs Stellen stand und an fünfen falsch war.
+    """
+    return (f"Blindkopie an {adressen} — steht als `Bcc:` in der Datei. "
+            "Im Mailprogramm nachsehen, ob das Feld gefüllt ist.")
+
+
 def _trennstring(quelle: str, zweck: str) -> str:
     """Der Trennstring der MIME-Teile, aus der Quelle abgeleitet.
 
@@ -397,7 +409,10 @@ def _quellenhash(quelle: str) -> str:
 def baue(kopf: dict, profil: dict, quelle_md: str, bloecke, *,
          brief_pfad: Path | None = None, mit_quelle: bool = False,
          profil_pfad: Path | None = None) -> EmailMessage:
-    """Die fertige Nachricht — ohne Message-ID, ohne Date, ohne Versandweg.
+    """Die fertige Nachricht — ohne Message-ID und ohne Versandweg.
+
+    `Date` steht seit #236 drin; die Begründung dafür und für das weiterhin
+    fehlende `Message-ID` trägt der Modulkopf.
 
     `mit_quelle` hängt die Markdown-Quelle als eigenen Teil an (RFC 7763).
     Vorgabe ist aus: Der Teil vergrößert jede Mail und macht sichtbar, was im

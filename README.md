@@ -406,7 +406,7 @@ mit englischer Beschriftung (`sprache: en` — deutsche Maße, englische Wörter
   fett, kursiv, Aufzählungen, nummerierte Listen, harter Umbruch, Pipe-Tabellen. Alles andere
   bricht mit Zeilenangabe ab, statt still etwas anderes zu setzen.
 - **Zonengrößen der Norm**: Anschrift höchstens 6 Zeilen, Vermerke höchstens 3, Werte im
-  Informationsblock höchstens 32 Zeichen.
+  Informationsblock höchstens 21 Zeichen.
 - **Keine Bilder im Fließtext** — ein Logo gehört ins Profil.
 - **Nur DIN 5008.** Schweiz (SN 010130) und Österreich (ÖNORM A 1080) sind vorgemerkt
   ([#10](https://github.com/blitzsicht/falzmarke/issues/10)); das Frontmatter-Feld `norm:` ist
