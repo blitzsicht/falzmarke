@@ -372,6 +372,17 @@ regeln:
     wirkung: fehler
     bemerkung: Auf Papier gibt es nichts zum Anklicken.
 
+  - id: werkzeug.logo_hoehe_ohne_logo
+    titel: Logohöhe im Briefkopf ohne Logo
+    lint: briefkopf.logo_hoehe_mm
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      Die Norm sagt nichts über Logos. `logo_hoehe_mm` wirkt nur zusammen mit
+      `logo:`; steht es allein, bleibt es folgenlos und niemand erfährt es.
+      Warnung, weil es Absicht sein kann.
+
   - id: werkzeug.email_im_infoblock
     titel: E-Mail-Adresse im Informationsblock muss eine sein
     lint: infoblock.email

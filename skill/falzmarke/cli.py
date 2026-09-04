@@ -42,11 +42,9 @@ EXIT_OK, EXIT_EINGABE, EXIT_GEOMETRIE, EXIT_UMGEBUNG = 0, 1, 2, 3
 # der naechsten Aenderung still auseinanderlaeuft.
 from falzmarke import anlagen as anlagen_modul  # noqa: E402
 from falzmarke import sprachen  # noqa: E402
-from falzmarke.lint import INFOBLOCK_REIHENFOLGE, PFLICHTFELDER  # noqa: E402
+from falzmarke.lint import (  # noqa: E402
+    INFOBLOCK_REIHENFOLGE, INFOBLOCK_WERT_MAX, PFLICHTFELDER)
 
-# Zeichen, die bei 10 pt in die Wertespalte des Informationsblocks passen
-# (43 mm Spaltenbreite, gemessen rund 1,24 mm je Zeichen).
-INFOBLOCK_WERT_MAX = 32
 
 
 class Eingabefehler(ValueError):
@@ -286,6 +284,10 @@ def baue_daten(kopf: dict, profil: dict, profil_pfad: Path, arbeitsverzeichnis: 
     defaults = profil.get("infoblock_defaults") or {}
     info_roh = {**defaults, **(kopf.get("infoblock") or {})}
     infoblock = []
+    # Woher der Wert kam. Der Brief ueberschreibt das Profil, und die Meldung
+    # unten muss das sagen koennen: Ein Wert aus `infoblock_defaults` steht
+    # NICHT in der Briefdatei, in der man ihn dann sucht (#244).
+    herkunft: dict[str, str] = {}
     for schluessel, _ in INFOBLOCK_REIHENFOLGE:
         leitwort = sprachen.leitwort(sprache, schluessel)
         wert = info_roh.get(schluessel)
@@ -294,19 +296,26 @@ def baue_daten(kopf: dict, profil: dict, profil_pfad: Path, arbeitsverzeichnis: 
         if schluessel.endswith("_vom"):
             wert = formatiere_datum(wert, profil.get("datumsformat", "lang"), sprache)
         infoblock.append([leitwort, str(wert)])
+        herkunft[leitwort] = (
+            f"infoblock.{schluessel} im Brief"
+            if schluessel in (kopf.get("infoblock") or {})
+            else f"infoblock_defaults.{schluessel} im Profil")
     infoblock.append([sprachen.leitwort(sprache, "datum"), datum])
 
     # Die Zeilen des Informationsblocks stehen im 12-pt-Raster und haben feste
-    # Höhe. Ein überlanger Wert würde deshalb nicht umbrechen, sondern über die
-    # 75 mm hinauslaufen — sichtbar erst im fertigen PDF. Lieber hier abbrechen.
+    # Höhe. Ein überlanger Wert würde deshalb nicht umbrechen, sondern über den
+    # rechten Rand hinauslaufen — sichtbar erst im fertigen PDF. Lieber hier
+    # abbrechen.
     zu_lang = [(lw, w) for lw, w in infoblock if len(w) > INFOBLOCK_WERT_MAX]
     if zu_lang:
         leitwort, wert = zu_lang[0]
+        quelle = herkunft.get(leitwort)
         raise Eingabefehler(
             f"infoblock: '{leitwort}' ist mit {len(wert)} Zeichen zu lang "
-            f"(höchstens {INFOBLOCK_WERT_MAX}, sonst passt die Zeile nicht in die 75 mm "
-            "des Informationsblocks).\n"
+            f"(höchstens {INFOBLOCK_WERT_MAX}, sonst reicht die Zeile über den rechten "
+            "Rand des Satzspiegels hinaus).\n"
             f"        Wert: {wert}"
+            + (f"\n        Steht in: {quelle}" if quelle else "")
         )
 
     anrede = str(kopf.get("anrede") or "Sehr geehrte Damen und Herren,").strip()
@@ -559,6 +568,10 @@ def linte(brief_pfad: Path, profil_verzeichnis: Path | None = None) -> lint_modu
             # Das Profil ist hier ohnehin geladen. Es wegzuwerfen und die
             # Mail-Angaben erst beim Bauen der .eml zu vermissen, hieße den
             # Fehler in den teuren Schritt zu verschieben.
+            # Gilt fuer beide Typen: Den Briefkopf setzt auch die E-Mail
+            # nicht, aber ein Profil wird fuer beides benutzt, und eine tote
+            # Angabe bleibt eine tote Angabe.
+            lint_modul.pruefe_briefkopf(profil, bericht)
             if str(kopf.get("typ") or "brief") == "email":
                 # Der Pfad wird mitgegeben, weil eine Profildatei auf Dateien
                 # neben sich zeigen kann (`email.logo`) — ohne ihn bliebe die

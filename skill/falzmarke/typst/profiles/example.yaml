@@ -21,8 +21,8 @@ farbe: "#1a3a5c"
 
 briefkopf:
   # logo: assets/logo.svg   # relativ zum Profilverzeichnis, PNG oder SVG
+  # logo_hoehe_mm: 14       # wirkt nur zusammen mit logo:
   # Ein Profil mit Logo und Unterschrift zeigt example-grafik.yaml.
-  logo_hoehe_mm: 14
   zeilen:
     - Beispiel GmbH
     - Musterweg 12 · 93055 Regensburg
