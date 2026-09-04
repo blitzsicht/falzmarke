@@ -20,6 +20,7 @@ import email
 import re
 import unicodedata
 from email import policy
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 from falzmarke import emit_html
@@ -227,6 +228,19 @@ def _pruefe_aufbau(nachricht, bericht: Bericht) -> None:
     for name in ("From", "To", "Subject"):
         bericht.wahr(f"Kopfzeile {name}", bool(nachricht.get(name)),
                      "gesetzt", nachricht.get(name) or "fehlt")
+
+    # Date steht eigens da, weil „vorhanden" hier nicht reicht: Ein Wert, den
+    # kein Mailprogramm parst, ist so gut wie keiner — er erscheint dann als
+    # „(null), (null)" im weitergeleiteten Text, genau wie ein fehlender (#236).
+    datum = nachricht.get("Date")
+    bericht.wahr("Kopfzeile Date", bool(datum), "gesetzt", datum or "fehlt")
+    if datum:
+        try:
+            gelesen = parsedate_to_datetime(str(datum))
+        except (TypeError, ValueError):
+            gelesen = None
+        bericht.wahr("Date ist nach RFC 5322 lesbar", gelesen is not None,
+                     "lesbares Datum", str(datum))
 
 
 def _pruefe_textteil(teil, bericht: Bericht) -> None:

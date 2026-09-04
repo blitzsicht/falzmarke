@@ -8,7 +8,9 @@ sieht.
 ## Was geprüft wurde
 
 Die vier Beispiele aus `examples/email/`, gesetzt mit `falzmarke email … --html` aus dem Stand
-`da4723e` (v0.8.0). Ohne `SOURCE_DATE_EPOCH`, also ohne `Date` — der Normalfall.
+`da4723e` (v0.8.0). Ohne `SOURCE_DATE_EPOCH`, also ohne `Date` — damals der Normalfall.
+**Dieser Stand gilt nicht mehr:** Seit #236 trägt jede Nachricht ein `Date`. Was das ändert,
+steht im Nachtrag am Ende; die Messungen unten sind unverändert die vom 27.08.2026.
 
 | Programm | Fassung |
 |---|---|
@@ -82,3 +84,29 @@ liegt beim Maintainer und steht im Vorgang.
   `format=flowed` ist im Textteil vorhanden und gegen seine Umkehrung geprüft
   (`tests/test_email_beispiele.py`); wie ein Programm damit umgeht, ist dessen Sache.
 - **Client-Matrix-Tests** (Litmus) — laut #59 ausdrücklich nicht Teil der Sache.
+
+---
+
+## Nachtrag 04.09.2026 — die Nachricht trägt jetzt ein `Date` (#236)
+
+Dieses Protokoll beschreibt einen Stand **ohne** `Date`. Genau daraus entstand der Befund, der
+zu #236 führte: Wird eine solche Datei in Outlook für Mac weitergeleitet, baut das Programm den
+zitierten Kopf aus den Feldern der Quelle — und das fehlende Feld erscheint dort als
+
+```
+Datum: (null), (null)
+```
+
+im Rumpf der Weiterleitung, geht also mit raus. Das ist keine Abweichung von den Messungen oben,
+sondern ihre Folge: Weil die `.eml` kein Entwurf ist (Zeile „Öffnet als **Entwurf**": dreimal
+`nein`), setzt kein Programm das Datum selbst nach; der gangbare Weg ist Weiterleiten, und der
+zitiert.
+
+Seit #236 setzt `falzmarke email` das Feld immer — ohne `SOURCE_DATE_EPOCH` den Zeitpunkt der
+Erzeugung, mit ihr den vorgegebenen Wert. `verify --email` misst beides: dass `Date` da und dass
+es nach RFC 5322 lesbar ist.
+
+**Offen und ausdrücklich nicht gemessen:** wie der zitierte Kopf einer weitergeleiteten
+Nachricht mit dem neuen Stand tatsächlich aussieht. Erwartet wird das gesetzte Datum an der
+Stelle, an der `(null), (null)` stand — nachgesehen hat es noch niemand. Bis dahin ist das eine
+Erwartung, kein Messwert, und gehört nicht in die Tabelle oben.

@@ -5,7 +5,10 @@ Ein Golden ist die Byte-für-Byte festgehaltene Ausgabe. Es faellt auf, wenn
 sich an der `.eml` etwas aendert, das niemand angesagt hat — eine
 Kopfzeilenreihenfolge, eine Kodierung, ein Trennstring. Damit das ueberhaupt
 moeglich ist, muss die Ausgabe deterministisch sein: die Trennstrings kommen
-aus dem Quellenhash (eml.py) und `Date` nur aus `SOURCE_DATE_EPOCH`.
+aus dem Quellenhash (eml.py), und `Date` traegt seit #236 jede Nachricht — beim
+Setzen der Goldens deshalb aus `SOURCE_DATE_EPOCH`, sonst waere der Zeitpunkt
+der Erzeugung das einzig Veraenderliche und jeder Lauf ergaebe ein anderes
+Golden.
 
     python3 scripts/golden_email.py            # schreibt die Goldens neu
     python3 scripts/golden_email.py --pruefen  # meldet nur Abweichungen

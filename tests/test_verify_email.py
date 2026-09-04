@@ -144,6 +144,25 @@ def test_ein_fehlender_betreff_faellt_auf(tmp_path, roh):
     assert "Kopfzeile Subject" in _gescheitert(_pruefe(tmp_path, ohne))
 
 
+def test_ein_fehlendes_date_faellt_auf(tmp_path, roh):
+    """Der Befund aus #236: Bis dahin trug die Datei nie ein `Date` — und
+    `verify --email` meldete sie trotzdem grün. Die Prüfung konnte an dieser
+    Stelle nicht rot werden."""
+    ohne = re.sub(r"^Date:.*$", "", roh, count=1, flags=re.M)
+    assert ohne != roh, "keine Date-Zeile in der Nachricht — die Sabotage misst nichts"
+    assert "Kopfzeile Date" in _gescheitert(_pruefe(tmp_path, ohne))
+
+
+def test_ein_unlesbares_date_faellt_auf(tmp_path, roh):
+    """Getrennt von der Sabotage darüber, weil sie einen anderen Fall trifft:
+    Das Feld ist da, nur kann es kein Mailprogramm lesen. Für den Empfänger
+    ist das dasselbe „(null), (null)" wie ein fehlendes."""
+    kaputt = re.sub(r"^Date:.*$", "Date: neulich", roh, count=1, flags=re.M)
+    assert kaputt != roh
+    gescheitert = _gescheitert(_pruefe(tmp_path, kaputt))
+    assert "Date ist nach RFC 5322 lesbar" in gescheitert
+
+
 def test_vertauschte_alternativen_fallen_auf(tmp_path, profil):
     """In `multipart/alternative` gilt der LETZTE Teil als der reichste.
     Stünde der Text hinten, zeigte jeder Client den Klartext statt des HTML."""
