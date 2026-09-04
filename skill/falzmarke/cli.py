@@ -1063,11 +1063,16 @@ def befehl_email(args) -> int:
     # ob ein Mailprogramm ihn beim Weiterleiten übernimmt, entscheidet das
     # Programm — nicht dieses Werkzeug. Wer die Zeile hier liest, weiß, dass er
     # nachsehen muss; wer sie nicht bekäme, hielte den Bcc für erledigt (#242).
-    bcc = (lies_brief(Path(args.brief))[0] or {}).get("bcc")
+    # Gelesen wird die fertige Datei, nicht das Frontmatter: Gemeldet werden
+    # soll, was drinsteht, nicht was gemeint war.
+    import email as email_modul
+    import email.policy
+
+    from falzmarke import eml as eml_modul
+    bcc = email_modul.message_from_bytes(
+        eml_pfad.read_bytes(), policy=email.policy.default)["Bcc"]
     if bcc:
-        adressen = ", ".join(bcc) if isinstance(bcc, list) else str(bcc)
-        print(f"    Blindkopie an {adressen} — steht als `Bcc:` in der Datei. "
-              "Im Mailprogramm nachsehen, ob das Feld gefüllt ist.")
+        print("    " + eml_modul.blindkopie_hinweis(str(bcc)))
 
     # `verify --email` läuft mit — dieselbe Zusage wie beim PDF: Was
     # herauskommt, wird nachgemessen, nicht nur erzeugt.

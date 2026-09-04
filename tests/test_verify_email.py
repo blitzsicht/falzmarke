@@ -195,6 +195,19 @@ def test_eine_unlesbare_blindkopie_faellt_auf(tmp_path, roh):
     assert "Blindkopie ist auswertbar" in _gescheitert(_pruefe(tmp_path, kaputt))
 
 
+def test_ein_unlesbares_bcc_erzeugt_keine_leere_pass_zeile(tmp_path, roh):
+    """Ist keine Adresse zu lesen, hätte die Sichtbarkeitsprüfung eine leere
+    Menge gegen den Text zu halten — und wäre zwangsläufig bestanden. Eine
+    grüne Zeile, die nichts belegt, ist schlimmer als keine (Review-Nachtrag
+    zu v0.9.3; dieselbe Überlegung wie beim ganz fehlenden Bcc)."""
+    kaputt = re.sub(r"^(To: .*)$", r"\1\nBcc: @@@", roh, count=1, flags=re.M)
+    assert kaputt != roh
+    namen = {p.name for p in _pruefe(tmp_path, kaputt).pruefungen}
+    assert "Blindkopie ist auswertbar" in namen, "die erste Prüfung muss laufen"
+    assert "Blindkopie steht nicht im sichtbaren Teil" not in namen, (
+        "die zweite darf bei leerer Adressmenge gar nicht erst antreten")
+
+
 def test_ein_unlesbares_date_faellt_auf(tmp_path, roh):
     """Getrennt von der Sabotage darüber, weil sie einen anderen Fall trifft:
     Das Feld ist da, nur kann es kein Mailprogramm lesen. Für den Empfänger

@@ -29,6 +29,8 @@ sie bewusst.
 from __future__ import annotations
 
 import base64
+import email
+import email.policy
 import json
 import tempfile
 from pathlib import Path
@@ -225,6 +227,7 @@ def email_setzen(nachricht: str, profil=None, als: str = "pfad",
     jemand abschickt, entscheidet ein Mailprogramm (ADR 0034). Der Messbericht
     aus `verify --email` ist immer dabei — dieselbe Zusage wie beim Brief.
     """
+    from falzmarke import eml as eml_modul
     from falzmarke import pruefung_eml
     from falzmarke.cli import setze_email
 
@@ -253,6 +256,17 @@ def email_setzen(nachricht: str, profil=None, als: str = "pfad",
             "zusammenfassung": bericht.als_text(),
             "versendet": False,
         }
+        # Derselbe Hinweis wie auf der Kommandozeile. Ohne ihn bekäme der
+        # Aufrufer hier nur „bestanden: true" zurück und hielte den
+        # Blindverteiler für erledigt — die eine Lage, die #242 verhindern
+        # wollte. Der MCP-Dienst ist der Hauptweg dieses Pakets.
+        bcc = email.message_from_bytes(
+            eml_pfad.read_bytes(), policy=email.policy.default)["Bcc"]
+        if bcc:
+            ergebnis["blindkopie"] = {
+                "adressen": str(bcc),
+                "hinweis": eml_modul.blindkopie_hinweis(str(bcc)),
+            }
         if verworfen:
             ergebnis["verworfen"] = {
                 "felder": verworfen,
