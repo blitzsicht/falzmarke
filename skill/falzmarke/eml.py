@@ -295,7 +295,24 @@ def htmlteil(kopf: dict, profil: dict, bloecke, sprache: str = "de",
         # kein Fließtext, sondern eine Folge kurzer Zeilen — mit Absätzen risse
         # sie im Client auseinander. ZWISCHEN den Blöcken ist der Absatz genau
         # richtig, denn dort soll Luft sein.
-        inhalt = emit_html.umbruch().join(emit_html.as_text(z) for z in block)
+        # Die erste Zeile des ersten Blocks ist der Name. Sie stand bisher wie
+        # jede andere da — dieselbe Groesse wie die Umsatzsteuer-Nummer, und das
+        # Auge fand keinen Anker (Operator, 04.09.2026: „schaut nach Behoerde
+        # aus"). Sie bekommt deshalb Gewicht und eine Spur mehr Groesse.
+        #
+        # Bewusst KEINE Akzentfarbe: Die Signatur gehoert dem Absender, nicht
+        # uns — eine gefaerbte Linie waere unsere Marke in fremder Post. Und
+        # eine profilabhaengige Farbe kann nicht in DUNKELREGELN stehen, denn
+        # der Block ist eine Konstante, die emit_html.verstoesse() Zeichen fuer
+        # Zeichen vergleicht. Groesse und Gewicht tragen auf hellem wie auf
+        # dunklem Grund, ohne eine einzige Farbe zu setzen.
+        zeilen = [emit_html.as_text(z) for z in block]
+        if nummer == 0 and zeilen:
+            zeilen[0] = (
+                f'<span style="font-size: 18px; font-weight: 600; '
+                f'letter-spacing: -0.01em;">{zeilen[0]}</span>'
+            )
+        inhalt = emit_html.umbruch().join(zeilen)
         # Die Trennlinie gehört an den ersten Block: Sie trennt die Signatur von
         # der Nachricht, nicht die Blöcke voneinander.
         rahmen = (f"border-top: 1px solid {emit_html.RAHMEN}; padding-top: 8px; "
