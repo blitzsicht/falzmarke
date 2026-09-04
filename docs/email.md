@@ -51,8 +51,15 @@ falten, entfalten, muss gleich sein.
 | Nicht in der Datei | Grund |
 |---|---|
 | `Message-ID` | gehört dem Versender. Wer sie beim Erzeugen setzt, vergibt eine Kennung für eine Nachricht, die vielleicht nie abgeschickt wird. |
-| `Date` | entsteht beim Versand. Ein Entwurf von gestern, der heute rausgeht, wäre sonst auf gestern datiert. **Ausnahme:** ist `SOURCE_DATE_EPOCH` gesetzt, steht das Datum drin — das ist der Weg zu einem reproduzierbaren Vergleich. |
 | ein Versandweg | falzmarke versendet nichts. Es gibt keinen Versandbefehl und keine Option, die sendet. |
+
+`Date` stand bis #236 ebenfalls in dieser Tabelle, mit der Begründung, das Datum entstehe beim
+Versand. Die trug nur unter der Annahme, das Mailprogramm übernehme die Datei als Entwurf und
+setze den Zeitpunkt selbst — und die ist nach dem Protokoll unten falsch. Beim Weiterleiten baut
+das Programm den zitierten Kopf aus den Feldern der Quelle; ein fehlendes `Date` erscheint dort
+als `Datum: (null), (null)` und geht mit raus. Dazu führt
+[RFC 5322](https://www.rfc-editor.org/rfc/rfc5322), Abschnitt 3.6, `orig-date` als Pflichtfeld. **Jede Nachricht trägt es jetzt.** Ist `SOURCE_DATE_EPOCH` gesetzt, gilt dieser
+Wert — das ist der Weg zu einem reproduzierbaren Vergleich; sonst der Zeitpunkt der Erzeugung.
 
 ## Was ein Mailprogramm daraus macht
 

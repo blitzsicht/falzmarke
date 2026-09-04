@@ -35,8 +35,9 @@ GOLDEN = REPO / "tests" / "golden" / "email"
 ANLAGE = REPO / "examples" / "email" / "anlagen" / "rechnung-2026-0815.md"
 
 #: Derselbe Zeitpunkt wie in `scripts/golden_email.py` und `test_eml.py`.
-#: Ohne ihn trägt die Nachricht kein `Date` — mit einem anderen wäre jedes
-#: Golden beim ersten Lauf rot.
+#: Seit #236 trägt jede Nachricht ein `Date`; ohne diesen festen Zeitpunkt
+#: wäre es der Erzeugungszeitpunkt und damit jedes Golden bei jedem Lauf rot.
+#: Mit einem anderen Wert wäre es beim ersten Lauf rot.
 EPOCH = "1788134400"
 
 IDS = dict(ids=lambda p: p.stem)

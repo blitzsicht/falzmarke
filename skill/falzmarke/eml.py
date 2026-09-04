@@ -5,19 +5,28 @@
 Versandweg, keine Verbindung nach außen und keine Kopfzeile, die eine Mail zu
 einer bereits verschickten machen würde.
 
-Genau darum fehlen zwei Kopfzeilen, die jeder Mailclient selbst setzt:
+Genau darum fehlt **`Message-ID`**: Eine `.eml` mit eigener Message-ID ist keine
+Vorlage mehr, sondern eine Mail, die es nie gab. Zwei Läufe ergäben zwei
+Nachrichten, die denselben Text tragen und sich als verschieden ausgeben. Die
+Kennung gehört dem Versender.
 
-* **`Message-ID`** — eine `.eml` mit eigener Message-ID ist keine Vorlage mehr,
-  sondern eine Mail, die es nie gab. Zwei Läufe ergäben zwei Nachrichten, die
-  denselben Text tragen und sich als verschieden ausgeben.
-* **`Date`** — außer bei gesetztem `SOURCE_DATE_EPOCH`. Das Datum entsteht beim
-  Versand, nicht beim Setzen; ein Entwurf von gestern, der heute rausgeht, wäre
-  sonst auf gestern datiert.
+**`Date` steht dagegen drin** — seit #236. Bis dahin fehlte es, mit der
+Begründung, das Datum entstehe beim Versand. Die trug nur, solange man annahm,
+das Mailprogramm übernehme die Datei als Entwurf und setze den Zeitpunkt selbst.
+Nach der Messung in `docs/mailprogramme-2026-08-27.md` tut das keines der drei
+geprüften Programme: Sie zeigen ein Lesefenster, und der gangbare Weg ist
+„Weiterleiten". Dabei baut das Programm den zitierten Kopf aus den Feldern der
+Quelle — ein fehlendes Feld wird dort nicht ersetzt, sondern als
+`Datum: (null), (null)` angezeigt und mitverschickt. Dazu führt RFC 5322,
+Abschnitt 3.6, `orig-date` als Pflichtfeld: Ohne `Date` ist die Datei keine
+vollständige Nachricht.
 
-`SOURCE_DATE_EPOCH` ist zugleich der Weg zu einem Golden-Vergleich. Ohne ihn
-bleibt nur die Zeit veränderlich — die Trennstrings der Teile sind es nicht:
-Sie werden aus einem Hash der Quelle gebildet, nicht gewürfelt. Zwei Läufe über
-dieselbe Datei ergeben damit dieselben Bytes.
+`SOURCE_DATE_EPOCH` behält den Vorrang und ist der Weg zu einem
+Golden-Vergleich: Mit der Variablen ist die Zeit festgenagelt, und sonst ist
+nichts am Ergebnis veränderlich — die Trennstrings der Teile werden aus einem
+Hash der Quelle gebildet, nicht gewürfelt. Zwei Läufe über dieselbe Datei
+ergeben damit dieselben Bytes. **Ohne** die Variable gilt diese Zusage nicht
+mehr, denn dann trägt jeder Lauf seinen eigenen Zeitpunkt.
 
 Die Standardbibliothek reicht: `email.message.EmailMessage`. Keine neue
 Abhängigkeit für etwas, das seit Python 3.6 im Kern liegt.
@@ -395,12 +404,13 @@ def baue(kopf: dict, profil: dict, quelle_md: str, bloecke, *,
         nachricht["In-Reply-To"] = str(kopf["antwort_auf"])
         nachricht["References"] = str(kopf["antwort_auf"])
 
-    # Date nur, wenn die Umgebung einen festen Zeitpunkt vorgibt. Sonst setzt
-    # ihn der Client beim Versand — ein Entwurf von gestern, der heute
-    # rausgeht, wäre sonst auf gestern datiert.
+    # Date immer — RFC 5322 führt es als Pflichtfeld, und ein fehlendes zeigt
+    # das Mailprogramm beim Weiterleiten als „(null), (null)" im Text an (#236).
+    # SOURCE_DATE_EPOCH behält den Vorrang: Es macht den Golden-Vergleich
+    # möglich, indem es das einzig Veränderliche festnagelt.
     epoch = os.environ.get("SOURCE_DATE_EPOCH")
-    if epoch:
-        nachricht["Date"] = formatdate(float(epoch), localtime=False)
+    nachricht["Date"] = (formatdate(float(epoch), localtime=False) if epoch
+                         else formatdate(localtime=True))
 
     logo = logo_datei(profil, profil_pfad)
     text = textteil(kopf, profil, bloecke)
