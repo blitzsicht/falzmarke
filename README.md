@@ -475,6 +475,111 @@ Maße gemessen wurden, steht in [`docs/normmasse.md`](https://github.com/blitzsi
 
 Die letzten zwei Versionen im Wortlaut. **Erzeugt aus [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md) — dort ändern, dann `python3 scripts/changelog.py`.**
 
+### v0.9.3 — 04.09.2026
+
+#### Neu
+
+- **`falzmarke email --oeffnen` übergibt die fertige Nachricht dem Standardprogramm.** Bisher
+  endete der Befehl damit, dass ein Pfad im Terminal stand; wer die `.eml` ansehen oder
+  weiterleiten wollte, suchte sie im Dateimanager. Das Flag erspart diesen Weg — und sonst
+  nichts: Es übergibt eine Datei an das Betriebssystem, sucht keine Anwendung aus und steuert
+  kein Mailprogramm. Übergeben wird erst nach bestandener Prüfung, ohne Flag öffnet nichts, und
+  ein Fehlschlag beim Öffnen lässt den Exit-Code bei 0 — die Nachricht ist ja geschrieben und
+  gemessen. Dass sie im Mailprogramm als Lesefenster erscheint und nicht als Entwurf, bleibt
+  wahr und steht in der Doku; der nächste Handgriff heißt weiterhin „Weiterleiten"
+  ([ADR 0038](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0038-oeffnen-ist-kein-versand.md)). (#239)
+
+- **`bcc:` im Frontmatter einer E-Mail.** Ein verbreitetes Muster in der Geschäftskorrespondenz
+  ist eine Archivadresse im Blindverteiler, über die jede ausgehende Mail im
+  Dokumentenmanagement landet. Bisher kannte der Datenvertrag nur `an:` und `cc:`, und die
+  Adresse musste im Mailprogramm bei jeder einzelnen Nachricht von Hand nachgetragen werden —
+  wird sie einmal vergessen, ist die Mail trotzdem raus und sieht in jeder Hinsicht erledigt
+  aus, nur existiert kein Beleg.
+
+  Die Adresse steht jetzt als `Bcc:` in der `.eml` und wird wie `an:` und `cc:` auf ihre Form
+  geprüft. **In der `.html`-Vorschau erscheint sie nicht:** Die ist zum Ansehen und
+  Herauskopieren da, und eine sichtbare Zeile „Blindkopie" ginge beim Kopieren mit — das Feld
+  täte dann das Gegenteil dessen, wofür es da ist. `verify --email` misst eigens, dass keine
+  ihrer Adressen im Text- oder HTML-Teil vorkommt.
+
+  Ob ein Mailprogramm die Kopfzeile beim Weiterleiten übernimmt, entscheidet das Programm;
+  falzmarke versendet nicht (ADR 0034) und kann es deshalb nicht zusagen. Der Befehl nennt die
+  Adresse beim Erzeugen darum eigens — wer die Zeile liest, sieht im Programm nach, statt den
+  Blindverteiler für erledigt zu halten.
+
+  In einem Brief gibt es `bcc:` nicht. Anders als `cc:`, das dort `verteiler:` heißt, bekommt es
+  keinen Ersatzvorschlag: Wer eine Kopie erhält, ohne im Verteiler zu stehen, ist auf Papier
+  nicht vorgesehen. (#242)
+
+#### Geändert
+
+- **Der Skill löst jetzt auch bei E-Mails aus.** Seine Beschreibung nannte ausschließlich
+  Papier — Brief, Kündigung, Mahnung, „etwas zum Ausdrucken oder Verschicken" — und kein
+  einziges E-Mail-Wort. Da ein Assistent den Skill allein über Name und Beschreibung
+  vorauswählt, war die seit v0.8.0 fertige E-Mail-Fassung im Auslösepfad unsichtbar: Wer
+  „schreib eine E-Mail an …" sagte, bekam eine frei getippte Nachricht statt einer geprüften
+  `.eml`. Die Beschreibung nennt jetzt beide Ausgaben, führt die Auslöser für Mails mit und
+  verbietet die selbstgebaute Nachricht so ausdrücklich, wie sie den frei gesetzten Brief
+  schon verbot. (#238)
+
+- **Der Name in der Signatur trägt jetzt Gewicht.** Er stand in derselben Größe da wie die
+  Umsatzsteuer-Nummer drei Zeilen tiefer, und das Auge fand keinen Anker — beim Vergleich mit
+  einem fremden Signaturgenerator fiel das als Erstes auf. Die erste Zeile des ersten Blocks
+  ist jetzt 18px und halbfett. Bewusst ohne Akzentfarbe: Die Signatur gehört dem Absender,
+  nicht dem Werkzeug, und eine profilabhängige Farbe kann nicht in den Dunkelregeln stehen —
+  der Block ist eine Konstante, die zeichenweise verglichen wird. Größe und Gewicht tragen auf
+  hellem wie auf dunklem Grund, ohne eine einzige Farbe zu setzen. (#243)
+
+#### Behoben
+
+- **Jede Nachricht trägt jetzt ein `Date`.** Bisher fehlte die Kopfzeile — außer bei gesetztem
+  `SOURCE_DATE_EPOCH` —, weil das Datum beim Versand entstehen sollte. Diese Begründung setzte
+  voraus, dass das Mailprogramm die `.eml` als Entwurf übernimmt und den Zeitpunkt selbst
+  einsetzt; nach der eigenen Messung in `docs/mailprogramme-2026-08-27.md` tut das keines der
+  drei geprüften Programme. Der gangbare Weg ist „Weiterleiten", und dabei baut das Programm
+  den zitierten Kopf aus den Feldern der Quelle: Das fehlende Feld erschien dort als
+  `Datum: (null), (null)` und ging mit raus. RFC 5322, Abschnitt 3.6, führt `orig-date`
+  ohnehin als Pflichtfeld. `SOURCE_DATE_EPOCH` behält den Vorrang und bleibt der Weg zum
+  Golden-Vergleich; ohne die Variable steht der Zeitpunkt der Erzeugung in der Datei. Der
+  eigentliche Befund war dabei der zweite: **`verify --email` meldete solche Dateien grün.**
+  Die Prüfung misst jetzt beides — dass `Date` vorhanden und dass es nach RFC 5322 lesbar ist.
+  (#236)
+
+- **Profilangaben wirken nicht mehr still falsch.** Zwei Fälle aus einem echten Briefbau, beide
+  daran erkennbar, dass das Werkzeug grün meldete und trotzdem etwas anderes tat als gemeint.
+
+  `briefkopf.logo_hoehe_mm` ohne `briefkopf.logo` wirkt nie — die Höhe gehört zu einem Logo,
+  das es nicht gibt. `lint` sagt das jetzt als Warnung; ein Fehler wäre es nicht, denn die Höhe
+  kann für ein später ergänztes Logo schon dastehen. Der erste Treffer war das mitgelieferte
+  `example.yaml` selbst, wo die Höhe aktiv neben einem auskommentierten `logo:` stand; beide
+  sind jetzt auskommentiert.
+
+  Der zweite Fall betrifft die Wertespalte des Informationsblocks. Ein zu langer Wert brach den
+  Lauf mit einer Meldung ab, die nur das letzte Wort des überstehenden Textes nannte — nicht
+  das Feld, aus dem es stammt. Kommt der Wert aus `infoblock_defaults:` des Profils, steht er
+  nicht einmal in der Briefdatei, in der man ihn dann sucht. Die Meldung nennt jetzt Feld und
+  Herkunft (`infoblock_defaults.ansprechpartner im Profil`), und rutscht ein Wert doch bis zum
+  Prüfer am fertigen PDF durch, ordnet der den Überlauf der Wertespalte zu.
+
+  Beim Nachmessen stellte sich heraus, dass die Grenze selbst zu hoch war: **21 Zeichen statt
+  32.** Die alte Zahl kam aus „43 mm Spaltenbreite, 1,24 mm je Zeichen", und beides war zu groß
+  — die Spalte beginnt bei 157 mm und der Satzspiegel endet bei 190, nutzbar sind also 33 mm,
+  und ein Name braucht rund 1,55 mm je Zeichen statt 1,24. Schon „Dr. Anna Meyer-Schmidt" (22
+  Zeichen) riss den Rand, ohne beanstandet zu werden. Beide Kopien der Konstanten sind dabei zu
+  einer zusammengeführt; sie standen unabhängig in `cli.py` und `lint.py`, ohne dass ein Test
+  sie zusammenhielt. (#244)
+
+- **Die Warnung zu `datum:` in einer E-Mail erklärte das Gegenteil dessen, was geschieht.** Sie
+  sagte „der Mailclient setzt es beim Versand" — seit der `Date`-Kopfzeile (#236) setzt
+  falzmarke den Zeitpunkt selbst. Der Hinweis, dass das Feld in einer Mail nichts bewirkt,
+  bleibt richtig; nur seine Begründung stimmte nicht mehr. Betroffen waren neben dem Nutzertext
+  vier weitere Stellen mit derselben Aussage, darunter `references/frontmatter.md`, aus dem auch
+  das Sprachmodell liest.
+
+  Dabei kam ein Test heraus, der nie rot werden konnte: Er verglich die Kopfzeile mit der
+  Zeichenkette `2026-08-29`, die ein RFC-5322-Datum (`Sat, 29 Aug 2026 …`) gar nicht enthalten
+  kann. Er liest das Datum jetzt und hält es gegen den Tag des Briefes. (#249)
+
 ### v0.9.2 — 02.09.2026
 
 #### Infrastruktur
@@ -498,42 +603,7 @@ Die letzten zwei Versionen im Wortlaut. **Erzeugt aus [`CHANGELOG.md`](https://g
 
 - **Abhängigkeiten aktualisiert.** action-gh-release von 2.6.2 auf 3.0.3 (#222)
 
-### v0.9.1 — 01.09.2026
-
-`verify` schlug bei zwei ganz gewöhnlichen Dingen fehl: einem Link und einer nummerierten Liste.
-Beide Male fehlte inhaltlich nichts — die Prüfung verglich Darstellungsreste.
-
-**v0.9.0 ist nicht auf PyPI erschienen.** Der Fehler unten (#213) war dreizehn Minuten vor dem
-Tag gemeldet worden; die Veröffentlichung wurde deshalb angehalten. Auf PyPI folgt v0.9.0
-zusammen mit dieser Fassung. Das GitHub-Release v0.9.0 mit den Skill-Paketen ist unverändert
-gültig.
-
-#### Behoben
-
-- **`verify --email` schlug bei jeder nummerierten Liste fehl.** Der HTML-Teil setzt die Liste
-  als `<ol><li>`; die Ziffern erzeugt der Browser über CSS-Counter und stehen deshalb **nicht im
-  Textstrom**. Der Textteil schreibt sie aus (`1. `, `2. `). Die Prüfung „Text und HTML sagen
-  dasselbe" zählte sie als fehlende Wörter — einen je Listenpunkt. (#216)
-- **`verify --mit-quelle` schlug bei jedem Markdown-Link fehl.** Verglichen wurde die rohe
-  Quelle Token für Token gegen den gesetzten Text, und die Markdown-Schreibweise für Links
-  überlebt das nicht:
-  Gemeldet wurden Syntaxreste wie `Blitzsicht](https://…`, während inhaltlich nichts fehlte.
-  Damit war Regel 0 — „kein Versand ohne grünen `verify --email`" — für jede Mail mit Link
-  unerfüllbar. Das ist die schlechtere Sorte Fehlalarm: Sie trainiert darauf, ein rotes `verify`
-  zu übergehen. (#213)
-
-#### Infrastruktur
-
-- **Der Sollwert der Ruleset-Durchsetzung steht nur noch an einer Stelle.** Er stand zweimal:
-  `DURCHSETZUNG` in `scripts/repo-einstellungen.sh` setzte ihn, `SOLL_ENFORCEMENT` in
-  `scripts/repo_pruefung.py` prüfte dagegen — zwei unabhängige Konstanten, die nichts
-  zusammenhielt. Der Wächter prüfte also gegen eine Kopie, die nichts setzt. Beide lesen jetzt
-  aus `scripts/durchsetzung.py`. (#212)
-- **Der Drift-Wächter schlägt keinen Fehlalarm mehr, wenn die Domain nicht antwortet.**
-  Steht die Homepage dann auf der Release-Seite, ist das der dokumentierte Rückfall und keine
-  Abweichung. Ein Wächter, der grundlos anschlägt, wird abgeschaltet. (#210)
-
-Davor liegen 20 weitere Versionen — der vollständige Verlauf steht in [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md).
+Davor liegen 21 weitere Versionen — der vollständige Verlauf steht in [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md).
 
 <!-- changelog:ende -->
 
