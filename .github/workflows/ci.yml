@@ -80,8 +80,9 @@ jobs:
           # Der Byte-Vergleich gegen die Goldens läuft in pytest. Hier geht es
           # um den Weg über die Kommandozeile: dass der Befehl auf allen drei
           # Plattformen dieselben Dateien schreibt und `verify --email` grün
-          # meldet. Ohne SOURCE_DATE_EPOCH — eine Nachricht ohne `Date` ist der
-          # Normalfall, und genau der soll hier laufen.
+          # meldet. Ohne SOURCE_DATE_EPOCH: Seit #236 traegt die Nachricht dann
+          # den Zeitpunkt der Erzeugung, und genau dieser Weg soll hier laufen —
+          # der Byte-Vergleich mit festem Datum steckt in pytest.
           for datei in examples/email/*.md; do
             name=$(basename "$datei" .md)
             python skill/scripts/falzmarke.py email "$datei" -o "bau/$name" --html --txt

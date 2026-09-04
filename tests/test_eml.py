@@ -1,9 +1,12 @@
 """Die E-Mail-Fassung als Datei: `.eml` und die Begleitdateien (#63).
 
 Zwei Zusagen tragen alles andere und werden deshalb gegen ihre Gegenprobe
-geprüft: **Sie versendet nichts** — keine Message-ID, kein Date, kein Weg nach
-außen — und **zwei Läufe ergeben dieselben Bytes**, sonst ist ein
+geprüft: **Sie versendet nichts** — keine Message-ID, kein Weg nach außen — und
+**zwei Läufe mit `SOURCE_DATE_EPOCH` ergeben dieselben Bytes**, sonst ist ein
 Golden-Vergleich unmöglich und jede Änderung sieht aus wie eine Änderung.
+
+`Date` steht seit #236 in jeder Datei und ist damit das einzig Veränderliche;
+die Byte-Zusage gilt deshalb nur noch mit gesetzter Umgebungsvariablen.
 """
 
 from __future__ import annotations
@@ -11,6 +14,7 @@ from __future__ import annotations
 import email
 import os
 from email import policy
+from email.utils import formatdate, parsedate_to_datetime
 from pathlib import Path
 
 import pytest
@@ -61,26 +65,32 @@ def test_keine_message_id(profil, bloecke):
     assert _baue(profil, bloecke)["Message-ID"] is None
 
 
-def test_kein_date_ohne_source_date_epoch(profil, bloecke, monkeypatch):
+def test_date_auch_ohne_source_date_epoch(profil, bloecke, monkeypatch):
+    """RFC 5322 führt `orig-date` als Pflichtfeld. Fehlte es, zeigte das
+    Mailprogramm beim Weiterleiten „(null), (null)" im Text an (#236)."""
     monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)
-    assert _baue(profil, bloecke)["Date"] is None
+    gesetzt = _baue(profil, bloecke)["Date"]
+    assert gesetzt is not None
+    assert parsedate_to_datetime(str(gesetzt)) is not None
 
 
-def test_date_nur_mit_source_date_epoch(profil, bloecke, monkeypatch):
-    """Gegenprobe zum Test darüber: Ohne sie wüsste man nur, dass kein Date
-    dasteht — nicht, dass es überhaupt gesetzt werden kann."""
+def test_source_date_epoch_hat_vorrang(profil, bloecke, monkeypatch):
+    """Gegenprobe zum Test darüber: Ohne sie wüsste man nur, dass irgendein
+    Datum dasteht — nicht, dass die Umgebung es bestimmen kann. Genau darauf
+    stehen die Goldens."""
     monkeypatch.setenv("SOURCE_DATE_EPOCH", "1788134400")
-    assert "2026" in _baue(profil, bloecke)["Date"]
+    assert _baue(profil, bloecke)["Date"] == formatdate(1788134400.0, localtime=False)
 
 
 # ── Zwei Läufe, dieselben Bytes ─────────────────────────────────────────────
 
-@pytest.mark.parametrize("epoch", [None, "1788134400"])
-def test_zwei_laeufe_sind_byteidentisch(profil, bloecke, monkeypatch, epoch):
-    if epoch:
-        monkeypatch.setenv("SOURCE_DATE_EPOCH", epoch)
-    else:
-        monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)
+def test_zwei_laeufe_sind_byteidentisch(profil, bloecke, monkeypatch):
+    """Nur mit `SOURCE_DATE_EPOCH`. Seit #236 trägt jede Nachricht ein `Date`;
+    ohne die Variable ist es der Erzeugungszeitpunkt, und zwei Läufe über eine
+    Sekundengrenze ergäben verschiedene Bytes. Diesen Fall hier zu prüfen wäre
+    ein Test, der meistens grün ist und gelegentlich rot — die teuerste Sorte.
+    Die Zusage lautet deshalb genau so weit, wie sie trägt."""
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1788134400")
     assert _baue(profil, bloecke).as_bytes() == _baue(profil, bloecke).as_bytes()
 
 
