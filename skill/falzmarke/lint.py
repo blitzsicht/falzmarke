@@ -111,7 +111,9 @@ EMAIL_FRONTMATTER_FELDER = frozenset({
     "profil", "typ", "dialekt", "sprache", "an", "cc", "betreff", "anrede", "gruss",
     "unterzeichner", "anlagen_dateien", "antwort_auf", "brief",
     # `datum` ist hier bekannt, damit es die eigene Warnung auslöst statt als
-    # unbekanntes Feld zu gelten. Es wird nicht gesetzt — das tut der Client.
+    # unbekanntes Feld zu gelten. Der Wert wird nicht übernommen: Die Kopfzeile
+    # `Date` entsteht seit #236 beim Setzen der Nachricht und beschreibt diese,
+    # nicht den Brief, aus dem das Feld stammt.
     "datum",
 })
 
@@ -1030,13 +1032,14 @@ def pruefe_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
         typ = "brief"
     if typ == "email":
         pruefe_email_frontmatter(kopf, kopf_roh, bericht)
-        # `datum:` setzt der Mailclient beim Versand. Still übergehen wäre die
-        # Fehlerart, gegen die dieses Werkzeug antritt.
+        # Das Datum der Nachricht setzt falzmarke selbst (#236) — aus der Uhr,
+        # nicht aus diesem Feld. Still übergehen wäre die Fehlerart, gegen die
+        # dieses Werkzeug antritt.
         if kopf.get("datum") is not None:
             bericht.warnung(
                 _feldzeile(kopf_roh, "datum"), "email.datum",
-                "`datum:` wird in einer E-Mail nicht gesetzt",
-                "der Mailclient setzt es beim Versand; die Zeile kann weg")
+                "`datum:` wird in einer E-Mail nicht übernommen",
+                "die Kopfzeile `Date` entsteht beim Setzen der Nachricht; die Zeile kann weg")
         return
 
     _melde_unbekannte(kopf.keys(), FRONTMATTER_FELDER, "frontmatter", kopf_roh, bericht)
