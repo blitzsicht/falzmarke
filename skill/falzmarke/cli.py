@@ -923,9 +923,9 @@ def befehl_render(args) -> int:
 #: Betreff schreibt, bekommt seinen — geerbt wird nur, was fehlt.
 #:
 #: **Nicht** dabei: `empfaenger`. Eine Postanschrift ist keine Mailadresse, und
-#: `an:` bleibt Pflicht der Mail. `datum` ebenso wenig — das setzt der
-#: Mailclient beim Versand, und ein geerbtes Briefdatum wäre eine Angabe über
-#: den falschen Vorgang.
+#: `an:` bleibt Pflicht der Mail. `datum` ebenso wenig — die Kopfzeile `Date`
+#: entsteht seit #236 beim Setzen der Nachricht, und ein geerbtes Briefdatum
+#: wäre eine Angabe über den falschen Vorgang.
 ERBT_VOM_BRIEF = ("betreff", "profil", "dialekt", "sprache")
 
 

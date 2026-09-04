@@ -26,19 +26,26 @@ dieser Aufruf. Der Brief wird beim Bauen der Nachricht gesetzt.
 beschreibt und zweimal gepflegt auseinanderdriftet.
 
 **Nicht** `empfaenger`: Eine Postanschrift ist keine Mailadresse. **Nicht**
-`datum`: Das setzt der Mailclient beim Versand, und ein geerbtes Briefdatum wäre
-eine Angabe über den falschen Vorgang.
+`datum`: Die Kopfzeile `Date` entsteht seit #236 beim Setzen der Nachricht und
+beschreibt diese; ein geerbtes Briefdatum wäre eine Angabe über den falschen
+Vorgang.
 """
 
 from __future__ import annotations
 
 import email
 import email.policy
+from datetime import date
+from email.utils import parsedate_to_datetime
 
 import pytest
 
 from conftest import SKILL
 from falzmarke import cli, lint
+
+#: Das `datum:` im BRIEF unten. Steht hier, damit ein geänderter Brief
+#: den Test bricht statt ihn still wirkungslos zu machen.
+BRIEFDATUM = date(2026, 8, 29)
 
 PROFILE = SKILL / "falzmarke" / "typst" / "profiles"
 
@@ -126,10 +133,22 @@ def test_die_mailadresse_wird_nicht_geerbt(tmp_path):
 
 
 def test_und_das_briefdatum_auch_nicht(tmp_path):
-    """Der Mailclient setzt es beim Versand. Ein geerbtes Briefdatum wäre eine
-    Angabe über den falschen Vorgang."""
-    nachricht = _nachricht(tmp_path)
-    assert "2026-08-29" not in str(nachricht.get("Date", ""))
+    """`Date` beschreibt die Nachricht, nicht den Brief, der ihr anhängt.
+
+    Der Vergleich lief bis #236 gegen die Zeichenkette „2026-08-29" — die ein
+    RFC-5322-Datum („Fri, 04 Sep 2026 …") gar nicht enthalten kann. Der Test
+    war doppelt wirkungslos: Damals stand ohnehin kein `Date` in der Datei, und
+    selbst mit einem geerbten Briefdatum wäre er grün geblieben.
+
+    Jetzt wird das Datum gelesen und gegen den Tag des Briefes gehalten.
+    """
+    datum = parsedate_to_datetime(str(_nachricht(tmp_path)["Date"]))
+    assert datum.date() != BRIEFDATUM, (
+        f"Die Nachricht trägt das Datum des Briefes ({BRIEFDATUM}) — `Date` soll "
+        "den Zeitpunkt beschreiben, an dem die Nachricht entstand")
+    assert datum.date() >= BRIEFDATUM, (
+        "Gegenprobe zum assert darüber: Das Datum muss ein echter Zeitpunkt sein, "
+        f"nicht irgendein Wert ungleich {BRIEFDATUM}")
 
 
 # ── Das PDF ist immer frisch ────────────────────────────────────────────────

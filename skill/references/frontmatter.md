@@ -90,7 +90,7 @@ anlagen_dateien:                        # optional, als Anhang der Mail
 antwort_auf: "<kennung@example.de>"     # optional, wird zu In-Reply-To
 dialekt: "1.1"                          # wie beim Brief; der HTML-Teil setzt 1.1 noch nicht
 sprache: de
-datum: 2026-08-25                       # wird NICHT gesetzt — `lint` warnt, siehe unten
+datum: 2026-08-25                       # wird NICHT übernommen — `lint` warnt, siehe unten
 ---
 ```
 
@@ -100,8 +100,9 @@ Eine Mail an eine Postanschrift und ein Brief an eine Mailadresse sind beides Do
 niemanden erreichen. Ebenso entfallen `form`, `vermerke`, `infoblock`, `betreff_kurz`,
 `signatur`, `anlagen` und `norm` — sie beschreiben ein Blatt Papier.
 
-`datum:` wird nicht gesetzt: Das tut der Mailclient beim Versand. Steht es trotzdem da, sagt
-`lint` das, statt es still zu übergehen.
+`datum:` wird nicht übernommen: Die Kopfzeile `Date` entsteht beim Setzen der Nachricht und
+beschreibt diese, nicht den Brief, aus dem das Feld stammt. Steht es trotzdem da, sagt `lint`
+das, statt es still zu übergehen.
 
 ### Die fertige Datei prüfen
 
@@ -190,7 +191,7 @@ selbst nennt; wer in der Mail einen eigenen Betreff schreibt, bekommt seinen.
 |---|---|---|
 | `betreff`, `profil`, `dialekt`, `sprache` | | derselbe Vorgang, zweimal gepflegt driftet er |
 | | `an` | eine Postanschrift ist keine Mailadresse — `an:` bleibt Pflicht |
-| | `datum` | das setzt der Mailclient beim Versand |
+| | `datum` | `Date` entsteht beim Setzen der Nachricht, nicht aus dem Briefdatum |
 
 **`brief:` zeigt auf die Markdown-Quelle, nicht auf ein PDF.** Das ist der Unterschied zu
 `anlagen_dateien:`, das vorhandene Dateien nimmt: Hier kann kein veraltetes PDF mitreisen, weil
