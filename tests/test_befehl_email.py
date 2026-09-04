@@ -318,6 +318,30 @@ def test_gegenprobe_die_gruene_wird_geoeffnet(tmp_path, starter):
     assert (code, starter.anzahl) == (0, 1)
 
 
+# ── Die Blindkopie wird eigens genannt (#242) ───────────────────────────────
+
+def test_ein_bcc_wird_in_der_ausgabe_genannt(tmp_path, capsys):
+    """Er steht in der Kopfzeile der Datei, aber nicht in der `.html`-Vorschau,
+    und ob ein Mailprogramm ihn beim Weiterleiten übernimmt, entscheidet das
+    Programm. Wer die Zeile liest, weiß, dass er nachsehen muss; wer sie nicht
+    bekäme, hielte den Bcc für erledigt."""
+    pfad = _schreibe(tmp_path, MAIL.replace(
+        "an: erika.muster@example.de",
+        "an: erika.muster@example.de\nbcc: [Archiv <archiv@example.com>]"))
+    code = falzmarke.main(["email", str(pfad), "--profiles", str(PROFILE)])
+    ausgabe = capsys.readouterr().out
+    assert code == 0, ausgabe
+    assert "archiv@example.com" in ausgabe
+    assert "nachsehen" in ausgabe, "der Hinweis fehlt, was zu tun ist"
+
+
+def test_ohne_bcc_schweigt_die_ausgabe(tmp_path, capsys):
+    """Gegenprobe. Eine Zeile, die immer erscheint, sagt nichts — und der
+    Normalfall ist die Mail ohne Blindkopie."""
+    falzmarke.main(["email", str(_schreibe(tmp_path)), "--profiles", str(PROFILE)])
+    assert "Blindkopie" not in capsys.readouterr().out
+
+
 def test_ein_fehlgeschlagenes_oeffnen_entwertet_die_datei_nicht(
         tmp_path, monkeypatch, capsys):
     """ADR 0038, Punkt 4: Die .eml ist geschrieben und gemessen — das ist die

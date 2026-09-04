@@ -77,6 +77,7 @@ an:                                     # Pflicht. Eine Adresse oder eine Liste
   - erika.muster@example.de
   - Muster GmbH <post@example.de>       # Klammerform nach [RFC 5322](https://www.rfc-editor.org/rfc/rfc5322)
 cc: []                                  # optional, gleiche Form wie `an`
+bcc: []                                 # optional, gleiche Form — siehe unten
 betreff: Angebot Nr. 2026-0815          # Pflicht, höchstens 78 Zeichen
 anrede: Sehr geehrte Frau Muster,
 gruss: Mit freundlichen Grüßen
@@ -99,6 +100,22 @@ auf `an:`, `an:` in einem Brief einer mit Hinweis auf `empfaenger:`. Das ist kei
 Eine Mail an eine Postanschrift und ein Brief an eine Mailadresse sind beides Dokumente, die
 niemanden erreichen. Ebenso entfallen `form`, `vermerke`, `infoblock`, `betreff_kurz`,
 `signatur`, `anlagen` und `norm` — sie beschreiben ein Blatt Papier.
+
+`bcc:` steht als Kopfzeile in der `.eml`, damit das Mailprogramm die Adresse übernehmen kann,
+ohne dass jemand sie abtippt — ein verbreitetes Muster ist die Archivadresse, über die jede
+ausgehende Mail im Dokumentenmanagement landet. Zwei Dinge dazu:
+
+* **In der `.html`-Vorschau erscheint sie nicht.** Die Vorschau ist zum Ansehen und
+  Herauskopieren da; eine sichtbare Zeile „Blindkopie" ginge beim Kopieren mit, und das Feld
+  täte das Gegenteil dessen, wofür es da ist. `verify --email` prüft eigens, dass die Adresse
+  weder im Text- noch im HTML-Teil vorkommt.
+* **Ob dein Mailprogramm die Kopfzeile beim Weiterleiten übernimmt, entscheidet das Programm.**
+  falzmarke versendet nicht (ADR 0034) und kann es deshalb nicht zusagen. Der Befehl nennt die
+  Adresse beim Erzeugen eigens, damit du im Programm nachsiehst, statt sie für erledigt zu
+  halten.
+
+In einem Brief gibt es `bcc:` nicht — anders als `cc:`, das dort `verteiler:` heißt. Wer eine
+Kopie bekommt, ohne im Verteiler zu stehen, ist auf Papier nicht vorgesehen.
 
 `datum:` wird nicht übernommen: Die Kopfzeile `Date` entsteht beim Setzen der Nachricht und
 beschreibt diese, nicht den Brief, aus dem das Feld stammt. Steht es trotzdem da, sagt `lint`

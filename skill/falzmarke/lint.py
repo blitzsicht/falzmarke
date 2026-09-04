@@ -108,7 +108,7 @@ EINBETTUNG_PFLICHT = ("datei", "typ", "beschreibung")
 # Listen zusammenlegt, muss an jeder Prüfung wieder unterscheiden — und vergisst
 # es an einer.
 EMAIL_FRONTMATTER_FELDER = frozenset({
-    "profil", "typ", "dialekt", "sprache", "an", "cc", "betreff", "anrede", "gruss",
+    "profil", "typ", "dialekt", "sprache", "an", "cc", "bcc", "betreff", "anrede", "gruss",
     "unterzeichner", "anlagen_dateien", "antwort_auf", "brief",
     # `datum` ist hier bekannt, damit es die eigene Warnung auslöst statt als
     # unbekanntes Feld zu gelten. Der Wert wird nicht übernommen: Die Kopfzeile
@@ -122,7 +122,11 @@ TYPEN = ("brief", "email")
 #: Ein Feld des einen Erzeugnisses, das im anderen nichts bedeutet — mit dem
 #: Namen, der stattdessen gemeint ist. Ein Brief an eine Mailadresse und eine
 #: Mail an eine Postanschrift sind beides Dokumente, die niemanden erreichen.
-STATTDESSEN = {"brief": {"an": "empfaenger", "cc": "verteiler", "antwort_auf": None},
+STATTDESSEN = {"brief": {"an": "empfaenger", "cc": "verteiler", "antwort_auf": None,
+                         # Ein Blindverteiler steht auf keinem Briefbogen: Wer
+                         # eine Kopie bekommt, ohne dass es im Verteiler steht,
+                         # ist auf Papier schlicht nicht vorgesehen.
+                         "bcc": None},
                "email": {"empfaenger": "an", "verteiler": "cc", "vermerke": None,
                          "form": None, "betreff_kurz": None, "infoblock": None,
                          "signatur": None, "anlagen": None, "norm": None}}
@@ -595,7 +599,7 @@ def pruefe_email_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> Non
     if genannt:
         pruefe_begleitbrief(kopf, kopf_roh, bericht)
 
-    for feld in ("an", "cc"):
+    for feld in ("an", "cc", "bcc"):
         if kopf.get(feld):
             pruefe_adressfeld(kopf[feld], feld, kopf_roh, bericht)
 
@@ -636,7 +640,7 @@ def pruefe_email_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> Non
 
     # Zweimal dieselbe Adresse heißt: Der Empfänger bekommt die Mail zweimal,
     # oder sein Server verwirft eine — beides bemerkt der Absender nicht.
-    for feld in ("an", "cc"):
+    for feld in ("an", "cc", "bcc"):
         adressen = [parseaddr(e)[1].casefold() for e in _adressen(kopf.get(feld))]
         doppelt = sorted({a for a in adressen if adressen.count(a) > 1 and a})
         if doppelt:

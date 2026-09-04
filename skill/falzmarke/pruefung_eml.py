@@ -20,7 +20,7 @@ import email
 import re
 import unicodedata
 from email import policy
-from email.utils import parsedate_to_datetime
+from email.utils import getaddresses, parsedate_to_datetime
 from pathlib import Path
 
 from falzmarke import emit_html
@@ -370,6 +370,33 @@ def _pruefe_anhaenge(nachricht, bericht: Bericht) -> None:
                 f"{gesamt / 1_048_576:.1f} MB", "—", gesamt <= 10 * 1_048_576)
 
 
+def _pruefe_blindkopie(nachricht, text_teil, html_teil, bericht: Bericht) -> None:
+    """Eine Blindkopie darf im sichtbaren Teil nicht vorkommen (#242).
+
+    Das ist die eine Zusage, die das Feld überhaupt trägt: Der Empfänger soll
+    nicht sehen, wer noch mitliest. Steht die Adresse im Text oder im HTML, ist
+    sie keine Blindkopie mehr — und das fiele niemandem auf, weil die Mail in
+    jeder anderen Hinsicht in Ordnung aussieht.
+
+    Geprüft wird nur, wenn ein `Bcc` da ist. Was nicht in der Datei steht, wird
+    nicht geprüft; sonst zählte hier eine leere Menge gegen eine leere Menge.
+    """
+    roh = nachricht.get("Bcc")
+    if not roh:
+        return
+
+    adressen = [a for _, a in getaddresses([str(roh)]) if a]
+    bericht.wahr("Blindkopie ist auswertbar", bool(adressen),
+                 "mindestens eine Adresse", str(roh))
+
+    sichtbar = "\n".join(
+        teil.get_content() for teil in (text_teil, html_teil) if teil is not None)
+    verraten = sorted({a for a in adressen if a.lower() in sichtbar.lower()})
+    bericht.wahr("Blindkopie steht nicht im sichtbaren Teil", not verraten,
+                 "kommt im Text und im HTML nicht vor",
+                 ", ".join(verraten) or "kommt nicht vor")
+
+
 def pruefe(pfad: Path) -> Bericht:
     """Öffnet die `.eml` und misst sie."""
     nachricht = _lies(Path(pfad))
@@ -378,6 +405,7 @@ def pruefe(pfad: Path) -> Bericht:
     _pruefe_aufbau(nachricht, bericht)
     text_teil = _teil(nachricht, "text/plain")
     html_teil = _teil(nachricht, "text/html")
+    _pruefe_blindkopie(nachricht, text_teil, html_teil, bericht)
     _pruefe_textteil(text_teil, bericht)
     _pruefe_htmlteil(html_teil, bericht)
     _pruefe_gleichlaut(text_teil, html_teil, bericht)
