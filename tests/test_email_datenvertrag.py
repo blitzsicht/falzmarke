@@ -114,6 +114,36 @@ def test_cc_wird_genauso_geprueft(tmp_path):
     assert linte(tmp_path, MAIL + "cc: [zweiter@example.de]\n").befunde == []
 
 
+def test_bcc_wird_genauso_geprueft(tmp_path):
+    """Der Blindverteiler ist eine Adressliste wie die anderen — eine kaputte
+    Adresse darin fällt genauso auf (#242)."""
+    assert "bcc" in regeln(linte(tmp_path, MAIL + "bcc: kein-adresse\n"))
+    assert linte(tmp_path, MAIL + "bcc: [archiv@example.com]\n").befunde == []
+
+
+def _korrektur(bericht, regel: str, wort: str) -> str:
+    """Die Korrektur des Befundes zu `regel`, dessen Meldung `wort` nennt."""
+    treffer = [b.korrektur for b in bericht.befunde
+               if b.regel == regel and wort in b.meldung]
+    assert treffer, bericht.als_text("nachricht.md")
+    return treffer[0]
+
+
+def test_bcc_im_brief_ist_ein_fehler(tmp_path):
+    """Ein Blindverteiler steht auf keinem Briefbogen — wer eine Kopie bekommt,
+    ohne im Verteiler zu stehen, ist auf Papier nicht vorgesehen. Anders als
+    `cc` bekommt `bcc` deshalb keinen Ersatzvorschlag: Es gibt keinen."""
+    bericht = linte(tmp_path, BRIEF + "bcc: [archiv@example.com]\n")
+    assert "`bcc:` entfernen" in _korrektur(bericht, "typ", "bcc")
+
+
+def test_und_cc_bekommt_sehr_wohl_einen(tmp_path):
+    """Gegenprobe. Ohne sie wüsste man nur, dass für `bcc` kein Vorschlag
+    kommt — nicht, dass das der Unterschied ist und nicht der Normalfall."""
+    bericht = linte(tmp_path, BRIEF + "cc: [zweiter@example.de]\n")
+    assert "verteiler" in _korrektur(bericht, "typ", "cc")
+
+
 # ── Betreff und Datum ───────────────────────────────────────────────────────
 
 def test_betreff_ueber_78_zeichen(tmp_path):
@@ -359,6 +389,8 @@ def _loese_aus(regel: str, tmp_path):
                                             "an: keine-adresse"))
     if regel == "cc":
         return linte(tmp_path, MAIL + "cc: [auch-keine-adresse]\n")
+    if regel == "bcc":
+        return linte(tmp_path, MAIL + "bcc: [immer-noch-keine-adresse]\n")
     if regel == "email.adresse_international":
         # Nach RFC 6531 zulaessig, deshalb KEIN Fehler — die Regel liegt auf der
         # Ebene Praxis und warnt nur. Die Form muss stimmen, sonst schlaege

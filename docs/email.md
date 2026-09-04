@@ -53,6 +53,13 @@ falten, entfalten, muss gleich sein.
 | `Message-ID` | gehört dem Versender. Wer sie beim Erzeugen setzt, vergibt eine Kennung für eine Nachricht, die vielleicht nie abgeschickt wird. |
 | ein Versandweg | falzmarke versendet nichts. Es gibt keinen Versandbefehl und keine Option, die sendet. |
 
+`Bcc` steht dagegen in der Datei, wenn `bcc:` im Frontmatter gesetzt ist — aber **nicht** in der
+`.html`-Vorschau: Die ist zum Herauskopieren gedacht, und eine sichtbare Zeile „Blindkopie" wäre
+das Gegenteil dessen, wofür das Feld da ist. `verify --email` misst beides: dass die Kopfzeile
+auswertbar ist und dass keine ihrer Adressen im Text- oder HTML-Teil auftaucht. Ob ein
+Mailprogramm die Zeile beim Weiterleiten übernimmt, entscheidet das Programm; der Befehl nennt
+die Adresse beim Erzeugen eigens, damit man dort nachsieht.
+
 `Date` stand bis #236 ebenfalls in dieser Tabelle, mit der Begründung, das Datum entstehe beim
 Versand. Die trug nur unter der Annahme, das Mailprogramm übernehme die Datei als Entwurf und
 setze den Zeitpunkt selbst — und die ist nach dem Protokoll unten falsch. Beim Weiterleiten baut

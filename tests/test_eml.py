@@ -65,6 +65,37 @@ def test_keine_message_id(profil, bloecke):
     assert _baue(profil, bloecke)["Message-ID"] is None
 
 
+# ── Blindkopie (#242) ───────────────────────────────────────────────────────
+
+BCC = "Archiv <archiv@example.com>"
+
+
+def test_bcc_steht_als_kopfzeile_in_der_datei(profil, bloecke):
+    """Damit das Mailprogramm die Adresse übernehmen kann, ohne dass sie
+    jemand abtippt — der Zweck des Feldes ist ja, dass man sie nicht vergisst."""
+    nachricht = _baue(profil, bloecke, kopf={**KOPF, "bcc": [BCC]})
+    assert nachricht["Bcc"] == BCC
+
+
+def test_ohne_bcc_steht_keine_da(profil, bloecke):
+    """Gegenprobe: Eine leere Kopfzeile wäre schlimmer als keine — sie sähe in
+    der Rohansicht so aus, als sei eine Blindkopie gesetzt."""
+    assert _baue(profil, bloecke)["Bcc"] is None
+
+
+def test_die_vorschau_zeigt_die_blindkopie_nicht(profil, bloecke):
+    """Die `.html` ist zum Ansehen und Herauskopieren da. Stünde dort eine
+    Zeile „Blindkopie: …", ginge sie beim Kopieren mit — und das Feld täte das
+    Gegenteil dessen, wofür es da ist. `An` und `Kopie` stehen sehr wohl drin;
+    ohne diesen Vergleich wüsste man nicht, ob der Kopf überhaupt etwas zeigt.
+    """
+    html = eml.begleit_html({**KOPF, "cc": "sichtbar@example.de", "bcc": [BCC]},
+                            profil, bloecke)
+    assert "sichtbar@example.de" in html, "der Vorschaukopf zeigt gar nichts"
+    assert "archiv@example.com" not in html
+    assert "Blindkopie" not in html
+
+
 def test_date_auch_ohne_source_date_epoch(profil, bloecke, monkeypatch):
     """RFC 5322 führt `orig-date` als Pflichtfeld. Fehlte es, zeigte das
     Mailprogramm beim Weiterleiten „(null), (null)" im Text an (#236)."""

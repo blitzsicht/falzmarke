@@ -416,6 +416,12 @@ def baue(kopf: dict, profil: dict, quelle_md: str, bloecke, *,
     nachricht["To"] = _adressliste(kopf.get("an"))
     if kopf.get("cc"):
         nachricht["Cc"] = _adressliste(kopf["cc"])
+    # Bcc steht in der Datei, damit das Mailprogramm die Adresse übernehmen
+    # kann, ohne dass sie jemand abtippt. Sie erscheint bewusst NICHT in der
+    # `.html`-Vorschau — die ist zum Herauskopieren gedacht, und eine sichtbare
+    # Zeile „Blindkopie" wäre genau das Gegenteil dessen, wofür das Feld da ist.
+    if kopf.get("bcc"):
+        nachricht["Bcc"] = _adressliste(kopf["bcc"])
     nachricht["Subject"] = str(kopf.get("betreff") or "")
     if kopf.get("antwort_auf"):
         nachricht["In-Reply-To"] = str(kopf["antwort_auf"])

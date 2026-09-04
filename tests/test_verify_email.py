@@ -153,6 +153,48 @@ def test_ein_fehlendes_date_faellt_auf(tmp_path, roh):
     assert "Kopfzeile Date" in _gescheitert(_pruefe(tmp_path, ohne))
 
 
+# ── Blindkopie: die eine Zusage des Feldes (#242) ───────────────────────────
+
+def _mit_bcc(profil, adresse="archiv@example.com", text=None):
+    """Eine Nachricht mit Bcc, wahlweise mit verändertem Rumpf."""
+    quelle = text if text is not None else QUELLE
+    return eml.baue({**KOPF, "bcc": [f"Archiv <{adresse}>"]}, profil,
+                    quelle, md.lies(quelle)).as_string()
+
+
+def test_eine_blindkopie_im_kopf_ist_gruen(tmp_path, profil):
+    """Die Kontrollprobe. Ohne sie misst die Sabotage unten nur die Kopie."""
+    bericht = _pruefe(tmp_path, _mit_bcc(profil))
+    assert bericht.ok, bericht.als_text(ausfuehrlich=True)
+    assert "Blindkopie steht nicht im sichtbaren Teil" in {
+        p.name for p in bericht.pruefungen}, "die Prüfung lief gar nicht"
+
+
+def test_eine_verratene_blindkopie_faellt_auf(tmp_path, profil):
+    """Steht die Adresse im Text, ist sie keine Blindkopie mehr — und das fiele
+    sonst niemandem auf, weil die Mail in jeder anderen Hinsicht stimmt."""
+    verraten = _mit_bcc(profil, text=QUELLE + "\nKopie an archiv@example.com.\n")
+    assert "Blindkopie steht nicht im sichtbaren Teil" in _gescheitert(
+        _pruefe(tmp_path, verraten))
+
+
+def test_ohne_blindkopie_wird_nichts_geprueft(tmp_path, roh):
+    """Was nicht in der Datei steht, wird nicht geprüft — sonst zählte hier
+    eine leere Menge gegen eine leere Menge und sähe wie ein Beleg aus."""
+    namen = {p.name for p in _pruefe(tmp_path, roh).pruefungen}
+    assert "Blindkopie steht nicht im sichtbaren Teil" not in namen
+    assert "Blindkopie ist auswertbar" not in namen
+
+
+def test_eine_unlesbare_blindkopie_faellt_auf(tmp_path, roh):
+    """Ein Bcc, aus dem keine Adresse zu lesen ist, kann auch nicht gegen den
+    sichtbaren Teil gehalten werden — die Prüfung darüber liefe dann ins Leere
+    und wäre still grün."""
+    kaputt = re.sub(r"^(To: .*)$", r"\1\nBcc: @@@", roh, count=1, flags=re.M)
+    assert kaputt != roh
+    assert "Blindkopie ist auswertbar" in _gescheitert(_pruefe(tmp_path, kaputt))
+
+
 def test_ein_unlesbares_date_faellt_auf(tmp_path, roh):
     """Getrennt von der Sabotage darüber, weil sie einen anderen Fall trifft:
     Das Feld ist da, nur kann es kein Mailprogramm lesen. Für den Empfänger

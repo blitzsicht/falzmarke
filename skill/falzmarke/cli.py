@@ -1058,6 +1058,17 @@ def befehl_email(args) -> int:
         else:
             datei.unlink()
 
+    # Der Bcc wird eigens genannt. Er steht in der Kopfzeile der Datei, aber
+    # bewusst nicht in der `.html`-Vorschau (die ist zum Herauskopieren da), und
+    # ob ein Mailprogramm ihn beim Weiterleiten übernimmt, entscheidet das
+    # Programm — nicht dieses Werkzeug. Wer die Zeile hier liest, weiß, dass er
+    # nachsehen muss; wer sie nicht bekäme, hielte den Bcc für erledigt (#242).
+    bcc = (lies_brief(Path(args.brief))[0] or {}).get("bcc")
+    if bcc:
+        adressen = ", ".join(bcc) if isinstance(bcc, list) else str(bcc)
+        print(f"    Blindkopie an {adressen} — steht als `Bcc:` in der Datei. "
+              "Im Mailprogramm nachsehen, ob das Feld gefüllt ist.")
+
     # `verify --email` läuft mit — dieselbe Zusage wie beim PDF: Was
     # herauskommt, wird nachgemessen, nicht nur erzeugt.
     bericht = pruefung_eml.pruefe(eml_pfad)
