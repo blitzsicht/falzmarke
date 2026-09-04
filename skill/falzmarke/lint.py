@@ -28,7 +28,27 @@ WARNUNG = "Warnung"
 # Größen der Zonen, gegen die geprüft wird. Quelle: references/din5008.md
 ANSCHRIFT_MAX_ZEILEN = 6
 VERMERKE_MAX_ZEILEN = 3
-INFOBLOCK_WERT_MAX = 32
+# Zeichen, die bei 10 pt in die Wertespalte des Informationsblocks passen.
+#
+# Bis #244 stand hier 32, gerechnet aus „43 mm Spaltenbreite, rund 1,24 mm je
+# Zeichen". Beide Zahlen waren zu gross, und der Fehler multiplizierte sich:
+#
+# * Die Wertespalte ist zwar 43 mm breit — sie beginnt aber bei 125 mm (Leitwort)
+#   plus 30 mm Spalte plus 2 mm Steg, also bei x = 157 mm, und laeuft bis 200 mm.
+#   Der Satzspiegel endet bei 190 mm. **Nutzbar sind 33 mm, nicht 43.** Am PDF
+#   gemessen: Leitwoerter stehen exakt auf 125,00, Werte exakt auf 157,00.
+# * 1,24 mm je Zeichen gilt fuer schmale Zeichen. Ueber realistische Namen
+#   gemessen (Libertinus Serif, 10 pt) sind es 1,43 bis 1,64 mm.
+#
+# 33 mm / 1,55 mm ergibt 21. Gegengemessen mit gerenderten Briefen: Bis
+# einschliesslich 21 Zeichen haelt jeder geprufte Name den Rand ein, ab 22
+# reisst ihn schon „Dr. Anna Meyer-Schmidt" (193,15 statt 190,0).
+#
+# Eine Zeichenzahl bleibt eine Naeherung — eine Kette aus 26 „i" passt, 20 „M"
+# passen nicht. Sie ist der fruehe Abbruch, damit eine Serie nicht erst nach 200
+# Briefen auffaellt; das letzte Wort hat der Pruefer am fertigen PDF, und der
+# misst die Breite statt sie zu schaetzen.
+INFOBLOCK_WERT_MAX = 21
 BETREFF_MAX_ZEICHEN = 150      # zwei Zeilen bei 165 mm Satzbreite, 11 pt
 
 # Leitwörter des Informationsblocks in der Reihenfolge der Norm.
@@ -732,6 +752,31 @@ def pruefe_email_ton(profil: dict, kopf: dict, body: str, bericht: Bericht) -> N
             "das liest sich wie Schreien — für Betonung reicht **fett**")
 
 
+def pruefe_briefkopf(profil: dict, bericht: Bericht) -> None:
+    """Der Abschnitt `briefkopf:` eines Profils.
+
+    Bisher prüfte hier gar nichts — und `logo_hoehe_mm` ohne `logo` wirkt nie,
+    ohne dass es jemand erfährt. Die Höhenangabe ist ein starkes Zeichen dafür,
+    dass ein Logo gewollt war; dass keines gesetzt ist, ist wahrscheinlich ein
+    Versehen (#244).
+
+    Warnung, kein Fehler: Es kann Absicht sein, die Höhe für ein später
+    ergänztes Logo schon einzutragen.
+
+    Der erste Treffer war `example.yaml` selbst — dort stand die Höhe aktiv
+    neben einem auskommentierten `logo:`. Beide sind jetzt auskommentiert; ein
+    mitgeliefertes Profil, das bei jedem Lint warnt, wäre Lärm.
+    """
+    abschnitt = profil.get("briefkopf")
+    if not isinstance(abschnitt, dict):
+        return
+    if abschnitt.get("logo_hoehe_mm") is not None and not abschnitt.get("logo"):
+        bericht.warnung(
+            1, "briefkopf.logo_hoehe_mm",
+            "gesetzt, aber `briefkopf.logo:` fehlt — die Höhe wirkt nicht",
+            "entweder ein `logo:` ergänzen oder die Höhenangabe entfernen")
+
+
 def pruefe_email_profil(profil: dict, bericht: Bericht,
                        profil_pfad=None) -> None:
     """Der Abschnitt `email:` eines Profils.
@@ -1076,7 +1121,8 @@ def pruefe_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
             if len(text) > INFOBLOCK_WERT_MAX:
                 bericht.fehler(
                     ort, f"infoblock.{schluessel}", f"{len(text)} Zeichen",
-                    f"höchstens {INFOBLOCK_WERT_MAX} — sonst passt die Zeile nicht in die 75 mm",
+                    f"höchstens {INFOBLOCK_WERT_MAX} — sonst reicht die Zeile über den rechten "
+                    "Rand des Satzspiegels hinaus",
                 )
             if schluessel == "email" and not EMAIL_MUSTER.match(text):
                 bericht.fehler(ort, "infoblock.email", f"„{text}“ ist keine E-Mail-Adresse",

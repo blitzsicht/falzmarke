@@ -70,6 +70,14 @@ FORM = {
     },
 }
 
+#: Die beiden Spalten des Informationsblocks, am gerenderten PDF gemessen
+#: (04.09.2026): Leitwoerter beginnen exakt auf 125,00 mm, Werte exakt auf
+#: 157,00 mm. Sie kommen aus dem Vendor-Template — 125 mm Blockanfang, 30 mm
+#: Leitwortspalte, 2 mm Steg. Gebraucht werden sie, um einen Ueberlauf dem
+#: Informationsblock zuzuordnen (#244).
+INFOBLOCK_LEITWORT_X = 125.0
+INFOBLOCK_WERT_X = 157.0
+
 SEITE_BREITE = 210.0
 SEITE_HOEHE = 297.0
 LOCHMARKE = 148.5
@@ -280,7 +288,8 @@ def _satzspiegel(dokument, bericht: Bericht, briefseiten: int | None = None) -> 
             f"Seite {nummer}, rechter Rand", f"≤ {RAND_RECHTS}",
             f"{rechts.x1:.2f} bei „{_kurz(rechts.text)}“", "±0,3",
             haelt,
-            ursache="" if haelt else _ursache_ueberlauf(rechts, _tabellenbereiche(seite)),
+            ursache="" if haelt else _ursache_ueberlauf(
+                rechts, _tabellenbereiche(seite), spans),
         )
 
         unten = max(spans, key=lambda s: s.y1)
@@ -311,7 +320,28 @@ RASTER_BIS = 250.0
 RASTER_TOLERANZ = 0.06
 
 
-def _ursache_ueberlauf(span: Span, tabellen: list[tuple[float, float]]) -> str:
+def _steht_im_infoblock(span: Span, spans: list[Span]) -> bool:
+    """Steht dieser Span in einer Zeile des Informationsblocks?
+
+    Erkannt wird nicht der Span selbst — bei einem zu langen Wert ragt sein
+    LETZTES Wort heraus, und das beginnt irgendwo. Erkannt wird seine **Zeile**:
+    Steht links daneben, auf derselben Hoehe und auf der festen Leitwortposition,
+    ein kleiner gesetztes Wort, dann ist es eine Infoblock-Zeile.
+
+    Zwei Merkmale zusammen, weil eines allein zu oft zutrifft: 125 mm koennte
+    auch eine Tabellenspalte treffen, und 8 pt tragen auch Rueckendeangabe und
+    Fusszeile — aber nicht beides an derselben Stelle.
+    """
+    return any(
+        abs(l.x0 - INFOBLOCK_LEITWORT_X) <= 1.0
+        and abs(l.y0 - span.y0) <= 1.0
+        and l.groesse < span.groesse
+        for l in spans
+    )
+
+
+def _ursache_ueberlauf(span: Span, tabellen: list[tuple[float, float]],
+                       spans: list[Span] | None = None) -> str:
     """Warum dieser Text nach rechts hinausragt — oder "" , wenn unklar.
 
     `soll/ist` sagt „190,88 statt hoechstens 190,00". Das ist das Symptom. Wer
@@ -329,6 +359,13 @@ def _ursache_ueberlauf(span: Span, tabellen: list[tuple[float, float]]) -> str:
     Ursache schickt den Leser an die falsche Stelle und ist schlechter als
     keine.
     """
+    if _steht_im_infoblock(span, spans or []):
+        return ("Ursache: der Wert steht in der Wertespalte des Informationsblocks. Sie "
+                f"beginnt bei {INFOBLOCK_WERT_X:.0f} mm und hat bis zum rechten Rand nur "
+                f"{RAND_RECHTS - INFOBLOCK_WERT_X:.0f} mm. Der Wert kommt aus `infoblock:` "
+                "im Brief oder aus `infoblock_defaults:` im Profil — steht er dort, ist er "
+                "in der Briefdatei nicht zu finden")
+
     if any(oben <= span.y0 <= unten for oben, unten in tabellen):
         return ("Ursache: die Tabelle ist breiter als der Satzspiegel — Spalten "
                 "zusammenfassen, kürzer beschriften oder als Aufzählung setzen")

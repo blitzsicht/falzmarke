@@ -436,6 +436,59 @@ def test_dokumentierte_felder_bleiben_erlaubt(tmp_path, feld, wert):
     assert "frontmatter" not in regeln(bericht), bericht.als_text("brief.md")
 
 
+# ── Briefkopf: eine Höhe ohne Logo wirkt nicht (#244) ───────────────────────
+
+def _profil_mit(tmp_path, briefkopf: str) -> Path:
+    """Ein Profil, das sich nur im Abschnitt `briefkopf:` unterscheidet."""
+    verzeichnis = tmp_path / "profile"
+    verzeichnis.mkdir(exist_ok=True)
+    (verzeichnis / "p.yaml").write_text(
+        "absender: {name: Beispiel GmbH, strasse: Weg 1, plz: '93055', ort: Regensburg}\n"
+        "ruecksendeangabe: Beispiel GmbH · Weg 1 · 93055 Regensburg\n"
+        "form: B\n" + briefkopf, encoding="utf-8")
+    return verzeichnis
+
+
+def _linte_mit_profil(tmp_path, briefkopf: str):
+    pfad = schreibe(tmp_path, KOPF.replace("profil: example", "profil: p"))
+    return falzmarke.linte(pfad, profil_verzeichnis=_profil_mit(tmp_path, briefkopf))
+
+
+def test_logohoehe_ohne_logo_warnt(tmp_path):
+    """Sie wirkt nie — und bis #244 sagte das niemand. Gefunden hat die Prüfung
+    als Erstes `example.yaml` selbst."""
+    bericht = _linte_mit_profil(
+        tmp_path, "briefkopf: {logo_hoehe_mm: 14, zeilen: [Beispiel GmbH]}\n")
+    assert "briefkopf.logo_hoehe_mm" in warnungen(bericht)
+
+
+def test_logohoehe_mit_logo_ist_still(tmp_path):
+    """Der Gegenfall. Ohne ihn wüsste man nur, dass die Regel feuert — nicht,
+    ob sie das Richtige trifft."""
+    (tmp_path / "profile").mkdir(exist_ok=True)
+    (tmp_path / "profile" / "logo.svg").write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="14"></svg>', encoding="utf-8")
+    bericht = _linte_mit_profil(
+        tmp_path, "briefkopf: {logo: logo.svg, logo_hoehe_mm: 14, zeilen: [Beispiel GmbH]}\n")
+    assert "briefkopf.logo_hoehe_mm" not in warnungen(bericht)
+
+
+def test_logo_ohne_hoehe_ist_still(tmp_path):
+    """Die andere Richtung: Eine Höhe ist freiwillig, das Template hat einen
+    Standardwert. Nur die Höhe OHNE Logo ist der Befund."""
+    (tmp_path / "profile").mkdir(exist_ok=True)
+    (tmp_path / "profile" / "logo.svg").write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="14"></svg>', encoding="utf-8")
+    bericht = _linte_mit_profil(tmp_path, "briefkopf: {logo: logo.svg, zeilen: [Beispiel GmbH]}\n")
+    assert "briefkopf.logo_hoehe_mm" not in warnungen(bericht)
+
+
+def test_das_beispielprofil_warnt_nicht(tmp_path):
+    """`example.yaml` trug die Höhe aktiv neben einem auskommentierten `logo:`.
+    Ein mitgeliefertes Profil, das bei jedem Lint warnt, wäre Lärm."""
+    assert "briefkopf.logo_hoehe_mm" not in warnungen(linte(tmp_path))
+
+
 def test_unbekannter_infoblock_schluessel_bricht_ab(tmp_path):
     bericht = linte(tmp_path, KOPF + "infoblock: {handy: 0170 1234567}\n")
     assert "infoblock" in regeln(bericht), bericht.als_text("brief.md")

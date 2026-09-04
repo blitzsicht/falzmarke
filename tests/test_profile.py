@@ -44,6 +44,110 @@ def eigenes_profil(tmp_path):
     return ordner
 
 
+# ── infoblock_defaults: die Meldung muss die Quelle nennen (#244) ───────────
+
+def _profil_mit_default(tmp_path, wert: str) -> Path:
+    ordner = tmp_path / "profile"
+    ordner.mkdir(exist_ok=True)
+    daten = yaml.safe_load((PROFILE / "example.yaml").read_text(encoding="utf-8"))
+    daten.setdefault("infoblock_defaults", {})["ansprechpartner"] = wert
+    (ordner / "meins.yaml").write_text(yaml.safe_dump(daten, allow_unicode=True),
+                                       encoding="utf-8")
+    return ordner
+
+
+ZU_LANG = "Vorname-Zweitname Nachname"          # 26 Zeichen, Grenze ist 21
+
+
+def test_ein_zu_langer_wert_im_profil_nennt_das_profil(tmp_path):
+    """Der Fall aus #244: Der Wert steht NICHT in der Briefdatei, in der man
+    ihn sucht. Drei Fehlversuche kostete das — erst wurde die Fußzeile gekürzt,
+    und der gemessene Wert blieb exakt gleich."""
+    ordner = _profil_mit_default(tmp_path, ZU_LANG)
+    brief = tmp_path / "b.md"
+    brief.write_text(BRIEF.format(profil="meins"), encoding="utf-8")
+    with pytest.raises(falzmarke.Eingabefehler) as fehler:
+        falzmarke.rendere(brief, tmp_path / "b.pdf", profil_verzeichnis=ordner)
+    meldung = str(fehler.value)
+    assert "infoblock_defaults.ansprechpartner" in meldung, meldung
+    assert "im Profil" in meldung, meldung
+
+
+def test_derselbe_wert_im_brief_nennt_den_brief(tmp_path):
+    """Gegenprobe. Ohne sie wäre eine Herkunft, die immer „Profil" sagt, grün —
+    und schickte den Leser genau dann in die falsche Datei, wenn der Wert
+    ausnahmsweise doch in seinem Brief steht."""
+    ordner = _profil_mit_default(tmp_path, "Erika Muster")
+    brief = tmp_path / "b.md"
+    brief.write_text(
+        BRIEF.format(profil="meins").replace(
+            "anrede:", f"infoblock:\n  ansprechpartner: {ZU_LANG}\nanrede:"),
+        encoding="utf-8")
+    with pytest.raises(falzmarke.Eingabefehler) as fehler:
+        falzmarke.rendere(brief, tmp_path / "b.pdf", profil_verzeichnis=ordner)
+    meldung = str(fehler.value)
+    assert "infoblock.ansprechpartner" in meldung, meldung
+    assert "im Brief" in meldung, meldung
+
+
+def test_ein_kurzer_wert_im_profil_geht_durch(tmp_path):
+    """Sonst wüsste man nur, dass es abbricht — nicht, dass es das Richtige tut."""
+    ordner = _profil_mit_default(tmp_path, "Erika Muster")
+    brief = tmp_path / "b.md"
+    brief.write_text(BRIEF.format(profil="meins"), encoding="utf-8")
+    pdf, _ = falzmarke.rendere(brief, tmp_path / "b.pdf", profil_verzeichnis=ordner)
+    assert pdf.is_file()
+
+
+# ── Die Grenze selbst: am gerenderten PDF nachgemessen ──────────────────────
+
+#: Ein realistischer Name mit genau `INFOBLOCK_WERT_MAX` Zeichen — und einer mit
+#: einem Zeichen mehr. Zusammen nageln sie die Zahl fest: Der kurze MUSS durch
+#: den Satzspiegel passen, der lange MUSS ihn sprengen. Eine Grenze, die nur
+#: gegen sich selbst geprüft wird, hält gar nichts (in genau diese Falle lief
+#: der erste Anlauf zu #244: `len(wert) > INFOBLOCK_WERT_MAX` blieb bei jedem
+#: Wert der Konstanten grün).
+GERADE_NOCH = "Christoph Fuchsberger"          # 21 Zeichen
+EINS_ZU_VIEL = "Wilhelm Wolfmann-Barth"        # 22 Zeichen
+
+
+def _rechter_rand_haelt(tmp_path, monkeypatch, wert: str) -> bool:
+    """Rendert mit `wert` im Infoblock und misst den rechten Rand am PDF.
+
+    Die Zeichengrenze wird dafür beiseitegestellt — sie ist ja gerade das, was
+    hier belegt werden soll. Sonst bräche der Renderer vorher ab und der Test
+    prüfte die Konstante gegen sich selbst statt gegen den Satzspiegel.
+    """
+    from falzmarke import geometrie
+    monkeypatch.setattr(falzmarke, "INFOBLOCK_WERT_MAX", 999)
+    ordner = _profil_mit_default(tmp_path, "Erika Muster")
+    brief = tmp_path / "rand.md"
+    brief.write_text(
+        BRIEF.format(profil="meins").replace(
+            "anrede:", f"infoblock:\n  ansprechpartner: {wert}\nanrede:"),
+        encoding="utf-8")
+    pdf, form = falzmarke.rendere(brief, tmp_path / "rand.pdf",
+                                  profil_verzeichnis=ordner)
+    bericht = geometrie.pruefe(pdf, form)
+    return all(p.bestanden for p in bericht.pruefungen if "rechter Rand" in p.name)
+
+
+def test_die_grenze_laesst_durch_was_passt(tmp_path, monkeypatch):
+    assert len(GERADE_NOCH) == falzmarke.INFOBLOCK_WERT_MAX, (
+        "Die Probe muss genau auf der Grenze liegen, sonst misst sie daneben")
+    assert _rechter_rand_haelt(tmp_path, monkeypatch, GERADE_NOCH), (
+        f"„{GERADE_NOCH}“ ist {len(GERADE_NOCH)} Zeichen lang und sprengt den "
+        "Satzspiegel — die Grenze ist zu hoch")
+
+
+def test_die_grenze_faengt_was_nicht_passt(tmp_path, monkeypatch):
+    """Die Gegenrichtung. Ohne sie wäre eine Grenze von 3 ebenfalls grün."""
+    assert len(EINS_ZU_VIEL) == falzmarke.INFOBLOCK_WERT_MAX + 1
+    assert not _rechter_rand_haelt(tmp_path, monkeypatch, EINS_ZU_VIEL), (
+        f"„{EINS_ZU_VIEL}“ hält den Satzspiegel ein — dann darf die Grenze nicht "
+        f"bei {falzmarke.INFOBLOCK_WERT_MAX} liegen, sondern höher")
+
+
 # ── Quellen ─────────────────────────────────────────────────────────────────
 
 def test_profil_neben_dem_brief(tmp_path):

@@ -23,12 +23,18 @@ Gemessen am 29.08.2026, und das Ergebnis verschiebt die Antwort:
 | zu breite Tabelle | `verify`, rechter Rand |
 | wortgetreuer Auszug über 68 Zeichen | `verify`, rechter Rand |
 | Wort ohne Trennstelle | `verify`, rechter Rand |
+| zu breiter Wert im Informationsblock | `verify`, rechter Rand (seit #244) |
 
 Die häufigen Fälle kommen gar nicht bis `verify` — der Datenvertrag weist sie
 vorher ab, und seine Meldung nennt die Ursache schon („betreff: 187 Zeichen —
-die Norm lässt höchstens 2 Zeilen zu"). Was übrig bleibt, sind **drei Klassen,
-alle drei Überläufe nach rechts.** Für die gibt es jetzt eine Ursache im
+die Norm lässt höchstens 2 Zeilen zu"). Was übrig bleibt, sind **vier Klassen,
+alle vier Überläufe nach rechts.** Für die gibt es jetzt eine Ursache im
 Bericht; die Schleife braucht es dafür nicht.
+
+Die vierte kam mit #244 dazu und ist die unangenehmste: Der Wert steht
+womöglich gar nicht in der Briefdatei, sondern in `infoblock_defaults:` des
+Profils. Wer ihn dort nicht vermutet, kürzt die Fußzeile — und der gemessene
+Wert bleibt exakt gleich.
 """
 
 from __future__ import annotations
@@ -49,6 +55,7 @@ FAELLE = [
     ("ueberlauf-auf-seite-zwei.md", "Tabelle"),
     ("codezeile-zu-lang.md", "wortgetreuer Auszug"),
     ("ueberschrift-ohne-trennstelle.md", "ohne Trennstelle"),
+    ("infoblock-wert-zu-breit.md", "Wertespalte"),
 ]
 
 
