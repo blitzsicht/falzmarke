@@ -475,6 +475,33 @@ Maße gemessen wurden, steht in [`docs/normmasse.md`](https://github.com/blitzsi
 
 Die letzten zwei Versionen im Wortlaut. **Erzeugt aus [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md) — dort ändern, dann `python3 scripts/changelog.py`.**
 
+### v0.9.4 — 07.09.2026
+
+#### Behoben
+
+- **Fünf Stellen, an denen v0.9.3 die eigenen Regeln verletzte.** Ein Mehr-Augen-Review der
+  Runde förderte sie zutage; jede ist am Code nachgemessen.
+
+  Der Regelkatalog `regeln/email.yaml` behauptete weiter, den Zeitpunkt setze der Mailclient —
+  dieselbe Aussage, die kurz zuvor an fünf anderen Stellen korrigiert worden war. Von dort
+  wanderte sie über den Generator in die Referenz. `references/frontmatter.md` und `README.md`
+  nannten „höchstens 32 Zeichen" für Werte im Informationsblock, während die Grenze auf 21
+  steht: Wer sich danach richtete, lief in einen harten Abbruch. Und der Docstring von
+  `eml.baue()` sagte „ohne Date", zwanzig Zeilen unter dem Modulkopf, der das Gegenteil erklärt.
+
+  Zwei funktionale Befunde dazu. Der Hinweis auf eine gesetzte Blindkopie erreichte nur die
+  Kommandozeile — der MCP-Dienst ruft `setze_email` direkt auf und gab nur „bestanden: true"
+  zurück, also genau die Lage, die der Hinweis verhindern sollte, auf dem Hauptweg des Pakets.
+  Er steht jetzt an einer einzigen Stelle (`eml.blindkopie_hinweis`) und wird von beiden Wegen
+  benutzt. Außerdem meldete `verify --email` bei einem unlesbaren `Bcc` „steht nicht im
+  sichtbaren Teil" — geprüft wurde dabei eine leere Adressmenge gegen den Text, also nichts.
+
+  Damit die beiden Textbefunde nicht wiederkehren, hält `tests/test_textkanon.py` sie jetzt
+  fest: eine Prüfung gegen die zurückgenommene `Date`-Behauptung über **alle** Textquellen
+  einschließlich YAML — die Lücke, durch die der Regelkatalog gefallen war —, und eine, die die
+  Zahl in der Doku gegen `INFOBLOCK_WERT_MAX` hält. Der Changelog-Verlauf bleibt ausgenommen:
+  Dort steht die alte Aussage zu Recht, als Zitat dessen, was korrigiert wurde. (#253)
+
 ### v0.9.3 — 04.09.2026
 
 #### Neu
@@ -580,30 +607,7 @@ Die letzten zwei Versionen im Wortlaut. **Erzeugt aus [`CHANGELOG.md`](https://g
   Zeichenkette `2026-08-29`, die ein RFC-5322-Datum (`Sat, 29 Aug 2026 …`) gar nicht enthalten
   kann. Er liest das Datum jetzt und hält es gegen den Tag des Briefes. (#249)
 
-### v0.9.2 — 02.09.2026
-
-#### Infrastruktur
-
-- **Ein Vorgang ohne Changelog-Eintrag lässt sich nicht mehr mergen.** Von 46 Vorgängen
-  zwischen v0.8.2 und v0.9.0 hatte **einer** `CHANGELOG.md` angefasst; nach dem Nachtragen von
-  39 Einträgen von Hand waren es bei den nächsten vier wieder null. Der Grund war strukturell:
-  Es gab keinen Ort für einen Eintrag ohne Version. Den gibt es jetzt — je Vorgang eine Datei
-  in `changelog.d/`, die beim Release zu einem Versionsabschnitt gebündelt wird
-  (`scripts/changelog.py --buendeln`). Der Pflicht-Check „Changelog-Eintrag" verlangt sie;
-  ausgenommen sind Abhängigkeits-Aktualisierungen, reine Doku, reine Tests und Vorgänge mit
-  dem Label `ohne-changelog`. (#229)
-
-- **Der Sammelpunkt für Abhängigkeits-Aktualisierungen entsteht von selbst.** Sie sind vom
-  Changelog-Eintrag ausgenommen, und ADR 0037 versprach, sie erschienen beim Release „als
-  Sammelpunkt" — den aber niemand schrieb: Er stand in keiner Anleitung, kein Werkzeug verlangte
-  ihn. Damit war die Bauart wiederhergestellt, gegen die #229 gebaut wurde. Jetzt liest
-  `scripts/changelog.py --buendeln` den git-Verlauf seit dem letzten Versions-Tag und erzeugt den
-  Punkt selbst. Ist der Verlauf nicht lesbar, bricht es ab, statt stillschweigend nichts zu
-  melden. (#233)
-
-- **Abhängigkeiten aktualisiert.** action-gh-release von 2.6.2 auf 3.0.3 (#222)
-
-Davor liegen 21 weitere Versionen — der vollständige Verlauf steht in [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md).
+Davor liegen 22 weitere Versionen — der vollständige Verlauf steht in [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md).
 
 <!-- changelog:ende -->
 
