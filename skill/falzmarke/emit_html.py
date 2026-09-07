@@ -354,9 +354,36 @@ def _stilbloecke_pruefen(html: str) -> list[str]:
 
 #: Eigenschaften, die im dunklen Schema umgeschaltet werden müssen. Wer sie
 #: inline setzt, ohne die passende Klasse zu tragen, bleibt hell.
+#:
+#: `border-left:` steht seit #243 dabei — die senkrechte Linie zwischen Logo
+#: und Angaben setzt eine Farbe wie jede andere. Ohne den Eintrag hätte diese
+#: Prüfung an genau der Stelle nie rot werden können, an der die neue Linie
+#: entsteht: `"border:" in stil` trifft `border-left:` nicht, weil dazwischen
+#: ein Bindestrich steht und kein Doppelpunkt.
+#: `background-color:` steht mit LEERER Klassenliste da: Es gibt keine, die ihn
+#: umschaltet — `DUNKELREGELN` kennt nur Text-, Dämpfungs- und Rahmenfarbe. Ein
+#: gesetzter Hintergrund bliebe im dunklen Client also unter allen Umständen
+#: hell, und damit ist jedes Vorkommen ein Befund.
+#:
+#: Bis #243 fiel er zufällig unter `color:` — die Prüfung suchte den Namen als
+#: Teilstring irgendwo im Stil, und `background-color:` enthält ihn. Seit die
+#: Suche an der Deklaration ankert, muss er eigens dastehen. Sonst hätte diese
+#: Änderung eine Prüfung stillgelegt, ohne dass jemand es beschlossen hätte.
 UMSCHALTPFLICHTIG = (("color:", (KLASSE_TEXT, KLASSE_LEISE)),
+                     ("background-color:", ()),
                      ("border-top:", (KLASSE_LINIE,)),
+                     ("border-left:", (KLASSE_LINIE,)),
                      ("border:", (KLASSE_LINIE,)))
+
+#: Werte, die die Eigenschaft abschalten statt eine Farbe zu setzen.
+#:
+#: `border: 0` am Logo ist der gemessene Fall (#243): Es gibt dort keine
+#: Rahmenfarbe, die im Dunkeln hell bleiben könnte — die Angabe nimmt dem Bild
+#: den Rahmen, den ältere Clients von sich aus zeichnen. Ohne diese Ausnahme
+#: meldete die Prüfung jede Nachricht mit Logo, und der einzige Weg, sie
+#: stillzustellen, wäre eine Klasse gewesen, die nichts umschaltet — ein
+#: Etikett statt einer Wirkung.
+OHNE_FARBE = {"0", "0px", "none"}
 
 
 def nicht_umschaltbar(html: str) -> list[str]:
@@ -381,7 +408,10 @@ def nicht_umschaltbar(html: str) -> list[str]:
         klassen = re.search(r'class="([^"]*)"', attribute)
         vorhanden = set((klassen.group(1) if klassen else "").split())
         for eigenschaft, taugliche in UMSCHALTPFLICHTIG:
-            if eigenschaft in stil.group(1) and not vorhanden & set(taugliche):
+            wert = re.search(rf"(?:^|;)\s*{re.escape(eigenschaft)}\s*([^;]*)", stil.group(1))
+            if not wert or wert.group(1).strip().lower() in OHNE_FARBE:
+                continue
+            if not vorhanden & set(taugliche):
                 offen.append(f"{marke[:56]} setzt `{eigenschaft}` ohne umschaltbare Klasse")
                 break
     return offen

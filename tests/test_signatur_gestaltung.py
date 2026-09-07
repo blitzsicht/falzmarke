@@ -24,16 +24,22 @@ import yaml
 from falzmarke import cli as falzmarke
 from falzmarke import eml, markdown
 from falzmarke import emit_html as html
-from conftest import EMAIL_BEISPIELE, REPO, SKILL
-
-PROFILE = SKILL / "falzmarke" / "typst" / "profiles"
+from conftest import EMAIL_BEISPIELE, PROFILE, REPO, profilpfad
 
 
 def _seite(beispiel=None) -> str:
+    """Der HTML-Teil eines Beispiels — samt Logo, wenn sein Profil eines führt.
+
+    Das Logo mitzunehmen ist der Punkt: Ohne es prüften die Tests unten eine
+    Fassung, die so nie entsteht.
+    """
     beispiel = beispiel or EMAIL_BEISPIELE[0]
     kopf, body, versatz = falzmarke.lies_brief(beispiel)
-    profil = yaml.safe_load((PROFILE / f"{kopf['profil']}.yaml").read_text(encoding="utf-8"))
-    return eml.htmlteil(kopf, profil, markdown.lies(body, versatz, ziel="email"))
+    pfad = profilpfad(beispiel, kopf["profil"])
+    profil = yaml.safe_load(pfad.read_text(encoding="utf-8"))
+    logo = eml.logo_datei(profil, pfad)
+    return eml.htmlteil(kopf, profil, markdown.lies(body, versatz, ziel="email"),
+                        mit_logo=logo is not None, logo_pfad=logo)
 
 
 # ── Der Dunkelblock, und warum er die einzige Ausnahme ist ──────────────────
@@ -120,6 +126,23 @@ def test_die_pruefung_bemerkt_ein_vergessenes_element():
     """Gegenprobe — sonst belegte der Test darüber nur, dass eine Liste leer ist."""
     ohne = _seite().replace(f'<p class="{html.KLASSE_TEXT}" style=', "<p style=", 1)
     assert html.nicht_umschaltbar(ohne)
+
+
+def test_ein_hintergrund_faellt_immer_auf():
+    """`background-color` schaltet KEINE Klasse um — `DUNKELREGELN` kennt nur
+    Text-, Dämpfungs- und Rahmenfarbe. Ein gesetzter Hintergrund bliebe im
+    dunklen Client unter allen Umständen hell, und darum ist jedes Vorkommen
+    ein Befund, mit welcher Klasse auch immer.
+
+    Die Probe hält den Eintrag in `UMSCHALTPFLICHTIG` fest. Bis #243 fiel
+    `background-color:` zufällig unter `color:` — die Prüfung suchte den Namen
+    als Teilstring irgendwo im Stil. Seit sie an der Deklaration ankert, wäre
+    er ohne eigenen Eintrag still weggefallen.
+    """
+    for klasse in ("", f' class="{html.KLASSE_TEXT}"', f' class="{html.KLASSE_LINIE}"'):
+        marke = f'<td{klasse} style="background-color: #ffffff;">'
+        befunde = html.nicht_umschaltbar(marke)
+        assert any("background-color:" in b for b in befunde), f"{marke} blieb unbemerkt"
 
 
 def test_auch_die_begleitseite_schaltet_um():
@@ -232,3 +255,108 @@ def test_der_rechtsblock_ist_kleiner_gesetzt():
     leise = [stil for klassen, stil in absaetze if html.KLASSE_LEISE in klassen]
     assert leise, absaetze
     assert any("font-size: 13px" in stil for stil in leise)
+
+
+# ── Das Gerüst mit Logo: zwei Spalten, eine Linie dazwischen (#243) ─────────
+#
+# Bis hierher steckte nur der erste Block in der Tabelle; Kontakt und
+# Rechtsangaben liefen darunter unter dem Logo hindurch. Kein Golden führt ein
+# Logo — das Beispielprofil hat keines — und deshalb belegte bis zu diesem
+# Abschnitt kein einziger Test, wie die Signatur mit Bild überhaupt aussieht.
+
+def _seite_mit_logo(profil_mit_logo) -> str:
+    profil, pfad = profil_mit_logo
+    beispiel = EMAIL_BEISPIELE[0]
+    kopf, body, versatz = falzmarke.lies_brief(beispiel)
+    logo = eml.logo_datei(profil, pfad)
+    return eml.htmlteil(kopf, profil, markdown.lies(body, versatz, ziel="email"),
+                        mit_logo=logo is not None, logo_pfad=logo)
+
+
+def _signaturtabelle(seite: str) -> str:
+    """Die Tabelle um die Signatur — nicht die Hülle um die ganze Nachricht."""
+    treffer = re.search(r'<table[^>]*\bstyle="[^"]*border-top[^"]*">.*?</table>',
+                        seite, re.DOTALL)
+    assert treffer, seite[-2000:]
+    return treffer.group(0)
+
+
+def test_mit_logo_stehen_alle_drei_bloecke_in_der_tabelle(profil_mit_logo):
+    """Der Punkt der Änderung. Vorher trug die Tabelle nur den Namen, und die
+    beiden anderen Blöcke standen darunter — das sah aus wie ein Zitatblock
+    mit einem Bild davor."""
+    tabelle = _signaturtabelle(_seite_mit_logo(profil_mit_logo))
+    assert tabelle.count("<p ") == 3, tabelle
+    assert "Erika Muster" in tabelle
+    assert "Telefon" in tabelle
+    assert "USt-IdNr" in tabelle
+
+
+def test_die_trennlinie_steht_zwischen_den_spalten(profil_mit_logo):
+    tabelle = _signaturtabelle(_seite_mit_logo(profil_mit_logo))
+    zelle = re.search(r'<td class="([^"]*)" style="([^"]*)"', tabelle)
+    assert zelle, tabelle
+    assert f"border-left: 1px solid {html.RAHMEN}" in zelle.group(2)
+    assert html.KLASSE_LINIE in zelle.group(1), "sonst bleibt die Linie im Dunkeln hell"
+
+
+def test_die_linie_zur_nachricht_steht_genau_einmal(profil_mit_logo):
+    """Mit Logo trägt die Tabelle sie, ohne Logo der erste Absatz. Zweimal wäre
+    ein Strich quer durch die rechte Spalte."""
+    seite = _seite_mit_logo(profil_mit_logo)
+    assert seite.count("border-top: 1px solid") == 1, seite
+
+
+def test_mit_logo_schaltet_alles_um(profil_mit_logo):
+    """Die Probe, die bis #243 fehlte: `test_alles_schaltet_um` läuft über die
+    Beispiele, und keines davon führt ein Logo. Gemessen am Stand davor meldete
+    diese Prüfung `border: 0` am Bild — unbemerkt, weil niemand hinsah."""
+    assert html.nicht_umschaltbar(_seite_mit_logo(profil_mit_logo)) == []
+
+
+def test_mit_logo_bleibt_die_nachricht_ohne_verstoss(profil_mit_logo):
+    assert html.verstoesse(_seite_mit_logo(profil_mit_logo)) == []
+
+
+def test_ohne_logo_entsteht_keine_signaturtabelle():
+    """Die Tabelle greift nur, wenn ein Logo da ist — sonst stünde links eine
+    leere Spalte und ein Trenner ohne Gegenüber."""
+    seite = _seite()
+    signatur = seite[seite.index("border-top: 1px solid"):]
+    assert "<table" not in signatur, signatur[:400]
+
+
+def test_die_pruefung_bemerkt_eine_vergessene_trennlinie(profil_mit_logo):
+    """Gegenprobe zur Trennlinie — und zugleich die einzige Probe, die den
+    Eintrag `border-left:` in `UMSCHALTPFLICHTIG` festhält.
+
+    Ohne ihn könnte `nicht_umschaltbar()` an der neuen Linie nie rot werden:
+    `"border:" in stil` trifft `border-left:` nicht, weil dazwischen ein
+    Bindestrich steht und kein Doppelpunkt. Gemessen am 07.09.2026 — die
+    Sabotage „Eintrag entfernt" blieb grün, solange die Zelle ihre Klasse trug.
+    Erst beides zusammen zeigt, was hier wovon abhängt.
+    """
+    seite = _seite_mit_logo(profil_mit_logo)
+    ohne = seite.replace(f'<td class="{html.KLASSE_TEXT} {html.KLASSE_LINIE}" style="padding',
+                         f'<td class="{html.KLASSE_TEXT}" style="padding', 1)
+    assert ohne != seite, "die Sabotage griff nicht — der Test misst sich selbst"
+    befunde = html.nicht_umschaltbar(ohne)
+    assert any("border-left:" in b for b in befunde), befunde
+
+
+def test_das_logo_beispielprofil_ist_die_kopie_mit_genau_einer_aenderung():
+    """`examples/email/profiles/email-logo.yaml` ist das Beispielprofil plus
+    `email.logo`. Ohne diese Prüfung driftete die Kopie still auseinander, und
+    das Logo-Golden zeigte irgendwann etwas anderes als die fünf daneben.
+    """
+    ausgeliefert = yaml.safe_load((PROFILE / "example.yaml").read_text(encoding="utf-8"))
+    kopie = yaml.safe_load(
+        (REPO / "examples" / "email" / "profiles" / "email-logo.yaml").read_text(encoding="utf-8"))
+
+    assert ausgeliefert["email"]["logo"] is False, "das Beispielprofil führt kein Logo"
+    assert kopie["email"]["logo"] == "assets/mail-logo.png"
+
+    # Der Rest muss Zeichen für Zeichen dasselbe sein. Verglichen wird nach dem
+    # Angleichen genau dieses einen Feldes — was danach noch abweicht, ist Drift.
+    kopie["email"]["logo"] = False
+    assert kopie == ausgeliefert, "die Kopie weicht über `email.logo` hinaus ab"

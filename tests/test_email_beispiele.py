@@ -1,4 +1,4 @@
-"""Die vier Mail-Beispiele — gemessen, nicht nur vorhanden (#66).
+"""Die Mail-Beispiele — gemessen, nicht nur vorhanden (#66).
 
 `tests/test_eml.py` prüft den Erzeuger an je einem konstruierten Fall.
 Hier laufen dieselben Zusagen über die Dateien, die im Repository stehen und
@@ -19,6 +19,7 @@ Prüfmittel, das nie rot werden kann, ist kein Nachweis.
 from __future__ import annotations
 
 import email
+import re
 import shutil
 from email import policy
 from pathlib import Path
@@ -95,6 +96,37 @@ def test_kein_golden_ohne_beispiel():
     staemme = {b.stem for b in EMAIL_BEISPIELE}
     verwaist = [g.stem for g in GOLDEN.glob("*.eml") if g.stem not in staemme]
     assert not verwaist, f"Golden ohne Beispiel: {verwaist}"
+
+
+#: Zahlwörter für den Satz in `docs/email.md`. Zwölf reichen: Wer mehr
+#: Beispiele hat, schreibt dort ohnehin einen anderen Satz.
+ZAHLWORT = {1: "Ein", 2: "Zwei", 3: "Drei", 4: "Vier", 5: "Fünf", 6: "Sechs",
+            7: "Sieben", 8: "Acht", 9: "Neun", 10: "Zehn", 11: "Elf", 12: "Zwölf"}
+ANZAHLSATZ = re.compile(r"^(\S+) Stück unter \[`examples/email/`\]", re.M)
+
+
+def _anzahl_in_der_doku() -> str:
+    doku = (REPO / "docs" / "email.md").read_text(encoding="utf-8")
+    treffer = ANZAHLSATZ.search(doku)
+    assert treffer, "der Satz mit der Anzahl steht nicht mehr in docs/email.md"
+    return treffer.group(1)
+
+
+def test_die_doku_nennt_so_viele_beispiele_wie_es_gibt():
+    """Eine Zahl in Prosa altert still.
+
+    `docs/email.md` sagte „Vier Stück", während fünf Dateien dort lagen — von
+    der Einführung der Beispiele bis zum 07.09.2026, ohne dass es auffiel. Ein
+    Dateiglob merkt es; ein Leser merkt es nicht.
+    """
+    assert _anzahl_in_der_doku() == ZAHLWORT[len(EMAIL_BEISPIELE)], \
+        f"{len(EMAIL_BEISPIELE)} Beispiele, aber docs/email.md sagt „{_anzahl_in_der_doku()}"
+
+
+def test_die_zahlenpruefung_kann_rot_werden():
+    """Gegenprobe: Sie unterscheidet die richtige Zahl von der nächsten. Ohne
+    sie belegte der Test darüber nur, dass zwei Zeichenketten gleich sind."""
+    assert _anzahl_in_der_doku() != ZAHLWORT[len(EMAIL_BEISPIELE) + 1]
 
 
 # ── Der Byte-Vergleich ──────────────────────────────────────────────────────

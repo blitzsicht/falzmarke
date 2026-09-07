@@ -17,6 +17,13 @@ briefe/
 # tests/golden/email/email-mahnung.eml auffliegen. Genau so ist es gemeint.
 !examples/email/anlagen/*.pdf
 
+# Aus demselben Grund: das Logo der Beispielsignatur. `*.png` oben haette es
+# still verschluckt — der Golden tests/golden/email/email-logo.eml laege dann
+# im Repo, das Bild darin nicht, und in einem frischen Klon (also in der CI)
+# braeche das Beispiel ab. Aufgefallen beim Stagen, nicht beim Testen: lokal
+# lag die Datei ja da.
+!examples/email/profiles/assets/*.png
+
 # Die Videoausgaben gehoeren ins Repo: das README bindet demo.gif direkt ein,
 # und tests/test_tape.py prueft demo.ascii gegen einen echten CLI-Lauf. Sie
 # fallen unter keine Regel oben — der Hinweis steht hier, damit niemand spaeter

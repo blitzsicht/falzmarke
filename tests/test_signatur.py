@@ -18,14 +18,15 @@ import yaml
 
 from falzmarke import cli as falzmarke
 from falzmarke import eml, lint, markdown
-from conftest import EMAIL_BEISPIELE, SKILL
-
-PROFILE = SKILL / "falzmarke" / "typst" / "profiles"
+from conftest import EMAIL_BEISPIELE, PROFILE, profilpfad
 KOPF = {"unterzeichner": "Erika Muster", "anrede": "Sehr geehrte Frau Muster,"}
 
 
-def _profil(name: str = "example") -> dict:
-    return yaml.safe_load((PROFILE / f"{name}.yaml").read_text(encoding="utf-8"))
+def _profil(name: str = "example", beispiel=None) -> dict:
+    """Ein Profil als Daten. Mit `beispiel` dort gesucht, wo das Werkzeug sucht —
+    seit `email-logo.md` liegt ein Profil auch mal neben seinem Beispiel."""
+    pfad = profilpfad(beispiel, name) if beispiel else PROFILE / f"{name}.yaml"
+    return yaml.safe_load(pfad.read_text(encoding="utf-8"))
 
 
 # ── Die Gliederung ──────────────────────────────────────────────────────────
@@ -111,7 +112,7 @@ def test_die_flache_fassung_ist_die_summe_der_bloecke():
 def test_die_signatur_kommt_genau_einmal_vor(beispiel):
     """Die Gegenprobe aus #105, und sie gilt für beide Teile."""
     kopf, body, versatz = falzmarke.lies_brief(beispiel)
-    profil = _profil(kopf["profil"])
+    profil = _profil(kopf["profil"], beispiel)
     # Siehe test_email_beispiele: Mail-Fassung, also `ziel="email"`.
     bloecke = markdown.lies(body, versatz, ziel="email")
     # Nicht am Namen messen: „Erika Muster" steht auch in
@@ -143,16 +144,18 @@ def test_die_signatur_kommt_genau_einmal_vor(beispiel):
 
 
 def test_der_textteil_trennt_die_bloecke_durch_leerzeilen():
-    kopf, body, versatz = falzmarke.lies_brief(EMAIL_BEISPIELE[0])
-    profil = _profil(kopf["profil"])
+    beispiel = EMAIL_BEISPIELE[0]
+    kopf, body, versatz = falzmarke.lies_brief(beispiel)
+    profil = _profil(kopf["profil"], beispiel)
     text = eml.textteil(kopf, profil, markdown.lies(body, versatz, ziel="email"))
     signatur = text[text.index(eml.SIGNATUR_TRENNER):]
     assert signatur.count("\n\n") == 2, "zwei Leerzeilen für drei Blöcke erwartet"
 
 
 def test_der_htmlteil_setzt_drei_absaetze():
-    kopf, body, versatz = falzmarke.lies_brief(EMAIL_BEISPIELE[0])
-    profil = _profil(kopf["profil"])
+    beispiel = EMAIL_BEISPIELE[0]
+    kopf, body, versatz = falzmarke.lies_brief(beispiel)
+    profil = _profil(kopf["profil"], beispiel)
     html = eml.htmlteil(kopf, profil, markdown.lies(body, versatz, ziel="email"))
     # Die Trennlinie gehört an den ersten Block, nicht an jeden.
     assert html.count("border-top") == 1, "die Trennlinie steht mehrfach"
