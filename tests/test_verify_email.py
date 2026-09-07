@@ -606,7 +606,8 @@ def test_das_logo_traegt_beide_masse(tmp_path, profil):
 
     logo = tmp_path / "logo.png"
     Image.new("RGBA", (120, 40), (0x12, 0x4E, 0x8F, 255)).save(logo)
-    html = eml.htmlteil(KOPF, profil, md.lies(QUELLE), mit_logo=True, logo_pfad=logo)
+    html = eml.htmlteil(KOPF, profil, md.lies(QUELLE),
+                        logo=eml.Logo("datei", f"cid:{eml.LOGO_CID}", logo))
     assert 'width="120" height="40"' in html, html[html.find("<img"):][:200]
 
 
@@ -616,5 +617,6 @@ def test_ein_schmaleres_logo_bekommt_eine_andere_breite(tmp_path, profil):
 
     logo = tmp_path / "logo.png"
     Image.new("RGBA", (40, 40), (0x12, 0x4E, 0x8F, 255)).save(logo)
-    html = eml.htmlteil(KOPF, profil, md.lies(QUELLE), mit_logo=True, logo_pfad=logo)
+    html = eml.htmlteil(KOPF, profil, md.lies(QUELLE),
+                        logo=eml.Logo("datei", f"cid:{eml.LOGO_CID}", logo))
     assert 'width="40" height="40"' in html

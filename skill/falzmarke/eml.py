@@ -34,6 +34,7 @@ Abhängigkeit für etwas, das seit Python 3.6 im Kern liegt.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import os
 import tempfile
@@ -41,6 +42,7 @@ from email.headerregistry import Address
 from email.message import EmailMessage
 from email.utils import formatdate, parseaddr
 from pathlib import Path
+from typing import NamedTuple
 
 from falzmarke import baum, emit_html, emit_text
 
@@ -200,33 +202,246 @@ LOGO_CID = "falzmarke-logo"
 #: beiden Gruenden traegt — das Werkzeug prueft es nicht.
 LOGO_FORMATE = {".png": "png", ".jpg": "jpeg", ".jpeg": "jpeg", ".gif": "gif"}
 
+#: Die Höhe des Logos in der Signatur, in Bildpunkten.
+#:
+#: Stand als Vorgabewert an `logo_masse()` und wurde daneben an drei Stellen
+#: getippt. Bei einer Adresse als Quelle gibt es keine Datei zum Ausmessen —
+#: dann ist dieser Wert das Einzige, was das Bild über seine Maße sagen kann,
+#: und eine zweite Fassung davon wäre ein stiller Sprung im Layout.
+LOGO_HOEHE = 40
+
+
+#: Wie das Logo in die Nachricht kommt. Die Reihenfolge ist die Rangfolge:
+#: `datei` reist als eigener Teil mit und kommt immer an; die beiden anderen
+#: haben je einen Preis, den `logo_hinweis()` benennt.
+LOGO_ARTEN = ("datei", "url", "daten")
+
+#: Was am Anfang von `email.logo` steht, wenn es keine Datei ist.
+LOGO_PRAEFIXE = {"http://": "url", "https://": "url", "data:": "daten"}
+
+
+class Logo(NamedTuple):
+    """Das Signaturlogo, aufgelöst — aber noch nicht vermessen.
+
+    Art, Quelle und Pfad gehören zusammen: Wer die Quelle kennt, aber nicht die
+    Art, weiß nicht, ob ein Anhang dazugehört.
+
+    Die **Maße stehen bewusst nicht darin.** Sie zu holen heißt, das Bild zu
+    öffnen, und das kann scheitern — ein unlesbares PNG, eine kaputte Data-URI.
+    Stünden sie hier, führe jeder Aufrufer dieses Risiko mit, auch der Linter,
+    der nur wissen will, welche Form gewählt wurde. Genau das ist beim ersten
+    Anlauf passiert: `lint.pruefe_email_logo` fiel an einem unlesbaren Bild mit
+    einem Traceback statt mit seiner Warnung. Wer die Maße braucht, ruft
+    `logo_masse_fuer()` und fängt dort, was dort auftreten kann.
+    """
+    art: str
+    #: Was ins `src`-Attribut kommt: `cid:…`, die Adresse oder die Data-URI.
+    quelle: str
+    #: Nur bei `datei` gesetzt. `baue()` hängt sie als `related`-Teil an.
+    pfad: Path | None
+
+
+def _logo_art(wert: str) -> str:
+    for praefix, art in LOGO_PRAEFIXE.items():
+        if wert.lower().startswith(praefix):
+            return art
+    return "datei"
+
+
+def _format_aus_datenuri(wert: str) -> str:
+    """Der Bildtyp einer Data-URI — oder ein Fehler mit Grund.
+
+    Geprüft wird gegen dieselbe Liste wie bei einer Datei. Ein SVG als Data-URI
+    ist genauso tot wie eines als Datei: Outlook stellt es nicht dar.
+    """
+    kopf = wert[len("data:"):].split(",", 1)[0]
+    typ = kopf.split(";", 1)[0].strip().lower()
+    if not typ.startswith("image/") or typ[len("image/"):] not in set(LOGO_FORMATE.values()):
+        raise ValueError(
+            f"`email.logo` bringt eine Data-URI vom Typ `{typ or 'ohne Angabe'}` mit — "
+            f"für eine Mail wird ein Rasterbild gebraucht "
+            f"({', '.join(sorted(set(LOGO_FORMATE.values())))}). Outlook stellt SVG nicht dar.")
+    if ";base64," not in wert:
+        raise ValueError(
+            "`email.logo` als Data-URI muss base64-kodiert sein (`data:image/png;base64,…`). "
+            "Die prozentkodierte Form überlebt den Weg durch quoted-printable nicht "
+            "zuverlässig.")
+    return typ[len("image/"):]
+
 
 def logo_datei(profil: dict, profil_pfad: Path | None) -> Path | None:
     """Die Bilddatei für die Signatur — oder None.
 
-    `email.logo` kennt drei Werte, und die Doku versprach sie, lange bevor es
-    sie gab: `false` (Vorgabe), `true` — dann gilt das Logo des Briefkopfs —
-    oder ein eigener Pfad.
+    Bleibt der Weg für die Dateiform und damit die Vorgabe. Wer wissen will,
+    **wie** das Logo in die Nachricht kommt, fragt `logo_quelle()`: Seit #243
+    nimmt `email.logo` auch eine Adresse und eine Data-URI, und für die gibt es
+    keine Datei.
 
     Der Pfad wird nicht selbst zusammengesetzt: `cli.datei_aus_dem_profilordner`
     hält die Grenze, dass eine Profildatei neben ihrem Profil liegt.
     """
-    email_teil = profil.get("email") or {}
-    wert = email_teil.get("logo")
-    if not wert or profil_pfad is None:
+    wert = _logo_wert(profil)
+    if wert is None or profil_pfad is None or _logo_art(wert) != "datei":
         return None
-    if wert is True:
-        wert = ((profil.get("briefkopf") or {}).get("logo"))
-        if not wert:
-            return None
     from falzmarke import cli
 
-    pfad = cli.datei_aus_dem_profilordner(Path(profil_pfad), str(wert), "email.logo")
+    pfad = cli.datei_aus_dem_profilordner(Path(profil_pfad), wert, "email.logo")
     if pfad.suffix.lower() not in LOGO_FORMATE:
         raise ValueError(
             f"`email.logo` zeigt auf {pfad.name} — für eine Mail wird ein Rasterbild "
             f"gebraucht ({', '.join(sorted(LOGO_FORMATE))}). Outlook stellt SVG nicht dar.")
     return pfad
+
+
+def _logo_wert(profil: dict) -> str | None:
+    """Der rohe Wert von `email.logo`, mit `true` schon aufgelöst.
+
+    `email.logo` kennt: `false` (Vorgabe), `true` — dann gilt das Logo des
+    Briefkopfs — einen Pfad, eine Adresse oder eine Data-URI.
+    """
+    email_teil = profil.get("email") or {}
+    wert = email_teil.get("logo")
+    if not wert:
+        return None
+    if wert is True:
+        wert = (profil.get("briefkopf") or {}).get("logo")
+        if not wert:
+            return None
+    return str(wert)
+
+
+def logo_quelle(profil: dict, profil_pfad: Path | None) -> Logo | None:
+    """Wie das Logo in die Nachricht kommt — Art, Quelle, Maße.
+
+    Drei Formen, seit #243 (davor nur die erste):
+
+    | Form | Wofür | Beim Empfänger |
+    |---|---|---|
+    | Dateipfad | `falzmarke email` | als eigener Teil mit `cid:` — kommt immer an |
+    | `https://…` | Umgebungen ohne Anhang | blockiert, bis Bilder freigegeben sind |
+    | `data:image/…` | Web-Baukasten ohne MIME-Container | kommt mit, vergrößert jede Mail |
+
+    Die beiden neuen Formen haben je einen gemessenen Preis, und der wird
+    **benannt** statt stillschweigend in Kauf genommen: `logo_hinweis()` liefert
+    den Satz, den Kommandozeile und Dienst ausgeben.
+
+    Warum sie überhaupt zulässig sind: Der Signatur-Baukasten auf falzmarke.com
+    hat keinen MIME-Container und konnte das Logo deshalb gar nicht zeigen. Ein
+    eigenes Design im Browser hätte den byte-genauen Port-Test entwertet — die
+    Lücke gehört also hierher (#243, Punkt 2).
+    """
+    wert = _logo_wert(profil)
+    if wert is None:
+        return None
+    art = _logo_art(wert)
+    if art == "datei":
+        pfad = logo_datei(profil, profil_pfad)
+        if pfad is None or not pfad.is_file():
+            return None
+        return Logo("datei", f"cid:{LOGO_CID}", pfad)
+    if art == "daten":
+        _format_aus_datenuri(wert)
+        return Logo("daten", wert, None)
+    _format_aus_adresse(wert)
+    return Logo("url", wert, None)
+
+
+def logo_masse_fuer(logo: Logo) -> tuple[int, int]:
+    """Breite und Höhe des Logos in der Nachricht.
+
+    Eine Adresse lässt sich nicht ausmessen, ohne sie abzurufen — und genau das
+    tut dieses Werkzeug nicht (ADR 0034). Dann bleibt die Breite offen:
+    `_signaturtabelle()` setzt nur die Höhe und `width: auto`. Was das kostet,
+    steht in `logo_hinweis()` — der Client kann die Breite nicht vorab
+    freihalten, die Nachricht rückt beim Laden nach.
+    """
+    if logo.art == "datei" and logo.pfad is not None:
+        return logo_masse(logo.pfad)
+    if logo.art == "daten":
+        return _masse_aus_datenuri(logo.quelle)
+    return 0, LOGO_HOEHE
+
+
+def _format_aus_adresse(wert: str) -> None:
+    """Dieselbe Formatprüfung an der Adresse — soweit sie eine Endung nennt.
+
+    Eine Adresse ohne Dateiendung (`…/logo?id=7`) geht durch: Was dort liegt,
+    weiß nur der Server, und danach zu fragen hieße, sie abzurufen. Die Prüfung
+    greift, wo sie greifen kann, und behauptet nicht mehr.
+    """
+    pfadteil = wert.split("?", 1)[0].split("#", 1)[0]
+    endung = Path(pfadteil).suffix.lower()
+    if endung and endung not in LOGO_FORMATE:
+        raise ValueError(
+            f"`email.logo` zeigt auf `{endung}` — für eine Mail wird ein Rasterbild "
+            f"gebraucht ({', '.join(sorted(LOGO_FORMATE))}). Outlook stellt SVG nicht dar.")
+
+
+def _masse_aus_datenuri(wert: str) -> tuple[int, int]:
+    """Breite und Höhe einer Data-URI, aus den Bytes selbst.
+
+    Gerechnet, nicht geraten — wie bei der Datei. Ohne Maße reserviert kein
+    Client Platz, und `emit_html.verstoesse()` meldet ein Bild ohne sie.
+    """
+    from io import BytesIO
+
+    from PIL import Image
+
+    roh = base64.b64decode(wert.split(";base64,", 1)[1], validate=False)
+    with Image.open(BytesIO(roh)) as bild:
+        breite, hoch = bild.size
+    return max(1, round(breite * LOGO_HOEHE / hoch)), LOGO_HOEHE
+
+
+def logo_hinweis(logo: Logo) -> str | None:
+    """Was zu einer Logo-Form zu sagen ist — an genau einer Stelle.
+
+    Beide Aufrufwege brauchen denselben Satz: die Kommandozeile im Terminal,
+    der MCP-Dienst als Feld seiner Antwort. Stünde er zweimal im Code,
+    driftete er auseinander — genau das ist bei der `Date`-Begründung passiert,
+    die nach #236 an sechs Stellen stand und an fünfen falsch war.
+
+    Zur Dateiform gibt es nichts zu sagen: Sie ist die Vorgabe, sie kommt an,
+    und ein Hinweis bei jedem Lauf wäre Lärm, der die beiden echten übertönt.
+    """
+    if logo.art == "url":
+        return (f"Das Logo wird von {logo.quelle} nachgeladen. Outlook und Gmail blockieren "
+                "externe Bilder standardmäßig — bei einem Teil der Empfänger bleibt an "
+                "seiner Stelle ein leerer Kasten, bis sie Bilder freigeben. Die Breite steht "
+                "nicht im Bild, der Client kann sie also nicht vorab freihalten.")
+    if logo.art == "daten":
+        return ("Das Logo steckt als Data-URI im HTML-Teil. Es reist mit, vergrößert aber "
+                "jede Nachricht; Gmail zeigt solche Bilder in der Weiterleitungsansicht "
+                "nicht an, und Outlook hängt sie als namenlosen Anhang an. Für den Versand "
+                "aus einem Mailprogramm ist der Dateipfad der bessere Weg — er wird zum "
+                "Anhang mit Namen und Typ.")
+    return None
+
+
+def logo_hinweis_aus_datei(eml_pfad: Path) -> str | None:
+    """Derselbe Hinweis, aber aus der fertigen Nachricht gelesen.
+
+    Dieselbe Regel wie beim Blindverteiler: Gemeldet wird, **was drinsteht**,
+    nicht was gemeint war. Wer stattdessen das Profil befragte, meldete eine
+    Absicht — und übersähe genau den Fall, in dem zwischen Absicht und Ergebnis
+    etwas dazwischenkam.
+    """
+    import email as email_modul
+    import email.policy
+    import re
+
+    nachricht = email_modul.message_from_bytes(
+        Path(eml_pfad).read_bytes(), policy=email.policy.default)
+    for teil in nachricht.walk():
+        if teil.get_content_type() != "text/html":
+            continue
+        treffer = re.search(r'<img\b[^>]*\bsrc="([^"]*)"', teil.get_content(), re.IGNORECASE)
+        if not treffer:
+            return None
+        quelle = treffer.group(1)
+        art = _logo_art(quelle) if not quelle.startswith("cid:") else "datei"
+        return logo_hinweis(Logo(art, quelle, None))
+    return None
 
 
 def _mit_rahmen(kopf: dict, gruss, bloecke) -> list:
@@ -264,7 +479,7 @@ def textteil(kopf: dict, profil: dict, bloecke, breite: int = emit_text.BREITE) 
     return "\n".join(teile)
 
 
-def logo_masse(pfad: Path, hoehe: int = 40) -> tuple[int, int]:
+def logo_masse(pfad: Path, hoehe: int = 0) -> tuple[int, int]:
     """Breite und Höhe des Logos in der Mail, auf `hoehe` skaliert.
 
     Beide Werte gehören als Attribut an das Bild (Issue #104): Ohne sie
@@ -277,6 +492,7 @@ def logo_masse(pfad: Path, hoehe: int = 40) -> tuple[int, int]:
     """
     from PIL import Image
 
+    hoehe = hoehe or LOGO_HOEHE
     with Image.open(pfad) as bild:
         breite, hoch = bild.size
     return max(1, round(breite * hoehe / hoch)), hoehe
@@ -292,7 +508,7 @@ SIGNATUR_LUFT = "8px"
 LOGO_SPALTENABSTAND = "14px"
 
 
-def _signaturtabelle(profil: dict, logo_pfad: Path | None, inhalt: str) -> str:
+def _signaturtabelle(profil: dict, logo: Logo, inhalt: str) -> str:
     """Die Signatur mit Logo: zwei Spalten, dünne Linie dazwischen (#243).
 
     Bis hierher steckte nur der erste Block in dieser Tabelle; Kontakt und
@@ -314,11 +530,16 @@ def _signaturtabelle(profil: dict, logo_pfad: Path | None, inhalt: str) -> str:
     weil das Beispielprofil kein Logo trägt.
     """
     name = emit_html.as_text(str((profil.get("absender") or {}).get("name") or ""))
-    breite, hoehe = logo_masse(logo_pfad) if logo_pfad else (0, 40)
+    breite, hoehe = logo_masse_fuer(logo)
     # Beide Maße gehören als Attribut an das Bild (#104): Ohne sie reserviert
     # kein Client Platz. Die Nachricht springt beim Laden, und wo Bilder
     # blockiert sind — der Normalfall in Outlook — steht der Alternativtext in
     # einem Kasten von null Pixeln.
+    #
+    # Bei einer Adresse als Quelle fehlt die Breite: Sie stünde nur im Bild,
+    # und dafür müsste das Werkzeug die Adresse abrufen — das tut es nicht.
+    # Die Höhe bleibt, damit wenigstens eine Angabe dasteht; was fehlt, sagt
+    # `logo_hinweis()`.
     masse = f'width="{breite}" height="{hoehe}" ' if breite else f'height="{hoehe}" '
     linie = f"1px solid {emit_html.RAHMEN}"
     # Die waagerechte Linie hängt an der Tabelle statt am ersten Absatz: Sie
@@ -331,7 +552,7 @@ def _signaturtabelle(profil: dict, logo_pfad: Path | None, inhalt: str) -> str:
         f'border-top: {linie};"><tr>'
         f'<td style="padding: {SIGNATUR_LUFT} {LOGO_SPALTENABSTAND} 0 0; '
         f'vertical-align: top;">'
-        f'<img src="cid:{LOGO_CID}" alt="{name}" {masse}'
+        f'<img src="{logo.quelle}" alt="{name}" {masse}'
         f'style="display: block; border: 0; height: {hoehe}px; '
         f'width: {"auto" if not breite else f"{breite}px"};"></td>'
         f'<td class="{emit_html.KLASSE_TEXT} {emit_html.KLASSE_LINIE}" '
@@ -342,8 +563,7 @@ def _signaturtabelle(profil: dict, logo_pfad: Path | None, inhalt: str) -> str:
 
 
 def htmlteil(kopf: dict, profil: dict, bloecke, sprache: str = "de",
-             mit_logo: bool = False, logo_pfad: Path | None = None,
-             vorspann: str = "") -> str:
+             logo: Logo | None = None, vorspann: str = "") -> str:
     """Dasselbe als HTML — derselbe Baum, andere Zielsprache."""
     email_teil = profil.get("email") or {}
     gruss = kopf.get("gruss") or email_teil.get("gruss") or profil.get("gruss")
@@ -381,7 +601,7 @@ def htmlteil(kopf: dict, profil: dict, bloecke, sprache: str = "de",
         # solange er allein steht. Mit Logo trägt sie die Tabelle, und der
         # Absatz beginnt bündig oben in seiner Zelle: Eine zweite Linie quer
         # durch die rechte Spalte wäre ein Strich zu viel.
-        if nummer == 0 and not mit_logo:
+        if nummer == 0 and logo is None:
             rahmen = f"border-top: 1px solid {emit_html.RAHMEN}; padding-top: {SIGNATUR_LUFT}; "
             oben = SIGNATUR_ABSTAND
             klassen.append(emit_html.KLASSE_LINIE)
@@ -395,8 +615,8 @@ def htmlteil(kopf: dict, profil: dict, bloecke, sprache: str = "de",
             f'<p class="{" ".join(klassen)}" style="{stil}">{inhalt}</p>'
         )
 
-    if absaetze and mit_logo:
-        stuecke.append(_signaturtabelle(profil, logo_pfad, "\n".join(absaetze)))
+    if absaetze and logo is not None:
+        stuecke.append(_signaturtabelle(profil, logo, "\n".join(absaetze)))
     else:
         stuecke.extend(absaetze)
     return emit_html.dokument("\n".join(stuecke) + "\n", sprache=sprache, vorspann=vorspann)
@@ -495,10 +715,9 @@ def baue(kopf: dict, profil: dict, quelle_md: str, bloecke, *,
     nachricht["Date"] = (formatdate(float(epoch), localtime=False) if epoch
                          else formatdate(localtime=True))
 
-    logo = logo_datei(profil, profil_pfad)
+    logo = logo_quelle(profil, profil_pfad)
     text = textteil(kopf, profil, bloecke)
-    html = htmlteil(kopf, profil, bloecke, sprache=sprache,
-                    mit_logo=logo is not None, logo_pfad=logo)
+    html = htmlteil(kopf, profil, bloecke, sprache=sprache, logo=logo)
 
     # quoted-printable, nie base64: Eine Mail, deren Textteil als base64
     # ankommt, ist in jedem Rohansicht-Fenster unlesbar — und die Rohansicht
@@ -510,19 +729,22 @@ def baue(kopf: dict, profil: dict, quelle_md: str, bloecke, *,
                                   cte="quoted-printable", params={"variant": "CommonMark"})
     nachricht.add_alternative(html, subtype="html", charset="utf-8", cte="quoted-printable")
 
-    if logo is not None:
+    if logo is not None and logo.art == "datei":
         # `add_related` auf den HTML-Teil, nicht auf die Nachricht: Das Bild
         # gehört zu dieser einen Darstellung. Als Anhang der Nachricht stünde es
         # in jedem Client in der Anlagenliste — neben der Rechnung, die jemand
         # wirklich verschickt hat.
         #
-        # Es reist MIT. Eine Signatur, die ihr Logo über eine Adresse nachlädt,
-        # erscheint ohne Netz gar nicht, wartet auf „Bilder anzeigen" — und
-        # meldet dem Absender, wann und wo geöffnet wurde. Eine Adresse, die bei
-        # jedem Öffnen abgerufen wird, ist ein Zählpixel, ob so gemeint oder nicht.
+        # Es reist MIT, und das bleibt die Vorgabe: Eine Signatur, die ihr Logo
+        # über eine Adresse nachlädt, erscheint ohne Netz gar nicht und meldet
+        # dem Absender, wann und wo geöffnet wurde. Seit #243 lässt sich das
+        # ausdrücklich anders wählen — `email.logo` nimmt auch eine Adresse und
+        # eine Data-URI, weil der Signatur-Baukasten im Browser keinen
+        # MIME-Container hat. Gewählt wird es im Profil, nicht hier, und
+        # `logo_hinweis()` sagt beim Setzen, was die Wahl kostet.
         html_teil = nachricht.get_payload()[-1]
-        html_teil.add_related(logo.read_bytes(), maintype="image",
-                              subtype=LOGO_FORMATE[logo.suffix.lower()],
+        html_teil.add_related(logo.pfad.read_bytes(), maintype="image",
+                              subtype=LOGO_FORMATE[logo.pfad.suffix.lower()],
                               cid=f"<{LOGO_CID}>")
 
     anhaenge = _als_liste(kopf.get("anlagen_dateien"))

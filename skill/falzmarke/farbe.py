@@ -59,18 +59,26 @@ def kontrast(vordergrund: tuple[int, int, int],
     return (max(a, b) + 0.05) / (min(a, b) + 0.05)
 
 
-def tragender_anteil(bild: Path, grund: tuple[int, int, int]) -> float:
+def tragender_anteil(bild: Path | bytes, grund: tuple[int, int, int]) -> float:
     """Welcher Teil der sichtbaren Flaeche hebt sich von diesem Grund ab?
 
     Rueckgabe zwischen 0,0 und 1,0. Ein Bild ohne sichtbare Flaeche ergibt 0,0.
+
+    `bild` ist ein Pfad oder die Bytes selbst. Die zweite Form kam mit #243
+    dazu: `email.logo` nimmt seither auch eine Data-URI, und die traegt ihr
+    Bild im Profil statt daneben. Sie erst in eine temporaere Datei zu
+    schreiben, waere ein Umweg mit zwei Fallen — der Dateiname landete in der
+    Meldung, und zwei gleichzeitige Laeufe schrieben einander die Datei um.
 
     Halbdurchsichtige Punkte werden ueber den Grund gerechnet, nicht als ihre
     eigene Farbe genommen: Ein Logo mit weichem Rand steht in der Mail auf dem
     Grund des Programms, und genau diese Mischfarbe sieht der Leser.
     """
+    from io import BytesIO
+
     from PIL import Image
 
-    with Image.open(bild) as offen:
+    with Image.open(BytesIO(bild) if isinstance(bild, bytes) else bild) as offen:
         # `tobytes` statt `getdata`: Letzteres ist ab Pillow 14 abgekuendigt,
         # und sein Ersatz gibt es in aelteren Fassungen noch nicht — ein Aufruf,
         # der je nach installierter Version warnt oder fehlt. Rohbytes gibt es
@@ -98,7 +106,7 @@ def tragender_anteil(bild: Path, grund: tuple[int, int, int]) -> float:
     return traegt / sichtbar if sichtbar else 0.0
 
 
-def logo_grund_ohne_halt(bild: Path) -> list[str]:
+def logo_grund_ohne_halt(bild: Path | bytes) -> list[str]:
     """Die Gruende, auf denen dieses Logo nicht traegt — als lesbare Namen.
 
     Leere Liste heisst: es traegt auf beiden. Das ist die Form, die der Linter

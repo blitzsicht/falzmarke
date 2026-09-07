@@ -302,8 +302,14 @@ def test_schreibe_ersetzt_eine_bestehende_fassung(profil, bloecke, tmp_path):
 # ── Die erweiterte Grenze (#104) ────────────────────────────────────────────
 
 @pytest.mark.parametrize("html,erwartet", [
-    ('<img src="data:image/png;base64,iVBOR" alt="x" width="10" height="10">',
-     "data:-URL"),
+    # Zwei Bilder sind eines zu viel. Diese Grenze traegt seit #243, was vorher
+    # die Quellenregel nebenbei mittrug: `data:` und fremde Adressen sind
+    # zulaessig, seit `email.logo` sie annimmt — die Anzahl ist dann das
+    # Einzige, was zwischen einer Signatur und einem Werbebrief steht.
+    ('<img src="cid:x" alt="x" width="8" height="8">'
+     '<img src="https://x.invalid/y.png" alt="y" width="8" height="8">',
+     "2 Bilder"),
+    ('<img src="https://x.invalid/p.gif" alt="" width="1" height="1">', "Zählpixel"),
     ('<img src="cid:x" alt="x">', "Breiten- oder Höhenangabe"),
     ('<form action="https://x.invalid"></form>', "Formular"),
     ('<td onclick="x()">a</td>', "Ereignis-Attribut"),
@@ -318,6 +324,11 @@ def test_was_eine_erzeugte_mail_nicht_enthalten_darf(html, erwartet):
 
 @pytest.mark.parametrize("html", [
     '<img src="cid:x" alt="x" width="120" height="40">',
+    # Seit #243: Der Baukasten im Browser hat keinen MIME-Container, deshalb
+    # nimmt `email.logo` auch eine Data-URI und eine Adresse. Was das beim
+    # Empfaenger kostet, sagt `eml.logo_hinweis()` — es ist kein Verstoss.
+    '<img src="data:image/png;base64,iVBOR" alt="x" width="10" height="10">',
+    '<img src="https://example.invalid/logo.png" alt="x" height="40">',
     '<table role="presentation"><tr><td>a</td></tr></table>',
     '<table><tr><th>Kopf</th></tr><tr><td>a</td></tr></table>',
 ])

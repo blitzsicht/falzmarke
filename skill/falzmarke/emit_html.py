@@ -319,6 +319,46 @@ VERBOTEN = (
 )
 
 
+#: Wie viele Bilder eine erzeugte Mail tragen darf.
+#:
+#: ADR 0034, Punkt 4: „Bilder nur als eingebettete Ressource mit Alt-Text, und
+#: auch das nur für das Logo des Profils." Gemessen hat das bis #243 **niemand**
+#: — drei Bilder mit `cid:` wären anstandslos durchgegangen.
+#:
+#: Die Zahl steht hier, seit die Quellenregel gefallen ist. Bis dahin hielt
+#: `cid:`-only die Grenze nebenbei mit: Was in der Nachricht steckt, muss dort
+#: erst hineingelegt werden. Seit `email.logo` auch eine Adresse und eine
+#: Data-URI nimmt, kostet ein zusätzliches Bild nichts mehr — und dann ist die
+#: Anzahl das Einzige, was zwischen einer Signatur und einem Werbebrief steht.
+BILDER_MAX = 1
+
+#: Ein 1×1-Bild ist keine Abbildung, sondern eine Messung am Empfänger.
+#:
+#: Der Wert muss GANZ „1" sein. Bis Issue #104 stand hier `["\']?1["\']?` ohne
+#: Abschluss, und das traf die führende Ziffer jeder Breite, die mit 1 beginnt:
+#: `width="120"` galt als Zählpixel. Aufgefallen ist es erst, als das Logo Maße
+#: bekam — vorher trug kein erzeugtes Bild eine Breite, und die Prüfung konnte
+#: gar nicht falsch anschlagen.
+ZAEHLPIXEL = re.compile(
+    r'<img\b[^>]*\b(?:width|height)\s*=\s*(?:"1"|\'1\'|1)(?=[\s>])', re.IGNORECASE)
+
+
+def zaehlpixel(html: str) -> list[str]:
+    """Bilder, die als Messung am Empfänger taugen.
+
+    Steht seit #243 hier statt nur in `pruefung_eml`: Solange `verstoesse()`
+    fremde Bildquellen pauschal ablehnte, fiel ein Zählpixel dort schon als
+    „Bild von außerhalb" auf — die 1×1-Messung war der zweite Zaun hinter dem
+    ersten. Mit der Quellenregel ist der erste Zaun weg, und ein einzelnes
+    externes 1×1-Bild wäre für den Emitter unsichtbar geworden.
+
+    Eine Funktion, zwei Aufrufer — wie bei `_layouttabellen_pruefen`. Zwei
+    Fassungen derselben Regel laufen auseinander, und `pruefung_eml` sagt das
+    an genau dieser Stelle schon über die Tabellen.
+    """
+    return ZAEHLPIXEL.findall(html)
+
+
 def _stilbloecke_pruefen(html: str) -> list[str]:
     """`<style>` bleibt verboten — mit genau einer benannten Ausnahme.
 
@@ -429,26 +469,32 @@ def verstoesse(html: str) -> list[str]:
     Spaltenlayout missbraucht wird, ob ein Link wie ein Button gestaltet ist.
     Das sind Urteile, keine Messungen — sie stehen in ADR 0034 als Regel, aber
     nicht hier als Prüfung.
+
+    **Was sie seit #243 nicht mehr prüft:** woher ein Bild kommt. `data:` und
+    fremde Adressen waren Verstöße; `email.logo` nimmt sie jetzt ausdrücklich
+    an, weil der Signatur-Baukasten im Browser keinen MIME-Container hat und
+    das Logo dort sonst ganz fehlt. Die gemessenen Nachteile sind damit nicht
+    verschwunden — sie sind die Sache dessen, der die Form wählt, und
+    `eml.logo_hinweis()` sagt sie ihm beim Setzen.
+
+    An ihre Stelle tritt `BILDER_MAX`. Der Grund steht dort: Die alte Regel
+    hielt die Anzahl nebenbei mit, die neue muss es ausdrücklich tun.
     """
     gefunden = []
     for muster, grund in VERBOTEN:
         if re.search(muster, html, re.IGNORECASE):
             gefunden.append(grund)
     gefunden.extend(_stilbloecke_pruefen(html))
-    for treffer in re.finditer(r"<img\b[^>]*>", html, re.IGNORECASE):
-        marke = treffer.group(0)
+    bilder = re.findall(r"<img\b[^>]*>", html, re.IGNORECASE)
+    if len(bilder) > BILDER_MAX:
+        gefunden.append(
+            f"{len(bilder)} Bilder — eine erzeugte Mail trägt höchstens das Logo des Profils")
+    if zaehlpixel(html):
+        gefunden.append("Zählpixel — ein 1×1-Bild ist keine Abbildung, "
+                        "sondern eine Messung am Empfänger")
+    for marke in bilder:
         if not re.search(r'\balt\s*=', marke, re.IGNORECASE):
             gefunden.append("Bild ohne Alternativtext")
-        quelle = re.search(r'\bsrc\s*=\s*["\']([^"\']*)', marke, re.IGNORECASE)
-        if quelle and quelle.group(1).startswith("data:"):
-            # `data:` war bis Issue #104 erlaubt. Es laedt zwar nichts nach,
-            # aber Gmail zeigt solche Bilder in der Weiterleitungsansicht gar
-            # nicht an, und Outlook haengt sie als namenlosen Anhang an. Ein
-            # Bild, das die Nachricht mitbringt, gehoert als Teil mit `cid:`
-            # hinein — dann traegt es einen Namen und einen Typ.
-            gefunden.append("Bild als data:-URL — als eigener Teil mit cid: einbetten")
-        elif quelle and not quelle.group(1).startswith("cid:"):
-            gefunden.append("Bild von außerhalb der Mail — auch ein Zählpixel ist eines")
         if not re.search(r'\b(width|height)\s*=', marke, re.IGNORECASE):
             # Ohne Maße reserviert kein Client Platz: Die Nachricht springt
             # beim Laden, und wo Bilder blockiert sind, steht der Alternativtext

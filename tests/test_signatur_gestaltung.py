@@ -37,9 +37,8 @@ def _seite(beispiel=None) -> str:
     kopf, body, versatz = falzmarke.lies_brief(beispiel)
     pfad = profilpfad(beispiel, kopf["profil"])
     profil = yaml.safe_load(pfad.read_text(encoding="utf-8"))
-    logo = eml.logo_datei(profil, pfad)
-    return eml.htmlteil(kopf, profil, markdown.lies(body, versatz, ziel="email"),
-                        mit_logo=logo is not None, logo_pfad=logo)
+    logo = eml.logo_quelle(profil, pfad)
+    return eml.htmlteil(kopf, profil, markdown.lies(body, versatz, ziel="email"), logo=logo)
 
 
 # ── Der Dunkelblock, und warum er die einzige Ausnahme ist ──────────────────
@@ -173,6 +172,10 @@ def profil_mit_logo(tmp_path):
     return profil, pfad
 
 
+#: Ein Kopf, der ohne Beispieldatei auskommt — für die Formproben unten.
+KOPF_LOGO = {"anrede": "Sehr geehrte Frau Muster,", "unterzeichner": "Erika Muster"}
+
+
 def _nachricht(profil, profil_pfad):
     beispiel = EMAIL_BEISPIELE[0]
     kopf, body, versatz = falzmarke.lies_brief(beispiel)
@@ -268,9 +271,8 @@ def _seite_mit_logo(profil_mit_logo) -> str:
     profil, pfad = profil_mit_logo
     beispiel = EMAIL_BEISPIELE[0]
     kopf, body, versatz = falzmarke.lies_brief(beispiel)
-    logo = eml.logo_datei(profil, pfad)
-    return eml.htmlteil(kopf, profil, markdown.lies(body, versatz, ziel="email"),
-                        mit_logo=logo is not None, logo_pfad=logo)
+    logo = eml.logo_quelle(profil, pfad)
+    return eml.htmlteil(kopf, profil, markdown.lies(body, versatz, ziel="email"), logo=logo)
 
 
 def _signaturtabelle(seite: str) -> str:
@@ -360,3 +362,135 @@ def test_das_logo_beispielprofil_ist_die_kopie_mit_genau_einer_aenderung():
     # Angleichen genau dieses einen Feldes — was danach noch abweicht, ist Drift.
     kopie["email"]["logo"] = False
     assert kopie == ausgeliefert, "die Kopie weicht über `email.logo` hinaus ab"
+
+
+# ── Drei Wege für dasselbe Logo (#243, Punkt 2) ─────────────────────────────
+#
+# `email.logo` nimmt seit #243 auch eine Adresse und eine Data-URI. Der Grund
+# ist der Signatur-Baukasten auf falzmarke.com: Eine Webseite hat keinen
+# MIME-Container und kann deshalb keinen CID-Anhang erzeugen — dort fehlte das
+# Logo bis dahin ganz. Die Dateiform bleibt die Vorgabe; was die beiden anderen
+# beim Empfänger kosten, sagt `eml.logo_hinweis()` beim Setzen.
+
+import base64                                                     # noqa: E402
+
+#: Ein gültiges PNG als Data-URI — dasselbe Bild wie im Logo-Beispiel.
+def _datenuri() -> str:
+    roh = (REPO / "examples" / "email" / "profiles" / "assets" / "mail-logo.png").read_bytes()
+    return "data:image/png;base64," + base64.b64encode(roh).decode("ascii")
+
+
+ADRESSE = "https://example.invalid/logo.png"
+
+
+@pytest.fixture
+def profil_mit(tmp_path):
+    """Das Beispielprofil mit einem beliebigen `email.logo`-Wert."""
+    def bauen(wert):
+        ziel = tmp_path / "profiles"
+        if not ziel.exists():
+            shutil.copytree(PROFILE, ziel)
+        pfad = ziel / "example.yaml"
+        profil = yaml.safe_load(pfad.read_text(encoding="utf-8"))
+        profil["email"]["logo"] = wert
+        pfad.write_text(yaml.safe_dump(profil, allow_unicode=True), encoding="utf-8")
+        return profil, pfad
+    return bauen
+
+
+@pytest.mark.parametrize("wert,art", [
+    ("assets/mail-logo.png", "datei"),
+    (ADRESSE, "url"),
+    ("data:image/png;base64,x", "daten"),
+])
+def test_die_form_wird_am_wert_erkannt(wert, art, profil_mit, tmp_path):
+    profil, pfad = profil_mit(wert)
+    if art == "datei":
+        (pfad.parent / "assets" / "mail-logo.png").write_bytes(
+            (REPO / "examples" / "email" / "profiles" / "assets" / "mail-logo.png").read_bytes())
+    assert eml._logo_art(str(profil["email"]["logo"])) == art
+
+
+def test_die_adresse_steht_im_src(profil_mit):
+    profil, pfad = profil_mit(ADRESSE)
+    seite = eml.htmlteil(KOPF_LOGO, profil, [], logo=eml.logo_quelle(profil, pfad))
+    assert f'src="{ADRESSE}"' in seite, seite[seite.find("<img"):][:200]
+    assert "cid:" not in seite
+
+
+def test_die_datenuri_steht_im_src(profil_mit):
+    profil, pfad = profil_mit(_datenuri())
+    seite = eml.htmlteil(KOPF_LOGO, profil, [], logo=eml.logo_quelle(profil, pfad))
+    assert 'src="data:image/png;base64,' in seite
+
+
+def test_nur_die_datei_wird_angehaengt(profil_mit):
+    """Eine Adresse und eine Data-URI brauchen keinen `related`-Teil — und
+    dürfen keinen bekommen: Ein Anhang, auf den nichts zeigt, erscheint in der
+    Anlagenliste des Empfängers."""
+    for wert, erwartet in ((ADRESSE, False), (_datenuri(), False)):
+        profil, pfad = profil_mit(wert)
+        nachricht = _nachricht(profil, pfad)
+        typen = [t.get_content_type() for t in nachricht.walk()]
+        assert ("multipart/related" in typen) is erwartet, (wert[:40], typen)
+
+
+def test_beide_neuen_formen_bleiben_ohne_verstoss(profil_mit):
+    """Die Lockerung ist der Punkt: Bis #243 meldete `verstoesse()` beide."""
+    for wert in (ADRESSE, _datenuri()):
+        profil, pfad = profil_mit(wert)
+        seite = eml.htmlteil(KOPF_LOGO, profil, [], logo=eml.logo_quelle(profil, pfad))
+        assert html.verstoesse(seite) == [], wert[:40]
+
+
+def test_die_datenuri_traegt_ihre_masse(profil_mit):
+    """Aus den Bytes gerechnet, nicht geraten. Ohne Maße meldet `verstoesse()`
+    „Bild ohne Breiten- oder Höhenangabe" — und kein Client reserviert Platz."""
+    profil, pfad = profil_mit(_datenuri())
+    seite = eml.htmlteil(KOPF_LOGO, profil, [], logo=eml.logo_quelle(profil, pfad))
+    assert re.search(r'<img[^>]+width="\d+" height="40"', seite), seite[seite.find("<img"):][:200]
+
+
+def test_die_adresse_traegt_wenigstens_die_hoehe(profil_mit):
+    """Die Breite steht nur im Bild, und das abzurufen ist nicht Sache dieses
+    Werkzeugs (ADR 0034). Was fehlt, sagt der Hinweis."""
+    profil, pfad = profil_mit(ADRESSE)
+    seite = eml.htmlteil(KOPF_LOGO, profil, [], logo=eml.logo_quelle(profil, pfad))
+    marke = seite[seite.find("<img"):][:250]
+    assert 'height="40"' in marke, marke
+    assert "width=" not in marke, marke
+
+
+@pytest.mark.parametrize("wert,erwartet", [
+    ("assets/mail-logo.png", None),
+    (ADRESSE, "blockieren externe Bilder"),
+    ("data:image/png;base64,x", "vergrößert aber jede Nachricht"),
+])
+def test_die_wahl_wird_benannt(wert, erwartet):
+    """Das Issue verlangt es ausdrücklich: Die Website soll den Hinweis
+    übernehmen können, statt ihn selbst zu erfinden. Zur Dateiform gibt es
+    nichts zu sagen — ein Satz bei jedem Lauf wäre Lärm."""
+    hinweis = eml.logo_hinweis(eml.Logo(eml._logo_art(wert), wert, None))
+    assert (erwartet in hinweis) if erwartet else (hinweis is None), hinweis
+
+
+@pytest.mark.parametrize("wert,wort", [
+    ("data:image/svg+xml;base64,x", "Rasterbild"),
+    ("data:text/plain;base64,x", "Rasterbild"),
+    ("data:image/png,nichtbase64", "base64"),
+    ("https://example.invalid/logo.svg", "Rasterbild"),
+])
+def test_untaugliche_formen_fallen_auf(wert, wort, profil_mit):
+    """SVG ist in Outlook tot, egal über welchen Weg es kommt — die Prüfung
+    gilt für alle drei Formen, nicht nur für die Datei."""
+    profil, pfad = profil_mit(wert)
+    with pytest.raises(ValueError, match=wort):
+        eml.logo_quelle(profil, pfad)
+
+
+def test_eine_adresse_ohne_endung_geht_durch(profil_mit):
+    """Was hinter `…/logo?id=7` liegt, weiß nur der Server. Danach zu fragen
+    hieße, die Adresse abzurufen — die Prüfung greift, wo sie greifen kann, und
+    behauptet nicht mehr."""
+    profil, pfad = profil_mit("https://example.invalid/logo?id=7")
+    assert eml.logo_quelle(profil, pfad).art == "url"

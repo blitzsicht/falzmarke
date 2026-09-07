@@ -253,6 +253,10 @@ def test_externes_stylesheet_faellt_auf(monkeypatch):
 
 
 def test_zaehlpixel_faellt_auf(monkeypatch):
+    """Bis #243 fiel dieser Fall als „Bild von aussen" auf — die Quellenregel
+    war der erste Zaun, die 1×1-Messung der zweite dahinter. Seit `email.logo`
+    fremde Adressen annimmt, ist der erste weg, und diese Probe misst wirklich
+    die Messung am Empfaenger."""
     seite = _seite_mit_sabotiertem_emitter(
         monkeypatch, "absatz",
         lambda inhalt: f"<p>{inhalt}</p>"
@@ -260,6 +264,19 @@ def test_zaehlpixel_faellt_auf(monkeypatch):
     )
     verstoesse = _html.verstoesse(seite)
     assert any("Zählpixel" in v for v in verstoesse), verstoesse
+
+
+def test_ein_zweites_bild_faellt_auf(monkeypatch):
+    """Die Grenze, die seit #243 haelt, was die Quellenregel nebenbei mittrug.
+    Ohne sie waeren drei Bilder mit `cid:` anstandslos durchgegangen — gemessen
+    hat das vorher niemand."""
+    seite = _seite_mit_sabotiertem_emitter(
+        monkeypatch, "absatz",
+        lambda inhalt: f"<p>{inhalt}</p>"
+                       '<img src="cid:a" alt="a" width="8" height="8">',
+    )
+    verstoesse = _html.verstoesse(seite)
+    assert any("Bilder" in v for v in verstoesse), verstoesse
 
 
 def test_bild_ohne_alternativtext_faellt_auf(monkeypatch):

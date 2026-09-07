@@ -96,6 +96,56 @@ Klasse tragen, die sie umschaltet. Der Fehler, gegen den sie gebaut ist, heißt 
 umgeschaltet** — beim Bildzeichen der Marke stand die helle Grundregel einmal nach der
 Medienabfrage, und das Blatt schaltete um, die Kontur nicht.
 
+#### Ergänzung vom 07.09.2026: drei Wege für das Logo, und eine Grenze dafür
+
+Oben steht „keine Spalten" und „Bilder nur als eingebettete Ressource". Beides braucht einen
+Nachtrag, und beide Male aus demselben Grund: Der Satz beschreibt, was die Regel verhindern
+soll, nicht jeden Fall, auf den er wörtlich passt.
+
+**„Keine Spalten" meint kein mehrspaltiges Textlayout, keine Layouttabelle um ein Logo.** Der
+Code führt seit [#104](https://github.com/blitzsicht/falzmarke/issues/104) eine zweispaltige
+Tabelle um das Signaturlogo, und seit #243 trägt sie die ganze Signatur. Das ist kein
+Marketing-Raster, sondern das Mittel, mit dem ein Bild neben Text steht, wenn das klassische
+Outlook mit der Word-Engine setzt. Die Regel bleibt: keine Spalten für **Inhalt**.
+
+**Bilder dürfen jetzt auch von außerhalb kommen — für das Logo, und nur dafür.** Bis hierher
+war `cid:` die einzige zulässige Quelle; `emit_html.verstoesse()` meldete `data:` und jede
+Adresse als Verstoß. Das war richtig für den Weg, den 0034 vor Augen hatte — und es machte
+einen zweiten unmöglich, den es inzwischen gibt: Der Signatur-Baukasten auf falzmarke.com
+erzeugt dieselbe Auszeichnung im Browser, und eine Webseite hat keinen MIME-Container. Dort
+fehlte das Logo deshalb ganz.
+
+`email.logo` nimmt seither drei Formen:
+
+| Form | Wofür | Beim Empfänger |
+|---|---|---|
+| Dateipfad (Vorgabe) | `falzmarke email` | eigener Teil mit `cid:` — kommt immer an |
+| `https://…` | Umgebungen ohne Anhang | blockiert, bis der Empfänger Bilder freigibt |
+| `data:image/…;base64,…` | der Baukasten im Browser | kommt mit, vergrößert jede Nachricht |
+
+**Die gemessenen Nachteile sind damit nicht verschwunden.** Gmail zeigt `data:`-Bilder in der
+Weiterleitungsansicht nicht an, Outlook hängt sie als namenlosen Anhang an, und eine Adresse
+wird in beiden standardmäßig blockiert. Sie sind jetzt die Sache dessen, der die Form wählt —
+und `eml.logo_hinweis()` sagt sie ihm beim Setzen, auf der Kommandozeile wie im MCP-Dienst.
+Aus der fertigen Datei gelesen, nicht aus dem Profil: gemeldet wird, was drinsteht.
+
+**Was die Grenze jetzt hält, ist die Anzahl.** Solange nur `cid:` zulässig war, hielt die
+Quellenregel sie nebenbei mit — was in der Nachricht steckt, muss dort erst hineingelegt
+werden. Deshalb steht in `emit_html.BILDER_MAX` jetzt ausdrücklich, was oben schon als Satz
+stand: höchstens ein Bild, nämlich das Logo des Profils. Gemessen hatte das bis dahin
+**niemand**; drei Bilder mit `cid:` wären anstandslos durchgegangen.
+
+Ebenso wandert die Zählpixel-Erkennung zum Emitter. Sie stand nur in `pruefung_eml`, weil ein
+Zählpixel dort ohnehin schon als „Bild von außerhalb" auffiel — mit der Quellenregel fällt
+dieser erste Zaun weg, und ein einzelnes externes 1×1-Bild wäre für den Emitter unsichtbar
+geworden.
+
+Was das **nicht** aufweicht: Skripte, Formulare, externe Stylesheets, Hintergrundbilder und
+Verweise auf Ressourcen im Stil bleiben verboten, Alt-Text und Maßangaben Pflicht, und ein
+Zählpixel bleibt ein Zählpixel. Und die Kontrastmessung schweigt bei einer Adresse nicht,
+sondern sagt, dass sie nicht messen konnte — sie abzurufen wäre genau der Schritt nach außen,
+den diese Entscheidung ausschließt.
+
 ## Warum
 
 0029 hätte gereicht, wenn E-Mail wie ein Brief wäre. Sie ist es nicht — an genau einer Stelle:

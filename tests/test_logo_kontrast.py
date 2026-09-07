@@ -233,3 +233,60 @@ def test_die_beispielnachricht_bleibt_ohne_befund():
     for beispiel in EMAIL_BEISPIELE:
         bericht = cli.linte(beispiel, profil_verzeichnis=PROFILE)
         assert "email.logo_kontrast" not in [b.regel for b in bericht.befunde], beispiel.name
+
+
+# ── Die drei Formen von `email.logo` (#243) ─────────────────────────────────
+
+def _profil_mit_wert(tmp_path, wert) -> tuple[dict, object]:
+    """Wie `_profil_mit`, aber ohne Datei — fuer Adresse und Data-URI."""
+    ziel = tmp_path / "profiles"
+    if not ziel.exists():
+        shutil.copytree(PROFILE, ziel)
+    pfad = ziel / "example.yaml"
+    profil = yaml.safe_load(pfad.read_text(encoding="utf-8"))
+    profil["email"]["logo"] = wert
+    pfad.write_text(yaml.safe_dump(profil, allow_unicode=True), encoding="utf-8")
+    return profil, pfad
+
+
+def _meldungen(profil, pfad) -> list[str]:
+    bericht = lint.Bericht()
+    lint.pruefe_email_profil(profil, bericht, pfad)
+    return [b.meldung for b in bericht.befunde]
+
+
+def test_bei_einer_adresse_sagt_der_linter_dass_er_nicht_gemessen_hat(tmp_path):
+    """NICHT GEPRUEFT ist kein Gruen.
+
+    Ein Logo hinter einer Adresse laesst sich hier nicht messen — dafuer
+    muesste das Werkzeug sie abrufen, und das tut es nicht (ADR 0034). Die
+    schlechteste der drei Moeglichkeiten waere, stillschweigend durchzuwinken:
+    Dann sieht die Pruefung gruen aus und hat nichts angesehen. Genau so war es
+    vor #243, wo `pruefe_email_logo` bei allem, was keine Datei ist, wortlos
+    zurueckkehrte.
+    """
+    profil, pfad = _profil_mit_wert(tmp_path, "https://example.invalid/logo.png")
+    meldungen = _meldungen(profil, pfad)
+    assert any("NICHT gemessen" in m for m in meldungen), meldungen
+
+
+def _datenuri(bild) -> str:
+    import base64
+    return "data:image/png;base64," + base64.b64encode(bild.read_bytes()).decode("ascii")
+
+
+def test_eine_datenuri_wird_wirklich_gemessen(tmp_path):
+    """Der Zweig ist erst dann ein Nachweis, wenn er auch rot werden kann."""
+    bild = _bild(tmp_path / "quelle" / "tinte.png", [(TINTE, 1.0)])
+    profil, pfad = _profil_mit_wert(tmp_path, _datenuri(bild))
+    meldungen = _meldungen(profil, pfad)
+    assert any("traegt auf" in m for m in meldungen), meldungen
+    assert any("Data-URI" in m for m in meldungen), \
+        "die Meldung soll die Quelle nennen, nicht einen Dateinamen, den es nicht gibt"
+
+
+def test_und_eine_taugliche_datenuri_bleibt_still(tmp_path):
+    """Gegenprobe. Ohne sie belegte der Test darueber nur, dass irgendetwas meldet."""
+    bild = _bild(tmp_path / "quelle" / "grau.png", [(MITTELGRAU, 1.0)])
+    profil, pfad = _profil_mit_wert(tmp_path, _datenuri(bild))
+    assert "email.logo_kontrast" not in _befunde(profil, pfad)

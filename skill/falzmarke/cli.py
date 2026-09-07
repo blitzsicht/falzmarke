@@ -1074,6 +1074,13 @@ def befehl_email(args) -> int:
     if bcc:
         print("    " + eml_modul.blindkopie_hinweis(str(bcc)))
 
+    # Die gewählte Logo-Form wird benannt, wenn sie einen Preis hat (#243).
+    # Gelesen wird die fertige Datei, nicht das Profil: Gemeldet werden soll,
+    # was drinsteht, nicht was gemeint war — dieselbe Regel wie beim Bcc.
+    hinweis = eml_modul.logo_hinweis_aus_datei(eml_pfad)
+    if hinweis:
+        print("    " + hinweis)
+
     # `verify --email` läuft mit — dieselbe Zusage wie beim PDF: Was
     # herauskommt, wird nachgemessen, nicht nur erzeugt.
     bericht = pruefung_eml.pruefe(eml_pfad)
