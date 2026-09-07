@@ -49,15 +49,17 @@ regeln:
       Dokumente, die niemanden erreichen.
 
   - id: email.datum
-    titel: datum wird in einer E-Mail nicht gesetzt
+    titel: datum wird in einer E-Mail nicht übernommen
     lint: email.datum
     ebene: werkzeug
     herkunft: werkzeug
     quellen: []
     wirkung: warnung
     bemerkung: >-
-      Der Mailclient setzt es beim Versand. Warnung statt Fehler, weil die
-      Zeile aus einem Brief stammen kann, der zur Mail umgeschrieben wurde.
+      Die Kopfzeile `Date` entsteht beim Setzen der Nachricht und beschreibt
+      diese, nicht den Brief, aus dem das Feld stammt (#236). Warnung statt
+      Fehler, weil die Zeile aus einem Brief stammen kann, der zur Mail
+      umgeschrieben wurde.
 
   - id: email.profil
     titel: Profil hat einen Abschnitt email

@@ -114,6 +114,58 @@ def test_verworfene_bildfelder_werden_gemeldet():
     assert "verworfen" not in schlicht
 
 
+MAIL_MIT_BCC = """---
+typ: email
+profil: example
+an: [Sabine Kern <sabine.kern@example.de>]
+bcc: [Archiv <archiv@example.com>]
+betreff: Angebot Nr. 2026-0815
+anrede: Hallo Sabine,
+gruss: Viele Grüße
+---
+anbei das besprochene Angebot.
+"""
+
+
+def test_die_blindkopie_wird_dem_dienst_gemeldet(tmp_path):
+    """Der MCP-Dienst ist der Hauptweg dieses Pakets, und er ruft `setze_email`
+    direkt auf — der Hinweis aus `befehl_email` erreicht ihn nicht.
+
+    Ohne diese Meldung bekäme der Aufrufer nur „bestanden: true" zurück und
+    hielte den Blindverteiler für erledigt. Genau die Lage, die #242 verhindern
+    wollte, nur auf dem anderen Aufrufweg (Review-Nachtrag zu v0.9.3).
+    """
+    ergebnis = dienst.email_setzen(MAIL_MIT_BCC, profil="example",
+                                   ziel=str(tmp_path / "n"))
+    assert "blindkopie" in ergebnis, "der Hinweis fehlt auf dem MCP-Weg"
+    assert "archiv@example.com" in ergebnis["blindkopie"]["adressen"]
+    assert "nachsehen" in ergebnis["blindkopie"]["hinweis"]
+
+
+def test_ohne_blindkopie_meldet_der_dienst_nichts(tmp_path):
+    """Gegenprobe. Ein Feld, das immer dasteht, sagt nichts — und der
+    Normalfall ist die Nachricht ohne Blindverteiler."""
+    ohne = MAIL_MIT_BCC.replace("bcc: [Archiv <archiv@example.com>]\n", "")
+    assert "bcc" not in ohne
+    ergebnis = dienst.email_setzen(ohne, profil="example", ziel=str(tmp_path / "o"))
+    assert "blindkopie" not in ergebnis
+
+
+def test_der_hinweis_steht_nur_an_einer_stelle():
+    """CLI und Dienst müssen denselben Satz sagen. Stünde er zweimal im Code,
+    driftete er auseinander — genau so ist die `Date`-Begründung nach #236 an
+    sechs Stellen gelandet, von denen fünf falsch waren."""
+    from falzmarke import eml
+    satz = eml.blindkopie_hinweis("a@example.com")
+    quellen = [(REPO / "skill" / "falzmarke" / f).read_text(encoding="utf-8")
+               for f in ("cli.py", "dienst.py")]
+    kern = "Im Mailprogramm nachsehen"
+    assert kern in satz
+    for text in quellen:
+        assert kern not in text, (
+            "der Wortlaut steht im Modul selbst statt in eml.blindkopie_hinweis")
+
+
 def test_der_aufrufparameter_schlaegt_das_frontmatter():
     """Sonst müsste man den Brieftext umschreiben, um den Absender zu wechseln."""
     ergebnis = dienst.brief_rendern(BRIEF, profil="example-grafik", form="A", als="base64")

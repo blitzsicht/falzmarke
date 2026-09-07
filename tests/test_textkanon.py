@@ -166,3 +166,96 @@ def test_gegenprobe_der_kanalpruefung():
 
     # Und derselbe Schnitt am vollen Satz, für die Dateien in MUSS_ENTHALTEN.
     assert QUELLENLAGE not in "Ein Text, der die Quellenlage verschweigt."
+
+
+# ── Zurückgenommene Behauptungen dürfen nicht zurückkehren ──────────────────
+#
+# Das Gegenstück zu allem darüber: Dort geht es um Sätze, die bleiben müssen,
+# hier um solche, die weg sind und weg bleiben sollen. Beide Fälle sind
+# gemessen entstanden — die zweite Sorte gleich zweimal an einem Tag.
+
+#: Textquellen, in denen eine zurückgenommene Aussage wieder auftauchen könnte.
+#: Bewusst nicht nur `.py` und `.md`: Der Regelkatalog ist YAML, und genau dort
+#: blieb die `Date`-Behauptung nach #236 und #249 stehen — die Rücknahme-Suche
+#: von #249 lief ohne `*.yaml` und übersah ihn.
+TEXTQUELLEN = sorted(
+    p for muster in ("skill/**/*.py", "skill/**/*.md", "skill/**/*.yaml",
+                     "docs/**/*.md", "README.md", "CONTRIBUTING.md")
+    for p in REPO.glob(muster)
+    if "vendor" not in p.parts and "__pycache__" not in p.parts
+)
+
+#: Die Aussage, die #236 widerlegt hat: falzmarke setzt `Date` selbst.
+#: Beide Wortstellungen, weil beide im Repo vorkamen („der Mailclient setzt es"
+#: und „das setzt der Mailclient").
+DATUM_ZURUECKGENOMMEN = re.compile(
+    r"(?:(?:Mailclient|Mailprogramm|Client)\s+setzt\s+(?:es|ihn|das\s+Datum)"
+    r"|setzt\s+(?:der|das)\s+(?:Mailclient|Mailprogramm))", re.I)
+
+
+def _ohne_verlauf(datei: Path) -> str:
+    """Der Text ohne den Changelog-Auszug.
+
+    Dort steht die zurückgenommene Behauptung zu Recht — als Zitat dessen, was
+    korrigiert wurde. Eine Suche, die den Verlauf mitnimmt, träfe ausgerechnet
+    die Stelle, die die Korrektur dokumentiert.
+    """
+    return datei.read_text(encoding="utf-8").split("## Was sich zuletzt getan hat")[0]
+
+
+def test_die_dateiliste_ist_nicht_leer():
+    """Sonst prüfte alles darunter die leere Menge und wäre still grün."""
+    assert len(TEXTQUELLEN) >= 20, f"nur {len(TEXTQUELLEN)} Textquellen gefunden"
+
+
+@pytest.mark.parametrize("datei", TEXTQUELLEN, ids=lambda p: str(p.relative_to(REPO)))
+def test_niemand_behauptet_wieder_der_client_setze_das_datum(datei):
+    """Seit #236 setzt falzmarke die Kopfzeile `Date` selbst.
+
+    Die alte Begründung stand an sechs Stellen. #249 hat fünf davon
+    mitgezogen; die sechste — `regeln/email.yaml` — blieb stehen, weil die
+    Suche nur `*.py` und `*.md` durchlief, und wanderte von dort in die
+    erzeugte `references/din5008.md`. Diese Prüfung ist der Ersatz für ein
+    `grep`, an das jedes Mal jemand denken müsste.
+    """
+    treffer = [z.strip()[:100] for z in _ohne_verlauf(datei).splitlines()
+               if DATUM_ZURUECKGENOMMEN.search(z)]
+    assert not treffer, (
+        f"{datei.relative_to(REPO)}: seit #236 setzt falzmarke `Date` selbst:\n  "
+        + "\n  ".join(treffer))
+
+
+def test_gegenprobe_der_datumspruefung():
+    """Ohne sie belegt der Test oben nur, dass gerade nichts dasteht."""
+    assert DATUM_ZURUECKGENOMMEN.search("Der Mailclient setzt es beim Versand.")
+    assert DATUM_ZURUECKGENOMMEN.search("das setzt der Mailclient beim Versand")
+    # Und der heutige, richtige Wortlaut darf NICHT anschlagen — sonst wäre die
+    # Prüfung nicht abschaltbar und der korrigierte Text bliebe rot.
+    assert not DATUM_ZURUECKGENOMMEN.search(
+        "Die Kopfzeile `Date` entsteht beim Setzen der Nachricht.")
+    # Und der Verlauf bleibt unangetastet: Im Changelog steht die alte Aussage
+    # als Zitat, und die Prüfung darf ihn nicht mitnehmen.
+    assert DATUM_ZURUECKGENOMMEN.search('sagte „der Mailclient setzt es beim Versand"')
+    assert "Mailclient" not in _ohne_verlauf(REPO / "README.md")
+
+
+# ── Zahlen in der Doku altern nicht still ───────────────────────────────────
+
+def test_die_doku_nennt_die_geltende_infoblock_grenze():
+    """`INFOBLOCK_WERT_MAX` stand bis #244 auf 32 und wurde auf 21 korrigiert.
+
+    README und Frontmatter-Referenz nannten weiter 32 — als aktuelle Zusage,
+    nicht als Historie. Wer sich danach richtet, schreibt einen Wert, der jetzt
+    hart abbricht, und lernt die echte Grenze erst aus der Fehlermeldung.
+    """
+    from falzmarke.lint import INFOBLOCK_WERT_MAX
+
+    for datei in ("README.md", "skill/references/frontmatter.md"):
+        text = (REPO / datei).read_text(encoding="utf-8")
+        # Nur der Ist-Zustand, nicht der Changelog-Verlauf: Dort steht die alte
+        # Zahl zu Recht, und zwar als das, was sie ist — Vergangenheit.
+        vorne = text.split("## Was sich zuletzt getan hat")[0]
+        gefunden = re.findall(r"höchstens (\d+) Zeichen", vorne)
+        assert gefunden, f"{datei}: keine Zeichengrenze genannt — misst der Test noch etwas?"
+        assert str(INFOBLOCK_WERT_MAX) in gefunden, (
+            f"{datei} nennt {gefunden}, die Grenze steht auf {INFOBLOCK_WERT_MAX}")
