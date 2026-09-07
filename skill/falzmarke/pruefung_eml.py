@@ -29,13 +29,6 @@ from falzmarke.geometrie import Bericht
 #: RFC 5322: keine Zeile über 998 Zeichen. Darüber schneiden Server ab.
 ZEILE_HART = 998
 
-#: Bilder dürfen nur aus der Nachricht selbst kommen.
-#: Bilder duerfen nur aus der Nachricht selbst kommen — und zwar als eigener
-#: Teil mit `cid:`. `data:` stand hier bis Issue #104 daneben; es laedt zwar
-#: nichts nach, aber Gmail zeigt solche Bilder in der Weiterleitungsansicht
-#: nicht an und Outlook haengt sie als namenlosen Anhang an.
-ERLAUBTE_QUELLEN = ("cid:",)
-
 #: Die Signaturtrennzeile nach RFC 3676 §4.3: zwei Striche, ein Leerzeichen.
 #:
 #: Sie steht hier ausgeschrieben und wird **nicht** aus `eml.py` importiert.
@@ -300,16 +293,14 @@ def _pruefe_htmlteil(teil, bericht: Bericht) -> None:
                  "vorhanden" if "max-width" in html else "fehlt")
 
     # Ein 1×1-Bild ist keine Abbildung, sondern eine Messung am Empfänger.
-    #
-    # Der Wert muss GANZ „1" sein. Bis Issue #104 stand hier `["\']?1["\']?`
-    # ohne Abschluss, und das traf die führende Ziffer jeder Breite, die mit 1
-    # beginnt: `width="120"` galt als Zählpixel. Aufgefallen ist es erst, als
-    # das Logo Maße bekam — vorher trug kein erzeugtes Bild eine Breite, und
-    # die Prüfung konnte gar nicht falsch anschlagen.
-    zaehlpixel = re.findall(
-        r'<img\b[^>]*\b(?:width|height)\s*=\s*(?:"1"|\'1\'|1)(?=[\s>])', html, re.I)
-    bericht.wahr("Kein Zählpixel", not zaehlpixel, "keins",
-                 f"{len(zaehlpixel)} gefunden" if zaehlpixel else "keins")
+    # Gemessen wird mit derselben Funktion, die der Emitter an sich selbst
+    # anlegt — das Muster von `_layouttabellen_pruefen` eine Zeile tiefer. Der
+    # Ausdruck stand bis #243 hier als eigene Kopie; zwei Fassungen derselben
+    # Regel laufen auseinander, und diese hier war die einzige, solange
+    # `verstoesse()` fremde Quellen ohnehin pauschal ablehnte.
+    gefunden = emit_html.zaehlpixel(html)
+    bericht.wahr("Kein Zählpixel", not gefunden, "keins",
+                 f"{len(gefunden)} gefunden" if gefunden else "keins")
 
     # Jede Tabelle ist entweder Daten (mit <th>) oder Layout (mit
     # role="presentation") — Layout in Tabellen liest ein Screenreader sonst

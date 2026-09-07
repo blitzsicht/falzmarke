@@ -267,6 +267,14 @@ def email_setzen(nachricht: str, profil=None, als: str = "pfad",
                 "adressen": str(bcc),
                 "hinweis": eml_modul.blindkopie_hinweis(str(bcc)),
             }
+        # Und dasselbe für die gewählte Logo-Form (#243): Wer `email.logo` auf
+        # eine Adresse oder eine Data-URI setzt, bekommt hier den Satz, der
+        # sagt, was das beim Empfänger kostet. Der Aufrufer sieht sonst nur
+        # „bestanden: true" und hält ein Logo für zugestellt, das bei einem Teil
+        # der Empfänger als leerer Kasten ankommt.
+        logo_hinweis = eml_modul.logo_hinweis_aus_datei(eml_pfad)
+        if logo_hinweis:
+            ergebnis["logo"] = {"hinweis": logo_hinweis}
         if verworfen:
             ergebnis["verworfen"] = {
                 "felder": verworfen,

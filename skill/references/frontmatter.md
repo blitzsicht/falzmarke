@@ -157,11 +157,39 @@ email:
   zusatz:                              # optional, z. B. Vertraulichkeitshinweis
     - Diese E-Mail enthält vertrauliche Informationen.
   gruss: Mit freundlichen Grüßen       # ohne Angabe: `gruss` des Profils
-  logo: false                          # false, true (nimmt briefkopf.logo) oder ein Pfad
+  logo: false                          # false, true (nimmt briefkopf.logo), ein Pfad,
+  #                                    eine Adresse oder eine Data-URI — siehe unten.
   #                                    Rasterbild (PNG/JPG/GIF) — Outlook zeigt kein SVG.
   #                                    Es muss auf hellem UND dunklem Grund tragen; `lint`
   #                                    misst das und warnt (Issue #154).
 ```
+
+### Die drei Wege des Logos
+
+`email.logo` nimmt neben `false`, `true` und einem Dateipfad auch eine Adresse und eine
+Data-URI. Welchen Weg das Werkzeug nimmt, folgt aus dem Wert:
+
+| Wert | Was passiert | Beim Empfänger |
+|---|---|---|
+| `assets/logo.png` | wird als eigener Teil eingebettet (`cid:`) | **kommt immer an** — auch ohne Netz |
+| `https://…/logo.png` | steht als Adresse im `src` | Outlook und Gmail blockieren externe Bilder standardmäßig; bis der Empfänger sie freigibt, bleibt ein leerer Kasten |
+| `data:image/png;base64,…` | steckt im HTML-Teil | kommt mit, vergrößert jede Nachricht; Gmail zeigt es in der Weiterleitungsansicht nicht, Outlook hängt es als namenlosen Anhang an |
+
+**Die Datei ist die Vorgabe, und für `falzmarke email` bleibt sie die richtige Wahl.** Die
+beiden anderen gibt es, weil der Signatur-Baukasten auf falzmarke.com dieselbe Auszeichnung im
+Browser erzeugt — und eine Webseite hat keinen MIME-Container, kann also keinen Anhang bauen.
+
+Das Werkzeug schweigt dazu nicht: Wer eine Adresse oder eine Data-URI setzt, bekommt beim
+Setzen den Satz, der den Preis benennt — auf der Kommandozeile unter der erzeugten Datei, im
+MCP-Dienst als Feld `logo.hinweis`. Zur Dateiform gibt es nichts zu sagen.
+
+Ein SVG bleibt in allen drei Formen ausgeschlossen; die Prüfung greift auch an der Endung einer
+Adresse und am Typ einer Data-URI. Nennt eine Adresse keine Endung (`…/logo?id=7`), geht sie
+durch — was dort liegt, weiß nur der Server, und danach zu fragen hieße, ihn abzurufen.
+
+**Der Kontrast wird bei einer Adresse nicht gemessen**, und `lint` sagt das ausdrücklich, statt
+stillzuschweigen: Messen hieße abrufen, und das tut dieses Werkzeug nicht (ADR 0034). Eine
+Data-URI wird gemessen wie eine Datei — sie bringt ihre Bytes mit.
 
 ### Warum das Logo im dunklen Schema nicht umschaltet
 

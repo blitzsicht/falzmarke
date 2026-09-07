@@ -884,19 +884,61 @@ def pruefe_email_logo(profil: dict, profil_pfad, bericht: Bericht) -> None:
     Warnung, nicht Fehler: Ob ein Logo traegt, ist eine Aussage ueber die
     Wahrnehmung auf einem Grund, den kein Mailprogramm im Datenmodell nennt.
     Nach ADR 0035 gehoert das auf die Ebene Praxis.
+
+    Seit #243 kennt `email.logo` drei Formen. Datei und Data-URI werden beide
+    gemessen — die eine aus der Datei, die andere aus ihren Bytes. Bei einer
+    Adresse geht es nicht, ohne sie abzurufen; dann sagt die Pruefung genau
+    das, statt stillzuschweigen. Die vorige Fassung kehrte bei allem, was keine
+    Datei war, wortlos zurueck.
     """
     if profil_pfad is None:
         return
     from falzmarke import eml
 
     try:
-        bild = eml.logo_datei(profil, profil_pfad)
+        quelle = eml.logo_quelle(profil, profil_pfad)
     except ValueError:
         # Das Format meldet `eml.baue` beim Setzen mit eigener Meldung. Hier
         # nochmal zu melden hiesse, denselben Fehler zweimal zu erzaehlen.
         return
-    if bild is None or not bild.is_file():
+    if quelle is None:
         return
+    if quelle.art == "url":
+        # NICHT GEPRUEFT ist kein Gruen.
+        #
+        # Ein Logo hinter einer Adresse laesst sich hier nicht messen: Dafuer
+        # muesste das Werkzeug sie abrufen, und das tut es nicht (ADR 0034).
+        # Stillschweigend durchzuwinken waere die schlechteste der drei
+        # Moeglichkeiten — dann sieht die Pruefung gruen aus und hat nichts
+        # angesehen. Sie sagt stattdessen, dass sie nichts sagen kann.
+        bericht.warnung(
+            1, "email.logo_kontrast",
+            "das Logo liegt unter einer Adresse und wurde deshalb NICHT gemessen",
+            "ein Logo in der Mail schaltet seine Farben nicht um — es muss auf hellem "
+            "wie auf dunklem Grund lesbar sein. Wer das geprueft haben will, legt die "
+            "Datei neben das Profil")
+        return
+    if quelle.art == "daten":
+        # Die Data-URI traegt ihre Bytes mit sich; gemessen wird dieselbe
+        # Flaeche wie bei einer Datei. `farbe.tragender_anteil` nimmt beides,
+        # seit es diesen Fall gibt — der Umweg ueber eine temporaere Datei
+        # haette zwei Fallen gehabt: Ihr Name landete in der Meldung, und zwei
+        # gleichzeitige Laeufe schrieben einander die Datei um.
+        import base64
+
+        try:
+            bild = base64.b64decode(quelle.quelle.split(";base64,", 1)[1], validate=False)
+        except (IndexError, ValueError) as fehler:
+            bericht.warnung(
+                1, "email.logo_kontrast", f"die Data-URI liess sich nicht lesen: {fehler}",
+                "`email.logo` als Data-URI muss base64-kodiert sein")
+            return
+        name = "das Logo aus `email.logo` (Data-URI)"
+    else:
+        bild = quelle.pfad
+        if bild is None or not bild.is_file():
+            return
+        name = f"`{bild.name}`"
 
     from falzmarke import farbe
 
@@ -906,7 +948,7 @@ def pruefe_email_logo(profil: dict, profil_pfad, bericht: Bericht) -> None:
         # Ein unlesbares Bild ist NICHT stillschweigend in Ordnung: Es faellt
         # sonst erst beim Empfaenger auf, und dort als fehlendes Logo.
         bericht.warnung(
-            1, "email.logo_kontrast", f"`{bild.name}` liess sich nicht messen: {fehler}",
+            1, "email.logo_kontrast", f"{name} liess sich nicht messen: {fehler}",
             "das Bild muss ein lesbares Rasterbild sein — sonst kommt es beim "
             "Empfaenger gar nicht an")
         return
@@ -915,7 +957,7 @@ def pruefe_email_logo(profil: dict, profil_pfad, bericht: Bericht) -> None:
 
     bericht.warnung(
         1, "email.logo_kontrast",
-        f"`{bild.name}` traegt auf {' und '.join(ohne)} Grund nicht "
+        f"{name} traegt auf {' und '.join(ohne)} Grund nicht "
         f"(unter {int(farbe.ANTEIL_MINDEST * 100)} % der sichtbaren Flaeche "
         f"erreichen {farbe.SCHWELLE:.0f}:1 nach WCAG 1.4.11)",
         "ein Logo in der Mail schaltet seine Farben nicht um — es muss auf "
