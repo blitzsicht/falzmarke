@@ -28,6 +28,29 @@ BEISPIELE = sorted((REPO / "examples").glob("*.md"))
 # Ausnahmeliste, die jemand pflegen muesste.
 EMAIL_BEISPIELE = sorted((REPO / "examples" / "email").glob("*.md"))
 
+#: Die ausgelieferten Profile. Ein Beispiel darf sein Profil auch neben sich
+#: legen — `cli.finde_profile` sucht dort zuerst (Punkt 3 der Suchreihenfolge).
+PROFILE = SKILL / "falzmarke" / "typst" / "profiles"
+
+
+def profilpfad(beispiel: Path, name: str) -> Path:
+    """Wo das Profil eines Beispiels liegt — neben ihm oder bei den ausgelieferten.
+
+    Steht hier und nicht in einer Testdatei, weil zwei Dateien dieselbe
+    Auflösung brauchten und beide sie abkürzten: Sie sahen nur im
+    ausgelieferten Ordner nach. Das ging gut, solange alle Mail-Beispiele
+    dasselbe Profil trugen — mit `email-logo.md` (#243) lief es ins Leere,
+    und zwar in beiden Kopien gleichzeitig.
+
+    Kein YAML hier: conftest bleibt frei von Abhängigkeiten, die Tests laden
+    selbst.
+    """
+    for ordner in (Path(beispiel).parent / "profiles", PROFILE):
+        pfad = ordner / f"{name}.yaml"
+        if pfad.is_file():
+            return pfad
+    raise AssertionError(f"kein Profil `{name}` neben {beispiel} und nicht in {PROFILE}")
+
 
 def _fassung(pfad: Path) -> str:
     """Die Dialektfassung eines Beispiels, ohne YAML zu laden.

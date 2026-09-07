@@ -174,10 +174,19 @@ denselben Brief wiedergeben. Dann **sagt** der Bericht das, statt die Prüfung s
 
 ## Beispiele
 
-Vier Stück unter [`examples/email/`](../examples/email/): ein Angebot, eine Mahnung mit Anlage,
-eine Antwort mit `antwort_auf` und eine Abrechnung mit Tabelle. Sie laufen in der CI mit; ihre
-`.eml` liegt byteweise als Golden in `tests/golden/email/` und fällt auf, wenn sich an der
-Ausgabe etwas ändert, das niemand angesagt hat.
+Sechs Stück unter [`examples/email/`](../examples/email/): ein Angebot, eine Mahnung mit Anlage,
+eine Antwort mit `antwort_auf`, eine Abrechnung mit Tabelle, eine Nachricht mit Links und eine
+mit Logo in der Signatur. Sie laufen in der CI mit; ihre `.eml` liegt byteweise als Golden in
+`tests/golden/email/` und fällt auf, wenn sich an der Ausgabe etwas ändert, das niemand angesagt
+hat.
+
+Das Logo-Beispiel bringt sein Profil neben sich mit (`examples/email/profiles/`), weil keines
+der ausgelieferten eines führt. Ohne dieses Beispiel belegte kein Golden, wie die Signatur mit
+Bild aussieht — und der JS-Port des Signatur-Baukastens auf falzmarke.com prüft byte-genau
+gegen diese Goldens.
+
+Die Zahl oben hält `tests/test_email_beispiele.py` fest. Sie stand von August bis September
+2026 auf „Vier", während längst fünf Dateien dort lagen; eine Zahl in Prosa altert still.
 
 Erneuert werden die Goldens mit `python3 scripts/golden_email.py`. Der Diff im Pull Request ist
 dann der Befund.

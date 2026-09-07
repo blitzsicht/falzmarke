@@ -282,6 +282,65 @@ def logo_masse(pfad: Path, hoehe: int = 40) -> tuple[int, int]:
     return max(1, round(breite * hoehe / hoch)), hoehe
 
 
+#: Der Abstand zwischen Nachricht und Signatur, und der zwischen den Blöcken.
+#: Als Konstanten, weil sie an zwei Stellen gebraucht werden — im Absatz ohne
+#: Logo und in der Tabelle mit einem. Zwei getippte Werte driften auseinander.
+SIGNATUR_ABSTAND = "16px"
+SIGNATUR_LUFT = "8px"
+
+#: Der Abstand zwischen Logospalte und Angaben, links und rechts der Linie.
+LOGO_SPALTENABSTAND = "14px"
+
+
+def _signaturtabelle(profil: dict, logo_pfad: Path | None, inhalt: str) -> str:
+    """Die Signatur mit Logo: zwei Spalten, dünne Linie dazwischen (#243).
+
+    Bis hierher steckte nur der erste Block in dieser Tabelle; Kontakt und
+    Rechtsangaben standen darunter und liefen unter dem Logo hindurch. Das sah
+    aus wie ein Zitatblock mit einem Bild davor, nicht wie eine Signatur.
+    Jetzt trägt die rechte Spalte alle drei Blöcke.
+
+    Tabelle und nicht Rasterlayout, weil das klassische Outlook mit der
+    Word-Engine setzt und moderne Layoutverfahren ignoriert (#104). Die
+    Trennlinie ist **neutral** und kommt nicht aus dem Profil: Eine gefärbte
+    Linie wäre unsere Marke in fremder Post, und eine profilabhängige Farbe
+    könnte nicht in `DUNKELREGELN` stehen — der Block ist eine Konstante, die
+    `emit_html.verstoesse()` Zeichen für Zeichen vergleicht.
+
+    `role="presentation"`: Das ist Layout, keine Daten. Ohne die Marke liest
+    ein Screenreader „Tabelle, zwei Spalten, Zelle eins" vor, bevor der Name
+    kommt — und `verify --email` lehnt sie ab. Gemessen am 29.08.2026: Jede
+    Mail mit Logo im Profil fiel dort durch, und niemandem war es aufgefallen,
+    weil das Beispielprofil kein Logo trägt.
+    """
+    name = emit_html.as_text(str((profil.get("absender") or {}).get("name") or ""))
+    breite, hoehe = logo_masse(logo_pfad) if logo_pfad else (0, 40)
+    # Beide Maße gehören als Attribut an das Bild (#104): Ohne sie reserviert
+    # kein Client Platz. Die Nachricht springt beim Laden, und wo Bilder
+    # blockiert sind — der Normalfall in Outlook — steht der Alternativtext in
+    # einem Kasten von null Pixeln.
+    masse = f'width="{breite}" height="{hoehe}" ' if breite else f'height="{hoehe}" '
+    linie = f"1px solid {emit_html.RAHMEN}"
+    # Die waagerechte Linie hängt an der Tabelle statt am ersten Absatz: Sie
+    # trennt die Signatur von der Nachricht, und die Signatur ist jetzt die
+    # Tabelle. Am Absatz gezeichnet liefe sie nur über die rechte Spalte.
+    return (
+        f'<table role="presentation" class="{emit_html.KLASSE_TEXT} {emit_html.KLASSE_LINIE}" '
+        f'cellpadding="0" cellspacing="0" border="0" '
+        f'style="border-collapse: collapse; margin: {SIGNATUR_ABSTAND} 0 0; '
+        f'border-top: {linie};"><tr>'
+        f'<td style="padding: {SIGNATUR_LUFT} {LOGO_SPALTENABSTAND} 0 0; '
+        f'vertical-align: top;">'
+        f'<img src="cid:{LOGO_CID}" alt="{name}" {masse}'
+        f'style="display: block; border: 0; height: {hoehe}px; '
+        f'width: {"auto" if not breite else f"{breite}px"};"></td>'
+        f'<td class="{emit_html.KLASSE_TEXT} {emit_html.KLASSE_LINIE}" '
+        f'style="padding: {SIGNATUR_LUFT} 0 0 {LOGO_SPALTENABSTAND}; '
+        f'vertical-align: top; border-left: {linie}; '
+        f'{emit_html.TEXTSTIL}">{inhalt}</td></tr></table>'
+    )
+
+
 def htmlteil(kopf: dict, profil: dict, bloecke, sprache: str = "de",
              mit_logo: bool = False, logo_pfad: Path | None = None,
              vorspann: str = "") -> str:
@@ -290,6 +349,7 @@ def htmlteil(kopf: dict, profil: dict, bloecke, sprache: str = "de",
     gruss = kopf.get("gruss") or email_teil.get("gruss") or profil.get("gruss")
 
     stuecke = [emit_html.setze(_mit_rahmen(kopf, gruss, bloecke)).rstrip("\n")]
+    absaetze: list[str] = []
     for nummer, block in enumerate(signatur_bloecke(profil, kopf)):
         # Innerhalb eines Blocks `<br>` statt eigener Absätze: Eine Signatur ist
         # kein Fließtext, sondern eine Folge kurzer Zeilen — mit Absätzen risse
@@ -313,47 +373,32 @@ def htmlteil(kopf: dict, profil: dict, bloecke, sprache: str = "de",
                 f'letter-spacing: -0.01em;">{zeilen[0]}</span>'
             )
         inhalt = emit_html.umbruch().join(zeilen)
-        # Die Trennlinie gehört an den ersten Block: Sie trennt die Signatur von
-        # der Nachricht, nicht die Blöcke voneinander.
-        rahmen = (f"border-top: 1px solid {emit_html.RAHMEN}; padding-top: 8px; "
-                  if nummer == 0 else "")
-        oben = "16px" if nummer == 0 else "10px"
         # Der Rechtsblock steht kleiner und leiser: Pflichtangaben und
         # Vertraulichkeitshinweis sind Beiwerk, nicht die Botschaft.
         leise = nummer == 2
-        stil = (f"margin: {oben} 0 0; {rahmen}{emit_html.TEXTSTIL}"
-                + (" font-size: 13px; color: #666;" if leise else ""))
         klassen = [emit_html.KLASSE_LEISE if leise else emit_html.KLASSE_TEXT]
-        if nummer == 0:
+        # Die Trennlinie zur Nachricht gehört an den ersten Block — aber nur,
+        # solange er allein steht. Mit Logo trägt sie die Tabelle, und der
+        # Absatz beginnt bündig oben in seiner Zelle: Eine zweite Linie quer
+        # durch die rechte Spalte wäre ein Strich zu viel.
+        if nummer == 0 and not mit_logo:
+            rahmen = f"border-top: 1px solid {emit_html.RAHMEN}; padding-top: {SIGNATUR_LUFT}; "
+            oben = SIGNATUR_ABSTAND
             klassen.append(emit_html.KLASSE_LINIE)
-        if nummer == 0 and mit_logo:
-            # Das Logo steht IM ersten Block, nicht darüber: Sonst hinge es
-            # zwischen Grußformel und Trennlinie und sähe aus wie Teil der
-            # Nachricht. Als Tabelle, weil Outlook mit der Word-Engine rechnet
-            # und moderne Layoutverfahren ignoriert (#104).
-            name = emit_html.as_text(str((profil.get("absender") or {}).get("name") or ""))
-            breite, hoehe = logo_masse(logo_pfad) if logo_pfad else (0, 40)
-            # `role="presentation"`: Das ist Layout, keine Daten. Ohne die
-            # Marke liest ein Screenreader „Tabelle, zwei Spalten, Zelle eins"
-            # vor, bevor der Name kommt — und `verify --email` lehnt sie ab.
-            # Gemessen am 29.08.2026: Jede Mail mit Logo im Profil fiel dort
-            # durch („Tabellen sind Datentabellen: 1 ohne <th>"), und niemandem
-            # war es aufgefallen, weil das Beispielprofil kein Logo trägt.
-            masse = f'width="{breite}" height="{hoehe}" ' if breite else f'height="{hoehe}" '
-            inhalt = (
-                f'<table role="presentation" class="{emit_html.KLASSE_TEXT}" '
-                f'cellpadding="0" cellspacing="0" border="0" '
-                f'style="border-collapse: collapse;"><tr>'
-                f'<td style="padding: 0 12px 0 0; vertical-align: top;">'
-                f'<img src="cid:{LOGO_CID}" alt="{name}" {masse}'
-                f'style="display: block; border: 0; height: {hoehe}px; '
-                f'width: {"auto" if not breite else f"{breite}px"};"></td>'
-                f'<td class="{emit_html.KLASSE_TEXT}" style="vertical-align: top; '
-                f'{emit_html.TEXTSTIL}">{inhalt}</td></tr></table>'
-            )
-        stuecke.append(
+        else:
+            rahmen = ""
+            oben = "" if nummer == 0 else "10px"
+        rand = f"margin: {oben} 0 0; " if oben else "margin: 0; "
+        stil = (f"{rand}{rahmen}{emit_html.TEXTSTIL}"
+                + (" font-size: 13px; color: #666;" if leise else ""))
+        absaetze.append(
             f'<p class="{" ".join(klassen)}" style="{stil}">{inhalt}</p>'
         )
+
+    if absaetze and mit_logo:
+        stuecke.append(_signaturtabelle(profil, logo_pfad, "\n".join(absaetze)))
+    else:
+        stuecke.extend(absaetze)
     return emit_html.dokument("\n".join(stuecke) + "\n", sprache=sprache, vorspann=vorspann)
 
 
