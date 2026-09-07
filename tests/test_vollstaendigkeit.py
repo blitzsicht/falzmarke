@@ -23,11 +23,16 @@ PROFILE = REPO / "skill" / "typst" / "profiles"
 
 
 def nur_text(markdown: str) -> str:
-    """Aus der Quelle das machen, was im PDF stehen soll.
+    r"""Aus der Quelle das machen, was im PDF stehen soll.
 
     Reihenfolge zählt: Escapes werden zuerst geparkt, sonst entfernt der
     Markup-Schritt ein geschütztes `\*` mit. Und getilgt werden nur *paarige*
     Auszeichnungen — ein einzelnes Sternchen ist Text und bleibt stehen.
+
+    Ein roher Docstring, erkennbar am `r` vor den Anführungszeichen: Das `\*`
+    eine Zeile höher ist in einem gewöhnlichen String eine ungültige
+    Escape-Sequenz. Python warnt darüber und wird sie in einer späteren Fassung
+    als Fehler behandeln (#248).
     """
     PARK = "\x00"
     text = re.sub(r"\\(.)", lambda m: PARK + m.group(1), markdown)
