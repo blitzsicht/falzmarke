@@ -19,6 +19,7 @@ ist, wird nach dem zweiten Vorgang abgeschaltet.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 
@@ -119,6 +120,28 @@ def test_pr_json_wird_gelesen(tmp_path):
     kontrolle = subprocess.run([sys.executable, str(SKRIPT), "--pr-json", str(datei)],
                                capture_output=True, text=True, encoding="utf-8")
     assert kontrolle.returncode == 0, kontrolle.stderr
+
+
+def test_die_meldung_bleibt_unter_cp1252_lesbar(tmp_path):
+    """Die Meldung traegt „ und “ — unter Windows schreibt Python in cp1252.
+
+    Gemessen am 08.09.2026: Der Windows-Lauf zu #268 scheiterte nicht am
+    Pruefer, sondern an seiner Ausgabe. `stderr` kam als None zurueck, weil sich
+    die Bytes nicht als UTF-8 lesen liessen — der Aufrufer bekam also nichts,
+    obwohl der Befund richtig war.
+
+    Der Test erzwingt cp1252 ueber PYTHONIOENCODING und laeuft damit auf jedem
+    System. Ohne `_ausgabe_auf_utf8()` endet er mit genau der Meldung aus der
+    CI: „'utf-8' codec can't decode byte 0xdf".
+    """
+    datei = tmp_path / "pr.json"
+    datei.write_text('{"body": "Schließt #261.", "labels": []}', encoding="utf-8")
+    ergebnis = subprocess.run(
+        [sys.executable, str(SKRIPT), "--pr-json", str(datei)],
+        capture_output=True, text=True, encoding="utf-8",
+        env={**os.environ, "PYTHONIOENCODING": "cp1252"})
+    assert ergebnis.returncode == 1
+    assert "#261" in ergebnis.stderr
 
 
 def test_der_job_steht_in_ci_yml():

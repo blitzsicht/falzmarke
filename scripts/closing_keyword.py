@@ -136,7 +136,31 @@ def aus_pr_json(text: str) -> tuple[str, tuple[str, ...]]:
     )
 
 
+def _ausgabe_auf_utf8() -> None:
+    """Damit die Ausgabe unter Windows nicht abbricht.
+
+    Dort schreibt Python standardmaessig in cp1252, und die Meldungen hier
+    tragen „ und “ — der Aufruf endete dann mit einem UnicodeEncodeError, und
+    was beim Aufrufer ankam, war gar nichts. Gemessen in der CI am 08.09.2026
+    (Windows-Lauf zu #268): `stderr` kam als None zurueck, weil sich die Bytes
+    nicht als UTF-8 lesen liessen.
+
+    Dieselbe Vorkehrung wie in falzmarke/cli.py:_ausgabe_auf_utf8 — dort seit
+    dem 25.08.2026 und aus demselben Grund. `scripts/changelog_pflicht.py`
+    druckt dieselben Zeichen und hat sie noch nicht; dort faellt es nur
+    deshalb nicht auf, weil der Job ausschliesslich auf ubuntu laeuft.
+    """
+    for strom in (sys.stdout, sys.stderr):
+        rekonfigurieren = getattr(strom, "reconfigure", None)
+        if rekonfigurieren is not None:
+            try:
+                rekonfigurieren(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):   # pragma: no cover — sehr alte Streams
+                pass
+
+
 def main() -> int:
+    _ausgabe_auf_utf8()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pr-json", type=Path,
                         help="Ausgabe von `gh pr view --json body,labels`")
