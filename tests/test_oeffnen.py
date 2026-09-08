@@ -270,7 +270,7 @@ class Antwortet:
     könnte den zweiten Schritt nicht messen.
     """
 
-    def __init__(self, *, gefunden=True, nachweis="1 0 0", code=0, stderr=""):
+    def __init__(self, *, gefunden=True, nachweis="1 0 0 0", code=0, stderr=""):
         self.aufrufe: list[tuple] = []
         self.dateien_da: list[bool] = []
         self._gefunden, self._nachweis = gefunden, nachweis
@@ -291,7 +291,7 @@ class Antwortet:
 
 
 FELDER = {"betreff": "Probe", "an": ["a@example.de"], "kopie": [],
-          "html": "<p>Text</p>", "anhaenge": []}
+          "blindkopie": [], "html": "<p>Text</p>", "anhaenge": []}
 
 
 @pytest.mark.parametrize("plattform", ["linux", "win32", "freebsd14"])
@@ -323,15 +323,15 @@ def test_ohne_passendes_programm_bleibt_es_bei_der_datei():
 def test_die_argumente_stehen_in_fester_reihenfolge():
     argv = oeffnen.entwurfsargumente(
         {"betreff": "B", "html": "<p>H</p>", "an": ["a@x.de", "b@x.de"],
-         "kopie": ["c@x.de"]},
+         "kopie": ["c@x.de"], "blindkopie": ["archiv@x.de"]},
         ["/tmp/eins.pdf", "/tmp/zwei.pdf"])
-    assert argv == ["B", "<p>H</p>", "a@x.de,b@x.de", "c@x.de",
+    assert argv == ["B", "<p>H</p>", "a@x.de,b@x.de", "c@x.de", "archiv@x.de",
                     "/tmp/eins.pdf", "/tmp/zwei.pdf"]
 
 
 def test_fehlende_felder_werden_zu_leeren_argumenten_nicht_zu_none():
     argv = oeffnen.entwurfsargumente({}, [])
-    assert argv == ["", "", "", ""], "None im Argument wäre ein Absturz im Skript"
+    assert argv == ["", "", "", "", ""], "None im Argument wäre ein Absturz im Skript"
 
 
 def test_das_skript_setzt_nichts_aus_eingaben_zusammen():
@@ -358,32 +358,34 @@ def test_gegenprobe_die_suche_wuerde_ein_send_finden():
 
 
 def test_der_nachweis_wird_gegen_die_vorgabe_gehalten():
-    felder = {"an": ["a@x.de"], "kopie": [], "anhaenge": [("x.pdf", b"x")]}
-    assert oeffnen._nachweis_stimmt("1 0 1", felder) is None
-    fehlt = oeffnen._nachweis_stimmt("1 0 0", felder)
+    felder = {"an": ["a@x.de"], "kopie": [], "blindkopie": [],
+              "anhaenge": [("x.pdf", b"x")]}
+    assert oeffnen._nachweis_stimmt("1 0 0 1", felder) is None
+    fehlt = oeffnen._nachweis_stimmt("1 0 0 0", felder)
     assert fehlt and "Anhänge" in fehlt, "ein verschluckter Anhang fiel nicht auf"
 
 
 def test_eine_antwort_ohne_zahlen_gilt_nicht_als_nachweis():
-    grund = oeffnen._nachweis_stimmt("ok", {"an": [], "kopie": [], "anhaenge": []})
+    grund = oeffnen._nachweis_stimmt("ok", {"an": [], "kopie": [], "blindkopie": [],
+                                            "anhaenge": []})
     assert grund and "Zählung" in grund
 
 
 def test_der_entwurf_meldet_das_programm(tmp_path):
-    antwort = Antwortet(nachweis="1 0 0")
+    antwort = Antwortet(nachweis="1 0 0 0")
     name, grund = oeffnen.entwurf(FELDER, plattform="darwin",
                                   umgebung={"DISPLAY": ":0"}, laufen=antwort)
     assert (name, grund) == ("Microsoft Outlook", "")
     lauf = antwort.aufrufe[-1]
     assert lauf[0] == "osascript" and lauf[1].endswith(".applescript")
-    assert lauf[2:] == ("Probe", "<p>Text</p>", "a@example.de", "")
+    assert lauf[2:] == ("Probe", "<p>Text</p>", "a@example.de", "", "")
 
 
 def test_ein_verschluckter_anhang_faellt_auf():
     """Der Fall, den ein Exit-Code allein nie zeigt: Das Skript läuft durch,
     aber die Anlage fehlt."""
     felder = {**FELDER, "anhaenge": [("rechnung.pdf", b"%PDF-1.7")]}
-    antwort = Antwortet(nachweis="1 0 0")
+    antwort = Antwortet(nachweis="1 0 0 0")
     name, grund = oeffnen.entwurf(felder, plattform="darwin",
                                   umgebung={"DISPLAY": ":0"}, laufen=antwort)
     assert name is None and "Anhänge" in grund
@@ -391,7 +393,7 @@ def test_ein_verschluckter_anhang_faellt_auf():
 
 def test_die_anhaenge_liegen_da_waehrend_das_programm_sie_liest():
     felder = {**FELDER, "anhaenge": [("rechnung.pdf", b"%PDF-1.7")]}
-    antwort = Antwortet(nachweis="1 0 1")
+    antwort = Antwortet(nachweis="1 0 0 1")
     name, _ = oeffnen.entwurf(felder, plattform="darwin",
                               umgebung={"DISPLAY": ":0"}, laufen=antwort)
     assert name == "Microsoft Outlook"
@@ -400,7 +402,7 @@ def test_die_anhaenge_liegen_da_waehrend_das_programm_sie_liest():
 
 def test_ein_anhangname_zeigt_nie_aus_dem_ordner():
     felder = {**FELDER, "anhaenge": [("../../etc/passwd", b"x")]}
-    antwort = Antwortet(nachweis="1 0 1")
+    antwort = Antwortet(nachweis="1 0 0 1")
     oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
                     laufen=antwort)
     pfade = [a for a in antwort.aufrufe[-1] if "falzmarke-entwurf-" in str(a)]
@@ -418,7 +420,7 @@ def test_der_schalter_haelt_den_entwurf_zu_ohne_die_datei_aufzugeben():
 
 def test_gegenprobe_ohne_den_schalter_laeuft_es():
     """Ohne sie belegte der Test darüber nur, dass irgendetwas None ergibt."""
-    antwort = Antwortet(nachweis="1 0 0")
+    antwort = Antwortet(nachweis="1 0 0 0")
     name, _ = oeffnen.entwurf(FELDER, plattform="darwin",
                               umgebung={"DISPLAY": ":0"}, laufen=antwort)
     assert name == "Microsoft Outlook"
@@ -448,3 +450,30 @@ def test_ein_haengendes_steuerskript_laeuft_in_die_frist():
     name, grund = oeffnen.entwurf(FELDER, plattform="darwin",
                                   umgebung={"DISPLAY": ":0"}, laufen=haengt)
     assert name is None and str(oeffnen.FRIST_ENTWURF_S) in grund
+
+
+def test_die_blindkopie_geht_in_den_entwurf():
+    """Der Mangel aus #272: Bis dahin las der Entwurfsweg nur To und Cc.
+
+    Die Blindkopie stand in der `.eml`, `verify --email` hatte sie gemessen —
+    und im Entwurfsfenster fehlte sie. Eine Zeile, die nie da war, vermisst
+    niemand.
+    """
+    felder = {**FELDER, "blindkopie": ["archiv@example.de"]}
+    antwort = Antwortet(nachweis="1 0 1 0")
+    name, grund = oeffnen.entwurf(felder, plattform="darwin",
+                                  umgebung={"DISPLAY": ":0"}, laufen=antwort)
+    assert (name, grund) == ("Microsoft Outlook", "")
+    assert antwort.aufrufe[-1][6] == "archiv@example.de", antwort.aufrufe[-1]
+    assert "make new bcc recipient" in oeffnen.SKRIPT_OUTLOOK
+
+
+def test_eine_verschluckte_blindkopie_faellt_auf():
+    """Dieselbe Zählung wie beim Anhang: Ein Programm, das die Adresse
+    stillschweigend fallen lässt, kommt hier nicht durch."""
+    felder = {**FELDER, "blindkopie": ["archiv@example.de"]}
+    antwort = Antwortet(nachweis="1 0 0 0")
+    name, grund = oeffnen.entwurf(felder, plattform="darwin",
+                                  umgebung={"DISPLAY": ":0"}, laufen=antwort)
+    assert name is None
+    assert "Blindkopien: 0 statt 1" in grund, grund

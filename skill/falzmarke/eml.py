@@ -58,6 +58,39 @@ def _als_liste(wert) -> list[str]:
     return [wert] if isinstance(wert, str) else [str(z) for z in wert]
 
 
+def blindkopien(kopf: dict, profil: dict) -> list[str]:
+    """Die Blindkopien einer Nachricht: aus dem Frontmatter UND aus dem Profil.
+
+    Das Profilfeld `email.bcc` ist für den, der jede ausgehende Nachricht in
+    einem Archiv haben will (#272). Es tritt **neben** ein `bcc:` im
+    Frontmatter, nicht an dessen Stelle — die fachliche Blindkopie einer
+    einzelnen Mail und die staendige ins Archiv haben nichts miteinander zu
+    tun, und die eine duerfte die andere nie verdraengen.
+
+    Doppelte Adressen fallen weg, verglichen ueber die Adresse selbst: „Archiv
+    <a@example.de>" und „a@example.de" sind dieselbe Empfaengerin, und zweimal
+    gesetzt stuende sie sichtbar doppelt im Kopf. Die zuerst genannte
+    Schreibweise bleibt — das Frontmatter gewinnt vor dem Profil, weil es den
+    Anzeigenamen fuer diesen einen Fall traegt.
+
+    Der Hinweis auf eine gesetzte Blindkopie braucht hier nichts: Er wird aus
+    der FERTIGEN DATEI gelesen, also erscheint er fuer eine Adresse aus dem
+    Profil genauso wie fuer eine aus dem Frontmatter. Eine stille Kopie an
+    einen Dritten waere genau das, was er verhindern soll.
+    """
+    gesehen: set[str] = set()
+    zusammen = []
+    for eintrag in [*_als_liste(kopf.get("bcc")),
+                    *_als_liste((profil.get("email") or {}).get("bcc"))]:
+        _, adresse = parseaddr(eintrag)
+        schluessel = (adresse or eintrag).lower()
+        if schluessel in gesehen:
+            continue
+        gesehen.add(schluessel)
+        zusammen.append(eintrag)
+    return zusammen
+
+
 def _adressliste(wert) -> str:
     """`an:`/`cc:` als Kopfzeilenwert. Umlaute im Namen kodiert `EmailMessage`."""
     teile = []
@@ -700,8 +733,10 @@ def baue(kopf: dict, profil: dict, quelle_md: str, bloecke, *,
     # kann, ohne dass sie jemand abtippt. Sie erscheint bewusst NICHT in der
     # `.html`-Vorschau — die ist zum Herauskopieren gedacht, und eine sichtbare
     # Zeile „Blindkopie" wäre genau das Gegenteil dessen, wofür das Feld da ist.
-    if kopf.get("bcc"):
-        nachricht["Bcc"] = _adressliste(kopf["bcc"])
+    # Frontmatter UND Profil (#272) - `blindkopien()` fuehrt beide zusammen.
+    verdeckt = blindkopien(kopf, profil)
+    if verdeckt:
+        nachricht["Bcc"] = _adressliste(verdeckt)
     nachricht["Subject"] = str(kopf.get("betreff") or "")
     if kopf.get("antwort_auf"):
         nachricht["In-Reply-To"] = str(kopf["antwort_auf"])
@@ -866,6 +901,11 @@ def entwurfsfelder(pfad) -> dict:
         "betreff": str(nachricht.get("Subject") or ""),
         "an": _adressen("To"),
         "kopie": _adressen("Cc"),
+        # Bcc gehoert dazu, seit der Entwurf der uebliche Weg ist (#272). Bis
+        # dahin fehlte es: Die Blindkopie stand in der `.eml`, `verify --email`
+        # hatte sie gemessen - und im Entwurfsfenster fehlte sie, ohne dass es
+        # jemandem auffiel. Eine Zeile, die nie da war, vermisst niemand.
+        "blindkopie": _adressen("Bcc"),
         "html": html,
         "anhaenge": anhaenge,
     }

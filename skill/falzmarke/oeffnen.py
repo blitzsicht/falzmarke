@@ -178,7 +178,7 @@ FRIST_ENTWURF_S = 90
 #: einem zusammengesetzten Skript eine Programmzeile — hier ist er ein Wert.
 #:
 #: Die Reihenfolge ist fest: 1 Betreff, 2 HTML-Rumpf, 3 Empfänger (mit Komma
-#: getrennt), 4 Kopie, ab 5 die Anhänge als Pfade.
+#: getrennt), 4 Kopie, 5 Blindkopie, ab 6 die Anhänge als Pfade.
 #:
 #: `open` steht **nach** dem Auslesen, und das ist gemessen: Danach meldet
 #: Outlook „outgoing message id … kann nicht gelesen werden" (-1728). Wer erst
@@ -189,6 +189,7 @@ on run argv
 \tset rumpf to item 2 of argv
 \tset anListe to my zerlege(item 3 of argv)
 \tset kopieListe to my zerlege(item 4 of argv)
+\tset blindListe to my zerlege(item 5 of argv)
 \ttell application "Microsoft Outlook"
 \t\tset entwurf to make new outgoing message with properties {subject:betreff, content:rumpf}
 \t\trepeat with adresse in anListe
@@ -197,10 +198,13 @@ on run argv
 \t\trepeat with adresse in kopieListe
 \t\t\tmake new cc recipient at entwurf with properties {email address:{address:adresse}}
 \t\tend repeat
-\t\trepeat with i from 5 to (count of argv)
+\t\trepeat with adresse in blindListe
+\t\t\tmake new bcc recipient at entwurf with properties {email address:{address:adresse}}
+\t\tend repeat
+\t\trepeat with i from 6 to (count of argv)
 \t\t\tmake new attachment at entwurf with properties {file:POSIX file (item i of argv)}
 \t\tend repeat
-\t\tset nachweis to "" & (count of to recipients of entwurf) & " " & (count of cc recipients of entwurf) & " " & (count of attachments of entwurf)
+\t\tset nachweis to "" & (count of to recipients of entwurf) & " " & (count of cc recipients of entwurf) & " " & (count of bcc recipients of entwurf) & " " & (count of attachments of entwurf)
 \t\topen entwurf
 \t\tactivate
 \tend tell
@@ -265,6 +269,7 @@ def entwurfsargumente(felder: Mapping, anhangpfade: list[str]) -> list[str]:
         str(felder.get("html") or ""),
         ",".join(felder.get("an") or []),
         ",".join(felder.get("kopie") or []),
+        ",".join(felder.get("blindkopie") or []),
         *anhangpfade,
     ]
 
@@ -279,14 +284,15 @@ def _nachweis_stimmt(ausgabe: str, felder: Mapping) -> str | None:
     genau hier auf.
     """
     teile = ausgabe.split()
-    if len(teile) != 3 or not all(t.isdigit() for t in teile):
+    if len(teile) != 4 or not all(t.isdigit() for t in teile):
         return f"das Steuerskript meldete „{ausgabe.strip()[:60]}“ statt einer Zählung"
     ist = tuple(int(t) for t in teile)
     soll = (len(felder.get("an") or []), len(felder.get("kopie") or []),
-            len(felder.get("anhaenge") or []))
+            len(felder.get("blindkopie") or []), len(felder.get("anhaenge") or []))
     if ist != soll:
-        return (f"der Entwurf trägt {ist[0]} Empfänger, {ist[1]} Kopien und {ist[2]} Anhänge — "
-                f"erwartet waren {soll[0]}, {soll[1]} und {soll[2]}")
+        benennung = ("Empfänger", "Kopien", "Blindkopien", "Anhänge")
+        fehlt = [f"{n}: {i} statt {z}" for n, i, z in zip(benennung, ist, soll) if i != z]
+        return "der Entwurf trägt nicht, was er tragen soll — " + ", ".join(fehlt)
     return None
 
 

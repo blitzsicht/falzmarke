@@ -97,8 +97,8 @@ OK  verify: 25/25 Prüfungen bestanden
 OK  Entwurf angelegt: Microsoft Outlook
 ```
 
-Legt auf macOS einen **Entwurf** im Mailprogramm an — Empfänger, Kopie, Betreff, den HTML-Rumpf
-und alle Anhänge. Mit Senden-Knopf; gedrückt wird er von einem Menschen (#263).
+Legt auf macOS einen **Entwurf** im Mailprogramm an — Empfänger, Kopie, **Blindkopie**, Betreff,
+den HTML-Rumpf und alle Anhänge. Mit Senden-Knopf; gedrückt wird er von einem Menschen (#263).
 
 **Warum nicht einfach die Datei?** Weil eine `.eml` kein Entwurf ist. Der Befund oben gilt
 unverändert: In Apple Mail, Thunderbird und Outlook für Mac erscheint sie als Lesefenster, und
@@ -106,8 +106,12 @@ unverändert: In Apple Mail, Thunderbird und Outlook für Mac erscheint sie als 
 deshalb mehr als eine Dateiübergabe.
 
 **Was es zusagt:** Die Nachricht steht als ausgehende Nachricht im Programm, und ihre Anzahl an
-Empfängern, Kopien und Anhängen ist am fertigen Objekt **nachgezählt** — ein Anhang, den das
-Programm stillschweigend abgelehnt hätte, fällt auf.
+Empfängern, Kopien, Blindkopien und Anhängen ist am fertigen Objekt **nachgezählt** — ein Anhang
+oder eine Blindkopie, die das Programm stillschweigend fallen ließe, fällt auf.
+
+Die Blindkopie kam erst mit #272 dazu. Bis dahin las der Entwurfsweg nur `To` und `Cc`: Sie stand
+in der `.eml`, `verify --email` hatte sie gemessen — und im Entwurfsfenster fehlte sie. Eine
+Zeile, die nie da war, vermisst niemand.
 
 **Was es nicht zusagt:**
 
