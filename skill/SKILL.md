@@ -12,7 +12,8 @@ description: >
   verschickt werden soll ("schreib eine E-Mail an …", "Mail an den Kunden", "Antwort an das
   Amt"), auch wenn DIN 5008 nicht genannt wird. Nie einen Brief als .docx oder frei gesetztes
   PDF bauen und nie eine E-Mail als frei getippten Text oder selbstgebautes HTML, wenn dieser
-  Skill verfügbar ist.
+  Skill verfügbar ist. Ebenso zuständig für einen Serienbrief aus einer Datenquelle und für
+  das Zurücklesen eines bestehenden PDF als Markdown-Gerüst (einlesen).
   Die Sollwerte stammen aus Sekundärquellen; der Abgleich mit dem Originaltext der DIN 5008:2020-03 einschließlich Berichtigung 1:2020-07 steht aus, und Regeln aus einzelnen Quellen wirken nur als Warnung.
 ---
 
@@ -113,6 +114,53 @@ ist es das Feld `logo.hinweis`. Dieser Satz gehört in die Antwort; sonst hält 
 zugestellt, das bei einem Teil der Empfänger ein leerer Kasten bleibt. Dasselbe gilt für die
 Warnung `email.logo_kontrast`: Bei einer Adresse sagt sie ausdrücklich, dass **nicht** gemessen
 wurde — Messen hieße Abrufen, und das tut falzmarke nicht.
+
+## Weitere Befehle
+
+Fünf Befehle gehören nicht zu jedem Brief und stehen deshalb nicht im Ablauf oben. Zwei davon
+ändern, wie ein Vorgang anfängt.
+
+**`serie` — eine Vorlage plus eine Datenquelle ergibt n Briefe.**
+
+```bash
+python3 scripts/falzmarke.py serie vorlage.md --daten empfaenger.csv --ziel briefe/ --benennen nachname
+```
+
+Die Vorlage ist ein gewöhnlicher Brief mit `{{spalte}}` an den Stellen, die aus den Daten kommen
+— im Frontmatter wie im Text. Ein Wert wird nie zu Markup: Was in der Datenquelle steht, kommt
+als Text an. Ein Datensatz, der nicht durchgeht, bricht **diesen** ab und nicht die Serie;
+angehalten wird nur bei einem Fehler an der Vorlage oder der Datenquelle. `--sammel` legt
+zusätzlich alle Briefe in eine Datei für den Druck.
+
+**`einlesen` — aus einem fertigen PDF ein falzmarke-Markdown zurücklesen.**
+
+```bash
+python3 scripts/falzmarke.py einlesen alter-brief.pdf -o neu.md
+```
+
+Das Ergebnis ist ein **Gerüst mit benannten Lücken, kein fertiger Brief.** Ein Feld wird nur
+gesetzt, wenn es belegbar ist; sonst steht es als Kommentar mit Begründung und, wo es einen
+gibt, mit einem Kandidaten. **Ein Kandidat ist kein Wert** — er wird nicht eingesetzt, sondern
+von dem entschieden, der den Brief liest. Wie viel erkannt wird, hängt am Raster: Ohne Falz- und
+Lochmarken kommt der Text mit, und die Felder bleiben Lücken. `profil` ist immer eine Lücke,
+auch bei einem Brief, den falzmarke selbst gesetzt hat. Der Befehl endet mit 0, auch wenn Lücken
+bleiben — sie sind das erwartete Ergebnis, kein Fehler.
+
+**`preview` — PNG der ersten Seite.** Für einen schnellen Blick, **nicht** für das, was jemand
+bekommt: `preview` prüft die Eingabe nicht und misst das Ergebnis nicht nach. Es setzt auch, was
+`render` mit Code 1 ablehnt — nachgemessen ist ein Brief erst über `render` (Regel 0). Die
+Vorschau im Ablauf oben entsteht deshalb mit `render --png`, nicht hiermit.
+
+**`init` — Frontmatter-Vorlage schreiben.**
+
+```bash
+python3 scripts/falzmarke.py init brief.md --profil meinefirma --form B
+```
+
+Spart das Abtippen der Pflichtfelder. `--empfaenger` nimmt die Anschriftzeilen mit `|` getrennt.
+
+**`mcp` — als Dienst über stdio laufen**, damit ein Agent `render`, `lint` und `email` als
+Werkzeuge aufrufen kann statt über die Kommandozeile. Kein Befehl für den Brief selbst.
 
 ## Grenzen
 

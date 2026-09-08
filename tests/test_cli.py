@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -155,3 +156,47 @@ def test_profil_mit_doppelpunkt_ohne_anfuehrungszeichen(tmp_path):
     ergebnis = rufe("render", brief, "-o", tmp_path / "b.pdf", "--profiles", verzeichnis)
     assert ergebnis.returncode == falzmarke.EXIT_EINGABE
     assert "Anführungszeichen" in ergebnis.stderr
+
+
+def test_jeder_befehl_steht_im_skill():
+    """Was `--help` kennt, muss SKILL.md nennen.
+
+    Die Sollmenge kommt aus dem Parser, nicht aus einer zweiten Aufzaehlung im
+    Test — die altert genauso still wie die im Dokument. Genau das ist passiert:
+    `serie`, `einlesen`, `preview`, `mcp` und `init` standen bis v0.9.5 nur in
+    `docs/cli.md`, und `docs/` liegt nicht im Skill-Paket
+    (`scripts/skill_packen.sh` kopiert `skill/`). Wer den Skill hochlaedt, sah
+    fuenf Befehle nirgends (#261).
+
+    Gesucht wird der Befehl hinter `falzmarke ` bzw. `falzmarke.py ` oder in
+    Backticks, und nie mit `-` oder einem Wortzeichen dahinter: Sonst deckte
+    `init-profil` den Befehl `init` mit ab.
+    """
+    hilfe = rufe("--help")
+    assert hilfe.returncode == 0, hilfe.stderr
+
+    treffer = re.search(r"\{([^}]*)\}", hilfe.stdout)
+    assert treffer, "aus der Hilfe liess sich keine Befehlsliste lesen"
+    befehle = [b for b in "".join(treffer.group(1).split()).split(",") if b]
+    # Ohne diese Schranke waere eine leere Menge gruen: Aendert argparse seine
+    # Ausgabe, faellt der Test auf und meldet nicht stillschweigend Erfolg.
+    assert len(befehle) >= 10, f"nur {len(befehle)} Befehle gelesen: {befehle}"
+
+    text = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+    fehlend = [b for b in befehle
+               if not re.search(rf"(?:falzmarke(?:\.py)? |`){re.escape(b)}(?![\w-])", text)]
+    assert not fehlend, "in SKILL.md nicht genannt: " + ", ".join(fehlend)
+
+
+def test_die_beschreibung_nennt_serie_und_einlesen():
+    """Zwei der fuenf Befehle haben einen eigenen Anlass.
+
+    „Serienbrief an zweihundert Empfaenger" und „lies diesen alten Brief ein"
+    sind Aufgaben, bei denen niemand von sich aus an einen DIN-Skill denkt. Sie
+    erreichen ihn nur ueber die Beschreibung: Der Rumpf wird erst NACH dem Laden
+    gelesen. Fuer `preview`, `init` und `mcp` gilt das nicht — sie haben keinen
+    eigenen Anlass und stehen deshalb nur im Rumpf (#261).
+    """
+    kopf = (SKILL / "SKILL.md").read_text(encoding="utf-8").split("---")[1]
+    assert "Serienbrief" in kopf, "die Beschreibung nennt den Serienbrief nicht"
+    assert "einlesen" in kopf, "die Beschreibung nennt das Zuruecklesen nicht"
