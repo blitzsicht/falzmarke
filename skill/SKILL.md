@@ -4,7 +4,8 @@ description: >
   Erzeugt Geschäftspost nach DIN 5008:2020 — als Brief und als E-Mail. Briefe (Form A und B)
   als PDF mit Falz- und Lochmarken, Anschriftfeld für Fensterumschläge, Informationsblock,
   Briefkopf und Fußzeile aus Absender-Profilen, standardmäßig als PDF/A-2b; dieselbe Quelle
-  auch als E-Mail — eine .eml mit Textteil, HTML-Teil, Anhängen und nachgemessenem Umschlag.
+  auch als E-Mail — eine .eml mit Textteil, HTML-Teil, Anhängen, Signatur samt Logo und
+  nachgemessenem Umschlag.
   Immer verwenden, wenn ein Brief, Anschreiben, Schreiben, Kündigung, Mahnung, Angebot,
   Mieterschreiben, Behördenschreiben, Widerspruch, Bestätigung oder "etwas zum Ausdrucken oder
   Verschicken" gewünscht ist — und ebenso bei jeder E-Mail, Mail oder Nachricht, die
@@ -96,6 +97,23 @@ Wer nach einem Versand fragt, bekommt diese Auskunft, keinen Behelf. Auch `--oef
 Es übergibt eine Datei ans Betriebssystem und steuert kein Mailprogramm
 ([ADR 0038](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0038-oeffnen-ist-kein-versand.md)).
 
+### Signatur und Logo
+
+Die Signatur kommt aus dem Absender-Profil und steht unter jeder Nachricht. Trägt das Profil ein
+`email.logo`, erscheint es darin. Drei Formen sind zulässig, und die Wahl folgt aus dem Wert: ein
+**Dateipfad** wird als eigener Teil eingebettet und kommt immer an — das ist die Vorgabe für
+`falzmarke email`; eine **Adresse** (`https://…`) steht nur im `src`, und Outlook wie Gmail
+blockieren externe Bilder standardmäßig; eine **Data-URI** reist mit, vergrößert aber jede
+Nachricht. Ein SVG ist in allen drei Formen ausgeschlossen. Einzelheiten in
+`references/frontmatter.md`.
+
+**Was das Werkzeug dazu sagt, wird weitergegeben.** Bei Adresse und Data-URI druckt `email` unter
+der erzeugten Datei einen Satz, der benennt, was die Form beim Empfänger kostet — im MCP-Dienst
+ist es das Feld `logo.hinweis`. Dieser Satz gehört in die Antwort; sonst hält jemand ein Logo für
+zugestellt, das bei einem Teil der Empfänger ein leerer Kasten bleibt. Dasselbe gilt für die
+Warnung `email.logo_kontrast`: Bei einer Adresse sagt sie ausdrücklich, dass **nicht** gemessen
+wurde — Messen hieße Abrufen, und das tut falzmarke nicht.
+
 ## Grenzen
 
 - **Markdown-Teilmenge** (`references/markdown.md`): Absätze, `**fett**`, `*kursiv*`,
@@ -108,7 +126,8 @@ Es übergibt eine Datei ans Betriebssystem und steuert kein Mailprogramm
 - **Anschrift**: höchstens 6 Zeilen, keine Leerzeilen.
 - **Vermerke** (Einschreiben, Persönlich): höchstens 3 Zeilen.
 - **Informationsblock**: je Wert höchstens 32 Zeichen.
-- **Keine Bilder im Fließtext.** Ein Logo gehört ins Profil.
+- **Keine Bilder im Fließtext.** Ein Logo gehört ins Profil, und eine erzeugte Nachricht
+  trägt höchstens ein Bild.
 
 ## Exit-Codes
 

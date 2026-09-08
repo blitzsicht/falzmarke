@@ -206,6 +206,30 @@ def test_der_befehl_steht_im_skill():
     assert "verify --email" in text, "Regel 0 muss die Mail einschließen"
 
 
+def test_der_hinweis_zur_logo_form_steht_im_skill():
+    """Was das Werkzeug nur druckt, gibt niemand weiter, der es nicht kennt.
+
+    `email` nennt bei einer Adresse und bei einer Data-URI den Preis der Form,
+    und `lint` sagt bei einer Adresse ausdruecklich, dass er den Kontrast NICHT
+    gemessen hat. Beides erreicht den Empfaenger der Antwort nur, wenn der Skill
+    es verlangt — steht es allein im Code, verschwindet es in der Ausgabe (#243).
+    """
+    text = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+    assert "logo.hinweis" in text, "der Hinweis muss weitergegeben werden"
+    assert "email.logo_kontrast" in text, "die Warnung muss weitergegeben werden"
+
+
+def test_die_beschreibung_nennt_die_signatur():
+    """Der Skill wird ueber Name und Beschreibung gewaehlt, nicht ueber den Rumpf.
+
+    Eine Faehigkeit, die nur im Rumpf steht, wird nie ausgeloest: Gelesen wird er
+    erst NACH dem Laden.
+    """
+    text = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+    kopf = text.split("---")[1]
+    assert "Signatur" in kopf, "die Beschreibung nennt die Signatur nicht"
+
+
 def test_der_befehl_steht_in_der_readme():
     text = (REPO / "README.md").read_text(encoding="utf-8")
     assert "falzmarke email" in text
