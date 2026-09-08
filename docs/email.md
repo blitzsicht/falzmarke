@@ -151,9 +151,17 @@ hat, steht in [ADR 0038](entscheidungen/0038-oeffnen-ist-kein-versand.md).
   [ADR 0035](entscheidungen/0035-vier-ebenen-fuer-email-regeln.md), und Praxis ist nie ein Fehler.
 - **Zeilenlänge:** RFC 5322, Abschnitt 2.1.1 erlaubt keine Zeile über 998 Zeichen.
 - **Der Umschlag ist eine Tabelle**, keine `div` (Issue #104). Das klassische Outlook rechnet mit
-  der Word-Engine und wertet `max-width` nicht aus; die Breite steht deshalb zweimal da — als
-  Attribut `width="600"`, das Word versteht, und als `width: 100%` mit `max-width` für alle
-  anderen, die dann auf schmalen Fenstern mitschrumpfen. Jede Layouttabelle trägt
+  der Word-Engine und versteht von den beiden Breitenangaben nur das Attribut; beide sagen
+  deshalb dasselbe — `width="100%"` und `width: 100%`. Er steht **linksbündig** und **deckelt
+  nichts**: Bis Issue #264 trug er `align="center"` bei 600 px, und das hatte zwei sichtbare
+  Folgen — die Nachricht saß mittig im Fenster, während die Signatur, die das Mailprogramm
+  darunter anfügt, am linken Rand begann, und Datentabellen wurden in die 600 px gequetscht, bis
+  sie mitten im Wort brachen (gemessen am 08.09.2026 in Outlook für Mac). Die Lesebreite sitzt
+  seitdem an Absätzen und Listen, wo sie hingehört: `max-width: 640px` hält Zeilen lesbar kurz,
+  Tabellen tragen sie nicht. Rechtsbündige Zellen brechen zusätzlich nicht zwischen Zahl und
+  Einheit — das ist eine Anweisung an die Darstellung und **keine** Ersetzung im Text: Das
+  geschützte Leerzeichen vor „EUR" steht auf einer Einzelquelle und darf nach der Quellenlage
+  nicht automatisch gesetzt werden. Jede Layouttabelle trägt
   `role="presentation"`: Ohne die Marke liest ein Screenreader sie als Datensatz vor, und die
   Prüfung lehnt sie ab. Umgekehrt gilt dasselbe — eine Tabelle ohne `<th>` **und** ohne die Marke
   ist ein Befund, egal welche der beiden Absichten dahinterstand.

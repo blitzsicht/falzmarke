@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import email
 import os
+import re
 from email import policy
 from email.utils import formatdate, parsedate_to_datetime
 from pathlib import Path
@@ -348,14 +349,54 @@ def test_eine_datentabelle_im_umschlag_wird_noch_gesehen():
     assert emit_html.verstoesse(html), "die innere Tabelle wurde übersehen"
 
 
-def test_der_umschlag_traegt_beide_breiten():
-    """Die Word-Engine liest das Attribut, alle anderen lesen den Stil. Ein
-    einzelner Wert könnte nur eines von beidem (#104)."""
+def test_der_umschlag_ist_linksbuendig_und_ohne_deckel():
+    """Ein Geschäftsbrief beginnt links, und der Umschlag deckelt nichts mehr.
+
+    Bis #264 stand hier `align="center"` bei 600 px: Die Nachricht saß mittig
+    im Fenster, während die Signatur des Mailprogramms darunter am linken Rand
+    begann, und Datentabellen wurden in den Deckel gequetscht. Beide Breiten
+    sagen jetzt dasselbe — das Attribut für die Word-Engine, der Stil für alle
+    anderen (#104).
+    """
     seite = emit_html.dokument("<p>Text</p>")
-    assert 'width="600"' in seite, "das Attribut fehlt — Outlook liefe über die volle Breite"
-    assert "max-width: 600px" in seite, "der Stil fehlt — alle anderen schrumpfen nicht mit"
+    umschlag = re.search(r"<table role=\"presentation\"[^>]*>", seite)
+    assert umschlag, "der Umschlag fehlt — der Test misst nichts"
+    marke = umschlag.group(0)
+    assert 'align="left"' in marke, f"nicht linksbündig: {marke}"
+    assert 'align="center"' not in marke, "der zentrierte Satz steht wieder da"
+    assert 'width="100%"' in marke, "das Attribut fehlt — die Word-Engine liest nur dieses"
+    assert "max-width" not in marke, f"der Deckel ist zurück: {marke}"
     assert 'role="presentation"' in seite
     assert '<div style="max-width' not in seite, "der alte div-Umschlag steht noch da"
+
+
+def test_die_lesebreite_gilt_dem_text_und_nicht_der_tabelle():
+    """Absätze und Listen brechen um, Datentabellen nicht.
+
+    Der Deckel ist nicht verschwunden, er ist umgezogen: Zeilen sollen lesbar
+    kurz bleiben, Spalten aber so breit werden dürfen, wie ihr Inhalt es
+    verlangt (#264).
+    """
+    seite = emit_html.dokument(
+        emit_html.absatz("Ein Satz.")
+        + emit_html.tabelle([["Datum", "Betrag"], ["16.05.2026", "892,50 EUR"]],
+                            ["left", "right"])
+    )
+    absatz = re.search(r"<p [^>]*>", seite).group(0)
+    assert f"max-width: {emit_html.LESEBREITE}" in absatz, absatz
+
+    datentabelle = re.search(r'<table class="fm-t"[^>]*>', seite).group(0)
+    assert "max-width" not in datentabelle, f"die Tabelle ist gedeckelt: {datentabelle}"
+
+    zellen = re.findall(r'<t[hd] class="fm-t fm-r"[^>]*>', seite)
+    ohne = [z for z in zellen if "word-break: normal" not in z]
+    assert zellen, "keine Datenzellen gefunden — der Test misst nichts"
+    assert not ohne, f"Zellen ohne Bruchsperre: {ohne}"
+
+    rechts = [z for z in zellen if "text-align: right" in z]
+    assert rechts, "keine rechtsbündige Zelle — der Test misst nichts"
+    lose = [z for z in rechts if "white-space: nowrap" not in z]
+    assert not lose, f"Zahl und Einheit dürfen auseinanderbrechen: {lose}"
 
 
 # ── Was aus der fertigen Datei in einen Entwurf wandert (#263) ──────────────
