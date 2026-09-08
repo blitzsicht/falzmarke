@@ -2,6 +2,95 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.9.5 — 08.09.2026
+
+### Neu
+
+- **`email.logo` nimmt jetzt auch eine Adresse und eine Data-URI.** Bisher nur einen Dateipfad,
+  und der wird als CID-Anhang eingebettet — für `falzmarke email` die richtige Wahl, weil das
+  Bild dann mitreist und auch ohne Netz ankommt. Der Signatur-Baukasten auf falzmarke.com
+  erzeugt aber dieselbe Auszeichnung im Browser, und eine Webseite hat keinen MIME-Container:
+  Dort fehlte das Logo deshalb ganz.
+
+  Drei Formen, und die Wahl folgt aus dem Wert: ein Pfad wird eingebettet, `https://…` steht
+  als Adresse im `src`, `data:image/…;base64,…` steckt im HTML-Teil. **Die Datei bleibt die
+  Vorgabe.** Was die beiden anderen kosten, sagt das Werkzeug beim Setzen — auf der
+  Kommandozeile unter der erzeugten Datei, im MCP-Dienst als Feld `logo.hinweis`: Eine Adresse
+  wird von Outlook und Gmail standardmäßig blockiert, eine Data-URI zeigt Gmail in der
+  Weiterleitungsansicht nicht an und Outlook hängt sie als namenlosen Anhang an. Gelesen wird
+  dafür die fertige Nachricht, nicht das Profil — gemeldet werden soll, was drinsteht.
+
+  Ein SVG bleibt in allen drei Formen ausgeschlossen; geprüft wird auch die Endung einer
+  Adresse und der Typ einer Data-URI. Nennt eine Adresse keine Endung (`…/logo?id=7`), geht sie
+  durch: Was dort liegt, weiß nur der Server, und danach zu fragen hieße, ihn abzurufen.
+
+- **Der Linter schweigt nicht mehr, wenn er nicht messen kann.** `email.logo_kontrast` prüft,
+  ob ein Logo auf hellem wie auf dunklem Grund trägt. Bei allem, was keine Datei war, kehrte
+  die Prüfung bisher wortlos zurück — sie sah grün aus und hatte nichts angesehen. Eine
+  Data-URI wird jetzt gemessen wie eine Datei; bei einer Adresse sagt die Warnung ausdrücklich,
+  dass **nicht** gemessen wurde und warum: Messen hieße abrufen, und das tut dieses Werkzeug
+  nicht (ADR 0034).
+
+- **Höchstens ein Bild in einer erzeugten Mail.** ADR 0034 sagt das seit August — gemessen hat
+  es niemand, drei Bilder mit `cid:` wären anstandslos durchgegangen. Aufgefallen ist die Lücke
+  erst, als die Quellenregel fiel: Sie hielt die Anzahl nebenbei mit, weil ein Bild in der
+  Nachricht dort erst hineingelegt werden muss. Aus demselben Grund wandert die
+  Zählpixel-Erkennung vom Prüfer zum Emitter — sie war der zweite Zaun hinter dem ersten, und
+  der erste ist weg. (#243)
+
+### Geändert
+
+- **Die Signatur mit Logo steht jetzt zweispaltig.** Bisher trug die Layouttabelle nur den
+  Namen; Kontakt und Rechtsangaben standen darunter und liefen unter dem Bild hindurch — das
+  sah aus wie ein Zitatblock mit einem Logo davor. Jetzt trägt die rechte Spalte alle drei
+  Blöcke, getrennt durch eine dünne senkrechte Linie. Die Linie ist **neutral** und kommt nicht
+  aus dem Profil: Eine gefärbte wäre die Marke des Werkzeugs in fremder Post, und eine
+  profilabhängige Farbe kann nicht in den Dunkelregeln stehen, weil der Block eine zeichenweise
+  verglichene Konstante ist. Ohne Logo ändert sich nichts — dann entsteht keine Tabelle, denn
+  links stünde eine leere Spalte und ein Trenner ohne Gegenüber.
+
+  Beim Bauen kam heraus, dass **jede Mail mit Logo schon vorher die eigene Prüfung verletzte**:
+  Das Bild setzt `border: 0`, und `nicht_umschaltbar()` verlangte dafür eine umschaltbare
+  Klasse. Gemerkt hat es niemand, weil kein Test und kein Golden je ein Logo führte. Die Prüfung
+  sieht jetzt auf den Wert statt nur auf den Eigenschaftsnamen: Was die Eigenschaft abschaltet
+  (`0`, `none`), setzt keine Farbe, die im Dunkeln hell bleiben könnte.
+
+  Dazu zwei Einträge mehr in der Liste der umschaltpflichtigen Eigenschaften. `border-left:`
+  ist neu und trägt die senkrechte Linie — ohne ihn hätte die Prüfung an genau der Stelle nie
+  rot werden können, an der die Linie entsteht. Und `background-color:` steht jetzt eigens da,
+  mit leerer Klassenliste: Er fiel bis hierher zufällig unter `color:`, weil der Name als
+  Teilstring gesucht wurde; seit die Suche an der Deklaration ankert, wäre er still
+  weggefallen. Umschalten kann ihn ohnehin keine Klasse, also ist jedes Vorkommen ein Befund.
+
+- **Ein sechstes Mail-Beispiel, und es trägt ein Logo.** `examples/email/email-logo.md` mit
+  eigenem Profil daneben — keines der ausgelieferten führt eines. Damit hält zum ersten Mal ein
+  Golden fest, wie die Signatur mit Bild byteweise aussieht; der JS-Port des Signatur-Baukastens
+  auf falzmarke.com prüft gegen genau diese Dateien und konnte den Zweig bisher nicht nachbauen.
+  Dass das Beispielprofil eine reine Kopie mit genau einer geänderten Zeile ist, hält ein Test
+  fest, damit es nicht still auseinanderdriftet. (#243)
+
+- **Der Skill kennt die Signatur mit Logo jetzt auch in seiner Beschreibung.** `skill/SKILL.md`
+  nannte weder die drei Formen von `email.logo` noch den Hinweis, den `email` dazu druckt — und
+  eine Fähigkeit, die nur im Code steht, löst niemand aus: Ein Assistent wählt den Skill über
+  Name und Beschreibung vor und liest den Rumpf erst danach. Der neue Abschnitt „Signatur und
+  Logo" sagt außerdem, dass der Hinweis und die Warnung `email.logo_kontrast` weiterzugeben sind
+  — sonst hält jemand ein Logo für zugestellt, das bei einem Teil der Empfänger ein leerer
+  Kasten bleibt. (#243)
+
+### Behoben
+
+- **Kein `SyntaxWarning` mehr bei jedem Testlauf.** Ein Docstring in
+  `tests/test_vollstaendigkeit.py` erklärte die Escape-Behandlung und schrieb dabei `\*` in
+  einen gewöhnlichen String; Python warnt darüber und wird es in einer späteren Fassung als
+  Fehler behandeln. Ein `r` vor den Anführungszeichen genügt.
+
+  Der Grund, warum es zwei Wochen lang niemandem auffiel, ist der interessantere Teil: **Die
+  Warnung erscheint nur beim Kompilieren.** Liegt die `.pyc` schon vor, bleibt sie stumm — wer
+  die Suite zweimal fährt, sieht sie beim zweiten Mal nicht mehr. Deshalb bleibt es nicht beim
+  Einzeiler: `tests/test_quelltext.py` übersetzt jede der 110 Python-Dateien selbst und meldet
+  jede Warnung, unabhängig von jedem Cache. Ein Test, der sich auf pytest-Warnfilter verließe,
+  hätte dieselbe Lücke gehabt. (#248)
+
 ## v0.9.4 — 07.09.2026
 
 ### Behoben
