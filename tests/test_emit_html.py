@@ -90,7 +90,8 @@ def test_dokument_hat_sprache_und_farbschema():
     seite = html.dokument(_setze("Ein Satz.\n"))
     assert '<html lang="de">' in seite
     assert '<meta name="color-scheme" content="light dark">' in seite
-    assert f"max-width: {html.BREITE_MAX}" in seite
+    # Die Lesebreite steht seit #264 am Absatz, nicht mehr am Umschlag.
+    assert f"max-width: {html.LESEBREITE}" in seite
 
 
 @pytest.mark.parametrize("beispiel", BEISPIELE_10, ids=lambda p: p.stem)
