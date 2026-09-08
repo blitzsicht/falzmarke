@@ -442,3 +442,48 @@ def test_entwurfsfelder_startet_nichts(tmp_path, profil):
     vorher = "falzmarke.oeffnen" in sys_modul.modules
     eml.entwurfsfelder(_mit_anlage(tmp_path, profil))
     assert vorher == ("falzmarke.oeffnen" in sys_modul.modules)
+
+
+# ── Ein ständiges Bcc aus dem Profil (#272) ────────────────────────────────
+
+def test_ohne_profilfeld_aendert_sich_nichts(profil):
+    """Die tragende Gegenprobe: Ein Profil ohne `email.bcc` erzeugt keine
+    Blindkopie — sonst bekämen alle bestehenden Nachrichten still eine."""
+    assert eml.blindkopien({}, profil) == []
+    assert eml.blindkopien({"bcc": ["x@example.com"]}, profil) == ["x@example.com"]
+
+
+def test_das_profil_setzt_eine_staendige_blindkopie():
+    profil = {"email": {"bcc": "archiv@example.com"}}
+    assert eml.blindkopien({}, profil) == ["archiv@example.com"]
+    # Und sie tritt NEBEN die fachliche, nicht an ihre Stelle.
+    assert eml.blindkopien({"bcc": ["kollege@example.com"]}, profil) == [
+        "kollege@example.com", "archiv@example.com"]
+
+
+def test_dieselbe_adresse_steht_nur_einmal():
+    """Zweimal gesetzt stünde sie sichtbar doppelt im Kopf. Verglichen wird die
+    Adresse, nicht die Schreibweise — die zuerst genannte bleibt."""
+    profil = {"email": {"bcc": "archiv@example.com"}}
+    assert eml.blindkopien({"bcc": ["Archiv <archiv@example.com>"]}, profil) == [
+        "Archiv <archiv@example.com>"]
+
+
+def test_die_blindkopie_aus_dem_profil_steht_in_der_datei(tmp_path, profil):
+    """Vom Profilfeld bis in den Kopf der geschriebenen Nachricht."""
+    quelle = "kurz.\n"
+    mit_bcc = {**profil, "email": {**profil["email"], "bcc": "archiv@example.com"}}
+    nachricht = eml.baue(KOPF, mit_bcc, quelle, md.lies(quelle))
+    ziel = tmp_path / "post.eml"
+    ziel.write_bytes(nachricht.as_bytes(policy=nachricht.policy))
+    assert "archiv@example.com" in str(nachricht["Bcc"])
+    # Und sie kommt auf dem Weg zum Entwurf mit (#272, Teil 2).
+    assert eml.entwurfsfelder(ziel)["blindkopie"] == ["archiv@example.com"]
+
+
+def test_ohne_profilfeld_traegt_die_datei_keine_blindkopie(tmp_path, profil):
+    """Gegenprobe. Ohne sie belegte der Test darüber nur, dass irgendwo eine
+    Adresse steht."""
+    quelle = "kurz.\n"
+    nachricht = eml.baue(KOPF, profil, quelle, md.lies(quelle))
+    assert nachricht["Bcc"] is None

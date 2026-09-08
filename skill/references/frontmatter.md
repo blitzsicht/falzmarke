@@ -114,6 +114,13 @@ ausgehende Mail im Dokumentenmanagement landet. Zwei Dinge dazu:
   Adresse beim Erzeugen eigens, damit du im Programm nachsiehst, statt sie für erledigt zu
   halten.
 
+**Immer dieselbe Adresse? Dann ins Profil.** Wer jede ausgehende Nachricht im Archiv haben will,
+trägt sie einmal als `bcc:` in den `email:`-Block seines Absender-Profils ein (siehe die
+Feldliste weiter unten) statt in jede Datei. Sie tritt **neben** ein `bcc:` im Frontmatter, nicht
+an dessen Stelle; dieselbe Adresse zweimal genannt steht einmal im Kopf. Still passiert das
+nicht — der Hinweis beim Erzeugen wird aus der fertigen Datei gelesen und nennt deshalb auch die
+Adresse aus dem Profil (#272).
+
 In einem Brief gibt es `bcc:` nicht — anders als `cc:`, das dort `verteiler:` heißt. Wer eine
 Kopie bekommt, ohne im Verteiler zu stehen, ist auf Papier nicht vorgesehen.
 
@@ -146,6 +153,7 @@ Die Absenderangaben stehen im Profil, nicht im einzelnen Schreiben:
 ```yaml
 email:
   absender: muster@example.de          # Pflicht
+  bcc: archiv@example.de               # optional, ständige Blindkopie — auch als Liste
   anzeigename: Erika Muster            # optional, sonst der Unterzeichner
   position: Geschäftsführerin          # optional
   web: www.example.de                  # optional

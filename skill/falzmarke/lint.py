@@ -179,6 +179,11 @@ PROFIL_EMAIL_FELDER = frozenset({
     # Ob gesiezt oder geduzt wird. Steuert NUR Warnungen, nie eine Änderung am
     # Text: Wie jemand seine Leser anspricht, entscheidet er selbst.
     "anrede",
+    # Die ständige Blindkopie ins eigene Archiv (#272). Sie tritt NEBEN ein
+    # `bcc:` im Frontmatter, nicht an dessen Stelle, und bleibt sichtbar: Der
+    # Hinweis auf eine gesetzte Blindkopie wird aus der fertigen Datei gelesen
+    # und erscheint deshalb auch für diese Adresse.
+    "bcc",
 })
 
 #: Die beiden Anreden, die das Profil kennt.
