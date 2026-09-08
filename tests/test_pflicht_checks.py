@@ -37,8 +37,8 @@ CI = REPO / ".github" / "workflows" / "ci.yml"
 SKRIPT = REPO / "scripts" / "repo-einstellungen.sh"
 
 # Die Pflicht-Checks des Rulesets `main`. Der Job `tests` hat eine Matrix mit
-# drei Betriebssystemen, also drei Checks; die übrigen vier Jobs haben keine
-# Matrix — zusammen sieben.
+# drei Betriebssystemen, also drei Checks; die übrigen fünf Jobs haben keine
+# Matrix — zusammen acht.
 #
 # Am 30.08.2026 waren es sechs, von Hand gesetzt (Issue #196, Zwischenstand).
 # Wer hier einen Job ergänzt, ergänzt auch diese Liste und fährt danach
@@ -56,10 +56,13 @@ ERWARTET = [
     # `analysiere()` nur diese Datei liest — daneben wäre er gelaufen, aber nie
     # im Ruleset gelandet.
     "Changelog-Eintrag",
+    # Seit Issue #268: „Schließt #N" schließt bei GitHub nichts. Derselbe Ort
+    # aus demselben Grund — ein Job daneben liefe, landete aber nie im Ruleset.
+    "Closing-Keyword",
 ]
 
 
-def test_die_sieben_checks_aus_dem_echten_ci_yml():
+def test_die_acht_checks_aus_dem_echten_ci_yml():
     assert pflicht_checks.pflicht_checks(CI) == ERWARTET
 
 
@@ -260,7 +263,7 @@ def test_die_datei_ist_gueltiges_yaml_mit_pyyaml_lesbar():
     synthetischen Dateien arbeiten."""
     daten = yaml.safe_load(CI.read_text(encoding="utf-8"))
     assert set(daten["jobs"]) == {"tests", "frischklon", "skill-paket",
-                                 "pdf-konformitaet", "changelog"}
+                                 "pdf-konformitaet", "changelog", "closing-keyword"}
 
 
 # ── Das Skript ruft keinen CI-Lauf mehr ab ──────────────────────────────────
