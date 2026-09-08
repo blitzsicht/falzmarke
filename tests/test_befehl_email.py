@@ -260,7 +260,12 @@ def _kein_echtes_fenster(monkeypatch):
     def _nein(*_a, **_k):
         raise AssertionError("ein Test wollte wirklich ein Programm starten")
 
+    # BEIDE Wege: `_fuehre_aus` für die Dateiübergabe, `_lauf` für alles, was
+    # startet — seit #263 gehört der Entwurfsweg dazu. Nur `_fuehre_aus` zu
+    # ersetzen reichte damals nicht: Die Suite legte auf dem Entwicklerrechner
+    # echte Outlook-Entwürfe an, und auf `macos-latest` hätte sie es auch getan.
     monkeypatch.setattr(oeffnen, "_fuehre_aus", _nein)
+    monkeypatch.setattr(oeffnen, "_lauf", _nein)
 
 
 class _Starter:
@@ -286,6 +291,10 @@ def starter(monkeypatch):
     gefaelscht = _Starter()
     monkeypatch.setattr(oeffnen, "_fuehre_aus", gefaelscht)
     monkeypatch.setenv("FALZMARKE_OEFFNEN", "immer")  # sonst blockt CI= den Lauf
+    # Diese Fixture misst den Weg der DATEIÜBERGABE. Der Entwurf hat seine
+    # eigenen Tests weiter unten; hier wird er abgeschaltet, damit die Messung
+    # nicht davon abhängt, ob auf dem Läufer zufällig ein Mailprogramm liegt.
+    monkeypatch.setenv("FALZMARKE_ENTWURF", "nie")
     return gefaelscht
 
 
@@ -375,6 +384,7 @@ def test_ein_fehlgeschlagenes_oeffnen_entwertet_die_datei_nicht(
     monkeypatch.setattr(oeffnen, "_fuehre_aus",
                         lambda *a, **k: (3, "kein Programm zugeordnet"))
     monkeypatch.setenv("FALZMARKE_OEFFNEN", "immer")
+    monkeypatch.setenv("FALZMARKE_ENTWURF", "nie")
     pfad = _schreibe(tmp_path)
     code = falzmarke.main(["email", str(pfad), "--profiles", str(PROFILE), "--oeffnen"])
     ausgabe = capsys.readouterr()
@@ -476,3 +486,70 @@ def test_gegenprobe_die_cli_laedt_es_sehr_wohl(tmp_path):
                           env={**os.environ, "FALZMARKE_OEFFNEN": "nie"})
     assert lauf.returncode == 0, lauf.stderr
     assert lauf.stdout.strip().endswith("geladen"), lauf.stdout
+
+
+# ── Der Entwurf am Befehl (#263) ────────────────────────────────────────────
+
+def test_das_sicherheitsnetz_faengt_auch_den_entwurfsweg():
+    """Die Gegenprobe zum Netz selbst.
+
+    Vor #263 ersetzte es nur `_fuehre_aus`. Der Entwurfsweg lief daran vorbei
+    und legte beim ersten vollen Lauf echte Entwürfe an — auf `macos-latest`
+    wäre das ein Mailprogramm auf einem fremden Läufer gewesen.
+    """
+    from falzmarke import oeffnen
+
+    with pytest.raises(AssertionError, match="wirklich ein Programm starten"):
+        oeffnen._lauf(["osascript", "-e", "1"], 5)
+
+
+def test_der_entwurf_wird_gemeldet(tmp_path, monkeypatch, capsys):
+    from falzmarke import oeffnen
+
+    monkeypatch.setattr(oeffnen, "entwurf", lambda *_a, **_k: ("Testprogramm", ""))
+    code = falzmarke.main(["email", str(_schreibe(tmp_path)), "--profiles", str(PROFILE),
+                           "--oeffnen"])
+    ausgabe = capsys.readouterr()
+    assert code == 0
+    assert "OK  Entwurf angelegt: Testprogramm" in ausgabe.out
+    # Was das Programm selbst hinzufügt, steht in keiner Prüfung — also wird es
+    # gesagt (08.09.2026: Outlook hängt die Konto-Signatur an).
+    assert "Signatur des Kontos" in ausgabe.err
+
+
+def test_ohne_entwurf_bleibt_der_alte_weg(tmp_path, monkeypatch, starter, capsys):
+    """Der Rückfall ist die Zusage, nicht der Notnagel: Wo der Entwurfsweg
+    nicht trägt, wird die Datei übergeben wie vor #263."""
+    from falzmarke import oeffnen
+
+    monkeypatch.setattr(oeffnen, "entwurf",
+                        lambda *_a, **_k: (None, "kein Mailprogramm gefunden"))
+    code = falzmarke.main(["email", str(_schreibe(tmp_path)), "--profiles", str(PROFILE),
+                           "--oeffnen"])
+    ausgabe = capsys.readouterr()
+    assert code == 0
+    assert "kein Entwurf: kein Mailprogramm gefunden" in ausgabe.err
+    assert "OK  geöffnet" in ausgabe.out
+    assert starter.anzahl == 1, "die Datei wurde nicht übergeben"
+
+
+def test_eine_rote_pruefung_bekommt_auch_keinen_entwurf(tmp_path, monkeypatch):
+    """Regel 0 gilt für den neuen Weg genauso: Was seine eigene Prüfung nicht
+    besteht, landet in keinem Fenster, in dem der nächste Griff „Senden" ist."""
+    from falzmarke import oeffnen, pruefung_eml
+
+    class _Durchgefallen:
+        ok = False
+        pruefungen: list = []
+
+        def als_text(self, ausfuehrlich=False):
+            return "FEHL"
+
+    gerufen = []
+    monkeypatch.setattr(pruefung_eml, "pruefe", lambda _pfad: _Durchgefallen())
+    monkeypatch.setattr(oeffnen, "entwurf",
+                        lambda *_a, **_k: gerufen.append(1) or ("X", ""))
+    code = falzmarke.main(["email", str(_schreibe(tmp_path)), "--profiles", str(PROFILE),
+                           "--oeffnen"])
+    assert code != 0
+    assert gerufen == [], "eine durchgefallene Nachricht wurde zum Entwurf gemacht"

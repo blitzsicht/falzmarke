@@ -813,3 +813,59 @@ def schreibe(nachricht: EmailMessage, ziel: Path, *, html: str, text: str) -> li
         os.replace(vorlaeufig, pfad)
         geschrieben.append(pfad)
     return geschrieben
+
+
+def entwurfsfelder(pfad) -> dict:
+    """Was aus einer fertigen `.eml` in einen Entwurf wandert (#263).
+
+    Gelesen wird die **geschriebene Datei**, nicht der Baum, aus dem sie
+    entstand: Der Entwurf soll das tragen, was gemessen wurde, und nicht eine
+    zweite Ableitung derselben Quelle, die daneben laufen kann.
+
+    Eine reine Funktion — sie startet nichts und kennt kein Mailprogramm. Was
+    mit den Feldern geschieht, entscheidet `falzmarke.oeffnen`; die Grenze
+    zwischen „E-Mail verstehen" und „ein fremdes Programm starten" bleibt damit
+    dieselbe wie vorher (ADR 0038, Punkt 5).
+
+    Anhänge kommen als Name und Inhalt zurück, nicht als Pfad: In der `.eml`
+    stehen sie base64-kodiert, und ihre ursprünglichen Pfade kennt die Datei
+    nicht mehr. Wer sie an ein Programm übergeben will, schreibt sie vorher
+    heraus — das tut `oeffnen.entwurf()` in einem Verzeichnis, das es danach
+    wieder abräumt.
+    """
+    import email as email_modul
+    from email import policy as policy_modul
+
+    nachricht = email_modul.message_from_bytes(Path(pfad).read_bytes(),
+                                               policy=policy_modul.default)
+
+    def _adressen(feld: str) -> list[str]:
+        wert = nachricht.get(feld)
+        if not wert:
+            return []
+        # Über `addresses` des Headers statt über einen Split an Kommas: In
+        # einem Anzeigenamen darf ein Komma stehen („Gottl, Franz <x@y.de>"),
+        # und ein naiver Split zerlegte genau die Adressen, die einen Namen
+        # tragen. Der Name selbst bleibt hier draußen — in den Entwurf geht die
+        # Adresse, den Namen kennt das Adressbuch des Programms.
+        return [teil.addr_spec for teil in wert.addresses if teil.addr_spec]
+
+    html = ""
+    anhaenge: list[tuple[str, bytes]] = []
+    for teil in nachricht.walk():
+        if teil.get_content_maintype() == "multipart":
+            continue
+        if teil.get_content_disposition() == "attachment":
+            name = teil.get_filename() or "Anlage"
+            anhaenge.append((name, teil.get_payload(decode=True) or b""))
+        elif teil.get_content_type() == "text/html" and not html:
+            html = teil.get_payload(decode=True).decode(
+                teil.get_content_charset() or "utf-8")
+
+    return {
+        "betreff": str(nachricht.get("Subject") or ""),
+        "an": _adressen("To"),
+        "kopie": _adressen("Cc"),
+        "html": html,
+        "anhaenge": anhaenge,
+    }
