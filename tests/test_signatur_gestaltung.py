@@ -80,7 +80,16 @@ def test_jede_regel_traegt_important():
 SABOTAGEN = [
     ("ein zweiter Block", lambda s: s.replace("</head>", "<style>p{color:red}</style>\n</head>")),
     ("eine Farbe geändert", lambda s: s.replace(html.TINTE_DUNKEL, "#ff0000")),
-    ("eine Regel mehr", lambda s: s.replace("</style>", "  p { display: none }\n</style>")),
+    # „eine Regel mehr" war bis #275 ein Verstoß: Der Block war eine Konstante
+    # und sonst nichts. Seitdem darf HINTER dem eigenen Teil ein mitgebrachter
+    # stehen — geprüft, nicht verglichen. Was rot bleiben muss, ist ein Zusatz,
+    # der nach außen zeigt oder ein zweites Dokument aufmacht.
+    ("ein @import dahinter",
+     lambda s: s.replace("</style>", "  @import url('x.css');\n</style>")),
+    ("Markup im Block", lambda s: s.replace("</style>", "  <b>x</b>\n</style>")),
+    ("etwas VOR dem eigenen Teil",
+     lambda s: s.replace('<style type="text/css">',
+                         '<style type="text/css">p{color:red}')),
     ("ein Leerzeichen mehr", lambda s: s.replace("@media (prefers", "@media  (prefers")),
     ("!important entfernt", lambda s: s.replace(" !important", "")),
     ("Skript daneben", lambda s: s.replace("</head>", "<script>x</script>\n</head>")),
@@ -90,8 +99,10 @@ SABOTAGEN = [
 
 @pytest.mark.parametrize("was,sabotiere", SABOTAGEN, ids=[s[0] for s in SABOTAGEN])
 def test_die_ausnahme_ist_nicht_dehnbar(was, sabotiere):
-    """Der Block ist eine Konstante des Werkzeugs, Zeichen für Zeichen
-    verglichen. Alles daneben bleibt ein Verstoß."""
+    """Der eigene Teil des Blocks bleibt eine Konstante, Zeichen für Zeichen
+    verglichen — er steht VORN. Ein mitgebrachter Teil darf dahinter stehen
+    (#275), aber nur, wenn er nichts nach außen holt und kein zweites Dokument
+    aufmacht."""
     assert html.verstoesse(sabotiere(_seite())), f"{was} blieb unbemerkt"
 
 
