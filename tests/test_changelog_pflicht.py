@@ -211,3 +211,41 @@ def test_ein_pr_ohne_labels_bricht_nicht_ab(tmp_path):
     assert labels == ()
     gut, _ = changelog_pflicht.pruefe(pfade, autor, labels, verzeichnis=leer(tmp_path))
     assert not gut
+
+
+# ── Die Meldung muss beim Aufrufer ankommen (#276) ──────────────────────────
+
+def test_die_meldung_bleibt_unter_cp1252_lesbar(tmp_path):
+    """Die Meldung trägt „ und “ — unter Windows schreibt Python in cp1252.
+
+    Gemessen am 08.09.2026 am Schwester-Prüfer `closing_keyword.py`: Der
+    Windows-Lauf zu PR #270 scheiterte nicht am Prüfer, sondern an seiner
+    Ausgabe. `stderr` kam als None zurück, weil sich die Bytes nicht als UTF-8
+    lesen ließen — der Aufrufer bekam nichts, obwohl der Befund richtig war.
+
+    Hier fiel es bisher nicht auf, weil der Job „Changelog-Eintrag"
+    ausschließlich auf ubuntu läuft. Der Test erzwingt cp1252 über
+    PYTHONIOENCODING und läuft damit auf jedem System, nicht nur auf einem
+    Windows-Läufer. Ohne `_ausgabe_auf_utf8()` endet er mit der Meldung aus der
+    CI: „'utf-8' codec can't decode byte 0xdf".
+    """
+    import os
+    import subprocess
+
+    skript = REPO / "scripts" / "changelog_pflicht.py"
+    umgebung = {**os.environ, "PYTHONIOENCODING": "cp1252"}
+
+    # Ein Vorgang, der das Werkzeug ändert und keinen Eintrag mitbringt: Der
+    # Prüfer MUSS hier melden, sonst prüfte der Test eine leere Ausgabe.
+    befund = subprocess.run(
+        [sys.executable, str(skript), "--verzeichnis", str(tmp_path), CODE],
+        capture_output=True, text=True, encoding="utf-8", env=umgebung)
+    assert befund.returncode == 1, befund.stdout + (befund.stderr or "")
+    assert "changelog.d" in befund.stderr
+
+    # Gegenpart im selben Lauf: mit Eintrag geht derselbe Aufruf durch — sonst
+    # bewiese der rote Fall nur, dass irgendetwas fehlschlägt.
+    frei = subprocess.run(
+        [sys.executable, str(skript), "--verzeichnis", str(tmp_path), CODE, EINTRAG],
+        capture_output=True, text=True, encoding="utf-8", env=umgebung)
+    assert frei.returncode == 0, frei.stderr

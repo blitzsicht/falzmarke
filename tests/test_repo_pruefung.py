@@ -481,3 +481,28 @@ def test_beispiel_im_docstring_ist_lauffaehig_aufgebaut():
     muss zum echten argparse-Interface passen."""
     text = (REPO / "scripts" / "repo_pruefung.py").read_text(encoding="utf-8")
     assert "python3 scripts/repo_pruefung.py --repo" in text
+
+
+# ── Die Fluchtwege der Prüfer müssen es als Label wirklich geben (#276) ──────
+
+def test_beide_ausnahme_labels_stehen_im_einstellungs_skript():
+    """Ein dokumentierter Fluchtweg ohne Label ist keiner.
+
+    `changelog_pflicht.py` und `closing_keyword.py` nennen je ein Label als
+    ausdrückliche Ausnahme, und `CONTRIBUTING.md` beschreibt den ersten. Gemessen
+    am 08.09.2026 gab es `ohne-changelog` im Repository überhaupt nicht — 37
+    Labels, keins mit dem Namen. Wer die Ausnahme setzen wollte, fand sie nicht.
+
+    Der Test liest die Namen aus den **Prüfern**, nicht aus einer zweiten Liste:
+    Eine Kopie hier driftete genauso still wie die fehlende Zeile im Skript. Wird
+    ein Label umgetauft, fällt der Test — statt dass ein Fluchtweg zumacht.
+    """
+    import changelog_pflicht
+    import closing_keyword
+
+    skript = (REPO / "scripts" / "repo-einstellungen.sh").read_text(encoding="utf-8")
+    for name in (changelog_pflicht.AUSNAHME_LABEL, closing_keyword.AUSNAHME_LABEL):
+        assert f"\n{name}|" in skript, (
+            f"„{name}“ wird von einem Prüfer als Ausnahme angeboten, steht aber "
+            f"nicht im LABELS-Block von repo-einstellungen.sh — das Label "
+            f"existiert dann nur, wenn es jemand von Hand anlegt.")
