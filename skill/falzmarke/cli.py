@@ -1193,6 +1193,24 @@ def _verify_email(args, pfad: Path) -> int:
 
 
 def befehl_preview(args) -> int:
+    """Vorschau — mit derselben Vorpruefung wie `render` (#267).
+
+    Bis v0.9.5 setzte dieser Befehl als einziger, ohne vorher zu pruefen: Ein
+    Brief, den `render` mit Code 1 ablehnte, ergab hier anstandslos ein PNG. Ein
+    Bild sieht aber aus wie das Ergebnis, und wer es weitergibt, gibt einen
+    Brief weiter, dessen Ablehnungsgrund darin nicht zu sehen ist.
+
+    Nachgemessen wird weiterhin nichts — es entsteht kein PDF, also gibt es
+    keine Geometrie zu messen. Das ist der Unterschied zu `render` und der
+    Grund, warum die Vorschau kein Beleg ist.
+    """
+    vorpruefung = linte(Path(args.brief), Path(args.profiles) if args.profiles else None)
+    if not vorpruefung.ok:
+        print(vorpruefung.als_text(Path(args.brief).name), file=sys.stderr)
+        return EXIT_EINGABE
+    for befund in vorpruefung.befunde:
+        print(befund.als_zeile(Path(args.brief).name), file=sys.stderr)
+
     png, _ = rendere(
         Path(args.brief),
         Path(args.output) if args.output else None,

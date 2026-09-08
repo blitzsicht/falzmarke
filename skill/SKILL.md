@@ -153,10 +153,10 @@ Lochmarken kommt der Text mit, und die Felder bleiben Lücken. `profil` ist imme
 auch bei einem Brief, den falzmarke selbst gesetzt hat. Der Befehl endet mit 0, auch wenn Lücken
 bleiben — sie sind das erwartete Ergebnis, kein Fehler.
 
-**`preview` — PNG der ersten Seite.** Für einen schnellen Blick, **nicht** für das, was jemand
-bekommt: `preview` prüft die Eingabe nicht und misst das Ergebnis nicht nach. Es setzt auch, was
-`render` mit Code 1 ablehnt — nachgemessen ist ein Brief erst über `render` (Regel 0). Die
-Vorschau im Ablauf oben entsteht deshalb mit `render --png`, nicht hiermit.
+**`preview` — PNG der ersten Seite.** Prüft die Eingabe wie `render` und schreibt bei einem
+Fehler kein Bild. **Nachgemessen wird trotzdem nichts**: Es entsteht kein PDF, also gibt es
+keine Geometrie zu messen — eine Vorschau ist deshalb nie ein Beleg. Für das, was jemand
+bekommt, bleibt `render --png` (Regel 0).
 
 **`init` — Frontmatter-Vorlage schreiben.**
 
