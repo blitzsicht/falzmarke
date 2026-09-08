@@ -347,6 +347,49 @@ jobs:
             --json files,author,labels > /tmp/pr.json
           python3 scripts/changelog_pflicht.py --pr-json /tmp/pr.json
 
+  closing-keyword:
+    # „Schliesst #261" schliesst nichts — GitHub liest nur englische Keywords
+    # (Issue #268). Gemessen an PR #262: Der Rumpf trug den Satz, nach dem
+    # Squash-Merge stand das Issue weiter auf OPEN.
+    #
+    # Eigener Job und kein Schritt im Job „Changelog-Eintrag": Ein Job traegt
+    # genau eine Aussage. Steckte die Pruefung dort mit drin, meldete der rote
+    # Check „Changelog-Eintrag" einen Vorgang, der seinen Changelog-Eintrag hat.
+    #
+    # Er steht wie jener HIER in ci.yml und nicht in einem eigenen Workflow:
+    # scripts/pflicht_checks.py liest nur ci.yml, und ein Job daneben liefe
+    # zwar, landete aber nie im Ruleset. `if:` traegt keinen der
+    # NUR_MAIN_MARKER — der Job zaehlt als Pflicht-Check und erscheint dort
+    # unter seinem `name:`.
+    #
+    # Wirksam wird er erst, wenn ein Maintainer einmal
+    # `bash scripts/repo-einstellungen.sh` faehrt. Bis dahin laeuft er und ist
+    # sichtbar, blockiert aber nicht.
+    name: Closing-Keyword
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read       # `gh pr view` liest Rumpf und Labels
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Deutschen Schliesssatz ohne englisches Keyword melden
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NUMMER: ${{ github.event.pull_request.number }}
+        run: |
+          # Rumpf und Labels in EINEM Stueck als JSON — aus demselben Grund wie
+          # beim Changelog-Job: Ein Label darf Leerzeichen tragen, und ein
+          # Rumpf traegt Zeilenumbrueche.
+          gh pr view "$NUMMER" --repo "$GITHUB_REPOSITORY" \
+            --json body,labels > /tmp/pr-rumpf.json
+          python3 scripts/closing_keyword.py --pr-json /tmp/pr-rumpf.json
+
 # Hier stand bis zum 30.08.2026 der Job `renders-aktualisieren` (Issue #188).
 #
 # Er lud nach jedem Merge das Artefakt `renders-ubuntu-latest` herunter — das
