@@ -2,6 +2,119 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.9.6 — 08.09.2026
+
+### Geändert
+
+- **Der Skill nennt jetzt alle seine Befehle.** `serie`, `einlesen`, `preview`, `init` und `mcp`
+  standen bis hierher nur in `docs/cli.md` — und `docs/` liegt nicht im Skill-Paket
+  (`scripts/skill_packen.sh` kopiert `skill/`). Wer den Skill hochlud, sah fünf Befehle
+  nirgends, darunter den einzigen Weg von einem fremden PDF zurück in die Quelle. Der neue
+  Abschnitt „Weitere Befehle" beschreibt sie; die Beschreibung im Kopf nennt zusätzlich den
+  Serienbrief und das Zurücklesen, weil beide einen eigenen Anlass haben, bei dem niemand von
+  sich aus an einen DIN-Skill denkt.
+
+  Dabei fiel eine Lücke in Regel 0 auf: `preview` prüfte die Eingabe nicht. Sie ist im selben
+  Zug geschlossen worden — siehe den Punkt zu #267 weiter unten.
+
+  Damit die Liste nicht beim nächsten neuen Befehl wieder still altert, zieht ein Test seine
+  Sollmenge aus `falzmarke --help` statt aus einer zweiten Aufzählung. Er wurde gegen drei
+  Sabotagen gefahren: `serie` aus dem Dokument entfernt, `init` entfernt bei stehengelassenem
+  `init-profil`, und ein erfundener Befehl in den Parser gehängt — jedes Mal rot mit Namen. (#261)
+
+- **`--oeffnen` legt einen Entwurf an, keine Lesekopie mehr.** Auf macOS entsteht damit eine
+  ausgehende Nachricht im Mailprogramm — Empfänger, Kopie, Betreff, HTML-Rumpf und alle Anhänge,
+  mit Senden-Knopf. Gedrückt wird er von einem Menschen.
+
+  Der Grund für die Änderung steht in der eigenen Messung: Eine `.eml` ist nach RFC 5322 eine
+  Nachricht und kein Entwurf. Apple Mail, Thunderbird und Outlook für Mac zeigen sie als
+  **Lesefenster**, und die Gegenprobe mit `X-Unsent: 1` ergab keinen Unterschied. Wer die
+  Nachricht abschicken wollte, musste „Weiterleiten" nehmen — mit dem zitierten Kopf, den das
+  mit sich bringt.
+
+  **Entwurf ja, Senden nie.** ADR 0038 verbot Programmsteuerung bisher ganz; die Begründung ist
+  geblieben und ein Glied weitergerückt. Was sie trägt, ist diesmal nicht nur ein Satz: kein
+  Versandbefehl im Steuerskript (an jedem Skript und am ganzen Paket gemessen), das Skript eine
+  Konstante mit `on run argv` statt einer aus Eingaben zusammengesetzten Zeichenkette, und ein
+  **Gegenlesen des Ergebnisses** — das Skript zählt am fertigen Entwurf Empfänger, Kopien und
+  Anhänge, und der Befehl hält die Zählung gegen die Vorgabe. Ein Exit-Code von 0 belegt nur,
+  dass das Skript durchlief; ein stillschweigend abgelehnter Anhang fällt erst an dieser Zählung
+  auf.
+
+  Gemessen ist der Weg für **Outlook für Mac**. Wo er nicht trägt — Windows, Linux, Apple Mail,
+  fehlende Automations-Berechtigung —, wird die `.eml` übergeben wie bisher, mit einer Meldung
+  und unverändertem Exit-Code. `FALZMARKE_ENTWURF=nie` schaltet nur den Entwurf ab und lässt die
+  Dateiübergabe stehen.
+
+  Eine Grenze, die dazugehört und nicht messbar ist: **Das Mailprogramm setzt seine eigene
+  Konto-Signatur in den Entwurf.** Trägt das Profil eine, steht sie zweimal darin. Der Befehl
+  sagt das beim Anlegen — verhindern kann er es nicht, es geschieht nach seinem letzten
+  Handgriff. (#263)
+
+### Behoben
+
+- **Die Nachricht steht linksbündig und wird nicht mehr in 600 px gequetscht.** Der Umschlag trug
+  `align="center"` bei fester Breite — ein Newsletter-Idiom, das nie begründet wurde. Sichtbar
+  wurde das am 08.09.2026 in Outlook für Mac: Die Nachricht saß mittig im Fenster, während die
+  Signatur, die das Mailprogramm darunter anfügt, am linken Rand begann, und eine vierspaltige
+  Rechnungstabelle wurde so weit in den Deckel gepresst, dass die Kopfzelle „Datum" **mitten im
+  Wort** brach und Beträge zwischen Zahl und Währung. Das Fenster war dabei mehr als doppelt so
+  breit wie die Spalte.
+
+  Die Grenze ist nicht verschwunden, sie ist umgezogen: `max-width: 640px` sitzt jetzt an
+  Absätzen und Listen, deren Zeilen sonst zu lang zum Lesen würden. Tabellen tragen sie nicht —
+  eine Tabelle ist so breit, wie ihre Spalten es verlangen. Rechtsbündige Zellen brechen
+  zusätzlich nicht mehr zwischen Zahl und Einheit; das ist eine Anweisung an die Darstellung und
+  ausdrücklich **keine** Ersetzung im Text, denn das geschützte Leerzeichen vor „EUR" steht auf
+  einer Einzelquelle und darf nach der Quellenlage nicht automatisch gesetzt werden.
+
+  Dabei fiel die Prüfung auf, die das hätte melden sollen: „Breite begrenzt" suchte irgendein
+  `max-width` im Dokument und konnte an der entscheidenden Stelle nie rot werden — sie war
+  erfüllt, gerade weil der Deckel am Umschlag saß. An ihrer Stelle stehen zwei Prüfungen, die es
+  können: „Lesebreite am Fließtext" und „Layouttabellen ohne Breitendeckel", jede mit ihrer
+  eigenen Sabotage. (#264)
+
+- **`preview` prüft die Eingabe jetzt vorweg — und schreibt bei einem Fehler kein Bild.** Es war
+  der einzige Befehl, der setzte, ohne zu prüfen: `render`, `email` und `serie` rufen die
+  Vorprüfung seit jeher auf, `befehl_preview` nicht. Ein Brief mit einem unbekannten
+  Frontmatter-Feld endete unter `render` mit Code 1 und unter `preview` mit einem fertigen PNG.
+
+  Das Bild sieht aus wie das Ergebnis. Wer es weitergibt, gibt einen Brief weiter, dessen
+  Ablehnungsgrund darin nicht zu sehen ist — Regel 0 („kein PDF ohne grünen `check`") hatte
+  damit eine Tür, die niemand für eine hielt. `preview` übernimmt jetzt denselben Block wie
+  `render`: Vorprüfung, bei einem Fehler Code 1 und kein Bild, Warnungen weiterhin nur gedruckt.
+
+  **Nachgemessen wird weiterhin nichts**, und das bleibt so: Es entsteht kein PDF, also gibt es
+  keine Geometrie zu messen. Eine Vorschau ist ein Blick, kein Beleg — nur stand das bis hierher
+  nirgends. Der Wechsel steht unter „Behoben", betrifft aber ein Verhalten, auf das sich jemand
+  außerhalb des Repos verlassen haben könnte: Wer `preview` bisher auf einem unfertigen Entwurf
+  laufen ließ, bekommt jetzt den Befund statt eines Bildes. (#267)
+
+### Infrastruktur
+
+- **Die CI meldet einen deutschen Schließsatz, den GitHub nicht liest.** „Schließt #261" im
+  PR-Rumpf sieht aus wie eine Zusage und ist keine: GitHub wertet beim Merge ausschließlich
+  englische Keywords aus. Gemessen an PR #262 — der Rumpf trug den Satz, nach dem Squash-Merge
+  stand das Issue weiter offen und musste von Hand geschlossen werden. Aufgefallen ist es nur,
+  weil jemand hinterher nachgesehen hat; das ist der teure Teil.
+
+  `scripts/closing_keyword.py` prüft den Rumpf **je Nummer**, nicht als Menge: Ein englisches
+  Keyword auf einen anderen Vorgang deckt den deutschen Satz nicht. Sätze in Auszügen zählen
+  nicht mit — ein Prüfer, der an seiner eigenen Beschreibung anschlägt, ist keiner. Der neue
+  Job „Closing-Keyword" in `ci.yml` ruft ihn auf; soll ein Vorgang bewusst offen bleiben, gibt
+  ein Maintainer dem Pull Request das Label `ohne-autoschluss`.
+
+  Die Meldung bleibt dabei unter Windows lesbar: Dort schreibt Python in cp1252, und die
+  typografischen Anführungszeichen darin beendeten den ersten Lauf mit einem
+  UnicodeEncodeError — der Aufrufer bekam gar nichts, obwohl der Befund richtig war. Dieselbe
+  Vorkehrung wie in `falzmarke/cli.py` seit dem 25.08.2026. (`scripts/changelog_pflicht.py`
+  druckt dieselben Zeichen und hat sie noch nicht; dort fällt es nur deshalb nicht auf, weil
+  der Job ausschließlich auf ubuntu läuft.)
+
+  Wirksam als Pflicht-Check wird er, sobald ein Maintainer einmal
+  `bash scripts/repo-einstellungen.sh` fährt — `scripts/pflicht_checks.py` liest den Job aus
+  `ci.yml` und trägt ihn dort ein. Bis dahin läuft er sichtbar, blockiert aber nicht. (#268)
+
 ## v0.9.5 — 08.09.2026
 
 ### Neu
