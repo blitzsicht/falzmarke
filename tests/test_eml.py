@@ -356,3 +356,48 @@ def test_der_umschlag_traegt_beide_breiten():
     assert "max-width: 600px" in seite, "der Stil fehlt — alle anderen schrumpfen nicht mit"
     assert 'role="presentation"' in seite
     assert '<div style="max-width' not in seite, "der alte div-Umschlag steht noch da"
+
+
+# ── Was aus der fertigen Datei in einen Entwurf wandert (#263) ──────────────
+
+def _mit_anlage(tmp_path, profil):
+    """Eine Nachricht mit Kopie und einer Anlage, geschrieben wie im Betrieb."""
+    anlage = tmp_path / "rechnung.pdf"
+    anlage.write_bytes(b"%PDF-1.7\n" + b"x" * 100)
+    quelle = "wie besprochen die Unterlagen.\n"
+    kopf = {**KOPF, "cc": ["Buchhaltung <buch@example.com>"],
+            "anlagen_dateien": [str(anlage)]}
+    nachricht = eml.baue(kopf, profil, quelle, md.lies(quelle))
+    ziel = tmp_path / "post.eml"
+    ziel.write_bytes(nachricht.as_bytes(policy=nachricht.policy))
+    return ziel
+
+
+def test_entwurfsfelder_liest_die_geschriebene_datei(tmp_path, profil):
+    felder = eml.entwurfsfelder(_mit_anlage(tmp_path, profil))
+    assert felder["betreff"] == KOPF["betreff"]
+    assert felder["an"] and all("@" in a for a in felder["an"])
+    assert felder["kopie"] == ["buch@example.com"]
+    assert felder["html"].startswith("<!DOCTYPE html>")
+    assert [(n, len(b)) for n, b in felder["anhaenge"]] == [("rechnung.pdf", 109)]
+
+
+def test_die_adressen_kommen_ohne_anzeigenamen(tmp_path, profil):
+    """In den Entwurf geht die Adresse. Ein Anzeigename darf ein Komma tragen —
+    in Anführungszeichen, wie RFC 5322 es verlangt. An einem Komma zu trennen
+    zerlegte genau diese Adressen."""
+    quelle = "kurz.\n"
+    kopf = {**KOPF, "an": ['"Muster, Anna" <anna@example.com>']}
+    nachricht = eml.baue(kopf, profil, quelle, md.lies(quelle))
+    ziel = tmp_path / "komma.eml"
+    ziel.write_bytes(nachricht.as_bytes(policy=nachricht.policy))
+    assert eml.entwurfsfelder(ziel)["an"] == ["anna@example.com"]
+
+
+def test_entwurfsfelder_startet_nichts(tmp_path, profil):
+    """Die Grenze aus ADR 0038, Punkt 5: Wer die Felder liest, hat noch kein
+    fremdes Programm angefasst."""
+    import sys as sys_modul
+    vorher = "falzmarke.oeffnen" in sys_modul.modules
+    eml.entwurfsfelder(_mit_anlage(tmp_path, profil))
+    assert vorher == ("falzmarke.oeffnen" in sys_modul.modules)

@@ -85,37 +85,60 @@ Wer aus der Datei eine ausgehende Mail machen will, hat zwei Wege:
 Das vollständige Protokoll mit Matrix und Gegenprobe:
 [`docs/mailprogramme-2026-08-27.md`](mailprogramme-2026-08-27.md).
 
-### Die Datei dorthin bekommen: `--oeffnen`
+### Den Entwurf bekommen: `--oeffnen`
 
 ```bash
 falzmarke email nachricht.md --oeffnen
 ```
 
-Übergibt die fertige `.eml` dem Programm, das im System für `.eml` eingetragen ist. Das erspart
-den Weg über den Dateimanager — und sonst nichts.
+```
+OK  geschrieben: nachricht.eml
+OK  verify: 25/25 Prüfungen bestanden
+OK  Entwurf angelegt: Microsoft Outlook
+```
 
-**Was es zusagt:** Die Nachricht ist danach im Mailprogramm, mit Empfänger, Betreff, beiden
-Teilen und den Anhängen.
+Legt auf macOS einen **Entwurf** im Mailprogramm an — Empfänger, Kopie, Betreff, den HTML-Rumpf
+und alle Anhänge. Mit Senden-Knopf; gedrückt wird er von einem Menschen (#263).
 
-**Was es nicht zusagt:** dass sie dort ein Entwurf ist. Der Befund oben gilt unverändert; der
-nächste Handgriff heißt weiterhin „Weiterleiten". Ein Werkzeug kann nicht zusagen, was das
-Programm des Nutzers entscheidet.
+**Warum nicht einfach die Datei?** Weil eine `.eml` kein Entwurf ist. Der Befund oben gilt
+unverändert: In Apple Mail, Thunderbird und Outlook für Mac erscheint sie als Lesefenster, und
+`X-Unsent: 1` ändert daran nachweislich nichts. Wer die Nachricht abschicken will, braucht
+deshalb mehr als eine Dateiübergabe.
 
-Drei Eigenschaften, die dazugehören:
+**Was es zusagt:** Die Nachricht steht als ausgehende Nachricht im Programm, und ihre Anzahl an
+Empfängern, Kopien und Anhängen ist am fertigen Objekt **nachgezählt** — ein Anhang, den das
+Programm stillschweigend abgelehnt hätte, fällt auf.
 
-- **Nur auf Verlangen.** Ohne das Flag öffnet nichts — sonst risse eine Serie von dreißig
+**Was es nicht zusagt:**
+
+- **Windows und Linux.** Dort bleibt es bei der Dateiübergabe. Ein Weg über COM ist ungemessen,
+  und was ungemessen ist, wird nicht behauptet (#108).
+- **Apple Mail.** Der `content` einer ausgehenden Nachricht nimmt dort keinen HTML-Rumpf an.
+  Statt eine Nachricht ohne ihre Auszeichnung anzulegen, wird die Datei übergeben.
+- **Was das Programm selbst hineinschreibt.** Outlook setzt die **Signatur des Kontos** in den
+  Entwurf. Trägt das Profil eine eigene, steht sie zweimal darin — der Befehl sagt das beim
+  Anlegen. Messen kann er es nicht: Es geschieht nach seinem letzten Handgriff.
+
+Vier Eigenschaften, die dazugehören:
+
+- **Nur auf Verlangen.** Ohne das Flag passiert nichts — sonst risse eine Serie von dreißig
   Nachrichten dreißig Fenster auf.
-- **Erst nach der Prüfung.** Was `verify --email` nicht besteht, wird nicht geöffnet.
-- **Ein Fehlschlag ist kein Fehler des Befehls.** Kein zugeordnetes Programm, kein Bildschirm,
-  ein Starter, den es nicht gibt: Das meldet sich auf der Fehlerausgabe, nennt den Pfad und
-  lässt den Exit-Code bei 0.
+- **Erst nach der Prüfung.** Was `verify --email` nicht besteht, wird in kein Fenster gelegt.
+- **Der Rückfall ist der alte Weg.** Kein passendes Programm, keine Automations-Berechtigung
+  (macOS fragt beim ersten Mal), fremde Plattform: Dann wird die `.eml` übergeben wie vorher.
+- **Ein Fehlschlag ist kein Fehler des Befehls.** Er meldet sich auf der Fehlerausgabe, nennt den
+  Pfad und lässt den Exit-Code bei 0.
 
 Auf einem Rechner ohne Bildschirm — gesetztes `CI`, unter Linux fehlendes `DISPLAY` — wird gar
-nicht erst gestartet. `FALZMARKE_OEFFNEN=nie` schaltet es überall ab, `=immer` überstimmt die
+nicht erst gestartet. `FALZMARKE_ENTWURF=nie` schaltet **nur den Entwurf** ab und lässt die
+Dateiübergabe stehen; `FALZMARKE_OEFFNEN=nie` schaltet beides ab, `=immer` überstimmt die
 Erkennung.
 
-Die Begründung, warum das Werkzeug hier eine Datei übergibt und kein Mailprogramm steuert, steht
-in [ADR 0038](entscheidungen/0038-oeffnen-ist-kein-versand.md).
+**Kein Versand.** Es gibt im Paket keinen Weg, eine Nachricht abzuschicken — auch nicht im
+Steuerskript. ADR 0034 gilt unverändert, und ein Test misst es am ganzen Paket.
+
+Die Begründung, wo die Grenze verläuft und warum sie sich am 08.09.2026 um ein Glied verschoben
+hat, steht in [ADR 0038](entscheidungen/0038-oeffnen-ist-kein-versand.md).
 
 ## Grenzen
 

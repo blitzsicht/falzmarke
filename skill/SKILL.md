@@ -83,20 +83,27 @@ Es entstehen `.eml` (die Nachricht) und mit `--html` eine Vorschau zum Öffnen i
 Vorschau ist das, was gezeigt wird — nicht die `.eml`, die ist für das Mailprogramm.
 
 **`--oeffnen` gehört im Gespräch dazu**, sobald ein Mensch die Nachricht wirklich abschicken
-will: Es übergibt die fertige `.eml` dem Programm, das im System dafür eingetragen ist, und
-erspart die Suche im Dateimanager. Weglassen, wenn die Nachricht bloß erzeugt oder geprüft wird,
-und immer weglassen bei Serien — dreißig Nachrichten wären dreißig Fenster.
+will: Auf macOS legt es einen **Entwurf** im Mailprogramm an — Empfänger, Kopie, Betreff, Rumpf
+und Anhänge, mit Senden-Knopf. Weglassen, wenn die Nachricht bloß erzeugt oder geprüft wird, und
+immer weglassen bei Serien — dreißig Nachrichten wären dreißig Fenster.
 
-Zwei Sätze, die dabei nicht fehlen dürfen, weil sie gemessen sind: Die Nachricht erscheint dort
-als **Lesefenster, nicht als Entwurf** — der nächste Handgriff heißt „Weiterleiten". Und wenn
-kein Programm aufgeht, ist die Datei trotzdem fertig; der Befehl endet mit 0 und nennt den Pfad.
+Drei Sätze, die dabei nicht fehlen dürfen, weil sie gemessen sind:
 
-**falzmarke versendet nichts.** Es gibt keinen Versandbefehl und keine Option, die sendet; die
-`.eml` wird im Mailprogramm geöffnet und dort abgeschickt. Warum das so bleibt, steht in
-[ADR 0034](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0034-email-ist-ausgabe.md).
-Wer nach einem Versand fragt, bekommt diese Auskunft, keinen Behelf. Auch `--oeffnen` ist keiner:
-Es übergibt eine Datei ans Betriebssystem und steuert kein Mailprogramm
-([ADR 0038](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0038-oeffnen-ist-kein-versand.md)).
+- Der Entwurfsweg ist für **Outlook für Mac** belegt. Auf Windows, unter Linux und in Apple Mail
+  wird stattdessen die `.eml` übergeben — und die erscheint dort als **Lesefenster, nicht als
+  Entwurf**; der nächste Handgriff heißt dann „Weiterleiten".
+- **Das Mailprogramm setzt seine eigene Konto-Signatur in den Entwurf.** Trägt das Profil eine
+  Signatur, steht sie zweimal darin. Wer das nicht will, fährt für diesen Weg ein Profil ohne
+  Signatur.
+- Geht gar nichts auf, ist die Datei trotzdem fertig; der Befehl endet mit 0 und nennt den Pfad.
+
+**falzmarke versendet nichts.** Es gibt keinen Versandbefehl und keine Option, die sendet — auch
+im Steuerskript des Entwurfs steht keiner. Die Nachricht wird im Mailprogramm geöffnet und dort
+von einem Menschen abgeschickt. Warum das so bleibt, steht in
+[ADR 0034](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0034-email-ist-ausgabe.md);
+wo seit dem 08.09.2026 die Grenze verläuft — Entwurf ja, Senden nie — in
+[ADR 0038](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0038-oeffnen-ist-kein-versand.md).
+Wer nach einem Versand fragt, bekommt diese Auskunft, keinen Behelf.
 
 ### Signatur und Logo
 

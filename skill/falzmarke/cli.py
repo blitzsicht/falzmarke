@@ -1100,15 +1100,33 @@ def befehl_email(args) -> int:
     if args.oeffnen:
         from falzmarke import oeffnen as oeffnen_modul
 
-        grund = oeffnen_modul.oeffne(eml_pfad)
-        if grund:
-            # Kein anderer Exit-Code: Die Datei ist geschrieben und gemessen,
-            # das ist die Zusage des Befehls (ADR 0038, Punkt 4).
-            print(f"HINWEIS  nicht geöffnet: {grund}\n"
-                  f"         Die Nachricht liegt fertig da: {eml_pfad}",
+        # Erst der Entwurf, dann die Datei (#263). Der Entwurf ist das, was
+        # gemeint ist, wenn jemand die Nachricht abschicken will: eine `.eml`
+        # öffnet in Apple Mail, Thunderbird und Outlook für Mac als
+        # LESEFENSTER, ohne Senden-Knopf — gemessen, samt der Gegenprobe mit
+        # `X-Unsent: 1`, die nichts änderte (`docs/mailprogramme-2026-08-27.md`).
+        programm, grund = oeffnen_modul.entwurf(eml_modul.entwurfsfelder(eml_pfad))
+        if programm:
+            print(f"OK  Entwurf angelegt: {programm}")
+            # Was das Programm nach dem Anlegen selbst hineinschreibt, steht in
+            # keiner Prüfung. Am 08.09.2026 gesehen: Outlook hängt die Signatur
+            # des Kontos an — mit einer Signatur im Profil steht sie zweimal da.
+            print("HINWEIS  Das Mailprogramm setzt die Signatur des Kontos zusätzlich in "
+                  "den Entwurf.\n"
+                  "         Trägt das Profil eine eigene, steht sie zweimal darin.",
                   file=sys.stderr)
         else:
-            print(f"OK  geöffnet: {eml_pfad}")
+            # Kein anderer Exit-Code: Die Datei ist geschrieben und gemessen,
+            # das ist die Zusage des Befehls (ADR 0038, Punkt 4). Der Rückfall
+            # ist der Weg, den es vor #263 allein gab.
+            print(f"HINWEIS  kein Entwurf: {grund}", file=sys.stderr)
+            grund_datei = oeffnen_modul.oeffne(eml_pfad)
+            if grund_datei:
+                print(f"HINWEIS  nicht geöffnet: {grund_datei}\n"
+                      f"         Die Nachricht liegt fertig da: {eml_pfad}",
+                      file=sys.stderr)
+            else:
+                print(f"OK  geöffnet: {eml_pfad}")
     return EXIT_OK
 
 
@@ -1561,7 +1579,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--mit-quelle", dest="mit_quelle", action="store_true",
                    help="die Markdown-Quelle als text/markdown-Teil mitschicken")
     p.add_argument("--oeffnen", action="store_true",
-                   help="die fertige .eml dem Standardprogramm übergeben")
+                   help="einen Entwurf im Mailprogramm anlegen; sonst die .eml übergeben")
     p.add_argument("--profiles")
     p.add_argument("--verbose", action="store_true", help="alle Prüfungen zeigen")
     p.set_defaults(funktion=befehl_email)

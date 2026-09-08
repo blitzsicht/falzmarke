@@ -367,11 +367,11 @@ OK  geschrieben: nachricht.html
 OK  verify: 22/22 Prüfungen bestanden
 ```
 
-Die `.eml` öffnet das Mailprogramm, die `.html` der Browser. Mit `--oeffnen` übergibt falzmarke
-die fertige Nachricht gleich dem Programm, das im System für `.eml` eingetragen ist — erst nach
-bestandener Prüfung, und ohne selbst ein Programm auszusuchen. Sie erscheint dort als
-Lesefenster, nicht als Entwurf; das ist eine Eigenschaft des Formats und in drei Programmen
-nachgemessen. Geprüft wird die **fertige Datei**:
+Die `.eml` öffnet das Mailprogramm, die `.html` der Browser. Mit `--oeffnen` legt falzmarke auf
+macOS gleich einen **Entwurf** an — Empfänger, Betreff, Rumpf und Anhänge, mit Senden-Knopf, und
+erst nach bestandener Prüfung. Wo dieser Weg nicht gemessen ist (Windows, Linux, Apple Mail),
+wird die Datei übergeben; sie erscheint dort als Lesefenster, nicht als Entwurf, und das ist eine
+Eigenschaft des Formats. Geprüft wird die **fertige Datei**:
 MIME-Aufbau, `format=flowed`, Space-Stuffing, die Signaturtrennzeile, und ob im HTML nichts
 steht, was dort nicht hingehört — kein Skript, kein externes Stylesheet, kein Zählpixel, keine
 Tabelle als Layout. `falzmarke verify --email` misst auch Dateien, die von woanders kommen.
@@ -379,9 +379,9 @@ Tabelle als Layout. `falzmarke verify --email` misst auch Dateien, die von woand
 **falzmarke versendet nichts.** Es gibt keinen Versandbefehl und keine Option, die sendet: Wer
 eine Datei erzeugt, haftet für ihren Inhalt; wer sie befördert, für Zustellung und Nachweis. Das
 sind zwei Versprechen, und falzmarke gibt nur das erste
-([ADR 0034](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0034-email-ist-ausgabe.md)). Öffnen ist davon nicht berührt und geht auch keinen
-Schritt weiter: eine Datei ans Betriebssystem übergeben — kein Entwurf, keine Steuerung des
-Mailprogramms
+([ADR 0034](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0034-email-ist-ausgabe.md)). Der Entwurf ist davon nicht berührt und geht keinen
+Schritt weiter: **Entwurf ja, Senden nie** — im Steuerskript steht kein Versandbefehl, und ein
+Test misst das am ganzen Paket
 ([ADR 0038](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0038-oeffnen-ist-kein-versand.md)).
 
 Wie die Datei aufgebaut ist, was bewusst fehlt und wo die Grenzen liegen:
