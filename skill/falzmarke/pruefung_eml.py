@@ -289,8 +289,29 @@ def _pruefe_htmlteil(teil, bericht: Bericht) -> None:
 
     bericht.wahr("Sprache ausgezeichnet", bool(re.search(r"<html[^>]+\blang=", html)),
                  "lang gesetzt", "gesetzt" if "lang=" in html else "fehlt")
-    bericht.wahr("Breite begrenzt", "max-width" in html, "max-width vorhanden",
-                 "vorhanden" if "max-width" in html else "fehlt")
+    # Bis #264 hieß diese Zeile „Breite begrenzt" und suchte irgendein
+    # `max-width` im Dokument. Sie konnte damit an der entscheidenden Stelle
+    # nicht rot werden: Der Deckel saß am Umschlag und quetschte Datentabellen,
+    # und ein Dokument ohne jeden Absatz hätte sie ebenso bestanden. Gemessen
+    # wird jetzt, was sie meint — dass die Zeilen des Fließtextes lesbar kurz
+    # bleiben. Tabellen tragen die Grenze nicht und sollen sie nicht tragen.
+    absaetze = re.findall(r"<p [^>]*>", html)
+    mit_lesebreite = [a for a in absaetze if "max-width" in a]
+    bericht.wahr("Lesebreite am Fließtext", bool(mit_lesebreite) or not absaetze,
+                 "Fließtext mit max-width",
+                 f"{len(mit_lesebreite)} von {len(absaetze)} Absätzen")
+
+    # Die Gegenrichtung, und der eigentliche Befund aus #264: Was den Text
+    # begrenzt, darf nicht das Layout begrenzen. Ein `max-width` an der
+    # Umschlagtabelle quetscht alles darin — auch die Datentabelle, die dann
+    # mitten im Wort bricht. Die Signaturtabelle zählt mit: Sie ist ebenfalls
+    # Layout und hat aus demselben Grund keinen Deckel zu tragen.
+    layout = re.findall(r'<table[^>]*role="presentation"[^>]*>', html)
+    gedeckelt = [t for t in layout if "max-width" in t]
+    bericht.wahr("Layouttabellen ohne Breitendeckel", not gedeckelt,
+                 "keine mit max-width",
+                 f"{len(gedeckelt)} von {len(layout)} gedeckelt"
+                 if gedeckelt else f"keine von {len(layout)}")
 
     # Ein 1×1-Bild ist keine Abbildung, sondern eine Messung am Empfänger.
     # Gemessen wird mit derselben Funktion, die der Emitter an sich selbst

@@ -39,11 +39,19 @@ from falzmarke import typografie
 SCHRIFTSTAPEL = "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
 TINTE = "#1a1a1a"
 RAHMEN = "#c8c8c8"
-BREITE_MAX = "600px"
-#: Dieselbe Breite ohne Einheit — als Attribut, das die Word-Engine versteht.
-#: Steht hier abgeleitet und nicht als zweite Zahl: Zwei Stellen mit derselben
-#: Breite laufen auseinander, und die eine sähe man nur in Outlook.
-BREITE_ZAHL = BREITE_MAX.removesuffix("px")
+#: Die Lesebreite des Fließtextes — und nur seine.
+#:
+#: Bis #264 deckelte diese Breite die GANZE Nachricht: Der Umschlag trug
+#: `width="600"` und `max-width: 600px`, und alles darin wurde hineingequetscht.
+#: Bei einer Datentabelle mit vier Spalten reicht das nicht — gemessen am
+#: 08.09.2026 in Outlook für Mac brach die Kopfzelle „Datum" mitten im Wort und
+#: der Betrag zwischen Zahl und Währung, während das Fenster mehr als doppelt so
+#: breit war. Der Platz war da, der Deckel ließ ihn nicht durch.
+#:
+#: Deshalb gilt die Grenze jetzt dort, wo sie hergehört: an Absätzen und Listen,
+#: deren Zeilen sonst zu lang zum Lesen würden. Tabellen tragen sie nicht — eine
+#: Tabelle ist so breit, wie ihre Spalten es verlangen.
+LESEBREITE = "640px"
 
 #: An jedem Block wiederholt, weil die Vererbung in Mail-Clients unzuverlässig ist.
 TEXTSTIL = f"font-family: {SCHRIFTSTAPEL}; font-size: 16px; line-height: 1.45; color: {TINTE};"
@@ -127,7 +135,8 @@ def umbruch() -> str:
 
 
 def absatz(inhalt: str) -> str:
-    return f'<p class="{KLASSE_TEXT}" style="margin: 0 0 {ABSTAND_UNTEN}; {TEXTSTIL}">{inhalt}</p>'
+    return (f'<p class="{KLASSE_TEXT}" style="margin: 0 0 {ABSTAND_UNTEN}; '
+            f'max-width: {LESEBREITE}; {TEXTSTIL}">{inhalt}</p>')
 
 
 def liste(punkte: list[str], nummeriert: bool = False, start: int = 1) -> str:
@@ -135,7 +144,8 @@ def liste(punkte: list[str], nummeriert: bool = False, start: int = 1) -> str:
     zeilen = [
         f'<li class="{KLASSE_TEXT}" style="margin: 0 0 4px; {TEXTSTIL}">{p}</li>' for p in punkte
     ]
-    stil = f"margin: 0 0 {ABSTAND_UNTEN}; padding-left: 22px; {TEXTSTIL}"
+    stil = (f"margin: 0 0 {ABSTAND_UNTEN}; padding-left: 22px; "
+            f"max-width: {LESEBREITE}; {TEXTSTIL}")
     if nummeriert:
         # start="1" wäre die Vorgabe und nur Rauschen im Quelltext.
         zusatz = f' start="{start}"' if start != 1 else ""
@@ -167,8 +177,24 @@ def tabelle(zeilen: list[list[str]], ausrichtungen: list[str | None]) -> str:
             richtung = AUSRICHTUNG.get(
                 ausrichtungen[spalte] if spalte < len(ausrichtungen) else None, "left"
             )
+            # `word-break: normal` steht hier, obwohl es der Vorgabewert der
+            # Sprache ist: Gemessen am 08.09.2026 trennte Outlook für Mac die
+            # Kopfzelle „Datum" mitten im Wort, sobald die Spalte schmaler war
+            # als ihr Inhalt. Ein Client, der `break-word` von sich aus setzt,
+            # wird damit überstimmt — lieber eine Spalte, die breiter wird, als
+            # ein Wort, das entzweigeht.
+            #
+            # Rechtsbündig heißt in einer Datentabelle nach DIN 5008: Zahlen.
+            # Die brechen nicht zwischen Wert und Einheit. Das ist bewusst
+            # KEINE Ersetzung im Text — das geschützte Leerzeichen vor „EUR"
+            # steht auf einer Einzelquelle und darf deshalb nicht automatisch
+            # gesetzt werden (`regeln.darf_automatisch_ersetzen`). Was hier
+            # steht, ändert die Darstellung, nicht die Zeichen.
             stil = (f"border: 1px solid {RAHMEN}; padding: 5px 8px; "
-                    f"text-align: {richtung}; {TEXTSTIL}")
+                    f"text-align: {richtung}; word-break: normal; "
+                    f"overflow-wrap: normal; {TEXTSTIL}")
+            if richtung == "right":
+                stil += " white-space: nowrap;"
             if nummer == 0:
                 # Fett zusätzlich semantisch, nicht nur als Stil — wie in
                 # emit.py. Wo das CSS nicht ankommt (Textansicht, Vorlesen),
@@ -276,19 +302,24 @@ def dokument(rumpf: str, sprache: str = "de", vorspann: str = "") -> str:
         "</head>\n"
         f'<body class="{KLASSE_TEXT}" style="margin: 0; padding: 16px; {TEXTSTIL}">\n'
         # Umschlag als Tabelle, nicht als `div` (Issue #104): Das klassische
-        # Outlook rechnet mit der Word-Engine und wertet `max-width` nicht aus
-        # — die Nachricht liefe dort über die volle Fensterbreite, während sie
-        # überall sonst bei 600 px bleibt. Die Breite steht deshalb ZWEIMAL da:
-        # als Attribut `width`, das Word versteht, und als `width: 100%` mit
-        # `max-width` für alle anderen, die dann mitschrumpfen. Ein einzelner
-        # Wert könnte nur eines von beidem.
+        # Outlook rechnet mit der Word-Engine und versteht von den beiden
+        # Breitenangaben nur das Attribut. Beide sagen jetzt dasselbe — die
+        # Nachricht nimmt die Breite, die das Fenster hergibt.
+        #
+        # Bis #264 stand hier `width="600"`, `max-width: 600px` und
+        # `align="center"`. Der Deckel quetschte Datentabellen (siehe
+        # `LESEBREITE`), und die Zentrierung war ein Newsletter-Idiom, das nie
+        # begründet wurde: Sie setzte die Nachricht mittig ins Fenster, während
+        # die Signatur, die das Mailprogramm darunter anfügt, am linken Rand
+        # beginnt — zwei Ausrichtungen in einem Fenster. Ein Geschäftsbrief
+        # beginnt links.
         #
         # `role="presentation"` ist Pflicht und nicht Zierde: Ohne die Marke
         # liest ein Screenreader den Umschlag als Datensatz vor, und die
         # Prüfung in `verstoesse` lehnt ihn ab.
-        f'<table role="presentation" width="{BREITE_ZAHL}" align="center" '
+        f'<table role="presentation" width="100%" align="left" '
         f'cellpadding="0" cellspacing="0" border="0" '
-        f'style="width: 100%; max-width: {BREITE_MAX}; border-collapse: collapse;">\n'
+        f'style="width: 100%; border-collapse: collapse;">\n'
         f'<tr><td style="padding: 0;">\n'
         f"{vorspann}{rumpf}"
         "</td></tr>\n</table>\n</body>\n</html>\n"

@@ -107,7 +107,13 @@ SABOTAGEN = [
      lambda s: s.replace("</head>", '<link rel=3D"stylesheet" href=3D"https://x.invalid/a.css">'
                                     "</head>", 1)),
     ("Sprache ausgezeichnet", lambda s: s.replace('<html lang=3D"de">', "<html>", 1)),
-    ("Breite begrenzt", lambda s: s.replace("max-width:", "min-width:")),
+    ("Lesebreite am Fließtext", lambda s: s.replace("max-width:", "min-width:")),
+    # Der Befund aus #264, in seiner Gegenrichtung: Ein Deckel am Umschlag
+    # quetscht alles darin — bis eine Datentabelle mitten im Wort bricht.
+    # Genau diese Zeile stand bis dahin im Emitter und fiel niemandem auf.
+    ("Layouttabellen ohne Breitendeckel",
+     lambda s: s.replace('role=3D"presentation" ',
+                         'role=3D"presentation" style=3D"max-width: 600px" ', 1)),
     ("Kein Zählpixel",
      lambda s: s.replace("</body>", '<img src=3D"cid:x" alt=3D"x" width=3D"1" height=3D"1">'
                                     "</body>", 1)),
