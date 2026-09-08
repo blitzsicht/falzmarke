@@ -117,6 +117,36 @@ def test_preview_erzeugt_png(tmp_path):
     assert (tmp_path / "v.png").is_file()
 
 
+def test_preview_bricht_bei_einem_eingabefehler_ab(tmp_path):
+    """`preview` prueft die Eingabe wie `render` — und schreibt dann nichts (#267).
+
+    Zwei Faelle in EINEM Lauf, weil der rote allein nichts belegte: Er zeigte
+    nur, dass irgendetwas fehlschlaegt. Die Kontrollgruppe ist derselbe Brief
+    ohne das eine unbekannte Feld; sie muss weiter durchgehen, sonst waere der
+    Gate zu scharf statt richtig.
+
+    Geprueft wird beides: der Code UND die Abwesenheit der Datei. Ein Exit-Code
+    allein sagt nicht, dass nichts geschrieben wurde — bis v0.9.5 lag hier ein
+    PNG mit Code 0.
+    """
+    gut = tmp_path / "gut.md"
+    rufe("init", gut, "--profil", "example", "--betreff", "Ein Betreff")
+    kaputt = tmp_path / "kaputt.md"
+    kaputt.write_text(
+        gut.read_text(encoding="utf-8").replace(
+            "profil: example", "profil: example\nunbekanntes_feld: x", 1),
+        encoding="utf-8")
+
+    schlecht = rufe("preview", kaputt, "-o", tmp_path / "k.png")
+    assert schlecht.returncode == falzmarke.EXIT_EINGABE, schlecht.stdout + schlecht.stderr
+    assert "unbekanntes_feld" in schlecht.stderr
+    assert not (tmp_path / "k.png").exists(), "trotz Eingabefehler ein Bild geschrieben"
+
+    kontrolle = rufe("preview", gut, "-o", tmp_path / "g.png")
+    assert kontrolle.returncode == falzmarke.EXIT_OK, kontrolle.stderr
+    assert (tmp_path / "g.png").is_file()
+
+
 def test_mehrseitige_vorschau_schreibt_je_seite_eine_datei(tmp_path):
     """Typst verlangt für mehrseitige PNGs einen Platzhalter im Dateinamen."""
     quelle = REPO / "examples" / "brief-mehrseitig.md"

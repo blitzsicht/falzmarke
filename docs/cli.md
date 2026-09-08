@@ -106,6 +106,10 @@ Male, welcher Befehl der richtige wäre.
 `render` prüft die Eingabe vorweg und misst das Ergebnis nach. **Ein Eingabefehler kostet
 deshalb keinen Renderlauf** — er endet mit Code 1, bevor Typst überhaupt startet.
 
+`preview` prüft die Eingabe seit v0.9.6 genauso vorweg und schreibt bei einem Fehler kein Bild
+(#267). Nachgemessen wird dort nichts — es entsteht kein PDF, also gibt es keine Geometrie zu
+messen. Eine Vorschau ist ein Blick, kein Beleg.
+
 `verify` funktioniert auch auf PDFs, die nicht von falzmarke stammen. Ohne `--form` erkennt es
 die Form an den Falzmarken.
 
