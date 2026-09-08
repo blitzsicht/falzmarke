@@ -150,7 +150,32 @@ def aus_pr_json(text: str) -> tuple[list[str], str, tuple[str, ...]]:
     )
 
 
+def _ausgabe_auf_utf8() -> None:
+    """Damit die Ausgabe unter Windows nicht abbricht.
+
+    Dort schreibt Python standardmaessig in cp1252, und die Meldungen hier
+    tragen „ und “ — beim Aufrufer kommt dann statt des Befundes gar nichts an.
+    Gemessen am 08.09.2026 im Windows-Lauf zu PR #270, wo derselbe Fehler
+    `scripts/closing_keyword.py` traf: `stderr` liess sich nicht als UTF-8
+    lesen und kam als None zurueck.
+
+    Hier faellt es bisher nur deshalb nicht auf, weil der Job „Changelog-Eintrag"
+    ausschliesslich auf ubuntu laeuft — die Falle ist gestellt, sie hat bloss
+    noch niemand ausgeloest. Dieselbe Vorkehrung wie in
+    `scripts/closing_keyword.py` und in `falzmarke/cli.py` (dort seit
+    25.08.2026).
+    """
+    for strom in (sys.stdout, sys.stderr):
+        rekonfigurieren = getattr(strom, "reconfigure", None)
+        if rekonfigurieren is not None:
+            try:
+                rekonfigurieren(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):   # pragma: no cover — sehr alte Streams
+                pass
+
+
 def main() -> int:
+    _ausgabe_auf_utf8()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--autor", default="", help="Login des Autors")
     parser.add_argument("--label", action="append", default=[], help="Label (mehrfach)")

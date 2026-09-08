@@ -267,6 +267,8 @@ good first issue|7057ff|Einstieg für neue Mitwirkende
 help wanted|008672|Mitarbeit erwünscht
 blockiert|b60205|Wartet auf etwas anderes
 maintainer|ededed|Nur vom Maintainer erledigbar (Einstellungen, Recht, Domain)
+ohne-changelog|ededed|Vorgang trägt bewusst keinen Punkt in den Verlauf
+ohne-autoschluss|ededed|PR verweist bewusst auf ein Issue, das offen bleibt
 LABELS
 
 echo "== Environment pypi =="
