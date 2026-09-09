@@ -302,16 +302,23 @@ def _pruefe_htmlteil(teil, bericht: Bericht) -> None:
                  f"{len(mit_lesebreite)} von {len(absaetze)} Absätzen")
 
     # Die Gegenrichtung, und der eigentliche Befund aus #264: Was den Text
-    # begrenzt, darf nicht das Layout begrenzen. Ein `max-width` an der
-    # Umschlagtabelle quetscht alles darin — auch die Datentabelle, die dann
-    # mitten im Wort bricht. Die Signaturtabelle zählt mit: Sie ist ebenfalls
-    # Layout und hat aus demselben Grund keinen Deckel zu tragen.
+    # begrenzt, darf nicht das Layout begrenzen. Ein `max-width` am UMSCHLAG
+    # quetscht alles darin — auch die Datentabelle, die dann mitten im Wort
+    # bricht.
+    #
+    # Gemessen wird deshalb nur die ÄUSSERSTE Layouttabelle. Bis #279 traf die
+    # Prüfung jede: Eine mitgebrachte Signatur (#275) begrenzt sich in aller
+    # Regel auf ihre eigene Breite — die von cw-core erzeugten auf 580 px —,
+    # und das quetscht niemanden, weil eine Signatur ein kurzer Block am Ende
+    # ist und nicht die Hülle um alles. Der Befehl endete dadurch mit Code 2
+    # für ein Profil, an dem inhaltlich nichts falsch war.
     layout = re.findall(r'<table[^>]*role="presentation"[^>]*>', html)
-    gedeckelt = [t for t in layout if "max-width" in t]
-    bericht.wahr("Layouttabellen ohne Breitendeckel", not gedeckelt,
-                 "keine mit max-width",
-                 f"{len(gedeckelt)} von {len(layout)} gedeckelt"
-                 if gedeckelt else f"keine von {len(layout)}")
+    umschlag = layout[0] if layout else ""
+    gedeckelt = "max-width" in umschlag
+    bericht.wahr("Umschlag ohne Breitendeckel", not gedeckelt,
+                 "kein max-width am Umschlag",
+                 "gedeckelt" if gedeckelt else
+                 (f"frei (von {len(layout)} Layouttabellen)" if layout else "kein Umschlag"))
 
     # Ein 1×1-Bild ist keine Abbildung, sondern eine Messung am Empfänger.
     # Gemessen wird mit derselben Funktion, die der Emitter an sich selbst
