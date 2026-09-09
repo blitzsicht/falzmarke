@@ -86,6 +86,33 @@ Zulässig ist deshalb **genau ein** Block, und er ist eine Konstante des Werkzeu
 geänderter Block, ein zusätzliches Leerzeichen — alles bleibt ein Verstoß. Damit ist die
 Ausnahme nicht dehnbar, und sie ist geprüft statt zugesichert.
 
+##### Nachtrag vom 09.09.2026: ein mitgebrachter Teil darf dahinter (#275)
+
+Der Satz „nichts daran wird aus Eingabe oder Profil zusammengesetzt" hielt, solange falzmarke
+die einzige Quelle für Gestaltung war. Seit ein Profil eine **fertige Signatur** mitbringen darf
+(`email.signatur_html`), bringt es auch deren Dunkelregeln mit — und Medienabfragen gehen nicht
+inline, aus demselben Grund wie oben.
+
+Der Block hat deshalb zwei Teile, und sie werden **verschieden behandelt**:
+
+| Teil | Behandlung |
+|---|---|
+| der eigene, **vorn** | unverändert Zeichen für Zeichen gegen die Konstante verglichen |
+| der mitgebrachte, dahinter | **geprüft** statt verglichen: `emit_html.fremdstil_verstoesse()` |
+
+Geprüft wird auf das, was einen Stilblock zu etwas anderem macht als eine Sammlung von Regeln:
+ein Verweis nach außen (`url(`, `@import`), ein zweites Dokument (`<`) oder ausführbarer Inhalt
+(`expression(`, `javascript:`, `behavior:`). Farben, Größen, Abstände und Medienabfragen sind
+genau das, wofür der Block da ist.
+
+**Die Reihenfolge ist Teil der Zusage.** Stünde der fremde Teil vorn, könnte er den eigenen
+überschreiben; ein Test hält fest, dass etwas **vor** der Konstante ein Verstoß bleibt.
+
+Was das nicht ändert: Die Regeln dieses Abschnitts gelten für eine mitgebrachte Signatur wie für
+eigenen Satz. Sie durchläuft `verstoesse()` vollständig, und was durchfällt, wird **abgelehnt** —
+mit Fundstelle, nicht stillschweigend eingesetzt. Der Kanal gibt nicht nach, damit die Quelle
+nachbessert.
+
 Was das **nicht** aufweicht: Externe Stylesheets, Skripte, Hintergrundbilder, Zählpixel und
 Verweise auf Ressourcen im Stil bleiben verboten. Die Dunkelfarben sind fest und kommen nicht
 aus dem Profil — eine Markenfarbe, die auf Weiß trägt, trägt auf Dunkel selten, und ein Profil,

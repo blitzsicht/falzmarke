@@ -37,6 +37,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import os
+import re
 import tempfile
 from email.headerregistry import Address
 from email.message import EmailMessage
@@ -490,7 +491,80 @@ def _mit_rahmen(kopf: dict, gruss, bloecke) -> list:
     return vorne + list(bloecke) + hinten
 
 
-def textteil(kopf: dict, profil: dict, bloecke, breite: int = emit_text.BREITE) -> str:
+class MitgebrachteSignatur(NamedTuple):
+    """Eine fertige Signatur, wie sie aus einer Datei kommt (#275)."""
+
+    rumpf: str
+    stil: str
+    text: str
+
+
+def mitgebrachte_signatur(profil: dict,
+                          profil_pfad: Path | None) -> MitgebrachteSignatur | None:
+    """Die Signatur aus `email.signatur_html` — oder None.
+
+    **Warum es das gibt:** Für Blitzsicht, Siluri und die Kunden erzeugt
+    `cw-core` bereits eine gestaltete Signatur — Logo, Akzentlinie, Knöpfe,
+    vCard —, und die steht in den Mailprogrammen. Zwei Signaturen für denselben
+    Absender sind eine zu viel; wer eine hat, soll sie mitbringen können.
+
+    Übernommen wird der **Rumpf**, nicht das Dokument: Die erzeugten Dateien
+    sind vollständige HTML-Seiten mit `<head>` und `<style>`. Der Stil wandert
+    getrennt heraus und wird von `emit_html.stilblock()` hinter den eigenen
+    Block gesetzt — ein zweiter `<style>` mitten im Rumpf wäre in mehreren
+    Programmen wirkungslos (Gmail entfernt ihn) und in der eigenen Prüfung ein
+    Verstoß.
+
+    **Geprüft wird trotzdem.** Die Regeln von ADR 0034 gelten für eine fremde
+    Signatur wie für eigenen Satz: kein Skript, kein externes Stylesheet, kein
+    Zählpixel, keine Layouttabelle ohne `role="presentation"`. Was durchfällt,
+    wird abgelehnt — mit Fundstelle, nicht stillschweigend eingesetzt. Der
+    Kanal gibt nicht nach, damit die Quelle nachbessert.
+    """
+    email_teil = profil.get("email") or {}
+    angabe = email_teil.get("signatur_html")
+    if not angabe:
+        return None
+    if profil_pfad is None:
+        raise ValueError(
+            "`email.signatur_html` steht im Profil, aber der Profilpfad ist nicht bekannt — "
+            "ohne ihn lässt sich die Datei nicht neben dem Profil finden.")
+    from falzmarke import cli
+
+    pfad = cli.datei_aus_dem_profilordner(Path(profil_pfad), str(angabe), "email.signatur_html")
+    roh = pfad.read_text(encoding="utf-8")
+
+    stil = "\n".join(re.findall(r"<style\b[^>]*>(.*?)</style>", roh,
+                                re.IGNORECASE | re.DOTALL)).strip()
+    schief = emit_html.fremdstil_verstoesse(stil)
+    if schief:
+        raise ValueError(
+            f"Der Stilblock in {pfad.name} geht nicht durch: {'; '.join(schief)}.")
+
+    treffer = re.search(r"<body\b[^>]*>(.*)</body>", roh, re.IGNORECASE | re.DOTALL)
+    rumpf = (treffer.group(1) if treffer else
+             re.sub(r"<style\b[^>]*>.*?</style>", "", roh,
+                    flags=re.IGNORECASE | re.DOTALL)).strip()
+    if not rumpf:
+        raise ValueError(f"{pfad.name} enthält keinen Rumpf — die Signatur wäre leer.")
+
+    verstoesse = emit_html.verstoesse(rumpf)
+    if verstoesse:
+        raise ValueError(
+            f"{pfad.name} hält die Regeln für eine erzeugte Nachricht nicht ein: "
+            f"{'; '.join(verstoesse)}. Die Signatur wird nicht eingesetzt.")
+
+    text = ""
+    text_angabe = email_teil.get("signatur_text")
+    if text_angabe:
+        text_pfad = cli.datei_aus_dem_profilordner(
+            Path(profil_pfad), str(text_angabe), "email.signatur_text")
+        text = text_pfad.read_text(encoding="utf-8").strip()
+    return MitgebrachteSignatur(rumpf=rumpf, stil=stil, text=text)
+
+
+def textteil(kopf: dict, profil: dict, bloecke, breite: int = emit_text.BREITE,
+             signatur: MitgebrachteSignatur | None = None) -> str:
     """Anrede, Brieftext, Grußformel, Signatur — als `format=flowed`.
 
     Der Signaturtrenner `-- ` und die Signatur werden **nach** dem Falten
@@ -503,6 +577,12 @@ def textteil(kopf: dict, profil: dict, bloecke, breite: int = emit_text.BREITE) 
     kern = emit_text.falte(_mit_rahmen(kopf, gruss, bloecke), breite=breite)
 
     teile = [kern]
+    # Eine mitgebrachte Signatur bringt ihre eigene Textfassung mit (#275).
+    # Ohne sie stünde im Textteil etwas anderes als im HTML-Teil, und
+    # `verify --email` prüft eigens auf Gleichlaut.
+    if signatur is not None and signatur.text:
+        teile.append(f"{SIGNATUR_TRENNER}\n{signatur.text}\n")
+        return "\n".join(teile)
     bloecke = signatur_bloecke(profil, kopf)
     if bloecke:
         # Eine Leerzeile zwischen den Blöcken — im Klartext ist das die einzige
@@ -596,12 +676,25 @@ def _signaturtabelle(profil: dict, logo: Logo, inhalt: str) -> str:
 
 
 def htmlteil(kopf: dict, profil: dict, bloecke, sprache: str = "de",
-             logo: Logo | None = None, vorspann: str = "") -> str:
+             logo: Logo | None = None, vorspann: str = "",
+             signatur: MitgebrachteSignatur | None = None) -> str:
     """Dasselbe als HTML — derselbe Baum, andere Zielsprache."""
     email_teil = profil.get("email") or {}
     gruss = kopf.get("gruss") or email_teil.get("gruss") or profil.get("gruss")
 
     stuecke = [emit_html.setze(_mit_rahmen(kopf, gruss, bloecke)).rstrip("\n")]
+
+    # Eine mitgebrachte Signatur ERSETZT die aus dem Profil gebaute (#275) —
+    # sie tritt nicht daneben. Zwei Signaturen unter einer Nachricht sind der
+    # Fehler, den dieser Weg abstellt, nicht sein Ergebnis. Aus demselben Grund
+    # bleibt `email.logo` dabei unbeachtet: Das Logo steckt schon in der
+    # mitgebrachten Fassung, ein zweites wäre ein Bild zu viel (`BILDER_MAX`).
+    if signatur is not None:
+        stuecke.append(
+            f'<div style="margin: {SIGNATUR_ABSTAND} 0 0;">{signatur.rumpf}</div>')
+        return emit_html.dokument("\n".join(stuecke) + "\n", sprache=sprache,
+                                  vorspann=vorspann, zusatzstil=signatur.stil)
+
     absaetze: list[str] = []
     for nummer, block in enumerate(signatur_bloecke(profil, kopf)):
         # Innerhalb eines Blocks `<br>` statt eigener Absätze: Eine Signatur ist
@@ -655,7 +748,8 @@ def htmlteil(kopf: dict, profil: dict, bloecke, sprache: str = "de",
     return emit_html.dokument("\n".join(stuecke) + "\n", sprache=sprache, vorspann=vorspann)
 
 
-def begleit_html(kopf: dict, profil: dict, bloecke, sprache: str = "de") -> str:
+def begleit_html(kopf: dict, profil: dict, bloecke, sprache: str = "de",
+                 signatur: MitgebrachteSignatur | None = None) -> str:
     """Die `.html` zum Öffnen im Browser — mit An und Betreff als Vorschau.
 
     Derselbe Rumpf wie in der Mail, davor ein Kopf. Er gehört **nicht** in den
@@ -674,7 +768,8 @@ def begleit_html(kopf: dict, profil: dict, bloecke, sprache: str = "de") -> str:
     vorschau = (f'<div class="{emit_html.KLASSE_LINIE}" '
                 f'style="border-bottom: 1px solid {emit_html.RAHMEN}; '
                 f'margin-bottom: 16px; padding-bottom: 10px;">{kopfzeilen}</div>')
-    return htmlteil(kopf, profil, bloecke, sprache=sprache, vorspann=vorschau)
+    return htmlteil(kopf, profil, bloecke, sprache=sprache, vorspann=vorschau,
+                    signatur=signatur)
 
 
 def blindkopie_hinweis(adressen: str) -> str:
@@ -751,8 +846,11 @@ def baue(kopf: dict, profil: dict, quelle_md: str, bloecke, *,
                          else formatdate(localtime=True))
 
     logo = logo_quelle(profil, profil_pfad)
-    text = textteil(kopf, profil, bloecke)
-    html = htmlteil(kopf, profil, bloecke, sprache=sprache, logo=logo)
+    # Einmal laden, beiden Teilen geben: Zweimal gelesen könnten Text- und
+    # HTML-Fassung auseinanderlaufen, wenn die Datei dazwischen wechselt.
+    signatur = mitgebrachte_signatur(profil, profil_pfad)
+    text = textteil(kopf, profil, bloecke, signatur=signatur)
+    html = htmlteil(kopf, profil, bloecke, sprache=sprache, logo=logo, signatur=signatur)
 
     # quoted-printable, nie base64: Eine Mail, deren Textteil als base64
     # ankommt, ist in jedem Rohansicht-Fenster unlesbar — und die Rohansicht

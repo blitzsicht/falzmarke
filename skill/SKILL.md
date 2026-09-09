@@ -122,6 +122,12 @@ zugestellt, das bei einem Teil der Empfänger ein leerer Kasten bleibt. Dasselbe
 Warnung `email.logo_kontrast`: Bei einer Adresse sagt sie ausdrücklich, dass **nicht** gemessen
 wurde — Messen hieße Abrufen, und das tut falzmarke nicht.
 
+**Bringt das Profil eine fertige Signatur mit** (`email.signatur_html`, Pfad neben dem Profil),
+wird sie eingesetzt und ersetzt die gebaute — `email.logo` bleibt dann unbeachtet, das Logo
+steckt schon darin. Sie durchläuft dieselbe Prüfung wie eigener Satz; fällt sie durch, endet der
+Befehl mit einer Meldung, die Datei und Grund nennt, statt eine halbe Signatur zu setzen. Die
+Textfassung dazu ist `email.signatur_text`.
+
 ## Weitere Befehle
 
 Fünf Befehle gehören nicht zu jedem Brief und stehen deshalb nicht im Ablauf oben. Zwei davon

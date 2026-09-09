@@ -110,6 +110,55 @@ STIL_INHALT = "\n" + DUNKELREGELN
 STILBLOCK = f'<style type="text/css">{STIL_INHALT}</style>'
 
 
+def stilblock(zusatz: str = "") -> str:
+    """Der Stilblock: der eigene Teil, dahinter ein mitgebrachter (#275).
+
+    Bis hierher war der Block eine Konstante und sonst nichts. Das trug,
+    solange falzmarke die einzige Quelle für Gestaltung war. Wer eine fertige
+    Signatur mitbringt, bringt auch deren Dunkelregeln mit — und Medienabfragen
+    lassen sich nicht inline setzen, das ist eine Eigenschaft der Sprache.
+
+    Die Ausnahme bleibt trotzdem eng: Der **eigene** Teil steht vorn und wird
+    weiterhin Zeichen für Zeichen verglichen; der fremde Teil muss
+    `fremdstil_verstoesse()` bestehen. Was dort durchkommt, sind Regeln — kein
+    Verweis nach außen, kein zweites Dokument, kein Skript.
+    """
+    zusatz = (zusatz or "").strip()
+    if not zusatz:
+        return STILBLOCK
+    return f'<style type="text/css">{STIL_INHALT}{zusatz}\n</style>'
+
+
+#: Was in einem mitgebrachten Stil nicht vorkommen darf, mit dem Grund daneben.
+#:
+#: Die Liste ist kurz und zielt auf das, was einen Stilblock zu etwas anderem
+#: macht als eine Sammlung von Regeln: ein Verweis nach außen (`url(`,
+#: `@import`), ein zweites Dokument (`<`) oder ausführbarer Inhalt
+#: (`expression(`, `javascript:`). Alles andere — Farben, Größen, Abstände,
+#: Medienabfragen — ist genau das, wofür der Block da ist.
+FREMDSTIL_VERBOTEN = (
+    (r"url\s*\(", "Verweis auf eine Ressource"),
+    (r"@import", "eingebundenes zweites Stylesheet"),
+    (r"<", "Markup in einem Stilblock — dort gehört keines hin"),
+    (r"expression\s*\(", "ausführbarer Ausdruck (altes Internet Explorer)"),
+    (r"javascript:", "Skript-Adresse"),
+    (r"behavior\s*:", "Verhaltensbindung (altes Internet Explorer)"),
+)
+
+
+def fremdstil_verstoesse(stil: str) -> list[str]:
+    """Was an einem mitgebrachten Stil nicht durchgeht — als Liste von Gründen.
+
+    Getrennt von `verstoesse()`, weil hier ein anderer Gegenstand geprüft wird:
+    dort das fertige Dokument, hier ein Stück CSS, das noch keines ist.
+    """
+    gefunden = []
+    for muster, grund in FREMDSTIL_VERBOTEN:
+        if re.search(muster, stil, re.IGNORECASE):
+            gefunden.append(grund)
+    return gefunden
+
+
 def as_text(text: str, typografie_anwenden: bool = True) -> str:
     """Ein Textknoten als HTML-Text.
 
@@ -278,7 +327,8 @@ def setze(bloecke) -> str:
     return "\n".join(b for b in gesetzt if b.strip()) + "\n"
 
 
-def dokument(rumpf: str, sprache: str = "de", vorspann: str = "") -> str:
+def dokument(rumpf: str, sprache: str = "de", vorspann: str = "",
+             zusatzstil: str = "") -> str:
     """Der Rumpf in einer vollständigen HTML-Datei.
 
     `color-scheme` sagt dem Client, dass die Seite beide Modi verträgt — ohne
@@ -298,7 +348,7 @@ def dokument(rumpf: str, sprache: str = "de", vorspann: str = "") -> str:
         '<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         '<meta name="color-scheme" content="light dark">\n'
-        f"{STILBLOCK}\n"
+        f"{stilblock(zusatzstil)}\n"
         "</head>\n"
         f'<body class="{KLASSE_TEXT}" style="margin: 0; padding: 16px; {TEXTSTIL}">\n'
         # Umschlag als Tabelle, nicht als `div` (Issue #104): Das klassische
@@ -418,9 +468,16 @@ def _stilbloecke_pruefen(html: str) -> list[str]:
     # `\r\n` und `\n` sind derselbe Inhalt; alles andere bleibt Zeichen für
     # Zeichen verglichen. Ohne diese eine Ausnahme meldete die Prüfung jede
     # versendete Nachricht als Verstoß gegen sich selbst.
-    if bloecke[0].replace("\r\n", "\n") != STIL_INHALT:
-        return ["Style-Block, der nicht der Dunkelblock des Werkzeugs ist"]
-    return []
+    inhalt = bloecke[0].replace("\r\n", "\n")
+    if inhalt == STIL_INHALT:
+        return []
+    # Seit #275 darf hinter dem eigenen Teil ein mitgebrachter stehen. Der
+    # eigene bleibt Zeichen für Zeichen derselbe — er steht VORN, und was
+    # danach kommt, wird geprüft statt verglichen.
+    if not inhalt.startswith(STIL_INHALT):
+        return ["Style-Block, der nicht mit dem Dunkelblock des Werkzeugs beginnt"]
+    zusatz = inhalt[len(STIL_INHALT):]
+    return [f"mitgebrachter Stil: {grund}" for grund in fremdstil_verstoesse(zusatz)]
 
 
 #: Eigenschaften, die im dunklen Schema umgeschaltet werden müssen. Wer sie

@@ -184,6 +184,12 @@ PROFIL_EMAIL_FELDER = frozenset({
     # Hinweis auf eine gesetzte Blindkopie wird aus der fertigen Datei gelesen
     # und erscheint deshalb auch für diese Adresse.
     "bcc",
+    # Eine fertige Signatur, die woanders erzeugt wurde (#275). Beide Angaben
+    # sind Pfade relativ zum Profilordner — dieselbe Grenze wie bei
+    # `email.logo`, gehalten von `cli.datei_aus_dem_profilordner`. Die
+    # HTML-Fassung ERSETZT die aus dem Profil gebaute Signatur; die
+    # Textfassung tut dasselbe im Textteil, damit beide Teile dasselbe sagen.
+    "signatur_html", "signatur_text",
 })
 
 #: Die beiden Anreden, die das Profil kennt.

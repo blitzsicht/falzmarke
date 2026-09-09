@@ -1020,10 +1020,14 @@ def setze_email(brief_pfad: Path, ausgabe: Path | None = None, *,
 
     ziel = Path(ausgabe) if ausgabe else brief_pfad.with_suffix("")
     sprache = str(kopf.get("sprache") or profil.get("sprache") or "de")
+    # Dieselbe Signatur, die schon in der Nachricht steckt (#275) — Vorschau
+    # und .txt sollen nicht eine andere zeigen als die .eml.
+    mitgebracht = eml_modul.mitgebrachte_signatur(profil, profil_pfad)
     dateien = eml_modul.schreibe(
         nachricht, ziel,
-        html=eml_modul.begleit_html(kopf, profil, bloecke, sprache=sprache),
-        text=eml_modul.textteil(kopf, profil, bloecke),
+        html=eml_modul.begleit_html(kopf, profil, bloecke, sprache=sprache,
+                                    signatur=mitgebracht),
+        text=eml_modul.textteil(kopf, profil, bloecke, signatur=mitgebracht),
     )
     return dateien[0], dateien
 
