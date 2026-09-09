@@ -111,7 +111,7 @@ SABOTAGEN = [
     # Der Befund aus #264, in seiner Gegenrichtung: Ein Deckel am Umschlag
     # quetscht alles darin — bis eine Datentabelle mitten im Wort bricht.
     # Genau diese Zeile stand bis dahin im Emitter und fiel niemandem auf.
-    ("Layouttabellen ohne Breitendeckel",
+    ("Umschlag ohne Breitendeckel",
      lambda s: s.replace('role=3D"presentation" ',
                          'role=3D"presentation" style=3D"max-width: 600px" ', 1)),
     ("Kein Zählpixel",

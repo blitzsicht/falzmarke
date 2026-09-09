@@ -166,3 +166,59 @@ def test_die_gebaute_signatur_steht_daneben_nicht_mehr_da(profil):
     assert html.count("<style") == 1, "zwei Stilblöcke — einer davon wäre wirkungslos"
     stil = re.search(r"<style[^>]*>(.*?)</style>", html, re.S).group(1)
     assert stil.index("fm-t") < stil.index("sig-name"), "der eigene Teil muss vorn stehen"
+
+
+# ── Die eigene Breite einer Signatur ist kein Deckel (#279) ─────────────────
+
+def test_eine_signatur_darf_sich_selbst_begrenzen(tmp_path, profil):
+    """Der Umschlag umfasst alles und darf deshalb nichts begrenzen (#264).
+    Eine Signatur ist ein kurzer Block am Ende — ihre eigene Breite quetscht
+    niemanden, und die von `cw-core` erzeugten tragen sie (580 px).
+
+    Bis #279 traf die Prüfung jede Layouttabelle. Eine Mail mit echter Signatur
+    endete dadurch mit Code 2, obwohl inhaltlich nichts falsch war.
+    """
+    from falzmarke import pruefung_eml
+
+    breit = ('<html><body><table role="presentation" '
+             'style="max-width:580px;"><tr><td>Erika Muster</td></tr></table></body></html>')
+    daten, pfad = _profil_mit(tmp_path, breit)
+    sig = eml.mitgebrachte_signatur(daten, pfad)
+    html = eml.htmlteil(KOPF, profil, md.lies(QUELLE), signatur=sig)
+
+    bericht = pruefung_eml.Bericht(gegenstand="Prüfungen bestanden")
+    pruefung_eml._pruefe_htmlteil(_AlsTeil(html), bericht)
+    deckel = [p for p in bericht.pruefungen if p.name == "Umschlag ohne Breitendeckel"]
+    assert deckel, "die Prüfung lief gar nicht"
+    assert deckel[0].bestanden, deckel[0].ist
+
+
+def test_gegenprobe_ein_deckel_am_umschlag_faellt_weiter_auf():
+    """Ohne sie belegte der Test darüber nur, dass die Prüfung nichts mehr
+    findet. Der Fall aus #264 muss rot bleiben."""
+    from falzmarke import pruefung_eml
+
+    html = ('<html><body><table role="presentation" style="max-width:600px;">'
+            '<tr><td><p>Text</p></td></tr></table></body></html>')
+    bericht = pruefung_eml.Bericht(gegenstand="Prüfungen bestanden")
+    pruefung_eml._pruefe_htmlteil(_AlsTeil(html), bericht)
+    deckel = [p for p in bericht.pruefungen if p.name == "Umschlag ohne Breitendeckel"]
+    assert deckel and not deckel[0].bestanden, "der Deckel am Umschlag rutschte durch"
+
+
+class _AlsTeil:
+    """Das Wenigste, was `_pruefe_htmlteil` von einem MIME-Teil braucht.
+
+    Ein echter Teil käme aus einer geschriebenen `.eml`; hier geht es allein um
+    die eine Prüfung, und der Umweg über Datei und Umschlag würde sie nicht
+    schärfer machen.
+    """
+
+    def __init__(self, html: str) -> None:
+        self._html = html
+
+    def get_content(self) -> str:
+        return self._html
+
+    def get_content_charset(self) -> str:
+        return "utf-8"
