@@ -154,6 +154,8 @@ Die Absenderangaben stehen im Profil, nicht im einzelnen Schreiben:
 email:
   absender: muster@example.de          # Pflicht
   bcc: archiv@example.de               # optional, ständige Blindkopie — auch als Liste
+  signatur_html: signatur/erika.html   # optional, fertige Signatur statt der gebauten
+  signatur_text: signatur/erika.txt    # optional, ihre Textfassung
   anzeigename: Erika Muster            # optional, sonst der Unterzeichner
   position: Geschäftsführerin          # optional
   web: www.example.de                  # optional

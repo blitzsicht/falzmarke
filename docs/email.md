@@ -144,6 +144,37 @@ Steuerskript. ADR 0034 gilt unverändert, und ein Test misst es am ganzen Paket.
 Die Begründung, wo die Grenze verläuft und warum sie sich am 08.09.2026 um ein Glied verschoben
 hat, steht in [ADR 0038](entscheidungen/0038-oeffnen-ist-kein-versand.md).
 
+### Eine fertige Signatur mitbringen
+
+Wer seine Signatur schon hat — gestaltet, in den Mailprogrammen im Einsatz —, muss sie nicht ein
+zweites Mal beschreiben:
+
+`email.signatur_html` im Profil zeigt auf eine HTML-Datei **neben dem Profil**, `email.signatur_text`
+auf ihre Textfassung. Ist das Feld gesetzt, **ersetzt** diese Signatur die aus dem Profil gebaute.
+Sie tritt nicht daneben — zwei Signaturen unter einer Nachricht sind der Fehler, den dieser Weg
+abstellt. Aus demselben Grund bleibt `email.logo` dabei unbeachtet: Das Logo steckt schon in der
+mitgebrachten Fassung.
+
+Übernommen wird der **Rumpf**, nicht das Dokument. Erzeugte Signaturdateien sind meist
+vollständige HTML-Seiten; `<head>` und `<style>` fallen weg, der Stil wandert getrennt heraus und
+steht **hinter** dem eigenen Dunkelblock im Kopf der Nachricht. Ein zweiter `<style>` mitten im
+Rumpf wäre in mehreren Programmen wirkungslos — Gmail entfernt ihn — und in der eigenen Prüfung
+ein Verstoß.
+
+**Geprüft wird trotzdem.** Die Regeln oben gelten für eine fremde Signatur wie für eigenen Satz:
+kein Skript, kein externes Stylesheet, kein Zählpixel, keine Layouttabelle ohne
+`role="presentation"`, kein Verweis nach außen im Stil. Was durchfällt, wird **abgelehnt** — mit
+Fundstelle und dem Namen der Datei, nicht stillschweigend eingesetzt. Der Kanal gibt nicht nach,
+damit die Quelle nachbessert. Die Begründung steht im Nachtrag zu
+[ADR 0034](entscheidungen/0034-email-ist-ausgabe.md).
+
+Ohne `signatur_text` bleibt der Textteil die Signatur aus den Profilblöcken. Das ist Absicht: Ein
+Textteil, der etwas anderes sagt als der HTML-Teil, fällt bei `verify --email` als fehlender
+Gleichlaut auf.
+
+Ein Beispiel liegt unter `examples/email/email-signatur.md`, die Signatur dazu in
+`examples/email/profiles/signatur/`.
+
 ## Grenzen
 
 - **Betreff:** ab 78 Zeichen eine **Warnung**, kein Fehler. Die Zahl stammt aus
@@ -209,9 +240,9 @@ denselben Brief wiedergeben. Dann **sagt** der Bericht das, statt die Prüfung s
 
 ## Beispiele
 
-Sechs Stück unter [`examples/email/`](../examples/email/): ein Angebot, eine Mahnung mit Anlage,
-eine Antwort mit `antwort_auf`, eine Abrechnung mit Tabelle, eine Nachricht mit Links und eine
-mit Logo in der Signatur. Sie laufen in der CI mit; ihre `.eml` liegt byteweise als Golden in
+Sieben Stück unter [`examples/email/`](../examples/email/): ein Angebot, eine Mahnung mit Anlage,
+eine Antwort mit `antwort_auf`, eine Abrechnung mit Tabelle, eine Nachricht mit Links, eine mit
+Logo in der Signatur und eine mit mitgebrachter Signatur. Sie laufen in der CI mit; ihre `.eml` liegt byteweise als Golden in
 `tests/golden/email/` und fällt auf, wenn sich an der Ausgabe etwas ändert, das niemand angesagt
 hat.
 
