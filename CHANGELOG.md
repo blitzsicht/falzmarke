@@ -2,6 +2,64 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.9.8 — 10.09.2026
+
+### Neu
+
+- **Eine fertige Signatur mitbringen, statt eine zweite zu pflegen.** `email.signatur_html` im
+  Profil zeigt auf eine HTML-Datei neben dem Profil, `email.signatur_text` auf ihre Textfassung.
+  Ist das Feld gesetzt, **ersetzt** diese Signatur die aus dem Profil gebaute — sie tritt nicht
+  daneben, denn zwei Signaturen unter einer Nachricht sind der Fehler, den dieser Weg abstellt.
+  Aus demselben Grund bleibt `email.logo` dabei unbeachtet: Das Logo steckt schon darin.
+
+  Der Anlass ist praktisch: Für Blitzsicht, Siluri und die Kunden erzeugt ein anderes Werkzeug
+  längst eine gestaltete Signatur, und die steht in den Mailprogrammen. Wer eine hat, soll sie
+  nicht ein zweites Mal beschreiben.
+
+  Übernommen wird der **Rumpf**, nicht das Dokument: `<head>` und `<style>` fallen weg, der Stil
+  wandert getrennt heraus und steht **hinter** dem eigenen Dunkelblock im Kopf der Nachricht.
+  Ein zweiter `<style>` mitten im Rumpf wäre in mehreren Programmen wirkungslos — Gmail entfernt
+  ihn — und in der eigenen Prüfung ein Verstoß.
+
+  **Der Kanal gibt dabei nicht nach.** Die Regeln von ADR 0034 gelten für eine fremde Signatur
+  wie für eigenen Satz: kein Skript, kein externes Stylesheet, kein Zählpixel, keine
+  Layouttabelle ohne `role="presentation"`, kein Verweis nach außen im Stil. Was durchfällt,
+  wird abgelehnt — mit Fundstelle und dem Namen der Datei, nicht stillschweigend eingesetzt.
+
+  Damit ändert sich eine Zusage, und der ADR-Nachtrag sagt genau, um welches Maß: Der Stilblock
+  war eine Konstante und sonst nichts. Er hat jetzt zwei Teile — der eigene steht vorn und wird
+  weiter Zeichen für Zeichen verglichen, der mitgebrachte dahinter wird **geprüft**. Die
+  Reihenfolge ist Teil der Zusage; etwas vor der Konstante bleibt ein Verstoß. (#275)
+
+### Behoben
+
+- **Eine Signatur darf ihre eigene Breite haben.** Die Prüfung aus #264 lehnte **jede**
+  Layouttabelle mit `max-width` ab; gemeint war eine einzige — der Umschlag, den falzmarke selbst
+  um die Nachricht legt. Er umfasst alles und quetscht deshalb alles, wenn er einen Deckel trägt.
+  Eine mitgebrachte Signatur (#275) ist etwas anderes: ein kurzer Block am Ende, dessen eigene
+  Breite niemanden quetscht. Die von `cw-core` erzeugten tragen 580 px, und eine Mail damit endete
+  mit Exit-Code 2, obwohl inhaltlich nichts falsch war.
+
+  Gemessen wird jetzt die **äußerste** Layouttabelle. Die Gegenprobe hält: Ein `max-width` am
+  Umschlag selbst wird weiterhin rot — das ist der Fall aus #264, und er darf nicht mit
+  durchrutschen. Die Prüfung heißt entsprechend „Umschlag ohne Breitendeckel". (#279)
+
+### Infrastruktur
+
+- **Die beiden Ausnahme-Labels der Prüfer gibt es jetzt wirklich.** `changelog_pflicht.py` und
+  `closing_keyword.py` bieten je einen ausdrücklichen Fluchtweg an, und `CONTRIBUTING.md`
+  beschreibt den ersten — nur existierte `ohne-changelog` im Repository überhaupt nicht (37
+  Labels, keins mit dem Namen), und `ohne-autoschluss` war von Hand angelegt. Ein dokumentierter
+  Fluchtweg ohne Label ist keiner. Beide stehen jetzt im `LABELS`-Block von
+  `repo-einstellungen.sh`, und ein Test liest die Namen aus den **Prüfern** statt aus einer
+  zweiten Liste: Wird eines umgetauft, fällt der Test, statt dass still eine Ausnahme zumacht.
+
+- **`changelog_pflicht.py` bleibt unter Windows lesbar.** Dieselbe Falle, die den Windows-Lauf
+  zu #268 rot gemacht hat: Der Prüfer druckt typografische Anführungszeichen, dort schreibt
+  Python in cp1252, und beim Aufrufer kommt statt des Befundes gar nichts an. Aufgefallen wäre
+  es hier nie von selbst — der Job läuft ausschließlich auf ubuntu. Der Regressionstest
+  erzwingt cp1252 über `PYTHONIOENCODING` und läuft damit auf jedem System. (#276)
+
 ## v0.9.7 — 08.09.2026
 
 ### Neu
