@@ -117,7 +117,64 @@ EMAIL_FRONTMATTER_FELDER = frozenset({
     "datum",
 })
 
-TYPEN = ("brief", "email")
+# Dasselbe für `typ: rechnung` (#115). Die Felder leiten sich aus § 14 Absatz 4
+# UStG ab — die zehn Pflichtangaben einer Rechnung, erhoben in #113 und belegt in
+# `docs/recht.md`. Kein Feld ist erfunden: Jedes trägt eine dieser Angaben oder
+# eine, die das Profil EN 16931 (COMFORT) nach ADR 0039 verlangt.
+#
+# Was NICHT hier steht, ist Absicht: Die Leitweg-ID gehört zu XRechnung und damit
+# zu #117; Bankverbindung, Steuernummer und USt-IdNr. stehen im Profil, nicht im
+# einzelnen Schreiben — wie die Absenderangaben.
+RECHNUNG_FRONTMATTER_FELDER = frozenset({
+    # geteilt mit dem Brief: Eine Rechnung IST ein Schreiben (#115)
+    "profil", "typ", "form", "norm", "dialekt", "sprache", "empfaenger",
+    "datum", "betreff", "betreff_kurz", "infoblock", "anrede", "gruss",
+    "unterzeichner", "signatur", "anlagen", "anlagen_dateien", "verteiler",
+    "vermerke", "eingebettet",
+    # eigen: die Felder der Rechnung
+    "rechnungsnummer",      # § 14 Abs. 4 Nr. 4 — fortlaufende Nummer
+    "leistungsdatum",       # § 14 Abs. 4 Nr. 6 — Zeitpunkt der Leistung
+    "leistungszeitraum",    # derselbe Zweck, als Zeitraum
+    "zahlungsziel",         # kein Pflichtfeld des UStG, aber Praxis
+    "positionen",           # § 14 Abs. 4 Nr. 5, 7, 8
+    "summen",               # § 14 Abs. 4 Nr. 7, 8 — GEGEBEN, nicht gerechnet
+    "gutschrift",           # § 14 Abs. 4 Nr. 10
+    "aufbewahrungshinweis", # § 14 Abs. 4 Nr. 9
+})
+
+#: Was eine Rechnung mindestens braucht, um eine zu sein.
+#:
+#: Knapper als § 14 Absatz 4: Name und Anschrift des Ausstellers, Steuernummer und
+#: USt-IdNr. stehen im Profil und werden dort geprüft. Hier steht, was im
+#: einzelnen Schreiben fehlen KANN und nicht darf.
+RECHNUNG_PFLICHTFELDER = ("profil", "empfaenger", "datum", "rechnungsnummer", "positionen")
+
+#: Was ein Eintrag unter `positionen:` tragen darf.
+POSITION_FELDER = frozenset({
+    "bezeichnung", "menge", "einheit", "einzelpreis", "steuersatz", "betrag",
+})
+
+#: Und was er tragen MUSS. „Menge und die Art (handelsübliche Bezeichnung)" nach
+#: § 14 Absatz 4 Nummer 5, dazu der Steuersatz nach Nummer 8 und der Betrag —
+#: letzterer, weil falzmarke ihn nicht bildet (ADR 0039).
+POSITION_PFLICHT = ("bezeichnung", "menge", "steuersatz", "betrag")
+
+#: Was unter `summen:` stehen darf. Alle drei sind GEGEBEN: falzmarke rechnet
+#: nicht (ADR 0039), es prüft nur, ob sie zueinander passen.
+SUMMEN_FELDER = frozenset({"netto", "steuer", "brutto"})
+
+#: Und was ein Steuereintrag unter `summen.steuer` trägt.
+STEUER_FELDER = frozenset({"satz", "betrag"})
+
+#: Wie weit Netto plus Steuer vom Brutto abweichen darf, in Euro.
+#:
+#: Nicht null: Ein Steuerbetrag wird je Satz gerundet, und die Summe der
+#: gerundeten Teile trifft das gerundete Ganze nicht immer auf den Cent. Ein
+#: Cent je Steuersatz ist die Spanne, die dabei entsteht — mehr ist ein
+#: Rechenfehler in der Quelle, nicht eine Rundung.
+SUMMEN_TOLERANZ_CENT = 1
+
+TYPEN = ("brief", "email", "rechnung")
 
 #: Ein Feld des einen Erzeugnisses, das im anderen nichts bedeutet — mit dem
 #: Namen, der stattdessen gemeint ist. Ein Brief an eine Mailadresse und eine
@@ -129,7 +186,11 @@ STATTDESSEN = {"brief": {"an": "empfaenger", "cc": "verteiler", "antwort_auf": N
                          "bcc": None},
                "email": {"empfaenger": "an", "verteiler": "cc", "vermerke": None,
                          "form": None, "betreff_kurz": None, "infoblock": None,
-                         "signatur": None, "anlagen": None, "norm": None}}
+                         "signatur": None, "anlagen": None, "norm": None},
+               # Eine Rechnung ist ein Schreiben auf Papier oder als PDF — die
+               # Mailfelder bedeuten dort dasselbe wie im Brief: nichts (#115).
+               "rechnung": {"an": "empfaenger", "cc": "verteiler", "antwort_auf": None,
+                            "bcc": None}}
 
 #: Betreffgrenze der Mail. RFC 5322 begrenzt die Kopfzeile auf 78 Zeichen; was
 #: darüber steht, wird gefaltet und in der Übersicht vieler Programme
@@ -486,7 +547,8 @@ def pruefe_dialekt(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
 
 
 def _melde_unbekannte(
-    schluessel, erlaubt: frozenset, regel: str, kopf_roh: str, bericht: Bericht
+    schluessel, erlaubt: frozenset, regel: str, kopf_roh: str, bericht: Bericht,
+    zeile: int | None = None,
 ) -> None:
     """Ein Feld, das niemand liest, ist ein Fehler — kein Grund zum Schweigen.
 
@@ -503,8 +565,12 @@ def _melde_unbekannte(
         nah = difflib.get_close_matches(str(feld).lower(), sorted(erlaubt), n=1, cutoff=0.6)
         rat = (f"meintest du `{nah[0]}`?" if nah
                else "erlaubt sind: " + ", ".join(sorted(erlaubt)))
+        # `zeile` für verschachtelte Felder (#115): `_feldzeile` findet nur die
+        # oberste Ebene und fiele für ein Feld in einer Position auf Zeile 1
+        # zurück — gemessen, nicht vermutet. Dann nennt der Aufrufer die Zeile
+        # des umschließenden Feldes.
         bericht.fehler(
-            _feldzeile(kopf_roh, str(feld)), regel,
+            zeile if zeile is not None else _feldzeile(kopf_roh, str(feld)), regel,
             f"`{feld}` ist kein Feld des Datenvertrags", rat,
         )
 
@@ -1080,6 +1146,143 @@ def pruefe_email_anlagen(kopf: dict, body: str, kopf_roh: str, bericht: Bericht)
                 "Anlagen im Text erwähnen — falzmarke fügt dafür keinen Satz ein")
 
 
+def _als_zahl(wert) -> float | None:
+    """Eine Zahl aus YAML — oder None, wenn es keine ist.
+
+    `bool` ist in Python eine Unterklasse von `int`; `menge: ja` ergäbe sonst 1.
+    Ein Text wie „1.240,00" wird NICHT gelesen: Die Schreibweise mit Tausenderpunkt
+    ist die des gesetzten Briefes, nicht die des Datenvertrags. Wer sie in die
+    Quelle schreibt, bekommt eine Meldung statt einer stillen Deutung.
+    """
+    if isinstance(wert, bool) or not isinstance(wert, (int, float)):
+        return None
+    return float(wert)
+
+
+def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
+    """Die Felder, die eine Rechnung von einem Brief unterscheiden (#115).
+
+    **Das Werkzeug rechnet nicht** (ADR 0039). Positionsbeträge und Summen stehen
+    in der Quelle; geprüft wird nur, ob sie zueinander passen — ohne sie zu
+    ersetzen und ohne den Lauf anzuhalten. Ausdrücklich NICHT nachgerechnet wird
+    der Steuerbetrag je Satz: Das wäre Satz mal Bemessungsgrundlage, und damit
+    stünde die Rundungsregel zur Wahl, die der Absender verantwortet.
+    """
+    nummer = kopf.get("rechnungsnummer")
+    # Nur Leerraum: `""` und ein fehlendes Feld meldet schon der Pflichtfeld-Check
+    # im Aufrufer — beides zu melden gab zwei Befunde für einen Fehler (gemessen).
+    if nummer and not str(nummer).strip():
+        bericht.fehler(
+            _feldzeile(kopf_roh, "rechnungsnummer"), "rechnung.nummer",
+            "`rechnungsnummer:` ist leer",
+            "eine fortlaufende Nummer eintragen — sie identifiziert die Rechnung einmalig")
+
+    datum_felder = [f for f in ("leistungsdatum", "leistungszeitraum") if kopf.get(f) is not None]
+    if len(datum_felder) == 2:
+        bericht.fehler(
+            _feldzeile(kopf_roh, "leistungszeitraum"), "rechnung.leistung",
+            "`leistungsdatum:` und `leistungszeitraum:` stehen beide da",
+            "eines von beiden — ein Zeitpunkt oder ein Zeitraum")
+    if kopf.get("leistungsdatum") is not None:
+        pruefe_datum(kopf["leistungsdatum"], _feldzeile(kopf_roh, "leistungsdatum"), bericht)
+    zeitraum = kopf.get("leistungszeitraum")
+    if zeitraum is not None:
+        if not (isinstance(zeitraum, dict) and set(zeitraum) == {"von", "bis"}):
+            bericht.fehler(
+                _feldzeile(kopf_roh, "leistungszeitraum"), "rechnung.leistung",
+                "`leistungszeitraum:` braucht genau `von:` und `bis:`",
+                "leistungszeitraum: {von: 2026-09-01, bis: 2026-09-30}")
+        else:
+            for teil in ("von", "bis"):
+                pruefe_datum(zeitraum[teil], _feldzeile(kopf_roh, "leistungszeitraum"), bericht)
+
+    if kopf.get("zahlungsziel") is not None:
+        ort = _feldzeile(kopf_roh, "zahlungsziel")
+        pruefe_datum(kopf["zahlungsziel"], ort, bericht)
+
+    positionen = kopf.get("positionen")
+    if positionen is None:
+        return                      # „Pflichtfeld fehlt" meldet der Aufrufer
+    ort = _feldzeile(kopf_roh, "positionen")
+    if not isinstance(positionen, list):
+        bericht.fehler(ort, "rechnung.position", "`positionen:` ist keine Liste",
+                       "jede Position als eigener Eintrag mit `- bezeichnung: …`")
+        return
+
+    summe_positionen = 0.0
+    lesbar = True
+    for nummer_pos, position in enumerate(positionen, start=1):
+        if not isinstance(position, dict):
+            bericht.fehler(ort, "rechnung.position",
+                           f"Position {nummer_pos} ist kein Eintrag mit Feldern",
+                           "bezeichnung, menge, steuersatz und betrag als Felder angeben")
+            lesbar = False
+            continue
+        # Abnahme 2 aus #115: Ein Tippfehler in einer Position bleibt nicht stumm.
+        _melde_unbekannte(position.keys(), POSITION_FELDER, "rechnung.position",
+                          kopf_roh, bericht, zeile=ort)
+        for feld in POSITION_PFLICHT:
+            if position.get(feld) is None or position.get(feld) == "":
+                bericht.fehler(ort, "rechnung.position",
+                               f"Position {nummer_pos}: `{feld}:` fehlt",
+                               "falzmarke ergänzt nichts — auch keinen Betrag (ADR 0039)")
+                lesbar = False
+        for feld in ("menge", "einzelpreis", "steuersatz", "betrag"):
+            if feld in position and position[feld] is not None \
+                    and _als_zahl(position[feld]) is None:
+                bericht.fehler(ort, "rechnung.position",
+                               f"Position {nummer_pos}: `{feld}: {position[feld]}` ist keine Zahl",
+                               "ohne Tausenderpunkt und mit Punkt als Dezimaltrenner: 1240.00")
+                lesbar = False
+        satz = _als_zahl(position.get("steuersatz"))
+        if satz is not None and not 0 <= satz < 100:
+            bericht.fehler(ort, "rechnung.position",
+                           f"Position {nummer_pos}: Steuersatz {satz:g} liegt außerhalb 0 bis 99",
+                           "in Prozent angeben: 19 für 19 %")
+        betrag = _als_zahl(position.get("betrag"))
+        if betrag is not None:
+            summe_positionen += betrag
+
+    summen = kopf.get("summen")
+    if summen is None:
+        return
+    ort = _feldzeile(kopf_roh, "summen")
+    if not isinstance(summen, dict):
+        bericht.fehler(ort, "rechnung.summen", "`summen:` ist kein Eintrag mit Feldern",
+                       "netto, steuer und brutto als Felder angeben")
+        return
+    _melde_unbekannte(summen.keys(), SUMMEN_FELDER, "rechnung.summen", kopf_roh, bericht,
+                      zeile=ort)
+
+    netto = _als_zahl(summen.get("netto"))
+    brutto = _als_zahl(summen.get("brutto"))
+    steuern = summen.get("steuer") or []
+    steuer_summe = 0.0
+    if isinstance(steuern, list):
+        for eintrag in steuern:
+            if isinstance(eintrag, dict):
+                _melde_unbekannte(eintrag.keys(), STEUER_FELDER, "rechnung.summen",
+                                  kopf_roh, bericht, zeile=ort)
+                wert = _als_zahl(eintrag.get("betrag"))
+                if wert is not None:
+                    steuer_summe += wert
+
+    # Die Rechenproben. Beide über GEGEBENE Werte — sie bilden nichts, sie
+    # vergleichen. Eine Warnung, kein Fehler: ADR 0039 sagt, dass eine Rechnung
+    # mit widersprüchlichen Summen durchgeht, und genau das tut sie hier.
+    toleranz = SUMMEN_TOLERANZ_CENT / 100 * max(1, len(steuern) if isinstance(steuern, list) else 1)
+    if netto is not None and lesbar and abs(summe_positionen - netto) > toleranz:
+        bericht.warnung(
+            ort, "rechnung.summen",
+            f"die Positionen ergeben {summe_positionen:.2f}, `netto:` sagt {netto:.2f}",
+            "falzmarke rechnet nicht nach und ersetzt nichts — die Quelle ist maßgeblich")
+    if netto is not None and brutto is not None and abs(netto + steuer_summe - brutto) > toleranz:
+        bericht.warnung(
+            ort, "rechnung.summen",
+            f"netto {netto:.2f} plus Steuer {steuer_summe:.2f} ergibt nicht brutto {brutto:.2f}",
+            "falzmarke rechnet nicht nach und ersetzt nichts — die Quelle ist maßgeblich")
+
+
 def pruefe_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
     typ = str(kopf.get("typ") or "brief")
     if typ not in TYPEN:
@@ -1099,14 +1302,25 @@ def pruefe_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
                 "die Kopfzeile `Date` entsteht beim Setzen der Nachricht; die Zeile kann weg")
         return
 
-    _melde_unbekannte(kopf.keys(), FRONTMATTER_FELDER, "frontmatter", kopf_roh, bericht)
-    _pruefe_ausschluss(kopf, "brief", kopf_roh, bericht)
+    # Eine Rechnung ist ein Schreiben (#115): Sie läuft durch denselben Zweig wie
+    # der Brief — Anschrift, Betreff, Datum und Vermerke gelten dort genauso —,
+    # nur mit eigener Feld- und Pflichtliste. Ein eigener Zweig müsste jede
+    # Briefprüfung wiederholen und vergäße eine.
+    rechnung = typ == "rechnung"
+    felder = RECHNUNG_FRONTMATTER_FELDER if rechnung else FRONTMATTER_FELDER
+    pflicht = RECHNUNG_PFLICHTFELDER if rechnung else PFLICHTFELDER
+
+    _melde_unbekannte(kopf.keys(), felder, "frontmatter", kopf_roh, bericht)
+    _pruefe_ausschluss(kopf, typ, kopf_roh, bericht)
     pruefe_dialekt(kopf, kopf_roh, bericht)
     if isinstance(kopf.get("infoblock"), dict):
         _melde_unbekannte(
             kopf["infoblock"].keys(), INFOBLOCK_FELDER, "infoblock", kopf_roh, bericht)
 
-    for feld in PFLICHTFELDER:
+    if rechnung:
+        pruefe_rechnungsfelder(kopf, kopf_roh, bericht)
+
+    for feld in pflicht:
         if not kopf.get(feld):
             bericht.fehler(1, feld, "Pflichtfeld fehlt", f"`{feld}:` im Frontmatter ergänzen")
 

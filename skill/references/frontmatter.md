@@ -261,6 +261,101 @@ Warnung von `lint` — ein Werkzeug, das ungefragt Sätze schreibt, schreibt irg
 ist, und sonst nichts. Welche Angaben eine Rechtsform in jeder Geschäftsmail braucht, entscheidet
 nicht das Werkzeug (ADR 0005).
 
+## Die Rechnungsfassung
+
+Dieselbe Datei, mit `typ: rechnung`. **Gesetzt wird sie noch nicht** — der Datenvertrag steht
+(#115), der Emitter nicht. `falzmarke render` bricht bei einer Rechnung ab, statt sie als Brief zu
+setzen: Als Brief fehlten ihr Positionen und Summen, und das ohne ein Wort darüber. `falzmarke
+lint` prüft die Datei schon jetzt.
+
+Die Felder leiten sich aus
+[§ 14 Absatz 4 UStG](https://www.gesetze-im-internet.de/ustg_1980/__14.html) ab — den zehn
+Pflichtangaben einer Rechnung, erhoben in `docs/recht.md`. Kein Feld ist erfunden.
+
+```yaml
+---
+typ: rechnung
+profil: example
+empfaenger:                             # Pflicht, wie im Brief
+  - Muster GmbH
+  - Musterstraße 1
+  - 12345 Musterstadt
+datum: 2026-09-11                       # Pflicht — das Ausstellungsdatum
+rechnungsnummer: "2026-0042"            # Pflicht — falzmarke vergibt keine
+leistungsdatum: 2026-10-03              # Zeitpunkt der Leistung …
+# leistungszeitraum: {von: 2026-10-01, bis: 2026-10-31}   # … oder ein Zeitraum, nie beides
+zahlungsziel: 2026-10-31                # optional, ein Datum
+positionen:                             # Pflicht, mindestens eine
+  - bezeichnung: Technik und Aufbau     # Pflicht
+    menge: 1                            # Pflicht
+    einheit: Stück                      # optional
+    einzelpreis: 1240.00                # optional
+    steuersatz: 19                      # Pflicht, in Prozent
+    betrag: 1240.00                     # Pflicht — falzmarke bildet ihn nicht
+summen:                                 # optional; steht es da, wird es geprüft
+  netto: 1240.00
+  steuer:
+    - satz: 19
+      betrag: 235.60
+  brutto: 1475.60
+betreff: Rechnung für die Veranstaltung am 3. Oktober
+anrede: Sehr geehrte Damen und Herren,
+---
+```
+
+**Eine Rechnung ist ein Schreiben.** Sie läuft durch dieselben Prüfungen wie der Brief —
+Anschriftzone, Betreff, Datum, Vermerke — und trägt Anrede und Grußformel. Die Felder treten
+neben den Text, sie ersetzen ihn nicht. Die Mailfelder (`an:`, `cc:`, `bcc:`, `antwort_auf:`)
+bedeuten in ihr dasselbe wie im Brief: nichts, und `lint` sagt das.
+
+**Zahlen stehen ohne Tausenderpunkt und mit Punkt als Dezimaltrenner** — `1240.00`, nicht
+`1.240,00`. Die Schreibweise mit Tausenderpunkt ist die des gesetzten Schreibens; in der Quelle
+wäre sie mehrdeutig, und `lint` meldet sie, statt sie still zu deuten. Ebenso wenig ist `true`
+eine Menge, auch wenn Python es für die Zahl 1 hielte.
+
+**Bankverbindung, Steuernummer und USt-IdNr. stehen im Profil**, nicht im einzelnen Schreiben —
+wie die Absenderangaben.
+
+### Was jedes Feld tut, und was ohne es passiert
+
+| Feld | Pflicht | Ohne das Feld |
+|---|---|---|
+| `rechnungsnummer` | ja | `lint` meldet einen Fehler. Eine Nummer aus reinem Leerraum ebenso. |
+| `positionen` | ja | `lint` meldet einen Fehler — eine Rechnung ohne Positionen ist keine. |
+| `positionen[].bezeichnung` | ja | Fehler — § 14 Abs. 4 Nr. 5 verlangt „die Art". |
+| `positionen[].menge` | ja | Fehler — ebenda, „die Menge". |
+| `positionen[].steuersatz` | ja | Fehler — § 14 Abs. 4 Nr. 8. Außerhalb 0 bis 99 ebenso. |
+| `positionen[].betrag` | ja | Fehler — falzmarke bildet den Betrag nicht aus Menge und Preis. |
+| `positionen[].einheit`, `einzelpreis` | nein | Nichts. Sie stehen dann nicht auf der Rechnung. |
+| `leistungsdatum` / `leistungszeitraum` | eines | Nichts wird gemeldet. Beide zugleich sind ein Fehler; ein Zeitraum braucht `von:` **und** `bis:`. |
+| `zahlungsziel` | nein | Nichts. Steht es da und ist kein Datum, meldet `lint` einen Fehler. |
+| `summen` | nein | Nichts wird geprüft. Steht es da, prüft `lint`, ob es zu den Positionen passt (siehe unten). |
+| `gutschrift`, `aufbewahrungshinweis` | nein | Vorgesehen für § 14 Abs. 4 Nr. 10 und 9. Bis zum Emitter ohne Wirkung — wie die ganze Rechnung. |
+
+Ein unbekanntes Feld — im Kopf, in einer Position, in den Summen — wird gemeldet, mit dem
+Vorschlag des nächstgelegenen bekannten Namens. Ein Tippfehler bleibt nicht stumm.
+
+### Was falzmarke nicht berechnet
+
+**Das Werkzeug rechnet nicht**
+([ADR 0039](../../docs/entscheidungen/0039-falzmarke-rechnet-nicht.md)). Wer rechnet, haftet
+für das Ergebnis; wer überträgt, sagt, dass er nicht rechnet. Deshalb ausdrücklich:
+
+- **Kein Positionsbetrag** wird aus Menge mal Einzelpreis gebildet. `betrag:` ist Pflicht.
+- **Keine Summe** wird gebildet. `netto:`, `steuer:` und `brutto:` stehen in der Quelle oder
+  gar nicht.
+- **Kein Steuerbetrag** wird nachgerechnet. Das wäre Satz mal Bemessungsgrundlage, und damit
+  stünde die Rundungsregel zur Wahl, die der Absender verantwortet.
+- **Keine Rechnungsnummer** wird vergeben, und ob sie fortlaufend ist, prüft falzmarke nicht —
+  es kennt die vorige Rechnung nicht.
+
+Was `lint` stattdessen tut, ist eine **Rechenprobe über die gegebenen Werte**: Die Summe der
+Positionsbeträge gegen `netto:`, und `netto:` plus die Steuerbeträge gegen `brutto:`. Weicht
+eines ab, erscheint eine **Warnung** — kein Fehler, und der Lauf endet mit Code 0. Eine Rechnung
+mit widersprüchlichen Summen geht also durch; das ist die unbequeme Seite dieser Entscheidung,
+und sie steht hier, damit niemand etwas anderes erwartet. Ein Cent Abweichung je Steuersatz ist
+Rundung und wird nicht gemeldet.
+
 ## Der Brieftext
 
 Unter dem Frontmatter steht der Brieftext als Markdown — eine dokumentierte Teilmenge von

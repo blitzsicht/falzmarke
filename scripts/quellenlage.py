@@ -54,7 +54,8 @@ def abschnitt() -> str:
         "## Quellenlage je Regel",
         "",
         "**Erzeugt aus [`din5008.yaml`](../falzmarke/regeln/din5008.yaml),"
-        " [`email.yaml`](../falzmarke/regeln/email.yaml) und"
+        " [`email.yaml`](../falzmarke/regeln/email.yaml),"
+        " [`rechnung.yaml`](../falzmarke/regeln/rechnung.yaml) und"
         " [`quellen.yaml`](../falzmarke/regeln/quellen.yaml)"
         " — dort ändern, dann `python3 scripts/quellenlage.py`.**",
         "",

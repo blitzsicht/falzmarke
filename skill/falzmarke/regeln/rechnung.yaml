@@ -1,0 +1,99 @@
+# Die Regeln des Datenvertrags `typ: rechnung` (#115).
+#
+# Eigene Datei und nicht in `email.yaml` oder `din5008.yaml`: Der Gegenstand ist
+# ein anderer. `din5008.yaml` beschreibt die Norm des Briefbogens, `email.yaml`
+# die E-Mail-Fassung — eine Rechnung hat Felder, die in keinem von beiden
+# vorkommen. Wie `email.yaml` trägt jede Regel eine `ebene` (ADR 0035).
+#
+# ── Warum alle fünf auf `werkzeug` stehen ──────────────────────────────────
+#
+# Die Felder leiten sich aus § 14 Absatz 4 UStG ab — erhoben in #113 und belegt
+# in `docs/recht.md`. Die WIRKUNG ist trotzdem eine Aussage über den
+# Datenvertrag, nicht über das Steuerrecht: Dass falzmarke eine Rechnung ohne
+# Nummer nicht setzt, sagt nichts darüber, ob sie steuerlich wirksam wäre.
+# `herkunft: primaerquelle` mit `ebene: werkzeug` wäre ein Widerspruch in sich;
+# die Herleitung aus dem UStG steht deshalb in der `bemerkung`, nicht in
+# `quellen`.
+#
+# ── Was hier NICHT steht ───────────────────────────────────────────────────
+#
+# Keine Prüfung des Steuersatzes gegen § 12 UStG — die Vorschrift ist nicht
+# erhoben, und eine Regel ohne Beleg wird nicht erfunden. Kein Nachrechnen des
+# Steuerbetrags je Satz (ADR 0039).
+
+regeln:
+
+  - id: rechnung.nummer
+    titel: Die Rechnungsnummer ist nicht leer
+    lint: rechnung.nummer
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      § 14 Absatz 4 Nummer 4 UStG verlangt „eine fortlaufende Nummer … die zur
+      Identifizierung der Rechnung vom Rechnungsaussteller einmalig vergeben
+      wird". falzmarke vergibt keine (ADR 0039) und prüft keine Fortlaufendheit —
+      es kennt die vorige Rechnung nicht. Geprüft wird nur, dass eine dasteht.
+
+  - id: rechnung.leistung
+    titel: Leistungsdatum oder Leistungszeitraum, nicht beides
+    lint: rechnung.leistung
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      § 14 Absatz 4 Nummer 6 UStG verlangt den „Zeitpunkt der Lieferung oder
+      sonstigen Leistung". Ein Zeitraum ist die Form, die eine Dauerleistung
+      braucht. Beides zugleich ist widersprüchlich, und falzmarke wählt nicht
+      für den Absender.
+
+  - id: rechnung.zahlungsziel
+    titel: Das Zahlungsziel ist ein Datum
+    lint: rechnung.zahlungsziel
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Kein Pflichtfeld des UStG, aber ein Feld, das jede Rechnung in der Praxis
+      trägt. Ein Datum und keine Frist in Tagen: „30 Tage" setzt einen
+      Bezugspunkt voraus, den der Empfänger anders lesen kann als der Absender.
+
+  - id: rechnung.position
+    titel: Jede Position trägt Bezeichnung, Menge, Steuersatz und Betrag
+    lint: rechnung.position
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      § 14 Absatz 4 Nummer 5 und 8 UStG verlangen „die Menge und die Art" sowie
+      „den anzuwendenden Steuersatz". Der Betrag ist Pflicht, weil falzmarke ihn
+      nicht bildet (ADR 0039). Ein unbekanntes Feld in einer Position wird
+      gemeldet — Abnahme 2 aus #115: Ein Tippfehler bleibt nicht stumm.
+
+      Zahlen stehen ohne Tausenderpunkt und mit Punkt als Dezimaltrenner:
+      `1240.00`, nicht `1.240,00`. Die Schreibweise mit Tausenderpunkt ist die
+      des gesetzten Schreibens; in der Quelle wäre sie mehrdeutig.
+
+  - id: rechnung.summen
+    titel: Positionen, Netto, Steuer und Brutto passen zueinander
+    lint: rechnung.summen
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      Die Rechenprobe über GEGEBENE Werte, die ADR 0039 erlaubt: Die Summe der
+      Positionsbeträge gegen `netto`, und `netto` plus die Steuerbeträge gegen
+      `brutto`. Sie bildet nichts und ersetzt nichts.
+
+      Warnung und nie Fehler: ADR 0039 hält fest, dass eine Rechnung mit
+      widersprüchlichen Summen durchgeht. Die Toleranz beträgt einen Cent je
+      Steuersatz — so viel Abweichung entsteht, wenn je Satz gerundet wird.
+
+      Nicht nachgerechnet wird der Steuerbetrag je Satz. Das wäre Satz mal
+      Bemessungsgrundlage, und damit stünde die Rundungsregel zur Wahl, die der
+      Absender verantwortet.
