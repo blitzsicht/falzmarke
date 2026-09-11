@@ -6,9 +6,10 @@ zustellt.
 
     falzmarke mcp            # Server über stdio, wie MCP-Clients ihn erwarten
 
-Drei Werkzeuge:
+Vier Werkzeuge:
 
     brief_rendern      Markdown mit Frontmatter -> PDF, samt Messbericht
+    email_setzen       dieselbe Quelle als .eml, samt nachgemessenem Umschlag
     brief_pruefen      bestehendes PDF nachmessen (auch fremde)
     profile_auflisten  welche Absenderprofile der Server kennt
 
@@ -144,7 +145,7 @@ def _kopf_ergaenzen(text: str, profil: str, form: str | None) -> str:
             + "---" + rumpf)
 
 
-# ── Die drei Werkzeuge ──────────────────────────────────────────────────────
+# ── Die Werkzeuge ───────────────────────────────────────────────────────────
 
 def brief_rendern(brief: str, profil=None, form: str | None = None,
                   als: str = "pfad", ziel: str | None = None) -> dict:
@@ -372,7 +373,9 @@ def _durchgereicht(werkzeug, ToolError):
 
 
 def baue_server():
-    """Meldet die drei Werkzeuge an. Getrennt von main(), damit Tests sie sehen."""
+    """Meldet alle Werkzeuge aus WERKZEUGE an — getrennt von main(), damit Tests
+    sie sehen. Keine Zahl im Text: `email_setzen` kam später dazu, und die
+    Angabe „drei“ stand danach an vier Stellen weiter (#237)."""
     # _mcp_modul() zuerst: Es übersetzt ein fehlendes oder zu altes SDK in eine
     # Meldung mit Befehl. Stand der ToolError-Import davor, flog stattdessen ein
     # nackter ModuleNotFoundError — genau die Auskunft, die niemandem hilft.

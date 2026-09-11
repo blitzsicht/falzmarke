@@ -107,7 +107,29 @@ tue gh repo edit "$REPO" \
   --allow-update-branch=true \
   --enable-auto-merge=true
 
-for t in falzmarke din5008 din-5008 geschaeftsbrief typst pdfa pdfua claude-skill agent-skills markdown; do
+# Die Liste steht in scripts/topics.py, nicht hier: Als Aufzählung an dieser
+# Stelle nannte sie zehn Themen, auf dem Repository lagen fünfzehn — und weil
+# `--add-topic` nur hinzufügt, fällt weder das eine noch das andere auf.
+# Jetzt lesen Setz-Lauf und `--pruefen` (repo_pruefung.py) dieselbe Quelle.
+#
+# Zuweisung statt Prozess-Substitution, aus demselben Grund wie bei CHECKS_ROH
+# oben: Unter `set -e` geht der Exit-Code einer Prozess-Substitution verloren.
+# Stürzte topics.py ab — etwa weil die Liste über 20 Einträge gewachsen ist
+# und der 21. still verschwände —, bliebe TOPICS sonst leer und der Lauf
+# meldete Erfolg, ohne ein einziges Thema gesetzt zu haben.
+echo "== Themen aus scripts/topics.py setzen =="
+TOPICS_ROH=$(python3 scripts/topics.py)
+TOPICS=()
+while IFS= read -r thema; do
+  [ -z "$thema" ] && continue
+  TOPICS+=("$thema")
+done <<< "$TOPICS_ROH"
+if [ ${#TOPICS[@]} -eq 0 ]; then
+  echo "FEHLER: scripts/topics.py lieferte kein Thema." >&2
+  exit 1
+fi
+hinweis "${#TOPICS[@]} Themen: ${TOPICS[*]}"
+for t in "${TOPICS[@]}"; do
   tue gh repo edit "$REPO" --add-topic "$t"
 done
 

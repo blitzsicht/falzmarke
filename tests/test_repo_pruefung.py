@@ -6,7 +6,7 @@ Dreimal am 31.08.2026 ist eine Repo-Einstellung von ihrem Sollwert abgewichen
 (#196 ein Pflicht-Check, #199 die Homepage, #201 die Ruleset-Durchsetzung).
 Jedes Mal fand es ein Mensch beim Nachmessen, nie ein Test, nie die CI, nie
 der Lauf selbst (#206). `scripts/repo_pruefung.py` vergleicht den gelebten
-Zustand gegen die drei Sollwerte und schreibt nichts.
+Zustand gegen die Sollwerte und schreibt nichts.
 
 Diese Tests fahren gegen ein injiziertes `api`-Callable (Vorbild: `pruefen`
 in `scripts/homepage.py`) — kein Netz, keine Admin-Rechte, kein `gh`. Jeder
@@ -26,6 +26,7 @@ sys.path.insert(0, str(REPO / "scripts"))
 import homepage                                                  # noqa: E402
 import durchsetzung                                              # noqa: E402
 import repo_pruefung                                              # noqa: E402
+import topics                                                     # noqa: E402
 
 REPO_NAME = "blitzsicht/falzmarke"
 SKRIPT = REPO / "scripts" / "repo-einstellungen.sh"
@@ -69,8 +70,10 @@ def _vollstaendige_antworten(
     main_enforcement: str = "unveraendert",
     tags_enforcement: str = "unveraendert",
     checks: list[str] | None = None,
+    themen: list[str] | None = None,
+    repo_fehler: Exception | None = None,
 ) -> dict[str, object]:
-    """Ein Satz Antworten, in dem alle drei Werte exakt dem Soll entsprechen —
+    """Ein Satz Antworten, in dem jeder Wert exakt dem Soll entspricht —
     Basis für die Gegenproben, die dann genau einen Wert verstellen."""
     if homepage_wert == "unveraendert":
         homepage_wert = homepage.STANDARD_DOMAIN
@@ -80,8 +83,11 @@ def _vollstaendige_antworten(
         tags_enforcement = durchsetzung.STANDARD
     if checks is None:
         checks = SOLL_CHECKS
+    if themen is None:
+        themen = list(topics.TOPICS)
     return {
-        f"repos/{REPO_NAME}": {"homepage": homepage_wert},
+        f"repos/{REPO_NAME}": (repo_fehler if repo_fehler is not None
+                               else {"homepage": homepage_wert, "topics": themen}),
         f"repos/{REPO_NAME}/rulesets": [
             _ruleset("main", 1, main_enforcement),
             _ruleset("release-tags", 2, tags_enforcement),
@@ -506,3 +512,40 @@ def test_beide_ausnahme_labels_stehen_im_einstellungs_skript():
             f"„{name}“ wird von einem Prüfer als Ausnahme angeboten, steht aber "
             f"nicht im LABELS-Block von repo-einstellungen.sh — das Label "
             f"existiert dann nur, wenn es jemand von Hand anlegt.")
+
+
+# ── Themen des Repositories (#237) ──────────────────────────────────────────
+#
+# Der einzige Repo-Sollwert, der bis #237 gar keinen Wächter hatte. Aufgefallen
+# ist die Lücke daran, dass `mcp` fehlte, obwohl das Paket einen MCP-Server
+# mitbringt — gemessen am 03.09. und noch einmal am 07.09.2026, beide Male
+# unbemerkt geblieben.
+
+
+def test_ein_fehlendes_thema_wird_erkannt():
+    ohne_mcp = [t for t in topics.TOPICS if t != "mcp"]
+    themen = _finde(_pruefen(themen=ohne_mcp), "Themen")
+    assert not themen.stimmt
+    assert "mcp" in themen.soll and "mcp" not in themen.ist
+
+
+def test_gegenprobe_vollstaendige_themen_sind_gruen():
+    """Ohne sie belegte der Test darüber nur, dass die Prüfung überhaupt rot
+    werden kann — nicht, dass sie den richtigen Zustand grün lässt."""
+    themen = _finde(_pruefen(), "Themen")
+    assert themen.stimmt, themen
+
+
+def test_ein_zusaetzliches_thema_ist_keine_abweichung():
+    """`gh repo edit --add-topic` nimmt nie etwas weg. Verlangte die Prüfung
+    Gleichheit, wäre sie nach dem ersten von Hand gesetzten Thema dauerhaft rot
+    — und ein Wächter, der grundlos anschlägt, wird abgeschaltet."""
+    themen = _finde(_pruefen(themen=[*topics.TOPICS, "briefpapier"]), "Themen")
+    assert themen.stimmt, themen
+
+
+def test_nicht_abfragbare_themen_sind_unbekannt_nicht_gruen():
+    ergebnisse = _pruefen(repo_fehler=RuntimeError("HTTP 403"))
+    themen = _finde(ergebnisse, "Themen")
+    assert themen.unbekannt and not themen.stimmt
+    assert repo_pruefung.austrittscode(ergebnisse) == 2

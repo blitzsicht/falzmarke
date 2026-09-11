@@ -11,12 +11,13 @@ Weboberfläche, ein alter Lauf stuft ein Ruleset zurück, oder ein Jobname in
 `ci.yml` ändert sich, ohne dass das Ruleset nachzieht. Bisher fiel das nur auf,
 wenn zufällig jemand nachmaß (#206).
 
-Dieses Skript setzt nichts. Es vergleicht drei Sollwerte — dieselben, die
+Dieses Skript setzt nichts. Es vergleicht die Sollwerte — dieselben, die
 `scripts/repo-einstellungen.sh` auch anwendet — gegen den über die GitHub-API
 gelebten Zustand:
 
     Homepage                        scripts/homepage.py (bestimme(): STANDARD_DOMAIN,
                                     bei toter Domain die Release-Seite — #210)
+    Themen des Repositories          scripts/topics.py (TOPICS — #237)
     Ruleset-`enforcement` je Ruleset  scripts/durchsetzung.py (soll())
     Pflicht-Check-Liste (Ruleset main) scripts/pflicht_checks.py
 
@@ -28,7 +29,7 @@ betroffenen Wert einen dritten Zustand ("unbekannt") — nicht stilles Grün.
 
     python3 scripts/repo_pruefung.py --repo blitzsicht/falzmarke
 
-Exit 0: alle drei Werte stimmen. Exit 1: mindestens eine Abweichung. Exit 2:
+Exit 0: alle Werte stimmen. Exit 1: mindestens eine Abweichung. Exit 2:
 keine Abweichung, aber mindestens ein Wert war nicht abfragbar.
 
 Verwendet von scripts/repo-einstellungen.sh (--pruefen).
@@ -49,6 +50,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import durchsetzung                                               # noqa: E402
 import homepage                                                   # noqa: E402
 import pflicht_checks                                             # noqa: E402
+import topics                                                     # noqa: E402
 
 # Der Sollwert der Durchsetzung steht in scripts/durchsetzung.py — derselben
 # Datei, aus der auch repo-einstellungen.sh ihn liest (Issue #212). Bis dahin
@@ -147,6 +149,29 @@ def _pruefe_homepage(repo: str, api: Callable[[str], Any],
     return Abgleich("Homepage", soll, ist, ebenso_gueltig=ebenso)
 
 
+def _pruefe_topics(repo: str, api: Callable[[str], Any]) -> Abgleich:
+    """Stehen alle Themen aus scripts/topics.py wirklich am Repository?
+
+    Verglichen wird die **Schnittmenge**, nicht die ganze Liste: Ein Thema, das
+    jemand zusätzlich gesetzt hat, ist keine Abweichung. `gh repo edit
+    --add-topic` nimmt nie etwas weg, ein Setz-Lauf stellt den Zustand also
+    ohnehin nie exakt her — verlangte diese Stelle Gleichheit, meldete sie
+    genau das als Verstellung und wäre nach dem ersten zusätzlichen Thema
+    dauerhaft rot. Was sie fangen soll, ist die andere Richtung: ein Thema aus
+    der Liste, das am Repository fehlt.
+
+    Der Abstand zwischen `soll` und `ist` benennt dabei von selbst, welches
+    Thema fehlt — die Ausgabe braucht keinen Sonderfall.
+    """
+    soll = sorted(topics.TOPICS)
+    try:
+        daten = api(f"repos/{repo}")
+    except Exception as fehler:                                   # noqa: BLE001
+        return Abgleich("Themen", soll, None, _fehlertext(fehler))
+    vorhanden = set(daten.get("topics") or ())
+    return Abgleich("Themen", soll, sorted(vorhanden & set(topics.TOPICS)))
+
+
 def _pruefe_durchsetzung(name: str, rulesets: list[dict] | None,
                          rulesets_fehler: str | None, soll_wert: str) -> Abgleich:
     label = f"Ruleset '{name}': enforcement"
@@ -190,13 +215,14 @@ def pruefe(
     domain_pruefen: Callable[[str], bool] = homepage.domain_antwortet,
     umgebung: Mapping[str, str] | None = None,
 ) -> list[Abgleich]:
-    """Die drei Abgleiche aus dem Issue — nie schreibend, nie CI-Lauf-abhängig.
+    """Alle Abgleiche — nie schreibend, nie CI-Lauf-abhängig.
 
     `domain_pruefen` ist austauschbar wie `api` (Vorbild: `pruefen` in
     homepage.py). Die Tests kommen dadurch ohne Netz aus — sonst hinge ihr
     Ergebnis an der Erreichbarkeit von falzmarke.com statt an ihrer Aussage.
     """
-    ergebnisse = [_pruefe_homepage(repo, api, domain_pruefen)]
+    ergebnisse = [_pruefe_homepage(repo, api, domain_pruefen),
+                  _pruefe_topics(repo, api)]
 
     rulesets: list[dict] | None
     try:

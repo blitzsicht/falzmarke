@@ -181,6 +181,46 @@ jobs:
           fi
           echo "OK  Ohne Wheel und ohne Netz bricht bootstrap ab, wie vorgesehen."
 
+  mcp-container:
+    needs: tests
+    # Der Job trägt einen `name:`, also erscheint der Status-Check unter genau
+    # diesem Text — scripts/pflicht_checks.py leitet ihn daraus ab. Wer das
+    # ändert, muss danach `scripts/repo-einstellungen.sh` aus main fahren,
+    # sonst wartet das Ruleset auf einen Check, den GitHub nie meldet.
+    name: MCP-Dienst im Container
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Image bauen
+        run: |
+          # Dasselbe Dockerfile, das ein MCP-Verzeichnis baut (#237). Bricht es
+          # hier, würde es dort ebenso brechen — nur ohne Meldung an uns.
+          docker build -t falzmarke-mcp .
+
+      - name: Vorbedingung — das MCP-SDK ist wirklich im Image
+        run: |
+          # Ohne diese Zeile bewiese ein grüner Handschlag nur, dass irgendein
+          # Prozess antwortet. Die Gegenprobe unten hängt daran, dass hier ein
+          # Unterschied besteht.
+          docker run --rm --entrypoint pip falzmarke-mcp show mcp
+
+      - name: Handschlag — initialize, tools/list, ein echter Brief
+        run: |
+          python3 scripts/mcp_handschlag.py -- docker run --rm -i falzmarke-mcp
+
+      - name: Gegenprobe — ohne das Extra scheitert derselbe Handschlag
+        run: |
+          # Ohne sie belegt der Schritt davor nur, dass er gruen ist.
+          docker build --build-arg EXTRAS= -t falzmarke-ohne-mcp .
+          if python3 scripts/mcp_handschlag.py -- docker run --rm -i falzmarke-ohne-mcp; then
+            echo "FEHL: Der Handschlag gelang ohne das MCP-SDK — er misst nichts."; exit 1
+          fi
+          echo "OK  Ohne das Extra bricht der Handschlag ab, wie vorgesehen."
+
   pdf-konformitaet:
     # Der einzige Job, dessen Urteil NICHT aus dieser Codebasis stammt.
     #

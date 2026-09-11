@@ -37,8 +37,8 @@ CI = REPO / ".github" / "workflows" / "ci.yml"
 SKRIPT = REPO / "scripts" / "repo-einstellungen.sh"
 
 # Die Pflicht-Checks des Rulesets `main`. Der Job `tests` hat eine Matrix mit
-# drei Betriebssystemen, also drei Checks; die übrigen fünf Jobs haben keine
-# Matrix — zusammen acht.
+# drei Betriebssystemen, also drei Checks; die übrigen Jobs haben keine Matrix
+# und ergeben je einen.
 #
 # Am 30.08.2026 waren es sechs, von Hand gesetzt (Issue #196, Zwischenstand).
 # Wer hier einen Job ergänzt, ergänzt auch diese Liste und fährt danach
@@ -50,6 +50,11 @@ ERWARTET = [
     "tests (windows-latest)",
     "frischklon",
     "skill-paket",
+    # Seit Issue #237: Das Dockerfile, das die MCP-Verzeichnisse bauen, wird
+    # bei jedem Push wirklich gebaut und der Dienst darin angesprochen — sonst
+    # fiele ein Fehler darin erst dem Verzeichnis auf. Die Reihenfolge dieser
+    # Liste folgt ci.yml, nicht dem Datum der Aufnahme.
+    "MCP-Dienst im Container",
     "PDF-Konformität (veraPDF, fremdes Werkzeug)",
     # Seit Issue #229: ein Vorgang ohne Punkt im Verlauf lässt sich nicht mergen.
     # Der Job steht in ci.yml und nicht in einem eigenen Workflow, weil
@@ -62,7 +67,9 @@ ERWARTET = [
 ]
 
 
-def test_die_acht_checks_aus_dem_echten_ci_yml():
+def test_die_checks_aus_dem_echten_ci_yml():
+    """Keine Zahl im Namen: Sie stand bis #237 auf „acht" und war mit dem
+    neunten Check falsch, ohne dass jemand den Namen gelesen hätte."""
     assert pflicht_checks.pflicht_checks(CI) == ERWARTET
 
 
@@ -263,7 +270,8 @@ def test_die_datei_ist_gueltiges_yaml_mit_pyyaml_lesbar():
     synthetischen Dateien arbeiten."""
     daten = yaml.safe_load(CI.read_text(encoding="utf-8"))
     assert set(daten["jobs"]) == {"tests", "frischklon", "skill-paket",
-                                 "pdf-konformitaet", "changelog", "closing-keyword"}
+                                 "pdf-konformitaet", "changelog", "closing-keyword",
+                                 "mcp-container"}
 
 
 # ── Das Skript ruft keinen CI-Lauf mehr ab ──────────────────────────────────
