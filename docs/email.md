@@ -268,6 +268,29 @@ Die Zahl oben hält `tests/test_email_beispiele.py` fest. Sie stand von August b
 Erneuert werden die Goldens mit `python3 scripts/golden_email.py`. Der Diff im Pull Request ist
 dann der Befund.
 
+### Die Signatur als Daten
+
+Neben den `.eml`-Goldens liegt `tests/golden/email/signatur-faelle.json` (Issue #221) — kein
+gesetztes Ergebnis, sondern **Eingabe und Erwartung**: je Fall das vollständige Absenderprofil,
+der Kopf des Schreibens und die Blöcke, die `eml.signatur_bloecke()` daraus macht.
+
+Der Grund ist derselbe wie beim Logo-Beispiel, nur eine Stufe tiefer. Alle `.eml`-Goldens laufen
+auf **einem** Profil; belegt ist damit genau der Weg, den dieses Profil durch `signatur_bloecke()`
+nimmt. Die Fixture fügt die übrigen hinzu: `pflichtangaben` als Liste und ganz fehlend, ein
+eigenes `email.telefon`, das über `infoblock_defaults` gewinnt, alle drei Quellen für den Namen,
+dieselbe Zeile in zwei Blöcken — und ein karges Profil, das weniger Blöcke ergibt statt leerer.
+
+**Jeder Fall muss sich von jedem anderen unterscheiden**, und das prüft
+`tests/test_signatur_fixture.py`. Beim Bauen schlug genau das zu: Zwei Fälle für zwei
+verschiedene Rückgriffstufen ergaben identische Blöcke, weil sie denselben Ersatznamen trugen —
+ein Port, der nur eine der Stufen kennt, hätte beide bestanden. Ein Fall ohne Trennschärfe ist
+kein Beleg, er sieht nur wie einer aus.
+
+Die Fälle stehen in `tests/signatur_faelle.py`, das JSON entsteht im **selben Lauf** wie die
+Goldens (`python3 scripts/golden_email.py`). Eine Fixture, die man eigens erneuern müsste, wäre
+beim nächsten Eingriff veraltet — und eine veraltete Fixture ist schlimmer als keine, weil ein
+fremder Umsetzer sie für die Wahrheit nimmt.
+
 Die Anlage `examples/email/anlagen/rechnung-2026-0815.pdf` ist **eingefroren**, nicht bei jedem
 Lauf erzeugt: Ein zweiter Renderlauf derselben Quelle liefert andere Bytes, und das Golden der
 Mahnungs-Mail enthält die Anlage. Wer die Anlage neu rendert, sieht das Golden auffliegen — so
