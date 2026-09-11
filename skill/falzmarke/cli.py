@@ -238,6 +238,17 @@ def baue_daten(kopf: dict, profil: dict, profil_pfad: Path, arbeitsverzeichnis: 
             "Die E-Mail-Fassung erzeugt Dateien, kein PDF — der Befehl dafür entsteht in #65.\n"
             "Bis dahin prüft `falzmarke lint` die Datei; für einen Brief `typ: email` entfernen."
         )
+    # Derselbe Abbruch für `typ: rechnung` (#115), aus einem schärferen Grund:
+    # Ohne ihn fiele eine Rechnung in den Briefzweig und entstünde als PDF —
+    # OHNE Positionen und Summen, die der Brief nicht kennt, und ohne ein Wort
+    # darüber. Ein Werkzeug, das „abbrechen statt still etwas anderes setzen"
+    # verspricht, darf eine Rechnung nicht als Brief ausgeben.
+    if str(kopf.get("typ") or "brief") == "rechnung":
+        raise Eingabefehler(
+            "Dieses Schreiben trägt `typ: rechnung` und wird noch nicht gesetzt.\n"
+            "Der Datenvertrag steht (#115), der Emitter nicht — gesetzt als Brief fehlten\n"
+            "Positionen und Summen. `falzmarke lint` prüft die Datei schon jetzt."
+        )
 
     fehlend = [f for f in PFLICHTFELDER if not kopf.get(f)]
     if fehlend:

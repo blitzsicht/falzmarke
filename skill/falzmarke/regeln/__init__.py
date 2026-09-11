@@ -26,6 +26,9 @@ QUELLDATEI = Path(__file__).parent / "quellen.yaml"
 REGELDATEIEN = {
     Path(__file__).parent / "din5008.yaml": False,
     Path(__file__).parent / "email.yaml": True,
+    # Der Datenvertrag `typ: rechnung` (#115). Wie `email.yaml` mit Ebenenpflicht:
+    # Jede Regel sagt, wovon sie redet (ADR 0035).
+    Path(__file__).parent / "rechnung.yaml": True,
 }
 
 #: Fuer Fehlermeldungen, die keine bestimmte Datei meinen.
