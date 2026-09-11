@@ -91,3 +91,68 @@ def test_pruefung_wuerde_eine_falsche_version_bemerken():
         assert als_tupel("0.0.1") < als_tupel(tag.lstrip("v")), (
             "Der Tag-Vergleich schlägt hier nicht an"
         )
+
+
+# ── Die dritte Stelle: server.json fürs MCP-Registry (#237) ─────────────────
+
+SERVER_JSON = REPO / "server.json"
+
+
+def _server() -> dict:
+    import json
+
+    return json.loads(SERVER_JSON.read_text(encoding="utf-8"))
+
+
+def test_server_json_nennt_dieselbe_version():
+    """Seit #237 steht die Versionsnummer an einer dritten Stelle.
+
+    Der Release-Workflow hält sie gegen den Tag; hier zählt pyproject, und zwar
+    bei jedem Push. Sonst fiele die Abweichung erst am Tag auf — nach dem
+    PyPI-Upload, der sich nicht zurücknehmen lässt.
+
+    Zweimal geprüft, weil `server.json` die Nummer selbst zweimal trägt: oben
+    für den Server, im Paketeintrag für das PyPI-Paket. Das Registry liest
+    beide.
+    """
+    version = version_aus_pyproject()
+    server = _server()
+    assert server["version"] == version, (
+        f"server.json sagt {server['version']}, pyproject.toml {version}")
+    paket = server["packages"][0]
+    assert paket["version"] == version, (
+        f"server.json/packages sagt {paket['version']}, pyproject.toml {version}")
+
+
+def test_server_json_nennt_das_eigene_paket():
+    """Ein falscher `identifier` zeigte auf ein fremdes PyPI-Paket.
+
+    Das Registry prüft die Eigentümerschaft über dessen Beschreibung — und
+    fände dort die `mcp-name`-Zeile nicht. Der Befund käme also erst im
+    Release-Lauf, und zwar als Fehlschlag nach dem Upload.
+    """
+    paket = _server()["packages"][0]
+    assert paket["identifier"] == tomllib.loads(
+        PYPROJECT.read_text(encoding="utf-8"))["project"]["name"]
+    assert paket["registryType"] == "pypi"
+    assert paket["transport"]["type"] == "stdio", "der Dienst spricht über stdio"
+
+
+def test_das_readme_weist_den_servernamen_nach():
+    """Die Eigentumsprüfung des Registry hängt an einer Zeile im README.
+
+    Das Registry sucht `mcp-name: <servername>` in der Projektbeschreibung auf
+    PyPI — und die ist `README.md`. Fehlt die Zeile oder weicht sie vom Namen
+    in `server.json` ab, lehnt das Registry die Veröffentlichung ab. Das fiele
+    ohne diesen Test erst im Release-Lauf auf, nach dem PyPI-Upload.
+
+    Geprüft wird auch die **Grenze** dahinter: Das Registry verlangt nach dem
+    Namen einen Zeilenumbruch, Leerraum, ein HTML-Tag oder das Kommentarende.
+    Ein angeklebter Satzpunkt verhindert den Treffer.
+    """
+    name = _server()["name"]
+    readme = (REPO / "README.md").read_text(encoding="utf-8")
+    treffer = re.search(r"mcp-name:\s*(\S+?)(?=\s|-->|<|$)", readme, re.M)
+    assert treffer, "keine `mcp-name:`-Zeile in README.md"
+    assert treffer.group(1) == name, (
+        f"README.md nennt `{treffer.group(1)}`, server.json `{name}`")

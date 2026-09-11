@@ -274,10 +274,17 @@ nachfahrbar halten will, nennt eine feste Fassung: `paket: "falzmarke==0.7.3"`.
 
 falzmarke spricht MCP — damit setzen auch Clients Briefe, die keinen Claude-Skill kennen.
 
+<!-- mcp-name: io.github.blitzsicht/falzmarke -->
+
 ```bash
 pip install 'mcp>=2,<3'          # das SDK ist nicht in der Grundausstattung
 falzmarke mcp                    # Server über stdio
 ```
+
+Der Server steht im [offiziellen MCP-Registry](https://registry.modelcontextprotocol.io)
+unter `io.github.blitzsicht/falzmarke`. Die Zeile im Kommentar darüber ist kein Schmuck: Das
+Registry prüft damit, dass dieses PyPI-Paket zu diesem Servernamen gehört — es liest die
+Projektbeschreibung auf PyPI, und die ist diese Datei.
 
 Vier Werkzeuge: `brief_rendern`, `email_setzen`, `brief_pruefen`, `profile_auflisten`.
 Der **Messbericht kommt bei jedem Rendern mit** — ein Dienst, der ein PDF zurückgibt und
