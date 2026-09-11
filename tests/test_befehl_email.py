@@ -553,3 +553,54 @@ def test_eine_rote_pruefung_bekommt_auch_keinen_entwurf(tmp_path, monkeypatch):
                            "--oeffnen"])
     assert code != 0
     assert gerufen == [], "eine durchgefallene Nachricht wurde zum Entwurf gemacht"
+
+
+# ── Der Weg zur fertigen Mail führt ins Mailprogramm, nicht in den Browser ───
+#
+# ANLASS (11.09.2026): Der Betreiber fand seine Mails als HTML-Seite im Browser
+# statt als Entwurf in Outlook — und jede Sitzung machte es anders. Die Ursache
+# stand in SKILL.md selbst: „Diese Vorschau ist das, was gezeigt wird — nicht
+# die .eml" machte den Umweg zur Vorschrift, und „--oeffnen gehört im Gespräch
+# dazu, sobald ein Mensch die Nachricht wirklich abschicken will" überließ die
+# Entscheidung der Auslegung. Gemessen im selben Ordner: Die fertige `.eml`
+# (444 KB, mit Anhang) lag neben der `.html` (4,6 KB); geöffnet wurde die
+# falsche.
+#
+# Ein Satz allein hält das nicht — er stand ja schon da. Diese Prüfungen halten
+# ihn.
+
+#: Der zurückgenommene Wortlaut. Beide Hälften, weil beide für sich genügten,
+#: um die Vorschau zum Regelfall zu machen.
+ZURUECKGENOMMEN = (
+    "Diese Vorschau ist das, was gezeigt wird",
+    "gehört im Gespräch dazu",
+)
+
+
+def test_der_entwurf_ist_der_regelfall():
+    text = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+    assert "`--oeffnen` ist der Regelfall" in text, (
+        "SKILL.md sagt nicht mehr, dass der Entwurf der Regelfall ist — "
+        "dann entscheidet wieder jede Sitzung für sich.")
+
+
+def test_die_alte_empfehlung_kehrt_nicht_zurueck():
+    text = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+    # Der Rückblick im selben Abschnitt zitiert den alten Satz absichtlich.
+    # Gesucht wird deshalb nur außerhalb der Anführungszeichen: Ein Zitat trägt
+    # „…", eine Vorschrift nicht.
+    ohne_zitate = re.sub(r"„[^“]*“", "", text)
+    treffer = [w for w in ZURUECKGENOMMEN if w in ohne_zitate]
+    assert not treffer, (
+        "SKILL.md empfiehlt wieder den Browserweg: " + ", ".join(treffer))
+
+
+def test_gegenprobe_die_suche_trifft_wirklich():
+    """Ohne sie belegte der Test darüber nur, dass ein Wort gerade nicht
+    dasteht — nicht, dass er es fände."""
+    ohne_zitate = re.sub(r"„[^“]*“", "", "Ein Satz. Diese Vorschau ist das, was gezeigt wird.")
+    assert "Diese Vorschau ist das, was gezeigt wird" in ohne_zitate
+    # Und das Zitat im Rückblick darf NICHT anschlagen, sonst wäre die
+    # Dokumentation der Korrektur genau das, was sie verbietet.
+    zitat = 'Hier stand „Diese Vorschau ist das, was gezeigt wird“.'
+    assert "Diese Vorschau" not in re.sub(r"„[^“]*“", "", zitat)
