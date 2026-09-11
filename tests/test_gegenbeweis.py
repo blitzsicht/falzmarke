@@ -498,3 +498,115 @@ def test_verstelltes_iso_datum_faellt_nicht_mehr_auf(tmp_path, monkeypatch):
     # Sabotage trifft nur die eine Lücke, nicht die ganze Prüfung.
     bericht = _linte(tmp_path, LINT_KOPF.replace("datum: 2026-08-25", "datum: morgen"))
     assert "datum" in _fehlerregeln(bericht)
+
+
+# ── Die Signatur-Fixture: sabotierte Quellzeile, nicht sabotiertes Ergebnis ──
+#
+# #221 verlangt: „Eine verfälschte Zeile in `signatur_bloecke()` macht mindestens
+# einen Eintrag rot — eine Fixture, die jede Fassung durchwinkt, wäre keine."
+#
+# Verfälscht wird deshalb die **Quellzeile**, nicht das Ergebnis. Ein Wrapper um
+# die echte Funktion, der hinterher etwas anhängt, belegte nur, dass `!=`
+# funktioniert: Er beweist nichts über die Zweige, und genau die sind der Grund
+# für die Fixture.
+
+FIXTURE_SIGNATUR = REPO / "tests" / "golden" / "email" / "signatur-faelle.json"
+
+
+def _eml_mit_geaenderter_zeile(tmp_path: Path, alt: str, neu: str):
+    """`eml.py` als eigenes Modul, mit genau einer geänderten Zeile."""
+    import importlib.util
+
+    quelle = REPO / "skill" / "falzmarke" / "eml.py"
+    inhalt = quelle.read_text(encoding="utf-8")
+    assert inhalt.count(alt) == 1, (
+        f"Anker {alt!r} steht {inhalt.count(alt)}× in eml.py — eine Sabotage, "
+        "die mehrere Stellen trifft, sagt nicht, welche gemessen wurde")
+    kopie = tmp_path / "eml_sabotiert.py"
+    kopie.write_text(inhalt.replace(alt, neu, 1), encoding="utf-8")
+
+    spezifikation = importlib.util.spec_from_file_location("eml_sabotiert", kopie)
+    modul = importlib.util.module_from_spec(spezifikation)
+    spezifikation.loader.exec_module(modul)
+    return modul
+
+
+def _abweichende_faelle(bloecke) -> list[str]:
+    """Welche Einträge der Fixture passen nicht zu dieser Rechnung?"""
+    import json
+
+    eintraege = json.loads(FIXTURE_SIGNATUR.read_text(encoding="utf-8"))
+    assert eintraege, "die Fixture ist leer — dann belegt hier nichts etwas"
+    return [e["name"] for e in eintraege
+            if bloecke(e["profil"], e["kopf"]) != e["bloecke"]]
+
+
+def test_unsabotierte_signatur_passt_zur_fixture():
+    """Die Kontrollprobe. Ohne sie misst jede Sabotage unten nur die Kopie."""
+    from falzmarke import eml as _eml
+
+    assert _abweichende_faelle(_eml.signatur_bloecke) == []
+
+
+#: Je Sabotage eine Zeile aus `signatur_bloecke()` und die Fälle, die sie
+#: treffen MUSS. Die Erwartung ist absichtlich namentlich und nicht „mindestens
+#: einer": Eine Sabotage, die plötzlich andere Fälle trifft, hat einen anderen
+#: Zweig erwischt als gedacht, und das soll auffallen.
+SIGNATUR_SABOTAGEN = [
+    # Die trennschärfste der drei: Der Rückgriff auf den **Kopf** entfällt, und
+    # es fallen genau zwei Fälle aus. `karg` ist dabei, weil sein Profil keinen
+    # eigenen `unterzeichner` trägt — ohne die Kopf-Stufe bleibt der Name leer
+    # und der Person-Block verschwindet ganz. Die Menge war beim Schreiben auf
+    # `{"ohne-anzeigename"}` geraten; gemessen sind es zwei.
+    ('name = email_teil.get("anzeigename") or kopf.get("unterzeichner") '
+     'or profil.get("unterzeichner")',
+     'name = email_teil.get("anzeigename") or profil.get("unterzeichner")',
+     {"ohne-anzeigename", "karg"}),
+    # Das Leitwort vor der Telefonnummer — jeder Fall mit Telefon, also alle
+    # außer `karg`. Belegt, dass die Fixture auch die Schreibweise hält, nicht
+    # nur die Auswahl der Zeilen.
+    ('kontakt.append(f"Telefon {telefon}")',
+     'kontakt.append(f"Tel. {telefon}")',
+     {"fusszeile", "pflichtangaben-liste", "doppelte-zeile-in-zwei-bloecken",
+      "ohne-pflichtangaben", "telefon-eigen", "ohne-anzeigename",
+      "name-aus-dem-profil"}),
+    # Die Weiche zwischen Fußzeile und `absender:`, umgedreht. Sie trifft ALLE
+    # acht Fälle: Der Basisfall bekommt den Block, den er überspringen müsste,
+    # jeder andere verliert ihn. Damit belegt sie, DASS die Fixture misst — aber
+    # nicht, welchen Zweig. Diesen Unterschied leisten die beiden Proben oben
+    # und die Entdoppelung darunter, und deshalb stehen sie daneben und nicht
+    # statt ihr.
+    ('if pflicht != "fusszeile":',
+     'if pflicht == "fusszeile":',
+     {"fusszeile", "pflichtangaben-liste", "doppelte-zeile-in-zwei-bloecken",
+      "ohne-pflichtangaben", "telefon-eigen", "ohne-anzeigename",
+      "name-aus-dem-profil", "karg"}),
+]
+
+
+@pytest.mark.parametrize("alt, neu, erwartet", SIGNATUR_SABOTAGEN,
+                         ids=["name-rueckgriff", "telefon-leitwort", "fusszeilen-weiche"])
+def test_eine_verfaelschte_zeile_faellt_an_der_fixture_auf(tmp_path, alt, neu, erwartet):
+    modul = _eml_mit_geaenderter_zeile(tmp_path, alt, neu)
+    abweichend = set(_abweichende_faelle(modul.signatur_bloecke))
+    assert abweichend, (
+        "Die Sabotage hat keinen Eintrag rot gemacht — dann winkt die Fixture "
+        "diese Fassung durch und belegt für diesen Zweig nichts")
+    assert abweichend == erwartet, (
+        f"andere Fälle als erwartet: {sorted(abweichend)} statt {sorted(erwartet)}")
+
+
+def test_die_entdoppelung_haengt_an_ihrem_eigenen_fall(tmp_path):
+    """Block-lokal statt über alle Blöcke — die Sabotage, für die es den Fall
+    `doppelte-zeile-in-zwei-bloecken` überhaupt gibt.
+
+    Sie steht einzeln, weil `gesehen` an zwei Stellen vorkommt und der Anker
+    deshalb der Schleifenkopf ist, nicht die Zuweisung.
+    """
+    modul = _eml_mit_geaenderter_zeile(
+        tmp_path,
+        "    for block in (person, kontakt, recht):\n        einmalig = []",
+        "    for block in (person, kontakt, recht):\n        gesehen = set()\n"
+        "        einmalig = []")
+    abweichend = set(_abweichende_faelle(modul.signatur_bloecke))
+    assert abweichend == {"doppelte-zeile-in-zwei-bloecken"}, sorted(abweichend)
