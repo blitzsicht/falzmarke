@@ -1,0 +1,29 @@
+# Was nicht ins Image gehört. Ohne diese Datei wandern der komplette
+# git-Verlauf, die Renderbilder und die Sitzungsablage mit — und der Bau
+# dauert länger, als der Dienst am Ende zum Starten braucht.
+#
+# README.md steht bewusst NICHT hier: pyproject.toml nennt sie als `readme`,
+# ohne sie bricht der Bau mit einem Fehler ab, der wie ein Paketfehler aussieht.
+.git
+.github
+.gitignore
+.gstack
+.agent-loop
+.benchmarks
+.pytest_cache
+.tldr
+.claude
+.venv
+.DS_Store
+build
+dist
+thoughts
+docs
+examples
+tests
+*.skill
+# Ein liegengebliebenes egg-info aus einer lokalen Installation. setuptools
+# nimmt es sonst mit und baut gegen eine Metadatei von gestern.
+**/*.egg-info
+**/__pycache__
+**/*.pyc

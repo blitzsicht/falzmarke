@@ -277,9 +277,19 @@ pip install 'mcp>=2,<3'          # das SDK ist nicht in der Grundausstattung
 falzmarke mcp                    # Server über stdio
 ```
 
-Drei Werkzeuge: `brief_rendern`, `brief_pruefen`, `profile_auflisten`. Der **Messbericht kommt
-bei jedem Rendern mit** — ein Dienst, der ein PDF zurückgibt und offenlässt, ob die Maße
-stimmen, wäre ein PDF-Generator wie jeder andere.
+Vier Werkzeuge: `brief_rendern`, `email_setzen`, `brief_pruefen`, `profile_auflisten`.
+Der **Messbericht kommt bei jedem Rendern mit** — ein Dienst, der ein PDF zurückgibt und
+offenlässt, ob die Maße stimmen, wäre ein PDF-Generator wie jeder andere.
+
+Im Container — so bauen ihn auch die MCP-Verzeichnisse, das
+[`Dockerfile`](https://github.com/blitzsicht/falzmarke/blob/main/Dockerfile) liegt im
+Wurzelverzeichnis:
+
+```bash
+git clone https://github.com/blitzsicht/falzmarke.git && cd falzmarke
+docker build -t falzmarke-mcp .
+docker run --rm -i falzmarke-mcp   # `-i` ist nötig: der Server liest von stdin
+```
 
 Das Absenderprofil darf als Objekt im Aufruf stehen. Ein Client ohne Zugriff auf das
 Dateisystem des Servers kann so seinen eigenen Absender mitgeben, statt mit den Profilen zu

@@ -2,7 +2,7 @@
 
 Zwei Ebenen, mit Absicht getrennt:
 
-Die drei Werkzeuge sind gewoehnliche Funktionen und laufen ohne das SDK. Das ist
+Die Werkzeuge sind gewoehnliche Funktionen und laufen ohne das SDK. Das ist
 kein Zufall, sondern der Grund, warum das SDK optional sein kann — wer falzmarke
 nur zum Briefesetzen installiert, laedt keine 28 Pakete mit.
 
