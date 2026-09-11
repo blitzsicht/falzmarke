@@ -221,6 +221,80 @@ def test_die_faltung_misst_ueberhaupt_etwas():
     assert marken > 0, "kein einziger weicher Umbruch — der Rundlauf belegt nichts"
 
 
+# ── Listen: dass das Beispiel sie wirklich deckt (#291) ─────────────────────
+#
+# Bis #291 enthielt KEIN Mail-Beispiel eine Liste, und damit belegte kein
+# Golden, wie `<ul>`, `<ol>` und die eingerückte Unterliste aussehen.
+# `examples/email/email-liste.md` schließt das. Die Prüfungen hier sichern
+# nicht das Verhalten — das tut das Golden byteweise —, sondern die
+# **Abdeckung**: dass das Beispiel die Zweige auch künftig trifft.
+#
+# Der Anlass für den zweiten Test ist gemessen: Im ersten Entwurf waren alle
+# Listenpunkte kürzer als `text.BREITE`. Damit faltete `format=flowed` sie
+# ohnehin nicht, und eine Sabotage der Festzeilen-Logik in `text.teile()` ließ
+# jedes Golden unberührt — das Beispiel deckte die halbe Zusage nicht ab, und
+# zwar unsichtbar.
+
+LISTENBEISPIEL = REPO / "examples" / "email" / "email-liste.md"
+
+#: Wie ein Listenpunkt im Klartext beginnt — `- ` oder `3. `, auch eingerückt.
+#: Der Signaturtrenner `-- ` fällt nicht darunter: Nach dem Strich steht dort
+#: kein Leerzeichen, sondern ein zweiter Strich.
+LISTENPUNKT = re.compile(r"^\s*(?:-|\d+\.) ")
+
+
+def _teilinhalt(pfad: Path, art: str) -> str:
+    """Der Inhalt eines MIME-Teils der fertigen Nachricht."""
+    nachricht = email.message_from_bytes(pfad.read_bytes(), policy=policy.default)
+    for teil in nachricht.walk():
+        if teil.get_content_type() == art:
+            return teil.get_content()
+    raise AssertionError(f"kein Teil {art} in {pfad.name}")
+
+
+def test_es_gibt_ein_beispiel_mit_listen():
+    assert LISTENBEISPIEL.is_file(), (
+        "ohne dieses Beispiel belegt kein Golden die Listendarstellung (#291)")
+    assert LISTENBEISPIEL in EMAIL_BEISPIELE, \
+        "das Beispiel liegt nicht dort, wo der Glob es findet"
+
+
+def test_das_listenbeispiel_traegt_alle_vier_formen(tmp_path):
+    """Ungeordnet, nummeriert, nummeriert ab n, verschachtelt.
+
+    Die drei ersten unterscheiden sich im erzeugten Element, die vierte in der
+    Verschachtelung. Ein Beispiel mit nur einer Form belegte die anderen nicht.
+    """
+    html = _teilinhalt(_setze(LISTENBEISPIEL, tmp_path), "text/html")
+    assert '<ul class="fm-t"' in html, "keine ungeordnete Liste"
+    assert '<ol class="fm-t"' in html, "keine nummerierte Liste"
+    assert re.search(r'<ol class="fm-t" start="[2-9]', html), \
+        "keine Liste mit abweichendem Beginn — `start` bliebe ungemessen"
+    assert html.count("<ul") >= 2, \
+        "keine verschachtelte Liste — die Unterliste gehört in ihren <li>"
+
+
+def test_das_listenbeispiel_hat_punkte_ueber_der_faltbreite(tmp_path):
+    """Die Vorbedingung der Festzeilen-Regel, sichtbar gemacht.
+
+    Listenpunkte bleiben im Klartext **feste** Zeilen: Zeilen, die nicht mit
+    einem Leerzeichen enden. Gemessen ist das nur, wenn mindestens eine davon
+    länger ist als `text.BREITE` — sonst gäbe es nichts zu falten, und die
+    Regel wäre trivial erfüllt.
+
+    Genau so stand es im ersten Entwurf dieses Beispiels: alle Punkte kürzer
+    als 72 Zeichen, und eine Sabotage von `text.teile()` ließ jedes Golden
+    unberührt.
+    """
+    klartext = _teilinhalt(_setze(LISTENBEISPIEL, tmp_path), "text/plain")
+    lang_und_fest = [z for z in klartext.splitlines()
+                     if len(z) > text.BREITE and not z.endswith(" ")
+                     and LISTENPUNKT.match(z)]
+    assert lang_und_fest, (
+        f"kein Listenpunkt über {text.BREITE} Zeichen — dann belegt das "
+        "Beispiel die Festzeilen-Regel nicht, weil es nichts zu falten gibt")
+
+
 # ── Der Quellteil trägt die Quelle und sonst nichts ─────────────────────────
 
 @pytest.mark.parametrize("beispiel", EMAIL_BEISPIELE, **IDS)

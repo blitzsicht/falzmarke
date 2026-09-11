@@ -251,9 +251,9 @@ denselben Brief wiedergeben. Dann **sagt** der Bericht das, statt die Prüfung s
 
 ## Beispiele
 
-Sieben Stück unter [`examples/email/`](../examples/email/): ein Angebot, eine Mahnung mit Anlage,
+Acht Stück unter [`examples/email/`](../examples/email/): ein Angebot, eine Mahnung mit Anlage,
 eine Antwort mit `antwort_auf`, eine Abrechnung mit Tabelle, eine Nachricht mit Links, eine mit
-Logo in der Signatur und eine mit mitgebrachter Signatur. Sie laufen in der CI mit; ihre `.eml` liegt byteweise als Golden in
+Logo in der Signatur, eine mit mitgebrachter Signatur und eine mit Listen. Sie laufen in der CI mit; ihre `.eml` liegt byteweise als Golden in
 `tests/golden/email/` und fällt auf, wenn sich an der Ausgabe etwas ändert, das niemand angesagt
 hat.
 
@@ -261,6 +261,14 @@ Das Logo-Beispiel bringt sein Profil neben sich mit (`examples/email/profiles/`)
 der ausgelieferten eines führt. Ohne dieses Beispiel belegte kein Golden, wie die Signatur mit
 Bild aussieht — und der JS-Port des Signatur-Baukastens auf falzmarke.com prüft byte-genau
 gegen diese Goldens.
+
+Das Listen-Beispiel (Issue #291) gibt es aus demselben Grund, und es schließt eine Lücke, die
+lange offenstand: Bis dahin enthielt **kein** Mail-Beispiel eine Liste, und damit belegte kein
+Golden, wie `<ul>`, `<ol>` und die eingerückte Unterliste aussehen — auch nicht, dass
+Listenpunkte im Klartextteil **feste Zeilen** bleiben (`format=flowed`; ihre Einrückung ist Teil
+der Bedeutung). Aufgefallen ist es in #289, wo die Breitenprüfung erst nachträglich auf Listen
+ausgeweitet werden musste. Das Beispiel trägt alle vier Formen, die der Dialekt kennt:
+ungeordnet, nummeriert, nummeriert mit `start != 1` und eine verschachtelte Unterliste.
 
 Die Zahl oben hält `tests/test_email_beispiele.py` fest. Sie stand von August bis September
 2026 auf „Vier", während längst fünf Dateien dort lagen; eine Zahl in Prosa altert still.
