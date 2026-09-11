@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import sys
 
+import pytest
+
 from conftest import REPO
 
 sys.path.insert(0, str(REPO / "scripts"))
@@ -32,8 +34,32 @@ REPO_NAME = "blitzsicht/falzmarke"
 SKRIPT = REPO / "scripts" / "repo-einstellungen.sh"
 CI = REPO / ".github" / "workflows" / "ci.yml"
 
+#: Die echte Registry-Abfrage, zur Importzeit festgehalten.
+#:
+#: Die Autouse-Sperre unten ersetzt `repo_pruefung.registry_namen` durch eine
+#: Attrappe. Ein Test, der die ECHTE Abfrage messen will, bekäme damit die
+#: Attrappe und bestünde immer — gemessen am 11.09.2026, der erste Entwurf
+#: dieser Datei hatte genau diesen Fehler.
+ECHTE_REGISTRY_SUCHE = repo_pruefung.registry_namen
+
 SOLL_CHECKS = sorted(repo_pruefung.pflicht_checks.pflicht_checks(CI))
 EIN_CHECK_ZU_WENIG = SOLL_CHECKS[1:]
+
+
+@pytest.fixture(autouse=True)
+def kein_netz_zum_registry(monkeypatch):
+    """Keine Registry-Abfrage verlässt den Test (#237).
+
+    Autouse und nicht nur als Parameter von `_pruefen`: `pruefe()` wird in
+    dieser Datei an fünf Stellen auch direkt aufgerufen, und ein Helfer, den man
+    an einer Stelle vergessen kann, wird dort vergessen. Die Vorgabe ist
+    „gelistet" — der Normalfall, damit die Tests, die „alles stimmt" erwarten,
+    weiter über alle Werte laufen.
+
+    Ein Test, der die Gegenrichtung messen will, injiziert sie über
+    `_pruefen(im_registry=…)` und überschreibt damit diese Vorgabe.
+    """
+    monkeypatch.setattr(repo_pruefung, "registry_namen", lambda name, **_: [name])
 
 
 def _api(antworten: dict[str, object]):
@@ -96,7 +122,7 @@ def _vollstaendige_antworten(
     }
 
 
-def _pruefen(*, domain_antwortet: bool = True,
+def _pruefen(*, domain_antwortet: bool = True, im_registry: bool | Exception = True,
              umgebung: dict[str, str] | None = None, **kwargs) -> list[repo_pruefung.Abgleich]:
     """`domain_antwortet` wird injiziert, nie wirklich abgefragt (Issue #210).
 
@@ -104,9 +130,19 @@ def _pruefen(*, domain_antwortet: bool = True,
     nicht, ist die Release-Seite der richtige Wert und nicht der falsche. Ohne
     diesen Parameter ginge jeder Test hier ins Netz — und wäre damit von der
     Erreichbarkeit von falzmarke.com abhängig statt von seiner eigenen Aussage.
+
+    `im_registry` ist seit #237 aus demselben Grund dabei: Die Registry-Abfrage
+    greift sonst bei **jedem** Test dieser Datei auf einen fremden Dienst zu.
+    Ein `Exception` als Wert stellt den dritten Zustand her — nicht geprüft.
     """
+    def suche(name: str) -> list[str]:
+        if isinstance(im_registry, Exception):
+            raise im_registry
+        return [name] if im_registry else []
+
     return repo_pruefung.pruefe(REPO_NAME, api=_api(_vollstaendige_antworten(**kwargs)),
                                 workflow=CI, domain_pruefen=lambda _: domain_antwortet,
+                                registry_suche=suche,
                                 umgebung=umgebung or {})
 
 
@@ -549,3 +585,94 @@ def test_nicht_abfragbare_themen_sind_unbekannt_nicht_gruen():
     themen = _finde(ergebnisse, "Themen")
     assert themen.unbekannt and not themen.stimmt
     assert repo_pruefung.austrittscode(ergebnisse) == 2
+
+
+# ── Eintrag im MCP-Registry (#237) ───────────────────────────────────────────
+#
+# Der einzige Sollwert, der nicht bei GitHub liegt. Drei Zustände wie bei den
+# anderen: gelistet, nicht gelistet, nicht abfragbar — und der dritte darf nicht
+# als grün durchgehen.
+
+
+def test_ein_gelisteter_server_ist_gruen():
+    """Die Kontrollprobe. Ohne sie belegte der Test darunter nur, dass die
+    Prüfung rot werden KANN — nicht, dass sie den richtigen Zustand grün lässt."""
+    abgleich = _finde(_pruefen(im_registry=True), "MCP-Registry")
+    assert abgleich.stimmt, abgleich
+    assert "io.github.blitzsicht/falzmarke" in abgleich.name, \
+        "der Servername steht nicht in der Meldung — dann sagt sie nicht, was gesucht wurde"
+
+
+def test_ein_fehlender_eintrag_wird_erkannt():
+    ergebnisse = _pruefen(im_registry=False)
+    abgleich = _finde(ergebnisse, "MCP-Registry")
+    assert not abgleich.stimmt
+    assert abgleich.ist == "nicht gelistet"
+    assert repo_pruefung.austrittscode(ergebnisse) == 1
+
+
+def test_ein_nicht_erreichbares_registry_ist_unbekannt_nicht_gruen():
+    """Kein Netz ist nicht dasselbe wie „nicht gelistet".
+
+    Der Unterschied wiegt hier mehr als bei den GitHub-Werten: Das Registry ist
+    ein fremder Dienst, und ein Ausfall dort würde sonst als Befund über dieses
+    Repository gelesen.
+    """
+    ergebnisse = _pruefen(im_registry=OSError("Name or service not known"))
+    abgleich = _finde(ergebnisse, "MCP-Registry")
+    assert abgleich.unbekannt and not abgleich.stimmt
+    assert abgleich.ist is None, "bei einem Fehler darf kein Ist-Wert behauptet werden"
+    assert repo_pruefung.austrittscode(ergebnisse) == 2
+
+
+def test_der_servername_kommt_aus_server_json(tmp_path):
+    """Eine zweite Quelle für denselben Namen liefe auseinander.
+
+    Gemessen wird hier, dass der Abgleich wirklich `server.json` liest und
+    nicht einen im Code wiederholten Namen: Eine abweichende Datei muss eine
+    abweichende Suche ergeben.
+    """
+    import json
+
+    eigen = tmp_path / "server.json"
+    eigen.write_text(json.dumps({"name": "io.github.beispiel/anders"}), encoding="utf-8")
+    gefragt: list[str] = []
+
+    ergebnisse = repo_pruefung.pruefe(
+        REPO_NAME, api=_api(_vollstaendige_antworten()), workflow=CI,
+        domain_pruefen=lambda _: True, server_json=eigen,
+        registry_suche=lambda name: gefragt.append(name) or [name], umgebung={})
+
+    assert gefragt == ["io.github.beispiel/anders"], gefragt
+    assert "io.github.beispiel/anders" in _finde(ergebnisse, "MCP-Registry").name
+
+
+def test_eine_unlesbare_server_json_ist_unbekannt(tmp_path):
+    """Auch das ist „nicht geprüft" und nicht „nicht gelistet"."""
+    fehlt = tmp_path / "gibt-es-nicht.json"
+    ergebnisse = repo_pruefung.pruefe(
+        REPO_NAME, api=_api(_vollstaendige_antworten()), workflow=CI,
+        domain_pruefen=lambda _: True, server_json=fehlt,
+        registry_suche=lambda name: [name], umgebung={})
+    abgleich = _finde(ergebnisse, "MCP-Registry")
+    assert abgleich.unbekannt and abgleich.ist is None
+    assert repo_pruefung.austrittscode(ergebnisse) == 2
+
+
+def test_die_echte_abfrage_trifft_ueberhaupt_etwas():
+    """Die Gegenprobe zur Attrappe: Die echte Suche muss Treffer liefern können.
+
+    **Nicht** über `repo_pruefung.registry_namen`: Das ist hier die Attrappe der
+    Autouse-Sperre, und der Test hätte sie gemessen statt des Registry.
+    Deshalb `ECHTE_REGISTRY_SUCHE`, zur Importzeit festgehalten.
+
+    Ohne diesen Test belegte jeder darüber nur das Verhalten der Attrappe. Gefragt
+    wird nach einem Namensbestandteil, den das Registry vielfach führt — nicht
+    nach falzmarke, denn dessen Abwesenheit ist genau der offene Punkt und
+    taugt nicht als Beleg, dass die Abfrage funktioniert.
+    """
+    try:
+        treffer = ECHTE_REGISTRY_SUCHE("mcp", zeit=15.0)
+    except Exception as fehler:                                   # noqa: BLE001
+        pytest.skip(f"Registry nicht erreichbar: {fehler}")
+    assert treffer, "die Suche liefert nichts — dann prüft der Wächter ins Leere"

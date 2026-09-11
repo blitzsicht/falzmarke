@@ -207,3 +207,60 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@v1.14.2
         with:
           print-hash: true
+
+  mcp-registry:
+    # Eintrag im offiziellen MCP-Registry (#237).
+    #
+    # WARUM NACH PyPI UND NICHT DANEBEN
+    #
+    # Das Registry prueft die Eigentuemerschaft eines PyPI-Pakets, indem es die
+    # Zeichenkette `mcp-name: <servername>` in der PROJEKTBESCHREIBUNG auf PyPI
+    # sucht — das ist unser README. Die Beschreibung entsteht erst mit dem
+    # Upload. Ein eigener Workflow auf dasselbe Tag liefe parallel zum
+    # pypi-Job, und welcher zuerst fertig ist, entscheidet dann das Wetter.
+    # Deshalb `needs: pypi` und kein zweiter Workflow.
+    #
+    # Folge davon: Der Eintrag entsteht beim naechsten Release, nicht beim
+    # Merge dieses Vorgangs. Die Version auf PyPI muss die `mcp-name`-Zeile
+    # tragen, und das tut erst die naechste.
+    #
+    # KEIN GEHEIMNIS
+    #
+    # `mcp-publisher login github-oidc` weist den Lauf mit einem kurzlebigen
+    # OIDC-Token aus; das Registry rechnet daraus den erlaubten Namensraum
+    # `io.github.<owner>/<repo>`. Kein Token, kein Konto, nichts zu drehen.
+    name: Im MCP-Registry eintragen
+    needs: pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write        # nur hierfuer: das OIDC-Token
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+
+      - name: Version im Tag und in server.json muessen uebereinstimmen
+        shell: bash
+        run: |
+          # Dieselbe Bremse wie beim pypi-Job, fuer die dritte Stelle, an der
+          # eine Versionsnummer steht. `tests/test_version.py` haelt sie bei
+          # jedem Push gegen pyproject.toml; hier zaehlt der Tag.
+          TAG="${{ inputs.tag || github.ref_name }}"
+          SERVER=$(python3 -c 'import json;print(json.load(open("server.json"))["version"])')
+          echo "Tag: $TAG   server.json: $SERVER"
+          [ "$TAG" = "v$SERVER" ] || { echo "FEHL: Tag und server.json weichen ab."; exit 1; }
+
+      - name: mcp-publisher holen
+        run: |
+          # Die Veroeffentlichung stellt das Projekt selbst bereit; ein eigener
+          # Bau waere eine zweite Fassung desselben Werkzeugs.
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" \
+            | tar xz mcp-publisher
+          ./mcp-publisher --version
+
+      - name: Am Registry anmelden
+        run: ./mcp-publisher login github-oidc
+
+      - name: Server veroeffentlichen
+        run: ./mcp-publisher publish

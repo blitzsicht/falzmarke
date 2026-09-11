@@ -20,6 +20,14 @@ gelebten Zustand:
     Themen des Repositories          scripts/topics.py (TOPICS — #237)
     Ruleset-`enforcement` je Ruleset  scripts/durchsetzung.py (soll())
     Pflicht-Check-Liste (Ruleset main) scripts/pflicht_checks.py
+    Eintrag im MCP-Registry          server.json (name — #237)
+
+Der letzte Wert ist der einzige, der nicht bei GitHub liegt, und **er steht
+absichtlich auf Abweichung, solange kein Release mit `mcp-name` im README
+veroeffentlicht ist**. Das ist kein Defekt des Repositories: Der Eintrag
+entsteht im Release-Lauf (`.github/workflows/release.yml`, Job `mcp-registry`),
+und die Eigentumspruefung des Registry liest die Projektbeschreibung auf PyPI.
+Bis dahin meldet der Waechter genau das, was zutrifft — offen.
 
 Die API-Abfrage steckt hinter dem injizierbaren `api`-Callable (Vorbild:
 `pruefen` in homepage.py) — die Vergleichslogik selbst braucht dadurch weder
@@ -58,6 +66,10 @@ import topics                                                     # noqa: E402
 # stumm: `--pruefen` macht dort ein `exec` auf dieses Skript, die Zeile wird nie
 # erreicht. Zwei Werte, die gleich sein müssen, ohne dass etwas sie gleich hält.
 RULESET_NAMEN = ("main", "release-tags")
+
+#: Die Quelle des Servernamens — dieselbe Datei, die der Release-Lauf
+#: veroeffentlicht (#237).
+SERVER_JSON = Path(__file__).resolve().parent.parent / "server.json"
 
 
 @dataclass(frozen=True)
@@ -113,6 +125,53 @@ def _checks_aus_regeln(regeln: list[dict]) -> list[str]:
                 for c in regel.get("parameters", {}).get("required_status_checks", [])
             ]
     return []
+
+
+#: Die Suche des offiziellen MCP-Registry. Gemessen am 11.09.2026:
+#: `?search=falzmarke` antwortet `{"servers":[],"metadata":{"count":0}}`,
+#: `?limit=2` liefert echte Eintraege — die Abfrage taugt also als Pruefung UND
+#: hat eine Gegenprobe, die nicht nur die leere Menge sieht.
+REGISTRY_SUCHE = "https://registry.modelcontextprotocol.io/v0/servers?search={name}"
+
+
+def registry_namen(name: str, *, zeit: float = 10.0) -> list[str]:
+    """Die Servernamen, die das Registry zu dieser Suche liefert.
+
+    Eigene Funktion und kein Einzeiler im Abgleich: So ist sie in den Tests
+    austauschbar, wie `api` und `domain_pruefen` es schon sind. Sonst hinge das
+    Testergebnis an der Erreichbarkeit eines fremden Dienstes statt an seiner
+    Aussage.
+    """
+    import urllib.parse
+    import urllib.request
+
+    adresse = REGISTRY_SUCHE.format(name=urllib.parse.quote(name))
+    with urllib.request.urlopen(adresse, timeout=zeit) as antwort:   # noqa: S310
+        daten = json.loads(antwort.read().decode("utf-8"))
+    return [e["server"]["name"] for e in daten.get("servers", [])
+            if "server" in e and "name" in e["server"]]
+
+
+def _pruefe_mcp_registry(suche: Callable[[str], list[str]],
+                         server_json: Path) -> Abgleich:
+    """Steht der Server im offiziellen MCP-Registry (#237)?
+
+    Der Sollwert kommt aus `server.json` — derselben Datei, die der
+    Release-Lauf veroeffentlicht. Zwei Quellen fuer denselben Namen liefen
+    auseinander, sobald einer von beiden umbenannt wird.
+    """
+    try:
+        name = json.loads(server_json.read_text(encoding="utf-8"))["name"]
+    except Exception as fehler:                                   # noqa: BLE001
+        return Abgleich("Eintrag im MCP-Registry", "gelistet", None,
+                        f"server.json nicht lesbar — {_fehlertext(fehler)}")
+    try:
+        gefunden = suche(name)
+    except Exception as fehler:                                   # noqa: BLE001
+        return Abgleich(f"Eintrag im MCP-Registry ({name})", "gelistet", None,
+                        _fehlertext(fehler))
+    return Abgleich(f"Eintrag im MCP-Registry ({name})", "gelistet",
+                    "gelistet" if name in gefunden else "nicht gelistet")
 
 
 def _pruefe_homepage(repo: str, api: Callable[[str], Any],
@@ -213,6 +272,12 @@ def pruefe(
     api: Callable[[str], Any] = gh_api_json,
     workflow: Path = pflicht_checks.STANDARD_WORKFLOW,
     domain_pruefen: Callable[[str], bool] = homepage.domain_antwortet,
+    # Kein Default-Objekt, sondern None: Ein zur Definitionszeit gebundener
+    # Default laesst sich nicht per monkeypatch ersetzen — gemessen am
+    # 11.09.2026, der Patch auf das Modulattribut ging ins Leere und die
+    # Tests haetten weiter ins Netz gegriffen.
+    registry_suche: Callable[[str], list[str]] | None = None,
+    server_json: Path = SERVER_JSON,
     umgebung: Mapping[str, str] | None = None,
 ) -> list[Abgleich]:
     """Alle Abgleiche — nie schreibend, nie CI-Lauf-abhängig.
@@ -240,6 +305,7 @@ def pruefe(
         ergebnisse.append(_pruefe_durchsetzung(
             name, rulesets, rulesets_fehler, durchsetzung.soll(name, umgebung)))
     ergebnisse.append(_pruefe_pflicht_checks(repo, rulesets, rulesets_fehler, api, workflow))
+    ergebnisse.append(_pruefe_mcp_registry(registry_suche or registry_namen, server_json))
     return ergebnisse
 
 

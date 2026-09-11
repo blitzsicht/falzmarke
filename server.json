@@ -1,0 +1,24 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.blitzsicht/falzmarke",
+  "title": "falzmarke",
+  "description": "Geschäftspost nach DIN 5008 aus Markdown — als PDF/A-Brief mit Falzmarken und als E-Mail, jedes Ergebnis am fertigen Dokument nachgemessen.",
+  "version": "0.9.8",
+  "repository": {
+    "url": "https://github.com/blitzsicht/falzmarke",
+    "source": "github"
+  },
+  "websiteUrl": "https://falzmarke.com",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "falzmarke",
+      "version": "0.9.8",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
