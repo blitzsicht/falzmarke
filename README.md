@@ -27,6 +27,8 @@ auf 105,0 mm, endet der Lauf mit einem Fehler statt mit einem Brief, der nur ung
 
 `Linux · macOS · Windows`  ·  `34 Maße je Seite`  ·  `PDF/A-2b`  ·  `MIT`
 
+[English overview](https://github.com/blitzsicht/falzmarke/blob/main/README.en.md)
+
 </div>
 
 ---
