@@ -38,10 +38,13 @@ def test_absatz_setzt_wie_erwartet(quelle, erwartet):
 
 
 def test_liste_und_nummerierung():
-    assert "<ul style=" in _setze("- eins\n- zwei\n")
+    # Die Hülle trägt seit #289 `fm-t` wie jeder andere Block — daran erkennt
+    # die Prüfung, was von hier stammt und was aus fremdem HTML.
+    assert '<ul class="fm-t" style=' in _setze("- eins\n- zwei\n")
     nummeriert = _setze("1. eins\n2. zwei\n")
-    assert "<ol style=" in nummeriert, "start=1 ist die Vorgabe und gehört nicht in den Quelltext"
-    assert '<ol start="3"' in _setze("3. drei\n4. vier\n")
+    assert '<ol class="fm-t" style=' in nummeriert, \
+        "start=1 ist die Vorgabe und gehört nicht in den Quelltext"
+    assert '<ol class="fm-t" start="3"' in _setze("3. drei\n4. vier\n")
 
 
 def test_verschachtelte_liste_steckt_im_punkt():
@@ -90,8 +93,9 @@ def test_dokument_hat_sprache_und_farbschema():
     seite = html.dokument(_setze("Ein Satz.\n"))
     assert '<html lang="de">' in seite
     assert '<meta name="color-scheme" content="light dark">' in seite
-    # Die Lesebreite steht seit #264 am Absatz, nicht mehr am Umschlag.
-    assert f"max-width: {html.LESEBREITE}" in seite
+    # Seit #289 deckelt nichts mehr die Breite — weder der Umschlag (#264) noch
+    # der Absatz. Die 640 px hatten keine Quelle.
+    assert "max-width" not in seite, seite
 
 
 @pytest.mark.parametrize("beispiel", BEISPIELE_10, ids=lambda p: p.stem)

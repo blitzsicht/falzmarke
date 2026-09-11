@@ -370,12 +370,13 @@ def test_der_umschlag_ist_linksbuendig_und_ohne_deckel():
     assert '<div style="max-width' not in seite, "der alte div-Umschlag steht noch da"
 
 
-def test_die_lesebreite_gilt_dem_text_und_nicht_der_tabelle():
-    """Absätze und Listen brechen um, Datentabellen nicht.
+def test_nichts_deckelt_die_breite_weder_text_noch_tabelle():
+    """Niemand begrenzt die Breite — und die Zellen brechen trotzdem nicht.
 
-    Der Deckel ist nicht verschwunden, er ist umgezogen: Zeilen sollen lesbar
-    kurz bleiben, Spalten aber so breit werden dürfen, wie ihr Inhalt es
-    verlangt (#264).
+    Der Weg dieser Prüfung: Bis #264 deckelte der Umschlag alles und quetschte
+    Datentabellen. Danach saß der Deckel am Fließtext. Mit #289 ist er ganz weg,
+    weil die 640 px keine Quelle hatten. Was bleibt, ist die Bruchsperre in den
+    Zellen — die hat einen Grund, der nichts mit Lesebreite zu tun hat.
     """
     seite = emit_html.dokument(
         emit_html.absatz("Ein Satz.")
@@ -383,7 +384,10 @@ def test_die_lesebreite_gilt_dem_text_und_nicht_der_tabelle():
                             ["left", "right"])
     )
     absatz = re.search(r"<p [^>]*>", seite).group(0)
-    assert f"max-width: {emit_html.LESEBREITE}" in absatz, absatz
+    assert "max-width" not in absatz, f"der Deckel ist zurück: {absatz}"
+
+    liste = emit_html.liste(["Ein Punkt."])
+    assert "max-width" not in liste, f"die Liste ist gedeckelt: {liste}"
 
     datentabelle = re.search(r'<table class="fm-t"[^>]*>', seite).group(0)
     assert "max-width" not in datentabelle, f"die Tabelle ist gedeckelt: {datentabelle}"

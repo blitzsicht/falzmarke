@@ -289,17 +289,32 @@ def _pruefe_htmlteil(teil, bericht: Bericht) -> None:
 
     bericht.wahr("Sprache ausgezeichnet", bool(re.search(r"<html[^>]+\blang=", html)),
                  "lang gesetzt", "gesetzt" if "lang=" in html else "fehlt")
-    # Bis #264 hieß diese Zeile „Breite begrenzt" und suchte irgendein
-    # `max-width` im Dokument. Sie konnte damit an der entscheidenden Stelle
-    # nicht rot werden: Der Deckel saß am Umschlag und quetschte Datentabellen,
-    # und ein Dokument ohne jeden Absatz hätte sie ebenso bestanden. Gemessen
-    # wird jetzt, was sie meint — dass die Zeilen des Fließtextes lesbar kurz
-    # bleiben. Tabellen tragen die Grenze nicht und sollen sie nicht tragen.
-    absaetze = re.findall(r"<p [^>]*>", html)
-    mit_lesebreite = [a for a in absaetze if "max-width" in a]
-    bericht.wahr("Lesebreite am Fließtext", bool(mit_lesebreite) or not absaetze,
-                 "Fließtext mit max-width",
-                 f"{len(mit_lesebreite)} von {len(absaetze)} Absätzen")
+    # Diese Zeile hat ihre Richtung zweimal gewechselt, und beide Male aus
+    # demselben Grund: Die Breite wurde dort gemessen, wo sie nicht hingehört.
+    #
+    # Bis #264 hieß sie „Breite begrenzt" und suchte irgendein `max-width` im
+    # Dokument — der Deckel saß am Umschlag und quetschte Datentabellen, und ein
+    # Dokument ohne jeden Absatz bestand ebenso. Bis #289 verlangte sie den
+    # Deckel am Fließtext. Die Zahl dahinter (640 px) hatte aber keine Quelle,
+    # und `Bericht` kennt keine Warnstufe: Eine Setzung auf Praxis-Ebene wirkte
+    # als Fehler.
+    #
+    # Jetzt wird die Gegenrichtung gemessen. Der Fließtext nimmt die Breite des
+    # Lesefensters, und wer einen Deckel einbaut, muss an dieser Prüfung vorbei.
+    #
+    # Gemessen wird **nur der eigene** Fließtext, erkennbar an `KLASSE_TEXT`.
+    # Eine mitgebrachte Signatur (#275) bringt ihre eigenen `<p>` mit, und die
+    # von cw-core erzeugten begrenzen sich auf 580 px — eine Prüfung über alle
+    # Absätze wäre der Fehler aus #279 noch einmal: rot an einem Profil, an dem
+    # inhaltlich nichts falsch ist.
+    #
+    # Absätze UND Listen, nicht nur Absätze: Beide trugen den Deckel, und eine
+    # Prüfung über die halbe Menge wäre genau die Lücke, in der er zurückkommt.
+    eigene = re.findall(rf'<(?:p|ul|ol) class="{emit_html.KLASSE_TEXT}"[^>]*>', html)
+    gedeckelte = [a for a in eigene if "max-width" in a]
+    bericht.wahr("Fließtext ohne Breitendeckel", not gedeckelte,
+                 "kein max-width am Fließtext",
+                 f"{len(gedeckelte)} von {len(eigene)} eigenen Blöcken gedeckelt")
 
     # Die Gegenrichtung, und der eigentliche Befund aus #264: Was den Text
     # begrenzt, darf nicht das Layout begrenzen. Ein `max-width` am UMSCHLAG

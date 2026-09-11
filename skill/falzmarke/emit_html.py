@@ -39,19 +39,31 @@ from falzmarke import typografie
 SCHRIFTSTAPEL = "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
 TINTE = "#1a1a1a"
 RAHMEN = "#c8c8c8"
-#: Die Lesebreite des Fließtextes — und nur seine.
-#:
-#: Bis #264 deckelte diese Breite die GANZE Nachricht: Der Umschlag trug
-#: `width="600"` und `max-width: 600px`, und alles darin wurde hineingequetscht.
-#: Bei einer Datentabelle mit vier Spalten reicht das nicht — gemessen am
-#: 08.09.2026 in Outlook für Mac brach die Kopfzelle „Datum" mitten im Wort und
-#: der Betrag zwischen Zahl und Währung, während das Fenster mehr als doppelt so
-#: breit war. Der Platz war da, der Deckel ließ ihn nicht durch.
-#:
-#: Deshalb gilt die Grenze jetzt dort, wo sie hergehört: an Absätzen und Listen,
-#: deren Zeilen sonst zu lang zum Lesen würden. Tabellen tragen sie nicht — eine
-#: Tabelle ist so breit, wie ihre Spalten es verlangen.
-LESEBREITE = "640px"
+# ── Keine Breitengrenze, und warum nicht (#289) ─────────────────────────────
+#
+# Hier stand bis #289 eine `LESEBREITE` von 640 px, die jeder Absatz und jede
+# Liste trug. Der Gedanke dahinter ist nicht falsch: 640 px bei 16 px sind rund
+# 75 Zeichen, ein maximiertes Fenster gibt das Doppelte, und lange Zeilen lesen
+# sich schlechter.
+#
+# Nur hatte die Zahl **keine Quelle**. Nicht in der DIN 5008, nicht in
+# `regeln/email.yaml`, kein Eintrag in `quellen.yaml` — eine Setzung im Code,
+# Ebene „Praxis" nach ADR 0035. Und sie wirkte trotzdem als Fehler, weil
+# `Bericht` keine Warnstufe kennt: `verify-email` endete mit Code 2, wenn sie
+# fehlte. Dasselbe Muster wie bei ADR 0034, nur umgekehrt — die Prüfung war
+# strenger als die Entscheidung, die es nie gab.
+#
+# Deshalb gibt es jetzt keine Grenze. Der Fließtext nimmt die Breite, die das
+# Lesefenster hergibt; wer es schmal zieht, bekommt kurze Zeilen, wer es breit
+# zieht, lange. Das ist die Entscheidung des Lesers und nicht die des
+# Absenders.
+#
+# **Wer den Deckel wieder einbauen will, braucht zuerst eine Quelle** — und
+# dann einen Weg, ihn als Warnung statt als Fehler zu melden. Die Prüfung
+# „Fließtext ohne Breitendeckel" in `pruefung_eml.py` hält diese Richtung fest,
+# damit er nicht still zurückkommt. Der Klartextteil ist etwas anderes: Dort
+# faltet `emit_text.BREITE` nach RFC 3676 weich, und der Empfänger darf neu
+# umbrechen.
 
 #: An jedem Block wiederholt, weil die Vererbung in Mail-Clients unzuverlässig ist.
 TEXTSTIL = f"font-family: {SCHRIFTSTAPEL}; font-size: 16px; line-height: 1.45; color: {TINTE};"
@@ -185,21 +197,29 @@ def umbruch() -> str:
 
 def absatz(inhalt: str) -> str:
     return (f'<p class="{KLASSE_TEXT}" style="margin: 0 0 {ABSTAND_UNTEN}; '
-            f'max-width: {LESEBREITE}; {TEXTSTIL}">{inhalt}</p>')
+            f'{TEXTSTIL}">{inhalt}</p>')
 
 
 def liste(punkte: list[str], nummeriert: bool = False, start: int = 1) -> str:
-    """`<ul>`/`<ol>`; verschachtelte Listen stecken schon in den Punkten."""
+    """`<ul>`/`<ol>`; verschachtelte Listen stecken schon in den Punkten.
+
+    Die Hülle trägt `KLASSE_TEXT` wie jeder andere Block — bis #289 war sie der
+    einzige ohne. Für die Darstellung ändert das nichts (die Farbe steht an den
+    `<li>`), aber die Prüfung „Fließtext ohne Breitendeckel" erkennt an der
+    Klasse, was von hier stammt und was aus einer mitgebrachten Signatur. Ohne
+    die Marke wäre die Liste die eine Stelle, an der ein Deckel unbemerkt
+    zurückkommen könnte.
+    """
     zeilen = [
         f'<li class="{KLASSE_TEXT}" style="margin: 0 0 4px; {TEXTSTIL}">{p}</li>' for p in punkte
     ]
-    stil = (f"margin: 0 0 {ABSTAND_UNTEN}; padding-left: 22px; "
-            f"max-width: {LESEBREITE}; {TEXTSTIL}")
+    stil = f"margin: 0 0 {ABSTAND_UNTEN}; padding-left: 22px; {TEXTSTIL}"
     if nummeriert:
         # start="1" wäre die Vorgabe und nur Rauschen im Quelltext.
         zusatz = f' start="{start}"' if start != 1 else ""
-        return f'<ol{zusatz} style="{stil}">' + "".join(zeilen) + "</ol>"
-    return f'<ul style="{stil}">' + "".join(zeilen) + "</ul>"
+        return (f'<ol class="{KLASSE_TEXT}"{zusatz} style="{stil}">'
+                + "".join(zeilen) + "</ol>")
+    return f'<ul class="{KLASSE_TEXT}" style="{stil}">' + "".join(zeilen) + "</ul>"
 
 
 #: Wie in `emit.py`: was die Trennzeile nicht sagt, wird linksbündig.
@@ -357,8 +377,14 @@ def dokument(rumpf: str, sprache: str = "de", vorspann: str = "",
         # Nachricht nimmt die Breite, die das Fenster hergibt.
         #
         # Bis #264 stand hier `width="600"`, `max-width: 600px` und
-        # `align="center"`. Der Deckel quetschte Datentabellen (siehe
-        # `LESEBREITE`), und die Zentrierung war ein Newsletter-Idiom, das nie
+        # `align="center"`. Der Deckel quetschte Datentabellen, bis sie mitten
+        # im Wort brachen (gemessen am 08.09.2026 in Outlook für Mac, bei einer
+        # Tabelle mit vier Spalten und einem Fenster doppelter Breite — der
+        # Platz war da, der Deckel ließ ihn nicht durch). Mit #289 ist die
+        # Grenze ganz verschwunden, auch am Fließtext; die Begründung steht
+        # oben bei den Konstanten.
+        #
+        # Die Zentrierung war ein Newsletter-Idiom, das nie
         # begründet wurde: Sie setzte die Nachricht mittig ins Fenster, während
         # die Signatur, die das Mailprogramm darunter anfügt, am linken Rand
         # beginnt — zwei Ausrichtungen in einem Fenster. Ein Geschäftsbrief
