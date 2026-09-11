@@ -312,6 +312,19 @@ def _nach_lint() -> dict[str, dict]:
 
 
 @functools.lru_cache(maxsize=1)
+def _nach_pruefung() -> dict[str, dict]:
+    """Regelname -> Regel, fuer die Pruefungen der fertigen Datei (#292).
+
+    Dritte Achse neben `lint` und `typografie`. Sie ist noetig, weil die
+    `lint`-Regeln die EINGABE beschreiben — Frontmatter und Markdown — und
+    `pruefung_eml` die fertige `.eml` misst. Das sind verschiedene Gegenstaende:
+    `email.betreff_laenge` redet vom Betreff im Frontmatter, nicht davon, ob
+    der Textteil `format=flowed` traegt.
+    """
+    return {r["pruefung"]: r for r in alle() if r.get("pruefung")}
+
+
+@functools.lru_cache(maxsize=1)
 def _nach_typografie() -> dict[str, dict]:
     return {r["typografie"]: r for r in alle() if r.get("typografie")}
 
@@ -358,6 +371,20 @@ def deckel(regel: dict | None) -> str:
 
 def deckel_von_lint(regelname: str) -> str:
     return deckel(fuer_lint(regelname))
+
+
+def fuer_pruefung(regelname: str) -> dict | None:
+    return _nach_pruefung().get(regelname)
+
+
+def deckel_von_pruefung(regelname: str) -> str:
+    """Was eine Pruefung der fertigen Datei hoechstens sein darf.
+
+    Gleiche Rechnung wie bei `lint`, anderer Gegenstand. Ein unbekannter
+    Regelname ergibt `DECKEL_FEHLER` — dieselbe Vorsicht wie in `deckel()`:
+    Nicht zugeordnet wirkt wie bisher, nicht stillschweigend milder.
+    """
+    return deckel(fuer_pruefung(regelname))
 
 
 def ebene_von_lint(regelname: str) -> str | None:

@@ -123,6 +123,12 @@ LEERZEILEN_VOR_BETREFF = 2 * ZEILE   # 8,46 mm
 INFOBLOCK_MINDESTHOEHE = 40.0
 
 
+#: Die Stufen einer Prüfung. `FEHLER` ist die Vorgabe — ein neuer Aufruf wirkt
+#: damit wie jeder bisherige, und die Briefmaße bleiben unberührt.
+STUFE_FEHLER = "fehler"
+STUFE_WARNUNG = "warnung"
+
+
 @dataclass
 class Pruefung:
     name: str
@@ -130,6 +136,23 @@ class Pruefung:
     ist: str
     toleranz: str
     bestanden: bool
+    #: `fehler` oder `warnung` (#292).
+    #:
+    #: Bis dahin kannte dieser Bericht nur wahr und falsch, und `Bericht.ok`
+    #: hing an `all(bestanden)`. Für die Briefmaße ist das richtig — das sind
+    #: Maße. Für die Prüfungen der fertigen E-Mail widersprach es ADR 0035:
+    #: Eine Regel auf der Ebene `praxis` ist Erfahrung und keine Vorschrift,
+    #: und „Praxis ist nie ein Fehler" steht dort wörtlich. Ohne dritte Stufe
+    #: gab es nur „Fehler" oder „gar nicht prüfen" — und genau daran ist die
+    #: Lesebreite in #289 gestorben, eine Setzung ohne Quelle, die als Fehler
+    #: wirkte.
+    #:
+    #: Die Stufe kommt aus dem Regelkatalog, nicht aus dem Prüfcode: Welche
+    #: Wirkung eine Regel haben DARF, entscheidet `regeln.deckel()` aus
+    #: `herkunft` und `ebene`. Dieses Modul kennt den Katalog nicht — die
+    #: Zuordnung macht der Aufrufer (siehe `pruefung_eml._wahr`), damit die
+    #: Geometrie des Briefes ohne Katalog auskommt.
+    stufe: str = STUFE_FEHLER
     #: Was in der EINGABE den Befund verursacht — und was daran zu tun waere.
     #:
     #: `soll/ist/toleranz` beschreibt das Symptom: „190,88 statt hoechstens
@@ -149,9 +172,15 @@ class Bericht:
     #: der Datei — der Schlusssatz soll benennen, was tatsächlich geprüft wurde.
     gegenstand: str = "Maße eingehalten"
 
-    def add(self, name, soll, ist, toleranz, bestanden, ursache: str = "") -> None:
-        self.pruefungen.append(
-            Pruefung(name, str(soll), str(ist), str(toleranz), bestanden, ursache))
+    def add(self, name, soll, ist, toleranz, bestanden, ursache: str = "",
+            stufe: str = STUFE_FEHLER) -> None:
+        # Schluesselwoerter und nicht positionell: Mit der `stufe` (#292)
+        # kam ein Feld zwischen `bestanden` und `ursache`, und ein
+        # positioneller Aufruf haette die Ursache stillschweigend zur Stufe
+        # gemacht. Das faellt bei keinem Test auf, der nur `bestanden` liest.
+        self.pruefungen.append(Pruefung(
+            name=name, soll=str(soll), ist=str(ist), toleranz=str(toleranz),
+            bestanden=bestanden, stufe=stufe, ursache=ursache))
 
     def wert(self, name, ist: float, soll: float, tol: float) -> None:
         self.add(name, f"{soll:.2f}", f"{ist:.2f}", f"±{tol}", abs(ist - soll) <= tol)
@@ -173,7 +202,22 @@ class Bericht:
 
     @property
     def ok(self) -> bool:
-        return all(p.bestanden for p in self.pruefungen)
+        """Nur Fehler zaehlen (#292). Eine Warnung ist sichtbar, aber kein Befund.
+
+        Fuer die Briefmasse aendert das nichts: Dort traegt jede Pruefung die
+        Vorgabe `fehler`.
+        """
+        return all(p.bestanden or p.stufe == STUFE_WARNUNG for p in self.pruefungen)
+
+    @property
+    def warnungen(self) -> list[Pruefung]:
+        """Gescheitert, aber nur eine Warnung — sie stehen im knappen Bericht.
+
+        Ohne das verschwaenden sie im gruenen Lauf, und eine Warnung, die
+        niemand sieht, ist keine.
+        """
+        return [p for p in self.pruefungen
+                if not p.bestanden and p.stufe == STUFE_WARNUNG]
 
     def als_text(self, ausfuehrlich: bool = False) -> str:
         """Standard: eine Zeile. Bei Abweichung nur die betroffenen Prüfungen.
@@ -181,12 +225,24 @@ class Bericht:
         Der ausführliche Bericht hat 30 Zeilen und landete bei jedem Render im
         Kontext des Sprachmodells — das verdrängt den Brief, um den es geht.
         """
-        gescheitert = [p for p in self.pruefungen if not p.bestanden]
-        zeigen = self.pruefungen if ausfuehrlich else gescheitert
+        # `gescheitert` sind die FEHLER — sie entscheiden ueber `ok` und den
+        # Exit-Code. Warnungen stehen daneben und zaehlen nicht mit (#292),
+        # werden aber auch im knappen Bericht gezeigt: Eine Warnung, die nur
+        # mit --verbose erscheint, sieht im gruenen Lauf aus wie keine.
+        gescheitert = [p for p in self.pruefungen
+                       if not p.bestanden and p.stufe != STUFE_WARNUNG]
+        zeigen = (self.pruefungen if ausfuehrlich
+                  else [p for p in self.pruefungen if not p.bestanden])
         zeilen = []
         for p in zeigen:
+            if p.bestanden:
+                marke = "OK  "
+            elif p.stufe == STUFE_WARNUNG:
+                marke = "WARN"
+            else:
+                marke = "FEHL"
             zeilen.append(
-                f"{'OK  ' if p.bestanden else 'FEHL'}  {p.name}: "
+                f"{marke}  {p.name}: "
                 f"soll {p.soll} ist {p.ist} (tol {p.toleranz})")
             # Nur bei einem Befund und nur eingerueckt: Bei einem gruenen Lauf
             # gaebe es nichts zu tun, und der ausfuehrliche Bericht wuerde
@@ -194,11 +250,18 @@ class Bericht:
             if p.ursache and not p.bestanden:
                 zeilen.append(f"        {p.ursache}")
         gesamt = len(self.pruefungen)
+        # Warnungen stehen im Schlusssatz als eigene Zahl. Sie in die
+        # Bestandenen zu zaehlen verschwiege sie, sie zu den Fehlschlaegen zu
+        # zaehlen machte sie zu Fehlern — beides sagt etwas Falsches (#292).
+        warnend = len(self.warnungen)
+        zusatz = f", {warnend} Warnung{'en' if warnend != 1 else ''}" if warnend else ""
         if gescheitert:
             zeilen.append(
-                f"verify: {gesamt - len(gescheitert)}/{gesamt} {self.gegenstand}")
+                f"verify: {gesamt - len(gescheitert) - warnend}/{gesamt} "
+                f"{self.gegenstand}{zusatz}")
         else:
-            zeilen.append(f"OK  verify: {gesamt}/{gesamt} {self.gegenstand}")
+            zeilen.append(
+                f"OK  verify: {gesamt - warnend}/{gesamt} {self.gegenstand}{zusatz}")
         return "\n".join(zeilen)
 
     def als_dict(self) -> dict:

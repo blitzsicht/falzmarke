@@ -94,6 +94,70 @@ def test_der_regelnamen_leser_findet_ueberhaupt_etwas():
     assert len(_linter_regelnamen()) >= 8
 
 
+# ── Dieselbe Pflicht für die Prüfungen der fertigen Datei (#292) ────────────
+#
+# `pruefung_eml.py` misst die fertige `.eml`. Bis #292 trug dort keine Prüfung
+# einen Regelnamen, und damit wirkte jede als Fehler — `regeln.deckel(None)` gibt
+# vorsichtshalber `fehler` zurück. Für die technischen ist das richtig, für eine
+# Regel auf der Ebene `praxis` nicht (ADR 0035). Die Zuordnung ist jetzt Pflicht,
+# und zwar maschinell: Gelesen wird der Syntaxbaum, nicht eine Liste, die man
+# nachzuziehen vergisst.
+
+
+def _pruefungsregelnamen() -> set[str]:
+    """Die Regelnamen, die `pruefung_eml.py` meldet — aus dem Syntaxbaum.
+
+    Gelesen wird das zweite Argument von `_wahr(bericht, "<regel>", …)`.
+    """
+    import ast
+    import pathlib
+
+    from falzmarke import pruefung_eml
+
+    quelle = pathlib.Path(pruefung_eml.__file__).read_text(encoding="utf-8")
+    namen = set()
+    for knoten in ast.walk(ast.parse(quelle)):
+        if (isinstance(knoten, ast.Call) and isinstance(knoten.func, ast.Name)
+                and knoten.func.id == "_wahr" and len(knoten.args) >= 2):
+            zweites = knoten.args[1]
+            if isinstance(zweites, ast.Constant) and isinstance(zweites.value, str):
+                namen.add(zweites.value)
+    return namen
+
+
+def test_jede_pruefung_der_fertigen_datei_ist_zugeordnet():
+    bekannt = {r["pruefung"] for r in regeln.alle() if r.get("pruefung")}
+    benutzt = _pruefungsregelnamen()
+    fehlend = sorted(benutzt - bekannt)
+    assert not fehlend, (
+        f"Diese Prüfungen stehen in keiner Zeile von email.yaml: {fehlend}. "
+        "Jede braucht einen Eintrag mit Herkunft und Ebene — auch eine reine "
+        "Werkzeugprüfung. Ohne ihn wirkt sie als Fehler, ohne dass jemand sagt, "
+        "wovon sie redet (#292).")
+
+
+def test_der_pruefungsnamen_leser_findet_ueberhaupt_etwas():
+    """Gegenprobe: Eine leere Menge bestünde den Test darüber immer.
+
+    Die Zahl ist eine untere Schranke und absichtlich nicht die genaue: Sie soll
+    beim Hinzufügen einer Prüfung nicht rot werden, wohl aber, wenn der Leser
+    ins Leere greift — etwa weil `_wahr` umbenannt wurde.
+    """
+    assert len(_pruefungsregelnamen()) >= 20
+
+
+def test_kein_eintrag_ohne_pruefung_im_code():
+    """Die Gegenrichtung: ein Katalogeintrag, den niemand mehr meldet.
+
+    Er sieht wie Abdeckung aus und ist keine — und beim nächsten Umbau glaubt
+    jemand, die Regel werde geprüft.
+    """
+    bekannt = {r["pruefung"] for r in regeln.alle() if r.get("pruefung")}
+    verwaist = sorted(bekannt - _pruefungsregelnamen())
+    assert not verwaist, (
+        f"Diese Einträge nennen eine Prüfung, die es nicht mehr gibt: {verwaist}")
+
+
 # ── Q2: Nur mehrfach Belegtes darf Fehler sein ──────────────────────────────
 
 def test_kein_fehler_aus_einer_einzigen_quelle():

@@ -610,3 +610,89 @@ def test_die_entdoppelung_haengt_an_ihrem_eigenen_fall(tmp_path):
         "        einmalig = []")
     abweichend = set(_abweichende_faelle(modul.signatur_bloecke))
     assert abweichend == {"doppelte-zeile-in-zwei-bloecken"}, sorted(abweichend)
+
+
+# ── Die Warnstufe des Berichts (#292) ───────────────────────────────────────
+#
+# Bis #292 kannte `geometrie.Bericht` nur wahr und falsch, und jede Prüfung der
+# fertigen `.eml` wirkte als Fehler. Die Stufe kommt jetzt aus dem Regelkatalog.
+#
+# Gemessen werden hier BEIDE Richtungen. Eine allein belegt nichts: Dass ein
+# Lauf grün ist, kann daran liegen, dass die Herabstufung greift — oder daran,
+# dass die Prüfung gar nicht angeschlagen hat.
+
+from falzmarke import pruefung_eml as _eml_pruefung                   # noqa: E402
+from falzmarke import regeln as _regeln                              # noqa: E402
+
+
+def _eml_ohne_sprache(tmp_path: Path) -> Path:
+    """Eine echte Nachricht, der das `lang`-Attribut fehlt.
+
+    Über den echten Erzeuger und dann sabotiert — nicht von Hand gebaut: Eine
+    selbst geschriebene `.eml` bestünde die übrigen 24 Prüfungen nicht, und dann
+    wäre nicht zu sehen, welche den Exit-Code bestimmt.
+    """
+    import yaml
+
+    from falzmarke import eml as _eml
+    from falzmarke import markdown as _markdown
+
+    quelle = "wie besprochen erhalten Sie das Angebot.\n"
+    profil = yaml.safe_load(
+        (REPO / "skill" / "falzmarke" / "typst" / "profiles" / "example.yaml")
+        .read_text(encoding="utf-8"))
+    kopf = {"an": "a@example.de", "betreff": "Probe", "anrede": "Hallo,",
+            "unterzeichner": "Erika Muster"}
+    roh = _eml.baue(kopf, profil, quelle, _markdown.lies(quelle)).as_string()
+
+    kaputt = roh.replace('<html lang=3D"de">', "<html>", 1)
+    assert kaputt != roh, (
+        "Die Sabotage hat nichts verändert — dann belegt dieser Test nichts")
+    pfad = tmp_path / "ohne-sprache.eml"
+    pfad.write_text(kaputt, encoding="utf-8", newline="")
+    return pfad
+
+
+def test_eine_fehlerregel_macht_den_bericht_rot(tmp_path):
+    """Die Kontrollprobe, und der heutige Stand: `eml.sprache` ist `werkzeug`."""
+    assert _regeln.deckel_von_pruefung("sprache") == _regeln.DECKEL_FEHLER, \
+        "der Ausgangszustand ist nicht mehr `fehler` — dann misst dieser Test etwas anderes"
+    bericht = _eml_pruefung.pruefe(_eml_ohne_sprache(tmp_path))
+    assert not bericht.ok
+    assert not bericht.warnungen, "ein Fehler darf nicht als Warnung erscheinen"
+
+
+def test_dieselbe_regel_als_warnung_laesst_den_bericht_gruen(tmp_path, monkeypatch):
+    """Die Gegenrichtung, und der eigentliche Gegenstand von #292.
+
+    Derselbe Befund, dieselbe Datei — nur die Stufe aus dem Katalog ist eine
+    andere. Dass er SICHTBAR bleibt, wird mitgeprüft: Eine Warnung, die im
+    knappen Bericht fehlt, ist im grünen Lauf keine.
+    """
+    monkeypatch.setattr(_regeln, "deckel_von_pruefung",
+                        lambda name: (_regeln.DECKEL_WARNUNG if name == "sprache"
+                                      else _regeln.DECKEL_FEHLER))
+    bericht = _eml_pruefung.pruefe(_eml_ohne_sprache(tmp_path))
+    assert bericht.ok, bericht.als_text()
+    assert len(bericht.warnungen) == 1, bericht.als_text()
+
+    knapp = bericht.als_text()
+    assert "WARN" in knapp and "Sprache ausgezeichnet" in knapp, knapp
+    assert "1 Warnung" in knapp, knapp
+
+
+def test_die_briefmasse_bleiben_fehler(tmp_path):
+    """Der Default trägt: Die Maße des Briefes kennen den Katalog nicht.
+
+    Ohne diesen Test hätte die Änderung den PDF-Pfad stillschweigend aufweichen
+    können — dieselbe Berichtsklasse misst beides.
+    """
+    # Derselbe Anker wie in `test_verschobene_falzmarke_faellt_auf` — ein
+    # eigener waere eine zweite Fassung derselben Sabotage.
+    typst = _sabotiere(tmp_path, "vendor/letter-pro-v3.0.0.typ",
+                       "folding-mark-1-pos: 105mm", "folding-mark-1-pos: 112mm")
+    pdf, form = _rendere_mit(tmp_path, typst)
+    bericht = geometrie.pruefe(pdf, form)
+    assert not bericht.ok, "ein verschobenes Maß muss ein Fehler bleiben"
+    assert not bericht.warnungen, "kein Briefmaß darf zur Warnung geworden sein"
+    assert all(p.stufe == geometrie.STUFE_FEHLER for p in bericht.pruefungen)

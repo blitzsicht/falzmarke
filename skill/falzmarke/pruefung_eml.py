@@ -24,7 +24,8 @@ from email.utils import getaddresses, parsedate_to_datetime
 from pathlib import Path
 
 from falzmarke import emit_html
-from falzmarke.geometrie import Bericht
+from falzmarke import regeln
+from falzmarke.geometrie import STUFE_FEHLER, STUFE_WARNUNG, Bericht
 
 #: RFC 5322: keine Zeile über 998 Zeichen. Darüber schneiden Server ab.
 ZEILE_HART = 998
@@ -37,6 +38,31 @@ ZEILE_HART = 998
 #: dasselbe meinen. Dasselbe Argument, mit dem die vendorte Layoutquelle in
 #: `regeln/din5008.yaml` nicht als Beleg zählt.
 SIGNATUR_TRENNER = "-- "
+
+
+def _wahr(bericht: Bericht, regel: str, name: str, bedingung: bool,
+          soll: str, ist: str) -> None:
+    """Eine Prüfung, deren Stufe aus dem Regelkatalog kommt (#292).
+
+    Jede Prüfung hier nennt ihren Regelnamen. Daraus holt `regeln.deckel()` die
+    Wirkung, die sie haben DARF — aus `herkunft` (Belegstärke) und `ebene`
+    (Gegenstand, ADR 0035), und es gilt die schärfere der beiden Grenzen.
+
+    **Warum nicht direkt `bericht.wahr`:** Bis #292 wirkte jede Prüfung als
+    Fehler, weil es die Zuordnung nicht gab. Für die technischen ist das richtig
+    — sie stehen auf RFCs. Für eine Regel auf der Ebene `praxis` ist es falsch:
+    „Praxis ist nie ein Fehler" steht in ADR 0035, und ohne diese Weiche gab es
+    nur „Fehler" oder „gar nicht prüfen". Genau daran ist die Lesebreite in #289
+    gestorben.
+
+    Ein unbekannter Regelname ergibt `fehler` — dieselbe Vorsicht wie in
+    `regeln.deckel(None)`. Dass keiner unbekannt bleibt, hält
+    `tests/test_quellenlage.py` fest; es liest die Namen aus dem Syntaxbaum
+    dieser Datei.
+    """
+    stufe = (STUFE_WARNUNG if regeln.deckel_von_pruefung(regel) == regeln.DECKEL_WARNUNG
+             else STUFE_FEHLER)
+    bericht.add(name, soll, ist, "—", bool(bedingung), stufe=stufe)
 
 
 class EmlUnlesbar(ValueError):
@@ -203,52 +229,52 @@ def _pruefe_aufbau(nachricht, bericht: Bericht) -> None:
     koerper = [a for a in arten if not a.startswith("application/")
                and not a.startswith("image/")]
 
-    bericht.wahr("Textteil vorhanden", "text/plain" in arten, "text/plain", ", ".join(arten))
-    bericht.wahr("HTML-Teil vorhanden", "text/html" in arten, "text/html", ", ".join(arten))
+    _wahr(bericht, "textteil", "Textteil vorhanden", "text/plain" in arten, "text/plain", ", ".join(arten))
+    _wahr(bericht, "htmlteil", "HTML-Teil vorhanden", "text/html" in arten, "text/html", ", ".join(arten))
 
     # Die Reihenfolge ist nicht kosmetisch: In multipart/alternative gilt der
     # LETZTE Teil als der reichste. Stünde der Text hinten, zeigte jeder Client
     # den Klartext statt des HTML.
     if "text/plain" in koerper and "text/html" in koerper:
-        bericht.wahr(
-            "Reihenfolge der Alternativen",
+        _wahr(
+            bericht, "alternativen_reihenfolge", "Reihenfolge der Alternativen",
             koerper.index("text/plain") < koerper.index("text/html"),
             "text/plain vor text/html", " vor ".join(koerper))
 
-    bericht.wahr("Keine Message-ID", nachricht.get("Message-ID") is None,
+    _wahr(bericht, "message_id", "Keine Message-ID", nachricht.get("Message-ID") is None,
                  "nicht gesetzt", nachricht.get("Message-ID") or "nicht gesetzt")
 
     for name in ("From", "To", "Subject"):
-        bericht.wahr(f"Kopfzeile {name}", bool(nachricht.get(name)),
+        _wahr(bericht, "kopfzeilen", f"Kopfzeile {name}", bool(nachricht.get(name)),
                      "gesetzt", nachricht.get(name) or "fehlt")
 
     # Date steht eigens da, weil „vorhanden" hier nicht reicht: Ein Wert, den
     # kein Mailprogramm parst, ist so gut wie keiner — er erscheint dann als
     # „(null), (null)" im weitergeleiteten Text, genau wie ein fehlender (#236).
     datum = nachricht.get("Date")
-    bericht.wahr("Kopfzeile Date", bool(datum), "gesetzt", datum or "fehlt")
+    _wahr(bericht, "date", "Kopfzeile Date", bool(datum), "gesetzt", datum or "fehlt")
     if datum:
         try:
             gelesen = parsedate_to_datetime(str(datum))
         except (TypeError, ValueError):
             gelesen = None
-        bericht.wahr("Date ist nach RFC 5322 lesbar", gelesen is not None,
+        _wahr(bericht, "date_lesbar", "Date ist nach RFC 5322 lesbar", gelesen is not None,
                      "lesbares Datum", str(datum))
 
 
 def _pruefe_textteil(teil, bericht: Bericht) -> None:
     if teil is None:
         return
-    bericht.wahr("Zeichensatz des Textteils", (teil.get_content_charset() or "") == "utf-8",
+    _wahr(bericht, "charset_text", "Zeichensatz des Textteils", (teil.get_content_charset() or "") == "utf-8",
                  "utf-8", teil.get_content_charset() or "nicht gesetzt")
     kodierung = (teil["Content-Transfer-Encoding"] or "").lower()
     # base64 im Textteil macht die Rohansicht unlesbar — und die Rohansicht ist
     # das, was von einer .eml als Vorlage übrig bleibt.
-    bericht.wahr("Transfer-Encoding des Textteils", kodierung != "base64",
+    _wahr(bericht, "transfer_encoding", "Transfer-Encoding des Textteils", kodierung != "base64",
                  "nicht base64", kodierung or "nicht gesetzt")
-    bericht.wahr("format=flowed", teil.get_param("format") == "flowed",
+    _wahr(bericht, "flowed", "format=flowed", teil.get_param("format") == "flowed",
                  "flowed", teil.get_param("format") or "nicht gesetzt")
-    bericht.wahr("delsp gesetzt", teil.get_param("delsp") in ("yes", "no"),
+    _wahr(bericht, "delsp", "delsp gesetzt", teil.get_param("delsp") in ("yes", "no"),
                  "yes oder no", teil.get_param("delsp") or "nicht gesetzt")
 
     # RFC 5322 schreibt CRLF als Zeilenende vor — eine Nachricht aus einem
@@ -265,10 +291,10 @@ def _pruefe_textteil(teil, bericht: Bericht) -> None:
     # Space-Stuffing: Eine Zeile, die mit '>' beginnt, läse der Empfänger als
     # Zitat. Sie muss ein vorangestelltes Leerzeichen tragen.
     ungestufft = [z for z in zeilen if z.startswith(">")]
-    bericht.wahr("Space-Stuffing", not ungestufft, "keine Zeile beginnt mit >",
+    _wahr(bericht, "space_stuffing", "Space-Stuffing", not ungestufft, "keine Zeile beginnt mit >",
                  f"{len(ungestufft)} Zeile(n)" if ungestufft else "keine")
 
-    bericht.wahr("Signaturtrenner", f"\n{SIGNATUR_TRENNER}\n" in f"\n{text}",
+    _wahr(bericht, "signaturtrenner", "Signaturtrenner", f"\n{SIGNATUR_TRENNER}\n" in f"\n{text}",
                  SIGNATUR_TRENNER.replace(" ", "␣"),
                  "vorhanden" if SIGNATUR_TRENNER in text else "fehlt")
 
@@ -277,17 +303,17 @@ def _pruefe_htmlteil(teil, bericht: Bericht) -> None:
     if teil is None:
         return
     html = teil.get_content()
-    bericht.wahr("Zeichensatz des HTML-Teils", (teil.get_content_charset() or "") == "utf-8",
+    _wahr(bericht, "charset_html", "Zeichensatz des HTML-Teils", (teil.get_content_charset() or "") == "utf-8",
                  "utf-8", teil.get_content_charset() or "nicht gesetzt")
 
     # Dieselbe Messung, die der Emitter an sich selbst anlegt (ADR 0034, Punkt
     # 4). Sie steht dort, damit sie beim Erweitern greift, und wird hier auf
     # die fertige Datei angewendet — die Fassung, die tatsächlich ankommt.
     verstoesse = emit_html.verstoesse(html)
-    bericht.wahr("Keine verbotenen Bestandteile", not verstoesse,
+    _wahr(bericht, "verbotene_bestandteile", "Keine verbotenen Bestandteile", not verstoesse,
                  "keine", "; ".join(verstoesse) if verstoesse else "keine")
 
-    bericht.wahr("Sprache ausgezeichnet", bool(re.search(r"<html[^>]+\blang=", html)),
+    _wahr(bericht, "sprache", "Sprache ausgezeichnet", bool(re.search(r"<html[^>]+\blang=", html)),
                  "lang gesetzt", "gesetzt" if "lang=" in html else "fehlt")
     # Diese Zeile hat ihre Richtung zweimal gewechselt, und beide Male aus
     # demselben Grund: Die Breite wurde dort gemessen, wo sie nicht hingehört.
@@ -312,7 +338,7 @@ def _pruefe_htmlteil(teil, bericht: Bericht) -> None:
     # Prüfung über die halbe Menge wäre genau die Lücke, in der er zurückkommt.
     eigene = re.findall(rf'<(?:p|ul|ol) class="{emit_html.KLASSE_TEXT}"[^>]*>', html)
     gedeckelte = [a for a in eigene if "max-width" in a]
-    bericht.wahr("Fließtext ohne Breitendeckel", not gedeckelte,
+    _wahr(bericht, "breitendeckel_text", "Fließtext ohne Breitendeckel", not gedeckelte,
                  "kein max-width am Fließtext",
                  f"{len(gedeckelte)} von {len(eigene)} eigenen Blöcken gedeckelt")
 
@@ -330,7 +356,7 @@ def _pruefe_htmlteil(teil, bericht: Bericht) -> None:
     layout = re.findall(r'<table[^>]*role="presentation"[^>]*>', html)
     umschlag = layout[0] if layout else ""
     gedeckelt = "max-width" in umschlag
-    bericht.wahr("Umschlag ohne Breitendeckel", not gedeckelt,
+    _wahr(bericht, "breitendeckel_umschlag", "Umschlag ohne Breitendeckel", not gedeckelt,
                  "kein max-width am Umschlag",
                  "gedeckelt" if gedeckelt else
                  (f"frei (von {len(layout)} Layouttabellen)" if layout else "kein Umschlag"))
@@ -342,7 +368,7 @@ def _pruefe_htmlteil(teil, bericht: Bericht) -> None:
     # Regel laufen auseinander, und diese hier war die einzige, solange
     # `verstoesse()` fremde Quellen ohnehin pauschal ablehnte.
     gefunden = emit_html.zaehlpixel(html)
-    bericht.wahr("Kein Zählpixel", not gefunden, "keins",
+    _wahr(bericht, "zaehlpixel", "Kein Zählpixel", not gefunden, "keins",
                  f"{len(gefunden)} gefunden" if gefunden else "keins")
 
     # Jede Tabelle ist entweder Daten (mit <th>) oder Layout (mit
@@ -353,7 +379,7 @@ def _pruefe_htmlteil(teil, bericht: Bericht) -> None:
     # Emitter an sich selbst anlegt — zwei Fassungen derselben Regel liefen
     # sonst auseinander.
     offen = emit_html._layouttabellen_pruefen(html)
-    bericht.wahr("Tabellen sind Daten oder gekennzeichnetes Layout", not offen,
+    _wahr(bericht, "tabellenart", "Tabellen sind Daten oder gekennzeichnetes Layout", not offen,
                  "jede mit <th> oder role=presentation",
                  f"{len(offen)} ohne beides" if offen else "alle gekennzeichnet")
 
@@ -379,7 +405,7 @@ def _pruefe_quellteil(nachricht, text_teil, html_teil, bericht: Bericht) -> None
         bericht.add("Vollständigkeit gegen die Quelle", "text/markdown-Teil",
                     "nicht enthalten — nicht prüfbar", "—", True)
         return
-    bericht.wahr("Quellteil ist CommonMark", quelle.get_param("variant") == "CommonMark",
+    _wahr(bericht, "quellteil", "Quellteil ist CommonMark", quelle.get_param("variant") == "CommonMark",
                  "CommonMark", quelle.get_param("variant") or "nicht gesetzt")
 
     roh = quelle.get_content()
@@ -398,7 +424,7 @@ def _pruefe_anhaenge(nachricht, bericht: Bericht) -> None:
     if not anhaenge:
         return
     gesamt = sum(len(t.get_content()) for t in anhaenge)
-    bericht.wahr("Anhänge tragen Dateinamen", all(t.get_filename() for t in anhaenge),
+    _wahr(bericht, "anhang_name", "Anhänge tragen Dateinamen", all(t.get_filename() for t in anhaenge),
                  "jeder benannt", f"{len(anhaenge)} Anhang/Anhänge")
     bericht.add("Gesamtgröße der Anhänge", "<= 10 MB",
                 f"{gesamt / 1_048_576:.1f} MB", "—", gesamt <= 10 * 1_048_576)
@@ -420,7 +446,7 @@ def _pruefe_blindkopie(nachricht, text_teil, html_teil, bericht: Bericht) -> Non
         return
 
     adressen = [a for _, a in getaddresses([str(roh)]) if a]
-    bericht.wahr("Blindkopie ist auswertbar", bool(adressen),
+    _wahr(bericht, "bcc_auswertbar", "Blindkopie ist auswertbar", bool(adressen),
                  "mindestens eine Adresse", str(roh))
     if not adressen:
         # Ohne Adresse hätte die Prüfung unten eine leere Menge gegen den Text
@@ -431,7 +457,7 @@ def _pruefe_blindkopie(nachricht, text_teil, html_teil, bericht: Bericht) -> Non
     sichtbar = "\n".join(
         teil.get_content() for teil in (text_teil, html_teil) if teil is not None)
     verraten = sorted({a for a in adressen if a.lower() in sichtbar.lower()})
-    bericht.wahr("Blindkopie steht nicht im sichtbaren Teil", not verraten,
+    _wahr(bericht, "bcc_verschwiegen", "Blindkopie steht nicht im sichtbaren Teil", not verraten,
                  "kommt im Text und im HTML nicht vor",
                  ", ".join(verraten) or "kommt nicht vor")
 

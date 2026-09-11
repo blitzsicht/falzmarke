@@ -211,6 +211,17 @@ Ein Beispiel liegt unter `examples/email/email-signatur.md`, die Signatur dazu i
   stillschweigend zurückkommt. Sie misst nur die **eigenen** Absätze (`class="fm-t"`): Eine
   mitgebrachte Signatur darf ihre eigene Breite behalten. Wer den Deckel wiederhaben will, braucht
   zuerst eine Quelle und dann einen Weg, ihn als Warnung zu melden.
+- **Fehler oder Warnung — und wer das entscheidet** (Issue #292). `verify --email` prüft 25
+  Eigenschaften der fertigen Datei, und jede nennt ihren Regelnamen. Welche Wirkung sie haben
+  darf, rechnet `regeln.deckel()` aus `herkunft` (Belegstärke) und `ebene` (Gegenstand) — es gilt
+  die schärfere der beiden Grenzen. Eine Regel auf der Ebene `praxis` kann damit **warnen**: Sie
+  steht im Bericht, erscheint im Schlusssatz und lässt den Exit-Code bei 0.
+
+  Bis #292 war das nicht möglich. Es gab nur „Fehler" oder „gar nicht prüfen", weil
+  `geometrie.Bericht` keine dritte Stufe kannte — und daran ist die Lesebreite gestorben, eine
+  Setzung ohne Quelle, die als harter Befund wirkte (#289). Die Wirkung hat sich für keine
+  Prüfung geändert; der Gewinn ist, dass sie jetzt begründet ist. Die Briefmaße bleiben
+  unberührt: Dort trägt jede Prüfung die Vorgabe `fehler`, denn ein Maß warnt nicht.
 - **Tabellen ab fünf Spalten** werden gemeldet, mit dem Vorschlag, sie als PDF-Anlage
   beizulegen. Die Zahl ist eine Setzung, keine Messung — deshalb eine Warnung.
 - **Anhänge:** in drei Stufen, jede mit ihrer Fundstelle (Issue #183). Gemessen wird die
