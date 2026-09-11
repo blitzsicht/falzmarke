@@ -392,3 +392,351 @@ regeln:
       mitreisen, weil es keines gibt, das aelter waere als dieser Aufruf. Wer
       ein fertiges PDF anhaengen will, nimmt `anlagen_dateien:`; die Meldung
       sagt das.
+
+  # ══ Die fertige Datei: Pruefungen aus pruefung_eml.py (#292) ══════════════
+  #
+  # Alle Regeln oben tragen `lint:` und beschreiben die EINGABE — Frontmatter
+  # und Markdown. Die Pruefungen in `pruefung_eml.py` messen dagegen die fertige
+  # `.eml`, und fuer sie gab es bis #292 keinen einzigen Eintrag. Folge: Sie
+  # wirkten alle als Fehler, weil `deckel(None)` vorsichtshalber `fehler`
+  # zurueckgibt — auch die, deren Regel nur Erfahrung mit Mailprogrammen ist.
+  # Genau daran ist die Lesebreite in #289 gestorben.
+  #
+  # `pruefung:` ist die dritte Achse neben `lint:` und `typografie:`. Der Wert
+  # ist der Regelname, den `pruefung_eml` meldet.
+  #
+  # WAS SICH DADURCH NICHT AENDERT: Keine dieser Pruefungen wird milder. Die
+  # technischen sind durch RFCs belegt (Primaerquelle, darf Fehler sein), die
+  # uebrigen sind Zusagen des Werkzeugs (ADR 0034). Der Gewinn ist nicht eine
+  # andere Wirkung, sondern eine begruendete: Wer die naechste Pruefung
+  # hinzufuegt, muss sagen, wovon sie redet — und eine Regel auf der Ebene
+  # `praxis` kann dann warnen, statt als Fehler zu wirken oder zu fehlen.
+
+  # ── Aufbau der Nachricht ─────────────────────────────────────────────────
+
+  - id: eml.textteil
+    titel: Die Nachricht hat einen Textteil
+    pruefung: textteil
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      ADR 0034, Punkt 1: Jede Nachricht traegt beide Fassungen. Ein Client ohne
+      HTML bekommt sonst eine leere Mail.
+
+  - id: eml.htmlteil
+    titel: Die Nachricht hat einen HTML-Teil
+    pruefung: htmlteil
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: Die Gegenrichtung zu `eml.textteil`, aus demselben Grund.
+
+  - id: eml.alternativen_reihenfolge
+    titel: Der HTML-Teil steht hinter dem Textteil
+    pruefung: alternativen_reihenfolge
+    ebene: technik
+    herkunft: primaerquelle
+    quellen: [rfc2046]
+    wirkung: fehler
+    bemerkung: >-
+      In `multipart/alternative` gilt der LETZTE Teil als der reichste. Stuende
+      der Klartext hinten, zeigte jeder Client ihn statt des HTML.
+    belegt_durch:
+      rfc2046: >-
+        Abschnitt 5.1.4 — Alternative Subtype: „the alternatives appear in an
+        order of increasing faithfulness to the original content. In general,
+        the best choice is the LAST part of a type supported by the recipient
+        system's local environment."
+
+  - id: eml.kopfzeilen
+    titel: From, To und Subject sind gesetzt
+    pruefung: kopfzeilen
+    ebene: technik
+    herkunft: primaerquelle
+    quellen: [rfc5322]
+    wirkung: fehler
+    bemerkung: >-
+      Eine Nachricht ohne Absender oder Empfaenger ist keine. `Subject` ist nach
+      RFC 5322 optional, hier aber Pflicht: Eine Geschaeftsmail ohne Betreff
+      laesst sich beim Empfaenger nicht wiederfinden.
+    belegt_durch:
+      rfc5322: >-
+        Abschnitt 3.6.2 — Originator Fields und 3.6.3 — Destination Address
+        Fields; `Subject` steht in 3.6.5 als optional und ist hier eine Zusage
+        des Werkzeugs.
+
+  - id: eml.message_id
+    titel: Die Nachricht traegt keine Message-ID
+    pruefung: message_id
+    ebene: technik
+    herkunft: primaerquelle
+    quellen: [rfc5322]
+    wirkung: fehler
+    bemerkung: >-
+      Eine Message-ID gehoert dem Versender: Sie muss eindeutig sein, und das
+      kann nur garantieren, wer die Nachricht tatsaechlich abschickt. falzmarke
+      setzt deshalb keine — ein Entwurf, der zweimal gesendet wird, truege sonst
+      zweimal dieselbe.
+    belegt_durch:
+      rfc5322: >-
+        Abschnitt 3.6.4 — Identification Fields: „The generator of the message
+        identifier MUST guarantee that the msg-id is unique."
+
+  - id: eml.date
+    titel: Die Nachricht traegt ein Date
+    pruefung: date
+    ebene: technik
+    herkunft: primaerquelle
+    quellen: [rfc5322]
+    wirkung: fehler
+    bemerkung: >-
+      Bis #236 trug keine Nachricht ein `Date`, und `verify --email` meldete sie
+      trotzdem gruen — die Pruefung konnte an dieser Stelle nicht rot werden.
+    belegt_durch:
+      rfc5322: >-
+        Abschnitt 3.6.1 — The Origination Date Field; das Feld ist in der
+        Tabelle in Abschnitt 3.6 als erforderlich geführt.
+
+  - id: eml.date_lesbar
+    titel: Das Date ist nach RFC 5322 lesbar
+    pruefung: date_lesbar
+    ebene: technik
+    herkunft: primaerquelle
+    quellen: [rfc5322]
+    wirkung: fehler
+    bemerkung: >-
+      Vorhanden und lesbar sind zwei Dinge. Ein Datum in eigener Schreibweise
+      stuende da, ohne dass ein Mailprogramm es einordnen koennte.
+    belegt_durch:
+      rfc5322: "Abschnitt 3.3 — Date and Time Specification"
+
+  # ── Der Textteil ─────────────────────────────────────────────────────────
+
+  - id: eml.charset_text
+    titel: Der Textteil ist als UTF-8 ausgezeichnet
+    pruefung: charset_text
+    ebene: technik
+    herkunft: primaerquelle
+    quellen: [rfc2045]
+    wirkung: fehler
+    belegt_durch:
+      rfc2045: >-
+        Abschnitt 5.1 — Syntax of the Content-Type Header Field: „the `charset`
+        parameter is applicable to any subtype of `text`".
+
+  - id: eml.transfer_encoding
+    titel: Der Textteil ist quoted-printable kodiert
+    pruefung: transfer_encoding
+    ebene: technik
+    herkunft: primaerquelle
+    quellen: [rfc2045]
+    wirkung: fehler
+    bemerkung: >-
+      Nicht base64: Eine Nachricht, die ein Mensch im Quelltext lesen kann,
+      laesst sich pruefen. `format=flowed` waere in base64 ausserdem unsichtbar.
+    belegt_durch:
+      rfc2045: >-
+        Abschnitt 6.7 — Quoted-Printable Content-Transfer-Encoding: „intended to
+        represent data that largely consists of octets that correspond to
+        printable characters in the US-ASCII character set."
+
+  - id: eml.flowed
+    titel: Der Textteil traegt format=flowed
+    pruefung: flowed
+    ebene: technik
+    herkunft: primaerquelle
+    quellen: [rfc3676]
+    wirkung: fehler
+    bemerkung: >-
+      Ein Brief kennt seine Breite, eine Mail nicht. Wer hart auf 72 Zeichen
+      umbricht, erzeugt auf einem Telefon den Treppenschnitt; wer gar nicht
+      umbricht, eine Zeile mit Querbalken. Flowed loest beides.
+    belegt_durch:
+      rfc3676: >-
+        Abschnitt 4 — The Format and DelSp Parameters: „A Format value of Flowed
+        indicates that the definition of flowed text (as specified in this memo)
+        was used on generation."
+
+  - id: eml.delsp
+    titel: delsp ist gesetzt
+    pruefung: delsp
+    ebene: technik
+    herkunft: primaerquelle
+    quellen: [rfc3676]
+    wirkung: fehler
+    bemerkung: >-
+      Beide Wege sind gebaut und werden gegen ihre Umkehrung geprueft;
+      `delsp=yes` ist die Vorgabe. Ungesetzt waere der Wert `No` — und dann
+      stuende in der Datei etwas anderes, als der Erzeuger gerechnet hat.
+    belegt_durch:
+      rfc3676: >-
+        Abschnitt 4 — The Format and DelSp Parameters: „If DelSp is not
+        specified, or if its value is not recognized, a value of No is assumed."
+
+  - id: eml.space_stuffing
+    titel: Zeilen, die Schutz brauchen, sind space-stuffed
+    pruefung: space_stuffing
+    ebene: technik
+    herkunft: primaerquelle
+    quellen: [rfc3676]
+    wirkung: fehler
+    bemerkung: >-
+      Ohne das Schutzleerzeichen liest ein Client eine Zeile, die mit `>`
+      beginnt, als Zitat — und eine, die mit `From ` beginnt, als Anfang einer
+      neuen Nachricht.
+    belegt_durch:
+      rfc3676: >-
+        Abschnitt 4.4 — Space-Stuffing: „Space-stuffing adds a single space to
+        the start of any line which needs protection when the message is
+        generated."
+
+  - id: eml.signaturtrenner
+    titel: Vor der Signatur steht die Trennzeile
+    pruefung: signaturtrenner
+    ebene: technik
+    herkunft: primaerquelle
+    quellen: [rfc3676]
+    wirkung: fehler
+    bemerkung: >-
+      Zwei Striche und ein Leerzeichen. Clients schneiden daran ab, wenn jemand
+      antwortet — fehlt die Zeile, reist die Signatur durch den ganzen Faden.
+    belegt_durch:
+      rfc3676: >-
+        Abschnitt 4.3 — Usenet Signature Convention: „a long-standing convention
+        … of using \"-- \" as the separator line between the body and the
+        signature."
+
+  # ── Der HTML-Teil ────────────────────────────────────────────────────────
+
+  - id: eml.charset_html
+    titel: Der HTML-Teil ist als UTF-8 ausgezeichnet
+    pruefung: charset_html
+    ebene: technik
+    herkunft: primaerquelle
+    quellen: [rfc2045]
+    wirkung: fehler
+    belegt_durch:
+      rfc2045: "Abschnitt 5.1 — Syntax of the Content-Type Header Field"
+
+  - id: eml.verbotene_bestandteile
+    titel: Keine Skripte, externen Stylesheets oder fremden Quellen
+    pruefung: verbotene_bestandteile
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      ADR 0034, Punkt 4. Geprueft wird mit derselben Funktion, die der Emitter
+      an sich selbst anlegt — zwei Fassungen derselben Regel laufen auseinander.
+
+  - id: eml.sprache
+    titel: Der HTML-Teil zeichnet seine Sprache aus
+    pruefung: sprache
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Ohne `lang` liest ein Screenreader den deutschen Text mit englischer
+      Aussprache vor. Eine Zusage des Werkzeugs, keine Normaussage — deshalb
+      `werkzeug` und keine erfundene Quelle.
+
+  - id: eml.breitendeckel_text
+    titel: Der Fliesstext traegt keinen Breitendeckel
+    pruefung: breitendeckel_text
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Die Gegenrichtung aus #289: Bis dahin VERLANGTE die Pruefung einen Deckel
+      von 640 px, und diese Zahl hatte keine Quelle. Jetzt haelt sie fest, dass
+      er nicht stillschweigend zurueckkommt. Gemessen werden nur die eigenen
+      Bloecke (`fm-t`) — eine mitgebrachte Signatur behaelt ihre Breite.
+
+  - id: eml.breitendeckel_umschlag
+    titel: Der Umschlag traegt keinen Breitendeckel
+    pruefung: breitendeckel_umschlag
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Der Befund aus #264: Ein Deckel am Umschlag quetscht alles darin. Gemessen
+      am 08.09.2026 in Outlook fuer Mac brach die Kopfzelle „Datum" mitten im
+      Wort, waehrend das Fenster doppelt so breit war.
+
+  - id: eml.zaehlpixel
+    titel: Kein Zaehlpixel
+    pruefung: zaehlpixel
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Ein 1x1-Bild ist keine Abbildung, sondern eine Messung am Empfaenger.
+      ADR 0034, Punkt 4.
+
+  - id: eml.tabellenart
+    titel: Jede Tabelle ist Daten oder gekennzeichnetes Layout
+    pruefung: tabellenart
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Issue #104: Ohne `role="presentation"` liest ein Screenreader eine
+      Layouttabelle als Datensatz vor. Umgekehrt gilt dasselbe — eine Tabelle
+      ohne `<th>` UND ohne die Marke ist ein Befund, egal welche Absicht
+      dahinterstand.
+
+  - id: eml.quellteil
+    titel: Der Quellteil ist als CommonMark ausgezeichnet
+    pruefung: quellteil
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Nur vorhanden, wenn `--mit-quelle` gesetzt ist (ADR 0034, Punkt 3). Dann
+      aber richtig ausgezeichnet, sonst weiss ein Empfaenger nicht, welchen
+      Dialekt er vor sich hat.
+
+  - id: eml.anhang_name
+    titel: Jeder Anhang traegt einen Dateinamen
+    pruefung: anhang_name
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Ein Anhang ohne Namen erscheint beim Empfaenger als „Unbenannt" und
+      laesst sich nicht zuordnen.
+
+  # ── Blindkopie (#242) ────────────────────────────────────────────────────
+
+  - id: eml.bcc_auswertbar
+    titel: Die Blindkopie steht auswertbar im Kopf
+    pruefung: bcc_auswertbar
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Die eine Zusage des Feldes: Was als Blindkopie gesetzt ist, muss ein
+      Mailprogramm auch als solche lesen koennen.
+
+  - id: eml.bcc_verschwiegen
+    titel: Die Blindkopie steht nicht im sichtbaren Teil
+    pruefung: bcc_verschwiegen
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Die andere Haelfte, und die wichtigere: Steht die Adresse im Text, ist sie
+      keine Blindkopie mehr. Das fiele sonst niemandem auf, weil die Nachricht
+      in jeder anderen Hinsicht stimmt.

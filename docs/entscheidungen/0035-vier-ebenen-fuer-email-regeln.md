@@ -210,3 +210,39 @@ seine Pflichten erfüllt.
 
 Und sie ändert nichts am Versand: Es entsteht kein Versandbefehl. Das steht in ADR 0034 und wird
 hier nicht neu verhandelt.
+
+## Nachtrag 11.09.2026: Die Ebenen wirken jetzt auch auf die fertige Datei (#292)
+
+Diese Entscheidung war bis hierher nur halb umgesetzt. `lint.Bericht.fehler()` stuft einen Befund
+anhand von `herkunft` und `ebene` herab — „Praxis ist nie ein Fehler" gilt dort seit v0.8.1. Die
+Prüfungen der fertigen `.eml` in `pruefung_eml.py` liefen daran vorbei: Sie nutzen
+`geometrie.Bericht`, und der kannte nur `bestanden: bool`. Ein Regelname fehlte, also gab
+`regeln.deckel(None)` vorsichtshalber `fehler` zurück — für **jede** der 24 Prüfungen.
+
+Was daraus folgte, ist an einem Fall belegt. Die Lesebreite (`max-width: 640px` an jedem Absatz)
+hatte keine Quelle: nicht in der DIN, nicht im Regelkatalog, kein Eintrag in `quellen.yaml`. Sie
+war eine Setzung auf der Ebene *Praxis* — und wirkte als Fehler, weil es keine dritte Stufe gab.
+Der Ausweg in [#289](https://github.com/blitzsicht/falzmarke/issues/289) war, sie ganz zu
+entfernen. Das war richtig für diesen Fall, aber es war kein Ausweg für die Frage: **Eine
+Setzung, die man behalten will, hatte keinen Platz.**
+
+Seit #292 gibt es ihn:
+
+- `regeln/email.yaml` trägt die Achse `pruefung:` neben `lint:` und `typografie:`. Alle 24
+  Prüfungen der fertigen Datei sind zugeordnet — zehn auf RFC-Primärquellen, die übrigen als
+  Zusagen des Werkzeugs.
+- `geometrie.Pruefung` trägt eine `stufe`. Die Vorgabe ist `fehler`, damit die **Briefmaße**
+  unberührt bleiben: Dort sind es Maße, und ein Maß warnt nicht.
+- `Bericht.ok` zählt nur Fehler. Warnungen erscheinen auch im **knappen** Bericht und im
+  Schlusssatz — eine Warnung, die erst mit `--verbose` sichtbar wird, ist im grünen Lauf keine.
+
+**Die Wirkung hat sich dabei für keine einzige Prüfung geändert.** Das ist beabsichtigt: Der
+Gewinn ist nicht eine mildere Prüfung, sondern eine begründete. Wer die nächste hinzufügt, muss
+sagen, wovon sie redet — und `tests/test_quellenlage.py` liest die Regelnamen aus dem Syntaxbaum,
+damit die Zuordnung nicht vergessen werden kann.
+
+Was damit **nicht** erledigt ist: Im Linter hängen fünf Meldungen (Leitwort und Schlusspunkt im
+Betreff, Brief und E-Mail) am Eintrag `werkzeug.betreff_laenge`, der von der Betrefflänge redet.
+Für Leitwort und Schlusspunkt gibt es im Repository **keine** Quelle — auch nicht in
+`references/din5008.md`. Ob sie Fehler bleiben, eine Quelle bekommen oder entfallen, ist eine
+Entscheidung über die Quellenlage und steht noch aus.

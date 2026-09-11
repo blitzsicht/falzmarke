@@ -289,6 +289,14 @@ quellen:
     zaehlt: voll
     abgerufen: 2026-08-28
 
+  rfc2046:
+    titel: "RFC 2046 — MIME Part Two: Media Types"
+    url: https://www.rfc-editor.org/rfc/rfc2046
+    art: primaerquelle
+    gruppe: rfc2046
+    zaehlt: voll
+    abgerufen: 2026-09-11
+
   rfc3676:
     titel: "RFC 3676 — The Text/Plain Format and DelSp Parameters"
     url: https://www.rfc-editor.org/rfc/rfc3676
