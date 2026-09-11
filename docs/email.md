@@ -191,15 +191,26 @@ Ein Beispiel liegt unter `examples/email/email-signatur.md`, die Signatur dazu i
   nichts**: Bis Issue #264 trug er `align="center"` bei 600 px, und das hatte zwei sichtbare
   Folgen — die Nachricht saß mittig im Fenster, während die Signatur, die das Mailprogramm
   darunter anfügt, am linken Rand begann, und Datentabellen wurden in die 600 px gequetscht, bis
-  sie mitten im Wort brachen (gemessen am 08.09.2026 in Outlook für Mac). Die Lesebreite sitzt
-  seitdem an Absätzen und Listen, wo sie hingehört: `max-width: 640px` hält Zeilen lesbar kurz,
-  Tabellen tragen sie nicht. Rechtsbündige Zellen brechen zusätzlich nicht zwischen Zahl und
+  sie mitten im Wort brachen (gemessen am 08.09.2026 in Outlook für Mac). Rechtsbündige Zellen
+  brechen zusätzlich nicht zwischen Zahl und
   Einheit — das ist eine Anweisung an die Darstellung und **keine** Ersetzung im Text: Das
   geschützte Leerzeichen vor „EUR" steht auf einer Einzelquelle und darf nach der Quellenlage
   nicht automatisch gesetzt werden. Jede Layouttabelle trägt
   `role="presentation"`: Ohne die Marke liest ein Screenreader sie als Datensatz vor, und die
   Prüfung lehnt sie ab. Umgekehrt gilt dasselbe — eine Tabelle ohne `<th>` **und** ohne die Marke
   ist ein Befund, egal welche der beiden Absichten dahinterstand.
+- **Keine Breitengrenze** (Issue #289). Weder der Umschlag noch ein Absatz noch eine Liste
+  deckelt die Breite; der Fließtext nimmt, was das Lesefenster hergibt. Bis dahin trugen Absätze
+  und Listen `max-width: 640px`. Die Überlegung dahinter stimmt — 640 px bei 16 px sind rund
+  75 Zeichen, ein maximiertes Fenster gibt das Doppelte, und lange Zeilen lesen sich schlechter —,
+  nur hatte die Zahl **keine Quelle**: nicht in der DIN 5008, nicht im Regelkatalog, kein Eintrag
+  in `quellen.yaml`. Eine Setzung auf Ebene *Praxis* nach
+  [ADR 0035](entscheidungen/0035-vier-ebenen-fuer-email-regeln.md) — und Praxis ist nie ein
+  Fehler, wirkte hier aber als einer, weil `Bericht` keine Warnstufe kennt. Die Prüfung steht
+  jetzt in der Gegenrichtung („Fließtext ohne Breitendeckel") und hält fest, dass der Deckel nicht
+  stillschweigend zurückkommt. Sie misst nur die **eigenen** Absätze (`class="fm-t"`): Eine
+  mitgebrachte Signatur darf ihre eigene Breite behalten. Wer den Deckel wiederhaben will, braucht
+  zuerst eine Quelle und dann einen Weg, ihn als Warnung zu melden.
 - **Tabellen ab fünf Spalten** werden gemeldet, mit dem Vorschlag, sie als PDF-Anlage
   beizulegen. Die Zahl ist eine Setzung, keine Messung — deshalb eine Warnung.
 - **Anhänge:** in drei Stufen, jede mit ihrer Fundstelle (Issue #183). Gemessen wird die

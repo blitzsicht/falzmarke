@@ -107,7 +107,16 @@ SABOTAGEN = [
      lambda s: s.replace("</head>", '<link rel=3D"stylesheet" href=3D"https://x.invalid/a.css">'
                                     "</head>", 1)),
     ("Sprache ausgezeichnet", lambda s: s.replace('<html lang=3D"de">', "<html>", 1)),
-    ("Lesebreite am Fließtext", lambda s: s.replace("max-width:", "min-width:")),
+    # Seit #289 ist die Richtung umgekehrt: Der Fließtext darf KEINEN Deckel
+    # tragen, weil die 640 px keine Quelle hatten. Sabotiert wird deshalb, was
+    # der Emitter nicht mehr setzt — ein `max-width` an einem eigenen Absatz.
+    # Der Ausdruck greift in der quoted-printable-Fassung: `class=3D"fm-t"
+    # style=3D"margin: 0 0 12px;` steht dort ungebrochen auf einer Zeile, und
+    # `0 0 12px` trifft nur Absätze — Listenpunkte haben `0 0 4px`, der Rumpf
+    # `0; padding`.
+    ("Fließtext ohne Breitendeckel",
+     lambda s: s.replace('class=3D"fm-t" style=3D"margin: 0 0 12px;',
+                         'class=3D"fm-t" style=3D"max-width: 640px; margin: 0 0 12px;', 1)),
     # Der Befund aus #264, in seiner Gegenrichtung: Ein Deckel am Umschlag
     # quetscht alles darin — bis eine Datentabelle mitten im Wort bricht.
     # Genau diese Zeile stand bis dahin im Emitter und fiel niemandem auf.
@@ -157,6 +166,29 @@ def test_ein_fehlendes_date_faellt_auf(tmp_path, roh):
     ohne = re.sub(r"^Date:.*$", "", roh, count=1, flags=re.M)
     assert ohne != roh, "keine Date-Zeile in der Nachricht — die Sabotage misst nichts"
     assert "Kopfzeile Date" in _gescheitert(_pruefe(tmp_path, ohne))
+
+
+# ── Die zweite Achse des Breitendeckels: Listen (#289) ──────────────────────
+
+def test_auch_eine_gedeckelte_liste_faellt_auf(tmp_path, profil):
+    """Die Sabotage oben trifft einen Absatz — `QUELLE` hat keine Liste.
+
+    Damit wäre die halbe Menge ungemessen: Absätze **und** Listen trugen den
+    Deckel, und eine Prüfung, die nur Absätze sieht, lässt ihn an der Liste
+    zurückkommen. Deshalb eine eigene Nachricht mit Liste und eine eigene
+    Sabotage.
+    """
+    quelle = "wie besprochen:\n\n- Technik\n- Aufbau\n"
+    roh = eml.baue({**KOPF, "betreff": "Probe mit Liste"}, profil,
+                   quelle, md.lies(quelle)).as_string()
+
+    anker = '<ul class=3D"fm-t" style=3D"margin: 0 0 12px; padding-left: 22px;'
+    assert anker in roh, "der Anker trifft nicht — die Sabotage würde nichts messen"
+    kaputt = roh.replace(anker, anker.replace('style=3D"', 'style=3D"max-width: 640px; '), 1)
+    assert kaputt != roh
+
+    assert _pruefe(tmp_path, roh).ok, "die Kontrollprobe ist schon rot"
+    assert "Fließtext ohne Breitendeckel" in _gescheitert(_pruefe(tmp_path, kaputt))
 
 
 # ── Blindkopie: die eine Zusage des Feldes (#242) ───────────────────────────
