@@ -68,3 +68,4 @@ skill/vendor/*.whl
 paket/
 falzmarke.skill
 falzmarke.skill.sha256
+.gstack/
