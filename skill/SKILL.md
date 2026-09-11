@@ -95,7 +95,7 @@ Mailprogramm ankam.
 Nachrichten wären dreißig Fenster), ein Prüflauf, ein Automatiklauf ohne Bildschirm. Wer eine
 Mail schreibt, die ein Mensch senden wird, setzt das Flag.
 
-Drei Sätze, die dabei nicht fehlen dürfen, weil sie gemessen sind:
+Was dabei nicht fehlen darf, weil es gemessen ist:
 
 - Der Entwurfsweg ist für **Outlook für Mac** belegt. Auf Windows, unter Linux und in Apple Mail
   wird stattdessen die `.eml` übergeben — und die erscheint dort als **Lesefenster, nicht als
@@ -105,7 +105,15 @@ Drei Sätze, die dabei nicht fehlen dürfen, weil sie gemessen sind:
   falzmarke: Wer die gestaltete Signatur aus dem Profil will, leert die Konto-Signatur in
   Outlook einmal — das wirkt dann auf jeden Entwurf. Ein zweites Profil ohne Signaturblock wäre
   die schlechtere Antwort, weil zwei Fassungen derselben Signatur auseinanderlaufen.
+- **Der Entwurf trägt den Bezug zu einer Vorgängernachricht nicht.** Steht `antwort_auf:` im
+  Frontmatter, setzt falzmarke `In-Reply-To` und `References` in die `.eml` — Outlook nimmt
+  beide über die Programmsteuerung aber nicht an (gemessen am 11.09.2026: `set headers`,
+  `set source` und die Angabe beim Anlegen, alle drei abgelehnt). Die Mail aus dem Entwurf
+  beginnt deshalb einen neuen Thread. Der Befehl sagt es, wenn es zutrifft; wer im alten Faden
+  bleiben muss, versendet die `.eml` statt des Entwurfs.
 - Geht gar nichts auf, ist die Datei trotzdem fertig; der Befehl endet mit 0 und nennt den Pfad.
+  Kehrt das Mailprogramm gar nicht zurück, wird **nichts nachgeschoben**: Ob ein Fenster offen
+  ist, weiß dann niemand, und ein zweites wäre genau der Fehler, den #287 behoben hat.
 
 **falzmarke versendet nichts.** Es gibt keinen Versandbefehl und keine Option, die sendet — auch
 im Steuerskript des Entwurfs steht keiner. Die Nachricht wird im Mailprogramm geöffnet und dort

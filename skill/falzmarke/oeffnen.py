@@ -26,6 +26,7 @@ import sys
 import tempfile
 from collections.abc import Mapping
 from pathlib import Path
+from typing import NamedTuple
 
 # Der übliche Starter je System. Windows fehlt mit Absicht: Dort gibt es kein
 # Programm dieser Art, sondern `os.startfile` — siehe `weg()`.
@@ -204,9 +205,7 @@ on run argv
 \t\trepeat with i from 6 to (count of argv)
 \t\t\tmake new attachment at entwurf with properties {file:POSIX file (item i of argv)}
 \t\tend repeat
-\t\tset nachweis to "" & (count of to recipients of entwurf) & " " & (count of cc recipients of entwurf) & " " & (count of bcc recipients of entwurf) & " " & (count of attachments of entwurf)
-\t\topen entwurf
-\t\tactivate
+\t\tset nachweis to "" & (id of entwurf) & " " & (count of to recipients of entwurf) & " " & (count of cc recipients of entwurf) & " " & (count of bcc recipients of entwurf) & " " & (count of attachments of entwurf)
 \tend tell
 \treturn nachweis
 end run
@@ -221,7 +220,61 @@ on zerlege(roh)
 end zerlege
 """
 
-#: Programme, die hier einen Entwurf annehmen — Kennung, Anzeigename, Skript.
+#: Öffnet die angelegte Nachricht — ein eigener Aufruf, und das ist der Kern
+#: der Änderung von #287.
+#:
+#: Bis dahin stand `open entwurf` im Anlegeskript, also **vor** jeder
+#: Entscheidung auf Python-Seite. Fiel `_nachweis_stimmt` danach durch, war das
+#: Fenster längst offen — und `cli.py` legte im Rückfall die `.eml` obendrauf.
+#: Zwei Fenster aus einem Lauf, das zweite ein Lesefenster ohne Senden-Knopf.
+#: Genau das hat der Betreiber am 11.09.2026 gemeldet.
+#:
+#: Die Kennung kommt als Argument, nicht in den Skripttext: dieselbe Regel wie
+#: beim Betreff — ein Wert wird übergeben, nie zusammengesetzt.
+SKRIPT_OUTLOOK_OEFFNEN = """\
+on run argv
+\tset kennung to (item 1 of argv) as integer
+\ttell application "Microsoft Outlook"
+\t\topen (first outgoing message whose id = kennung)
+\t\tactivate
+\tend tell
+end run
+"""
+
+#: Verwirft eine Nachricht, die die Prüfung nicht bestanden hat.
+#:
+#: Über die `id`, nicht über eine Schleife: `delete m` in einem
+#: `repeat with m in (every outgoing message)` greift nicht — gemessen am
+#: 11.09.2026, „geloescht: 0 von 3"; über die Kennung danach „3 von 3".
+#:
+#: Gelöscht wird ausschließlich, was dieser Lauf Sekunden zuvor selbst angelegt
+#: hat und was nie ein Fenster hatte. Eine Nachricht, die jemand sehen konnte,
+#: fasst dieses Modul nicht an.
+SKRIPT_OUTLOOK_VERWERFEN = """\
+on run argv
+\tset kennung to (item 1 of argv) as integer
+\ttell application "Microsoft Outlook"
+\t\tdelete (first outgoing message whose id = kennung)
+\tend tell
+end run
+"""
+
+
+class Entwurfsprogramm(NamedTuple):
+    """Ein Mailprogramm und die drei Skripte, die es versteht.
+
+    Ein NamedTuple und keine Dataclass: Der Zugriff über den Index bleibt
+    erhalten, und die Felder haben trotzdem Namen.
+    """
+
+    kennung: str
+    name: str
+    anlegen: str
+    oeffnen: str
+    verwerfen: str
+
+
+#: Programme, die hier einen Entwurf annehmen.
 #:
 #: Die Liste ist kurz und ehrlich: Für Outlook ist der Weg gemessen (08.09.2026,
 #: Outlook für Mac 16.112.1 — Betreff, ein Empfänger und ein Anhang aus dem
@@ -230,12 +283,14 @@ end zerlege
 #: Nachricht, die ihre Auszeichnung unterwegs verliert, wäre schlechter als die
 #: Datei. Bis das jemand misst, bleibt es bei der Dateiübergabe.
 ENTWURFSPROGRAMME = (
-    ("com.microsoft.Outlook", "Microsoft Outlook", SKRIPT_OUTLOOK),
+    Entwurfsprogramm("com.microsoft.Outlook", "Microsoft Outlook",
+                     SKRIPT_OUTLOOK, SKRIPT_OUTLOOK_OEFFNEN,
+                     SKRIPT_OUTLOOK_VERWERFEN),
 )
 
 
 def entwurfsweg(plattform: str = sys.platform, *,
-                laufen=subprocess.run) -> tuple[str, str, str] | None:
+                laufen=subprocess.run) -> Entwurfsprogramm | None:
     """Welches Programm hier einen Entwurf annimmt — als Angabe, nicht als Tat.
 
     Gefragt wird das System, nicht der Ordner: `path to application id` löst
@@ -249,11 +304,11 @@ def entwurfsweg(plattform: str = sys.platform, *,
     """
     if not plattform.startswith("darwin"):
         return None
-    for kennung, name, skript in ENTWURFSPROGRAMME:
-        frage = f'POSIX path of (path to application id "{kennung}")'
+    for programm in ENTWURFSPROGRAMME:
+        frage = f'POSIX path of (path to application id "{programm.kennung}")'
         lauf = _lauf(["osascript", "-e", frage], FRIST_S, laufen)
         if lauf.returncode == 0 and lauf.stdout.strip():
-            return kennung, name, skript
+            return programm
     return None
 
 
@@ -274,6 +329,66 @@ def entwurfsargumente(felder: Mapping, anhangpfade: list[str]) -> list[str]:
     ]
 
 
+class Entwurfslage(NamedTuple):
+    """Was aus einem Entwurfsversuch wurde — mit einem dritten Zustand.
+
+    `programm` gesetzt heißt: Der Entwurf steht offen im Mailprogramm.
+    `programm is None` heißt: Er steht nicht — `grund` sagt, warum.
+
+    `ungewiss` ist der Zustand, den es bis #287 nicht gab und der den
+    gemeldeten Fehler erst möglich machte: Das Steuerskript ist nicht
+    zurückgekehrt, also weiß niemand, ob eine Nachricht entstand und ob ein
+    Fenster offen ist. Wer in diesem Fall die `.eml` nachschiebt, bekommt
+    womöglich ein zweites Fenster — und das zweite ist ein Lesefenster ohne
+    Senden-Knopf. „Nicht geprüft" ist eben nicht dasselbe wie „nichts da".
+    """
+
+    programm: str | None
+    grund: str
+    ungewiss: bool = False
+
+
+def _steuere(skript: str, kennung: str, *, laufen=subprocess.run) -> str | None:
+    """Führt ein Skript aus, das nur eine Kennung braucht — öffnen, verwerfen.
+
+    `None` heißt gelaufen; alles andere ist der Grund. Geworfen wird nichts:
+    Auch hier gilt ADR 0038, Punkt 4 — die geprüfte Datei liegt bereits, und
+    ein Fenster, das nicht aufgeht, macht sie nicht ungültig.
+    """
+    with tempfile.TemporaryDirectory(prefix="falzmarke-entwurf-") as ordner:
+        datei = Path(ordner) / "schritt.applescript"
+        datei.write_text(skript, encoding="utf-8")
+        try:
+            lauf = _lauf(["osascript", str(datei), str(kennung)], FRIST_ENTWURF_S, laufen)
+        except FileNotFoundError:
+            return "osascript gibt es auf diesem System nicht"
+        except subprocess.TimeoutExpired:
+            return f"osascript kam in {FRIST_ENTWURF_S} Sekunden nicht zurück"
+    if lauf.returncode != 0:
+        meldung = (lauf.stderr or "").strip().splitlines()
+        letzte = meldung[-1] if meldung else f"osascript endete mit Code {lauf.returncode}"
+        return letzte[:200]
+    return None
+
+
+def zerlege_nachweis(ausgabe: str) -> tuple[str | None, tuple[int, ...] | None, str | None]:
+    """Die Antwort des Steuerskripts: Kennung, vier Zählwerte — oder ein Grund.
+
+    Seit #287 gibt das Anlegeskript die `id` der Nachricht mit zurück. Sie wird
+    gebraucht, um dieselbe Nachricht danach zu öffnen oder zu verwerfen; ohne
+    sie müsste man sie über den Betreff suchen, und zwei Entwürfe mit
+    demselben Betreff wären nicht auseinanderzuhalten.
+
+    Gibt `(kennung, (an, kopie, blindkopie, anhaenge), None)` — oder
+    `(None, None, Grund)`.
+    """
+    teile = ausgabe.split()
+    if len(teile) != 5 or not all(s.isdigit() for s in teile):
+        return None, None, (f"das Steuerskript meldete "
+                            f"„{ausgabe.strip()[:60]}“ statt einer Zählung")
+    return teile[0], tuple(int(s) for s in teile[1:]), None
+
+
 def _nachweis_stimmt(ausgabe: str, felder: Mapping) -> str | None:
     """Sagt die Antwort des Skripts dasselbe wie die Vorgabe? Sonst der Grund.
 
@@ -283,10 +398,9 @@ def _nachweis_stimmt(ausgabe: str, felder: Mapping) -> str | None:
     ein Anhang, weil das Programm ihn stillschweigend abgelehnt hat, fällt es
     genau hier auf.
     """
-    teile = ausgabe.split()
-    if len(teile) != 4 or not all(t.isdigit() for t in teile):
-        return f"das Steuerskript meldete „{ausgabe.strip()[:60]}“ statt einer Zählung"
-    ist = tuple(int(t) for t in teile)
+    _, ist, fehler = zerlege_nachweis(ausgabe)
+    if fehler:
+        return fehler
     soll = (len(felder.get("an") or []), len(felder.get("kopie") or []),
             len(felder.get("blindkopie") or []), len(felder.get("anhaenge") or []))
     if ist != soll:
@@ -317,14 +431,14 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
     """
     umgebung = os.environ if umgebung is None else umgebung
     if (umgebung.get("FALZMARKE_ENTWURF") or "").strip().lower() == "nie":
-        return None, "FALZMARKE_ENTWURF=nie ist gesetzt"
+        return Entwurfslage(None, "FALZMARKE_ENTWURF=nie ist gesetzt")
     grund = kein_bildschirm(umgebung, plattform)
     if grund:
-        return None, grund
-    gewaehlt = entwurfsweg(plattform, laufen=laufen)
-    if gewaehlt is None:
-        return None, "kein Mailprogramm gefunden, das hier einen Entwurf annimmt"
-    _, name, skript = gewaehlt
+        return Entwurfslage(None, grund)
+    programm = entwurfsweg(plattform, laufen=laufen)
+    if programm is None:
+        return Entwurfslage(
+            None, "kein Mailprogramm gefunden, das hier einen Entwurf annimmt")
 
     with tempfile.TemporaryDirectory(prefix="falzmarke-entwurf-") as ordner:
         pfade = []
@@ -335,20 +449,42 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
             ziel.write_bytes(inhalt)
             pfade.append(str(ziel))
         skriptdatei = Path(ordner) / "entwurf.applescript"
-        skriptdatei.write_text(skript, encoding="utf-8")
+        skriptdatei.write_text(programm.anlegen, encoding="utf-8")
         argv = ["osascript", str(skriptdatei), *entwurfsargumente(felder, pfade)]
         try:
             lauf = _lauf(argv, FRIST_ENTWURF_S, laufen)
         except FileNotFoundError:
-            return None, "osascript gibt es auf diesem System nicht"
+            return Entwurfslage(None, "osascript gibt es auf diesem System nicht")
         except subprocess.TimeoutExpired:
-            return None, f"osascript kam in {FRIST_ENTWURF_S} Sekunden nicht zurück"
+            # Der dritte Zustand (#287): Das Skript ist nicht zurückgekehrt,
+            # also ist UNBEKANNT, ob eine Nachricht entstand. Wer hier die
+            # `.eml` nachschöbe, riskierte genau das gemeldete zweite Fenster —
+            # und wer verwürfe, hätte keine Kennung, gegen die er es täte.
+            return Entwurfslage(
+                None, f"osascript kam in {FRIST_ENTWURF_S} Sekunden nicht zurück",
+                ungewiss=True)
 
     if lauf.returncode != 0:
         meldung = (lauf.stderr or "").strip().splitlines()
         letzte = meldung[-1] if meldung else f"osascript endete mit Code {lauf.returncode}"
-        return None, letzte[:200]
-    schief = _nachweis_stimmt(lauf.stdout or "", felder)
+        return Entwurfslage(None, letzte[:200])
+
+    kennung, _, fehler = zerlege_nachweis(lauf.stdout or "")
+    schief = fehler or _nachweis_stimmt(lauf.stdout or "", felder)
     if schief:
-        return None, schief
-    return name, ""
+        # Angelegt, aber nicht tragfähig — und noch von niemandem gesehen, weil
+        # das Anlegeskript seit #287 nicht mehr öffnet. Wegräumen, dann darf der
+        # Aufrufer die `.eml` übergeben: ein Fenster, nicht zwei.
+        if kennung:
+            _steuere(programm.verwerfen, kennung, laufen=laufen)
+        return Entwurfslage(None, schief)
+
+    nicht_geoeffnet = _steuere(programm.oeffnen, kennung, laufen=laufen)
+    if nicht_geoeffnet:
+        # Die Nachricht trägt alles, ließ sich aber nicht zeigen. Sie unsichtbar
+        # im Postfach zu lassen wäre die schlechteste Fassung: Der Aufrufer
+        # übergibt gleich die `.eml`, und dann läge beides da.
+        _steuere(programm.verwerfen, kennung, laufen=laufen)
+        return Entwurfslage(None, f"angelegt, aber nicht zu öffnen: {nicht_geoeffnet}")
+
+    return Entwurfslage(programm.name, "")

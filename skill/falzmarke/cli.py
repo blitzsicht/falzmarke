@@ -1109,9 +1109,10 @@ def befehl_email(args) -> int:
         # öffnet in Apple Mail, Thunderbird und Outlook für Mac als
         # LESEFENSTER, ohne Senden-Knopf — gemessen, samt der Gegenprobe mit
         # `X-Unsent: 1`, die nichts änderte (`docs/mailprogramme-2026-08-27.md`).
-        programm, grund = oeffnen_modul.entwurf(eml_modul.entwurfsfelder(eml_pfad))
-        if programm:
-            print(f"OK  Entwurf angelegt: {programm}")
+        felder = eml_modul.entwurfsfelder(eml_pfad)
+        lage = oeffnen_modul.entwurf(felder)
+        if lage.programm:
+            print(f"OK  Entwurf angelegt: {lage.programm}")
             # Was das Programm nach dem Anlegen selbst hineinschreibt, steht in
             # keiner Prüfung. Am 08.09.2026 gesehen: Outlook hängt die Signatur
             # des Kontos an — mit einer Signatur im Profil steht sie zweimal da.
@@ -1119,18 +1120,52 @@ def befehl_email(args) -> int:
                   "den Entwurf.\n"
                   "         Trägt das Profil eine eigene, steht sie zweimal darin.",
                   file=sys.stderr)
+            # Der Faden bleibt in der Datei, nicht im Entwurf (#286). Nur
+            # melden, wenn es etwas zu melden gibt — stünde die Warnung unter
+            # jeder Mail, läse sie niemand mehr.
+            if felder.get("antwort_auf"):
+                print("HINWEIS  Der Entwurf trägt den Bezug zur Vorgängernachricht NICHT.\n"
+                      "         Das Mailprogramm nimmt `In-Reply-To` über die "
+                      "Programmsteuerung nicht an;\n"
+                      "         gemessen am 11.09.2026 für Outlook für Mac. Die Mail "
+                      "beginnt damit einen\n"
+                      "         neuen Thread. Wer im alten bleiben muss, versendet "
+                      f"stattdessen die Datei:\n         {eml_pfad}",
+                      file=sys.stderr)
+        elif lage.ungewiss:
+            # Der dritte Zustand (#287). Ob ein Fenster offen ist, weiß hier
+            # niemand — und „nicht geprüft" ist nicht „nichts da". Die `.eml`
+            # jetzt zu übergeben, wäre womöglich das zweite Fenster, das der
+            # Betreiber am 11.09.2026 gemeldet hat.
+            print(f"HINWEIS  Entwurf ungewiss: {lage.grund}\n"
+                  "         Im Postfach nachsehen, ob einer entstanden ist. "
+                  "Es wird nichts nachgeschoben,\n"
+                  "         damit kein zweites Fenster aufgeht. Die geprüfte "
+                  f"Nachricht liegt hier:\n         {eml_pfad}",
+                  file=sys.stderr)
         else:
             # Kein anderer Exit-Code: Die Datei ist geschrieben und gemessen,
             # das ist die Zusage des Befehls (ADR 0038, Punkt 4). Der Rückfall
-            # ist der Weg, den es vor #263 allein gab.
-            print(f"HINWEIS  kein Entwurf: {grund}", file=sys.stderr)
+            # ist der Weg, den es vor #263 allein gab — und er ist hier sicher,
+            # weil seit #287 kein Entwurfsfenster offen sein kann, wenn wir
+            # hier ankommen.
+            print(f"HINWEIS  kein Entwurf: {lage.grund}", file=sys.stderr)
             grund_datei = oeffnen_modul.oeffne(eml_pfad)
             if grund_datei:
                 print(f"HINWEIS  nicht geöffnet: {grund_datei}\n"
                       f"         Die Nachricht liegt fertig da: {eml_pfad}",
                       file=sys.stderr)
             else:
+                # Was jetzt aufgeht, ist die Datei — und die erscheint als
+                # Lesefenster ohne Senden-Knopf (ADR 0038). Das gehört
+                # dazugesagt: Sonst steht der Mensch vor einem Fenster, das
+                # nicht zum Senden passt, und weiß nicht, warum.
                 print(f"OK  geöffnet: {eml_pfad}")
+                print("HINWEIS  Das ist die Datei, kein Entwurf — sie erscheint als "
+                      "Lesefenster ohne\n"
+                      "         Senden-Knopf. Der Weg zur ausgehenden Mail heißt dort "
+                      "„Weiterleiten“.",
+                      file=sys.stderr)
     return EXIT_OK
 
 

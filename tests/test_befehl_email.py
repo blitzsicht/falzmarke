@@ -506,7 +506,8 @@ def test_das_sicherheitsnetz_faengt_auch_den_entwurfsweg():
 def test_der_entwurf_wird_gemeldet(tmp_path, monkeypatch, capsys):
     from falzmarke import oeffnen
 
-    monkeypatch.setattr(oeffnen, "entwurf", lambda *_a, **_k: ("Testprogramm", ""))
+    monkeypatch.setattr(oeffnen, "entwurf",
+                        lambda *_a, **_k: oeffnen.Entwurfslage("Testprogramm", ""))
     code = falzmarke.main(["email", str(_schreibe(tmp_path)), "--profiles", str(PROFILE),
                            "--oeffnen"])
     ausgabe = capsys.readouterr()
@@ -522,8 +523,9 @@ def test_ohne_entwurf_bleibt_der_alte_weg(tmp_path, monkeypatch, starter, capsys
     nicht trägt, wird die Datei übergeben wie vor #263."""
     from falzmarke import oeffnen
 
-    monkeypatch.setattr(oeffnen, "entwurf",
-                        lambda *_a, **_k: (None, "kein Mailprogramm gefunden"))
+    monkeypatch.setattr(
+        oeffnen, "entwurf",
+        lambda *_a, **_k: oeffnen.Entwurfslage(None, "kein Mailprogramm gefunden"))
     code = falzmarke.main(["email", str(_schreibe(tmp_path)), "--profiles", str(PROFILE),
                            "--oeffnen"])
     ausgabe = capsys.readouterr()
@@ -604,3 +606,97 @@ def test_gegenprobe_die_suche_trifft_wirklich():
     # Dokumentation der Korrektur genau das, was sie verbietet.
     zitat = 'Hier stand „Diese Vorschau ist das, was gezeigt wird“.'
     assert "Diese Vorschau" not in re.sub(r"„[^“]*“", "", zitat)
+
+
+# ── Der dritte Zustand und der Faden (#287, #286) ───────────────────────────
+
+def test_die_gerissene_frist_schiebt_die_datei_nicht_nach(tmp_path, monkeypatch,
+                                                          starter, capsys):
+    """Der gemeldete Fehler, von der anderen Seite gemessen.
+
+    Kehrt das Steuerskript nicht zurück, ist unbekannt, ob ein Entwurfsfenster
+    offen ist. Wer dann die `.eml` übergibt, riskiert genau das zweite Fenster,
+    das der Betreiber am 11.09.2026 gemeldet hat — und das zweite ist ein
+    Lesefenster ohne Senden-Knopf.
+    """
+    from falzmarke import oeffnen
+
+    monkeypatch.setattr(
+        oeffnen, "entwurf",
+        lambda *_a, **_k: oeffnen.Entwurfslage(None, "osascript kam in 90 Sekunden "
+                                               "nicht zurück", ungewiss=True))
+    code = falzmarke.main(["email", str(_schreibe(tmp_path)), "--profiles", str(PROFILE),
+                           "--oeffnen"])
+    ausgabe = capsys.readouterr()
+    assert code == 0, "die Datei ist geschrieben und gemessen — das bleibt die Zusage"
+    assert "Entwurf ungewiss" in ausgabe.err
+    assert starter.anzahl == 0, "es wurde trotzdem etwas geöffnet — zwei Fenster"
+
+
+def test_gegenprobe_ohne_ungewissheit_wird_sehr_wohl_nachgeschoben(tmp_path, monkeypatch,
+                                                                   starter, capsys):
+    """Ohne sie belegte der Test darüber nur, dass gerade nichts geöffnet wird
+    — auch dann, wenn der Rückfall überhaupt nicht mehr liefe."""
+    from falzmarke import oeffnen
+
+    monkeypatch.setattr(
+        oeffnen, "entwurf",
+        lambda *_a, **_k: oeffnen.Entwurfslage(None, "kein Mailprogramm gefunden"))
+    falzmarke.main(["email", str(_schreibe(tmp_path)), "--profiles", str(PROFILE),
+                    "--oeffnen"])
+    capsys.readouterr()
+    assert starter.anzahl == 1
+
+
+def test_der_rueckfall_sagt_dass_es_kein_entwurf_ist(tmp_path, monkeypatch,
+                                                     starter, capsys):
+    """Die zweite Hälfte der Meldung: „auch nicht passend zum senden."
+
+    Eine `.eml` erscheint als Lesefenster ohne Senden-Knopf (ADR 0038). Wer das
+    nicht dazusagt, lässt den Menschen vor einem Fenster stehen, das nicht tut,
+    was er erwartet.
+    """
+    from falzmarke import oeffnen
+
+    monkeypatch.setattr(
+        oeffnen, "entwurf",
+        lambda *_a, **_k: oeffnen.Entwurfslage(None, "kein Mailprogramm gefunden"))
+    falzmarke.main(["email", str(_schreibe(tmp_path)), "--profiles", str(PROFILE),
+                    "--oeffnen"])
+    ausgabe = capsys.readouterr()
+    assert "Lesefenster" in ausgabe.err and "Senden-Knopf" in ausgabe.err
+
+
+def test_ein_bezug_zur_vorgaengernachricht_wird_gemeldet(tmp_path, monkeypatch, capsys):
+    """#286: Der Entwurf trägt `In-Reply-To` nicht — Outlook nimmt die
+    Kopfzeile über die Programmsteuerung nicht an (drei Versuche am
+    11.09.2026, alle abgelehnt). Die `.eml` trägt sie. Verschwiegen wäre das
+    die teure Fassung: Wer `antwort_auf` gesetzt hat, hält den Faden sonst für
+    erledigt."""
+    from falzmarke import oeffnen
+
+    monkeypatch.setattr(oeffnen, "entwurf",
+                        lambda *_a, **_k: oeffnen.Entwurfslage("Testprogramm", ""))
+    quelle = MAIL.replace("betreff: Angebot Nr. 2026-0815",
+                          'betreff: "AW: Angebot Nr. 2026-0815"\n'
+                          'antwort_auf: "<vorher-1@example.de>"')
+    code = falzmarke.main(["email", str(_schreibe(tmp_path, quelle)),
+                           "--profiles", str(PROFILE), "--oeffnen"])
+    ausgabe = capsys.readouterr()
+    assert code == 0
+    assert "OK  Entwurf angelegt" in ausgabe.out, "der Entwurf entsteht weiter"
+    assert "Bezug zur Vorgängernachricht" in ausgabe.err
+    assert ".eml" in ausgabe.err, "der Ausweg muss im Text stehen"
+
+
+def test_ohne_bezug_steht_die_warnung_nicht_da(tmp_path, monkeypatch, capsys):
+    """Gegenprobe. Stünde sie unter jeder Mail, läse sie niemand mehr — und
+    dann wäre sie beim einen Fall, auf den es ankommt, wirkungslos."""
+    from falzmarke import oeffnen
+
+    monkeypatch.setattr(oeffnen, "entwurf",
+                        lambda *_a, **_k: oeffnen.Entwurfslage("Testprogramm", ""))
+    falzmarke.main(["email", str(_schreibe(tmp_path)), "--profiles", str(PROFILE),
+                    "--oeffnen"])
+    ausgabe = capsys.readouterr()
+    assert "Bezug zur Vorgängernachricht" not in ausgabe.err
