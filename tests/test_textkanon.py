@@ -30,8 +30,21 @@ QUELLENLAGE = (
 )
 WARNSTUFE = "Regeln aus einzelnen Quellen wirken nur als Warnung"
 
+#: Dieselbe Zusage auf Englisch (#237). Nicht übersetzt, sondern eigens
+#: geschrieben: „steht aus" heißt hier „is still outstanding", und die
+#: Berichtigung 1:2020-07 heißt im englischen Normwesen „Corrigendum". Wer die
+#: englische Fassung liest, sieht sonst ein Werkzeug ohne Vorbehalt — und
+#: genau dorthin, wo kein deutsches README gelesen wird, gehört er
+#: (ADR 0032, „Folgen").
+QUELLENLAGE_EN = (
+    "the comparison against the original text of DIN 5008:2020-03 "
+    "including Corrigendum 1:2020-07 is still outstanding"
+)
+WARNSTUFE_EN = "rules backed by a single source act as warnings only"
+
 MUSS_ENTHALTEN = {
     "README.md": [QUELLENLAGE, WARNSTUFE],
+    "README.en.md": [QUELLENLAGE_EN, WARNSTUFE_EN],
     "docs/recht.md": [QUELLENLAGE, WARNSTUFE],
     # Der Skill ist der Ort, an dem die Quellenlage am ehesten ankommt: Wer ihn
     # über einen Prompt auslöst, sieht nie ein README. Voller Satz, weil die
@@ -75,6 +88,23 @@ AUSNAHMEN = re.compile(r"(nicht|kein[e]?|keine[rms]?)\s+\S*\s*(normgerecht|DIN-k
                        r"|(normgerecht|DIN-konform|normkonform|zertifiziert)\S*\s*(ist|sind)?\s*(nicht|kein)", re.I)
 
 
+#: Die englischen Gegenstücke zu VERBOTEN. Ohne sie greift die Sperre aus
+#: ADR 0032 auf Englisch nicht — ausgerechnet dort, wo das Werkzeug neu vor
+#: Publikum steht. „compliant" deckt „DIN-compliant" und „standard-compliant"
+#: mit ab; einzeln aufgezählt wüchse die Lücke beim nächsten Wort von selbst
+#: nach (dieselbe Begründung wie bei NENNUNG in test_fundstellen.py).
+VERBOTEN_EN = re.compile(r"\b(compliant|conformant|certified|conformity)\w*", re.I)
+
+#: Wo die Wörter zulässig sind, weil sie verneint oder beschrieben werden.
+#: „no claim of conformity" ist der Satz, der die Zusage überhaupt erst
+#: ausspricht — er darf nicht an sich selbst scheitern.
+AUSNAHMEN_EN = re.compile(
+    r"\b(no|not|never|without|neither)\b[^.]{0,40}?"
+    r"\b(compliant|conformant|certified|conformity)"
+    r"|\b(compliant|conformant|certified|conformity)\w*[^.]{0,20}?\b(is|are)\s+(not|no)\b",
+    re.I)
+
+
 def _fliesstext(pfad) -> str:
     """Markdown bricht Zeilen frei um — für die Suche ist der Umbruch ein
     Leerzeichen. Ohne diese Normalisierung würde der Test bei jeder
@@ -113,6 +143,32 @@ def test_die_pruefung_wuerde_eine_behauptung_bemerken():
     # Ausnahme da ist: über die eigene Ausgabe wird das Wort verneint.
     satz = 'Kein „normgerecht“, kein „DIN-konform“ ohne den Satz oben.'
     assert AUSNAHMEN.search(satz), "Die Ausnahme greift bei der Verneinung nicht"
+
+
+def test_keine_ungedeckte_konformitaetsbehauptung_auf_englisch():
+    """Die deutsche Sperre greift für englischen Text nicht — sie kennt die
+    Wörter nicht. Ein englisches README ohne eigene Sperre wäre die Lücke, an
+    der ADR 0032 seine Bedingung verlöre."""
+    # Satzweise auf dem Fließtext, nicht zeilenweise: Markdown bricht frei um,
+    # und der Satz „You will find no claim of conformity …" stand im ersten
+    # Anlauf über zwei Zeilen. Die Verneinung lag in der einen, das Wort in der
+    # anderen — die Prüfung meldete ausgerechnet den Satz, der die
+    # Zurückhaltung ausspricht. Ein zeilenweiser Test misst hier den Umbruch.
+    saetze = [s for s in re.split(r"(?<=\.)\s", _fliesstext(REPO / "README.en.md")) if s]
+    treffer = [s.strip()[:110] for s in saetze
+               if VERBOTEN_EN.search(s) and not AUSNAHMEN_EN.search(s)]
+    assert not treffer, ("README.en.md: ungedeckte Konformitätsbehauptung:\n  "
+                         + "\n  ".join(treffer))
+
+
+def test_die_englische_pruefung_wuerde_eine_behauptung_bemerken():
+    """Gegenprobe: Ohne sie belegt der Test oben nur, dass gerade nichts
+    dasteht — nicht, dass er es fände."""
+    behauptung = "falzmarke produces DIN-compliant letters."
+    assert VERBOTEN_EN.search(behauptung)
+    assert not AUSNAHMEN_EN.search(behauptung)
+    zusage = "You will find no claim of conformity anywhere in this project."
+    assert AUSNAHMEN_EN.search(zusage), "Die Ausnahme greift bei der Verneinung nicht"
 
 
 # ── Kanäle: die Quellenlage muss dorthin, wo kein README gelesen wird ────────
@@ -180,7 +236,7 @@ def test_gegenprobe_der_kanalpruefung():
 #: von #249 lief ohne `*.yaml` und übersah ihn.
 TEXTQUELLEN = sorted(
     p for muster in ("skill/**/*.py", "skill/**/*.md", "skill/**/*.yaml",
-                     "docs/**/*.md", "README.md", "CONTRIBUTING.md")
+                     "docs/**/*.md", "README.md", "README.en.md", "CONTRIBUTING.md")
     for p in REPO.glob(muster)
     if "vendor" not in p.parts and "__pycache__" not in p.parts
 )
