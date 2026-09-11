@@ -76,16 +76,24 @@ und `an:` statt `empfaenger:`. Die Felder stehen in `references/frontmatter.md`.
 
 ```bash
 python3 scripts/falzmarke.py lint  briefe/2026-08-27_muster-gmbh_angebot.md
-python3 scripts/falzmarke.py email briefe/2026-08-27_muster-gmbh_angebot.md --html --oeffnen
+python3 scripts/falzmarke.py email briefe/2026-08-27_muster-gmbh_angebot.md --oeffnen
 ```
 
-Es entstehen `.eml` (die Nachricht) und mit `--html` eine Vorschau zum Öffnen im Browser. Diese
-Vorschau ist das, was gezeigt wird — nicht die `.eml`, die ist für das Mailprogramm.
+**`--oeffnen` ist der Regelfall, nicht die Ausnahme.** Auf macOS legt es einen **Entwurf** im
+Mailprogramm an — Empfänger, Kopie, Betreff, Rumpf und Anhänge, mit Senden-Knopf. Dort liest der
+Mensch die Nachricht, dort ändert er sie, dort schickt er sie ab. Das ist der Ort, an dem eine
+Mail hingehört.
 
-**`--oeffnen` gehört im Gespräch dazu**, sobald ein Mensch die Nachricht wirklich abschicken
-will: Auf macOS legt es einen **Entwurf** im Mailprogramm an — Empfänger, Kopie, Betreff, Rumpf
-und Anhänge, mit Senden-Knopf. Weglassen, wenn die Nachricht bloß erzeugt oder geprüft wird, und
-immer weglassen bei Serien — dreißig Nachrichten wären dreißig Fenster.
+**Die `.html`-Vorschau wird nicht mehr von selbst gezeigt.** Sie entsteht nur mit `--html` und
+nur, wenn jemand sie ausdrücklich verlangt — etwa um den Rumpf woandershin zu kopieren. Sie im
+Browser zu öffnen, während die fertige Nachricht danebenliegt, ist der Umweg, den dieser
+Abschnitt bis zum 11.09.2026 selbst empfohlen hat: Hier stand „Diese Vorschau ist das, was
+gezeigt wird". Die Folge war, dass jede Sitzung es anders machte und keine Mail im
+Mailprogramm ankam.
+
+**Ohne `--oeffnen` läuft nur, was nicht abgeschickt werden soll:** eine Serie (dreißig
+Nachrichten wären dreißig Fenster), ein Prüflauf, ein Automatiklauf ohne Bildschirm. Wer eine
+Mail schreibt, die ein Mensch senden wird, setzt das Flag.
 
 Drei Sätze, die dabei nicht fehlen dürfen, weil sie gemessen sind:
 
@@ -93,8 +101,10 @@ Drei Sätze, die dabei nicht fehlen dürfen, weil sie gemessen sind:
   wird stattdessen die `.eml` übergeben — und die erscheint dort als **Lesefenster, nicht als
   Entwurf**; der nächste Handgriff heißt dann „Weiterleiten".
 - **Das Mailprogramm setzt seine eigene Konto-Signatur in den Entwurf.** Trägt das Profil eine
-  Signatur, steht sie zweimal darin. Wer das nicht will, fährt für diesen Weg ein Profil ohne
-  Signatur.
+  Signatur, steht sie zweimal darin. Der Weg dagegen führt über das Mailprogramm, nicht über
+  falzmarke: Wer die gestaltete Signatur aus dem Profil will, leert die Konto-Signatur in
+  Outlook einmal — das wirkt dann auf jeden Entwurf. Ein zweites Profil ohne Signaturblock wäre
+  die schlechtere Antwort, weil zwei Fassungen derselben Signatur auseinanderlaufen.
 - Geht gar nichts auf, ist die Datei trotzdem fertig; der Befehl endet mit 0 und nennt den Pfad.
 
 **falzmarke versendet nichts.** Es gibt keinen Versandbefehl und keine Option, die sendet — auch
