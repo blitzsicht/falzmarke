@@ -997,6 +997,13 @@ def entwurfsfelder(pfad) -> dict:
 
     return {
         "betreff": str(nachricht.get("Subject") or ""),
+        # Nur zum Melden, nicht zum Setzen (#286): Outlook nimmt `In-Reply-To`
+        # per AppleScript nicht an — `set headers`, `set source` und die
+        # Angabe beim Anlegen sind alle drei abgelehnt worden (11.09.2026).
+        # Der Wert steht hier, damit der Aufrufer sagen kann, dass der Entwurf
+        # den Bezug NICHT trägt. Stillschweigen wäre die teure Fassung: Wer
+        # `antwort_auf` gesetzt hat, hält den Faden sonst für erledigt.
+        "antwort_auf": str(nachricht.get("In-Reply-To") or ""),
         "an": _adressen("To"),
         "kopie": _adressen("Cc"),
         # Bcc gehoert dazu, seit der Entwurf der uebliche Weg ist (#272). Bis

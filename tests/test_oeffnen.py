@@ -270,9 +270,19 @@ class Antwortet:
     könnte den zweiten Schritt nicht messen.
     """
 
-    def __init__(self, *, gefunden=True, nachweis="1 0 0 0", code=0, stderr=""):
+    def __init__(self, *, gefunden=True, nachweis="97 1 0 0 0", code=0, stderr="",
+                 schrittcode=0):
         self.aufrufe: list[tuple] = []
+        #: Nur die Aufrufe des Anlegeskripts. Seit #287 folgen darauf noch das
+        #: Öffnen und ggf. das Verwerfen — `aufrufe[-1]` ist also nicht mehr
+        #: der Aufruf, der die Nachricht baut.
+        self.angelegt: list[tuple] = []
+        #: Die Folgeschritte, an ihrem Skriptnamen erkannt.
+        self.schritte: list[tuple] = []
+        #: Was jeder Folgeschritt war — „oeffnen" oder „verwerfen".
+        self.schrittarten: list[str] = []
         self.dateien_da: list[bool] = []
+        self._schrittcode = schrittcode
         self._gefunden, self._nachweis = gefunden, nachweis
         self._code, self._stderr = code, stderr
 
@@ -284,6 +294,22 @@ class Antwortet:
                                                stdout=treffer, stderr="")
         # Die Anhänge müssen JETZT dastehen, nicht irgendwann: Ein Verzeichnis,
         # das vor dem Aufruf abgeräumt wird, hängt leere Anlagen an.
+        if argv[1].endswith("schritt.applescript"):
+            # Öffnen oder Verwerfen — sie tragen nur eine Kennung und keine
+            # Anhänge, und ihr Ergebnis ist ein eigener Schalter.
+            #
+            # Der Skripttext wird JETZT gelesen, solange die Datei noch da ist:
+            # Ohne ihn ließe sich Öffnen nicht von Verwerfen unterscheiden, und
+            # die Prüfung unten könnte nicht rot werden. Gemessen — die erste
+            # Fassung dieses Tests überlebte die Sabotage „verwerfen durch
+            # öffnen ersetzt" unbeschadet.
+            self.schritte.append(tuple(argv))
+            self.schrittarten.append(
+                "verwerfen" if "delete" in Path(argv[1]).read_text(encoding="utf-8")
+                else "oeffnen")
+            return subprocess.CompletedProcess(argv, self._schrittcode,
+                                               stdout="", stderr="")
+        self.angelegt.append(tuple(argv))
         self.dateien_da.append(all(Path(a).exists() for a in argv[1:]
                                    if a.startswith("/") and "falzmarke-entwurf-" in a))
         return subprocess.CompletedProcess(argv, self._code,
@@ -347,8 +373,12 @@ def test_das_skript_setzt_nichts_aus_eingaben_zusammen():
 
 def test_im_steuerskript_steht_kein_versandbefehl():
     """ADR 0034 gilt unverändert: Entwurf ja, Senden nie."""
-    for _, _, skript in oeffnen.ENTWURFSPROGRAMME:
-        assert "send " not in skript and "send\n" not in skript
+    for programm in oeffnen.ENTWURFSPROGRAMME:
+        # Seit #287 sind es drei Skripte je Programm — anlegen, öffnen,
+        # verwerfen. Die Zusage gilt für alle drei, sonst wäre sie durch das
+        # Aufteilen leiser geworden statt gleich geblieben.
+        for skript in (programm.anlegen, programm.oeffnen, programm.verwerfen):
+            assert "send " not in skript and "send\n" not in skript
 
 
 def test_gegenprobe_die_suche_wuerde_ein_send_finden():
@@ -360,8 +390,8 @@ def test_gegenprobe_die_suche_wuerde_ein_send_finden():
 def test_der_nachweis_wird_gegen_die_vorgabe_gehalten():
     felder = {"an": ["a@x.de"], "kopie": [], "blindkopie": [],
               "anhaenge": [("x.pdf", b"x")]}
-    assert oeffnen._nachweis_stimmt("1 0 0 1", felder) is None
-    fehlt = oeffnen._nachweis_stimmt("1 0 0 0", felder)
+    assert oeffnen._nachweis_stimmt("97 1 0 0 1", felder) is None
+    fehlt = oeffnen._nachweis_stimmt("97 1 0 0 0", felder)
     assert fehlt and "Anhänge" in fehlt, "ein verschluckter Anhang fiel nicht auf"
 
 
@@ -372,12 +402,12 @@ def test_eine_antwort_ohne_zahlen_gilt_nicht_als_nachweis():
 
 
 def test_der_entwurf_meldet_das_programm(tmp_path):
-    antwort = Antwortet(nachweis="1 0 0 0")
-    name, grund = oeffnen.entwurf(FELDER, plattform="darwin",
+    antwort = Antwortet(nachweis="97 1 0 0 0")
+    name, grund, _ = oeffnen.entwurf(FELDER, plattform="darwin",
                                   umgebung={"DISPLAY": ":0"}, laufen=antwort)
     assert (name, grund) == ("Microsoft Outlook", "")
-    lauf = antwort.aufrufe[-1]
-    assert lauf[0] == "osascript" and lauf[1].endswith(".applescript")
+    (lauf,) = antwort.angelegt
+    assert lauf[0] == "osascript" and lauf[1].endswith("entwurf.applescript")
     assert lauf[2:] == ("Probe", "<p>Text</p>", "a@example.de", "", "")
 
 
@@ -385,16 +415,16 @@ def test_ein_verschluckter_anhang_faellt_auf():
     """Der Fall, den ein Exit-Code allein nie zeigt: Das Skript läuft durch,
     aber die Anlage fehlt."""
     felder = {**FELDER, "anhaenge": [("rechnung.pdf", b"%PDF-1.7")]}
-    antwort = Antwortet(nachweis="1 0 0 0")
-    name, grund = oeffnen.entwurf(felder, plattform="darwin",
+    antwort = Antwortet(nachweis="97 1 0 0 0")
+    name, grund, _ = oeffnen.entwurf(felder, plattform="darwin",
                                   umgebung={"DISPLAY": ":0"}, laufen=antwort)
     assert name is None and "Anhänge" in grund
 
 
 def test_die_anhaenge_liegen_da_waehrend_das_programm_sie_liest():
     felder = {**FELDER, "anhaenge": [("rechnung.pdf", b"%PDF-1.7")]}
-    antwort = Antwortet(nachweis="1 0 0 1")
-    name, _ = oeffnen.entwurf(felder, plattform="darwin",
+    antwort = Antwortet(nachweis="97 1 0 0 1")
+    name, _, _ = oeffnen.entwurf(felder, plattform="darwin",
                               umgebung={"DISPLAY": ":0"}, laufen=antwort)
     assert name == "Microsoft Outlook"
     assert antwort.dateien_da == [True], "das Verzeichnis war beim Aufruf schon weg"
@@ -402,7 +432,7 @@ def test_die_anhaenge_liegen_da_waehrend_das_programm_sie_liest():
 
 def test_ein_anhangname_zeigt_nie_aus_dem_ordner():
     felder = {**FELDER, "anhaenge": [("../../etc/passwd", b"x")]}
-    antwort = Antwortet(nachweis="1 0 0 1")
+    antwort = Antwortet(nachweis="97 1 0 0 1")
     oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
                     laufen=antwort)
     pfade = [a for a in antwort.aufrufe[-1] if "falzmarke-entwurf-" in str(a)]
@@ -411,7 +441,7 @@ def test_ein_anhangname_zeigt_nie_aus_dem_ordner():
 
 def test_der_schalter_haelt_den_entwurf_zu_ohne_die_datei_aufzugeben():
     antwort = Antwortet()
-    name, grund = oeffnen.entwurf(FELDER, plattform="darwin",
+    name, grund, _ = oeffnen.entwurf(FELDER, plattform="darwin",
                                   umgebung={"FALZMARKE_ENTWURF": "nie", "DISPLAY": ":0"},
                                   laufen=antwort)
     assert name is None and "FALZMARKE_ENTWURF" in grund
@@ -420,15 +450,15 @@ def test_der_schalter_haelt_den_entwurf_zu_ohne_die_datei_aufzugeben():
 
 def test_gegenprobe_ohne_den_schalter_laeuft_es():
     """Ohne sie belegte der Test darüber nur, dass irgendetwas None ergibt."""
-    antwort = Antwortet(nachweis="1 0 0 0")
-    name, _ = oeffnen.entwurf(FELDER, plattform="darwin",
+    antwort = Antwortet(nachweis="97 1 0 0 0")
+    name, _, _ = oeffnen.entwurf(FELDER, plattform="darwin",
                               umgebung={"DISPLAY": ":0"}, laufen=antwort)
     assert name == "Microsoft Outlook"
 
 
 def test_auf_einem_baurechner_entsteht_kein_entwurf():
     antwort = Antwortet()
-    name, grund = oeffnen.entwurf(FELDER, plattform="darwin",
+    name, grund, _ = oeffnen.entwurf(FELDER, plattform="darwin",
                                   umgebung={"CI": "true"}, laufen=antwort)
     assert name is None and "Baurechner" in grund
     assert antwort.aufrufe == []
@@ -436,7 +466,7 @@ def test_auf_einem_baurechner_entsteht_kein_entwurf():
 
 def test_ein_fehler_des_skripts_wird_zum_satz_und_nicht_zur_ausnahme():
     antwort = Antwortet(code=1, stderr="execution error: Outlook ist nicht berechtigt (-1743)")
-    name, grund = oeffnen.entwurf(FELDER, plattform="darwin",
+    name, grund, _ = oeffnen.entwurf(FELDER, plattform="darwin",
                                   umgebung={"DISPLAY": ":0"}, laufen=antwort)
     assert name is None and "-1743" in grund
 
@@ -447,7 +477,7 @@ def test_ein_haengendes_steuerskript_laeuft_in_die_frist():
             return subprocess.CompletedProcess(argv, 0, stdout="/Applications/X.app/", stderr="")
         raise subprocess.TimeoutExpired(argv, oeffnen.FRIST_ENTWURF_S)
 
-    name, grund = oeffnen.entwurf(FELDER, plattform="darwin",
+    name, grund, _ = oeffnen.entwurf(FELDER, plattform="darwin",
                                   umgebung={"DISPLAY": ":0"}, laufen=haengt)
     assert name is None and str(oeffnen.FRIST_ENTWURF_S) in grund
 
@@ -460,11 +490,11 @@ def test_die_blindkopie_geht_in_den_entwurf():
     niemand.
     """
     felder = {**FELDER, "blindkopie": ["archiv@example.de"]}
-    antwort = Antwortet(nachweis="1 0 1 0")
-    name, grund = oeffnen.entwurf(felder, plattform="darwin",
+    antwort = Antwortet(nachweis="97 1 0 1 0")
+    name, grund, _ = oeffnen.entwurf(felder, plattform="darwin",
                                   umgebung={"DISPLAY": ":0"}, laufen=antwort)
     assert (name, grund) == ("Microsoft Outlook", "")
-    assert antwort.aufrufe[-1][6] == "archiv@example.de", antwort.aufrufe[-1]
+    assert antwort.angelegt[-1][6] == "archiv@example.de", antwort.angelegt[-1]
     assert "make new bcc recipient" in oeffnen.SKRIPT_OUTLOOK
 
 
@@ -472,8 +502,103 @@ def test_eine_verschluckte_blindkopie_faellt_auf():
     """Dieselbe Zählung wie beim Anhang: Ein Programm, das die Adresse
     stillschweigend fallen lässt, kommt hier nicht durch."""
     felder = {**FELDER, "blindkopie": ["archiv@example.de"]}
-    antwort = Antwortet(nachweis="1 0 0 0")
-    name, grund = oeffnen.entwurf(felder, plattform="darwin",
+    antwort = Antwortet(nachweis="97 1 0 0 0")
+    name, grund, _ = oeffnen.entwurf(felder, plattform="darwin",
                                   umgebung={"DISPLAY": ":0"}, laufen=antwort)
     assert name is None
     assert "Blindkopien: 0 statt 1" in grund, grund
+
+
+# ── Ein Fenster, nie zwei (#287) ────────────────────────────────────────────
+#
+# ANLASS (Betreiber, 11.09.2026, mit Bildschirmfoto): „Jetzt macht er die
+# E-Mails immer zweimal auf … auch nicht passend zum senden."
+#
+# Bis dahin stand `open entwurf` IM Anlegeskript, also vor jeder Entscheidung
+# auf Python-Seite. Fiel `_nachweis_stimmt` danach durch, war das Fenster
+# längst offen — und `cli.py` legte im Rückfall die `.eml` obendrauf. Das
+# zweite Fenster ist ein Lesefenster ohne Senden-Knopf; damit erklärt derselbe
+# Fehler beide Hälften der Meldung.
+#
+# Geprüft wird deshalb nicht mehr nur, WAS zurückkommt, sondern WELCHE Aufrufe
+# überhaupt stattfinden.
+
+
+def test_das_anlegeskript_oeffnet_nicht_mehr():
+    """Die Ursache selbst, als Prüfung. Ohne sie könnte jemand `open entwurf`
+    zurückschreiben, und alle Tests darunter blieben grün — sie messen
+    Aufrufe, nicht den Skripttext."""
+    assert "open entwurf" not in oeffnen.SKRIPT_OUTLOOK
+    assert "activate" not in oeffnen.SKRIPT_OUTLOOK
+    # Gegenprobe: Geöffnet wird sehr wohl — nur woanders.
+    assert "open (first outgoing message" in oeffnen.SKRIPT_OUTLOOK_OEFFNEN
+
+
+def test_die_kennung_kommt_aus_dem_anlegeskript_zurueck():
+    assert "(id of entwurf)" in oeffnen.SKRIPT_OUTLOOK
+    kennung, zaehlung, fehler = oeffnen.zerlege_nachweis("97 1 0 1 2")
+    assert (kennung, zaehlung, fehler) == ("97", (1, 0, 1, 2), None)
+
+
+def test_eine_antwort_ohne_kennung_gilt_nicht():
+    """Gegenprobe: Die alte, vierstellige Antwort darf nicht mehr durchgehen —
+    sonst liefe der Öffnen-Schritt gegen eine Kennung, die es nicht gibt."""
+    _, _, fehler = oeffnen.zerlege_nachweis("1 0 0 0")
+    assert fehler and "Zählung" in fehler
+
+
+def test_stimmt_die_zaehlung_wird_genau_einmal_geoeffnet():
+    antwort = Antwortet(nachweis="97 1 0 0 0")
+    lage = oeffnen.entwurf(FELDER, plattform="darwin",
+                           umgebung={"DISPLAY": ":0"}, laufen=antwort)
+    assert lage.programm == "Microsoft Outlook" and not lage.ungewiss
+    assert antwort.schrittarten == ["oeffnen"], antwort.schrittarten
+    assert antwort.schritte[0][-1] == "97", "die Kennung wird nicht durchgereicht"
+
+
+def test_stimmt_die_zaehlung_nicht_wird_verworfen_und_nichts_geoeffnet():
+    """Der Kern: Vor #287 war hier bereits ein Fenster offen, und der Aufrufer
+    öffnete danach die `.eml` — zwei Fenster aus einem Lauf."""
+    felder = {**FELDER, "anhaenge": [("rechnung.pdf", b"%PDF-1.7")]}
+    antwort = Antwortet(nachweis="97 1 0 0 0")          # der Anhang fehlt
+    lage = oeffnen.entwurf(felder, plattform="darwin",
+                           umgebung={"DISPLAY": ":0"}, laufen=antwort)
+    assert lage.programm is None and "Anhänge" in lage.grund
+    assert not lage.ungewiss, "hier ist der Zustand bekannt, nicht ungewiss"
+    assert antwort.schrittarten == ["verwerfen"], (
+        "es muss genau einmal verworfen und nie geöffnet werden — sonst steht "
+        f"ein Fenster offen, das niemand geprüft hat: {antwort.schrittarten}")
+
+
+def test_die_gerissene_frist_ist_ungewiss_und_kein_rueckfall():
+    """„Nicht geprüft" ist nicht „nichts da": Kehrt das Skript nicht zurück,
+    weiß niemand, ob eine Nachricht entstand und ob ein Fenster offen ist."""
+    def haengt(argv, **kwargs):
+        if "-e" in argv:
+            return subprocess.CompletedProcess(argv, 0, stdout="/Applications/X.app/",
+                                               stderr="")
+        raise subprocess.TimeoutExpired(argv, oeffnen.FRIST_ENTWURF_S)
+
+    lage = oeffnen.entwurf(FELDER, plattform="darwin",
+                           umgebung={"DISPLAY": ":0"}, laufen=haengt)
+    assert lage.programm is None
+    assert lage.ungewiss, "ohne diesen Zustand schöbe der Aufrufer die .eml nach"
+    assert str(oeffnen.FRIST_ENTWURF_S) in lage.grund
+
+
+def test_gegenprobe_der_normalfall_ist_nicht_ungewiss():
+    """Sonst wäre `ungewiss` immer wahr und der Aufrufer riefe nie mehr den
+    Rückfall — die Prüfung darüber könnte nicht rot werden."""
+    lage = oeffnen.entwurf(FELDER, plattform="darwin",
+                           umgebung={"DISPLAY": ":0"}, laufen=Antwortet())
+    assert not lage.ungewiss
+
+
+def test_laesst_sich_der_entwurf_nicht_zeigen_bleibt_er_nicht_liegen():
+    """Sonst läge eine unsichtbare Nachricht im Postfach und der Aufrufer
+    öffnete zusätzlich die Datei."""
+    antwort = Antwortet(nachweis="97 1 0 0 0", schrittcode=1)
+    lage = oeffnen.entwurf(FELDER, plattform="darwin",
+                           umgebung={"DISPLAY": ":0"}, laufen=antwort)
+    assert lage.programm is None and "nicht zu öffnen" in lage.grund
+    assert antwort.schrittarten == ["oeffnen", "verwerfen"], antwort.schrittarten
