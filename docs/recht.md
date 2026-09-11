@@ -111,6 +111,108 @@ ohne den Inhalt zu bewerten. Was dort steht, verantwortet der Absender.
 Das ist keine Rechtsberatung. Wer wissen will, was seine Rechtsform verlangt, fragt jemanden,
 der dafür haftet.
 
+## E-Rechnung: was das Umsatzsteuerrecht verlangt
+
+Erhoben am 11.09.2026 aus dem Volltext des UStG und der UStDV (Fassung `ustg_1980` /
+`ustdv_1980`, amtliche Quelle gesetze-im-internet.de). Die Fundstellen stehen dabei, weil eine
+Frist aus dem Gedächtnis genauso altert wie eine Vorschrift — § 125a HGB stand in dieser Datei
+noch, als es ihn nicht mehr gab.
+
+**Keine amtliche Fassung**; verbindlich ist das Bundesgesetzblatt. Und **keine Rechtsberatung**:
+Was hier steht, ist der Wortlaut der Norm und seine Fundstelle, nicht seine Anwendung auf einen
+Fall.
+
+### Was als elektronische Rechnung gilt
+
+[§ 14 Absatz 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__14.html) unterscheidet drei
+Dinge, und der Unterschied ist für ein Werkzeug wie dieses der entscheidende:
+
+| Begriff | Was die Norm sagt |
+|---|---|
+| **Rechnung** | „jedes Dokument, mit dem über eine Lieferung oder sonstige Leistung abgerechnet wird, gleichgültig, wie dieses Dokument im Geschäftsverkehr bezeichnet wird" |
+| **elektronische Rechnung** | „in einem **strukturierten elektronischen Format** ausgestellt, übermittelt und empfangen" und „eine elektronische Verarbeitung ermöglicht" |
+| **sonstige Rechnung** | „in einem anderen elektronischen Format oder auf Papier übermittelt" |
+
+**Ein PDF ohne strukturierte Daten ist damit keine elektronische Rechnung, sondern eine sonstige.**
+Das ist die Antwort auf die Frage, die #113 gestellt hat — und sie entscheidet, was falzmarke
+heute erzeugt: sonstige Rechnungen.
+
+Welches Format als strukturiert gilt, sagt § 14 Absatz 1 Satz 6: Es muss „der europäischen Norm
+für die elektronische Rechnungsstellung und der Liste der entsprechenden Syntaxen gemäß der
+Richtlinie 2014/55/EU" entsprechen — oder zwischen Aussteller und Empfänger vereinbart sein,
+sofern sich die erforderlichen Angaben verlustfrei in ein solches Format überführen lassen.
+
+### Ausstellen: Pflicht, und ab wann
+
+Die Pflicht steht in [§ 14 Absatz 2 Satz 2 Nummer 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__14.html):
+Für eine Leistung an einen anderen Unternehmer für dessen Unternehmen ist die Rechnung „als
+elektronische Rechnung nach Absatz 1 Satz 3 und 6 auszustellen, wenn der leistende Unternehmer
+und der Leistungsempfänger im Inland … ansässig sind". Frist: innerhalb von sechs Monaten nach
+Ausführung der Leistung.
+
+Die Übergangsregelung steht in [§ 27 Absatz 38 UStG](https://www.gesetze-im-internet.de/ustg_1980/__27.html)
+und ist gestaffelt:
+
+| Umsatz ausgeführt | Papier oder unstrukturiertes Format noch erlaubt bis | Bedingung |
+|---|---|---|
+| 01.01.2025 – 31.12.2026 | **31.12.2026** | keine — gilt für alle |
+| 01.01.2027 – 31.12.2027 | **31.12.2027** | Gesamtumsatz des Ausstellers im Vorjahr **höchstens 800 000 €** (§ 19 Absatz 2) |
+| 01.01.2027 – 31.12.2027 | **31.12.2027** | oder Übermittlung per EDI nach Empfehlung 94/820/EG |
+
+Beides braucht „vorbehaltlich der Zustimmung des Empfängers", wo es um ein elektronisches Format
+geht. Ab dem 01.01.2028 nennt die Vorschrift keine Ausnahme mehr.
+
+### Empfangen: es gibt keine eigene Pflicht — und genau das ist der Punkt
+
+Eine Norm „Unternehmen müssen E-Rechnungen empfangen können" existiert nicht. Die Wirkung
+entsteht durch einen **Wegfall**: § 14 Absatz 1 Satz 5 verlangt die Zustimmung des Empfängers
+für die Übermittlung „soweit keine Verpflichtung nach Absatz 2 Satz 2 Nummer 1 besteht".
+
+Wo die Ausstellungspflicht greift — inländisches B2B —, entfällt das Zustimmungserfordernis
+also. Der Empfänger kann eine elektronische Rechnung nicht mehr ablehnen, und das wirkt wie eine
+Empfangspflicht, ohne als solche formuliert zu sein. Diese Lesart ergibt sich aus dem Wortlaut;
+ob und wie die Verwaltung sie auslegt, steht hier nicht.
+
+### Welche Pflichtangaben unberührt weitergelten
+
+[§ 14 Absatz 4 UStG](https://www.gesetze-im-internet.de/ustg_1980/__14.html) zählt zehn Angaben
+auf — Name und Anschrift beider Seiten, Steuernummer oder USt-IdNr., Ausstellungsdatum,
+fortlaufende Rechnungsnummer, Menge und Art, Leistungszeitpunkt, nach Steuersätzen
+aufgeschlüsseltes Entgelt, Steuersatz und Steuerbetrag, gegebenenfalls Hinweis auf die
+Aufbewahrungspflicht und bei Gutschriften die Angabe „Gutschrift". Das Format ändert daran
+nichts.
+
+### Die Ausnahmen, die ein PDF erlauben
+
+Drei Fälle dürfen **immer** als sonstige Rechnung übermittelt werden, auch im inländischen B2B:
+
+| Fall | Fundstelle | Grenze |
+|---|---|---|
+| Kleinbetragsrechnung | [§ 33 UStDV](https://www.gesetze-im-internet.de/ustdv_1980/__33.html) | Gesamtbetrag höchstens **250 €**; verkürzter Pflichtangabensatz |
+| Fahrausweis | [§ 34 UStDV](https://www.gesetze-im-internet.de/ustdv_1980/__34.html) | Personenbeförderung |
+| Rechnung eines Kleinunternehmers | [§ 34a UStDV](https://www.gesetze-im-internet.de/ustdv_1980/__34a.html) | Umsätze nach [§ 19 Absatz 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html) steuerfrei |
+
+Jede dieser drei Vorschriften endet mit demselben Satz: „kann abweichend von § 14 Absatz 2
+Satz 2 des Gesetzes **immer** als sonstige Rechnung … übermittelt werden."
+
+### Was das für falzmarke bedeutet
+
+Beschreibend, nicht bewertend:
+
+- **Was das Werkzeug heute erzeugt, sind sonstige Rechnungen.** Ein PDF/A ohne eingebettete
+  strukturierte Daten erfüllt § 14 Absatz 1 Satz 3 nicht.
+- **Für die drei Ausnahmefälle reicht das dauerhaft** — nicht als Übergang, sondern nach dem
+  Wortlaut der UStDV.
+- **Für inländisches B2B oberhalb der Ausnahmen läuft die Zeit:** bis Ende 2026 allgemein, für
+  kleinere Aussteller bis Ende 2027.
+- **falzmarke prüft keine dieser Fristen** und wird es nicht tun. Ob ein Umsatz unter die
+  Ausstellungspflicht fällt, entscheidet sich an Tatsachen, die das Werkzeug nicht kennt — Sitz
+  beider Beteiligten, Unternehmereigenschaft, Vorjahresumsatz, Steuerbefreiung. Dasselbe
+  Argument wie bei den Pflichtangaben (ADR 0005).
+
+Was daraus für das Datenmodell folgt, ist nicht hier entschieden, sondern in den Vorgängen #111
+und #112.
+
 ## Was ausdrücklich nicht behauptet wird
 
 - **Keine Zertifizierung.** falzmarke ist kein Produkt des DIN, steht in keiner Verbindung zum

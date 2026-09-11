@@ -329,6 +329,61 @@ quellen:
     zaehlt: voll
     abgerufen: 2026-08-28
 
+  # ── Umsatzsteuerrecht: E-Rechnung (#113) ─────────────────────────────────
+  #
+  # Je Paragraf eine Quelle, wie bei den Geschäftsbrief-Vorschriften darunter.
+  # Keine dieser Quellen belegt heute eine Regel — sie tragen die Fundstellen
+  # des Abschnitts „E-Rechnung" in docs/recht.md, und `test_fundstellen.py`
+  # verlangt, dass jede Gesetzes-URL im Fließtext hier steht.
+
+  ustg_14:
+    titel: "§ 14 UStG — Ausstellung von Rechnungen (Definition elektronische Rechnung)"
+    url: https://www.gesetze-im-internet.de/ustg_1980/__14.html
+    art: primaerquelle
+    gruppe: ustg_14
+    zaehlt: voll
+    abgerufen: 2026-09-11
+
+  ustg_19:
+    titel: "§ 19 UStG — Besteuerung der Kleinunternehmer"
+    url: https://www.gesetze-im-internet.de/ustg_1980/__19.html
+    art: primaerquelle
+    gruppe: ustg_19
+    zaehlt: voll
+    abgerufen: 2026-09-11
+
+  ustg_27:
+    titel: "§ 27 UStG — Allgemeine Übergangsvorschriften (Absatz 38: Fristen der E-Rechnung)"
+    url: https://www.gesetze-im-internet.de/ustg_1980/__27.html
+    art: primaerquelle
+    gruppe: ustg_27
+    zaehlt: voll
+    abgerufen: 2026-09-11
+
+  ustdv_33:
+    titel: "§ 33 UStDV — Rechnungen über Kleinbeträge (bis 250 Euro)"
+    url: https://www.gesetze-im-internet.de/ustdv_1980/__33.html
+    art: primaerquelle
+    gruppe: ustdv_33
+    zaehlt: voll
+    abgerufen: 2026-09-11
+
+  ustdv_34:
+    titel: "§ 34 UStDV — Fahrausweise als Rechnungen"
+    url: https://www.gesetze-im-internet.de/ustdv_1980/__34.html
+    art: primaerquelle
+    gruppe: ustdv_34
+    zaehlt: voll
+    abgerufen: 2026-09-11
+
+  ustdv_34a:
+    titel: "§ 34a UStDV — Rechnungen von Kleinunternehmern"
+    url: https://www.gesetze-im-internet.de/ustdv_1980/__34a.html
+    art: primaerquelle
+    gruppe: ustdv_34a
+    zaehlt: voll
+    abgerufen: 2026-09-11
+
   hgb_37a:
     titel: "§ 37a HGB — Angaben auf Geschäftsbriefen (eingetragener Kaufmann)"
     url: https://www.gesetze-im-internet.de/hgb/__37a.html
