@@ -56,6 +56,10 @@ ERWARTET = [
     # Liste folgt ci.yml, nicht dem Datum der Aufnahme.
     "MCP-Dienst im Container",
     "PDF-Konformität (veraPDF, fremdes Werkzeug)",
+    # Seit Issue #118: das Gegenstück zu veraPDF für E-Rechnungen. Ohne eine
+    # fremde Prüfung wäre jede Aussage über ZUGFeRD eine, die falzmarke über
+    # sich selbst macht.
+    "E-Rechnung (Mustang, fremdes Werkzeug)",
     # Seit Issue #229: ein Vorgang ohne Punkt im Verlauf lässt sich nicht mergen.
     # Der Job steht in ci.yml und nicht in einem eigenen Workflow, weil
     # `analysiere()` nur diese Datei liest — daneben wäre er gelaufen, aber nie
@@ -271,7 +275,7 @@ def test_die_datei_ist_gueltiges_yaml_mit_pyyaml_lesbar():
     daten = yaml.safe_load(CI.read_text(encoding="utf-8"))
     assert set(daten["jobs"]) == {"tests", "frischklon", "skill-paket",
                                  "pdf-konformitaet", "changelog", "closing-keyword",
-                                 "mcp-container"}
+                                 "mcp-container", "e-rechnung"}
 
 
 # ── Das Skript ruft keinen CI-Lauf mehr ab ──────────────────────────────────

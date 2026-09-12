@@ -347,6 +347,69 @@ jobs:
       - name: Tests der Prüfung selbst
         run: python -m pytest tests/test_pdf_konformitaet.py -o addopts="" -q
 
+  e-rechnung:
+    # Issue #118: die fremde Prüfung für E-Rechnungen — das Gegenstück zu
+    # veraPDF. Mustang prüft das PDF gegen PDF/A-3 UND das eingebettete XML
+    # gegen die Schematron-Regeln des Formats, und es rechnet die Summen nach.
+    # falzmarke rechnet nicht (ADR 0039); der fremde Prüfer schon.
+    #
+    # Noch prüft der Job nur Referenzdateien des Werkzeugs selbst: Eine eigene
+    # Rechnung erzeugt falzmarke erst mit #116. Dann kommen sie unter --gut dazu,
+    # und erst dann ist Abnahme 1 aus #118 erfüllt.
+    #
+    # Die Prüfsumme des JAR steht im Skript, nicht hier — eine Quelle für den
+    # Pin. Die Referenzdateien prüft dieser Job selbst, denn nur er holt sie.
+    name: E-Rechnung (Mustang, fremdes Werkzeug)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Java und Mustang
+        run: |
+          set -euo pipefail
+          # Java bringt der Runner mit, wie beim veraPDF-Job. Die Version steht
+          # im Protokoll; Mustang 2.26.0 braucht mindestens Java 11 (Klassen-
+          # dateiversion 55, gemessen).
+          java -version
+          curl -fsSL --retry 3 -o /tmp/Mustang-CLI.jar \
+            https://github.com/ZUGFeRD/mustangproject/releases/download/core-2.26.0/Mustang-CLI-2.26.0.jar
+
+      - name: Referenzrechnungen holen
+        run: |
+          set -euo pipefail
+          # Zur Laufzeit geholt und NICHT ins Repository gelegt: Die Dateien
+          # stehen unter Apache-2.0 mit NOTICE, und wer sie weitergibt, gibt beides
+          # mit. Wer sie nur holt, gibt nichts weiter. Nebenbei sind sie so an
+          # genau die Fassung gebunden, gegen die geprüft wird.
+          #
+          # Die schlechte Datei ist INHALTLICH falsch (BR-DE-2, SELLER CONTACT
+          # fehlt), das PDF selbst intakt. Eine Datei von 15 Byte, wie sie
+          # das Werkzeug ebenfalls mitbringt, fiele aus dem banalsten Grund durch
+          # und sagte nichts über die Schematron-Prüfung.
+          mkdir -p /tmp/ref
+          basis=https://raw.githubusercontent.com/ZUGFeRD/mustangproject/core-2.26.0
+          curl -fsSL --retry 3 -o /tmp/ref/EN16931_Einfach.pdf "$basis/library/src/test/resources/EN16931_Einfach.pdf"
+          curl -fsSL --retry 3 -o /tmp/ref/validXRechnung.pdf "$basis/validator/src/test/resources/validXRechnung.pdf"
+          curl -fsSL --retry 3 -o /tmp/ref/invalidXRechnung.pdf "$basis/validator/src/test/resources/invalidXRechnung.pdf"
+          sha256sum -c <<'SUMMEN'
+          05b5a382db8fdc60d1e9ec31fef7fb09c91d68413b9187f7ca116aed116ed1d0  /tmp/ref/EN16931_Einfach.pdf
+          a0046f55cab4b1ec2909e83a4b6970a37a5905e9a8ce469b4e75e2ab1cabc59e  /tmp/ref/validXRechnung.pdf
+          79c0dfcf642e17303310827c0a54c8a5b2b1ae15324256f87f91a57178ffc709  /tmp/ref/invalidXRechnung.pdf
+          SUMMEN
+
+      - name: Gegen das fremde Werkzeug halten
+        run: |
+          # Exit 0 alles wie erwartet, 1 ein Befund, 2 NICHT GEPRÜFT. Jeder
+          # Exit außer 0 macht den Job rot — auch ein Werkzeug, das ausfällt
+          # (Abnahme 4). Die Regelfassung steht am Ende der Ausgabe (Abnahme 2).
+          python scripts/erechnung_pruefen.py --mustang /tmp/Mustang-CLI.jar \
+            --gut /tmp/ref/EN16931_Einfach.pdf /tmp/ref/validXRechnung.pdf \
+            --schlecht /tmp/ref/invalidXRechnung.pdf
+
   changelog:
     # Ein Vorgang, der das Werkzeug aendert, traegt einen Punkt in den Verlauf
     # ein — sonst laesst er sich nicht mergen (Issue #229).
