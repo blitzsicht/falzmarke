@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import re
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -48,7 +49,10 @@ def _aufrufer(java_exit: int = 0, urteile: dict[str, int] | None = None, standar
         if befehl[1:] == ["-version"]:
             return java_exit, "openjdk version \"21\""
         quelle = befehl[befehl.index("--source") + 1]
-        name = quelle.rsplit("/", 1)[-1]
+        # `Path(...).name` und nicht `rsplit("/")`: Auf Windows trennt `\`, und
+        # der „Name" wäre der ganze Pfad. Genau daran sind zwei Tests dieser
+        # Datei in der Matrix gefallen, während sie lokal grün waren.
+        name = Path(quelle).name
         return urteile.get(name, standard), AUSGABE_GUT
     return ausfuehren
 
@@ -174,6 +178,22 @@ def test_eine_fehlende_datei_ist_ein_befund(jar, pdfs, tmp_path):
     _, schlecht = pdfs
     ausfuehren = _aufrufer(urteile={"schlecht.pdf": 255})
     assert _lauf(jar, tmp_path / "fehlt.pdf", schlecht, ausfuehren) == 1
+
+
+def test_der_aufrufer_erkennt_den_dateinamen_der_plattform(tmp_path):
+    """Der Windows-Fall, der diese Datei rot gemacht hat.
+
+    Der erste Entwurf zerlegte den Pfad mit `rsplit("/", 1)`. Auf Windows trennt
+    `\\`, der „Name" war der ganze Pfad, die Urteile griffen nicht — und zwei
+    Tests fielen in der Matrix, während sie auf macOS grün waren.
+
+    **Dieser Test trennt lokal nicht**: Auf POSIX liefern beide Wege dasselbe. Er
+    trennt auf Windows, und dort ist er der Wächter. Das ehrlich dazuzuschreiben
+    ist der Unterschied zu einem Beleg, der nur auf der Maschine seines Autors gilt.
+    """
+    ausfuehren = _aufrufer(urteile={"gut.pdf": 255})
+    code, _ = ausfuehren(ep.befehl("java", tmp_path / "m.jar", tmp_path / "gut.pdf"))
+    assert code == 255, "der Dateiname wurde aus dem Pfad nicht erkannt"
 
 
 # ── Der CI-Job und das Skript meinen dasselbe Werkzeug ───────────────────────
