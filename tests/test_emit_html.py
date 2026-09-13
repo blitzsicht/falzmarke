@@ -89,6 +89,22 @@ def test_stil_steht_an_jedem_block_nicht_nur_am_container():
     assert not ohne, f"ohne eigenen Stil: {ohne}"
 
 
+def _kursiv_im_klassischen_outlook(stapel: str) -> bool:
+    return "segoe ui" in stapel.lower()
+
+
+def test_die_schriftfolge_meidet_segoe_ui():
+    """#307: Im klassischen Outlook für Mac setzt der Editor „Segoe UI" durch
+    einen kursiven Schnitt — die Schrift ist auf dem Mac nicht installiert.
+    Gemessen am 13.09.2026 in einem Entwurf mit vier Schriftfolgen: beide mit
+    Segoe kursiv, beide ohne normal."""
+    assert not _kursiv_im_klassischen_outlook(html.SCHRIFTSTAPEL), html.SCHRIFTSTAPEL
+
+
+def test_gegenprobe_die_pruefung_erkennt_segoe():
+    assert _kursiv_im_klassischen_outlook("-apple-system, 'Segoe UI', Arial, sans-serif")
+
+
 def test_dokument_hat_sprache_und_farbschema():
     seite = html.dokument(_setze("Ein Satz.\n"))
     assert '<html lang="de">' in seite

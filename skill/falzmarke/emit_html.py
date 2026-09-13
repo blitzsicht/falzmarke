@@ -36,7 +36,7 @@ from falzmarke import baum as baum_modul
 from falzmarke import typografie
 
 #: Systemschriften. Kein Webfont — der käme von außen und wird geblockt.
-SCHRIFTSTAPEL = "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+SCHRIFTSTAPEL = "-apple-system, Roboto, Helvetica, Arial, sans-serif"
 TINTE = "#1a1a1a"
 RAHMEN = "#c8c8c8"
 # ── Keine Breitengrenze, und warum nicht (#289) ─────────────────────────────
