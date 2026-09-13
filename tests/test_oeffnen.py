@@ -336,7 +336,9 @@ def test_auf_macos_wird_das_system_gefragt_und_nichts_gestartet():
     (aufruf,) = antwort.aufrufe
     assert aufruf[0] == "osascript" and "-e" in aufruf
     frage = aufruf[-1]
-    assert "path to application id" in frage
+    assert "URLForApplicationWithBundleIdentifier" in frage
+    # #305: nicht über das laufende Programm — `path to application id` hing dort.
+    assert "path to application" not in frage
     # Die Gegenprobe zur Zeile darüber: Es darf nichts dabei sein, was startet.
     assert "activate" not in frage and "open " not in frage
 
@@ -349,15 +351,15 @@ def test_ohne_passendes_programm_bleibt_es_bei_der_datei():
 def test_die_argumente_stehen_in_fester_reihenfolge():
     argv = oeffnen.entwurfsargumente(
         {"betreff": "B", "html": "<p>H</p>", "an": ["a@x.de", "b@x.de"],
-         "kopie": ["c@x.de"], "blindkopie": ["archiv@x.de"]},
+         "kopie": ["c@x.de"], "blindkopie": ["archiv@x.de"], "absender": "ich@x.de"},
         ["/tmp/eins.pdf", "/tmp/zwei.pdf"])
     assert argv == ["B", "<p>H</p>", "a@x.de,b@x.de", "c@x.de", "archiv@x.de",
-                    "/tmp/eins.pdf", "/tmp/zwei.pdf"]
+                    "ich@x.de", "/tmp/eins.pdf", "/tmp/zwei.pdf"]
 
 
 def test_fehlende_felder_werden_zu_leeren_argumenten_nicht_zu_none():
     argv = oeffnen.entwurfsargumente({}, [])
-    assert argv == ["", "", "", "", ""], "None im Argument wäre ein Absturz im Skript"
+    assert argv == ["", "", "", "", "", ""], "None im Argument wäre ein Absturz im Skript"
 
 
 def test_das_skript_setzt_nichts_aus_eingaben_zusammen():
@@ -403,12 +405,12 @@ def test_eine_antwort_ohne_zahlen_gilt_nicht_als_nachweis():
 
 def test_der_entwurf_meldet_das_programm(tmp_path):
     antwort = Antwortet(nachweis="97 1 0 0 0")
-    name, grund, _ = oeffnen.entwurf(FELDER, plattform="darwin",
+    name, grund, *_ = oeffnen.entwurf(FELDER, plattform="darwin",
                                   umgebung={"DISPLAY": ":0"}, laufen=antwort)
     assert (name, grund) == ("Microsoft Outlook", "")
     (lauf,) = antwort.angelegt
     assert lauf[0] == "osascript" and lauf[1].endswith("entwurf.applescript")
-    assert lauf[2:] == ("Probe", "<p>Text</p>", "a@example.de", "", "")
+    assert lauf[2:] == ("Probe", "<p>Text</p>", "a@example.de", "", "", "")
 
 
 def test_ein_verschluckter_anhang_faellt_auf():
@@ -416,7 +418,7 @@ def test_ein_verschluckter_anhang_faellt_auf():
     aber die Anlage fehlt."""
     felder = {**FELDER, "anhaenge": [("rechnung.pdf", b"%PDF-1.7")]}
     antwort = Antwortet(nachweis="97 1 0 0 0")
-    name, grund, _ = oeffnen.entwurf(felder, plattform="darwin",
+    name, grund, *_ = oeffnen.entwurf(felder, plattform="darwin",
                                   umgebung={"DISPLAY": ":0"}, laufen=antwort)
     assert name is None and "Anhänge" in grund
 
@@ -424,7 +426,7 @@ def test_ein_verschluckter_anhang_faellt_auf():
 def test_die_anhaenge_liegen_da_waehrend_das_programm_sie_liest():
     felder = {**FELDER, "anhaenge": [("rechnung.pdf", b"%PDF-1.7")]}
     antwort = Antwortet(nachweis="97 1 0 0 1")
-    name, _, _ = oeffnen.entwurf(felder, plattform="darwin",
+    name, *_ = oeffnen.entwurf(felder, plattform="darwin",
                               umgebung={"DISPLAY": ":0"}, laufen=antwort)
     assert name == "Microsoft Outlook"
     assert antwort.dateien_da == [True], "das Verzeichnis war beim Aufruf schon weg"
@@ -441,7 +443,7 @@ def test_ein_anhangname_zeigt_nie_aus_dem_ordner():
 
 def test_der_schalter_haelt_den_entwurf_zu_ohne_die_datei_aufzugeben():
     antwort = Antwortet()
-    name, grund, _ = oeffnen.entwurf(FELDER, plattform="darwin",
+    name, grund, *_ = oeffnen.entwurf(FELDER, plattform="darwin",
                                   umgebung={"FALZMARKE_ENTWURF": "nie", "DISPLAY": ":0"},
                                   laufen=antwort)
     assert name is None and "FALZMARKE_ENTWURF" in grund
@@ -451,14 +453,14 @@ def test_der_schalter_haelt_den_entwurf_zu_ohne_die_datei_aufzugeben():
 def test_gegenprobe_ohne_den_schalter_laeuft_es():
     """Ohne sie belegte der Test darüber nur, dass irgendetwas None ergibt."""
     antwort = Antwortet(nachweis="97 1 0 0 0")
-    name, _, _ = oeffnen.entwurf(FELDER, plattform="darwin",
+    name, *_ = oeffnen.entwurf(FELDER, plattform="darwin",
                               umgebung={"DISPLAY": ":0"}, laufen=antwort)
     assert name == "Microsoft Outlook"
 
 
 def test_auf_einem_baurechner_entsteht_kein_entwurf():
     antwort = Antwortet()
-    name, grund, _ = oeffnen.entwurf(FELDER, plattform="darwin",
+    name, grund, *_ = oeffnen.entwurf(FELDER, plattform="darwin",
                                   umgebung={"CI": "true"}, laufen=antwort)
     assert name is None and "Baurechner" in grund
     assert antwort.aufrufe == []
@@ -466,7 +468,7 @@ def test_auf_einem_baurechner_entsteht_kein_entwurf():
 
 def test_ein_fehler_des_skripts_wird_zum_satz_und_nicht_zur_ausnahme():
     antwort = Antwortet(code=1, stderr="execution error: Outlook ist nicht berechtigt (-1743)")
-    name, grund, _ = oeffnen.entwurf(FELDER, plattform="darwin",
+    name, grund, *_ = oeffnen.entwurf(FELDER, plattform="darwin",
                                   umgebung={"DISPLAY": ":0"}, laufen=antwort)
     assert name is None and "-1743" in grund
 
@@ -477,9 +479,21 @@ def test_ein_haengendes_steuerskript_laeuft_in_die_frist():
             return subprocess.CompletedProcess(argv, 0, stdout="/Applications/X.app/", stderr="")
         raise subprocess.TimeoutExpired(argv, oeffnen.FRIST_ENTWURF_S)
 
-    name, grund, _ = oeffnen.entwurf(FELDER, plattform="darwin",
+    name, grund, *_ = oeffnen.entwurf(FELDER, plattform="darwin",
                                   umgebung={"DISPLAY": ":0"}, laufen=haengt)
     assert name is None and str(oeffnen.FRIST_ENTWURF_S) in grund
+
+
+def test_eine_zaehe_programmsuche_ist_kein_traceback():
+    """Gesehen am 13.09.2026: Outlook antwortete nach einem Neustart erst nach
+    über 20 Sekunden, und `falzmarke email --oeffnen` brach mit Traceback ab."""
+    def zaeh(argv, **kwargs):
+        raise subprocess.TimeoutExpired(argv, oeffnen.FRIST_S)
+
+    lage = oeffnen.entwurf(FELDER, plattform="darwin",
+                           umgebung={"DISPLAY": ":0"}, laufen=zaeh)
+    assert lage.programm is None and not lage.ungewiss
+    assert str(oeffnen.FRIST_S) in lage.grund
 
 
 def test_die_blindkopie_geht_in_den_entwurf():
@@ -491,7 +505,7 @@ def test_die_blindkopie_geht_in_den_entwurf():
     """
     felder = {**FELDER, "blindkopie": ["archiv@example.de"]}
     antwort = Antwortet(nachweis="97 1 0 1 0")
-    name, grund, _ = oeffnen.entwurf(felder, plattform="darwin",
+    name, grund, *_ = oeffnen.entwurf(felder, plattform="darwin",
                                   umgebung={"DISPLAY": ":0"}, laufen=antwort)
     assert (name, grund) == ("Microsoft Outlook", "")
     assert antwort.angelegt[-1][6] == "archiv@example.de", antwort.angelegt[-1]
@@ -503,7 +517,7 @@ def test_eine_verschluckte_blindkopie_faellt_auf():
     stillschweigend fallen lässt, kommt hier nicht durch."""
     felder = {**FELDER, "blindkopie": ["archiv@example.de"]}
     antwort = Antwortet(nachweis="97 1 0 0 0")
-    name, grund, _ = oeffnen.entwurf(felder, plattform="darwin",
+    name, grund, *_ = oeffnen.entwurf(felder, plattform="darwin",
                                   umgebung={"DISPLAY": ":0"}, laufen=antwort)
     assert name is None
     assert "Blindkopien: 0 statt 1" in grund, grund
@@ -531,7 +545,15 @@ def test_das_anlegeskript_oeffnet_nicht_mehr():
     assert "open entwurf" not in oeffnen.SKRIPT_OUTLOOK
     assert "activate" not in oeffnen.SKRIPT_OUTLOOK
     # Gegenprobe: Geöffnet wird sehr wohl — nur woanders.
-    assert "open (first outgoing message" in oeffnen.SKRIPT_OUTLOOK_OEFFNEN
+    assert "open (outgoing message id kennung)" in oeffnen.SKRIPT_OUTLOOK_OEFFNEN
+
+
+def test_geoeffnet_und_verworfen_wird_ohne_suche():
+    """#305: `whose` durchsucht alle ausgehenden Nachrichten und kam im
+    klassischen Outlook nicht in 90 Sekunden zurück."""
+    for skript in (oeffnen.SKRIPT_OUTLOOK_OEFFNEN, oeffnen.SKRIPT_OUTLOOK_VERWERFEN):
+        assert "whose" not in skript
+        assert "(outgoing message id kennung)" in skript
 
 
 def test_die_kennung_kommt_aus_dem_anlegeskript_zurueck():
@@ -602,3 +624,65 @@ def test_laesst_sich_der_entwurf_nicht_zeigen_bleibt_er_nicht_liegen():
                            umgebung={"DISPLAY": ":0"}, laufen=antwort)
     assert lage.programm is None and "nicht zu öffnen" in lage.grund
     assert antwort.schrittarten == ["oeffnen", "verwerfen"], antwort.schrittarten
+
+
+# ── Der Absender (#305) ─────────────────────────────────────────────────────
+#
+# ANLASS (Betreiber, 13.09.2026): „Der Absender ist meistens der falsche. Den
+# muss ich immer manuell einstellen. Das vergesse ich oft."
+#
+# Bis dahin legte das Skript den Entwurf ohne Konto an, und Outlook nahm sein
+# Standardkonto. Gemessen am 13.09.2026, Outlook für Mac 16.112.4: Im
+# klassischen Outlook lässt sich `account` beim Anlegen setzen und kommt im
+# Fenster an. Im neuen Outlook sieht AppleScript kein Konto; `sender` wird dort
+# zwar zurückgelesen, das Fenster zeigt aber ein anderes. Deshalb meldet das
+# Skript das Konto zurück, und wo es nicht passt, sagt der Befehl es laut.
+
+
+def test_der_absender_geht_ins_skript():
+    felder = {**FELDER, "absender": "info@example.de"}
+    antwort = Antwortet(nachweis="97 1 0 0 0\ninfo@example.de")
+    lage = oeffnen.entwurf(felder, plattform="darwin",
+                           umgebung={"DISPLAY": ":0"}, laufen=antwort)
+    assert lage.programm == "Microsoft Outlook"
+    assert antwort.angelegt[-1][7] == "info@example.de", antwort.angelegt[-1]
+    assert lage.konto == "info@example.de"
+
+
+def test_das_skript_legt_den_entwurf_auf_das_konto():
+    """Die Ursache selbst, als Prüfung — die Aufrufe darüber messen nur, dass
+    der Absender übergeben wird, nicht dass das Skript ihn benutzt."""
+    assert oeffnen.skript_setzt_konto(oeffnen.SKRIPT_OUTLOOK)
+
+
+def test_gegenprobe_ohne_zuweisung_setzt_das_skript_kein_konto():
+    sabotiert = oeffnen.SKRIPT_OUTLOOK.replace("{account:konto, ", "{")
+    assert sabotiert != oeffnen.SKRIPT_OUTLOOK, "die Sabotage griff nicht"
+    assert not oeffnen.skript_setzt_konto(sabotiert)
+
+
+def test_das_konto_kommt_aus_der_zweiten_zeile():
+    assert oeffnen.konto_aus_nachweis("97 1 0 0 0\ninfo@example.de\n") == "info@example.de"
+    assert oeffnen.konto_aus_nachweis("97 1 0 0 0\n-") is None
+    assert oeffnen.konto_aus_nachweis("97 1 0 0 0") is None
+
+
+def test_die_zweite_zeile_stoert_die_zaehlung_nicht():
+    kennung, zaehlung, fehler = oeffnen.zerlege_nachweis("97 1 0 1 2\ninfo@example.de")
+    assert (kennung, zaehlung, fehler) == ("97", (1, 0, 1, 2), None)
+
+
+@pytest.mark.parametrize("ist", [None, "joe@example.de"])
+def test_ein_abweichendes_konto_wird_gemeldet(ist):
+    meldung = oeffnen.absender_warnung("info@example.de", ist)
+    assert meldung and meldung.startswith("ABSENDER PRÜFEN")
+    assert "info@example.de" in meldung
+
+
+def test_gegenprobe_das_richtige_konto_bleibt_still():
+    assert oeffnen.absender_warnung("info@example.de", "INFO@example.de") is None
+
+
+def test_ohne_absender_im_profil_gibt_es_nichts_zu_pruefen():
+    assert oeffnen.absender_warnung("", None) is None
+

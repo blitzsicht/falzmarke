@@ -518,6 +518,32 @@ def test_der_entwurf_wird_gemeldet(tmp_path, monkeypatch, capsys):
     assert "Signatur des Kontos" in ausgabe.err
 
 
+def test_ein_falsches_konto_steht_als_letzte_zeile(tmp_path, monkeypatch, capsys):
+    """#305: Wo das Programm den Entwurf nicht vom Profilkonto anlegt, darf das
+    nicht zwischen den übrigen Hinweisen verschwinden."""
+    from falzmarke import oeffnen
+
+    monkeypatch.setattr(oeffnen, "entwurf", lambda *_a, **_k: oeffnen.Entwurfslage(
+        "Testprogramm", "", konto="fremd@example.com"))
+    code = falzmarke.main(["email", str(_schreibe(tmp_path)), "--profiles", str(PROFILE),
+                           "--oeffnen"])
+    ausgabe = capsys.readouterr()
+    assert code == 0
+    assert ausgabe.err.rstrip().splitlines()[-1].startswith("ABSENDER PRÜFEN"), ausgabe.err
+
+
+def test_gegenprobe_das_passende_konto_meldet_nichts(tmp_path, monkeypatch, capsys):
+    from falzmarke import eml as eml_modul, oeffnen
+
+    pfad = _schreibe(tmp_path)
+    monkeypatch.setattr(oeffnen, "entwurf", lambda felder, **_k: oeffnen.Entwurfslage(
+        "Testprogramm", "", konto=felder["absender"]))
+    code = falzmarke.main(["email", str(pfad), "--profiles", str(PROFILE), "--oeffnen"])
+    ausgabe = capsys.readouterr()
+    assert code == 0
+    assert "ABSENDER PRÜFEN" not in ausgabe.err
+
+
 def test_ohne_entwurf_bleibt_der_alte_weg(tmp_path, monkeypatch, starter, capsys):
     """Der Rückfall ist die Zusage, nicht der Notnagel: Wo der Entwurfsweg
     nicht trägt, wird die Datei übergeben wie vor #263."""

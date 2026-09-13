@@ -1004,6 +1004,9 @@ def entwurfsfelder(pfad) -> dict:
         # den Bezug NICHT trägt. Stillschweigen wäre die teure Fassung: Wer
         # `antwort_auf` gesetzt hat, hält den Faden sonst für erledigt.
         "antwort_auf": str(nachricht.get("In-Reply-To") or ""),
+        # #305: Die reine Adresse, nach der das Steuerskript das Konto sucht.
+        # Ohne sie legt Outlook den Entwurf auf sein Standardkonto.
+        "absender": next(iter(_adressen("From")), ""),
         "an": _adressen("To"),
         "kopie": _adressen("Cc"),
         # Bcc gehoert dazu, seit der Entwurf der uebliche Weg ist (#272). Bis
