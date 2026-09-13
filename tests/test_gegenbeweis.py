@@ -805,3 +805,38 @@ def test_ohne_den_nachlauf_fehlt_das_factur_x_schema(tmp_path, monkeypatch):
     # Die Beilage selbst ist trotzdem da: Nur das Schema fehlt, und genau das
     # macht den Unterschied zwischen „Datei im PDF" und „erkennbare Rechnung".
     assert _rechnung_anhaenge(pdf) == ["factur-x.xml"]
+
+
+# ── Keine stille Rundung: kommt die Stellenzahl wirklich aus BETRAG_STELLEN? ─
+#
+# Eine Quelle für beide Seiten: Emitter und `lint` lesen dieselbe Konstante. Die
+# Sabotage verstellt sie und verlangt, dass BEIDE denselben Betrag durchlassen —
+# liefe `lint` auf einer eigenen Zahl, bliebe sein Befund stehen.
+
+LINT_ROH = "positionen:\n"
+
+
+def _stellenbefund(betrag) -> set:
+    kopf = {"rechnungsnummer": "1", "positionen": [
+        {"bezeichnung": "A", "menge": 1, "steuersatz": 19, "betrag": betrag}]}
+    bericht = _lint.Bericht()
+    _lint.pruefe_rechnungsfelder(kopf, LINT_ROH, bericht)
+    return {b.regel for b in bericht.befunde}
+
+
+def test_drei_nachkommastellen_fallen_unsabotiert_auf():
+    """Kontrollprobe: ohne sie belegte die Sabotage nichts."""
+    from falzmarke import emit_xml
+
+    with pytest.raises(emit_xml.RechnungUnvollstaendig):
+        emit_xml._betrag(1240.005, "betrag")
+    assert "rechnung.betrag_stellen" in _stellenbefund(1240.005)
+
+
+def test_mit_verstellter_stellenzahl_geht_derselbe_betrag_durch(monkeypatch):
+    from falzmarke import emit_xml
+
+    monkeypatch.setattr(emit_xml, "BETRAG_STELLEN", 3)
+    emit_xml._betrag(1240.005, "betrag")           # darf jetzt nicht mehr werfen
+    assert "rechnung.betrag_stellen" not in _stellenbefund(1240.005), \
+        "lint prüft gegen eine eigene Stellenzahl, nicht gegen die des Emitters"

@@ -429,3 +429,27 @@ def test_die_kommandozeile_setzt_die_beispielrechnung(tmp_path):
     assert "PDF/A-2b" not in lauf.stdout, lauf.stdout
     # Und die Fassung, gegen die gesetzt wurde (ADR 0039).
     assert "factur-x.xml" in lauf.stdout and "EN 16931" in lauf.stdout, lauf.stdout
+
+
+# ── Beträge: Zahl, höchstens zwei Stellen, Steuergesamt (Review von #116) ───
+
+def test_ein_betrag_mit_drei_nachkommastellen_wird_gemeldet(tmp_path):
+    bericht = _bericht(tmp_path, _ersetzt("    betrag: 1240.00", "    betrag: 1240.005"))
+    assert "rechnung.betrag_stellen" in _regeln(bericht, "Fehler"), bericht.als_text()
+
+
+def test_ein_summenfeld_aus_text_wird_gemeldet(tmp_path):
+    """Vorher übersprang die Rechenprobe den Text still."""
+    bericht = _bericht(tmp_path, _ersetzt("  netto: 1600.00", '  netto: "abc"'))
+    assert "rechnung.betrag_stellen" in _regeln(bericht, "Fehler"), bericht.als_text()
+
+
+def test_ein_abweichendes_steuer_gesamt_warnt_und_haelt_nicht_an(tmp_path):
+    """Übertragen wird, was dasteht — die Probe warnt nur."""
+    bericht = _bericht(tmp_path, _ersetzt("  brutto: 1904.00",
+                                          "  brutto: 1904.00\n  steuer_gesamt: 305.00"))
+    assert "rechnung.summen" in _regeln(bericht, "Warnung"), bericht.als_text()
+    assert "rechnung.summen" not in _regeln(bericht, "Fehler"), bericht.als_text()
+    assert "steuer_gesamt" not in " ".join(b.meldung for b in bericht.befunde
+                                           if b.regel == "rechnung.summen"
+                                           and "unbekannt" in b.meldung)

@@ -25,6 +25,7 @@ eine Datei, die durchläuft und beim Empfänger scheitert.
 from __future__ import annotations
 
 import datetime as dt
+from decimal import Decimal, InvalidOperation
 import xml.etree.ElementTree as ET
 
 #: Die Namensräume am Wurzelelement, abgelesen an der Referenz.
@@ -63,6 +64,14 @@ STEUER_KATEGORIE = "S"
 #: Vorgabewährung. Der Datenvertrag kennt (noch) keine andere.
 WAEHRUNG = "EUR"
 
+#: Nachkommastellen, die ein Betrag in der Quelle tragen darf. Mehr wird gemeldet,
+#: nicht gerundet: `1240.005` würde sonst still zu `1240.01` — ein Wert, der so nie
+#: in der Quelle stand (ADR 0039). Die Referenz setzt Summen zweistellig.
+BETRAG_STELLEN = 2
+
+#: Dasselbe für Mengen und Einzelpreise, die die Referenz vierstellig setzt.
+MENGE_STELLEN = 4
+
 
 class RechnungUnvollstaendig(ValueError):
     """Eine Angabe fehlt, die das Profil EN 16931 verlangt.
@@ -78,18 +87,43 @@ def _text(eltern, name: str, wert, **attribute) -> ET.Element:
     return knoten
 
 
-def _betrag(wert) -> str:
-    """Zwei Nachkommastellen, wie die Summen in der Referenz.
+def _zahl(wert, feld: str, stellen: int) -> Decimal:
+    """Der Wert aus der Quelle als Zahl — oder eine Meldung, die das Feld nennt.
 
-    Gerundet wird zur Darstellung, nicht gerechnet: Was hereinkommt, ist der
-    Wert aus der Quelle.
+    Zwei Dinge fallen hier auf, statt still weiterzulaufen (#116):
+
+    - **Text statt Zahl.** Vorher erreichte `abc` ein nacktes `float()` und brach mit
+      einem Traceback ab; die CLI fängt nur `Eingabefehler`.
+    - **Mehr Nachkommastellen als dargestellt.** Vorher rundete `:.2f` still. Das
+      wäre ein Wert, den das Werkzeug gebildet hat — und falzmarke rechnet nicht.
+
+    `Decimal(str(...))` und nicht `Decimal(float)`: Aus YAML kommt `1240.005` als
+    Fließkommazahl, und nur ihre Zeichenfolge trägt die Stellen, die dastanden.
     """
-    return f"{float(wert):.2f}"
+    if isinstance(wert, bool):
+        raise RechnungUnvollstaendig(f"`{feld}: {wert}` ist keine Zahl.")
+    try:
+        zahl = Decimal(str(wert).strip())
+    except (InvalidOperation, ValueError):
+        raise RechnungUnvollstaendig(f"`{feld}: {wert}` ist keine Zahl.") from None
+    exponent = zahl.as_tuple().exponent
+    if not isinstance(exponent, int):
+        raise RechnungUnvollstaendig(f"`{feld}: {wert}` ist keine Zahl.")
+    if -exponent > stellen:
+        raise RechnungUnvollstaendig(
+            f"`{feld}: {wert}` hat mehr als {stellen} Nachkommastellen. Gerundet wird "
+            "nicht — falzmarke setzt, was in der Quelle steht (ADR 0039).")
+    return zahl
 
 
-def _menge(wert) -> str:
+def _betrag(wert, feld: str = "Betrag") -> str:
+    """Zwei Nachkommastellen, wie die Summen in der Referenz — ohne zu runden."""
+    return f"{_zahl(wert, feld, BETRAG_STELLEN):.2f}"
+
+
+def _menge(wert, feld: str = "Menge") -> str:
     """Vier Nachkommastellen — so stehen Mengen und Einzelpreise in der Referenz."""
-    return f"{float(wert):.4f}"
+    return f"{_zahl(wert, feld, MENGE_STELLEN):.4f}"
 
 
 def datum_kompakt(wert) -> str:
@@ -236,20 +270,20 @@ def _position(vorgang, nummer: int, position: dict) -> None:
     if position.get("einzelpreis") is not None:
         vereinbarung = ET.SubElement(zeile, f"{{{RAM}}}SpecifiedLineTradeAgreement")
         preis = ET.SubElement(vereinbarung, f"{{{RAM}}}NetPriceProductTradePrice")
-        _text(preis, f"{{{RAM}}}ChargeAmount", _menge(position["einzelpreis"]))
+        _text(preis, f"{{{RAM}}}ChargeAmount", _menge(position["einzelpreis"], f"positionen[{nummer}].einzelpreis"))
 
     lieferung = ET.SubElement(zeile, f"{{{RAM}}}SpecifiedLineTradeDelivery")
-    _text(lieferung, f"{{{RAM}}}BilledQuantity", _menge(position.get("menge", 0)),
+    _text(lieferung, f"{{{RAM}}}BilledQuantity", _menge(position.get("menge", 0), f"positionen[{nummer}].menge"),
           unitCode=einheit_code(position.get("einheit")))
 
     abrechnung = ET.SubElement(zeile, f"{{{RAM}}}SpecifiedLineTradeSettlement")
     steuer = ET.SubElement(abrechnung, f"{{{RAM}}}ApplicableTradeTax")
     _text(steuer, f"{{{RAM}}}TypeCode", STEUER_TYP)
     _text(steuer, f"{{{RAM}}}CategoryCode", STEUER_KATEGORIE)
-    _text(steuer, f"{{{RAM}}}RateApplicablePercent", _betrag(position.get("steuersatz", 0)))
+    _text(steuer, f"{{{RAM}}}RateApplicablePercent", _betrag(position.get("steuersatz", 0), f"positionen[{nummer}].steuersatz"))
     summe = ET.SubElement(
         abrechnung, f"{{{RAM}}}SpecifiedTradeSettlementLineMonetarySummation")
-    _text(summe, f"{{{RAM}}}LineTotalAmount", _betrag(position.get("betrag", 0)))
+    _text(summe, f"{{{RAM}}}LineTotalAmount", _betrag(position.get("betrag", 0), f"positionen[{nummer}].betrag"))
 
 
 def _kopfdaten(vorgang, kopf: dict, profil: dict) -> None:
@@ -275,18 +309,31 @@ def _kopfdaten(vorgang, kopf: dict, profil: dict) -> None:
             "`summen:` fehlt. Das Profil EN 16931 verlangt Netto, Steuer und Brutto — "
             "falzmarke bildet sie nicht (ADR 0039).")
 
-    for eintrag in summen.get("steuer") or []:
+    if not (summen.get("steuer") or []):
+        # Nicht „null Euro Steuer" setzen: Die Kategorie ist fest `S` (Regelsatz).
+        # Eine steuerfreie Rechnung, etwa nach § 19 UStG, bräuchte eine andere —
+        # mit `S` entstünde eine Datei, die falsch ausgezeichnet ist und trotzdem
+        # durchläuft. Das ist ein eigener Vorgang.
+        raise RechnungUnvollstaendig(
+            "`summen.steuer` ist leer. Eine Rechnung ohne Umsatzsteuer (etwa nach "
+            "§ 19 UStG) erzeugt falzmarke noch nicht: Die Steuerkategorie wäre "
+            "falsch ausgezeichnet.")
+
+    for nummer_steuer, eintrag in enumerate(summen.get("steuer") or [], start=1):
         if eintrag.get("basis") is None:
             raise RechnungUnvollstaendig(
                 f"`summen.steuer` (Satz {eintrag.get('satz')}): `basis:` fehlt. "
                 "EN 16931 verlangt je Steuersatz die Bemessungsgrundlage, und "
                 "falzmarke summiert sie nicht aus den Positionen (ADR 0039).")
         steuer = ET.SubElement(abrechnung, f"{{{RAM}}}ApplicableTradeTax")
-        _text(steuer, f"{{{RAM}}}CalculatedAmount", _betrag(eintrag.get("betrag", 0)))
+        _text(steuer, f"{{{RAM}}}CalculatedAmount",
+              _betrag(eintrag.get("betrag", 0), f"summen.steuer[{nummer_steuer}].betrag"))
         _text(steuer, f"{{{RAM}}}TypeCode", STEUER_TYP)
-        _text(steuer, f"{{{RAM}}}BasisAmount", _betrag(eintrag["basis"]))
+        _text(steuer, f"{{{RAM}}}BasisAmount",
+              _betrag(eintrag["basis"], f"summen.steuer[{nummer_steuer}].basis"))
         _text(steuer, f"{{{RAM}}}CategoryCode", STEUER_KATEGORIE)
-        _text(steuer, f"{{{RAM}}}RateApplicablePercent", _betrag(eintrag.get("satz", 0)))
+        _text(steuer, f"{{{RAM}}}RateApplicablePercent",
+              _betrag(eintrag.get("satz", 0), f"summen.steuer[{nummer_steuer}].satz"))
 
     if kopf.get("zahlungsziel"):
         bedingungen = ET.SubElement(abrechnung, f"{{{RAM}}}SpecifiedTradePaymentTerms")
@@ -299,9 +346,35 @@ def _kopfdaten(vorgang, kopf: dict, profil: dict) -> None:
             "`summen:` fehlt " + ", ".join(f"`{f}:`" for f in fehlend))
     gesamt = ET.SubElement(
         abrechnung, f"{{{RAM}}}SpecifiedTradeSettlementHeaderMonetarySummation")
-    _text(gesamt, f"{{{RAM}}}LineTotalAmount", _betrag(summen["netto"]))
-    _text(gesamt, f"{{{RAM}}}TaxBasisTotalAmount", _betrag(summen["netto"]))
-    steuer_gesamt = sum(float(e.get("betrag", 0)) for e in summen.get("steuer") or [])
-    _text(gesamt, f"{{{RAM}}}TaxTotalAmount", _betrag(steuer_gesamt), currencyID=WAEHRUNG)
-    _text(gesamt, f"{{{RAM}}}GrandTotalAmount", _betrag(summen["brutto"]))
-    _text(gesamt, f"{{{RAM}}}DuePayableAmount", _betrag(summen["brutto"]))
+    _text(gesamt, f"{{{RAM}}}LineTotalAmount", _betrag(summen["netto"], "summen.netto"))
+    _text(gesamt, f"{{{RAM}}}TaxBasisTotalAmount", _betrag(summen["netto"], "summen.netto"))
+    wert, feld = _steuer_gesamt(summen)
+    _text(gesamt, f"{{{RAM}}}TaxTotalAmount", _betrag(wert, feld), currencyID=WAEHRUNG)
+    _text(gesamt, f"{{{RAM}}}GrandTotalAmount", _betrag(summen["brutto"], "summen.brutto"))
+    _text(gesamt, f"{{{RAM}}}DuePayableAmount", _betrag(summen["brutto"], "summen.brutto"))
+
+
+def _steuer_gesamt(summen: dict) -> tuple:
+    """Der Steuergesamtbetrag — übertragen, nie gebildet (ADR 0039, #116).
+
+    Bis zum Review vom 13.09.2026 stand hier `sum()` über die Einzelbeträge: die
+    einzige Rechenoperation im ganzen Emitter, zwanzig Zeilen unter einem
+    Docstring, der „Gerechnet wird nichts" sagt. Bemerkt hat es keine Prüfung —
+    die Beispielrechnung hat nur einen Steuersatz, und die Summe eines einzelnen
+    Werts ist dieser Wert.
+
+    - `steuer_gesamt:` steht da → genau dieser Wert, auch wenn er von der Summe
+      abweicht. Die Summenprobe in `lint` warnt dann; ersetzt wird nichts.
+    - genau ein Steuersatz → dessen Betrag. Das ist eine Übernahme.
+    - mehrere Sätze ohne `steuer_gesamt:` → Meldung. Die Summe hieße Rundungsregel,
+      und die verantwortet der Absender.
+    """
+    if summen.get("steuer_gesamt") is not None:
+        return summen["steuer_gesamt"], "summen.steuer_gesamt"
+    steuern = summen.get("steuer") or []
+    if len(steuern) == 1:
+        return steuern[0].get("betrag", 0), "summen.steuer[1].betrag"
+    raise RechnungUnvollstaendig(
+        f"`summen.steuer` nennt {len(steuern)} Steuersätze, aber kein `steuer_gesamt:`. "
+        "Den Gesamtbetrag bildet falzmarke nicht aus den Einzelbeträgen (ADR 0039) — "
+        "er steht in der Quelle oder die XML entsteht nicht.")

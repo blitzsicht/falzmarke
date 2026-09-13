@@ -170,7 +170,9 @@ POSITION_PFLICHT = ("bezeichnung", "menge", "steuersatz", "betrag")
 
 #: Was unter `summen:` stehen darf. Alle drei sind GEGEBEN: falzmarke rechnet
 #: nicht (ADR 0039), es prüft nur, ob sie zueinander passen.
-SUMMEN_FELDER = frozenset({"netto", "steuer", "brutto"})
+#: `steuer_gesamt` kam mit dem Review von #116 dazu: Bei mehreren Steuersätzen bildet
+#: falzmarke den Gesamtbetrag nicht aus den Einzelbeträgen (ADR 0039).
+SUMMEN_FELDER = frozenset({"netto", "steuer", "brutto", "steuer_gesamt"})
 
 #: Und was ein Steuereintrag unter `summen.steuer` trägt.
 #:
@@ -1227,6 +1229,42 @@ def _als_zahl(wert) -> float | None:
     return float(wert)
 
 
+def _nachkommastellen(wert) -> int | None:
+    """Wie viele Nachkommastellen der Wert in der Quelle trägt — `None`, wenn keine Zahl.
+
+    Über die Zeichenfolge, nicht über `float`: `1240.005` und `1240.01` sind als
+    Fließkommazahl beide „irgendwas", als Text sieht man, was dastand.
+    """
+    from decimal import Decimal, InvalidOperation
+
+    if isinstance(wert, bool):
+        return None
+    try:
+        exponent = Decimal(str(wert).strip()).as_tuple().exponent
+    except (InvalidOperation, ValueError):
+        return None
+    return max(0, -exponent) if isinstance(exponent, int) else None
+
+
+def _pruefe_summenzahl(wert, feld: str, stellen: int, ort: int, bericht: Bericht) -> None:
+    """Ein Feld unter `summen:` ist eine Zahl mit höchstens `stellen` Nachkommastellen.
+
+    Bis zum Review von #116 lief ein Text hier still durch (`_als_zahl` → `None`, und
+    die Rechenprobe übersprang ihn) und brach erst im Emitter mit einem Traceback ab.
+    """
+    if wert is None:
+        return
+    if _als_zahl(wert) is None:
+        bericht.fehler(ort, "rechnung.betrag_stellen", f"`{feld}: {wert}` ist keine Zahl",
+                       "ohne Tausenderpunkt und mit Punkt als Dezimaltrenner: 1240.00")
+        return
+    n = _nachkommastellen(wert)
+    if n is not None and n > stellen:
+        bericht.fehler(ort, "rechnung.betrag_stellen",
+                       f"`{feld}: {wert}` hat {n} Nachkommastellen",
+                       f"höchstens {stellen} — gerundet wird nicht (ADR 0039)")
+
+
 def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
     """Die Felder, die eine Rechnung von einem Brief unterscheiden (#115).
 
@@ -1328,6 +1366,21 @@ def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
                                f"Position {nummer_pos}: `{feld}: {position[feld]}` ist keine Zahl",
                                "ohne Tausenderpunkt und mit Punkt als Dezimaltrenner: 1240.00")
                 lesbar = False
+        # Die Stellenzahl kommt aus dem Emitter, nicht aus einer zweiten Konstante:
+        # Liefen beide auseinander, meldete `lint` etwas anderes, als die XML verlangt.
+        from falzmarke import emit_xml as _emit_xml
+        for feld, stellen in (("betrag", _emit_xml.BETRAG_STELLEN),
+                              ("steuersatz", _emit_xml.BETRAG_STELLEN),
+                              ("einzelpreis", _emit_xml.MENGE_STELLEN),
+                              ("menge", _emit_xml.MENGE_STELLEN)):
+            if position.get(feld) is None or _als_zahl(position.get(feld)) is None:
+                continue                # fehlt oder keine Zahl — oben schon gemeldet
+            n = _nachkommastellen(position[feld])
+            if n is not None and n > stellen:
+                bericht.fehler(ort, "rechnung.betrag_stellen",
+                               f"Position {nummer_pos}: `{feld}: {position[feld]}` hat "
+                               f"{n} Nachkommastellen",
+                               f"höchstens {stellen} — gerundet wird nicht (ADR 0039)")
         satz = _als_zahl(position.get("steuersatz"))
         if satz is not None and not 0 <= satz < 100:
             bericht.fehler(ort, "rechnung.position",
@@ -1348,6 +1401,11 @@ def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
     _melde_unbekannte(summen.keys(), SUMMEN_FELDER, "rechnung.summen", kopf_roh, bericht,
                       zeile=ort)
 
+    from falzmarke import emit_xml as _emit_xml
+    for feld in ("netto", "brutto", "steuer_gesamt"):
+        _pruefe_summenzahl(summen.get(feld), f"summen.{feld}", _emit_xml.BETRAG_STELLEN,
+                           ort, bericht)
+
     netto = _als_zahl(summen.get("netto"))
     brutto = _als_zahl(summen.get("brutto"))
     steuern = summen.get("steuer") or []
@@ -1357,6 +1415,9 @@ def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
             if isinstance(eintrag, dict):
                 _melde_unbekannte(eintrag.keys(), STEUER_FELDER, "rechnung.summen",
                                   kopf_roh, bericht, zeile=ort)
+                for feld in ("betrag", "basis", "satz"):
+                    _pruefe_summenzahl(eintrag.get(feld), f"summen.steuer.{feld}",
+                                       _emit_xml.BETRAG_STELLEN, ort, bericht)
                 wert = _als_zahl(eintrag.get("betrag"))
                 if wert is not None:
                     steuer_summe += wert
@@ -1374,6 +1435,15 @@ def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
         bericht.warnung(
             ort, "rechnung.summen",
             f"netto {netto:.2f} plus Steuer {steuer_summe:.2f} ergibt nicht brutto {brutto:.2f}",
+            "falzmarke rechnet nicht nach und ersetzt nichts — die Quelle ist maßgeblich")
+    steuer_gesamt = _als_zahl(summen.get("steuer_gesamt"))
+    if steuer_gesamt is not None and abs(steuer_gesamt - steuer_summe) > toleranz:
+        # Warnung wie die übrigen Proben: Die XML übernimmt `steuer_gesamt:` so, wie
+        # es dasteht (#116). Die Probe sagt nur, dass es nicht zusammenpasst.
+        bericht.warnung(
+            ort, "rechnung.summen",
+            f"`steuer_gesamt:` sagt {steuer_gesamt:.2f}, die Steuerbeträge ergeben "
+            f"{steuer_summe:.2f}",
             "falzmarke rechnet nicht nach und ersetzt nichts — die Quelle ist maßgeblich")
 
 

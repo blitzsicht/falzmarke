@@ -154,3 +154,23 @@ regeln:
       Geprüft wird nur, wenn das Feld dasteht. Wer einen Brief setzt, braucht
       es nicht; wer eine XML erzeugt, bekommt ohne es eine Meldung statt einer
       Datei (#116).
+
+  - id: rechnung.betrag_stellen
+    titel: Beträge sind Zahlen mit höchstens zwei Nachkommastellen
+    lint: rechnung.betrag_stellen
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Die XML setzt Beträge zweistellig, Mengen und Einzelpreise vierstellig — so
+      stehen sie in der Referenzdatei des fremden Prüfers. Trägt die Quelle mehr
+      Stellen, müsste falzmarke runden: `1240.005` würde still `1240.01`, ein
+      Wert, der so nie in der Quelle stand. Das ist Rechnen (ADR 0039), also
+      wird gemeldet statt gerundet. Gefunden im Review von #116 am 13.09.2026.
+
+      Dieselbe Regel meldet ein Summenfeld, das keine Zahl ist. Vorher lief ein
+      Text dort still durch die Rechenprobe und brach erst beim Setzen ab.
+
+      Geprüft wird zweimal: hier, damit die Meldung vor dem Setzen kommt, und
+      im Emitter, weil der MCP-Dienst ohne `lint` setzt.

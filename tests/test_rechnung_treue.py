@@ -71,8 +71,10 @@ def _betraege_im_pdf(text: str) -> set[float]:
 
 def _betraege_in_xml(baum: ET.Element) -> set[float]:
     heraus = set()
+    # `TaxTotalAmount` fehlte hier bis zum Review von #116 — ausgerechnet das Feld,
+    # das der Emitter damals als einziges bildete statt übertrug.
     for name in ("LineTotalAmount", "GrandTotalAmount", "DuePayableAmount",
-                 "TaxBasisTotalAmount", "CalculatedAmount"):
+                 "TaxBasisTotalAmount", "CalculatedAmount", "TaxTotalAmount"):
         for knoten in baum.iter(f"{{{RAM}}}{name}"):
             heraus.add(float(knoten.text))
     return heraus
@@ -165,3 +167,54 @@ def test_ein_betrag_nur_im_pdf_faellt_auf(tmp_path, monkeypatch):
     fehlend = {b for b in _betraege_in_xml(baum) if b not in im_pdf}
     assert 1904.0 in fehlend, \
         "der Gesamtbetrag steht nur noch in der XML — das hätte auffallen müssen"
+
+
+# ── Drei Fehlerarten aus dem Tracker von e-invoice-eu ───────────────────────
+#
+# Alle drei hat dort ein strengerer Prüfer gefunden, nachdem Mustang sie
+# durchgelassen hatte (#435, #283/#303, #165). Bei uns sind sie am 13.09.2026
+# nicht aufgetreten — diese Tests halten fest, dass es so bleibt. Jeder trägt
+# seine Vorbedingung: Ohne sie wäre „nichts gefunden" kein Befund.
+
+def test_das_xmp_traegt_umlaute_unversehrt(gesetzt):
+    """e-invoice-eu #435: Nicht-ASCII-Zeichen im XMP zerstört."""
+    pdf, _, _ = gesetzt
+    roh = bytes(pypdf.PdfReader(str(pdf)).trailer["/Root"]["/Metadata"]
+                .get_object().get_data())
+    text = roh.decode("utf-8")          # wirft, wenn das XMP kein UTF-8 mehr ist
+    assert "für" in text, "Vorbedingung: der Betreff im XMP trägt einen Umlaut"
+    assert "�" not in text, "das XMP enthält Ersatzzeichen"
+
+
+def test_die_beilage_steht_im_embeddedfiles_verzeichnis(gesetzt):
+    """e-invoice-eu #283/#303: ohne `/EmbeddedFiles` fand ein Prüfer die Beilage nicht."""
+    pdf, _, _ = gesetzt
+    wurzel = pypdf.PdfReader(str(pdf)).trailer["/Root"]
+    assert "/Names" in wurzel, "der Katalog hat kein Names-Verzeichnis"
+    verzeichnis = wurzel["/Names"].get_object().get("/EmbeddedFiles")
+    assert verzeichnis is not None, "kein /EmbeddedFiles im Names-Verzeichnis"
+    namen = [str(n) for n in verzeichnis.get_object().get("/Names", [])[::2]]
+    assert namen == ["factur-x.xml"], namen
+
+
+def test_alle_schriften_sind_eingebettet(gesetzt):
+    """e-invoice-eu #165 (dort offen): PDF/A verlangt eingebettete Schriften.
+
+    Gezählt werden die Schriften der Seiten-Ressourcen. Verbindlich prüft das
+    veraPDF in der CI; dieser Test ist der schnellere Vorbote.
+    """
+    pdf, _, _ = gesetzt
+    schriften = {}
+    for seite in pypdf.PdfReader(str(pdf)).pages:
+        ressourcen = seite.get("/Resources")
+        for eintrag in ((ressourcen.get_object().get("/Font") or {}).values()
+                        if ressourcen else []):
+            schrift = eintrag.get_object()
+            beschreibung = schrift.get("/FontDescriptor")
+            if beschreibung is None and schrift.get("/DescendantFonts"):
+                beschreibung = schrift["/DescendantFonts"][0].get_object().get("/FontDescriptor")
+            beschreibung = beschreibung.get_object() if beschreibung is not None else {}
+            schriften[str(schrift.get("/BaseFont"))] = any(
+                k in beschreibung for k in ("/FontFile", "/FontFile2", "/FontFile3"))
+    assert schriften, "Vorbedingung: das PDF trägt überhaupt Schriften"
+    assert all(schriften.values()), {n: e for n, e in schriften.items() if not e}

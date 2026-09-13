@@ -318,6 +318,20 @@ bedeuten in ihr dasselbe wie im Brief: nichts, und `lint` sagt das.
 wäre sie mehrdeutig, und `lint` meldet sie, statt sie still zu deuten. Ebenso wenig ist `true`
 eine Menge, auch wenn Python es für die Zahl 1 hielte.
 
+**Beträge tragen höchstens zwei Nachkommastellen**, Mengen und Einzelpreise höchstens vier —
+so setzt sie die eingebettete XML. Steht mehr in der Quelle, meldet falzmarke das, statt zu
+runden: `1240.005` würde sonst still `1240.01`, und das wäre ein Wert, den das Werkzeug
+gebildet hat.
+
+**Bei mehreren Steuersätzen gehört `steuer_gesamt:` unter `summen:`.** falzmarke bildet den
+Gesamtbetrag nicht aus den Einzelbeträgen — die Summe hieße Rundungsregel, und die
+verantwortet der Absender. Bei genau einem Satz ist dessen Betrag der Gesamtbetrag. Steht
+`steuer_gesamt:` da und passt nicht zu den Einzelbeträgen, erscheint eine Warnung; in die
+XML kommt trotzdem, was dasteht.
+
+**Eine Rechnung ohne Umsatzsteuer** (etwa nach [§ 19 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html)) erzeugt falzmarke noch nicht. Die
+XML zeichnet jede Steuer als Regelsatz aus; eine steuerfreie Rechnung stünde damit falsch da.
+
 **Bankverbindung, Steuernummer und USt-IdNr. stehen im Profil**, nicht im einzelnen Schreiben —
 wie die Absenderangaben. Dafür gibt es dort einen eigenen Abschnitt:
 

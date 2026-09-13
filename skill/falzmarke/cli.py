@@ -763,16 +763,18 @@ def _fx_schema_ergaenzen(pdf: Path) -> None:
 
     # In den vorhandenen Bag, nicht daneben: Zwei `pdfaExtension:schemas` wären
     # zwei Fassungen derselben Aussage.
-    marke = "<pdfaExtension:schemas><rdf:Bag>"
-    if marke not in roh.replace("\n", "").replace("  ", ""):
-        stelle = roh.find("<rdf:Bag>", roh.find("pdfaExtension:schemas"))
-        if stelle < 0:
-            raise Eingabefehler(
-                "Im XMP steht kein `pdfaExtension:schemas` — das Factur-X-Schema "
-                "hätte dort hineingehört. Setzt Typst den Block nicht mehr?")
-        stelle += len("<rdf:Bag>")
-    else:
-        stelle = roh.find("<rdf:Bag>", roh.find("pdfaExtension:schemas")) + len("<rdf:Bag>")
+    #
+    # Eine Berechnung, ein Schutz. Bis zum Review von #116 stand hier ein
+    # `if`/`else`, das in beiden Zweigen dasselbe berechnete und den Schutz nur
+    # in einem trug — heute nicht auslösbar, aber eine Stelle, an der der
+    # nächste Umbau still eine kaputte Datei geschrieben hätte.
+    block = roh.find("pdfaExtension:schemas")
+    stelle = roh.find("<rdf:Bag>", block) if block >= 0 else -1
+    if stelle < 0:
+        raise Eingabefehler(
+            "Im XMP steht kein `pdfaExtension:schemas` — das Factur-X-Schema "
+            "hätte dort hineingehört. Setzt Typst den Block nicht mehr?")
+    stelle += len("<rdf:Bag>")
     neu = roh[:stelle] + eintrag + roh[stelle:]
 
     werte = "".join(f"<fx:{name}>{wert}</fx:{name}>" for name, wert in FX_WERTE.items())
@@ -858,8 +860,12 @@ def rendere(
         # auseinander (#116). Der Rumpf trägt weiter den Text, der die Rechnung
         # begleitet — die Tabelle tritt daneben, sie ersetzt ihn nicht.
         if ist_rechnung:
-            body_typst += _positionstabelle(kopf)
+            # Erst die XML, dann die Tabelle: Der Emitter prüft jeden Betrag — Text
+            # statt Zahl, zu viele Nachkommastellen — und bricht mit einer Meldung
+            # ab. Andersherum erreichte ein kaputter Wert zuerst `_euro` und endete
+            # als roher Traceback (Review von #116, 13.09.2026).
             eingebettet = eingebettet + [_rechnung_einbettung(kopf, profil, arbeit)]
+            body_typst += _positionstabelle(kopf)
 
         # Eigener Briefkopf, falls das Profil einen mitbringt
         kopf_import, kopf_argument = "", ""

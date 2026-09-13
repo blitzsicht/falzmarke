@@ -179,3 +179,65 @@ def test_ein_profil_ohne_steuerangabe_entsteht_nicht(profil):
 def test_ein_kaputtes_datum_wird_gemeldet(profil):
     with pytest.raises(emit_xml.RechnungUnvollstaendig, match="kein Datum"):
         emit_xml.erzeuge(_ohne(datum="11.09.2026"), profil)
+
+
+# ── Übertragen statt bilden: der Steuergesamtbetrag (Review von #116) ───────
+#
+# Bis zum 13.09.2026 bildete der Emitter `TaxTotalAmount` per `sum()`. Die Tests
+# darüber sahen es nicht: Die Beispielrechnung hat einen Steuersatz, und die Summe
+# eines einzelnen Werts ist dieser Wert.
+
+ZWEI_SAETZE = {"netto": 1600.00, "brutto": 1832.00,
+               "steuer": [{"satz": 19, "basis": 1000.00, "betrag": 190.00},
+                          {"satz": 7, "basis": 600.00, "betrag": 42.00}]}
+
+
+def _steuergesamt(baum) -> str:
+    return baum.find(f".//{{{RAM}}}TaxTotalAmount").text
+
+
+def test_bei_einem_steuersatz_wird_sein_betrag_uebernommen(baum):
+    assert _steuergesamt(baum) == "304.00"
+
+
+def test_mehrere_saetze_ohne_steuer_gesamt_brechen_ab(profil):
+    with pytest.raises(emit_xml.RechnungUnvollstaendig, match="steuer_gesamt"):
+        emit_xml.erzeuge(_ohne(summen=copy.deepcopy(ZWEI_SAETZE)), profil)
+
+
+def test_steuer_gesamt_wird_uebernommen_auch_wenn_es_abweicht(profil):
+    """Die Trennschärfe. Die Einzelbeträge ergeben 232,00; in der Quelle steht 233,00.
+
+    Ein Test mit passender Zahl bewiese nichts — er wäre auch grün, wenn der Emitter
+    wieder summierte. Nur ein abweichender Wert zeigt, dass übertragen wird.
+    """
+    summen = copy.deepcopy(ZWEI_SAETZE)
+    summen["steuer_gesamt"] = 233.00
+    baum = ET.fromstring(emit_xml.erzeuge(_ohne(summen=summen), profil))
+    assert _steuergesamt(baum) == "233.00"
+
+
+def test_ohne_steuereintrag_entsteht_keine_datei(profil):
+    """Die Kategorie ist fest `S`; eine steuerfreie Rechnung wäre falsch ausgezeichnet."""
+    summen = copy.deepcopy(KOPF["summen"])
+    summen["steuer"] = []
+    with pytest.raises(emit_xml.RechnungUnvollstaendig, match="§ 19"):
+        emit_xml.erzeuge(_ohne(summen=summen), profil)
+
+
+# ── Keine stille Rundung, kein Traceback ────────────────────────────────────
+
+def test_ein_betrag_mit_drei_nachkommastellen_wird_nicht_gerundet(profil):
+    positionen = copy.deepcopy(KOPF["positionen"])
+    positionen[0]["betrag"] = 1240.005
+    with pytest.raises(emit_xml.RechnungUnvollstaendig, match=r"positionen\[1\]\.betrag"):
+        emit_xml.erzeuge(_ohne(positionen=positionen), profil)
+
+
+def test_text_statt_zahl_ergibt_eine_meldung_und_keinen_traceback(profil):
+    """Vorher erreichte `abc` ein nacktes `float()` — ein `ValueError`, den die CLI
+    nicht fängt."""
+    summen = copy.deepcopy(KOPF["summen"])
+    summen["netto"] = "abc"
+    with pytest.raises(emit_xml.RechnungUnvollstaendig, match="summen.netto"):
+        emit_xml.erzeuge(_ohne(summen=summen), profil)
