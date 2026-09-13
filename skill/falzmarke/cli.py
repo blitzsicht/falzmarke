@@ -636,6 +636,57 @@ FX_WERTE = {
 }
 
 
+#: Welches Profil zu welcher Guideline-ID gehört — eine eigene Tabelle und
+#: bewusst NICHT `emit_xml.GUIDELINE`: Die Fassungszeile im Messbericht soll rot
+#: werden, wenn der Emitter eine andere ID schreibt. Verglichen mit seiner
+#: eigenen Konstante prüfte der Sollwert sich selbst (#117).
+PROFIL_JE_GUIDELINE = {
+    "urn:cen.eu:en16931:2017": "EN 16931",
+}
+
+
+def rechnung_im_pdf(pdf: Path) -> dict:
+    """Was das fertige PDF über seine Rechnung sagt — gelesen, nicht erinnert.
+
+    `datei`: Name der Beilage mit Beziehung, `guideline`: die ID aus der
+    eingebetteten XML, `profil`: `fx:ConformanceLevel` aus dem XMP. Was fehlt,
+    ist `None`.
+    """
+    import re as re_modul
+    import xml.etree.ElementTree as ET_modul
+    from pypdf import PdfReader
+    from falzmarke import emit_xml, geometrie
+
+    ergebnis = {"datei": None, "guideline": None, "profil": None, "fassung": None}
+    leser = PdfReader(str(pdf))
+    for eintrag in leser.trailer["/Root"].get("/AF", []):
+        datei = eintrag.get_object()
+        if str(datei.get("/F")) != RECHNUNG_XML_NAME:
+            continue
+        ergebnis["datei"] = RECHNUNG_XML_NAME
+        daten = datei["/EF"]["/F"].get_object().get_data()
+        wurzel = ET_modul.fromstring(daten)
+        knoten = wurzel.find(f".//{{{emit_xml.RAM}}}GuidelineSpecifiedDocumentContextParameter"
+                             f"/{{{emit_xml.RAM}}}ID")
+        ergebnis["guideline"] = None if knoten is None else knoten.text
+    xmp = geometrie.xmp_lesen(pdf)
+    for schluessel, feld in (("profil", "ConformanceLevel"), ("fassung", "Version")):
+        treffer = re_modul.search(rf"<fx:{feld}>([^<]*)</fx:{feld}>", xmp)
+        ergebnis[schluessel] = treffer.group(1) if treffer else None
+    return ergebnis
+
+
+def rechnung_befund(gelesen: dict) -> tuple[bool, str]:
+    """Stimmen Beilage, Guideline und XMP-Profil zueinander? Mit dem Gelesenen als Text."""
+    erwartet = PROFIL_JE_GUIDELINE.get(gelesen.get("guideline") or "")
+    ok = (gelesen.get("datei") == RECHNUNG_XML_NAME and erwartet is not None
+          and gelesen.get("profil") == erwartet)
+    text = (f"{gelesen.get('datei') or 'keine Beilage'} · Guideline "
+            f"{gelesen.get('guideline') or '—'} · Profil {gelesen.get('profil') or '—'} · "
+            f"Factur-X {gelesen.get('fassung') or '—'}")
+    return ok, text
+
+
 def _euro(wert) -> str:
     """`1240.0` wird `1.240,00 EUR` — die Schreibweise des gesetzten Schreibens.
 
@@ -1162,12 +1213,12 @@ def befehl_render(args) -> int:
     # gesetzt wurde. Was hier steht, ist die Angabe des Erzeugers — ob die Datei
     # gilt, sagt der fremde Prüfer (Mustang in der CI), nicht diese Zeile.
     if str(kopf_cli.get("typ") or "brief") == "rechnung":
-        hat_schema = "urn:factur-x" in geometrie.xmp_lesen(pdf)
-        bericht.wahr(
-            "E-Rechnung", hat_schema,
-            f"{RECHNUNG_XML_NAME} · Profil {FX_WERTE['ConformanceLevel']} · "
-            f"Factur-X {FX_WERTE['Version']}",
-            "eingebettet" if hat_schema else "kein Factur-X-Schema im XMP")
+        # Seit #117 aus der Datei gelesen: Beilage, Guideline-ID der XML und
+        # Profil im XMP, gegen `PROFIL_JE_GUIDELINE` gehalten. Vorher standen
+        # hier Konstanten, und die Zeile konnte nicht rot werden.
+        ok, gelesen_text = rechnung_befund(rechnung_im_pdf(pdf))
+        bericht.wahr("E-Rechnung", ok, "Beilage, Guideline und Profil stimmen überein",
+                     gelesen_text)
     print(bericht.als_text(ausfuehrlich=args.verbose))
     if not bericht.ok:
         print("\nFEHLGESCHLAGEN — das PDF hält die Maße aus DIN 5008 nicht ein.", file=sys.stderr)

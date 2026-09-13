@@ -186,7 +186,7 @@ def main(argv: list[str] | None = None, ausfuehren: Ausfuehren | None = None) ->
 
     befunde = 0
     nicht_geprueft = 0
-    fassung = ""
+    fassungen: list[str] = []
     erwartung = [(pdf, GUELTIG) for pdf in args.gut] + [(pdf, UNGUELTIG) for pdf in args.schlecht]
 
     for pdf, soll in erwartung:
@@ -196,15 +196,19 @@ def main(argv: list[str] | None = None, ausfuehren: Ausfuehren | None = None) ->
             continue
         vorher = sha256(pdf)
         ist, ausgabe = urteil(pdf, args.mustang, args.java, ausfuehren)
-        fassung = fassung or (regelfassung(ausgabe) if "xslt/" in ausgabe else "")
+        # Je Datei (#117): Bis dahin zählte nur die erste, und ob die
+        # XRechnung-Regeln auf eine spätere Datei liefen, blieb unsichtbar.
+        fassung = regelfassung(ausgabe) if "xslt/" in ausgabe else "Regelfassung nicht ermittelt"
+        if fassung not in fassungen:
+            fassungen.append(fassung)
         if ist == WERKZEUGFEHLER:
             print(f"NICHT GEPRÜFT  {pdf.name} — Mustang ist abgestürzt, kein Urteil")
             nicht_geprueft += 1
         elif ist == soll:
             art = "Gegenprobe fällt durch" if soll == UNGUELTIG else "besteht"
-            print(f"OK    {pdf.name}  {art}  sha256={vorher[:16]}…")
+            print(f"OK    {pdf.name}  {art}  sha256={vorher[:16]}…  [{fassung}]")
         else:
-            print(f"FEHL  {pdf.name} — erwartet {soll}, Mustang sagt {ist}")
+            print(f"FEHL  {pdf.name} — erwartet {soll}, Mustang sagt {ist}  [{fassung}]")
             befunde += 1
         if sha256(pdf) != vorher:
             print(f"FEHL  {pdf.name} — Datei hat sich während der Prüfung geändert")
@@ -219,7 +223,8 @@ def main(argv: list[str] | None = None, ausfuehren: Ausfuehren | None = None) ->
         befunde += 1
 
     print()
-    print(f"Regelfassung: {fassung or 'nicht ermittelt — keine Schematron-Angabe in der Ausgabe'}")
+    print("Regelfassung: " + (" | ".join(f for f in fassungen if not f.endswith("nicht ermittelt"))
+                              or "nicht ermittelt — keine Schematron-Angabe in der Ausgabe"))
     if nicht_geprueft:
         print(f"{nicht_geprueft} Datei(en) NICHT GEPRÜFT — kein Grün")
         return 2

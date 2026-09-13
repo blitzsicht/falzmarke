@@ -241,3 +241,87 @@ def test_text_statt_zahl_ergibt_eine_meldung_und_keinen_traceback(profil):
     summen["netto"] = "abc"
     with pytest.raises(emit_xml.RechnungUnvollstaendig, match="summen.netto"):
         emit_xml.erzeuge(_ohne(summen=summen), profil)
+
+
+# ── Kontakt, Zahlungsweg, elektronische Adresse (#117, PR 1) ────────────────
+#
+# Alle drei verlangt XRechnung (BR-DE-2/5/6/7, BR-DE-1/23, Peppol R020); unter
+# EN 16931 sind sie freiwillig und werden geschrieben, sobald sie da sind. Die
+# Elementfolge ist an `validXRV30.xml` aus dem Mustang-Testmaterial abgelesen.
+
+def _profil_mit(profil, **rechnung) -> dict:
+    neu = copy.deepcopy(profil)
+    neu["rechnung"] = {**(neu.get("rechnung") or {}), **rechnung}
+    return neu
+
+
+def _kinder(knoten) -> list[str]:
+    return [k.tag.split("}")[1] for k in knoten]
+
+
+def test_der_kontakt_ist_der_des_infoblocks(profil):
+    """Dieselbe Quelle wie das PDF: `infoblock_defaults`, vom Brief überschreibbar.
+    Sonst nennt das PDF Ansprechpartner A und die XML B."""
+    baum = ET.fromstring(emit_xml.erzeuge(KOPF, profil))
+    kontakt = baum.find(f".//{{{RAM}}}SellerTradeParty/{{{RAM}}}DefinedTradeContact")
+    vorgaben = profil["infoblock_defaults"]
+    assert kontakt is not None
+    assert kontakt.findtext(f"{{{RAM}}}PersonName") == vorgaben["ansprechpartner"]
+    assert kontakt.findtext(f"{{{RAM}}}TelephoneUniversalCommunication/{{{RAM}}}CompleteNumber") == str(vorgaben["telefon"])
+    assert kontakt.findtext(f"{{{RAM}}}EmailURIUniversalCommunication/{{{RAM}}}URIID") == vorgaben["email"]
+
+
+def test_der_infoblock_des_schreibens_geht_vor(profil):
+    kopf = _ohne(infoblock={"ansprechpartner": "Max Beispiel"})
+    baum = ET.fromstring(emit_xml.erzeuge(kopf, profil))
+    assert _finde(baum, f".//{{{RAM}}}DefinedTradeContact/{{{RAM}}}PersonName") == "Max Beispiel"
+
+
+def test_ohne_kontaktangaben_kein_leerer_kontakt(profil):
+    ohne = copy.deepcopy(profil)
+    ohne.pop("infoblock_defaults", None)
+    baum = ET.fromstring(emit_xml.erzeuge(KOPF, ohne))
+    assert baum.find(f".//{{{RAM}}}DefinedTradeContact") is None
+
+
+def test_der_zahlungsweg_traegt_die_iban_ohne_leerzeichen(profil):
+    baum = ET.fromstring(emit_xml.erzeuge(
+        KOPF, _profil_mit(profil, bank={"iban": "DE62 7625 1020 0221 0217 44", "bic": "BYLADEM1RBG"})))
+    weg = baum.find(f".//{{{RAM}}}SpecifiedTradeSettlementPaymentMeans")
+    assert weg is not None
+    assert weg.findtext(f"{{{RAM}}}TypeCode") == "58"
+    assert weg.findtext(f"{{{RAM}}}PayeePartyCreditorFinancialAccount/{{{RAM}}}IBANID") == "DE62762510200221021744"
+    assert weg.findtext(f"{{{RAM}}}PayeeSpecifiedCreditorFinancialInstitution/{{{RAM}}}BICID") == "BYLADEM1RBG"
+
+
+def test_ohne_bank_kein_zahlungsweg(profil):
+    ohne = _profil_mit(profil)
+    ohne["rechnung"].pop("bank", None)
+    baum = ET.fromstring(emit_xml.erzeuge(KOPF, ohne))
+    assert baum.find(f".//{{{RAM}}}SpecifiedTradeSettlementPaymentMeans") is None
+
+
+def test_eine_falsche_iban_entsteht_nicht(profil):
+    """Der MCP-Dienst setzt ohne `lint` — die Prüfung muss auch hier stehen."""
+    with pytest.raises(emit_xml.RechnungUnvollstaendig, match="IBAN"):
+        emit_xml.erzeuge(KOPF, _profil_mit(profil, bank={"iban": "DE62 7625 1020 0221 0217 45"}))
+
+
+def test_die_elektronische_adresse_traegt_das_schema_em(profil):
+    baum = ET.fromstring(emit_xml.erzeuge(KOPF, _profil_mit(profil, adresse="rechnung@example.de")))
+    uri = baum.find(f".//{{{RAM}}}SellerTradeParty/{{{RAM}}}URIUniversalCommunication/{{{RAM}}}URIID")
+    assert uri is not None and uri.text == "rechnung@example.de" and uri.get("schemeID") == "EM"
+
+
+def test_die_elementfolge_entspricht_der_referenz(profil):
+    """Das Schema legt die Reihenfolge fest — eine vertauschte Folge lehnt der
+    fremde Prüfer ab, obwohl jedes Element für sich stimmt."""
+    baum = ET.fromstring(emit_xml.erzeuge(KOPF, _profil_mit(
+        profil, adresse="rechnung@example.de", bank={"iban": "DE62762510200221021744"})))
+    verkaeufer = _kinder(baum.find(f".//{{{RAM}}}SellerTradeParty"))
+    assert verkaeufer.index("Name") < verkaeufer.index("DefinedTradeContact") \
+        < verkaeufer.index("PostalTradeAddress") < verkaeufer.index("URIUniversalCommunication") \
+        < verkaeufer.index("SpecifiedTaxRegistration")
+    abrechnung = _kinder(baum.find(f".//{{{RAM}}}ApplicableHeaderTradeSettlement"))
+    assert abrechnung.index("InvoiceCurrencyCode") < abrechnung.index("SpecifiedTradeSettlementPaymentMeans") \
+        < abrechnung.index("ApplicableTradeTax")

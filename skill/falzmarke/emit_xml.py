@@ -25,6 +25,7 @@ eine Datei, die durchläuft und beim Empfänger scheitert.
 from __future__ import annotations
 
 import datetime as dt
+import re
 from decimal import Decimal, InvalidOperation
 import xml.etree.ElementTree as ET
 
@@ -71,6 +72,33 @@ BETRAG_STELLEN = 2
 
 #: Dasselbe für Mengen und Einzelpreise, die die Referenz vierstellig setzt.
 MENGE_STELLEN = 4
+
+
+#: Zahlungsart Überweisung (SEPA), UNTDID 4461. So steht sie in der Referenz
+#: `validXRV30.xml`; XRechnung verlangt bei 58 ein Empfängerkonto (BR-DE-23).
+ZAHLUNGSART_UEBERWEISUNG = "58"
+
+#: Schema der elektronischen Adresse (BT-34/BT-49), EAS-Codeliste: `EM` ist die
+#: E-Mail-Adresse. Ebenfalls aus `validXRV30.xml`.
+ADRESS_SCHEMA_EMAIL = "EM"
+
+
+def iban_normal(wert) -> str:
+    """Die IBAN ohne Leerzeichen und in Großbuchstaben — so steht sie in der XML."""
+    return re.sub(r"\s+", "", str(wert or "")).upper()
+
+
+def iban_gueltig(wert) -> bool:
+    """Form und Prüfziffer nach ISO 13616 (Modulo 97 = 1).
+
+    Geprüft wird die Form, nicht ob das Konto existiert — dafür bräuchte es
+    Netz (ADR 0005). Ländercode, zwei Prüfziffern, bis zu 30 Zeichen.
+    """
+    iban = iban_normal(wert)
+    if not re.fullmatch(r"[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}", iban):
+        return False
+    umgestellt = iban[4:] + iban[:4]
+    return int("".join(str(int(z, 36)) for z in umgestellt)) % 97 == 1
 
 
 class RechnungUnvollstaendig(ValueError):
@@ -158,14 +186,34 @@ def einheit_code(wert) -> str:
 
 
 def _partei(eltern, name: str, bezeichnung: str, anschrift: dict,
-            steuernummern: list[tuple[str, str]] | None = None) -> None:
+            steuernummern: list[tuple[str, str]] | None = None,
+            kontakt: dict | None = None, elektronisch: str | None = None) -> None:
+    """Eine Partei in der Elementfolge des Schemas.
+
+    Die Folge ist nicht frei: Name, Kontakt, Anschrift, elektronische Adresse,
+    Steuernummern — abgelesen an `validXRV30.xml`. Eine vertauschte Folge
+    lehnt der fremde Prüfer ab, auch wenn jedes Element für sich stimmt.
+    """
     partei = ET.SubElement(eltern, f"{{{RAM}}}{name}")
     _text(partei, f"{{{RAM}}}Name", bezeichnung)
+    if kontakt:
+        ansprech = ET.SubElement(partei, f"{{{RAM}}}DefinedTradeContact")
+        if kontakt.get("name"):
+            _text(ansprech, f"{{{RAM}}}PersonName", kontakt["name"])
+        if kontakt.get("telefon"):
+            telefon = ET.SubElement(ansprech, f"{{{RAM}}}TelephoneUniversalCommunication")
+            _text(telefon, f"{{{RAM}}}CompleteNumber", kontakt["telefon"])
+        if kontakt.get("email"):
+            post = ET.SubElement(ansprech, f"{{{RAM}}}EmailURIUniversalCommunication")
+            _text(post, f"{{{RAM}}}URIID", kontakt["email"])
     adresse = ET.SubElement(partei, f"{{{RAM}}}PostalTradeAddress")
     _text(adresse, f"{{{RAM}}}PostcodeCode", anschrift["plz"])
     _text(adresse, f"{{{RAM}}}LineOne", anschrift["strasse"])
     _text(adresse, f"{{{RAM}}}CityName", anschrift["ort"])
     _text(adresse, f"{{{RAM}}}CountryID", anschrift["land"])
+    if elektronisch:
+        uri = ET.SubElement(partei, f"{{{RAM}}}URIUniversalCommunication")
+        _text(uri, f"{{{RAM}}}URIID", elektronisch, schemeID=ADRESS_SCHEMA_EMAIL)
     for schema, nummer in steuernummern or []:
         eintrag = ET.SubElement(partei, f"{{{RAM}}}SpecifiedTaxRegistration")
         _text(eintrag, f"{{{RAM}}}ID", nummer, schemeID=schema)
@@ -199,6 +247,38 @@ def _steuernummern(profil: dict) -> list[tuple[str, str]]:
             "Das Profil trägt weder `rechnung.ust_idnr:` noch `rechnung.steuernummer:` — "
             "§ 14 Absatz 4 Nummer 2 UStG verlangt eine von beiden.")
     return heraus
+
+
+def _kontakt(kopf: dict, profil: dict) -> dict:
+    """Der Ansprechpartner des Ausstellers — derselbe Wert, den das PDF zeigt.
+
+    Er kommt aus dem Informationsblock: `infoblock_defaults` im Profil, vom
+    `infoblock:` des Schreibens überschrieben (wie `cli.baue_profil_daten`).
+    Ein eigenes Kontaktfeld für die XML wäre eine zweite Quelle derselben
+    Angabe, und dann nennt das PDF Ansprechpartner A und die XML B.
+    """
+    info = {**(profil.get("infoblock_defaults") or {}), **(kopf.get("infoblock") or {})}
+    kontakt = {"name": info.get("ansprechpartner"), "telefon": info.get("telefon"),
+               "email": info.get("email")}
+    return {k: str(v) for k, v in kontakt.items() if v not in (None, "")}
+
+
+def _zahlungsweg(abrechnung, profil: dict) -> None:
+    """Überweisung auf das Konto aus `rechnung.bank`, sofern es eins gibt."""
+    bank = (profil.get("rechnung") or {}).get("bank")
+    if not isinstance(bank, dict) or not bank.get("iban"):
+        return
+    if not iban_gueltig(bank["iban"]):
+        raise RechnungUnvollstaendig(
+            f"`rechnung.bank.iban: {bank['iban']}` ist keine gültige IBAN "
+            "(Form oder Prüfziffer nach ISO 13616).")
+    weg = ET.SubElement(abrechnung, f"{{{RAM}}}SpecifiedTradeSettlementPaymentMeans")
+    _text(weg, f"{{{RAM}}}TypeCode", ZAHLUNGSART_UEBERWEISUNG)
+    konto = ET.SubElement(weg, f"{{{RAM}}}PayeePartyCreditorFinancialAccount")
+    _text(konto, f"{{{RAM}}}IBANID", iban_normal(bank["iban"]))
+    if bank.get("bic"):
+        institut = ET.SubElement(weg, f"{{{RAM}}}PayeeSpecifiedCreditorFinancialInstitution")
+        _text(institut, f"{{{RAM}}}BICID", str(bank["bic"]).replace(" ", "").upper())
 
 
 def _empfaenger(kopf: dict) -> tuple[str, dict]:
@@ -289,7 +369,9 @@ def _position(vorgang, nummer: int, position: dict) -> None:
 def _kopfdaten(vorgang, kopf: dict, profil: dict) -> None:
     vereinbarung = ET.SubElement(vorgang, f"{{{RAM}}}ApplicableHeaderTradeAgreement")
     _partei(vereinbarung, "SellerTradeParty", (profil.get("absender") or {})["name"],
-            _verkaeufer_anschrift(profil), _steuernummern(profil))
+            _verkaeufer_anschrift(profil), _steuernummern(profil),
+            kontakt=_kontakt(kopf, profil),
+            elektronisch=(profil.get("rechnung") or {}).get("adresse"))
     name, anschrift = _empfaenger(kopf)
     _partei(vereinbarung, "BuyerTradeParty", name, anschrift)
 
@@ -302,6 +384,7 @@ def _kopfdaten(vorgang, kopf: dict, profil: dict) -> None:
 
     abrechnung = ET.SubElement(vorgang, f"{{{RAM}}}ApplicableHeaderTradeSettlement")
     _text(abrechnung, f"{{{RAM}}}InvoiceCurrencyCode", WAEHRUNG)
+    _zahlungsweg(abrechnung, profil)
 
     summen = kopf.get("summen")
     if not isinstance(summen, dict):
