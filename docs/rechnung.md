@@ -19,8 +19,8 @@ Rechnung als reine XRechnung-XML, ohne PDF.
 | **XRechnung** | öffentliche Auftraggeber | `falzmarke xml` | reine XML-Datei, kein PDF |
 
 Beide tragen dieselbe Struktur — UN/CEFACT Cross Industry Invoice (CII) — und denselben
-Grundumfang: das Profil **EN 16931** (COMFORT), nicht MINIMUM oder BASIC WL. Beide Profile
-enthalten keine Positionen und wären keine Rechnung im umsatzsteuerlichen Sinn; falzmarke erzeugt
+Grundumfang: das Profil **EN 16931** (COMFORT), nicht MINIMUM oder BASIC WL. Diese beiden kleineren
+Profile enthalten keine Positionen und wären keine Rechnung im umsatzsteuerlichen Sinn; falzmarke erzeugt
 sie nicht ([ADR 0039](entscheidungen/0039-falzmarke-rechnet-nicht.md)).
 
 - **ZUGFeRD** ist die Vorgabe, wenn `erechnung:` im Kopf fehlt oder `en16931` trägt: ein PDF, in
@@ -70,9 +70,12 @@ Quelle in PDF und XML. Es bildet keine Summe, keinen Steuerbetrag und keinen Bru
 `1240.00` als Betrag einer Position schreibt, bekommt `1240.00` in beiden Dateien, gleich ob die
 Menge mal der Einzelpreis dieselbe Zahl ergäbe oder nicht.
 
-Was es tut, ist eine **Rechenprobe über gegebene Werte**: Stehen `summen:` in der Quelle, prüft
-`lint`, ob Netto plus Steuer den angegebenen Bruttobetrag ergibt, und meldet eine Abweichung —
-ohne den Lauf anzuhalten und ohne selbst nachzurechnen, was richtig wäre. Das ist eine Prüfung
+Was es tut, sind **Rechenproben über gegebene Werte**: Stehen `summen:` in der Quelle, prüft
+`lint`, ob die Positionen den Nettobetrag ergeben, ob Netto plus Steuer den Bruttobetrag ergibt
+und ob `steuer_gesamt:` zu den einzelnen Steuerbeträgen passt. Eine Abweichung ist eine Warnung —
+sie hält den Lauf nicht an, und falzmarke setzt keinen eigenen Wert ein. Ein Fehler ist dagegen
+ein Steuersatz einer Position, zu dem `summen.steuer` keine Zeile hat: Das PDF zeigt nur die
+Summenzeilen, der Satz stünde also allein in der XML. Das ist eine Prüfung
 über vorhandene Zahlen, kein Bilden eigener; die Grenze dazwischen ist ADR 0039, Entscheidung 1.
 
 Wer verlässlich nachgerechnete Zahlen will, bekommt sie vom fremden Prüfer: Mustang rechnet die
@@ -84,21 +87,23 @@ die Arbeitsteilung — wer überträgt, lässt nachrechnen.
 - **falzmarke vergibt keine Rechnungsnummern.** `rechnungsnummer:` steht in der Quelle und wird
   nur auf Nichtleere geprüft. Eine fortlaufende, lückenlose Nummerierung zu führen ist Sache der
   Buchhaltung des Absenders, nicht dieses Werkzeugs.
-- **falzmarke bucht nicht.** Es gibt keine Debitorenliste, kein Fälligkeitsdatum, das
-  irgendwohin geschrieben wird, und keine Schnittstelle zu einer Buchhaltung.
+- **falzmarke bucht nicht.** Es gibt keine Debitorenliste und keine Schnittstelle zu einer
+  Buchhaltung. Ein `zahlungsziel:` steht in PDF und XML, sonst nirgends.
 - **falzmarke mahnt nicht.** Ein überschrittenes `zahlungsziel:` löst nichts aus — kein
   Mahnwesen, keine Fristenüberwachung, keine zweite Ausfertigung mit anderem Betreff.
 - **falzmarke versendet nichts.** Es gibt für eine Rechnung keinen Versandbefehl, genau wie für
   jeden anderen Brief und jede E-Mail ([ADR 0034](entscheidungen/0034-email-ist-ausgabe.md)). Wer
-  die Rechnung als `typ: email` verschickt, bekommt einen Entwurf mit `--oeffnen` — gesendet wird
-  er von einem Menschen.
+  die Rechnung per E-Mail schicken will, hängt das PDF an eine Quelle mit `typ: email` an;
+  `falzmarke email … --oeffnen` legt daraus einen Entwurf an, gesendet wird er von einem Menschen.
 
 ## Was ausdrücklich nicht behauptet wird
 
-Kein „normgerecht", kein „ZUGFeRD-konform", kein „XRechnung-konform" — solange kein
-unabhängiges Prüfergebnis dahintersteht, aus demselben Grund: der Abgleich mit dem Originaltext
-der DIN 5008:2020-03 einschließlich Berichtigung 1:2020-07 steht aus, und Regeln aus einzelnen
-Quellen wirken nur als Warnung.
+Kein „ZUGFeRD-konform“ und kein „XRechnung-konform“. Belegt ist, was oben steht: Die
+Beispielrechnungen bestehen bei Mustang, die XRechnung zusätzlich beim KoSIT-Validator, jeweils
+mit benannter Regelfassung. Für die Rechnung,
+die jemand aus einer eigenen Quelle erzeugt, sagt das nichts. Und kein „normgerecht“ für das
+Schreiben selbst: Der Abgleich mit dem Originaltext der DIN 5008:2020-03 steht aus, siehe
+[Normmaße und Quellenlage](../skill/references/din5008.md).
 
 Und keine Rechtsberatung: Ob eine Rechnung in einem Einzelfall als elektronische oder als sonstige
 Rechnung gelten muss, entscheiden Sitz, Unternehmereigenschaft und Umsatz der Beteiligten — nicht
