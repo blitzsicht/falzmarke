@@ -227,3 +227,75 @@ regeln:
       sie dasteht. Dieselbe Formprüfung wie für `an:` (lint.adresse_grund).
     belegt_durch:
       rfc5322: "Abschnitt 3.4.1 — Addr-Spec Specification"
+
+  # ── XRechnung (#117, Teil 2) ─────────────────────────────────────────────
+
+  - id: rechnung.erechnung
+    titel: erechnung ist en16931 oder xrechnung
+    lint: rechnung.erechnung
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Die Ausprägung der E-Rechnung. Ohne Angabe EN 16931 (ZUGFeRD-Profil
+      EN 16931, ADR 0039); `xrechnung` erzeugt XRechnung 3.0 in CII (ADR 0040).
+      Ein anderer Wert wird gemeldet, nicht auf eine der beiden geraten.
+
+  - id: rechnung.referenz
+    titel: Nicht leitweg_id und kaeuferreferenz zugleich
+    lint: rechnung.referenz
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Beide gehen in dasselbe Feld, die Käuferreferenz BT-10. falzmarke wählt
+      nicht für den Absender, welche gemeint ist.
+
+  - id: rechnung.leitweg_id
+    titel: Die Leitweg-ID hat die Form der Spezifikation und eine gültige Prüfziffer
+    lint: rechnung.leitweg_id
+    ebene: technik
+    herkunft: primaerquelle
+    quellen: [leitweg_id_202]
+    wirkung: fehler
+    bemerkung: >-
+      Geprüft wird die Form, nicht der Inhalt: Ob die Behörde die ID kennt,
+      hieße Netz (ADR 0005). Dieselbe Prüfung steht im Emitter, weil der
+      MCP-Dienst ohne `lint` setzt. Für Buchstaben in der Feinadressierung
+      liegt kein belegtes Beispiel vor; die Tests nutzen nur numerische.
+    belegt_durch:
+      leitweg_id_202: >-
+        Abschnitt 2.1 (2–12 Stellen Grob-, bis 30 Stellen Feinadressierung),
+        2.3 (A–Z und 0–9, nicht case-sensitiv), 2.4 (Prüfziffer nach
+        ISO/IEC 7064:2003 Modulo 97-10, Rest 1 bei der Überprüfung), 2.5
+        (Trennzeichen U+002D)
+
+  - id: rechnung.empfaenger_adresse
+    titel: empfaenger_anschrift.adresse ist eine E-Mail-Adresse
+    lint: rechnung.empfaenger_adresse
+    ebene: technik
+    herkunft: primaerquelle
+    quellen: [rfc5322]
+    wirkung: fehler
+    bemerkung: >-
+      Die elektronische Adresse des Empfängers (BT-49) mit dem Schema `EM`.
+    belegt_durch:
+      rfc5322: "Abschnitt 3.4.1 — Addr-Spec Specification"
+
+  - id: rechnung.xrechnung
+    titel: Eine XRechnung trägt Käuferreferenz, Kontakt, Konto und beide elektronischen Adressen
+    lint: rechnung.xrechnung
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Die Liste folgt den Regeln, die Mustang 2.26.0 gegen XR_30 anwendet:
+      BR-DE-15 (BT-10), BR-DE-2/5/6/7 (Kontakt), BR-DE-1/23 (Zahlungsweg mit
+      Konto), Peppol R010/R020 (BT-49/BT-34). Die Schematron-Dateien der KoSIT
+      sind hier nicht selbst gelesen — deshalb Werkzeugregel. Belegt ist die
+      Wirkung am fremden Prüfer: Die eigene Beispiel-XRechnung besteht, dieselbe
+      Datei ohne BT-10 fällt mit genau BR-DE-15 durch (CI-Job „E-Rechnung“).
+      `lint` und Emitter lesen dieselbe Liste (`emit_xml.xrechnung_maengel`).

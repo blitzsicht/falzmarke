@@ -122,9 +122,9 @@ EMAIL_FRONTMATTER_FELDER = frozenset({
 # `docs/recht.md`. Kein Feld ist erfunden: Jedes trägt eine dieser Angaben oder
 # eine, die das Profil EN 16931 (COMFORT) nach ADR 0039 verlangt.
 #
-# Was NICHT hier steht, ist Absicht: Die Leitweg-ID gehört zu XRechnung und damit
-# zu #117; Bankverbindung, Steuernummer und USt-IdNr. stehen im Profil, nicht im
-# einzelnen Schreiben — wie die Absenderangaben.
+# Was NICHT hier steht, ist Absicht: Bankverbindung, Steuernummer und USt-IdNr.
+# stehen im Profil, nicht im einzelnen Schreiben — wie die Absenderangaben. Die
+# Leitweg-ID dagegen steht hier: Sie gehört zum Empfänger, nicht zum Absender (#117).
 RECHNUNG_FRONTMATTER_FELDER = frozenset({
     # geteilt mit dem Brief: Eine Rechnung IST ein Schreiben (#115)
     "profil", "typ", "form", "norm", "dialekt", "sprache", "empfaenger",
@@ -146,10 +146,17 @@ RECHNUNG_FRONTMATTER_FELDER = frozenset({
     # nicht sicher ablesen. Geraten hieße, den Empfänger falsch zu adressieren,
     # ohne dass es auffällt.
     "empfaenger_anschrift",
+    # XRechnung (#117): die Ausprägung und die Käuferreferenz (BT-10) — als
+    # Leitweg-ID an öffentliche Auftraggeber oder als freie Referenz
+    "erechnung",
+    "leitweg_id",
+    "kaeuferreferenz",
 })
 
-#: Was `empfaenger_anschrift:` trägt — dieselben Felder, die die XML verlangt.
-EMPFAENGER_ANSCHRIFT_FELDER = frozenset({"name", "strasse", "plz", "ort", "land"})
+#: Was `empfaenger_anschrift:` trägt — dieselben Felder, die die XML verlangt,
+#: dazu die elektronische Adresse (BT-49), die XRechnung verlangt (#117).
+EMPFAENGER_ANSCHRIFT_FELDER = frozenset({"name", "strasse", "plz", "ort", "land", "adresse"})
+EMPFAENGER_ANSCHRIFT_PFLICHT = frozenset({"name", "strasse", "plz", "ort", "land"})
 
 #: Was eine Rechnung mindestens braucht, um eine zu sein.
 #:
@@ -1310,6 +1317,53 @@ def _pruefe_summenzahl(wert, feld: str, stellen: int, ort: int, bericht: Bericht
                        f"höchstens {stellen} — gerundet wird nicht (ADR 0039)")
 
 
+def _pruefe_erechnung_kopf(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
+    """`erechnung:`, `leitweg_id:` und `kaeuferreferenz:` im Kopf (#117)."""
+    from falzmarke import emit_xml as _emit_xml
+
+    if kopf.get("erechnung") is not None:
+        wert = str(kopf["erechnung"]).strip().lower()
+        if wert not in _emit_xml.ERECHNUNG_AUSPRAEGUNGEN:
+            bericht.fehler(
+                _feldzeile(kopf_roh, "erechnung"), "rechnung.erechnung",
+                f"`erechnung: {kopf['erechnung']}` kennt falzmarke nicht",
+                "erlaubt sind " + ", ".join(f"`{a}`" for a in _emit_xml.ERECHNUNG_AUSPRAEGUNGEN)
+                + " — ohne Angabe gilt `en16931`")
+    if kopf.get("leitweg_id") and kopf.get("kaeuferreferenz"):
+        bericht.fehler(
+            _feldzeile(kopf_roh, "kaeuferreferenz"), "rechnung.referenz",
+            "`leitweg_id:` und `kaeuferreferenz:` stehen beide da",
+            "beide gehen in dasselbe Feld (BT-10) — an eine Behörde die Leitweg-ID, "
+            "sonst die Referenz des Käufers")
+    if kopf.get("leitweg_id") is not None and not _emit_xml.leitweg_id_gueltig(kopf["leitweg_id"]):
+        bericht.fehler(
+            _feldzeile(kopf_roh, "leitweg_id"), "rechnung.leitweg_id",
+            f"`leitweg_id: {kopf['leitweg_id']}` ist keine gültige Leitweg-ID",
+            "Grobadressierung (2–12 Ziffern), optional `-` und Feinadressierung, dann `-` und "
+            "zwei Prüfziffern — die Prüfziffer stimmt nicht oder die Form. Ob die Behörde "
+            "die ID kennt, prüft falzmarke nicht")
+
+
+def pruefe_xrechnung(kopf: dict, profil: dict, bericht: Bericht) -> None:
+    """Was eine XRechnung über EN 16931 hinaus verlangt — braucht Kopf UND Profil.
+
+    Dieselbe Liste wie der Emitter (`emit_xml.xrechnung_maengel`), damit `lint`
+    und das Erzeugen nie Verschiedenes verlangen. Unter EN 16931 schweigt sie.
+    """
+    from falzmarke import emit_xml as _emit_xml
+
+    try:
+        art = _emit_xml.auspraegung(kopf)
+    except _emit_xml.RechnungUnvollstaendig:
+        return                       # meldet `rechnung.erechnung`
+    if art != _emit_xml.ERECHNUNG_XRECHNUNG:
+        return
+    for mangel in _emit_xml.xrechnung_maengel(kopf, profil):
+        bericht.fehler(1, "rechnung.xrechnung", f"für `erechnung: xrechnung` fehlt {mangel}",
+                       "XRechnung verlangt Käuferreferenz, Kontakt, Konto und die "
+                       "elektronischen Adressen beider Seiten")
+
+
 def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
     """Die Felder, die eine Rechnung von einem Brief unterscheiden (#115).
 
@@ -1367,7 +1421,7 @@ def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
             _melde_unbekannte(anschrift.keys(), EMPFAENGER_ANSCHRIFT_FELDER,
                               "rechnung.empfaenger", kopf_roh, bericht,
                               zeile=ort_anschrift)
-            fehlend = [f for f in sorted(EMPFAENGER_ANSCHRIFT_FELDER)
+            fehlend = [f for f in sorted(EMPFAENGER_ANSCHRIFT_PFLICHT)
                        if not anschrift.get(f)]
             if fehlend:
                 bericht.fehler(
@@ -1376,6 +1430,15 @@ def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
                     + ", ".join(f"`{f}:`" for f in fehlend),
                     "die XML braucht die Anschrift des Empfängers in Feldern — aus den "
                     "freien Zeilen von `empfaenger:` lässt sie sich nicht sicher ablesen")
+
+            if anschrift.get("adresse") is not None:
+                grund = adresse_grund("empfaenger_anschrift.adresse", str(anschrift["adresse"]))
+                if grund:
+                    bericht.fehler(ort_anschrift, "rechnung.empfaenger_adresse", grund,
+                                   "die elektronische Adresse des Empfängers ist eine "
+                                   "E-Mail-Adresse")
+
+    _pruefe_erechnung_kopf(kopf, kopf_roh, bericht)
 
     positionen = kopf.get("positionen")
     if positionen is None:

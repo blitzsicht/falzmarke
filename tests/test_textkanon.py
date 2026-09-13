@@ -72,7 +72,11 @@ KANAL_KURZTEXTE = {
 
 # Begriffe, die ohne den Satz oben eine Zusage wären, die niemand geprüft hat.
 # Kein `\b` am Ende: gesucht ist auch „normgerechte“, „zertifizierter“.
-VERBOTEN = re.compile(r"\b(normgerecht|DIN-konform|normkonform|zertifiziert)\w*", re.I)
+# `XRechnung-konform` und Verwandte seit #117: Die fremde Prüfung bestätigt ein
+# Beispiel gegen eine Regelfassung, sie sagt nichts darüber, ob ein Empfänger
+# die Datei annimmt (ADR 0040).
+VERBOTEN = re.compile(r"\b(normgerecht|DIN-konform|normkonform|zertifiziert"
+                      r"|XRechnung-konform|ZUGFeRD-konform|Factur-X-konform)\w*", re.I)
 
 # Wo diese Begriffe zulässig sind, weil sie etwas anderes verneinen oder
 # beschreiben. Der Regelfall ist die Selbstauskunft: falzmarke sagt über die
@@ -84,8 +88,9 @@ VERBOTEN = re.compile(r"\b(normgerecht|DIN-konform|normkonform|zertifiziert)\w*"
 # zurückgenommen hat — gemessen wurde dort gegen die Maßzeichnungen, nicht
 # gegen den Normtext, und „nachweislich" trug die Messung nie. Eine Rücknahme
 # ist erst fertig, wenn sie überall steht, auch im Kommentar eines Tests.
-AUSNAHMEN = re.compile(r"(nicht|kein[e]?|keine[rms]?)\s+\S*\s*(normgerecht|DIN-konform|normkonform|zertifiziert)"
-                       r"|(normgerecht|DIN-konform|normkonform|zertifiziert)\S*\s*(ist|sind)?\s*(nicht|kein)", re.I)
+_BEGRIFFE = r"(normgerecht|DIN-konform|normkonform|zertifiziert|XRechnung-konform|ZUGFeRD-konform|Factur-X-konform)"
+AUSNAHMEN = re.compile(r"(nicht|kein[e]?|keine[rms]?)\s+\S*\s*" + _BEGRIFFE
+                       + r"|" + _BEGRIFFE + r"\S*\s*(ist|sind)?\s*(nicht|kein)", re.I)
 
 
 #: Die englischen Gegenstücke zu VERBOTEN. Ohne sie greift die Sperre aus
@@ -123,7 +128,8 @@ def test_der_satz_zur_quellenlage_steht_da(datei, saetze):
         "erledigt ist, darf er weg — dann aber auch aus diesem Test.")
 
 
-@pytest.mark.parametrize("datei", ["README.md", "docs/recht.md", "skill/SKILL.md"])
+@pytest.mark.parametrize("datei", ["README.md", "docs/recht.md", "skill/SKILL.md",
+                                   "skill/references/frontmatter.md", "docs/cli.md"])
 def test_keine_ungedeckte_konformitaetsbehauptung(datei):
     """„normgerecht“ ohne den Satz zur Quellenlage wäre eine Behauptung, die
     niemand geprüft hat. Verneinungen bleiben erlaubt."""
@@ -138,6 +144,7 @@ def test_keine_ungedeckte_konformitaetsbehauptung(datei):
 def test_die_pruefung_wuerde_eine_behauptung_bemerken():
     """Gegenprobe: Ohne sie belegt der Test oben nur, dass gerade nichts dasteht."""
     assert VERBOTEN.search("falzmarke erzeugt normgerechte Briefe.")
+    assert VERBOTEN.search("falzmarke erzeugt XRechnung-konforme Rechnungen.")
     assert not AUSNAHMEN.search("falzmarke erzeugt normgerechte Briefe.")
     # Und die Verneinung darf nicht anschlagen — das ist der Fall, für den die
     # Ausnahme da ist: über die eigene Ausgabe wird das Wort verneint.

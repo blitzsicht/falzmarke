@@ -5,6 +5,7 @@ Alle Befehle in einer Übersicht. Der Einstieg steht in der [README](../README.m
 ```
 falzmarke lint        BRIEF.md [--json]
 falzmarke render      BRIEF.md [-o AUS.pdf] [--png] [--no-pdfa] [--pdfua] [--verbose]
+falzmarke xml         RECHNUNG.md [-o AUS.xml]
 falzmarke verify      AUS.pdf [--form A|B] [--json] [--verbose]
 falzmarke verify      NACHRICHT.eml --email [--json] [--verbose]
 falzmarke email       NACHRICHT.md [-o STAMM] [--html] [--txt] [--mit-quelle] [--oeffnen] [--verbose]
@@ -98,6 +99,16 @@ nachricht.md  (typ: email)
 nachricht.eml
    ↓ verify --email   eine fertige Nachricht nachmessen, auch eine fremde
 ```
+
+```
+rechnung.md  (typ: rechnung)
+   ↓ render    PDF/A-3b mit eingebetteter XML (EN 16931, oder XRechnung mit erechnung: xrechnung)
+   ↓ xml       nur die XML, ohne PDF — der Weg an öffentliche Auftraggeber
+```
+
+`xml` prüft vorweg wie `render` und schreibt bei einem Fehler nichts. Typst läuft dabei nicht.
+Die Zeile nach dem Schreiben nennt Ausprägung und Guideline-ID, **gelesen aus der geschriebenen
+Datei**. Einzelheiten in [Die Rechnungsfassung](../skill/references/frontmatter.md).
 
 `email` und `render` schließen einander aus, und zwar an der Datei: `typ: email` lässt `render`
 mit Code 1 abbrechen, ein Schreiben ohne `typ: email` ebenso `email`. Die Meldung nennt beide

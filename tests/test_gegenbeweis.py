@@ -854,6 +854,34 @@ def test_ein_falsches_profil_im_xmp_macht_die_fassungszeile_rot(tmp_path, monkey
     assert not ok
 
 
+XRECHNUNG_QUELLE = REPO / "examples" / "xrechnung.md"
+
+
+def test_die_xrechnung_im_pdf_traegt_ihr_eigenes_profil(tmp_path):
+    """Kontrollprobe (#117): Guideline XRechnung 3.0 und `XRECHNUNG` im XMP."""
+    pdf, _ = falzmarke.rendere(XRECHNUNG_QUELLE, tmp_path / "xr.pdf",
+                               profil_verzeichnis=REPO / "skill" / "falzmarke"
+                               / "typst" / "profiles")
+    gelesen = falzmarke.rechnung_im_pdf(pdf)
+    assert gelesen["profil"] == "XRECHNUNG"
+    ok, text = falzmarke.rechnung_befund(gelesen)
+    assert ok, text
+
+
+def test_ohne_die_xrechnung_stufe_im_xmp_wird_die_zeile_rot(tmp_path, monkeypatch):
+    """Die Stufe kommt aus dem Aufruf mit `"XRECHNUNG"` — nicht zufällig aus dem
+    XMP. Wird sie verschluckt, passen Guideline und Profil nicht mehr zusammen."""
+    echt = falzmarke._fx_schema_ergaenzen
+    monkeypatch.setattr(falzmarke, "_fx_schema_ergaenzen", lambda pdf, stufe=None: echt(pdf))
+    pdf, _ = falzmarke.rendere(XRECHNUNG_QUELLE, tmp_path / "xr-sabotiert.pdf",
+                               profil_verzeichnis=REPO / "skill" / "falzmarke"
+                               / "typst" / "profiles")
+    gelesen = falzmarke.rechnung_im_pdf(pdf)
+    assert gelesen["profil"] == "EN 16931", "die Sabotage griff nicht"
+    ok, _ = falzmarke.rechnung_befund(gelesen)
+    assert not ok
+
+
 # ── Keine stille Rundung: kommt die Stellenzahl wirklich aus BETRAG_STELLEN? ─
 #
 # Eine Quelle für beide Seiten: Emitter und `lint` lesen dieselbe Konstante. Die

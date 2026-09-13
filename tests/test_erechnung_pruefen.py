@@ -240,3 +240,44 @@ def test_die_ci_faehrt_das_skript_mit_gegenprobe():
     assert "scripts/erechnung_pruefen.py" in text
     aufruf = text[text.index("scripts/erechnung_pruefen.py"):][:400]
     assert "--gut" in aufruf and "--schlecht" in aufruf, aufruf
+
+
+# ── Die Gegenprobe muss aus dem richtigen Grund durchfallen (#117) ───────────
+
+def test_eine_gegenprobe_mit_benannter_regel_die_zutrifft(jar, tmp_path, capsys):
+    gut, schlecht = tmp_path / "gut.xml", tmp_path / "ohne-referenz.xml"
+    gut.write_bytes(b"g"); schlecht.write_bytes(b"s")
+
+    def ausfuehren(befehl):
+        if befehl[1:] == ["-version"]:
+            return 0, "openjdk"
+        name = Path(befehl[befehl.index("--source") + 1]).name
+        if name == "ohne-referenz.xml":
+            return 255, AUSGABE_GUT + '<error>… [ID BR-DE-15] Buyer reference</error>'
+        return 0, AUSGABE_GUT
+
+    code = ep.main(["--mustang", str(jar), "--gut", str(gut),
+                    "--schlecht", f"{schlecht}::BR-DE-15"], ausfuehren=ausfuehren)
+    assert code == 0, capsys.readouterr().out
+
+
+def test_eine_gegenprobe_die_aus_anderem_grund_faellt_ist_ein_befund(jar, tmp_path, capsys):
+    """Sonst belegte ein Schemafehler im präparierten Dokument dieselbe grüne Zeile."""
+    gut, schlecht = tmp_path / "gut.xml", tmp_path / "ohne-referenz.xml"
+    gut.write_bytes(b"g"); schlecht.write_bytes(b"s")
+
+    def ausfuehren(befehl):
+        if befehl[1:] == ["-version"]:
+            return 0, "openjdk"
+        name = Path(befehl[befehl.index("--source") + 1]).name
+        if name == "ohne-referenz.xml":
+            return 255, AUSGABE_GUT + '<error>… [ID BR-CO-10] Summe</error>'
+        return 0, AUSGABE_GUT
+
+    code = ep.main(["--mustang", str(jar), "--gut", str(gut),
+                    "--schlecht", f"{schlecht}::BR-DE-15"], ausfuehren=ausfuehren)
+    ausgabe = capsys.readouterr().out
+    assert code == 1, ausgabe
+    assert "BR-DE-15" in ausgabe
+
+
