@@ -28,6 +28,21 @@ BEISPIELE = sorted((REPO / "examples").glob("*.md"))
 # Ausnahmeliste, die jemand pflegen muesste.
 EMAIL_BEISPIELE = sorted((REPO / "examples" / "email").glob("*.md"))
 
+
+def _typ(pfad: Path) -> str:
+    """`typ:` aus dem Frontmatter, ohne YAML zu laden — wie `_fassung()` unten."""
+    for zeile in pfad.read_text(encoding="utf-8").split("\n---", 1)[0].splitlines():
+        if zeile.startswith("typ:"):
+            return zeile.split(":", 1)[1].strip().strip("\"'")
+    return "brief"
+
+
+#: Die Rechnungsbeispiele unter `examples/*.md` — am Frontmatter erkannt, nicht an
+#: einem eigenen Unterordner wie bei `EMAIL_BEISPIELE`: `rechnung.md` und
+#: `xrechnung.md` liegen bewusst neben den Briefen, weil sie in der CI auch als
+#: Briefe der Kategorie „Rechnung" laufen (#119).
+RECHNUNG_BEISPIELE = sorted(p for p in BEISPIELE if _typ(p) == "rechnung")
+
 #: Die ausgelieferten Profile. Ein Beispiel darf sein Profil auch neben sich
 #: legen — `cli.finde_profile` sucht dort zuerst (Punkt 3 der Suchreihenfolge).
 PROFILE = SKILL / "falzmarke" / "typst" / "profiles"
