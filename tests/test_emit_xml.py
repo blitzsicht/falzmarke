@@ -325,3 +325,103 @@ def test_die_elementfolge_entspricht_der_referenz(profil):
     abrechnung = _kinder(baum.find(f".//{{{RAM}}}ApplicableHeaderTradeSettlement"))
     assert abrechnung.index("InvoiceCurrencyCode") < abrechnung.index("SpecifiedTradeSettlementPaymentMeans") \
         < abrechnung.index("ApplicableTradeTax")
+
+
+# ── XRechnung (#117, Teil 2) ────────────────────────────────────────────────
+#
+# Guideline-ID, Prozess-ID und Elementfolge aus `validXRV30.xml` (Mustang
+# core-2.26.0). Die Leitweg-IDs stammen aus der Format-Spezifikation Leitweg-ID
+# 2.0.2, Abschnitt 2.4 (`04011000-1234512345-06`), und aus derselben Referenz
+# (`04011000-12345-03`) — nicht aus der eigenen Implementierung.
+
+def _xrechnung(profil, **kopf_zusatz):
+    kopf = _ohne(erechnung="xrechnung", leitweg_id="04011000-1234512345-06", **kopf_zusatz)
+    kopf["empfaenger_anschrift"] = {**kopf["empfaenger_anschrift"], "adresse": "einkauf@example.de"}
+    return kopf
+
+
+# Für Buchstaben in der Feinadressierung (A=10 … Z=35) liegt kein belegtes
+# Beispiel vor; ein selbst gerechnetes prüfte das Verfahren gegen sich selbst.
+@pytest.mark.parametrize("gut", ["04011000-1234512345-06", "04011000-12345-03"])
+def test_gueltige_leitweg_ids(gut):
+    assert emit_xml.leitweg_id_gueltig(gut)
+
+
+@pytest.mark.parametrize("schlecht", ["04011000-1234512345-07", "04011000-12345", "1-12345-03",
+                                      "04011000-12_45-03", ""])
+def test_ungueltige_leitweg_ids(schlecht):
+    assert not emit_xml.leitweg_id_gueltig(schlecht)
+
+
+def test_ohne_angabe_bleibt_es_en16931(baum):
+    assert _finde(baum, f".//{{{RAM}}}GuidelineSpecifiedDocumentContextParameter/{{{RAM}}}ID") \
+        == "urn:cen.eu:en16931:2017"
+    assert baum.find(f".//{{{RAM}}}BusinessProcessSpecifiedDocumentContextParameter") is None
+
+
+def test_xrechnung_traegt_guideline_und_prozess(profil):
+    baum = ET.fromstring(emit_xml.erzeuge(_xrechnung(profil), profil))
+    kontext = _kinder(baum.find(f"{{{RSM}}}ExchangedDocumentContext"))
+    assert kontext == ["BusinessProcessSpecifiedDocumentContextParameter",
+                       "GuidelineSpecifiedDocumentContextParameter"]
+    assert _finde(baum, f".//{{{RAM}}}GuidelineSpecifiedDocumentContextParameter/{{{RAM}}}ID") \
+        == "urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0"
+    assert _finde(baum, f".//{{{RAM}}}BusinessProcessSpecifiedDocumentContextParameter/{{{RAM}}}ID") \
+        == "urn:fdc:peppol.eu:2017:poacc:billing:01:1.0"
+
+
+def test_die_leitweg_id_ist_die_erste_angabe_der_vereinbarung(profil):
+    baum = ET.fromstring(emit_xml.erzeuge(_xrechnung(profil), profil))
+    vereinbarung = baum.find(f".//{{{RAM}}}ApplicableHeaderTradeAgreement")
+    assert _kinder(vereinbarung)[0] == "BuyerReference"
+    assert vereinbarung.findtext(f"{{{RAM}}}BuyerReference") == "04011000-1234512345-06"
+
+
+def test_die_kaeuferreferenz_geht_auch(profil):
+    kopf = _xrechnung(profil)
+    kopf.pop("leitweg_id"); kopf["kaeuferreferenz"] = "Bestellung 4711"
+    baum = ET.fromstring(emit_xml.erzeuge(kopf, profil))
+    assert _finde(baum, f".//{{{RAM}}}BuyerReference") == "Bestellung 4711"
+
+
+def test_die_adresse_des_empfaengers_traegt_em(profil):
+    baum = ET.fromstring(emit_xml.erzeuge(_xrechnung(profil), profil))
+    uri = baum.find(f".//{{{RAM}}}BuyerTradeParty/{{{RAM}}}URIUniversalCommunication/{{{RAM}}}URIID")
+    assert uri is not None and uri.text == "einkauf@example.de" and uri.get("schemeID") == "EM"
+
+
+def test_xrechnung_ohne_referenz_entsteht_nicht(profil):
+    kopf = _xrechnung(profil); kopf.pop("leitweg_id")
+    with pytest.raises(emit_xml.RechnungUnvollstaendig, match="leitweg_id"):
+        emit_xml.erzeuge(kopf, profil)
+
+
+def test_xrechnung_nennt_alle_fehlenden_angaben_auf_einmal(profil):
+    """Eine Meldung je Lauf wäre ein Spiel über fünf Runden."""
+    ohne = copy.deepcopy(profil)
+    ohne.pop("infoblock_defaults", None)
+    ohne["rechnung"] = {k: v for k, v in ohne["rechnung"].items() if k not in ("bank", "adresse")}
+    kopf = _xrechnung(profil)
+    kopf["empfaenger_anschrift"].pop("adresse")
+    with pytest.raises(emit_xml.RechnungUnvollstaendig) as fehler:
+        emit_xml.erzeuge(kopf, ohne)
+    text = str(fehler.value)
+    for teil in ("ansprechpartner", "telefon", "email", "rechnung.bank", "rechnung.adresse",
+                 "empfaenger_anschrift.adresse"):
+        assert teil in text, (teil, text)
+
+
+def test_beide_referenzen_zugleich_entstehen_nicht(profil):
+    kopf = _xrechnung(profil, kaeuferreferenz="4711")
+    with pytest.raises(emit_xml.RechnungUnvollstaendig, match="beide"):
+        emit_xml.erzeuge(kopf, profil)
+
+
+def test_eine_falsche_leitweg_id_entsteht_auch_unter_en16931_nicht(profil):
+    with pytest.raises(emit_xml.RechnungUnvollstaendig, match="Leitweg"):
+        emit_xml.erzeuge(_ohne(leitweg_id="04011000-1234512345-07"), profil)
+
+
+def test_eine_unbekannte_auspraegung_wird_gemeldet(profil):
+    with pytest.raises(emit_xml.RechnungUnvollstaendig, match="erechnung"):
+        emit_xml.erzeuge(_ohne(erechnung="zugferd-extended"), profil)

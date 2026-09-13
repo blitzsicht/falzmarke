@@ -373,6 +373,38 @@ Fehlt eines der Pflichtfelder, meldet `lint` es — aber erst, wenn ein Schreibe
 Briefe und Mails berührt die Prüfung nicht. Geprüft wird, dass die Angaben **da sind**, nicht
 ob sie gelten: Eine USt-IdNr. gegen das Bundeszentralamt abzugleichen hieße Netz (ADR 0005).
 
+### XRechnung: die Rechnung an öffentliche Auftraggeber
+
+**An öffentliche Auftraggeber geht XRechnung als reine XML-Datei, an Firmen die Rechnung mit
+eingebetteten Daten nach EN 16931 (ZUGFeRD).** Welche Fassung ein Empfänger annimmt, entscheidet
+der Empfänger; falzmarke nennt, was es erzeugt (XRechnung 3.0 in CII), und sagt nichts über
+Annahme.
+
+```yaml
+typ: rechnung
+erechnung: xrechnung                  # ohne Angabe: en16931
+leitweg_id: "04011000-1234512345-06"  # an eine Behörde — oder:
+# kaeuferreferenz: "Bestellung 4711"  # jede andere Referenz des Käufers, nie beides
+empfaenger_anschrift:
+  # … name, strasse, plz, ort, land wie oben
+  adresse: einkauf@example.de         # elektronische Adresse des Empfängers
+```
+
+```bash
+falzmarke xml rechnung.md -o rechnung.xml   # nur die XML, ohne PDF
+falzmarke render rechnung.md                 # PDF mit eingebetteter XRechnung, mit Hinweis
+```
+
+Unter `erechnung: xrechnung` verlangt `lint` zusätzlich, was XRechnung über EN 16931 hinaus
+verlangt: die **Käuferreferenz** (`leitweg_id:` oder `kaeuferreferenz:`), den **Ansprechpartner**
+mit Name, Telefon und E-Mail aus dem Informationsblock, das **Konto** (`rechnung.bank.iban`) und
+die **elektronischen Adressen** beider Seiten (`rechnung.adresse`, `empfaenger_anschrift.adresse`).
+Fehlt etwas, nennt die Meldung alles auf einmal.
+
+Die **Leitweg-ID** wird nach der Format-Spezifikation 2.0.2 geprüft: Form und Prüfziffer, nicht
+ob die Behörde sie kennt. `falzmarke render` setzt die XRechnung auch als PDF und sagt dabei, dass
+eine Behörde die XML erwartet.
+
 ### Was jedes Feld tut, und was ohne es passiert
 
 | Feld | Pflicht | Ohne das Feld |

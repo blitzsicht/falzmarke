@@ -273,6 +273,18 @@ quellen:
     zaehlt: voll
     abgerufen: 2026-08-28
 
+  leitweg_id_202:
+    titel: "Format-Spezifikation Leitweg-ID, Version 2.0.2"
+    url: https://leitweg-id.de/wp-content/uploads/2021/08/Leitweg-ID-Formatspezifikation-v2-0-2.pdf
+    art: primaerquelle
+    gruppe: leitweg_id_202
+    zaehlt: voll
+    abgerufen: 2026-09-13
+    bemerkung: >-
+      Frei zugänglich. Gelesen wurden die Abschnitte 2.1 bis 2.5 (Bestandteile,
+      Grob- und Feinadressierung, Prüfziffer, Trennzeichen). Das Beispiel
+      `04011000-1234512345-06` aus Abschnitt 2.4 steht in den Tests.
+
   rfc6531:
     titel: "RFC 6531 — SMTP Extension for Internationalized Email"
     url: https://www.rfc-editor.org/rfc/rfc6531

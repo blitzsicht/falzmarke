@@ -37,10 +37,29 @@ QDT = "urn:un:unece:uncefact:data:standard:QualifiedDataType:100"
 
 #: Das Profil aus ADR 0039: EN 16931 (COMFORT), nicht MINIMUM und nicht EXTENDED.
 #:
-#: Die zweite Referenz (`validXRechnung.pdf`) trägt hier
-#: `…#compliant#urn:xoev-de:kosit:standard:xrechnung_1.2` — das ist die
-#: XRechnung-Ausprägung und gehört zu #117, nicht hierher.
 GUIDELINE = "urn:cen.eu:en16931:2017"
+
+#: Die Ausprägungen, die `erechnung:` im Frontmatter wählt (#117). Ohne Angabe
+#: EN 16931 — so blieb es für jede Rechnung, die vor #117 geschrieben wurde.
+ERECHNUNG_EN16931 = "en16931"
+ERECHNUNG_XRECHNUNG = "xrechnung"
+ERECHNUNG_AUSPRAEGUNGEN = (ERECHNUNG_EN16931, ERECHNUNG_XRECHNUNG)
+
+#: XRechnung 3.0 in der Syntax CII. Guideline- und Prozess-ID stehen so in
+#: `validXRV30.xml` aus dem Mustang-Testmaterial (core-2.26.0), das derselbe
+#: Prüfer als gültig bestätigt. Welche 3.0.x ein Empfänger annimmt, entscheidet
+#: der Empfänger — falzmarke nennt die Fassung, es sagt nichts über Annahme.
+#:
+#: Nicht verwechseln: `validXRechnung.pdf` aus demselben Material trägt
+#: `xrechnung_1.2` und wird von Mustang gegen XR_12 geprüft, nicht gegen XR_30.
+GUIDELINE_XRECHNUNG = "urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0"
+PROZESS_XRECHNUNG = "urn:fdc:peppol.eu:2017:poacc:billing:01:1.0"
+XRECHNUNG_FASSUNG = "3.0"
+
+#: Leitweg-ID nach der Format-Spezifikation 2.0.2, Abschnitte 2.1–2.5:
+#: Grobadressierung 2–12 Ziffern, optional `-` und bis zu 30 Zeichen A–Z/0–9
+#: (ohne Groß-/Kleinschreibung), dann `-` und zwei Prüfziffern.
+LEITWEG_MUSTER = re.compile(r"[0-9]{2,12}(?:-[0-9A-Za-z]{1,30})?-[0-9]{2}")
 
 #: Handelsrechnung. Der Code steht in der Referenz; Gutschriften (#115 sieht
 #: `gutschrift:` vor) tragen einen anderen und sind hier noch nicht gebaut.
@@ -99,6 +118,57 @@ def iban_gueltig(wert) -> bool:
         return False
     umgestellt = iban[4:] + iban[:4]
     return int("".join(str(int(z, 36)) for z in umgestellt)) % 97 == 1
+
+
+def leitweg_id_gueltig(wert) -> bool:
+    """Form und Prüfziffer (Spezifikation 2.0.2, Abschnitt 2.4).
+
+    Grob- und Feinadressierung ohne Bindestriche, Buchstaben als A=10 … Z=35,
+    dazu die zwei Prüfziffern: Rest 1 bei Division durch 97. Ob die Behörde die
+    ID kennt, prüft falzmarke nicht — das hieße Netz (ADR 0005).
+    """
+    text = str(wert or "").strip()
+    if not LEITWEG_MUSTER.fullmatch(text):
+        return False
+    ziffern = "".join(str(int(z, 36)) for z in text.replace("-", "").upper())
+    return int(ziffern) % 97 == 1
+
+
+def auspraegung(kopf: dict) -> str:
+    """`erechnung:` aus dem Kopf — ohne Angabe EN 16931."""
+    wert = str(kopf.get("erechnung") or ERECHNUNG_EN16931).strip().lower()
+    if wert not in ERECHNUNG_AUSPRAEGUNGEN:
+        raise RechnungUnvollstaendig(
+            f"`erechnung: {kopf.get('erechnung')}` kennt falzmarke nicht — erlaubt sind "
+            + ", ".join(f"`{a}`" for a in ERECHNUNG_AUSPRAEGUNGEN) + ".")
+    return wert
+
+
+def xrechnung_maengel(kopf: dict, profil: dict) -> list[str]:
+    """Was einer XRechnung fehlt — alles auf einmal, nicht eins je Lauf.
+
+    Die Liste folgt den Regeln, die Mustang gegen XR_30 anwendet: BR-DE-15
+    (Käuferreferenz), BR-DE-2/5/6/7 (Kontakt mit Name, Telefon, E-Mail),
+    BR-DE-1/23 (Zahlungsweg mit Konto) und die Peppol-Regeln R010/R020
+    (elektronische Adressen beider Parteien). Dieselbe Liste nutzt `lint`.
+    """
+    maengel = []
+    if not (kopf.get("leitweg_id") or kopf.get("kaeuferreferenz")):
+        maengel.append("`leitweg_id:` oder `kaeuferreferenz:` (BT-10)")
+    kontakt = _kontakt(kopf, profil)
+    for feld, schluessel in (("ansprechpartner", "name"), ("telefon", "telefon"),
+                             ("email", "email")):
+        if not kontakt.get(schluessel):
+            maengel.append(f"`infoblock_defaults.{feld}:` im Profil oder `infoblock.{feld}:`")
+    bank = (profil.get("rechnung") or {}).get("bank")
+    if not (isinstance(bank, dict) and bank.get("iban")):
+        maengel.append("`rechnung.bank.iban:` im Profil")
+    if not (profil.get("rechnung") or {}).get("adresse"):
+        maengel.append("`rechnung.adresse:` im Profil")
+    anschrift = kopf.get("empfaenger_anschrift")
+    if not (isinstance(anschrift, dict) and anschrift.get("adresse")):
+        maengel.append("`empfaenger_anschrift.adresse:`")
+    return maengel
 
 
 class RechnungUnvollstaendig(ValueError):
@@ -308,12 +378,32 @@ def erzeuge(kopf: dict, profil: dict) -> str:
     for praefix, raum in (("rsm", RSM), ("ram", RAM), ("udt", UDT), ("qdt", QDT)):
         ET.register_namespace(praefix, raum)
 
+    art = auspraegung(kopf)
+    if kopf.get("leitweg_id") and kopf.get("kaeuferreferenz"):
+        raise RechnungUnvollstaendig(
+            "`leitweg_id:` und `kaeuferreferenz:` stehen beide da — beide gehen in "
+            "dasselbe Feld (BT-10). Eines von beiden.")
+    if kopf.get("leitweg_id") and not leitweg_id_gueltig(kopf["leitweg_id"]):
+        raise RechnungUnvollstaendig(
+            f"`leitweg_id: {kopf['leitweg_id']}` ist keine gültige Leitweg-ID "
+            "(Form oder Prüfziffer, Format-Spezifikation 2.0.2).")
+    if art == ERECHNUNG_XRECHNUNG:
+        fehlend = xrechnung_maengel(kopf, profil)
+        if fehlend:
+            raise RechnungUnvollstaendig(
+                "Für `erechnung: xrechnung` fehlt: " + "; ".join(fehlend))
+
     wurzel = ET.Element(f"{{{RSM}}}CrossIndustryInvoice")
 
     zusammenhang = ET.SubElement(wurzel, f"{{{RSM}}}ExchangedDocumentContext")
+    if art == ERECHNUNG_XRECHNUNG:
+        prozess = ET.SubElement(
+            zusammenhang, f"{{{RAM}}}BusinessProcessSpecifiedDocumentContextParameter")
+        _text(prozess, f"{{{RAM}}}ID", PROZESS_XRECHNUNG)
     parameter = ET.SubElement(
         zusammenhang, f"{{{RAM}}}GuidelineSpecifiedDocumentContextParameter")
-    _text(parameter, f"{{{RAM}}}ID", GUIDELINE)
+    _text(parameter, f"{{{RAM}}}ID",
+          GUIDELINE_XRECHNUNG if art == ERECHNUNG_XRECHNUNG else GUIDELINE)
 
     dokument = ET.SubElement(wurzel, f"{{{RSM}}}ExchangedDocument")
     if not kopf.get("rechnungsnummer"):
@@ -368,12 +458,17 @@ def _position(vorgang, nummer: int, position: dict) -> None:
 
 def _kopfdaten(vorgang, kopf: dict, profil: dict) -> None:
     vereinbarung = ET.SubElement(vorgang, f"{{{RAM}}}ApplicableHeaderTradeAgreement")
+    referenz = kopf.get("leitweg_id") or kopf.get("kaeuferreferenz")
+    if referenz:
+        # Die erste Angabe der Vereinbarung, so will es das Schema (#117).
+        _text(vereinbarung, f"{{{RAM}}}BuyerReference", str(referenz).strip())
     _partei(vereinbarung, "SellerTradeParty", (profil.get("absender") or {})["name"],
             _verkaeufer_anschrift(profil), _steuernummern(profil),
             kontakt=_kontakt(kopf, profil),
             elektronisch=(profil.get("rechnung") or {}).get("adresse"))
     name, anschrift = _empfaenger(kopf)
-    _partei(vereinbarung, "BuyerTradeParty", name, anschrift)
+    _partei(vereinbarung, "BuyerTradeParty", name, anschrift,
+            elektronisch=anschrift.get("adresse"))
 
     lieferung = ET.SubElement(vorgang, f"{{{RAM}}}ApplicableHeaderTradeDelivery")
     if kopf.get("leistungsdatum"):

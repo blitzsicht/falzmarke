@@ -588,6 +588,9 @@ def linte(brief_pfad: Path, profil_verzeichnis: Path | None = None) -> lint_modu
                 # Erzeugen der XML — sonst fiele der Fehler im teuren Schritt
                 # an, und zwar nach dem Rendern.
                 lint_modul.pruefe_rechnung_profil(profil, bericht)
+                # Braucht Kopf und Profil — deshalb hier und nicht in einer der
+                # beiden Prüfungen, die nur eines von beidem sehen (#117).
+                lint_modul.pruefe_xrechnung(kopf, profil, bericht)
             if str(kopf.get("typ") or "brief") == "email":
                 # Der Pfad wird mitgegeben, weil eine Profildatei auf Dateien
                 # neben sich zeigen kann (`email.logo`) — ohne ihn bliebe die
@@ -642,6 +645,13 @@ FX_WERTE = {
 #: eigenen Konstante prüfte der Sollwert sich selbst (#117).
 PROFIL_JE_GUIDELINE = {
     "urn:cen.eu:en16931:2017": "EN 16931",
+    "urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0": "XRECHNUNG",
+}
+
+#: Wie die Ausprägung im Messbericht heißt — für Menschen, nicht für Maschinen.
+AUSPRAEGUNG_TEXT = {
+    "urn:cen.eu:en16931:2017": "EN 16931 (CII)",
+    "urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0": "XRechnung 3.0 (CII)",
 }
 
 
@@ -760,13 +770,15 @@ def _rechnung_einbettung(kopf: dict, profil: dict, arbeit: Path) -> dict:
     return {
         "datei": str(ziel),
         "typ": "text/xml",
-        "beschreibung": "Rechnungsdaten nach EN 16931",
+        "beschreibung": ("Rechnungsdaten als XRechnung 3.0"
+                         if emit_xml.auspraegung(kopf) == emit_xml.ERECHNUNG_XRECHNUNG
+                         else "Rechnungsdaten nach EN 16931"),
         "beziehung": RECHNUNG_BEZIEHUNG,
         "_name": RECHNUNG_XML_NAME,
     }
 
 
-def _fx_schema_ergaenzen(pdf: Path) -> None:
+def _fx_schema_ergaenzen(pdf: Path, stufe: str | None = None) -> None:
     """Trägt das Factur-X-Erweiterungsschema ins XMP nach (#116).
 
     Gemessen am 12.09.2026: Typst 0.15 schreibt für PDF/A-3 bereits einen
@@ -828,7 +840,10 @@ def _fx_schema_ergaenzen(pdf: Path) -> None:
     stelle += len("<rdf:Bag>")
     neu = roh[:stelle] + eintrag + roh[stelle:]
 
-    werte = "".join(f"<fx:{name}>{wert}</fx:{name}>" for name, wert in FX_WERTE.items())
+    # `stufe` nur für XRechnung (#117): `XRECHNUNG`, so wie in Mustangs Referenz
+    # `validXRechnung.pdf`. Ohne Angabe gilt FX_WERTE unverändert.
+    fx = {**FX_WERTE, **({"ConformanceLevel": stufe} if stufe else {})}
+    werte = "".join(f"<fx:{name}>{wert}</fx:{name}>" for name, wert in fx.items())
     beschreibung = (
         f"<rdf:Description xmlns:fx=\"{FX_NAMENSRAUM}\" rdf:about=\"\">{werte}"
         "</rdf:Description>"
@@ -1051,7 +1066,11 @@ def rendere(
         # pypdf neu, und ein vorher eingetragenes Schema wäre zwar erhalten, die
         # Reihenfolge aber Zufall. Hier ist sie es nicht.
         if ist_rechnung:
-            _fx_schema_ergaenzen(ausgabe)
+            from falzmarke import emit_xml as _emit_xml
+            if _emit_xml.auspraegung(kopf) == _emit_xml.ERECHNUNG_XRECHNUNG:
+                _fx_schema_ergaenzen(ausgabe, "XRECHNUNG")
+            else:
+                _fx_schema_ergaenzen(ausgabe)
 
         # Anlagen zuletzt: Der Brief ist dann fertig gemessen und vermerkt, und
         # die angehängten Seiten verschieben nichts an seiner Geometrie.
@@ -1145,6 +1164,77 @@ def _melde_anlagen(bericht: dict) -> None:
         )
 
 
+def xrechnung_hinweis(quelle: Path) -> str | None:
+    """Der Satz, den #117 verlangt: Das PDF ist nicht der Weg an eine Behörde.
+
+    Eine XRechnung im PDF ist möglich und wird gesetzt (Mustangs Referenz trägt
+    genau das). Öffentliche Auftraggeber nehmen aber die reine XML an — ein
+    Werkzeug, das den Unterschied verschweigt, schickt seine Nutzer ins Leere.
+    """
+    from falzmarke import emit_xml
+
+    kopf, _, _ = lies_brief(quelle)
+    if str(kopf.get("typ") or "brief") != "rechnung":
+        return None
+    try:
+        if emit_xml.auspraegung(kopf) != emit_xml.ERECHNUNG_XRECHNUNG:
+            return None
+    except emit_xml.RechnungUnvollstaendig:
+        return None
+    return ("HINWEIS  An öffentliche Auftraggeber geht die XRechnung als reine XML-Datei, "
+            "nicht als PDF:\n"
+            f"         falzmarke xml {quelle.name}")
+
+
+def befehl_xml(args) -> int:
+    """Die Rechnung als reine XML, ohne PDF (#117).
+
+    Wie `render`: erst `lint`, und was dort durchfällt, wird nicht geschrieben.
+    Typst läuft nicht. Die Fassung im Bericht wird aus der geschriebenen Datei
+    gelesen, nicht aus der Konstante — dieselbe Regel wie beim PDF.
+    """
+    import xml.etree.ElementTree as ET_modul
+    from falzmarke import emit_xml
+
+    quelle = Path(args.brief)
+    verzeichnis = Path(args.profiles) if args.profiles else None
+    kopf, _, _ = lies_brief(quelle)
+    if str(kopf.get("typ") or "brief") != "rechnung":
+        raise Eingabefehler(
+            f"{quelle.name}: `falzmarke xml` erzeugt die Daten einer Rechnung — die Datei "
+            "trägt kein `typ: rechnung`.")
+    vorpruefung = linte(quelle, verzeichnis)
+    if not vorpruefung.ok:
+        print(vorpruefung.als_text(quelle.name), file=sys.stderr)
+        return EXIT_EINGABE
+    for befund in vorpruefung.befunde:
+        print(befund.als_zeile(quelle.name), file=sys.stderr)
+
+    profil, _ = lade_profil(kopf.get("profil", ""), verzeichnis, quelle)
+    try:
+        xml = emit_xml.erzeuge(kopf, profil)
+    except emit_xml.RechnungUnvollstaendig as fehler:
+        raise Eingabefehler(str(fehler)) from None
+
+    ziel = Path(args.output) if args.output else quelle.with_suffix(".xml")
+    # `newline=""`: Sonst schriebe Windows CRLF, und dieselbe Quelle ergäbe je
+    # Plattform eine andere Datei.
+    with open(ziel, "w", encoding="utf-8", newline="") as datei:
+        datei.write(xml)
+
+    wurzel = ET_modul.parse(ziel).getroot()
+    knoten = wurzel.find(f".//{{{emit_xml.RAM}}}GuidelineSpecifiedDocumentContextParameter"
+                         f"/{{{emit_xml.RAM}}}ID")
+    guideline = "" if knoten is None else (knoten.text or "")
+    print(f"OK  XML geschrieben: {ziel}")
+    print(f"    {AUSPRAEGUNG_TEXT.get(guideline, 'unbekannte Ausprägung')} · Guideline {guideline or '—'}")
+    if guideline not in AUSPRAEGUNG_TEXT:
+        print("FEHLGESCHLAGEN — die geschriebene Datei trägt keine bekannte Guideline-ID.",
+              file=sys.stderr)
+        return EXIT_GEOMETRIE
+    return EXIT_OK
+
+
 def befehl_render(args) -> int:
     from falzmarke import geometrie
 
@@ -1167,6 +1257,9 @@ def befehl_render(args) -> int:
         anlagen_bericht=anlagen_berichte,
     )
     print(f"OK  PDF geschrieben: {pdf}")
+    hinweis = xrechnung_hinweis(Path(args.brief))
+    if hinweis:
+        print(hinweis, file=sys.stderr)
     for anlagen_bericht in anlagen_berichte:
         _melde_anlagen(anlagen_bericht)
 
@@ -1913,6 +2006,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--profiles", help="zusätzliches Profilverzeichnis")
     p.add_argument("--ppi", type=int, default=120)
     p.set_defaults(funktion=befehl_render)
+
+    p = unter.add_parser("xml", help="Rechnung als reine XML (EN 16931 oder XRechnung), ohne PDF")
+    p.add_argument("brief", help="Markdown-Datei mit `typ: rechnung`")
+    p.add_argument("-o", "--output", help="Zieldatei (ohne Angabe: neben der Quelle, .xml)")
+    p.add_argument("--profiles", help="zusätzliches Profilverzeichnis")
+    p.set_defaults(funktion=befehl_xml)
 
     p = unter.add_parser("lint", help="Brief prüfen, ohne ihn zu setzen")
     p.add_argument("brief")

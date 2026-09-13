@@ -453,3 +453,67 @@ def test_ein_abweichendes_steuer_gesamt_warnt_und_haelt_nicht_an(tmp_path):
     assert "steuer_gesamt" not in " ".join(b.meldung for b in bericht.befunde
                                            if b.regel == "rechnung.summen"
                                            and "unbekannt" in b.meldung)
+
+
+# ── XRechnung im Datenvertrag (#117, Teil 2) ────────────────────────────────
+
+XRECHNUNG = REPO / "examples" / "xrechnung.md"
+
+
+def _xrechnung_regeln(tmp_path, ersetzen: tuple[str, str] | None = None, anhaengen: str = "") -> set[str]:
+    text = XRECHNUNG.read_text(encoding="utf-8")
+    if ersetzen:
+        assert ersetzen[0] in text, ersetzen
+        text = text.replace(*ersetzen)
+    if anhaengen:
+        text = text.replace("leistungsdatum:", anhaengen + "\nleistungsdatum:", 1)
+    pfad = tmp_path / "x.md"
+    pfad.write_text(text, encoding="utf-8")
+    return {b.regel for b in falzmarke.linte(pfad, PROFILE).befunde}
+
+
+def test_das_xrechnung_beispiel_ist_sauber(tmp_path):
+    """Kontrollprobe — ohne sie belegte jede Sabotage darunter nichts."""
+    assert _xrechnung_regeln(tmp_path) == set()
+
+
+def test_eine_falsche_pruefziffer_der_leitweg_id(tmp_path):
+    assert "rechnung.leitweg_id" in _xrechnung_regeln(
+        tmp_path, ('leitweg_id: "04011000-1234512345-06"', 'leitweg_id: "04011000-1234512345-07"'))
+
+
+def test_eine_unbekannte_auspraegung(tmp_path):
+    assert "rechnung.erechnung" in _xrechnung_regeln(
+        tmp_path, ("erechnung: xrechnung", "erechnung: zugferd-extended"))
+
+
+def test_beide_referenzen_zugleich(tmp_path):
+    assert "rechnung.referenz" in _xrechnung_regeln(tmp_path, anhaengen='kaeuferreferenz: "4711"')
+
+
+def test_xrechnung_ohne_referenz(tmp_path):
+    assert "rechnung.xrechnung" in _xrechnung_regeln(
+        tmp_path, ('leitweg_id: "04011000-1234512345-06"\n', ""))
+
+
+def test_xrechnung_ohne_empfaengeradresse(tmp_path):
+    assert "rechnung.xrechnung" in _xrechnung_regeln(tmp_path, ("  adresse: einkauf@example.de\n", ""))
+
+
+def test_gegenprobe_ohne_empfaengeradresse_unter_en16931_still(tmp_path):
+    """Die Pflicht gilt nur für XRechnung. Unter EN 16931 bleibt die Adresse freiwillig."""
+    # Beides entfernen: die Ausprägung UND die Adresse. Nur die Ausprägung zu
+    # streichen ließ nichts fehlen — der Test blieb auch mit der Pflicht unter
+    # EN 16931 grün (Sabotage am 13.09.2026, „Testfall an der falschen Stelle").
+    pfad_text = XRECHNUNG.read_text(encoding="utf-8").replace("erechnung: xrechnung\n", "") \
+        .replace("  adresse: einkauf@example.de\n", "")
+    assert "erechnung:" not in pfad_text and "einkauf@example.de" not in pfad_text
+    pfad = tmp_path / "en16931.md"
+    pfad.write_text(pfad_text, encoding="utf-8")
+    text_regeln = {b.regel for b in falzmarke.linte(pfad, PROFILE).befunde}
+    assert text_regeln == set(), text_regeln
+
+
+def test_eine_kaputte_empfaengeradresse(tmp_path):
+    assert "rechnung.empfaenger_adresse" in _xrechnung_regeln(
+        tmp_path, ("  adresse: einkauf@example.de\n", "  adresse: einkauf@@example\n"))

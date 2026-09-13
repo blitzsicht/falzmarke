@@ -169,8 +169,9 @@ def main(argv: list[str] | None = None, ausfuehren: Ausfuehren | None = None) ->
     p.add_argument("--java", default="java", help="Java-Aufruf (Vorgabe: java)")
     p.add_argument("--gut", type=Path, nargs="*", default=[],
                    help="Dateien, die bestehen müssen")
-    p.add_argument("--schlecht", type=Path, nargs="*", default=[],
-                   help="Dateien, die durchfallen müssen — die Gegenprobe")
+    p.add_argument("--schlecht", nargs="*", default=[],
+                   help="Dateien, die durchfallen müssen — die Gegenprobe. Mit `datei::REGEL` "
+                        "muss Mustang genau diese Regel nennen (#117)")
     args = p.parse_args(argv)
     ausfuehren = ausfuehren or _subprocess
 
@@ -187,9 +188,16 @@ def main(argv: list[str] | None = None, ausfuehren: Ausfuehren | None = None) ->
     befunde = 0
     nicht_geprueft = 0
     fassungen: list[str] = []
-    erwartung = [(pdf, GUELTIG) for pdf in args.gut] + [(pdf, UNGUELTIG) for pdf in args.schlecht]
+    # `datei::REGEL` (#117): Eine Gegenprobe, die aus einem ANDEREN Grund fällt —
+    # etwa weil das Präparieren das Schema beschädigt hat —, belegte sonst
+    # dieselbe grüne Zeile wie eine, die genau an der gemeinten Regel scheitert.
+    schlecht = []
+    for eintrag in args.schlecht:
+        pfad, _, regel = str(eintrag).partition("::")
+        schlecht.append((Path(pfad), UNGUELTIG, regel or None))
+    erwartung = [(pdf, GUELTIG, None) for pdf in args.gut] + schlecht
 
-    for pdf, soll in erwartung:
+    for pdf, soll, regel in erwartung:
         if not pdf.is_file():
             print(f"FEHL  {pdf} — Datei fehlt")
             befunde += 1
@@ -204,8 +212,13 @@ def main(argv: list[str] | None = None, ausfuehren: Ausfuehren | None = None) ->
         if ist == WERKZEUGFEHLER:
             print(f"NICHT GEPRÜFT  {pdf.name} — Mustang ist abgestürzt, kein Urteil")
             nicht_geprueft += 1
+        elif ist == soll and regel and f"[ID {regel}]" not in ausgabe:
+            print(f"FEHL  {pdf.name} — fällt durch, aber nicht an {regel}  [{fassung}]")
+            befunde += 1
         elif ist == soll:
             art = "Gegenprobe fällt durch" if soll == UNGUELTIG else "besteht"
+            if regel:
+                art += f" an {regel}"
             print(f"OK    {pdf.name}  {art}  sha256={vorher[:16]}…  [{fassung}]")
         else:
             print(f"FEHL  {pdf.name} — erwartet {soll}, Mustang sagt {ist}  [{fassung}]")
