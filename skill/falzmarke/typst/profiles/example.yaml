@@ -80,3 +80,10 @@ rechnung:
   ust_idnr: DE123456789
   # steuernummer: 244/107/01234   # … oder diese; eine von beiden genügt
   land: DE                        # Ländercode nach ISO 3166-1 alpha-2
+  # Das Konto für den Zahlungsweg in der XML (Überweisung). Dieselbe IBAN wie in
+  # der Fußzeile — `lint` warnt, wenn beide auseinanderlaufen.
+  bank:
+    iban: DE62 7625 1020 0221 0217 44
+    bic: BYLADEM1RBG               # optional
+  # Elektronische Adresse des Ausstellers (BT-34). XRechnung verlangt sie.
+  adresse: rechnung@example.de

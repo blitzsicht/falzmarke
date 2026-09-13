@@ -131,3 +131,49 @@ def test_die_geschaeftsprofile_tragen_den_abschnitt(name):
     """`example-grafik` benutzt die Beispielrechnung; `example` ist die Vorlage."""
     profil = yaml.safe_load((PROFILE / f"{name}.yaml").read_text(encoding="utf-8"))
     assert _regeln(profil) == set(), f"{name}.yaml meldet beim Setzen einer Rechnung"
+
+
+# ── Bank und elektronische Adresse (#117, PR 1) ─────────────────────────────
+
+def _mit(basis: dict, **rechnung) -> dict:
+    profil = copy.deepcopy(basis)
+    profil["rechnung"] = {**profil["rechnung"], **rechnung}
+    return profil
+
+
+def _alle(profil: dict) -> dict[str, str]:
+    bericht = lint.Bericht()
+    lint.pruefe_rechnung_profil(profil, bericht)
+    return {b.regel: b.schwere for b in bericht.befunde}
+
+
+def test_die_iban_der_fusszeile_ist_gueltig(basis):
+    """Die Beispiel-IBAN aus der Fußzeile, mit Leerzeichen geschrieben."""
+    assert "rechnung.iban" not in _regeln(_mit(basis, bank={"iban": "DE62 7625 1020 0221 0217 44"}))
+
+
+def test_eine_iban_mit_falscher_pruefziffer_wird_gemeldet(basis):
+    assert "rechnung.iban" in _regeln(_mit(basis, bank={"iban": "DE62 7625 1020 0221 0217 45"}))
+
+
+def test_ein_tippfehler_in_bank_bleibt_nicht_stumm(basis):
+    assert "rechnung.aussteller" in _regeln(_mit(basis, bank={"iabn": "DE62762510200221021744"}))
+
+
+def test_eine_iban_die_nicht_in_der_fusszeile_steht_warnt(basis):
+    """Zwei Quellen derselben Angabe: Die Fußzeile ist für Menschen, das Feld für
+    die XML. Stimmen sie nicht überein, zahlt der Empfänger auf das falsche Konto."""
+    befunde = _alle(_mit(basis, bank={"iban": "DE89370400440532013000"}))
+    assert befunde.get("rechnung.iban_fusszeile") == lint.WARNUNG, befunde
+
+
+def test_gegenprobe_dieselbe_iban_warnt_nicht(basis):
+    assert "rechnung.iban_fusszeile" not in _regeln(_mit(basis, bank={"iban": "DE62762510200221021744"}))
+
+
+def test_eine_kaputte_elektronische_adresse_wird_gemeldet(basis):
+    assert "rechnung.adresse" in _regeln(_mit(basis, adresse="rechnung@@example"))
+
+
+def test_eine_gueltige_elektronische_adresse_schweigt(basis):
+    assert "rechnung.adresse" not in _regeln(_mit(basis, adresse="rechnung@example.de"))

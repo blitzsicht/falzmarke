@@ -142,6 +142,31 @@ def test_die_regelfassung_steht_in_der_ausgabe(jar, pdfs, capsys):
     assert "Regelfassung: Mustang 2.26.0 · Schematron XR_30, ZF_250" in capsys.readouterr().out
 
 
+def test_die_regelfassung_steht_je_datei(jar, tmp_path, capsys):
+    """#117: Bisher kam die Fassung nur aus der ERSTEN geprüften Datei. Stand
+    dort eine EN-16931-Rechnung, blieb unsichtbar, ob die XRechnung-Regeln auf
+    die XRechnung überhaupt angewendet wurden."""
+    nur_zf = AUSGABE_GUT.replace("xslt/XR_30/", "xslt/ZF_250/")
+    erste, zweite, schlecht = (tmp_path / n for n in ("a.pdf", "b.xml", "c.pdf"))
+    for datei in (erste, zweite, schlecht):
+        datei.write_bytes(b"x" + datei.name.encode())
+
+    def ausfuehren(befehl):
+        if befehl[1:] == ["-version"]:
+            return 0, "openjdk"
+        name = Path(befehl[befehl.index("--source") + 1]).name
+        return (255 if name == "c.pdf" else 0), (nur_zf if name == "a.pdf" else AUSGABE_GUT)
+
+    code = ep.main(["--mustang", str(jar), "--gut", str(erste), str(zweite),
+                    "--schlecht", str(schlecht)], ausfuehren=ausfuehren)
+    ausgabe = capsys.readouterr().out
+    assert code == 0, ausgabe
+    zeile_a = next(z for z in ausgabe.splitlines() if " a.pdf " in z)
+    zeile_b = next(z for z in ausgabe.splitlines() if " b.xml " in z)
+    assert "XR_30" not in zeile_a and "ZF_250" in zeile_a, zeile_a
+    assert "XR_30" in zeile_b, zeile_b
+
+
 # ── Der Zustand am Ende ──────────────────────────────────────────────────────
 
 def test_alles_wie_erwartet_ist_exit_null(jar, pdfs):

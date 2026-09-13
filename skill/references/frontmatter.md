@@ -346,14 +346,30 @@ absender:                     # gibt es für den Brief schon — von dort gelese
 rechnung:
   ust_idnr: DE123456789       # … oder `steuernummer:`, eine von beiden genügt
   land: DE                    # Ländercode nach ISO 3166-1 alpha-2
+  bank:                       # optional: das Konto für den Zahlungsweg in der XML
+    iban: DE62 7625 1020 0221 0217 44
+    bic: BYLADEM1RBG          # optional
+  adresse: rechnung@example.de  # optional: elektronische Adresse des Ausstellers
 ```
 
-Warum nur zwei Felder: Name und Anschrift stehen bereits unter `absender:` und werden von dort
+Warum Name und Anschrift fehlen: Name und Anschrift stehen bereits unter `absender:` und werden von dort
 gelesen. Doppelt gepflegt liefen die beiden Fassungen auseinander — und die eingebettete XML
 läse dann etwas anderes, als im Briefkopf steht. Der Ländercode ist neu, weil ein Brief ihn
 nicht braucht und die XML ihn verlangt; er wird **nicht** auf `DE` geraten.
 
-Fehlt eines davon, meldet `lint` es — aber erst, wenn ein Schreiben `typ: rechnung` trägt.
+**Kontakt, Konto, elektronische Adresse (#117).** Die XML trägt sie, sobald sie da sind; unter
+EN 16931 sind sie freiwillig, XRechnung verlangt alle drei.
+
+- Der **Ansprechpartner** kommt aus dem Informationsblock — `infoblock_defaults` im Profil, vom
+  `infoblock:` des Schreibens überschrieben. Es gibt kein eigenes Kontaktfeld: Das PDF und die
+  XML nennen damit immer dieselbe Person.
+- `bank.iban` wird als Überweisung (Zahlungsart 58) ohne Leerzeichen geschrieben. `lint` prüft
+  Form und Prüfziffer — nicht, ob das Konto existiert — und **warnt**, wenn dieselbe IBAN nicht
+  auch in der Fußzeile steht: Die Fußzeile ist die Fassung für Menschen, das Feld die für die
+  Maschine, und zwei verschiedene Konten wären der teuerste Fehler einer Rechnung.
+- `adresse` ist eine E-Mail-Adresse und steht mit dem Schema `EM` in der XML.
+
+Fehlt eines der Pflichtfelder, meldet `lint` es — aber erst, wenn ein Schreiben `typ: rechnung` trägt.
 Briefe und Mails berührt die Prüfung nicht. Geprüft wird, dass die Angaben **da sind**, nicht
 ob sie gelten: Eine USt-IdNr. gegen das Bundeszentralamt abzugleichen hieße Netz (ADR 0005).
 

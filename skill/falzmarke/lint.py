@@ -274,7 +274,12 @@ PROFIL_EMAIL_FELDER = frozenset({
 #: Der Abschnitt `rechnung:` im Profil (#116). Nur, was ein Brief nicht braucht:
 #: Name, Straße, PLZ und Ort stehen unter `absender:` und werden von dort
 #: gelesen — doppelt gepflegt liefen die beiden Fassungen auseinander.
-PROFIL_RECHNUNG_FELDER = frozenset({"ust_idnr", "steuernummer", "land"})
+PROFIL_RECHNUNG_FELDER = frozenset({"ust_idnr", "steuernummer", "land", "bank", "adresse"})
+
+#: `rechnung.bank` (#117): das Konto für den Zahlungsweg in der XML. Die
+#: Fußzeile trägt die IBAN weiter als Text für Menschen; das Feld ist die
+#: Fassung für die Maschine, und die Prüfung hält beide zusammen.
+PROFIL_BANK_FELDER = frozenset({"iban", "bic"})
 
 #: Die beiden Anreden, die das Profil kennt.
 ANREDEN = ("sie", "du")
@@ -961,12 +966,52 @@ def pruefe_rechnung_profil(profil: dict, bericht: Bericht) -> None:
             "der Ländercode nach ISO 3166-1 alpha-2, etwa `DE` — ein Brief braucht ihn "
             "nicht, die eingebettete XML schon, und geraten wird er nicht")
 
+    bank = abschnitt.get("bank")
+    if bank is not None:
+        if not isinstance(bank, dict):
+            bericht.fehler(1, "rechnung.aussteller", "`rechnung.bank:` ist kein Abschnitt",
+                           "`bank:` mit `iban:` und optional `bic:`")
+        else:
+            _melde_unbekannte(bank.keys(), PROFIL_BANK_FELDER, "rechnung.aussteller", "", bericht)
+            _pruefe_iban(profil, bank, bericht)
+
+    if abschnitt.get("adresse") is not None:
+        grund = adresse_grund("rechnung.adresse", str(abschnitt["adresse"]))
+        if grund:
+            bericht.fehler(1, "rechnung.adresse", grund,
+                           "die elektronische Adresse des Ausstellers ist eine E-Mail-Adresse")
+
     if not (abschnitt.get("ust_idnr") or abschnitt.get("steuernummer")):
         bericht.fehler(
             1, "rechnung.steuernummer",
             "weder `rechnung.ust_idnr:` noch `rechnung.steuernummer:` steht im Profil",
             "§ 14 Absatz 4 Nummer 2 UStG verlangt eine von beiden; welche, entscheidet "
             "der Aussteller")
+
+
+def _pruefe_iban(profil: dict, bank: dict, bericht: Bericht) -> None:
+    """Form und Prüfziffer — und ob die Fußzeile dieselbe IBAN nennt (#117)."""
+    from falzmarke import emit_xml as _emit_xml
+
+    if not bank.get("iban"):
+        bericht.fehler(1, "rechnung.aussteller", "`rechnung.bank:` ohne `iban:`",
+                       "die IBAN ergänzen oder den Abschnitt `bank:` weglassen")
+        return
+    if not _emit_xml.iban_gueltig(bank["iban"]):
+        bericht.fehler(
+            1, "rechnung.iban", f"`rechnung.bank.iban: {bank['iban']}` ist keine gültige IBAN",
+            "Ländercode, zwei Prüfziffern, Kontokennung — die Prüfziffer nach ISO 13616 "
+            "stimmt nicht. Geprüft wird die Form, nicht ob das Konto existiert")
+        return
+    fusszeile = " ".join(
+        str(zeile) for spalte in (profil.get("fusszeile") or [])
+        for zeile in (spalte if isinstance(spalte, list) else [spalte]))
+    if _emit_xml.iban_normal(bank["iban"]) not in _emit_xml.iban_normal(fusszeile):
+        bericht.warnung(
+            1, "rechnung.iban_fusszeile",
+            "die IBAN aus `rechnung.bank` steht nicht in der Fußzeile",
+            "Die Fußzeile ist die Fassung für Menschen, das Feld die für die XML. Nennen "
+            "sie verschiedene Konten, überweist der Empfänger je nach Leseweg woandershin")
 
 
 def pruefe_eingebettet(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:

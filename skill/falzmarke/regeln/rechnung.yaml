@@ -174,3 +174,56 @@ regeln:
 
       Geprüft wird zweimal: hier, damit die Meldung vor dem Setzen kommt, und
       im Emitter, weil der MCP-Dienst ohne `lint` setzt.
+
+  # ── Kontakt, Zahlungsweg, elektronische Adresse (#117) ───────────────────
+
+  - id: rechnung.iban
+    titel: Die IBAN in rechnung.bank hat eine gültige Form und Prüfziffer
+    lint: rechnung.iban
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Die IBAN wird ohne Leerzeichen in die XML geschrieben (Zahlungsart 58,
+      `IBANID`). Geprüft werden Ländercode, zwei Prüfziffern, Kontokennung und
+      die Prüfziffer nach Modulo 97 — nicht, ob das Konto existiert (ADR 0005).
+
+      Das Verfahren stammt aus ISO 13616 mit ISO/IEC 7064 (MOD 97-10). Beide
+      Normen sind hier NICHT nachgelesen: Die frei zugängliche Beschreibung im
+      SWIFT-IBAN-Register war am 13.09.2026 nicht erreichbar. Deshalb steht die
+      Regel als Werkzeugregel und nicht als Primärquelle — nachzutragen, sobald
+      eine Fundstelle gelesen ist. Die Sollwerte der Tests sind nicht aus der
+      eigenen Implementierung gebildet: Die Beispiel-IBAN der Fußzeile und eine
+      um eine Ziffer verfälschte Fassung.
+
+      Dieselbe Prüfung steht im Emitter, weil der MCP-Dienst ohne `lint` setzt.
+
+  - id: rechnung.iban_fusszeile
+    titel: Die IBAN aus rechnung.bank steht auch in der Fußzeile
+    lint: rechnung.iban_fusszeile
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      Zwei Quellen derselben Angabe: Die Fußzeile ist die Fassung für Menschen,
+      `rechnung.bank.iban` die für die XML. Nennen sie verschiedene Konten,
+      überweist der Empfänger je nach Leseweg woandershin. Verglichen wird ohne
+      Leerzeichen und ohne Groß-/Kleinschreibung.
+
+      Warnung und nicht Fehler: Eine Fußzeile ohne Bankverbindung ist zulässig.
+
+  - id: rechnung.adresse
+    titel: rechnung.adresse im Profil ist eine E-Mail-Adresse
+    lint: rechnung.adresse
+    ebene: technik
+    herkunft: primaerquelle
+    quellen: [rfc5322]
+    wirkung: fehler
+    bemerkung: >-
+      Die elektronische Adresse des Ausstellers (BT-34) mit dem Schema `EM`.
+      XRechnung verlangt sie (#117); unter EN 16931 wird sie geschrieben, wenn
+      sie dasteht. Dieselbe Formprüfung wie für `an:` (lint.adresse_grund).
+    belegt_durch:
+      rfc5322: "Abschnitt 3.4.1 — Addr-Spec Specification"

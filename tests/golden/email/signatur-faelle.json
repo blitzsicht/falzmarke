@@ -86,6 +86,11 @@
         "telefon": "0941 620-9800"
       },
       "rechnung": {
+        "adresse": "rechnung@example.de",
+        "bank": {
+          "bic": "BYLADEM1RBG",
+          "iban": "DE62 7625 1020 0221 0217 44"
+        },
         "land": "DE",
         "ust_idnr": "DE123456789"
       },
@@ -182,6 +187,11 @@
         "telefon": "0941 620-9800"
       },
       "rechnung": {
+        "adresse": "rechnung@example.de",
+        "bank": {
+          "bic": "BYLADEM1RBG",
+          "iban": "DE62 7625 1020 0221 0217 44"
+        },
         "land": "DE",
         "ust_idnr": "DE123456789"
       },
@@ -277,6 +287,11 @@
         "telefon": "0941 620-9800"
       },
       "rechnung": {
+        "adresse": "rechnung@example.de",
+        "bank": {
+          "bic": "BYLADEM1RBG",
+          "iban": "DE62 7625 1020 0221 0217 44"
+        },
         "land": "DE",
         "ust_idnr": "DE123456789"
       },
@@ -367,6 +382,11 @@
         "telefon": "0941 620-9800"
       },
       "rechnung": {
+        "adresse": "rechnung@example.de",
+        "bank": {
+          "bic": "BYLADEM1RBG",
+          "iban": "DE62 7625 1020 0221 0217 44"
+        },
         "land": "DE",
         "ust_idnr": "DE123456789"
       },
@@ -463,6 +483,11 @@
         "telefon": "0941 620-9800"
       },
       "rechnung": {
+        "adresse": "rechnung@example.de",
+        "bank": {
+          "bic": "BYLADEM1RBG",
+          "iban": "DE62 7625 1020 0221 0217 44"
+        },
         "land": "DE",
         "ust_idnr": "DE123456789"
       },
@@ -557,6 +582,11 @@
         "telefon": "0941 620-9800"
       },
       "rechnung": {
+        "adresse": "rechnung@example.de",
+        "bank": {
+          "bic": "BYLADEM1RBG",
+          "iban": "DE62 7625 1020 0221 0217 44"
+        },
         "land": "DE",
         "ust_idnr": "DE123456789"
       },
@@ -650,6 +680,11 @@
         "telefon": "0941 620-9800"
       },
       "rechnung": {
+        "adresse": "rechnung@example.de",
+        "bank": {
+          "bic": "BYLADEM1RBG",
+          "iban": "DE62 7625 1020 0221 0217 44"
+        },
         "land": "DE",
         "ust_idnr": "DE123456789"
       },

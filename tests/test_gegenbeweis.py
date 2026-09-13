@@ -807,6 +807,53 @@ def test_ohne_den_nachlauf_fehlt_das_factur_x_schema(tmp_path, monkeypatch):
     assert _rechnung_anhaenge(pdf) == ["factur-x.xml"]
 
 
+# ── Die Fassungszeile im Messbericht liest die Datei (#117) ─────────────────
+#
+# Bis #117 gab die Zeile „E-Rechnung" Profil und Fassung aus Konstanten aus und
+# prüfte nur, ob irgendein Factur-X-Schema im XMP stand. Eine Rechnung mit
+# falscher Guideline-ID hätte dieselbe grüne Zeile bekommen. Jetzt liest sie
+# die eingebettete XML und das XMP — und vergleicht mit einer eigenen Tabelle,
+# nicht mit der Konstante des Emitters (sonst prüfte der Sollwert sich selbst).
+
+def _rechnung_gerendert(tmp_path, name):
+    pdf, _ = falzmarke.rendere(RECHNUNG_QUELLE, tmp_path / name,
+                               profil_verzeichnis=REPO / "skill" / "falzmarke"
+                               / "typst" / "profiles")
+    return pdf
+
+
+def test_die_fassungszeile_liest_die_eingebettete_rechnung(tmp_path):
+    """Kontrollprobe."""
+    from falzmarke import emit_xml
+
+    gelesen = falzmarke.rechnung_im_pdf(_rechnung_gerendert(tmp_path, "gut.pdf"))
+    assert gelesen["guideline"] == emit_xml.GUIDELINE
+    assert gelesen["datei"] == "factur-x.xml"
+    ok, text = falzmarke.rechnung_befund(gelesen)
+    assert ok, text
+    assert "EN 16931" in text
+    assert gelesen["fassung"] == "1.0" and "Factur-X 1.0" in text
+
+
+def test_eine_falsche_guideline_macht_die_fassungszeile_rot(tmp_path, monkeypatch):
+    from falzmarke import emit_xml
+
+    monkeypatch.setattr(emit_xml, "GUIDELINE", "urn:sabotiert:0")
+    pdf = _rechnung_gerendert(tmp_path, "sabotiert.pdf")
+    gelesen = falzmarke.rechnung_im_pdf(pdf)
+    assert gelesen["guideline"] == "urn:sabotiert:0", "die Sabotage griff nicht"
+    ok, text = falzmarke.rechnung_befund(gelesen)
+    assert not ok, text
+
+
+def test_ein_falsches_profil_im_xmp_macht_die_fassungszeile_rot(tmp_path, monkeypatch):
+    monkeypatch.setitem(falzmarke.FX_WERTE, "ConformanceLevel", "BASIC")
+    gelesen = falzmarke.rechnung_im_pdf(_rechnung_gerendert(tmp_path, "basic.pdf"))
+    assert gelesen["profil"] == "BASIC", "die Sabotage griff nicht"
+    ok, _ = falzmarke.rechnung_befund(gelesen)
+    assert not ok
+
+
 # ── Keine stille Rundung: kommt die Stellenzahl wirklich aus BETRAG_STELLEN? ─
 #
 # Eine Quelle für beide Seiten: Emitter und `lint` lesen dieselbe Konstante. Die
