@@ -766,7 +766,10 @@ def _rechnung_einbettung(kopf: dict, profil: dict, arbeit: Path) -> dict:
         raise Eingabefehler(str(fehler)) from None
 
     ziel = arbeit / RECHNUNG_XML_NAME
-    ziel.write_text(xml, encoding="utf-8")
+    # Bytes statt Text: `write_text` übersetzt unter Windows jedes `\n` in
+    # `\r\n`, und die eingebettete XML sähe je nach Rechner anders aus. Gefunden
+    # am 13.09.2026 von den Goldens aus #119 in der Windows-Matrix.
+    ziel.write_bytes(xml.encode("utf-8"))
     return {
         "datei": str(ziel),
         "typ": "text/xml",
