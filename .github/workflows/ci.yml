@@ -457,6 +457,30 @@ jobs:
             --schlecht /tmp/eigene-xrechnung-ohne-referenz.xml::BR-DE-15 \
                        /tmp/ref/invalidXRechnung.pdf
 
+      - name: KoSIT-Validator und Konfiguration XRechnung
+        run: |
+          set -euo pipefail
+          # #311: der zweite fremde Prüfer — das Werkzeug der herausgebenden
+          # Stelle, mit der aktuellen Schematron-Fassung. Die Prüfsumme des JAR
+          # steht im Skript, die der Konfiguration ebenfalls; hier nur geladen.
+          curl -fsSL --retry 3 -o /tmp/kosit-validator.jar \
+            https://github.com/itplr-kosit/validator/releases/download/v1.6.3/validator-1.6.3-standalone.jar
+          curl -fsSL --retry 3 -o /tmp/kosit-konfiguration.zip \
+            https://github.com/itplr-kosit/validator-configuration-xrechnung/releases/download/v2026-08-31/xrechnung-3.0.2-validator-configuration-2026-08-31.zip
+          echo "2530cd107c414511c5d0462ec10f886910395abfca820db82e83d70bf01221a8  /tmp/kosit-konfiguration.zip" | sha256sum -c
+          mkdir -p /tmp/kosit-konfiguration
+          unzip -q /tmp/kosit-konfiguration.zip -d /tmp/kosit-konfiguration
+
+      - name: Gegen den KoSIT-Validator halten
+        run: |
+          # Dieselben Dateien wie oben, ein zweites, unabhängiges Urteil. Nur die
+          # XML-Dateien: Der Validator prüft XML, kein PDF. Die Gegenprobe muss
+          # auch hier an genau BR-DE-15 scheitern.
+          python scripts/erechnung_kosit.py --validator /tmp/kosit-validator.jar \
+            --konfiguration /tmp/kosit-konfiguration \
+            --gut /tmp/eigene-xrechnung.xml /tmp/ref/validXRV30.xml \
+            --schlecht /tmp/eigene-xrechnung-ohne-referenz.xml::BR-DE-15
+
   changelog:
     # Ein Vorgang, der das Werkzeug aendert, traegt einen Punkt in den Verlauf
     # ein — sonst laesst er sich nicht mergen (Issue #229).

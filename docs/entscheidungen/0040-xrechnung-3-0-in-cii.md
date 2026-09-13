@@ -65,4 +65,13 @@ Empfänger sie annimmt. `tests/test_textkanon.py` sperrt den Begriff.
 ## Nicht Teil dieser Entscheidung
 
 UBL, Versand über Peppol oder die Rechnungseingangsplattformen (ADR 0034 gilt), steuerfreie
-Rechnungen nach § 19 UStG, Gutschriften, der KoSIT-Validator als zweiter Prüfer.
+Rechnungen nach § 19 UStG, Gutschriften.
+
+## Nachtrag 13.09.2026: der KoSIT-Validator als zweiter Prüfer (#311)
+
+Seit #311 prüft die CI dieselben XML-Dateien zusätzlich mit dem KoSIT-Validator 1.6.3 und der
+Konfiguration XRechnung 3.0.2 vom 31.08.2026 — dem Werkzeug der herausgebenden Stelle, mit der
+Schematron-Fassung 2.6.0 statt Mustangs 2.4.0. Gemessen: Die eigene XRechnung wird angenommen,
+die Gegenprobe ohne Käuferreferenz an BR-DE-15 abgelehnt. Die Pflichtliste aus Entscheidung 4
+ist damit an zwei unabhängigen Prüfern belegt; die Regel bleibt trotzdem eine Werkzeugregel,
+weil die Schematron-Dateien selbst nicht gelesen sind.
