@@ -696,3 +696,112 @@ def test_die_briefmasse_bleiben_fehler(tmp_path):
     assert not bericht.ok, "ein verschobenes Maß muss ein Fehler bleiben"
     assert not bericht.warnungen, "kein Briefmaß darf zur Warnung geworden sein"
     assert all(p.stufe == geometrie.STUFE_FEHLER for p in bericht.pruefungen)
+
+
+# ── Der Abschnitt `rechnung:` im Profil (#116) ──────────────────────────────
+#
+# `tests/test_rechnung_profil.py` hält beide Richtungen fest: was melden muss
+# und was schweigen muss. Was dort fehlt, ist die Frage, die nur hier gestellt
+# wird — kann die Feldliste überhaupt rot werden? Ohne diese Probe wüsste man
+# von ihr nur, dass sie durchlässt, was sie kennt.
+
+def _rechnungsprofil(rechnung: dict) -> dict:
+    import copy
+
+    import yaml
+
+    from conftest import PROFILE
+
+    profil = copy.deepcopy(
+        yaml.safe_load((PROFILE / "example.yaml").read_text(encoding="utf-8")))
+    profil["rechnung"] = rechnung
+    return profil
+
+
+def _profilregeln(profil: dict) -> set:
+    bericht = _lint.Bericht()
+    _lint.pruefe_rechnung_profil(profil, bericht)
+    return {befund.regel for befund in bericht.befunde}
+
+
+def test_der_tippfehler_im_profilfeld_faellt_unsabotiert_auf():
+    """Kontrollprobe. Ohne sie belegte die Sabotage unten nichts: Ein Befund,
+    der nie kam, kann durch keine Sabotage verschwinden."""
+    regeln = _profilregeln(_rechnungsprofil({"ust_idnrr": "DE123456789", "land": "DE"}))
+    assert "rechnung.aussteller" in regeln
+
+
+def test_eine_aufgeweichte_feldliste_meldet_den_tippfehler_nicht_mehr(monkeypatch):
+    """Sabotage an genau einer Stelle: Steht der Tippfehler in der Feldliste,
+    gilt er als bekanntes Feld und bleibt stumm.
+
+    Die Prüfung auf die fehlende Steuerangabe bleibt davon unberührt — sie
+    misst etwas anderes, und genau das soll die Probe zeigen: Die Sabotage
+    trifft die Feldliste und nicht pauschal die ganze Funktion.
+    """
+    monkeypatch.setattr(
+        _lint, "PROFIL_RECHNUNG_FELDER",
+        frozenset({"ust_idnr", "ust_idnrr", "steuernummer", "land"}))
+    regeln = _profilregeln(_rechnungsprofil({"ust_idnrr": "DE123456789", "land": "DE"}))
+    assert "rechnung.aussteller" not in regeln, \
+        "die Feldliste ist nicht die Stelle, an der der Tippfehler auffällt"
+    assert "rechnung.steuernummer" in regeln, \
+        "die Sabotage hat mehr getroffen als die Feldliste"
+
+
+# ── Die E-Rechnung: kommen Name und Schema wirklich von uns? (#116) ─────────
+#
+# Beide Größen sehen im fertigen PDF richtig aus. Diese Proben zeigen, dass sie
+# nicht zufällig richtig sind: Wird die Quelle verstellt, ändert sich das
+# Ergebnis. Ohne sie wüsste man nicht, ob Typst das Factur-X-Schema nicht
+# ohnehin selbst schreibt — gemessen hat es das am 12.09.2026 NICHT.
+
+RECHNUNG_QUELLE = REPO / "examples" / "rechnung.md"
+
+
+def _rechnung_anhaenge(pdf):
+    import pypdf
+
+    wurzel = pypdf.PdfReader(str(pdf)).trailer["/Root"]
+    return [str(e.get_object().get("/F")) for e in wurzel.get("/AF", [])]
+
+
+def test_die_unsabotierte_rechnung_traegt_factur_x(tmp_path):
+    """Kontrollprobe. Ohne sie belegten die beiden Sabotagen nichts."""
+    from falzmarke import geometrie
+
+    pdf, _ = falzmarke.rendere(RECHNUNG_QUELLE, tmp_path / "gut.pdf",
+                               profil_verzeichnis=REPO / "skill" / "falzmarke"
+                               / "typst" / "profiles")
+    assert _rechnung_anhaenge(pdf) == ["factur-x.xml"]
+    assert "urn:factur-x" in geometrie.xmp_lesen(pdf)
+
+
+def test_ein_verstellter_dateiname_landet_wirklich_im_pdf(tmp_path, monkeypatch):
+    """Der Name kommt aus `RECHNUNG_XML_NAME` und nicht daher, dass Typst ihn
+    zufällig so vergibt — sonst wäre die Konstante wirkungslos und niemand
+    merkte es, solange sie richtig steht."""
+    monkeypatch.setattr(falzmarke, "RECHNUNG_XML_NAME", "verstellt.xml")
+    pdf, _ = falzmarke.rendere(RECHNUNG_QUELLE, tmp_path / "sabotiert.pdf",
+                               profil_verzeichnis=REPO / "skill" / "falzmarke"
+                               / "typst" / "profiles")
+    assert _rechnung_anhaenge(pdf) == ["verstellt.xml"], \
+        "der Dateiname stammt nicht aus RECHNUNG_XML_NAME"
+
+
+def test_ohne_den_nachlauf_fehlt_das_factur_x_schema(tmp_path, monkeypatch):
+    """Die wichtigste der drei: Sie belegt, dass das Erweiterungsschema von
+    `_fx_schema_ergaenzen` kommt. Schriebe Typst es ohnehin, bliebe das XMP hier
+    vollständig — und die ganze Funktion wäre eine Zeile Aufwand ohne Wirkung."""
+    from falzmarke import geometrie
+
+    monkeypatch.setattr(falzmarke, "_fx_schema_ergaenzen", lambda pdf: None)
+    pdf, _ = falzmarke.rendere(RECHNUNG_QUELLE, tmp_path / "ohne-schema.pdf",
+                               profil_verzeichnis=REPO / "skill" / "falzmarke"
+                               / "typst" / "profiles")
+    xmp = geometrie.xmp_lesen(pdf)
+    assert "urn:factur-x" not in xmp, \
+        "Typst schreibt das Schema offenbar selbst — dann ist der Nachlauf überflüssig"
+    # Die Beilage selbst ist trotzdem da: Nur das Schema fehlt, und genau das
+    # macht den Unterschied zwischen „Datei im PDF" und „erkennbare Rechnung".
+    assert _rechnung_anhaenge(pdf) == ["factur-x.xml"]

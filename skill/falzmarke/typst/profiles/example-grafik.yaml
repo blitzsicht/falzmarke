@@ -81,3 +81,15 @@ infoblock_defaults:
   ansprechpartner: Erika Muster
   telefon: 0941 620-9800
   email: post@example.de
+
+# Für die Rechnungsfassung (`typ: rechnung`). Nur die Angaben, die ein Brief
+# nicht braucht: Name, Straße, PLZ und Ort stehen schon oben unter `absender:`
+# und werden von dort gelesen — doppelt gepflegt liefen sie auseinander.
+#
+# Dieses Profil trägt den Abschnitt, weil die Beispielrechnung es benutzt.
+# example-privat.yaml trägt ihn bewusst NICHT: Eine Privatperson hat keine
+# USt-IdNr., und ein erfundener Wert wäre schlechter als sein Fehlen.
+rechnung:
+  ust_idnr: DE123456789
+  # steuernummer: 244/107/01234   # … oder diese; eine von beiden genügt
+  land: DE                        # Ländercode nach ISO 3166-1 alpha-2
