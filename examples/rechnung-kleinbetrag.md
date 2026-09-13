@@ -32,7 +32,7 @@ summen:
   brutto: 21.42
 anrede: Sehr geehrte Damen und Herren,
 ---
-anbei unsere Rechnung für die Getränke bei der Teambesprechung am 10. Oktober.
+anbei unsere Rechnung für die Getränke bei der Teambesprechung am 10. September.
 
 Der Gesamtbetrag bleibt unter 250 € — eine Kleinbetragsrechnung nach § 33 UStDV.
 

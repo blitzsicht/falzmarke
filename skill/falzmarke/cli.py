@@ -121,23 +121,6 @@ def formatiere_datum(wert, format_name: str, sprache: str = sprachen.VORGABE) ->
     return f"{wert.day} {sprachen.monat(sprache, wert.month)} {wert.year}"
 
 
-def _zu_datum(wert) -> dt.date | None:
-    """`kopf["datum"]` als `dt.date`, wenn es sich eindeutig lesen lässt.
-
-    Dient `rendere()` als deterministischer PDF-Zeitstempel — `None` bei einem
-    schon ausformulierten Datum wie „26. August 2026“, das `formatiere_datum`
-    unverändert durchreicht und das hier niemand raten soll.
-    """
-    if isinstance(wert, dt.datetime):
-        return wert.date()
-    if isinstance(wert, dt.date):
-        return wert
-    try:
-        return dt.date.fromisoformat(str(wert).strip())
-    except ValueError:
-        return None
-
-
 # ── Profile ─────────────────────────────────────────────────────────────────
 
 def benutzer_profilverzeichnis() -> Path:
@@ -1030,16 +1013,14 @@ def rendere(
             argumente["font_paths"] = [str(FONT_DIR)]
 
         # Ohne `timestamp` setzt Typst `/CreationDate` und `/ModDate` auf die
-        # tatsächliche Rechnerzeit — zwei Renderläufe derselben Quelle liefern
-        # dann unterschiedliche PDF-Bytes, und ein Golden-Vergleich schlägt
-        # fehl, sobald die Läufe eine Sekundengrenze auseinanderliegen. Das
-        # Briefdatum ist Pflichtfeld und macht den Zeitstempel deterministisch
-        # — ohne den `SOURCE_DATE_EPOCH`-Umweg, den die `.eml` braucht.
-        brief_datum = _zu_datum(kopf.get("datum"))
-        if brief_datum is not None:
-            argumente["timestamp"] = dt.datetime(
-                brief_datum.year, brief_datum.month, brief_datum.day,
-                tzinfo=dt.timezone.utc)
+        # Rechnerzeit — gemessen am 13.09.2026: zwei Läufe über
+        # `examples/rechnung.md` im Abstand von zwei Sekunden ergeben andere
+        # Bytes. Das bleibt so, denn die Erstellungszeit einer Datei ist nicht
+        # das Briefdatum. Wie bei der `.eml` nagelt `SOURCE_DATE_EPOCH` sie für
+        # einen Golden-Vergleich fest (#119).
+        epoch = os.environ.get("SOURCE_DATE_EPOCH")
+        if epoch:
+            argumente["timestamp"] = dt.datetime.fromtimestamp(int(epoch), tz=dt.timezone.utc)
 
         # Ohne diese Zeile zieht Typst Schriften vom Rechner, auf dem gerade
         # gesetzt wird. Gemessen am 25.08.2026: ein Brief mit einem Emoji

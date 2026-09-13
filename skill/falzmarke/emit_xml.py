@@ -139,7 +139,9 @@ def leitweg_id_gueltig(wert) -> bool:
 #: kostenpflichtige Norm — sie wird von der ISO selbst frei veröffentlicht
 #: (Online Browsing Platform, www.iso.org/obp) und ebenso von amtlichen
 #: Registern wie der IANA Language Subtag Registry übernommen. Übertragen
-#: werden hier ausschließlich die Codes, kein Normtext.
+#: werden hier ausschließlich die Codes, kein Normtext. Abgeglichen am
+#: 13.09.2026 mit `iso3166.tab` aus der IANA-Zeitzonendatenbank (Stand
+#: ISO/TC 46 N1127, 29.02.2024): 249 Codes, beide Mengen gleich.
 #:
 #: Nutzerdefinierte Codes (AA, QM–QZ, XA–XZ, ZZ) und Sonderfälle ohne eigenen
 #: ISO-3166-1-Code (z. B. Kosovo, `XK`) fehlen bewusst: `land:` steht in der

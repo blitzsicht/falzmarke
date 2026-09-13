@@ -14,7 +14,7 @@ empfaenger_anschrift:
 datum: 2026-09-11
 betreff: Rechnung 2026-0044 für Beratung und Fachliteratur
 rechnungsnummer: "2026-0044"
-leistungsdatum: 2026-10-03
+leistungsdatum: 2026-09-03
 zahlungsziel: 2026-10-31
 positionen:
   - bezeichnung: Beratung und Aufbau

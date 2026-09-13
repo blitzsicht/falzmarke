@@ -6,11 +6,9 @@ auch der darin eingebetteten XML nach EN 16931/XRechnung. Es fällt auf, wenn
 sich an einem der beiden etwas ändert, das niemand angesagt hat: eine
 Tabellenspalte, ein Feld, eine Rundung.
 
-Anders als bei der Mahnungs-`.eml` mit Anlage braucht das PDF-Golden hier
-keine Einfriertechnik wie `SOURCE_DATE_EPOCH` — verifiziert am 13.09.2026:
-Zwei Renderläufe derselben Quelle sind bytegleich (kein Zeitstempel, keine
-UUID). `tests/test_rechnung_beispiele.py::test_zwei_laeufe_ueber_dasselbe_beispiel_sind_bytegleich`
-hält das als Regressionswächter fest.
+Wie bei der `.eml` wird mit `SOURCE_DATE_EPOCH` gesetzt: Ohne die Variable
+trägt das PDF die Rechnerzeit als `/CreationDate`, und zwei Läufe ergeben andere
+Bytes (gemessen am 13.09.2026). Die eingebettete XML hängt nicht daran.
 
     python3 scripts/golden_rechnung.py            # schreibt Goldens neu
     python3 scripts/golden_rechnung.py --pruefen  # meldet nur Abweichungen
@@ -22,6 +20,7 @@ eigentliche Befund — nicht lästige Nacharbeit.
 
 from __future__ import annotations
 
+import os
 import shutil
 import sys
 import tempfile
@@ -32,6 +31,9 @@ sys.path.insert(0, str(REPO / "skill"))
 sys.path.insert(0, str(REPO / "tests"))
 
 from conftest import RECHNUNG_BEISPIELE, PROFILE  # noqa: E402
+
+#: Derselbe Zeitpunkt wie in `scripts/golden_email.py` und in den Tests.
+EPOCH = "1788134400"
 
 ZIEL = REPO / "tests" / "golden" / "rechnung"
 
@@ -49,12 +51,18 @@ def erzeuge(quelle: Path) -> tuple[bytes, bytes]:
     """(PDF-Bytes, eingebettete-XML-Bytes) zu einem Rechnungsbeispiel."""
     from falzmarke import cli
 
+    alt = os.environ.get("SOURCE_DATE_EPOCH")
+    os.environ["SOURCE_DATE_EPOCH"] = EPOCH
     arbeit = Path(tempfile.mkdtemp(prefix="falzmarke-golden-"))
     try:
         pdf, _ = cli.rendere(quelle, arbeit / f"{quelle.stem}.pdf", profil_verzeichnis=PROFILE)
         return pdf.read_bytes(), _xml_bytes(pdf)
     finally:
         shutil.rmtree(arbeit, ignore_errors=True)
+        if alt is None:
+            del os.environ["SOURCE_DATE_EPOCH"]
+        else:
+            os.environ["SOURCE_DATE_EPOCH"] = alt
 
 
 def _aktualisiere(pfad: Path, neu: bytes, nur_pruefen: bool) -> bool:

@@ -25,37 +25,38 @@ ist bewusst nicht noch einmal geschrieben:
   Kleinbetragsrechnung (§ 33 UStDV, Gesamtbetrag höchstens 250 €).
 - Es gibt noch kein byteweises Golden für PDF oder XML einer Rechnung.
 - **„Ein Steuersatz nur in der XML"** und **„ein unzulässiger Codelistenwert"**
-  sind am 13.09.2026 echte, unsabotierte Lücken — kein Monkeypatch nötig, um sie
+  waren bis #119 echte, unsabotierte Lücken — kein Monkeypatch nötig, um sie
   zu zeigen:
 
   - Die Positionstabelle im PDF zeigt nie den Steuersatz einer einzelnen
     Position (`cli.py:_positionstabelle`, Spalten Position/Menge/Einzelpreis/
     Betrag) — nur die Sammelzeilen aus `summen.steuer` als „Umsatzsteuer NN %".
     Trägt eine Position einen Satz, für den `summen.steuer` keine Zeile hat,
-    verlässt dieser Satz die Quelle nur in Richtung XML. ✓ VERIFIZIERT: Für
-    eine Rechnung mit Positionen zu 19 % und 7 %, aber `summen.steuer` nur für
-    19 %, meldet `falzmarke.linte()` nichts (`bericht.befunde == []`), obwohl
-    die eingebettete XML `RateApplicablePercent` 7.00 trägt.
+    verlässt dieser Satz die Quelle nur in Richtung XML. Vor #119 meldete
+    `falzmarke.linte()` für eine Rechnung mit Positionen zu 19 % und 7 %, aber
+    `summen.steuer` nur für 19 %, nichts, obwohl die eingebettete XML
+    `RateApplicablePercent` 7.00 trägt.
   - `land:` — sowohl `rechnung.land` im Profil als auch
-    `empfaenger_anschrift.land` — wird nur auf Vorhandensein geprüft
+    `empfaenger_anschrift.land` — wurde nur auf Vorhandensein geprüft
     (`lint.py`, `EMPFAENGER_ANSCHRIFT_PFLICHT`), nie auf einen gültigen
-    ISO-3166-1-Alpha-2-Code. ✓ VERIFIZIERT: `land: Deutschland` bleibt
+    ISO-3166-1-Alpha-2-Code. Vor #119 blieb `land: Deutschland`
     unbeanstandet und landet unverändert als `<ram:CountryID>Deutschland</...>`
     in der XML — ein Empfänger-Validator lehnt das ab, falzmarke sagt nichts.
 
 ## Der PDF-Golden-Vorbehalt (Abnahme 1, #119)
 
 „Beim PDF gilt dieselbe Vorsicht wie bei der Mahnungs-Mail mit Anlage: Ein
-zweiter Renderlauf derselben Quelle liefert andere Bytes." — geprüft, bevor
-hier ein Golden entsteht: ✓ VERIFIZIERT am 13.09.2026, zwei Renderläufe je
-`examples/rechnung.md` und `examples/xrechnung.md` sind bytegleich (kein
-Zeitstempel, keine UUID, kein `SOURCE_DATE_EPOCH` nötig — anders als bei der
-`.eml`). Ein Golden-Byte-Vergleich ist damit ohne zusätzliche Einfriertechnik
-tragfähig.
+zweiter Renderlauf derselben Quelle liefert andere Bytes." Das trifft zu:
+Gemessen am 13.09.2026 tragen zwei Läufe über `examples/rechnung.md` im Abstand
+von zwei Sekunden verschiedene `/CreationDate`. Eingefroren wird deshalb wie bei
+der `.eml` über `SOURCE_DATE_EPOCH`; alles andere am PDF entsteht bei jedem Lauf
+neu und muss trotzdem bytegleich sein. Ohne die Variable bleibt die Rechnerzeit
+im PDF — die Erstellungszeit einer Datei ist nicht das Briefdatum.
 """
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pypdf
@@ -66,7 +67,15 @@ from conftest import REPO, PROFILE, RECHNUNG_BEISPIELE
 
 GOLDEN = REPO / "tests" / "golden" / "rechnung"
 
+#: Derselbe Zeitpunkt wie in `scripts/golden_rechnung.py`.
+EPOCH = "1788134400"
+
 IDS = dict(ids=lambda p: p.stem)
+
+
+@pytest.fixture(autouse=True)
+def _feste_zeit(monkeypatch):
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", EPOCH)
 
 
 def _setze(beispiel: Path, tmp_path: Path) -> Path:
@@ -171,22 +180,33 @@ def test_der_pdf_vergleich_kann_rot_werden(tmp_path):
 
 def test_zwei_laeufe_ueber_dasselbe_beispiel_sind_bytegleich(tmp_path):
     """Ohne Determinismus wäre der Golden-Vergleich oben ein Zufallsgenerator.
-
-    ✓ VERIFIZIERT (siehe Modul-Docstring) — hier als Regressionswächter: Sollte
-    ein künftiger Zeitstempel oder eine UUID einziehen, fällt es hier auf, statt
-    stumm jedes PDF-Golden altern zu lassen.
-    """
+    Regressionswächter: Zieht außer der Zeit etwas Veränderliches ein, etwa eine
+    UUID, fällt es hier auf, statt jedes PDF-Golden still altern zu lassen."""
     beispiel = RECHNUNG_BEISPIELE[0]
     erst = _setze(beispiel, tmp_path / "a").read_bytes()
     zweit = _setze(beispiel, tmp_path / "b").read_bytes()
     assert erst == zweit
 
 
+def test_ohne_feste_zeit_traegt_das_pdf_die_rechnerzeit(tmp_path, monkeypatch):
+    """Gegenprobe zum Test darüber: Er belegt nur etwas, wenn die Zeit wirklich
+    das Veränderliche ist. Ohne `SOURCE_DATE_EPOCH` muss ein anderes
+    `/CreationDate` als das festgenagelte im PDF stehen."""
+    beispiel = RECHNUNG_BEISPIELE[0]
+    fest = _setze(beispiel, tmp_path / "fest").read_bytes()
+    monkeypatch.delenv("SOURCE_DATE_EPOCH")
+    frei = _setze(beispiel, tmp_path / "frei").read_bytes()
+    # Typst schreibt den Doppelpunkt nach `D` als Oktal-Escape `\072`.
+    erstellt = re.compile(rb"/CreationDate\s*\(D(?::|\\072)(\d{8})")
+    assert erstellt.search(fest)[1] == b"20260831", "das Epoch 1788134400 (31.08.2026) fehlt"
+    assert erstellt.search(frei)[1] != b"20260831" and fest != frei
+
+
 # ── „Ein Steuersatz nur in der XML" (Abnahme 2 und 3) ───────────────────────
 #
 # Die Positionstabelle im PDF zeigt nie den Steuersatz einer einzelnen Position
 # — nur `summen.steuer` als Sammelzeile „Umsatzsteuer NN %". Ein Positions-Satz
-# ohne passende Sammelzeile verlässt die Quelle nur Richtung XML.
+# ohne passende Sammelzeile verließe die Quelle nur Richtung XML.
 
 STEUERSATZ_OHNE_SUMMENZEILE = """---
 typ: rechnung
@@ -239,20 +259,20 @@ def test_ein_uebereinstimmender_steuersatz_ist_kein_befund():
 
 def test_ein_steuersatz_ohne_summenzeile_wird_gemeldet(tmp_path):
     """Der teure Fall aus #119: Ein Positions-Steuersatz, der in `summen.steuer`
-    keine Entsprechung hat, bleibt heute stumm — im PDF steht nur „Umsatzsteuer
+    keine Entsprechung hat, blieb stumm — im PDF steht nur „Umsatzsteuer
     19 %", in der XML zusätzlich `RateApplicablePercent` 7.00.
     """
     pfad = tmp_path / "gemischt.md"
     pfad.write_text(STEUERSATZ_OHNE_SUMMENZEILE, encoding="utf-8")
     bericht = falzmarke.linte(pfad, profil_verzeichnis=PROFILE)
-    assert bericht.befunde, (
+    assert "rechnung.steuersatz" in {b.regel for b in bericht.befunde}, (
         "eine Position mit einem Steuersatz ohne passende `summen.steuer`-Zeile "
         "bleibt unbeanstandet — genau der stille Fall aus #119")
 
 
 # ── „Ein unzulässiger Codelistenwert" (Abnahme 2 und 3) ─────────────────────
 #
-# `land:` wird nur auf Vorhandensein geprüft, nie auf einen gültigen
+# `land:` wurde bis #119 nur auf Vorhandensein geprüft, nie auf einen gültigen
 # ISO-3166-1-Alpha-2-Code — weder im Profil (`rechnung.land`) noch am Empfänger
 # (`empfaenger_anschrift.land`).
 
@@ -302,12 +322,12 @@ def test_ein_gueltiger_laendercode_ist_kein_befund(tmp_path):
 
 
 def test_ein_unzulaessiger_laendercode_wird_gemeldet(tmp_path):
-    """✓ VERIFIZIERT am 13.09.2026: `land: Deutschland` bleibt unbeanstandet und
-    landet unverändert als `<ram:CountryID>Deutschland</ram:CountryID>` in der
+    """Vor #119 blieb `land: Deutschland` unbeanstandet und
+    landete unverändert als `<ram:CountryID>Deutschland</ram:CountryID>` in der
     eingebetteten XML."""
     pfad = tmp_path / "unzulaessig.md"
     pfad.write_text(LAENDERCODE_UNGUELTIG, encoding="utf-8")
     bericht = falzmarke.linte(pfad, profil_verzeichnis=PROFILE)
-    assert bericht.befunde, (
+    assert "rechnung.land" in {b.regel for b in bericht.befunde}, (
         "`land: Deutschland` ist kein ISO-3166-1-Alpha-2-Code und bleibt trotzdem "
         "unbeanstandet — die XML trägt ihn unverändert als CountryID weiter")
