@@ -299,3 +299,39 @@ regeln:
       Wirkung am fremden Prüfer: Die eigene Beispiel-XRechnung besteht, dieselbe
       Datei ohne BT-10 fällt mit genau BR-DE-15 durch (CI-Job „E-Rechnung“).
       `lint` und Emitter lesen dieselbe Liste (`emit_xml.xrechnung_maengel`).
+
+  # ── Beispiele, Goldens, Gegenproben (#119) ────────────────────────────────
+
+  - id: rechnung.steuersatz
+    titel: Jeder Positions-Steuersatz hat eine passende Zeile in summen.steuer
+    lint: rechnung.steuersatz
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Der teure Fall aus #119: Die Positionstabelle im PDF zeigt nie den
+      Steuersatz einer einzelnen Position — nur die Sammelzeilen aus
+      `summen.steuer` als „Umsatzsteuer NN %" (`cli.py:_positionstabelle`).
+      Trägt eine Position einen Satz, für den `summen.steuer` keine Zeile hat,
+      verlässt dieser Satz die Quelle nur über die eingebettete XML: Ein PDF,
+      das nur 19 % zeigt, und eine XML, die zusätzlich 7 % trägt, sehen beide
+      richtig aus — bis die Buchhaltung des Empfängers die XML einliest.
+
+      Verglichen werden GEGEBENE Werte, es wird nichts gerechnet (ADR 0039).
+      Anders als bei `rechnung.summen` geht es nicht um eine Rundungstoleranz,
+      sondern um eine ganz fehlende Zeile — deshalb Fehler statt Warnung.
+
+  - id: rechnung.land
+    titel: Ein Ländercode ist ein gültiger ISO-3166-1-Alpha-2-Code
+    lint: rechnung.land
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Sowohl `rechnung.land` im Profil als auch `empfaenger_anschrift.land`
+      wurden bis #119 nur auf Vorhandensein geprüft — `land: Deutschland`
+      blieb unbeanstandet und landete unverändert als `<ram:CountryID>` in der
+      eingebetteten XML. Geprüft wird gegen die amtlich vergebenen Codes
+      (`emit_xml.LAENDERCODES`), nicht nur die Form „zwei Buchstaben".

@@ -945,6 +945,8 @@ def pruefe_rechnung_profil(profil: dict, bericht: Bericht) -> None:
     Geprüft wird, dass die Angaben DA sind, nicht ob sie gelten. Eine USt-IdNr.
     gegen das Bundeszentralamt abzugleichen hieße Netz (ADR 0005).
     """
+    from falzmarke import emit_xml as _emit_xml
+
     absender = profil.get("absender")
     if not isinstance(absender, dict):
         absender = {}
@@ -972,6 +974,12 @@ def pruefe_rechnung_profil(profil: dict, bericht: Bericht) -> None:
             1, "rechnung.aussteller", "`rechnung.land:` fehlt im Profil",
             "der Ländercode nach ISO 3166-1 alpha-2, etwa `DE` — ein Brief braucht ihn "
             "nicht, die eingebettete XML schon, und geraten wird er nicht")
+    elif not _emit_xml.laendercode_gueltig(abschnitt["land"]):
+        bericht.fehler(
+            1, "rechnung.land",
+            f"`rechnung.land: {abschnitt['land']}` ist kein ISO-3166-1-Alpha-2-Code",
+            "zwei Großbuchstaben aus der amtlichen Liste, etwa `DE` — die eingebettete "
+            "XML übernimmt den Wert unverändert als `CountryID`")
 
     bank = abschnitt.get("bank")
     if bank is not None:
@@ -1373,6 +1381,8 @@ def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
     der Steuerbetrag je Satz: Das wäre Satz mal Bemessungsgrundlage, und damit
     stünde die Rundungsregel zur Wahl, die der Absender verantwortet.
     """
+    from falzmarke import emit_xml as _emit_xml
+
     nummer = kopf.get("rechnungsnummer")
     # Nur Leerraum: `""` und ein fehlendes Feld meldet schon der Pflichtfeld-Check
     # im Aufrufer — beides zu melden gab zwei Befunde für einen Fehler (gemessen).
@@ -1438,6 +1448,14 @@ def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
                                    "die elektronische Adresse des Empfängers ist eine "
                                    "E-Mail-Adresse")
 
+            if anschrift.get("land") and not _emit_xml.laendercode_gueltig(anschrift["land"]):
+                bericht.fehler(
+                    ort_anschrift, "rechnung.land",
+                    f"`empfaenger_anschrift.land: {anschrift['land']}` ist kein "
+                    "ISO-3166-1-Alpha-2-Code",
+                    "zwei Großbuchstaben aus der amtlichen Liste, etwa `DE` — die "
+                    "eingebettete XML übernimmt den Wert unverändert als `CountryID`")
+
     _pruefe_erechnung_kopf(kopf, kopf_roh, bericht)
 
     positionen = kopf.get("positionen")
@@ -1451,6 +1469,7 @@ def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
 
     summe_positionen = 0.0
     lesbar = True
+    positionen_saetze: set[float] = set()
     for nummer_pos, position in enumerate(positionen, start=1):
         if not isinstance(position, dict):
             bericht.fehler(ort, "rechnung.position",
@@ -1494,6 +1513,8 @@ def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
             bericht.fehler(ort, "rechnung.position",
                            f"Position {nummer_pos}: Steuersatz {satz:g} liegt außerhalb 0 bis 99",
                            "in Prozent angeben: 19 für 19 %")
+        if satz is not None:
+            positionen_saetze.add(round(satz, 2))
         betrag = _als_zahl(position.get("betrag"))
         if betrag is not None:
             summe_positionen += betrag
@@ -1518,6 +1539,7 @@ def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
     brutto = _als_zahl(summen.get("brutto"))
     steuern = summen.get("steuer") or []
     steuer_summe = 0.0
+    summen_saetze: set[float] = set()
     if isinstance(steuern, list):
         for eintrag in steuern:
             if isinstance(eintrag, dict):
@@ -1529,6 +1551,23 @@ def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
                 wert = _als_zahl(eintrag.get("betrag"))
                 if wert is not None:
                     steuer_summe += wert
+                satz_eintrag = _als_zahl(eintrag.get("satz"))
+                if satz_eintrag is not None:
+                    summen_saetze.add(round(satz_eintrag, 2))
+
+    # Der teure Fall aus #119: Die Positionstabelle im PDF zeigt nie den
+    # Steuersatz einer einzelnen Position, nur die Sammelzeilen aus
+    # `summen.steuer`. Ein Positions-Satz ohne passende Zeile verlässt die
+    # Quelle nur über die eingebettete XML — ein PDF, das nur 19 % zeigt, und
+    # eine XML, die zusätzlich 7 % trägt, sehen beide richtig aus.
+    fehlende_saetze = sorted(positionen_saetze - summen_saetze)
+    if fehlende_saetze:
+        bericht.fehler(
+            ort, "rechnung.steuersatz",
+            "Steuersatz " + ", ".join(f"{s:g} %" for s in fehlende_saetze)
+            + " aus den Positionen hat keine passende Zeile in `summen.steuer`",
+            "die PDF-Tabelle zeigt nur die Sammelzeilen aus `summen.steuer` — ohne eigene "
+            "Zeile verlässt der Satz die Quelle nur über die eingebettete XML")
 
     # Die Rechenproben. Beide über GEGEBENE Werte — sie bilden nichts, sie
     # vergleichen. Eine Warnung, kein Fehler: ADR 0039 sagt, dass eine Rechnung

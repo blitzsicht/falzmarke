@@ -134,6 +134,65 @@ def leitweg_id_gueltig(wert) -> bool:
     return int(ziffern) % 97 == 1
 
 
+#: Die amtlich vergebenen zweistelligen Ländercodes nach ISO 3166-1 alpha-2
+#: (ISO 3166/MA). Anders als der Text der DIN 5008 ist diese Codeliste keine
+#: kostenpflichtige Norm — sie wird von der ISO selbst frei veröffentlicht
+#: (Online Browsing Platform, www.iso.org/obp) und ebenso von amtlichen
+#: Registern wie der IANA Language Subtag Registry übernommen. Übertragen
+#: werden hier ausschließlich die Codes, kein Normtext.
+#:
+#: Nutzerdefinierte Codes (AA, QM–QZ, XA–XZ, ZZ) und Sonderfälle ohne eigenen
+#: ISO-3166-1-Code (z. B. Kosovo, `XK`) fehlen bewusst: `land:` steht in der
+#: eingebetteten XML als `CountryID`, und ein Empfänger-Validator kennt nur die
+#: amtliche Liste.
+LAENDERCODES = frozenset({
+    "AD", "AE", "AF", "AG", "AI", "AL", "AM", "AO", "AQ", "AR", "AS", "AT",
+    "AU", "AW", "AX", "AZ",
+    "BA", "BB", "BD", "BE", "BF", "BG", "BH", "BI", "BJ", "BL", "BM", "BN",
+    "BO", "BQ", "BR", "BS", "BT", "BV", "BW", "BY", "BZ",
+    "CA", "CC", "CD", "CF", "CG", "CH", "CI", "CK", "CL", "CM", "CN", "CO",
+    "CR", "CU", "CV", "CW", "CX", "CY", "CZ",
+    "DE", "DJ", "DK", "DM", "DO", "DZ",
+    "EC", "EE", "EG", "EH", "ER", "ES", "ET",
+    "FI", "FJ", "FK", "FM", "FO", "FR",
+    "GA", "GB", "GD", "GE", "GF", "GG", "GH", "GI", "GL", "GM", "GN", "GP",
+    "GQ", "GR", "GS", "GT", "GU", "GW", "GY",
+    "HK", "HM", "HN", "HR", "HT", "HU",
+    "ID", "IE", "IL", "IM", "IN", "IO", "IQ", "IR", "IS", "IT",
+    "JE", "JM", "JO", "JP",
+    "KE", "KG", "KH", "KI", "KM", "KN", "KP", "KR", "KW", "KY", "KZ",
+    "LA", "LB", "LC", "LI", "LK", "LR", "LS", "LT", "LU", "LV", "LY",
+    "MA", "MC", "MD", "ME", "MF", "MG", "MH", "MK", "ML", "MM", "MN", "MO",
+    "MP", "MQ", "MR", "MS", "MT", "MU", "MV", "MW", "MX", "MY", "MZ",
+    "NA", "NC", "NE", "NF", "NG", "NI", "NL", "NO", "NP", "NR", "NU", "NZ",
+    "OM",
+    "PA", "PE", "PF", "PG", "PH", "PK", "PL", "PM", "PN", "PR", "PS", "PT",
+    "PW", "PY",
+    "QA",
+    "RE", "RO", "RS", "RU", "RW",
+    "SA", "SB", "SC", "SD", "SE", "SG", "SH", "SI", "SJ", "SK", "SL", "SM",
+    "SN", "SO", "SR", "SS", "ST", "SV", "SX", "SY", "SZ",
+    "TC", "TD", "TF", "TG", "TH", "TJ", "TK", "TL", "TM", "TN", "TO", "TR",
+    "TT", "TV", "TW", "TZ",
+    "UA", "UG", "UM", "US", "UY", "UZ",
+    "VA", "VC", "VE", "VG", "VI", "VN", "VU",
+    "WF", "WS",
+    "YE", "YT",
+    "ZA", "ZM", "ZW",
+})
+
+
+def laendercode_gueltig(wert) -> bool:
+    """Zwei Großbuchstaben aus der amtlichen ISO-3166-1-Alpha-2-Liste.
+
+    Geprüft wird gegen die vergebenen Codes, nicht nur die Form „zwei
+    Buchstaben" — `land: XX` sähe sonst gültig aus. Anders als bei IBAN und
+    Leitweg-ID gibt es keine Prüfziffer: Die Codeliste selbst ist die einzige
+    Quelle der Wahrheit, und sie zu erfinden hieße raten (ADR 0005).
+    """
+    return str(wert or "").strip().upper() in LAENDERCODES
+
+
 def auspraegung(kopf: dict) -> str:
     """`erechnung:` aus dem Kopf — ohne Angabe EN 16931."""
     wert = str(kopf.get("erechnung") or ERECHNUNG_EN16931).strip().lower()
