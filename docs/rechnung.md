@@ -1,0 +1,116 @@
+# Rechnungen mit falzmarke
+
+Ein Schreiben mit `typ: rechnung` im Frontmatter wird keine gewöhnliche Briefseite, sondern eine
+Rechnung: `falzmarke render` setzt sie wie einen Brief — Anschriftfeld, Betreff, Anrede, Fußzeile
+— und bettet ihr zugleich einen Datensatz bei, den kein Mensch liest. Warum es diesen zweiten
+Datenvertrag gibt und was er nicht ist, steht in
+[ADR 0039](entscheidungen/0039-falzmarke-rechnet-nicht.md); wie die Felder aussehen, in
+[„Die Rechnungsfassung"](../skill/references/frontmatter.md#die-rechnungsfassung). Diese Seite
+sagt, was am fertigen Dokument dabei herauskommt — und was nicht.
+
+## Welche Formatfassung und welches Profil entstehen
+
+An Firmen geht die Rechnung als PDF mit eingebetteter ZUGFeRD-XML, an Behörden geht dieselbe
+Rechnung als reine XRechnung-XML, ohne PDF.
+
+| | Empfänger | Befehl | Träger |
+|---|---|---|---|
+| **ZUGFeRD** | Firmen | `falzmarke render` | PDF/A-3b mit eingebetteter XML |
+| **XRechnung** | öffentliche Auftraggeber | `falzmarke xml` | reine XML-Datei, kein PDF |
+
+Beide tragen dieselbe Struktur — UN/CEFACT Cross Industry Invoice (CII) — und denselben
+Grundumfang: das Profil **EN 16931** (COMFORT), nicht MINIMUM oder BASIC WL. Beide Profile
+enthalten keine Positionen und wären keine Rechnung im umsatzsteuerlichen Sinn; falzmarke erzeugt
+sie nicht ([ADR 0039](entscheidungen/0039-falzmarke-rechnet-nicht.md)).
+
+- **ZUGFeRD** ist die Vorgabe, wenn `erechnung:` im Kopf fehlt oder `en16931` trägt: ein PDF, in
+  dem die XML unter `factur-x.xml` eingebettet liegt. Vorgabe ist ZUGFeRD 2.x in einer fest
+  benannten Fassung (2.5.2, Stand 11.09.2026) — keine „jeweils aktuelle", denn eine Fassung, die
+  sich zur Laufzeit ändert, ist kein Datenvertrag.
+- **XRechnung** entsteht mit `erechnung: xrechnung` im Kopf. Vorgabe ist **XRechnung 3.0** in
+  der Syntax CII, mit der Guideline-ID `urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0`.
+  Dazu verlangt XRechnung, was EN 16931 freistellt: Käuferreferenz (Leitweg-ID oder eine andere
+  Referenz), Ansprechpartner mit Telefon und E-Mail, ein Konto, die elektronische Adresse
+  beider Seiten. `falzmarke lint` meldet, was fehlt, bevor `render` oder `xml` etwas schreibt.
+  Eine XRechnung entsteht wahlweise auch als PDF — dann PDF/A-3b mit derselben eingebetteten XML,
+  und mit dem Hinweis, dass eine Behörde die XML-Datei erwartet, nicht das PDF.
+
+Welche Fassung ein Empfänger tatsächlich annimmt, entscheidet der Empfänger. falzmarke sagt, was
+es erzeugt, nicht, ob es ankommt.
+
+## Wer das Ergebnis abnimmt, und mit welcher Regelfassung
+
+Eine Prüfung, die das eigene Erzeugnis gegen die eigene Vorstellung hält, bestätigt nur, dass
+Erzeuger und Prüfer dasselbe meinen. Deshalb läuft in der CI ein fremdes Werkzeug gegen jede
+Beispielrechnung, bei jedem Push:
+
+- **Mustang 2.26.0** ([mustangproject.org](https://www.mustangproject.org), Apache-2.0) prüft
+  das PDF gegen PDF/A-3 und das eingebettete XML gegen die Schematron-Regeln des jeweiligen
+  Profils — für ZUGFeRD die Fassung `ZF_250`, für eine XRechnung `XR_30`. Mustang rechnet dabei
+  die Summen nach; falzmarke tut das nicht, siehe unten.
+- **KoSIT-Validator 1.6.3** mit der Konfiguration XRechnung 3.0.2 (Stand 31.08.2026) prüft eine
+  XRechnung ein zweites Mal, unabhängig von Mustang — mit dem Werkzeug der herausgebenden Stelle
+  und ihrer eigenen Schematron-Fassung.
+
+Beide Prüfer laufen an derselben eigenen Beispielrechnung und an derselben absichtlich
+unvollständigen Gegenprobe (ohne Käuferreferenz, Regel `BR-DE-15`): Die richtige Datei besteht,
+die kaputte fällt an genau dieser Regel durch. Ein Prüfmittel, das nie ablehnt, wäre kein
+Nachweis.
+
+**Was das belegt, und was nicht.** Bestanden hat damit ein Beispiel gegen eine benannte
+Regelfassung an einem gemessenen Datum — nicht jede erzeugte Rechnung, und nicht, dass ein
+Empfänger sie annimmt. Diese Seite behauptet deshalb an keiner Stelle, eine erzeugte Rechnung
+erfülle die Vorgaben eines Formats; das wäre eine Zusage, die falzmarke über sich selbst macht,
+und die ist keine.
+
+## Was falzmarke rechnet — und was nicht
+
+**falzmarke rechnet nicht.** Es überträgt Positionen, Steuersätze und Beträge unverändert aus der
+Quelle in PDF und XML. Es bildet keine Summe, keinen Steuerbetrag und keinen Bruttobetrag — wer
+`1240.00` als Betrag einer Position schreibt, bekommt `1240.00` in beiden Dateien, gleich ob die
+Menge mal der Einzelpreis dieselbe Zahl ergäbe oder nicht.
+
+Was es tut, ist eine **Rechenprobe über gegebene Werte**: Stehen `summen:` in der Quelle, prüft
+`lint`, ob Netto plus Steuer den angegebenen Bruttobetrag ergibt, und meldet eine Abweichung —
+ohne den Lauf anzuhalten und ohne selbst nachzurechnen, was richtig wäre. Das ist eine Prüfung
+über vorhandene Zahlen, kein Bilden eigener; die Grenze dazwischen ist ADR 0039, Entscheidung 1.
+
+Wer verlässlich nachgerechnete Zahlen will, bekommt sie vom fremden Prüfer: Mustang rechnet die
+Summen einer Rechnung nach (der Schalter dafür bleibt in der CI eingeschaltet), und genau das ist
+die Arbeitsteilung — wer überträgt, lässt nachrechnen.
+
+## Was falzmarke nicht übernimmt
+
+- **falzmarke vergibt keine Rechnungsnummern.** `rechnungsnummer:` steht in der Quelle und wird
+  nur auf Nichtleere geprüft. Eine fortlaufende, lückenlose Nummerierung zu führen ist Sache der
+  Buchhaltung des Absenders, nicht dieses Werkzeugs.
+- **falzmarke bucht nicht.** Es gibt keine Debitorenliste, kein Fälligkeitsdatum, das
+  irgendwohin geschrieben wird, und keine Schnittstelle zu einer Buchhaltung.
+- **falzmarke mahnt nicht.** Ein überschrittenes `zahlungsziel:` löst nichts aus — kein
+  Mahnwesen, keine Fristenüberwachung, keine zweite Ausfertigung mit anderem Betreff.
+- **falzmarke versendet nichts.** Es gibt für eine Rechnung keinen Versandbefehl, genau wie für
+  jeden anderen Brief und jede E-Mail ([ADR 0034](entscheidungen/0034-email-ist-ausgabe.md)). Wer
+  die Rechnung als `typ: email` verschickt, bekommt einen Entwurf mit `--oeffnen` — gesendet wird
+  er von einem Menschen.
+
+## Was ausdrücklich nicht behauptet wird
+
+Kein „normgerecht", kein „ZUGFeRD-konform", kein „XRechnung-konform" — solange kein
+unabhängiges Prüfergebnis dahintersteht, aus demselben Grund: der Abgleich mit dem Originaltext
+der DIN 5008:2020-03 einschließlich Berichtigung 1:2020-07 steht aus, und Regeln aus einzelnen
+Quellen wirken nur als Warnung.
+
+Und keine Rechtsberatung: Ob eine Rechnung in einem Einzelfall als elektronische oder als sonstige
+Rechnung gelten muss, entscheiden Sitz, Unternehmereigenschaft und Umsatz der Beteiligten — nicht
+ein Werkzeug, das diese Tatsachen nicht kennt. Die Rechtslage dazu, mit Fundstellen, steht in
+[„Was falzmarke behauptet — und was nicht"](recht.md#e-rechnung-was-das-umsatzsteuerrecht-verlangt).
+
+## Verwandt
+
+- [ADR 0039 — falzmarke rechnet nicht](entscheidungen/0039-falzmarke-rechnet-nicht.md)
+- [ADR 0040 — XRechnung 3.0 in CII](entscheidungen/0040-xrechnung-3-0-in-cii.md)
+- [Datenvertrag: die Rechnungsfassung](../skill/references/frontmatter.md#die-rechnungsfassung) —
+  jedes Feld mit Beispiel
+- [Was falzmarke behauptet — und was nicht](recht.md) — auch zum Umsatzsteuerrecht der
+  E-Rechnung
+- [Die E-Mail-Fassung](email.md) — wenn dieselbe Rechnung als `.eml` statt als PDF hinausgeht

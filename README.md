@@ -123,8 +123,11 @@ gepflegten Vorlage lässt sich vieles davon erreichen.
   Voreinstellungen. Auch die Unterschrift, je Brief überschreibbar.
 - **Fehler sind maschinenlesbar** — eigene Exit-Codes für Eingabe-, Geometrie- und
   Umgebungsfehler, dazu `--json`. Damit läuft es in CI und in Automatisierungen.
-- **Für Langzeitarchivierung ausgelegt** — PDF/A-2b ohne zusätzliches Flag. Dass die Datei die
-  Konformität wirklich einhält, sagt nicht dieses Werkzeug, sondern
+- **Für Langzeitarchivierung ausgelegt** — im Normalfall entsteht ein PDF/A-2b ohne
+  zusätzliches Flag, wird eine Datei eingebettet — jede Rechnung tut das —, entsteht stattdessen
+  ein PDF/A-3b
+  ([ADR 0033](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0033-pdfa-stufe.md)).
+  Dass die Datei die behauptete Stufe wirklich einhält, sagt nicht dieses Werkzeug, sondern
   [veraPDF](https://verapdf.org/) — die Referenzimplementierung der PDF Association, in CI bei
   jedem Push. Optional PDF/UA-1 mit `--pdfua`, ebenfalls dort geprüft.
 - **Im Gespräch oder im Terminal** — als Claude-Skill oder als CLI, ohne Systeminstallation.
@@ -408,6 +411,27 @@ Wie die Datei aufgebaut ist, was bewusst fehlt und wo die Grenzen liegen:
 Beispiele liegen unter
 [`examples/email/`](https://github.com/blitzsicht/falzmarke/tree/main/examples/email/).
 
+## Rechnungen: ZUGFeRD und XRechnung
+
+Ein Schreiben mit `typ: rechnung` wird wie ein Brief gesetzt und trägt zugleich einen Datensatz,
+den keine Person liest: An Firmen geht die Rechnung als PDF mit eingebetteter ZUGFeRD-XML, an
+Behörden geht dieselbe Rechnung als reine XRechnung-XML, ohne PDF.
+
+```bash
+falzmarke render rechnung.md                 # PDF/A-3b mit eingebetteter ZUGFeRD-XML
+falzmarke xml xrechnung.md -o rechnung.xml   # nur die XML, für eine Behörde
+```
+
+Abgenommen wird das Ergebnis nicht von falzmarke selbst, sondern von zwei fremden Werkzeugen in
+der CI: [Mustang](https://www.mustangproject.org) 2.26.0 prüft PDF und eingebettete XML gegen die
+Schematron-Regeln der jeweiligen Fassung, der KoSIT-Validator 1.6.3 prüft eine XRechnung ein
+zweites Mal mit der amtlichen Konfiguration.
+
+**falzmarke rechnet nicht.** Es überträgt Positionen, Steuersätze und Summen aus der Quelle,
+ohne sie zu bilden — es vergibt keine Rechnungsnummern, bucht nicht, mahnt nicht und versendet
+nichts. Was das im Einzelnen heißt und was ausdrücklich nicht behauptet wird:
+[Rechnungen mit falzmarke](https://github.com/blitzsicht/falzmarke/blob/main/docs/rechnung.md).
+
 ## Beispiele
 
 | Standardbrief | Einschreiben | Mehrseitig |
@@ -441,6 +465,7 @@ mit englischer Beschriftung (`sprache: en` — deutsche Maße, englische Wörter
 | [Befehle](https://github.com/blitzsicht/falzmarke/blob/main/docs/cli.md) | alle Unterbefehle, Exit-Codes, was geprüft wird |
 | [Absenderprofile](https://github.com/blitzsicht/falzmarke/blob/main/docs/profiles.md) | Profil anlegen, Suchreihenfolge, eigener Briefkopf |
 | [Die E-Mail-Fassung](https://github.com/blitzsicht/falzmarke/blob/main/docs/email.md) | Aufbau der `.eml`, ihre Teile und Grenzen |
+| [Rechnungen mit falzmarke](https://github.com/blitzsicht/falzmarke/blob/main/docs/rechnung.md) | ZUGFeRD, XRechnung, was geprüft wird und was nicht |
 | [Datenvertrag](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/frontmatter.md) | jedes Frontmatter-Feld mit Beispiel |
 | [falzmarke-Markdown](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/markdown.md) | was im Brieftext möglich ist |
 | [Normmaße und Quellenlage](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/din5008.md) | Sollwerte und ihre Herkunft |
