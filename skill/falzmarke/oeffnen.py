@@ -179,7 +179,17 @@ FRIST_ENTWURF_S = 90
 #: einem zusammengesetzten Skript eine Programmzeile — hier ist er ein Wert.
 #:
 #: Die Reihenfolge ist fest: 1 Betreff, 2 HTML-Rumpf, 3 Empfänger (mit Komma
-#: getrennt), 4 Kopie, 5 Blindkopie, ab 6 die Anhänge als Pfade.
+#: getrennt), 4 Kopie, 5 Blindkopie, 6 Absender, ab 7 die Anhänge als Pfade.
+#:
+#: **Der Absender (#305).** Ohne Konto legt Outlook den Entwurf auf sein
+#: Standardkonto, und wer mehrere hat, verschickt vom falschen Postfach. Das
+#: Skript sucht deshalb das Konto mit der Adresse des Profils und legt den
+#: Entwurf darauf an. Gemessen am 13.09.2026, Outlook für Mac 16.112.4: Im
+#: klassischen Outlook kommt das Konto im Fenster an. Im neuen Outlook sieht
+#: AppleScript kein einziges Konto — die drei Suchen laufen dort leer, der
+#: Entwurf entsteht auf dem Standardkonto, und die zweite Zeile des Nachweises
+#: sagt das. `sender` statt `account` ist kein Ausweg: Es wird im neuen Outlook
+#: angenommen und zurückgelesen, das Fenster zeigt trotzdem ein anderes Konto.
 #:
 #: `open` steht **nach** dem Auslesen, und das ist gemessen: Danach meldet
 #: Outlook „outgoing message id … kann nicht gelesen werden" (-1728). Wer erst
@@ -191,8 +201,31 @@ on run argv
 \tset anListe to my zerlege(item 3 of argv)
 \tset kopieListe to my zerlege(item 4 of argv)
 \tset blindListe to my zerlege(item 5 of argv)
+\tset absender to item 6 of argv
 \ttell application "Microsoft Outlook"
-\t\tset entwurf to make new outgoing message with properties {subject:betreff, content:rumpf}
+\t\tset konto to missing value
+\t\tif absender is not "" then
+\t\t\ttry
+\t\t\t\trepeat with a in (every exchange account)
+\t\t\t\t\tif (email address of a) is absender then set konto to contents of a
+\t\t\t\tend repeat
+\t\t\tend try
+\t\t\ttry
+\t\t\t\trepeat with a in (every imap account)
+\t\t\t\t\tif (email address of a) is absender then set konto to contents of a
+\t\t\t\tend repeat
+\t\t\tend try
+\t\t\ttry
+\t\t\t\trepeat with a in (every pop account)
+\t\t\t\t\tif (email address of a) is absender then set konto to contents of a
+\t\t\t\tend repeat
+\t\t\tend try
+\t\tend if
+\t\tif konto is missing value then
+\t\t\tset entwurf to make new outgoing message with properties {subject:betreff, content:rumpf}
+\t\telse
+\t\t\tset entwurf to make new outgoing message with properties {account:konto, subject:betreff, content:rumpf}
+\t\tend if
 \t\trepeat with adresse in anListe
 \t\t\tmake new recipient at entwurf with properties {email address:{address:adresse}}
 \t\tend repeat
@@ -202,10 +235,15 @@ on run argv
 \t\trepeat with adresse in blindListe
 \t\t\tmake new bcc recipient at entwurf with properties {email address:{address:adresse}}
 \t\tend repeat
-\t\trepeat with i from 6 to (count of argv)
+\t\trepeat with i from 7 to (count of argv)
 \t\t\tmake new attachment at entwurf with properties {file:POSIX file (item i of argv)}
 \t\tend repeat
 \t\tset nachweis to "" & (id of entwurf) & " " & (count of to recipients of entwurf) & " " & (count of cc recipients of entwurf) & " " & (count of bcc recipients of entwurf) & " " & (count of attachments of entwurf)
+\t\tset kontoadresse to "-"
+\t\ttry
+\t\t\tset kontoadresse to email address of (account of entwurf)
+\t\tend try
+\t\tset nachweis to nachweis & linefeed & kontoadresse
 \tend tell
 \treturn nachweis
 end run
@@ -231,11 +269,18 @@ end zerlege
 #:
 #: Die Kennung kommt als Argument, nicht in den Skripttext: dieselbe Regel wie
 #: beim Betreff — ein Wert wird übergeben, nie zusammengesetzt.
+#:
+#: **Über den Verweis, nicht über `whose` (#305).** `first outgoing message
+#: whose id = kennung` durchsucht alle ausgehenden Nachrichten. Im klassischen
+#: Outlook mit mehreren synchronisierten Postfächern kam das am 13.09.2026 nicht
+#: innerhalb von 90 Sekunden zurück — der Entwurf lag angelegt da, und der
+#: Rückfall schob die `.eml` hinterher. `outgoing message id kennung` greift
+#: direkt zu und lief in derselben Umgebung ohne Wartezeit.
 SKRIPT_OUTLOOK_OEFFNEN = """\
 on run argv
 \tset kennung to (item 1 of argv) as integer
 \ttell application "Microsoft Outlook"
-\t\topen (first outgoing message whose id = kennung)
+\t\topen (outgoing message id kennung)
 \t\tactivate
 \tend tell
 end run
@@ -254,7 +299,7 @@ SKRIPT_OUTLOOK_VERWERFEN = """\
 on run argv
 \tset kennung to (item 1 of argv) as integer
 \ttell application "Microsoft Outlook"
-\t\tdelete (first outgoing message whose id = kennung)
+\t\tdelete (outgoing message id kennung)
 \tend tell
 end run
 """
@@ -293,9 +338,14 @@ def entwurfsweg(plattform: str = sys.platform, *,
                 laufen=subprocess.run) -> Entwurfsprogramm | None:
     """Welches Programm hier einen Entwurf annimmt — als Angabe, nicht als Tat.
 
-    Gefragt wird das System, nicht der Ordner: `path to application id` löst
-    eine Kennung über die Datenbank auf, die auch der Finder benutzt, und
-    **startet das Programm nicht**. Ein fest verdrahteter Pfad unter
+    Gefragt wird das System, nicht der Ordner: `NSWorkspace` löst eine Kennung
+    über die Datenbank auf, die auch der Finder benutzt, und **startet das
+    Programm nicht**.
+
+    Bis #305 stand hier `path to application id`. Am 13.09.2026 hing genau diese
+    Frage über 120 Sekunden, während Outlook selbst nach 12 Sekunden antwortete —
+    sie geht offenbar doch über das laufende Programm. `NSWorkspace` kam in
+    derselben Minute nach 5 Sekunden zurück. Ein fest verdrahteter Pfad unter
     `/Applications` ginge daran vorbei, sobald jemand seine Programme woanders
     hält.
 
@@ -305,8 +355,9 @@ def entwurfsweg(plattform: str = sys.platform, *,
     if not plattform.startswith("darwin"):
         return None
     for programm in ENTWURFSPROGRAMME:
-        frage = f'POSIX path of (path to application id "{programm.kennung}")'
-        lauf = _lauf(["osascript", "-e", frage], FRIST_S, laufen)
+        frage = ('ObjC.import("AppKit"); $.NSWorkspace.sharedWorkspace'
+                 f'.URLForApplicationWithBundleIdentifier("{programm.kennung}").path.js')
+        lauf = _lauf(["osascript", "-l", "JavaScript", "-e", frage], FRIST_S, laufen)
         if lauf.returncode == 0 and lauf.stdout.strip():
             return programm
     return None
@@ -325,6 +376,7 @@ def entwurfsargumente(felder: Mapping, anhangpfade: list[str]) -> list[str]:
         ",".join(felder.get("an") or []),
         ",".join(felder.get("kopie") or []),
         ",".join(felder.get("blindkopie") or []),
+        str(felder.get("absender") or ""),
         *anhangpfade,
     ]
 
@@ -346,6 +398,10 @@ class Entwurfslage(NamedTuple):
     programm: str | None
     grund: str
     ungewiss: bool = False
+    #: Die Adresse des Kontos, auf dem der Entwurf liegt — so, wie das Skript sie
+    #: am fertigen Objekt gelesen hat. `None`, wenn das Programm keins nennt
+    #: (#305). Ein Beleg nur im klassischen Outlook; siehe `SKRIPT_OUTLOOK`.
+    konto: str | None = None
 
 
 def _steuere(skript: str, kennung: str, *, laufen=subprocess.run) -> str | None:
@@ -382,11 +438,45 @@ def zerlege_nachweis(ausgabe: str) -> tuple[str | None, tuple[int, ...] | None, 
     Gibt `(kennung, (an, kopie, blindkopie, anhaenge), None)` — oder
     `(None, None, Grund)`.
     """
-    teile = ausgabe.split()
+    # Nur die erste Zeile: Die zweite trägt seit #305 das Konto.
+    zeilen = ausgabe.strip().splitlines()
+    teile = zeilen[0].split() if zeilen else []
     if len(teile) != 5 or not all(s.isdigit() for s in teile):
         return None, None, (f"das Steuerskript meldete "
                             f"„{ausgabe.strip()[:60]}“ statt einer Zählung")
     return teile[0], tuple(int(s) for s in teile[1:]), None
+
+
+def konto_aus_nachweis(ausgabe: str) -> str | None:
+    """Die zweite Zeile des Nachweises: das Konto am Entwurf, oder `None` (#305)."""
+    zeilen = ausgabe.strip().splitlines()
+    if len(zeilen) < 2:
+        return None
+    wert = zeilen[1].strip()
+    return None if wert in ("", "-") else wert
+
+
+def skript_setzt_konto(skript: str) -> bool:
+    """Legt das Skript den Entwurf auf ein Konto? Für die Gegenprobe (#305)."""
+    return "properties {account:konto," in skript
+
+
+def absender_warnung(soll: str, ist: str | None) -> str | None:
+    """Die Zeile, die nicht überlesen werden darf — oder `None`, wenn alles passt.
+
+    Der Entwurf entsteht auch bei falschem Konto: So hat es der Betreiber am
+    13.09.2026 entschieden. Ein Fenster, dessen Absender man umstellen muss, ist
+    besser als keins — solange man es gesagt bekommt.
+    """
+    if not soll:
+        return None
+    if ist and ist.strip().lower() == soll.strip().lower():
+        return None
+    if ist:
+        return (f"ABSENDER PRÜFEN: Der Entwurf kommt von {ist}, das Profil sagt {soll}. "
+                "In Outlook unter „Von“ umstellen.")
+    return (f"ABSENDER PRÜFEN: Outlook hat kein Konto {soll} angeboten — der Entwurf "
+            "liegt auf dem Standardkonto. In Outlook unter „Von“ umstellen.")
 
 
 def _nachweis_stimmt(ausgabe: str, felder: Mapping) -> str | None:
@@ -435,7 +525,17 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
     grund = kein_bildschirm(umgebung, plattform)
     if grund:
         return Entwurfslage(None, grund)
-    programm = entwurfsweg(plattform, laufen=laufen)
+    try:
+        programm = entwurfsweg(plattform, laufen=laufen)
+    except FileNotFoundError:
+        return Entwurfslage(None, "osascript gibt es auf diesem System nicht")
+    except subprocess.TimeoutExpired:
+        # Gesehen am 13.09.2026, kurz nach dem Wechsel ins klassische Outlook:
+        # Die Suche kam nach über 20 Sekunden zurück, und der Befehl endete mit
+        # einem Traceback und Exit 1 — obwohl die `.eml` geprüft dalag. Hier ist
+        # noch nichts angelegt, der Rückfall auf die Datei ist also sicher.
+        return Entwurfslage(
+            None, f"das Mailprogramm antwortete nicht in {FRIST_S} Sekunden")
     if programm is None:
         return Entwurfslage(
             None, "kein Mailprogramm gefunden, das hier einen Entwurf annimmt")
@@ -487,4 +587,4 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
         _steuere(programm.verwerfen, kennung, laufen=laufen)
         return Entwurfslage(None, f"angelegt, aber nicht zu öffnen: {nicht_geoeffnet}")
 
-    return Entwurfslage(programm.name, "")
+    return Entwurfslage(programm.name, "", konto=konto_aus_nachweis(lauf.stdout or ""))

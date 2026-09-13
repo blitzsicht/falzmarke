@@ -105,6 +105,10 @@ Was dabei nicht fehlen darf, weil es gemessen ist:
   falzmarke: Wer die gestaltete Signatur aus dem Profil will, leert die Konto-Signatur in
   Outlook einmal — das wirkt dann auf jeden Entwurf. Ein zweites Profil ohne Signaturblock wäre
   die schlechtere Antwort, weil zwei Fassungen derselben Signatur auseinanderlaufen.
+- **Der Absender ist nur im klassischen Outlook sicher.** Dort legt falzmarke den Entwurf auf das
+  Konto aus `email.absender`. Im neuen Outlook geht das nicht; dann lautet die letzte Zeile
+  `ABSENDER PRÜFEN: …`, und diese Zeile gehört wörtlich in die Antwort an den Menschen — er muss
+  „Von" von Hand umstellen.
 - **Der Entwurf trägt den Bezug zu einer Vorgängernachricht nicht.** Steht `antwort_auf:` im
   Frontmatter, setzt falzmarke `In-Reply-To` und `References` in die `.eml` — Outlook nimmt
   beide über die Programmsteuerung aber nicht an (gemessen am 11.09.2026: `set headers`,

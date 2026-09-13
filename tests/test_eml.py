@@ -423,6 +423,8 @@ def test_entwurfsfelder_liest_die_geschriebene_datei(tmp_path, profil):
     assert felder["betreff"] == KOPF["betreff"]
     assert felder["an"] and all("@" in a for a in felder["an"])
     assert felder["kopie"] == ["buch@example.com"]
+    # #305: Der Absender wandert mit, damit der Entwurf vom richtigen Konto kommt.
+    assert felder["absender"] and "@" in felder["absender"] and "<" not in felder["absender"]
     assert felder["html"].startswith("<!DOCTYPE html>")
     assert [(n, len(b)) for n, b in felder["anhaenge"]] == [("rechnung.pdf", 109)]
 

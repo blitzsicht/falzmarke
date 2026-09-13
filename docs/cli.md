@@ -118,7 +118,8 @@ Textteil. **Versendet wird nichts** — es gibt keinen Versandbefehl und keine O
 (ADR 0034). Einzelheiten in [Die E-Mail-Fassung](email.md).
 
 `--oeffnen` legt auf macOS einen **Entwurf** im Mailprogramm an — Empfänger, Kopie, Betreff,
-HTML-Rumpf und alle Anhänge, mit Senden-Knopf. Angelegt wird erst **nach** der Prüfung: Was
+HTML-Rumpf und alle Anhänge, mit Senden-Knopf, und im klassischen Outlook auf dem Konto aus
+`email.absender` (#305). Angelegt wird erst **nach** der Prüfung: Was
 `verify --email` nicht besteht, geht in kein Mailprogramm (ADR 0038). Belegt ist der Weg für
 Outlook für Mac; wo er nicht trägt — Windows, Linux, Apple Mail —, wird die `.eml` übergeben,
 und die erscheint dort als Lesefenster, nicht als Entwurf. Einzelheiten und die Grenzen der
@@ -126,7 +127,8 @@ Zusage in [Die E-Mail-Fassung](email.md).
 
 **Entwurf ist nicht Senden.** Es gibt keinen Versandweg im Paket, auch nicht im Steuerskript
 (ADR 0034). Und das Mailprogramm hängt seine eigene Konto-Signatur an den Entwurf; trägt das
-Profil eine, steht sie zweimal darin — der Befehl sagt das beim Anlegen.
+Profil eine, steht sie zweimal darin — der Befehl sagt das beim Anlegen. Liegt der Entwurf nicht
+auf dem Konto des Profils, lautet die letzte Zeile `ABSENDER PRÜFEN: …`.
 
 ## Einen bestehenden Brief zurücklesen
 
