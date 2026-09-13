@@ -97,3 +97,80 @@ regeln:
       Nicht nachgerechnet wird der Steuerbetrag je Satz. Das wäre Satz mal
       Bemessungsgrundlage, und damit stünde die Rundungsregel zur Wahl, die der
       Absender verantwortet.
+
+  - id: rechnung.aussteller
+    titel: Das Profil trägt Name, Anschrift und Ländercode des Ausstellers
+    lint: rechnung.aussteller
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      § 14 Absatz 4 Nummer 1 UStG verlangt „den vollständigen Namen und die
+      vollständige Anschrift des leistenden Unternehmers". Sie stehen im Profil
+      und nicht im einzelnen Schreiben — wie die übrigen Absenderangaben.
+
+      Name, Straße, PLZ und Ort kommen aus `absender:`, das es schon gibt. Neu
+      ist allein der Ländercode: Ein Brief braucht ihn nicht, die eingebettete
+      XML nach EN 16931 schon. Er wird nicht auf `DE` geraten — was fehlt,
+      fehlt sichtbar (#116).
+
+  - id: rechnung.steuernummer
+    titel: Das Profil trägt Steuernummer oder USt-IdNr.
+    lint: rechnung.steuernummer
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      § 14 Absatz 4 Nummer 2 UStG verlangt „die dem leistenden Unternehmer vom
+      Finanzamt erteilte Steuernummer oder die ihm vom Bundeszentralamt für
+      Steuern erteilte Umsatzsteuer-Identifikationsnummer". Eine von beiden
+      genügt; beide zugleich sind zulässig und werden nicht gemeldet.
+
+      Geprüft wird nur, dass eine dasteht. Ob sie gilt, prüft falzmarke nicht —
+      das verlangte einen Abgleich beim Bundeszentralamt, also Netz (ADR 0005).
+
+  - id: rechnung.empfaenger
+    titel: Die Anschrift des Empfängers steht in Feldern, nicht in freien Zeilen
+    lint: rechnung.empfaenger
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      § 14 Absatz 4 Nummer 1 UStG verlangt „den vollständigen Namen und die
+      vollständige Anschrift … des Leistungsempfängers". Im Brief steht sie
+      unter `empfaenger:` als ein bis sechs freie Zeilen — das genügt für das
+      Anschriftfeld im Fensterumschlag, aber nicht für die eingebettete XML.
+
+      Ob die zweite Zeile die Straße ist oder eine zweite Namenszeile, lässt
+      sich nicht sicher ablesen: „Muster GmbH / Frau Erika Muster /
+      Musterstraße 1" und „Muster GmbH / Musterstraße 1 / 12345 Musterstadt"
+      sehen gleich aus. Geraten hieße, den Empfänger falsch zu adressieren,
+      ohne dass es auffällt — deshalb `empfaenger_anschrift:` mit `name`,
+      `strasse`, `plz`, `ort` und `land`.
+
+      Geprüft wird nur, wenn das Feld dasteht. Wer einen Brief setzt, braucht
+      es nicht; wer eine XML erzeugt, bekommt ohne es eine Meldung statt einer
+      Datei (#116).
+
+  - id: rechnung.betrag_stellen
+    titel: Beträge sind Zahlen mit höchstens zwei Nachkommastellen
+    lint: rechnung.betrag_stellen
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Die XML setzt Beträge zweistellig, Mengen und Einzelpreise vierstellig — so
+      stehen sie in der Referenzdatei des fremden Prüfers. Trägt die Quelle mehr
+      Stellen, müsste falzmarke runden: `1240.005` würde still `1240.01`, ein
+      Wert, der so nie in der Quelle stand. Das ist Rechnen (ADR 0039), also
+      wird gemeldet statt gerundet. Gefunden im Review von #116 am 13.09.2026.
+
+      Dieselbe Regel meldet ein Summenfeld, das keine Zahl ist. Vorher lief ein
+      Text dort still durch die Rechenprobe und brach erst beim Setzen ab.
+
+      Geprüft wird zweimal: hier, damit die Meldung vor dem Setzen kommt, und
+      im Emitter, weil der MCP-Dienst ohne `lint` setzt.

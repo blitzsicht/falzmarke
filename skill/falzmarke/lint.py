@@ -140,7 +140,16 @@ RECHNUNG_FRONTMATTER_FELDER = frozenset({
     "summen",               # § 14 Abs. 4 Nr. 7, 8 — GEGEBEN, nicht gerechnet
     "gutschrift",           # § 14 Abs. 4 Nr. 10
     "aufbewahrungshinweis", # § 14 Abs. 4 Nr. 9
+    # Der Empfänger noch einmal, aber in Feldern (#116). `empfaenger:` sind ein
+    # bis sechs FREIE Zeilen — für das Anschriftfeld genügt das, für die XML
+    # nicht: Ob Zeile 2 die Straße ist oder eine zweite Namenszeile, lässt sich
+    # nicht sicher ablesen. Geraten hieße, den Empfänger falsch zu adressieren,
+    # ohne dass es auffällt.
+    "empfaenger_anschrift",
 })
+
+#: Was `empfaenger_anschrift:` trägt — dieselben Felder, die die XML verlangt.
+EMPFAENGER_ANSCHRIFT_FELDER = frozenset({"name", "strasse", "plz", "ort", "land"})
 
 #: Was eine Rechnung mindestens braucht, um eine zu sein.
 #:
@@ -161,10 +170,19 @@ POSITION_PFLICHT = ("bezeichnung", "menge", "steuersatz", "betrag")
 
 #: Was unter `summen:` stehen darf. Alle drei sind GEGEBEN: falzmarke rechnet
 #: nicht (ADR 0039), es prüft nur, ob sie zueinander passen.
-SUMMEN_FELDER = frozenset({"netto", "steuer", "brutto"})
+#: `steuer_gesamt` kam mit dem Review von #116 dazu: Bei mehreren Steuersätzen bildet
+#: falzmarke den Gesamtbetrag nicht aus den Einzelbeträgen (ADR 0039).
+SUMMEN_FELDER = frozenset({"netto", "steuer", "brutto", "steuer_gesamt"})
 
 #: Und was ein Steuereintrag unter `summen.steuer` trägt.
-STEUER_FELDER = frozenset({"satz", "betrag"})
+#:
+#: `basis` kam mit #116 dazu: Das Profil EN 16931 verlangt je Steuersatz die
+#: Bemessungsgrundlage (`BasisAmount`). Sie aus den Positionen zu summieren wäre
+#: Rechnen, und falzmarke rechnet nicht (ADR 0039) — also steht sie in der
+#: Quelle oder die XML entsteht nicht. Für `lint` bleibt sie freiwillig: Wer nur
+#: einen Brief setzt, braucht sie nicht, und ein Pflichtfeld hätte jede
+#: bestehende Rechnung rot gemacht.
+STEUER_FELDER = frozenset({"satz", "betrag", "basis"})
 
 #: Wie weit Netto plus Steuer vom Brutto abweichen darf, in Euro.
 #:
@@ -252,6 +270,11 @@ PROFIL_EMAIL_FELDER = frozenset({
     # Textfassung tut dasselbe im Textteil, damit beide Teile dasselbe sagen.
     "signatur_html", "signatur_text",
 })
+
+#: Der Abschnitt `rechnung:` im Profil (#116). Nur, was ein Brief nicht braucht:
+#: Name, Straße, PLZ und Ort stehen unter `absender:` und werden von dort
+#: gelesen — doppelt gepflegt liefen die beiden Fassungen auseinander.
+PROFIL_RECHNUNG_FELDER = frozenset({"ust_idnr", "steuernummer", "land"})
 
 #: Die beiden Anreden, die das Profil kennt.
 ANREDEN = ("sie", "du")
@@ -899,6 +922,53 @@ def pruefe_email_profil(profil: dict, bericht: Bericht,
             "jeder Geschäftsmail — falzmarke prüft das nicht, es erinnert nur")
 
 
+def pruefe_rechnung_profil(profil: dict, bericht: Bericht) -> None:
+    """Der Abschnitt `rechnung:` eines Profils (#116).
+
+    Was § 14 Absatz 4 Nummer 1 und 2 UStG vom Aussteller verlangt, steht im
+    Profil und nicht im einzelnen Schreiben — wie die übrigen Absenderangaben.
+    Bis zu diesem Vorgang behauptete der Kommentar zu `RECHNUNG_PFLICHTFELDER`,
+    das werde „dort geprüft"; eine solche Prüfung gab es nicht. Dies ist sie.
+
+    Geprüft wird, dass die Angaben DA sind, nicht ob sie gelten. Eine USt-IdNr.
+    gegen das Bundeszentralamt abzugleichen hieße Netz (ADR 0005).
+    """
+    absender = profil.get("absender")
+    if not isinstance(absender, dict):
+        absender = {}
+    fehlend = [f for f in ("name", "strasse", "plz", "ort") if not absender.get(f)]
+    if fehlend:
+        bericht.fehler(
+            1, "rechnung.aussteller",
+            "`absender:` im Profil fehlt " + ", ".join(f"`{f}:`" for f in fehlend),
+            "§ 14 Absatz 4 Nummer 1 UStG verlangt den vollständigen Namen und die "
+            "vollständige Anschrift des Ausstellers")
+
+    abschnitt = profil.get("rechnung")
+    if not isinstance(abschnitt, dict):
+        bericht.fehler(
+            1, "rechnung.aussteller", "das Profil hat keinen Abschnitt `rechnung:`",
+            "`rechnung:` mit `land:` und `ust_idnr:` oder `steuernummer:` ergänzen — "
+            "siehe references/frontmatter.md")
+        return
+
+    _melde_unbekannte(abschnitt.keys(), PROFIL_RECHNUNG_FELDER,
+                      "rechnung.aussteller", "", bericht)
+
+    if not abschnitt.get("land"):
+        bericht.fehler(
+            1, "rechnung.aussteller", "`rechnung.land:` fehlt im Profil",
+            "der Ländercode nach ISO 3166-1 alpha-2, etwa `DE` — ein Brief braucht ihn "
+            "nicht, die eingebettete XML schon, und geraten wird er nicht")
+
+    if not (abschnitt.get("ust_idnr") or abschnitt.get("steuernummer")):
+        bericht.fehler(
+            1, "rechnung.steuernummer",
+            "weder `rechnung.ust_idnr:` noch `rechnung.steuernummer:` steht im Profil",
+            "§ 14 Absatz 4 Nummer 2 UStG verlangt eine von beiden; welche, entscheidet "
+            "der Aussteller")
+
+
 def pruefe_eingebettet(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
     """`eingebettet:` — Dateien, die IM PDF stecken, nicht dahinter.
 
@@ -1159,6 +1229,42 @@ def _als_zahl(wert) -> float | None:
     return float(wert)
 
 
+def _nachkommastellen(wert) -> int | None:
+    """Wie viele Nachkommastellen der Wert in der Quelle trägt — `None`, wenn keine Zahl.
+
+    Über die Zeichenfolge, nicht über `float`: `1240.005` und `1240.01` sind als
+    Fließkommazahl beide „irgendwas", als Text sieht man, was dastand.
+    """
+    from decimal import Decimal, InvalidOperation
+
+    if isinstance(wert, bool):
+        return None
+    try:
+        exponent = Decimal(str(wert).strip()).as_tuple().exponent
+    except (InvalidOperation, ValueError):
+        return None
+    return max(0, -exponent) if isinstance(exponent, int) else None
+
+
+def _pruefe_summenzahl(wert, feld: str, stellen: int, ort: int, bericht: Bericht) -> None:
+    """Ein Feld unter `summen:` ist eine Zahl mit höchstens `stellen` Nachkommastellen.
+
+    Bis zum Review von #116 lief ein Text hier still durch (`_als_zahl` → `None`, und
+    die Rechenprobe übersprang ihn) und brach erst im Emitter mit einem Traceback ab.
+    """
+    if wert is None:
+        return
+    if _als_zahl(wert) is None:
+        bericht.fehler(ort, "rechnung.betrag_stellen", f"`{feld}: {wert}` ist keine Zahl",
+                       "ohne Tausenderpunkt und mit Punkt als Dezimaltrenner: 1240.00")
+        return
+    n = _nachkommastellen(wert)
+    if n is not None and n > stellen:
+        bericht.fehler(ort, "rechnung.betrag_stellen",
+                       f"`{feld}: {wert}` hat {n} Nachkommastellen",
+                       f"höchstens {stellen} — gerundet wird nicht (ADR 0039)")
+
+
 def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
     """Die Felder, die eine Rechnung von einem Brief unterscheiden (#115).
 
@@ -1200,6 +1306,32 @@ def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
         ort = _feldzeile(kopf_roh, "zahlungsziel")
         pruefe_datum(kopf["zahlungsziel"], ort, bericht)
 
+    # `empfaenger_anschrift:` — der Empfänger noch einmal, aber in Feldern (#116).
+    # Freiwillig: Wer einen Brief setzt, braucht es nicht. Steht es da, wird es
+    # geprüft — sonst bliebe ein Tippfehler stumm, und genau dagegen gibt es
+    # `_melde_unbekannte`.
+    anschrift = kopf.get("empfaenger_anschrift")
+    if anschrift is not None:
+        ort_anschrift = _feldzeile(kopf_roh, "empfaenger_anschrift")
+        if not isinstance(anschrift, dict):
+            bericht.fehler(
+                ort_anschrift, "rechnung.empfaenger",
+                "`empfaenger_anschrift:` ist kein Abschnitt mit Feldern",
+                "erwartet werden `name:`, `strasse:`, `plz:`, `ort:` und `land:`")
+        else:
+            _melde_unbekannte(anschrift.keys(), EMPFAENGER_ANSCHRIFT_FELDER,
+                              "rechnung.empfaenger", kopf_roh, bericht,
+                              zeile=ort_anschrift)
+            fehlend = [f for f in sorted(EMPFAENGER_ANSCHRIFT_FELDER)
+                       if not anschrift.get(f)]
+            if fehlend:
+                bericht.fehler(
+                    ort_anschrift, "rechnung.empfaenger",
+                    "`empfaenger_anschrift:` fehlt "
+                    + ", ".join(f"`{f}:`" for f in fehlend),
+                    "die XML braucht die Anschrift des Empfängers in Feldern — aus den "
+                    "freien Zeilen von `empfaenger:` lässt sie sich nicht sicher ablesen")
+
     positionen = kopf.get("positionen")
     if positionen is None:
         return                      # „Pflichtfeld fehlt" meldet der Aufrufer
@@ -1234,6 +1366,21 @@ def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
                                f"Position {nummer_pos}: `{feld}: {position[feld]}` ist keine Zahl",
                                "ohne Tausenderpunkt und mit Punkt als Dezimaltrenner: 1240.00")
                 lesbar = False
+        # Die Stellenzahl kommt aus dem Emitter, nicht aus einer zweiten Konstante:
+        # Liefen beide auseinander, meldete `lint` etwas anderes, als die XML verlangt.
+        from falzmarke import emit_xml as _emit_xml
+        for feld, stellen in (("betrag", _emit_xml.BETRAG_STELLEN),
+                              ("steuersatz", _emit_xml.BETRAG_STELLEN),
+                              ("einzelpreis", _emit_xml.MENGE_STELLEN),
+                              ("menge", _emit_xml.MENGE_STELLEN)):
+            if position.get(feld) is None or _als_zahl(position.get(feld)) is None:
+                continue                # fehlt oder keine Zahl — oben schon gemeldet
+            n = _nachkommastellen(position[feld])
+            if n is not None and n > stellen:
+                bericht.fehler(ort, "rechnung.betrag_stellen",
+                               f"Position {nummer_pos}: `{feld}: {position[feld]}` hat "
+                               f"{n} Nachkommastellen",
+                               f"höchstens {stellen} — gerundet wird nicht (ADR 0039)")
         satz = _als_zahl(position.get("steuersatz"))
         if satz is not None and not 0 <= satz < 100:
             bericht.fehler(ort, "rechnung.position",
@@ -1254,6 +1401,11 @@ def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
     _melde_unbekannte(summen.keys(), SUMMEN_FELDER, "rechnung.summen", kopf_roh, bericht,
                       zeile=ort)
 
+    from falzmarke import emit_xml as _emit_xml
+    for feld in ("netto", "brutto", "steuer_gesamt"):
+        _pruefe_summenzahl(summen.get(feld), f"summen.{feld}", _emit_xml.BETRAG_STELLEN,
+                           ort, bericht)
+
     netto = _als_zahl(summen.get("netto"))
     brutto = _als_zahl(summen.get("brutto"))
     steuern = summen.get("steuer") or []
@@ -1263,6 +1415,9 @@ def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
             if isinstance(eintrag, dict):
                 _melde_unbekannte(eintrag.keys(), STEUER_FELDER, "rechnung.summen",
                                   kopf_roh, bericht, zeile=ort)
+                for feld in ("betrag", "basis", "satz"):
+                    _pruefe_summenzahl(eintrag.get(feld), f"summen.steuer.{feld}",
+                                       _emit_xml.BETRAG_STELLEN, ort, bericht)
                 wert = _als_zahl(eintrag.get("betrag"))
                 if wert is not None:
                     steuer_summe += wert
@@ -1280,6 +1435,15 @@ def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
         bericht.warnung(
             ort, "rechnung.summen",
             f"netto {netto:.2f} plus Steuer {steuer_summe:.2f} ergibt nicht brutto {brutto:.2f}",
+            "falzmarke rechnet nicht nach und ersetzt nichts — die Quelle ist maßgeblich")
+    steuer_gesamt = _als_zahl(summen.get("steuer_gesamt"))
+    if steuer_gesamt is not None and abs(steuer_gesamt - steuer_summe) > toleranz:
+        # Warnung wie die übrigen Proben: Die XML übernimmt `steuer_gesamt:` so, wie
+        # es dasteht (#116). Die Probe sagt nur, dass es nicht zusammenpasst.
+        bericht.warnung(
+            ort, "rechnung.summen",
+            f"`steuer_gesamt:` sagt {steuer_gesamt:.2f}, die Steuerbeträge ergeben "
+            f"{steuer_summe:.2f}",
             "falzmarke rechnet nicht nach und ersetzt nichts — die Quelle ist maßgeblich")
 
 

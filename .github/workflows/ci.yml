@@ -368,6 +368,14 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Abhängigkeiten
+        run: |
+          # Seit #116 setzt dieser Job eine eigene Rechnung, bevor er prüft —
+          # dafür braucht er den Renderer. Vorher kam er mit Python und Java
+          # allein aus.
+          python -m pip install --upgrade pip
+          pip install -r skill/requirements.txt
+
       - name: Java und Mustang
         run: |
           set -euo pipefail
@@ -401,13 +409,29 @@ jobs:
           79c0dfcf642e17303310827c0a54c8a5b2b1ae15324256f87f91a57178ffc709  /tmp/ref/invalidXRechnung.pdf
           SUMMEN
 
+      - name: Die eigene Rechnung setzen
+        run: |
+          set -euo pipefail
+          # Seit #116 erzeugt falzmarke selbst eine Rechnung. Genau darum ging
+          # es bei Abnahme 1 aus #118: Bis hierher prüfte dieser Job nur die
+          # Referenzdateien des Werkzeugs — also ob Mustang läuft, nicht ob
+          # unser Erzeugnis taugt.
+          PYTHONPATH=skill python -m falzmarke.cli render examples/rechnung.md \
+            -o /tmp/eigene-rechnung.pdf --verbose
+
       - name: Gegen das fremde Werkzeug halten
         run: |
           # Exit 0 alles wie erwartet, 1 ein Befund, 2 NICHT GEPRÜFT. Jeder
           # Exit außer 0 macht den Job rot — auch ein Werkzeug, das ausfällt
           # (Abnahme 4). Die Regelfassung steht am Ende der Ausgabe (Abnahme 2).
+          #
+          # Die eigene Rechnung steht bewusst ZUERST: Fällt sie durch, soll das
+          # die erste Zeile der Ausgabe sein und nicht zwischen fremden Dateien
+          # stehen. Die beiden Referenzdateien bleiben daneben — sie trennen
+          # „unser Erzeugnis ist falsch" von „das Werkzeug ist kaputt".
           python scripts/erechnung_pruefen.py --mustang /tmp/Mustang-CLI.jar \
-            --gut /tmp/ref/EN16931_Einfach.pdf /tmp/ref/validXRechnung.pdf \
+            --gut /tmp/eigene-rechnung.pdf \
+                  /tmp/ref/EN16931_Einfach.pdf /tmp/ref/validXRechnung.pdf \
             --schlecht /tmp/ref/invalidXRechnung.pdf
 
   changelog:

@@ -243,12 +243,11 @@ def baue_daten(kopf: dict, profil: dict, profil_pfad: Path, arbeitsverzeichnis: 
     # OHNE Positionen und Summen, die der Brief nicht kennt, und ohne ein Wort
     # darüber. Ein Werkzeug, das „abbrechen statt still etwas anderes setzen"
     # verspricht, darf eine Rechnung nicht als Brief ausgeben.
-    if str(kopf.get("typ") or "brief") == "rechnung":
-        raise Eingabefehler(
-            "Dieses Schreiben trägt `typ: rechnung` und wird noch nicht gesetzt.\n"
-            "Der Datenvertrag steht (#115), der Emitter nicht — gesetzt als Brief fehlten\n"
-            "Positionen und Summen. `falzmarke lint` prüft die Datei schon jetzt."
-        )
+    # `typ: rechnung` lief bis #116 in denselben Abbruch wie `typ: email`: Der
+    # Emitter fehlte, und als Brief gesetzt hätten Positionen und Summen gefehlt.
+    # Seit #116 gibt es den Emitter — die Rechnung läuft durch den Briefzweig,
+    # bekommt ihre Positionstabelle aus den Kopfdaten gesetzt und ihre XML
+    # eingebettet. Der Abbruch wäre jetzt eine Unwahrheit.
 
     fehlend = [f for f in PFLICHTFELDER if not kopf.get(f)]
     if fehlend:
@@ -583,6 +582,12 @@ def linte(brief_pfad: Path, profil_verzeichnis: Path | None = None) -> lint_modu
             # nicht, aber ein Profil wird fuer beides benutzt, und eine tote
             # Angabe bleibt eine tote Angabe.
             lint_modul.pruefe_briefkopf(profil, bericht)
+            if str(kopf.get("typ") or "brief") == "rechnung":
+                # Wie bei der Mail: Was der Aussteller nach § 14 Absatz 4 UStG
+                # schuldet, steht im Profil. Hier geprüft und nicht erst beim
+                # Erzeugen der XML — sonst fiele der Fehler im teuren Schritt
+                # an, und zwar nach dem Rendern.
+                lint_modul.pruefe_rechnung_profil(profil, bericht)
             if str(kopf.get("typ") or "brief") == "email":
                 # Der Pfad wird mitgegeben, weil eine Profildatei auf Dateien
                 # neben sich zeigen kann (`email.logo`) — ohne ihn bliebe die
@@ -592,6 +597,198 @@ def linte(brief_pfad: Path, profil_verzeichnis: Path | None = None) -> lint_modu
                 # beiden Prüfungen, die nur eines von beidem sehen.
                 lint_modul.pruefe_email_ton(profil, kopf, body_md, bericht)
     return bericht
+
+
+#: Der Dateiname, unter dem die XML im PDF steckt (#116).
+#:
+#: Nicht frei wählbar und deshalb kein Feld im Datenvertrag: An diesem Namen
+#: findet die Software des Empfängers die Rechnung. Gemessen an den
+#: Referenzdateien von Mustang, die derselbe Prüfer im selben Lauf als gültig
+#: bestätigt hat — nicht aus dem Normtext, der kostenpflichtig ist.
+RECHNUNG_XML_NAME = "factur-x.xml"
+
+#: Die Beziehung nach PDF/A-3: `Alternative`, nicht `Data`.
+#:
+#: Die XML ist die maschinenlesbare Fassung DESSELBEN Dokuments, kein
+#: beigelegter Datensatz. `tests/test_einbetten.py` misst `/Data` — das gilt für
+#: den allgemeinen Fall von #114; eine Rechnung ist der besondere. Ebenfalls an
+#: den Referenzdateien gemessen.
+RECHNUNG_BEZIEHUNG = "alternative"
+
+#: Das XMP-Erweiterungsschema, ohne das ein Leser die Beilage nicht erwartet.
+#: Typst schreibt den `pdfaExtension`-Bag bereits, aber ohne diesen Eintrag.
+FX_NAMENSRAUM = "urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#"
+
+#: Die vier Eigenschaften und ihre Werte, aus der Referenz abgelesen.
+#: `Version` ist die Fassung von Factur-X (1.0) und NICHT die ZUGFeRD-Fassung
+#: aus ADR 0039 — zwei verschiedene Zählungen, die leicht verwechselt werden.
+FX_EIGENSCHAFTEN = (
+    ("DocumentFileName", "The name of the embedded XML document"),
+    ("DocumentType", "The type of the hybrid document in capital letters, e.g. INVOICE or ORDER"),
+    ("Version", "The actual version of the standard applying to the embedded XML document"),
+    ("ConformanceLevel", "The conformance level of the embedded XML document"),
+)
+FX_WERTE = {
+    "DocumentType": "INVOICE",
+    "DocumentFileName": RECHNUNG_XML_NAME,
+    "Version": "1.0",
+    "ConformanceLevel": "EN 16931",
+}
+
+
+def _euro(wert) -> str:
+    """`1240.0` wird `1.240,00 EUR` — die Schreibweise des gesetzten Schreibens.
+
+    In der Quelle steht `1240.00` mit Punkt als Dezimaltrenner; dort wäre der
+    Tausenderpunkt mehrdeutig (`skill/falzmarke/regeln/rechnung.yaml`). Im PDF
+    ist es umgekehrt: Dort liest ein Mensch.
+    """
+    # Ohne Platzhalter-Umweg: `1,240.00` wird an seinem Punkt geteilt, dann
+    # bekommt der Ganzzahlteil den Tausenderpunkt und der Rest das Komma.
+    # Ein Dreifach-replace mit Zwischenzeichen ist kuerzer und genau die
+    # Stelle, an der ein unsichtbares Zeichen niemandem auffaellt.
+    ganz, _, rest = f"{float(wert):,.2f}".partition(".")
+    return ganz.replace(",", ".") + "," + rest + " EUR"
+
+
+def _positionstabelle(kopf: dict) -> str:
+    """Die Positionen und Summen als Typst-Tabelle (#116).
+
+    **Gesetzt, nicht abgeschrieben.** Bis #116 stand die Tabelle als Markdown im
+    Rumpf, während die Daten im Kopf lagen — zwei Wege durch dieselben Zahlen.
+    Ein PDF mit 1.190,00 € und eine XML mit 1.109,00 € sehen beide richtig aus,
+    bis die Buchhaltung des Empfängers die XML einliest (#119).
+
+    Gerechnet wird nichts (ADR 0039): Jede Zahl steht so in der Quelle.
+    """
+    zeilen = [["Position", "Menge", "Einzelpreis", "Betrag"]]
+    for position in kopf.get("positionen") or []:
+        menge = position.get("menge", "")
+        einheit = position.get("einheit")
+        preis = position.get("einzelpreis")
+        zeilen.append([
+            str(position.get("bezeichnung", "")),
+            f"{menge} {einheit}".strip() if einheit else str(menge),
+            _euro(preis) if preis is not None else "",
+            _euro(position.get("betrag", 0)),
+        ])
+
+    summen = kopf.get("summen") or {}
+    if summen.get("netto") is not None:
+        zeilen.append(["Summe netto", "", "", _euro(summen["netto"])])
+    for steuer in summen.get("steuer") or []:
+        zeilen.append([f"Umsatzsteuer {steuer.get('satz', '')} %", "", "",
+                       _euro(steuer.get("betrag", 0))])
+    if summen.get("brutto") is not None:
+        zeilen.append(["Gesamtbetrag", "", "", _euro(summen["brutto"])])
+
+    tabelle = emit_modul.tabelle(zeilen, ["left", "right", "right", "right"])
+    return "\n\n" + tabelle + "\n"
+
+
+def _rechnung_einbettung(kopf: dict, profil: dict, arbeit: Path) -> dict:
+    """Erzeugt die XML und gibt den Einbettungseintrag dafür zurück (#116).
+
+    Der Eintrag sieht aus wie einer aus `eingebettet:`, kommt aber nicht vom
+    Absender: Medientyp, Beschreibung, Beziehung und Name sind beim Format
+    festgelegt. `_name` ist intern — die Kopierschleife behält ihn bei, statt
+    wie sonst in `anlage-1.xml` umzubenennen.
+    """
+    from falzmarke import emit_xml
+
+    try:
+        xml = emit_xml.erzeuge(kopf, profil)
+    except emit_xml.RechnungUnvollstaendig as fehler:
+        # Der Emitter kennt die CLI nicht (sonst drehte sich die Abhängigkeit
+        # um). Übersetzt wird hier, damit der Aufrufer Exit 1 bekommt und keinen
+        # Render bezahlt.
+        raise Eingabefehler(str(fehler)) from None
+
+    ziel = arbeit / RECHNUNG_XML_NAME
+    ziel.write_text(xml, encoding="utf-8")
+    return {
+        "datei": str(ziel),
+        "typ": "text/xml",
+        "beschreibung": "Rechnungsdaten nach EN 16931",
+        "beziehung": RECHNUNG_BEZIEHUNG,
+        "_name": RECHNUNG_XML_NAME,
+    }
+
+
+def _fx_schema_ergaenzen(pdf: Path) -> None:
+    """Trägt das Factur-X-Erweiterungsschema ins XMP nach (#116).
+
+    Gemessen am 12.09.2026: Typst 0.15 schreibt für PDF/A-3 bereits einen
+    `pdfaExtension:schemas`-Bag mit zwei Einträgen (xmpMM und pdf), aber keinen
+    für Factur-X. Es fehlt also ein `rdf:li` im vorhandenen Bag und eine
+    `rdf:Description` mit den vier Werten — kein neuer Apparat.
+
+    Derselbe Weg wie `schreibe_herkunft` und `anlagen._entferne_pdfa_kennzeichnung`:
+    pypdf, Strom ersetzen, Datei tauschen.
+    """
+    from pypdf import PdfReader, PdfWriter
+    from pypdf.generic import ByteStringObject
+
+    leser = PdfReader(str(pdf))
+    schreiber = PdfWriter(clone_from=leser)
+    wurzel = schreiber._root_object
+    if "/Metadata" not in wurzel:
+        raise Eingabefehler(
+            "Das gesetzte PDF trägt keine XMP-Metadaten — ohne sie lässt sich das "
+            "Factur-X-Schema nicht eintragen, und ohne das Schema erkennt kein "
+            "Prüfwerkzeug die Rechnung.")
+    strom = wurzel["/Metadata"].get_object()
+    roh = bytes(strom.get_data()).decode("utf-8", "replace")
+
+    if FX_NAMENSRAUM in roh:
+        return
+
+    eigenschaften = "".join(
+        "<rdf:li rdf:parseType=\"Resource\">"
+        f"<pdfaProperty:name>{name}</pdfaProperty:name>"
+        "<pdfaProperty:valueType>Text</pdfaProperty:valueType>"
+        "<pdfaProperty:category>external</pdfaProperty:category>"
+        f"<pdfaProperty:description>{beschreibung}</pdfaProperty:description>"
+        "</rdf:li>"
+        for name, beschreibung in FX_EIGENSCHAFTEN
+    )
+    eintrag = (
+        "<rdf:li rdf:parseType=\"Resource\">"
+        "<pdfaSchema:schema>Factur-X PDFA Extension Schema</pdfaSchema:schema>"
+        f"<pdfaSchema:namespaceURI>{FX_NAMENSRAUM}</pdfaSchema:namespaceURI>"
+        "<pdfaSchema:prefix>fx</pdfaSchema:prefix>"
+        f"<pdfaSchema:property><rdf:Seq>{eigenschaften}</rdf:Seq></pdfaSchema:property>"
+        "</rdf:li>"
+    )
+
+    # In den vorhandenen Bag, nicht daneben: Zwei `pdfaExtension:schemas` wären
+    # zwei Fassungen derselben Aussage.
+    #
+    # Eine Berechnung, ein Schutz. Bis zum Review von #116 stand hier ein
+    # `if`/`else`, das in beiden Zweigen dasselbe berechnete und den Schutz nur
+    # in einem trug — heute nicht auslösbar, aber eine Stelle, an der der
+    # nächste Umbau still eine kaputte Datei geschrieben hätte.
+    block = roh.find("pdfaExtension:schemas")
+    stelle = roh.find("<rdf:Bag>", block) if block >= 0 else -1
+    if stelle < 0:
+        raise Eingabefehler(
+            "Im XMP steht kein `pdfaExtension:schemas` — das Factur-X-Schema "
+            "hätte dort hineingehört. Setzt Typst den Block nicht mehr?")
+    stelle += len("<rdf:Bag>")
+    neu = roh[:stelle] + eintrag + roh[stelle:]
+
+    werte = "".join(f"<fx:{name}>{wert}</fx:{name}>" for name, wert in FX_WERTE.items())
+    beschreibung = (
+        f"<rdf:Description xmlns:fx=\"{FX_NAMENSRAUM}\" rdf:about=\"\">{werte}"
+        "</rdf:Description>"
+    )
+    neu = neu.replace("</rdf:RDF>", beschreibung + "</rdf:RDF>", 1)
+
+    strom.set_data(ByteStringObject(neu.encode("utf-8")))
+    ziel = pdf.with_suffix(".fx.pdf")
+    with ziel.open("wb") as datei:
+        schreiber.write(datei)
+    ziel.replace(pdf)
 
 
 def rendere(
@@ -624,6 +821,12 @@ def rendere(
     # ist — davon hängt die PDF/A-Stufe ab.
     eingebettet = [e for e in (kopf.get("eingebettet") or []) if isinstance(e, dict)]
 
+    # Eine Rechnung führt ihre Daten immer mit (#116) — das ist der Unterschied
+    # zwischen einer sonstigen und einer elektronischen Rechnung (docs/recht.md).
+    # Das Merkmal steht hier, weil es zweimal gebraucht wird: im Arbeitsblock für
+    # die XML und danach für das XMP-Schema.
+    ist_rechnung = str(kopf.get("typ") or "brief") == "rechnung" and format_name == "pdf"
+
     with tempfile.TemporaryDirectory(prefix="falzmarke-") as tmp:
         arbeit = Path(tmp)
         baue_arbeitsverzeichnis(arbeit)
@@ -652,6 +855,18 @@ def rendere(
         if not body_typst.strip():
             raise Eingabefehler(f"{brief_pfad.name}: Der Brief hat keinen Text.")
 
+        # Die Positionstabelle entsteht aus den Kopfdaten, nicht aus dem Rumpf:
+        # Sonst stünden dieselben Zahlen zweimal in der Quelle und liefen
+        # auseinander (#116). Der Rumpf trägt weiter den Text, der die Rechnung
+        # begleitet — die Tabelle tritt daneben, sie ersetzt ihn nicht.
+        if ist_rechnung:
+            # Erst die XML, dann die Tabelle: Der Emitter prüft jeden Betrag — Text
+            # statt Zahl, zu viele Nachkommastellen — und bricht mit einer Meldung
+            # ab. Andersherum erreichte ein kaputter Wert zuerst `_euro` und endete
+            # als roher Traceback (Review von #116, 13.09.2026).
+            eingebettet = eingebettet + [_rechnung_einbettung(kopf, profil, arbeit)]
+            body_typst += _positionstabelle(kopf)
+
         # Eigener Briefkopf, falls das Profil einen mitbringt
         kopf_import, kopf_argument = "", ""
         eigener_kopf = profil.get("briefkopf_typ")
@@ -674,8 +889,16 @@ def rendere(
                 raise Eingabefehler(
                     f"`eingebettet:` Eintrag {nummer}: {quelle} gibt es nicht.\n"
                     "Der Pfad ist relativ zur Briefdatei.")
-            ziel = arbeit / f"anlage-{nummer}{quelle.suffix}"
-            shutil.copy2(quelle, ziel)
+            # Der Name wird sonst vereinheitlicht — bei einer Rechnung darf er
+            # das nicht: An `factur-x.xml` erkennt die Software des Empfängers
+            # die Datei (#116). `_name` setzt nur `_rechnung_einbettung`, nicht
+            # der Absender.
+            ziel = arbeit / (eintrag.get("_name") or f"anlage-{nummer}{quelle.suffix}")
+            # Die Rechnungs-XML entsteht schon IM Arbeitsverzeichnis und unter
+            # ihrem endgültigen Namen — sie auf sich selbst zu kopieren wirft
+            # `SameFileError`. Kopiert wird deshalb nur, was von außen kommt.
+            if quelle.resolve() != ziel.resolve():
+                shutil.copy2(quelle, ziel)
             attach_zeilen += (
                 f"#pdf.attach({emit_modul.zeichenkette(ziel.name)}, "
                 f"mime-type: {emit_modul.zeichenkette(str(eintrag['typ']))}, "
@@ -772,6 +995,12 @@ def rendere(
         # Der Herkunftsvermerk gehört hierher und nicht in den CLI-Befehl:
         # sonst trägt ihn nur, wer über die Kommandozeile rendert.
         schreibe_herkunft(ausgabe, brief_pfad, str(kopf.get("profil", "")), daten["form"])
+
+        # Nach dem Herkunftsvermerk und nicht davor: Der schreibt das PDF über
+        # pypdf neu, und ein vorher eingetragenes Schema wäre zwar erhalten, die
+        # Reihenfolge aber Zufall. Hier ist sie es nicht.
+        if ist_rechnung:
+            _fx_schema_ergaenzen(ausgabe)
 
         # Anlagen zuletzt: Der Brief ist dann fertig gemessen und vermerkt, und
         # die angehängten Seiten verschieben nichts an seiner Geometrie.
@@ -909,7 +1138,14 @@ def befehl_render(args) -> int:
     # Erneut aus der Quelle statt durchgereicht: `rendere` gibt Pfad und Form
     # zurück, keine Kopfdaten, und ein dritter Rückgabewert bräche jeden
     # Aufrufer. Die Datei ist zu diesem Zeitpunkt ohnehin gelesen.
-    eingebettet_gefragt = bool(lies_brief(Path(args.brief))[0].get("eingebettet"))
+    kopf_cli = lies_brief(Path(args.brief))[0]
+    # Eine Rechnung bettet IMMER ein — ihre XML kommt nicht aus `eingebettet:`,
+    # sondern aus dem Emitter (#116). Ohne diesen Zusatz erwartet der Bericht
+    # PDF/A-2b, bekommt das richtige 3b und meldet einen Fehlschlag für etwas,
+    # das stimmt. Gemessen am 12.09.2026: `render examples/rechnung.md` endete
+    # mit Exit 2, obwohl das Dokument in Ordnung war.
+    eingebettet_gefragt = bool(kopf_cli.get("eingebettet")) or \
+        str(kopf_cli.get("typ") or "brief") == "rechnung"
     if not args.no_pdfa and not kennzeichnung_gefallen:
         # Der Name der Prüfung nennt die Stufe, die das Dokument behauptet —
         # nicht die, die es meistens hat. Ein Brief mit eingebetteter Datei ist
@@ -920,6 +1156,18 @@ def befehl_render(args) -> int:
         bericht.wahr(f"PDF/A-{erwartet}", stufe == erwartet,
                      f"pdfaid part {erwartet[0]}, conformance B",
                      f"PDF/A-{stufe}" if stufe else "fehlt")
+
+    # ADR 0039 verlangt die Fassung im Messbericht jedes erzeugten Dokuments:
+    # Sonst ist im Nachhinein nicht mehr belegbar, gegen welche Spezifikation
+    # gesetzt wurde. Was hier steht, ist die Angabe des Erzeugers — ob die Datei
+    # gilt, sagt der fremde Prüfer (Mustang in der CI), nicht diese Zeile.
+    if str(kopf_cli.get("typ") or "brief") == "rechnung":
+        hat_schema = "urn:factur-x" in geometrie.xmp_lesen(pdf)
+        bericht.wahr(
+            "E-Rechnung", hat_schema,
+            f"{RECHNUNG_XML_NAME} · Profil {FX_WERTE['ConformanceLevel']} · "
+            f"Factur-X {FX_WERTE['Version']}",
+            "eingebettet" if hat_schema else "kein Factur-X-Schema im XMP")
     print(bericht.als_text(ausfuehrlich=args.verbose))
     if not bericht.ok:
         print("\nFEHLGESCHLAGEN — das PDF hält die Maße aus DIN 5008 nicht ein.", file=sys.stderr)

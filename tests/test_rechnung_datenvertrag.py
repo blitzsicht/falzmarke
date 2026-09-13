@@ -1,9 +1,9 @@
 """Der Datenvertrag `typ: rechnung` (Issue #115).
 
 Die Felder leiten sich aus § 14 Absatz 4 UStG ab — erhoben in #113, belegt in
-`docs/recht.md`. Was hier geprüft wird, ist der Vertrag und seine Grenzen, noch
-nicht das Setzen: Einen Emitter gibt es nicht, und genau deshalb bricht der
-Renderer bei einer Rechnung ab (siehe ganz unten).
+`docs/recht.md`. Geprüft wird der Vertrag und seine Grenzen; seit #116 unten auch
+das Setzen: Der Renderer bricht nicht mehr pauschal ab, sondern setzt die Rechnung
+und bettet ihre XML ein — und bricht nur noch ab, wenn dafür etwas fehlt.
 
 **Das Werkzeug rechnet nicht** (ADR 0039). Die Summenprobe vergleicht gegebene
 Werte und meldet eine Abweichung als WARNUNG; sie ersetzt nichts und hält keinen
@@ -16,10 +16,12 @@ Sabotage nur, dass der Linter IRGENDETWAS meldet.
 
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from falzmarke import cli as falzmarke
-from conftest import SKILL
+from conftest import REPO, SKILL
 
 PROFILE = SKILL / "falzmarke" / "typst" / "profiles"
 
@@ -287,13 +289,167 @@ def test_ein_mailfeld_in_der_rechnung_wird_gemeldet(tmp_path):
                for b in bericht.befunde), [b.meldung for b in bericht.befunde]
 
 
-# ── Der Renderer setzt noch keine Rechnung ───────────────────────────────────
+# ── Der Renderer setzt die Rechnung — aber nur eine vollständige ────────────
+#
+# Bis #116 brach er bei jeder Rechnung ab, weil der Emitter fehlte. Jetzt setzt
+# er sie und bettet die XML ein. Der bewahrenswerte Kern des alten Tests bleibt:
+# Was unvollständig ist, wird NICHT still als Brief gesetzt — dann fehlten
+# Positionen und Summen, und niemand erführe davon.
 
-def test_der_renderer_bricht_bei_einer_rechnung_ab(tmp_path):
-    """Ohne diesen Abbruch fiele eine Rechnung in den Briefzweig und entstünde als
-    PDF — OHNE Positionen und Summen, und ohne ein Wort darüber. Das ist genau
-    die Fehlerart, gegen die das Werkzeug antritt."""
-    with pytest.raises(Exception, match="typ: rechnung"):
+#: Was die XML über den Datenvertrag hinaus braucht (#116): den Empfänger in
+#: Feldern und die Bemessungsgrundlage je Steuersatz.
+FUER_DIE_XML = """\
+empfaenger_anschrift:
+  name: Muster GmbH
+  strasse: Musterstraße 1
+  plz: "12345"
+  ort: Musterstadt
+  land: DE
+"""
+
+
+def test_eine_unvollstaendige_rechnung_wird_nicht_gesetzt(tmp_path):
+    """`empfaenger_anschrift:` fehlt — dann entsteht kein PDF, nicht eines ohne
+    maschinenlesbare Daten. Die stille Variante wäre die teure."""
+    with pytest.raises(Exception, match="empfaenger_anschrift"):
         falzmarke.rendere(_datei(tmp_path), tmp_path / "rechnung.pdf",
                           profil_verzeichnis=PROFILE)
     assert not (tmp_path / "rechnung.pdf").exists(), "es darf kein PDF entstehen"
+
+
+def test_eine_vollstaendige_rechnung_traegt_ihre_daten_mit(tmp_path):
+    """Die Gegenrichtung. Ohne sie belegte der Test darüber nur, dass irgendetwas
+    scheitert — nicht, dass der gute Fall durchgeht."""
+    import pypdf
+
+    from falzmarke import geometrie
+
+    kopf = KOPF + FUER_DIE_XML
+    kopf = kopf.replace("      betrag: 304.00", "      basis: 1600.00\n      betrag: 304.00")
+    assert "basis:" in kopf, "die Probe hat die Bemessungsgrundlage nicht gesetzt"
+
+    pdf, _ = falzmarke.rendere(_datei(tmp_path, kopf), tmp_path / "rechnung.pdf",
+                               profil_verzeichnis=PROFILE)
+
+    # A-3b statt A-2b: Das ist der Unterschied, den die Einbettung macht.
+    assert geometrie.pdfa_stufe(pdf) == "3b"
+
+    wurzel = pypdf.PdfReader(str(pdf)).trailer["/Root"]
+    anhaenge = [e.get_object() for e in wurzel.get("/AF", [])]
+    assert len(anhaenge) == 1, anhaenge
+    # Der Name ist nicht frei: An ihm findet die Software des Empfängers die Datei.
+    assert str(anhaenge[0].get("/F")) == "factur-x.xml"
+    # `Alternative`, nicht `Data` — die XML ist dasselbe Dokument, nicht eine Beilage.
+    assert str(anhaenge[0].get("/AFRelationship")) == "/Alternative"
+
+    # Ohne das Erweiterungsschema erwartet kein Prüfwerkzeug die Beilage.
+    assert "urn:factur-x" in geometrie.xmp_lesen(pdf)
+
+
+# ── `empfaenger_anschrift:` — der Empfänger in Feldern (#116) ───────────────
+#
+# `empfaenger:` sind ein bis sechs freie Zeilen. Für das Anschriftfeld im
+# Fensterumschlag genügt das; die eingebettete XML braucht Straße, PLZ, Ort und
+# Land einzeln. Ob die zweite Zeile die Straße ist oder eine zweite Namenszeile,
+# lässt sich nicht ablesen — geraten hieße, den Empfänger falsch zu adressieren.
+
+ANSCHRIFT = """\
+empfaenger_anschrift:
+  name: Muster GmbH
+  strasse: Musterstraße 1
+  plz: "12345"
+  ort: Musterstadt
+  land: DE
+"""
+
+
+def test_eine_vollstaendige_empfaengeranschrift_ist_sauber(tmp_path):
+    """Kontrollprobe: Ohne sie belegten die Fälle darunter nichts."""
+    bericht = _bericht(tmp_path, KOPF + ANSCHRIFT)
+    assert "rechnung.empfaenger" not in _regeln(bericht), bericht.als_text()
+
+
+def test_ohne_das_feld_wird_nichts_gemeldet(tmp_path):
+    """Wer einen Brief setzt, braucht es nicht — erst die XML verlangt es."""
+    assert "rechnung.empfaenger" not in _regeln(_bericht(tmp_path))
+
+
+@pytest.mark.parametrize("feld", ["name", "strasse", "plz", "ort", "land"])
+def test_ein_fehlendes_feld_wird_gemeldet(tmp_path, feld):
+    gekuerzt = "\n".join(z for z in ANSCHRIFT.splitlines()
+                         if not z.strip().startswith(f"{feld}:")) + "\n"
+    assert f"  {feld}:" not in gekuerzt, "die Probe hat nichts entfernt"
+    bericht = _bericht(tmp_path, KOPF + gekuerzt)
+    assert "rechnung.empfaenger" in _regeln(bericht, "Fehler"), bericht.als_text()
+
+
+def test_ein_tippfehler_im_feldnamen_bleibt_nicht_stumm(tmp_path):
+    """`strasee:` sähe aus wie eine gesetzte Angabe und wäre keine."""
+    bericht = _bericht(tmp_path, KOPF + ANSCHRIFT.replace("strasse:", "strasee:"))
+    assert "rechnung.empfaenger" in _regeln(bericht, "Fehler"), bericht.als_text()
+
+
+def test_freie_zeilen_statt_felder_werden_gemeldet(tmp_path):
+    """Der naheliegende Fehler: dieselbe Form wie `empfaenger:` verwenden."""
+    bericht = _bericht(tmp_path, KOPF + "empfaenger_anschrift: Musterstraße 1\n")
+    assert "rechnung.empfaenger" in _regeln(bericht, "Fehler"), bericht.als_text()
+
+
+# ── Dieselbe Rechnung, aber über die Kommandozeile ──────────────────────────
+#
+# Die Tests oben rufen `rendere()` auf. Das deckt NICHT, was `befehl_render`
+# darüber hinaus tut — und genau dort saß am 12.09.2026 ein Fehler: Der
+# Messbericht leitete die erwartete PDF/A-Stufe aus dem Frontmatter-Feld
+# `eingebettet:` ab und erwartete 2b, während die Rechnung korrekt 3b lieferte.
+# Der Lauf endete mit Exit 2 für ein Dokument, das in Ordnung war.
+#
+# Gefunden hat das kein Test, sondern ein Aufruf von Hand: Rechnung und CLI sind
+# zwei Achsen, die sich nirgends kreuzten. Hier kreuzen sie sich.
+
+def test_die_kommandozeile_setzt_die_beispielrechnung(tmp_path):
+    import subprocess
+    import sys
+
+    ziel = tmp_path / "rechnung.pdf"
+    # `--verbose`, weil der Bericht bestandene Prüfungen sonst nicht einzeln
+    # zeigt: Ohne den Schalter stünde hier nur „35/35 Maße eingehalten". Das
+    # war der erste Entwurf dieses Tests, und er prüfte damit nichts von dem,
+    # was er zu prüfen vorgab.
+    lauf = subprocess.run(
+        [sys.executable, "-m", "falzmarke.cli", "render",
+         str(REPO / "examples" / "rechnung.md"), "-o", str(ziel), "--verbose"],
+        capture_output=True, text=True, encoding="utf-8",
+        env={**os.environ, "PYTHONPATH": str(SKILL)},
+    )
+    assert lauf.returncode == 0, lauf.stdout + lauf.stderr
+    assert ziel.is_file()
+    # Die Stufe steht im Bericht, und sie muss die richtige sein — nicht die,
+    # die ein Brief hätte. Genau hier lag der Fehler vom 12.09.2026.
+    assert "PDF/A-3b" in lauf.stdout, lauf.stdout
+    assert "PDF/A-2b" not in lauf.stdout, lauf.stdout
+    # Und die Fassung, gegen die gesetzt wurde (ADR 0039).
+    assert "factur-x.xml" in lauf.stdout and "EN 16931" in lauf.stdout, lauf.stdout
+
+
+# ── Beträge: Zahl, höchstens zwei Stellen, Steuergesamt (Review von #116) ───
+
+def test_ein_betrag_mit_drei_nachkommastellen_wird_gemeldet(tmp_path):
+    bericht = _bericht(tmp_path, _ersetzt("    betrag: 1240.00", "    betrag: 1240.005"))
+    assert "rechnung.betrag_stellen" in _regeln(bericht, "Fehler"), bericht.als_text()
+
+
+def test_ein_summenfeld_aus_text_wird_gemeldet(tmp_path):
+    """Vorher übersprang die Rechenprobe den Text still."""
+    bericht = _bericht(tmp_path, _ersetzt("  netto: 1600.00", '  netto: "abc"'))
+    assert "rechnung.betrag_stellen" in _regeln(bericht, "Fehler"), bericht.als_text()
+
+
+def test_ein_abweichendes_steuer_gesamt_warnt_und_haelt_nicht_an(tmp_path):
+    """Übertragen wird, was dasteht — die Probe warnt nur."""
+    bericht = _bericht(tmp_path, _ersetzt("  brutto: 1904.00",
+                                          "  brutto: 1904.00\n  steuer_gesamt: 305.00"))
+    assert "rechnung.summen" in _regeln(bericht, "Warnung"), bericht.als_text()
+    assert "rechnung.summen" not in _regeln(bericht, "Fehler"), bericht.als_text()
+    assert "steuer_gesamt" not in " ".join(b.meldung for b in bericht.befunde
+                                           if b.regel == "rechnung.summen"
+                                           and "unbekannt" in b.meldung)

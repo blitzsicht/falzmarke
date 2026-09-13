@@ -263,10 +263,15 @@ nicht das Werkzeug (ADR 0005).
 
 ## Die Rechnungsfassung
 
-Dieselbe Datei, mit `typ: rechnung`. **Gesetzt wird sie noch nicht** — der Datenvertrag steht
-(#115), der Emitter nicht. `falzmarke render` bricht bei einer Rechnung ab, statt sie als Brief zu
-setzen: Als Brief fehlten ihr Positionen und Summen, und das ohne ein Wort darüber. `falzmarke
-lint` prüft die Datei schon jetzt.
+Dieselbe Datei, mit `typ: rechnung`. `falzmarke render` setzt sie wie einen Brief — und legt ihr
+die Daten **maschinenlesbar bei**: eine XML nach EN 16931, eingebettet in dasselbe PDF, das dadurch
+PDF/A-3b statt PDF/A-2b wird. Ein Schreiben für Menschen und ein Datensatz für Maschinen, aus einer
+Quelle (#116).
+
+Die Positionstabelle **erzeugt falzmarke selbst** aus `positionen:` und `summen:`. Sie gehört nicht
+in den Rumpf: Stünden dieselben Zahlen zweimal in der Quelle, liefen sie auseinander — und ein PDF
+mit 1.190,00 € neben einer XML mit 1.109,00 € sieht zweimal richtig aus, bis die Buchhaltung des
+Empfängers die XML einliest. Der Rumpf trägt weiter den Text, der die Rechnung begleitet.
 
 Die Felder leiten sich aus
 [§ 14 Absatz 4 UStG](https://www.gesetze-im-internet.de/ustg_1980/__14.html) ab — den zehn
@@ -313,8 +318,44 @@ bedeuten in ihr dasselbe wie im Brief: nichts, und `lint` sagt das.
 wäre sie mehrdeutig, und `lint` meldet sie, statt sie still zu deuten. Ebenso wenig ist `true`
 eine Menge, auch wenn Python es für die Zahl 1 hielte.
 
+**Beträge tragen höchstens zwei Nachkommastellen**, Mengen und Einzelpreise höchstens vier —
+so setzt sie die eingebettete XML. Steht mehr in der Quelle, meldet falzmarke das, statt zu
+runden: `1240.005` würde sonst still `1240.01`, und das wäre ein Wert, den das Werkzeug
+gebildet hat.
+
+**Bei mehreren Steuersätzen gehört `steuer_gesamt:` unter `summen:`.** falzmarke bildet den
+Gesamtbetrag nicht aus den Einzelbeträgen — die Summe hieße Rundungsregel, und die
+verantwortet der Absender. Bei genau einem Satz ist dessen Betrag der Gesamtbetrag. Steht
+`steuer_gesamt:` da und passt nicht zu den Einzelbeträgen, erscheint eine Warnung; in die
+XML kommt trotzdem, was dasteht.
+
+**Eine Rechnung ohne Umsatzsteuer** (etwa nach [§ 19 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html)) erzeugt falzmarke noch nicht. Die
+XML zeichnet jede Steuer als Regelsatz aus; eine steuerfreie Rechnung stünde damit falsch da.
+
 **Bankverbindung, Steuernummer und USt-IdNr. stehen im Profil**, nicht im einzelnen Schreiben —
-wie die Absenderangaben.
+wie die Absenderangaben. Dafür gibt es dort einen eigenen Abschnitt:
+
+```yaml
+# im Profil, nicht im Schreiben
+absender:                     # gibt es für den Brief schon — von dort gelesen
+  name: Beispiel GmbH
+  strasse: Musterweg 12
+  plz: "93055"
+  ort: Regensburg
+
+rechnung:
+  ust_idnr: DE123456789       # … oder `steuernummer:`, eine von beiden genügt
+  land: DE                    # Ländercode nach ISO 3166-1 alpha-2
+```
+
+Warum nur zwei Felder: Name und Anschrift stehen bereits unter `absender:` und werden von dort
+gelesen. Doppelt gepflegt liefen die beiden Fassungen auseinander — und die eingebettete XML
+läse dann etwas anderes, als im Briefkopf steht. Der Ländercode ist neu, weil ein Brief ihn
+nicht braucht und die XML ihn verlangt; er wird **nicht** auf `DE` geraten.
+
+Fehlt eines davon, meldet `lint` es — aber erst, wenn ein Schreiben `typ: rechnung` trägt.
+Briefe und Mails berührt die Prüfung nicht. Geprüft wird, dass die Angaben **da sind**, nicht
+ob sie gelten: Eine USt-IdNr. gegen das Bundeszentralamt abzugleichen hieße Netz (ADR 0005).
 
 ### Was jedes Feld tut, und was ohne es passiert
 

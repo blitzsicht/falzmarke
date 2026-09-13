@@ -68,3 +68,15 @@ infoblock_defaults:
   ansprechpartner: Erika Muster
   telefon: 0941 620-9800
   email: muster@example.de
+
+# Für die Rechnungsfassung (`typ: rechnung`). Nur die Angaben, die ein Brief
+# nicht braucht: Name, Straße, PLZ und Ort stehen schon oben unter `absender:`
+# und werden von dort gelesen — doppelt gepflegt liefen sie auseinander.
+#
+# In der Fußzeile steht die USt-IdNr. ebenfalls, als Text. Das ist die Fassung
+# für Menschen; aus ihr ein Feld zu parsen wäre eine stille Ableitung, und die
+# eingebettete XML braucht den Wert einzeln.
+rechnung:
+  ust_idnr: DE123456789
+  # steuernummer: 244/107/01234   # … oder diese; eine von beiden genügt
+  land: DE                        # Ländercode nach ISO 3166-1 alpha-2
