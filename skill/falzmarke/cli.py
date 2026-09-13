@@ -1391,6 +1391,14 @@ def befehl_email(args) -> int:
                       "         neuen Thread. Wer im alten bleiben muss, versendet "
                       f"stattdessen die Datei:\n         {eml_pfad}",
                       file=sys.stderr)
+            # Als LETZTE Zeile (#305): Ein falsches Konto, das zwischen den
+            # Hinweisen steht, wird überlesen — genau der Fehler, den der
+            # Betreiber gemeldet hat. `flush` vorher, sonst schiebt sich
+            # gepufferte Standardausgabe noch dahinter.
+            warnung = oeffnen_modul.absender_warnung(felder.get("absender") or "", lage.konto)
+            if warnung:
+                sys.stdout.flush()
+                print(warnung, file=sys.stderr)
         elif lage.ungewiss:
             # Der dritte Zustand (#287). Ob ein Fenster offen ist, weiß hier
             # niemand — und „nicht geprüft" ist nicht „nichts da". Die `.eml`

@@ -109,6 +109,18 @@ deshalb mehr als eine Dateiübergabe.
 Empfängern, Kopien, Blindkopien und Anhängen ist am fertigen Objekt **nachgezählt** — ein Anhang
 oder eine Blindkopie, die das Programm stillschweigend fallen ließe, fällt auf.
 
+**Der Absender.** Das Skript legt den Entwurf auf das Konto, dessen Adresse in `email.absender`
+steht (#305). Ohne das nahm Outlook sein Standardkonto, und wer mehrere Konten hat, verschickte vom
+falschen Postfach. Welches Konto der Entwurf tatsächlich trägt, liest das Skript am fertigen
+Objekt zurück; weicht es ab oder bietet Outlook keins an, entsteht der Entwurf trotzdem, und die
+**letzte Zeile** der Ausgabe lautet `ABSENDER PRÜFEN: …`.
+
+Belegt ist das nur für das **klassische Outlook** (gemessen am 13.09.2026, Outlook für Mac
+16.112.4, am Fenster bestätigt). Im **neuen Outlook** sieht die Programmsteuerung kein einziges
+Konto: Der Entwurf liegt dort immer auf dem Standardkonto, und die Warnzeile erscheint bei jeder
+Mail, deren Profil eine andere Adresse nennt. `sender` statt `account` hilft dort nicht — der
+Wert wird angenommen und zurückgelesen, das Fenster zeigt trotzdem ein anderes Konto.
+
 Die Blindkopie kam erst mit #272 dazu. Bis dahin las der Entwurfsweg nur `To` und `Cc`: Sie stand
 in der `.eml`, `verify --email` hatte sie gemessen — und im Entwurfsfenster fehlte sie. Eine
 Zeile, die nie da war, vermisst niemand.
