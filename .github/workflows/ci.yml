@@ -422,6 +422,12 @@ jobs:
           # unser Erzeugnis taugt.
           PYTHONPATH=skill python -m falzmarke.cli render examples/rechnung.md \
             -o /tmp/eigene-rechnung.pdf --verbose
+          # #119: zwei Steuersätze und eine Kleinbetragsrechnung. Mustang rechnet
+          # die Summen nach — genau das, was falzmarke nicht tut (ADR 0039).
+          PYTHONPATH=skill python -m falzmarke.cli render examples/rechnung-steuersaetze.md \
+            -o /tmp/eigene-rechnung-steuersaetze.pdf --verbose
+          PYTHONPATH=skill python -m falzmarke.cli render examples/rechnung-kleinbetrag.md \
+            -o /tmp/eigene-rechnung-kleinbetrag.pdf --verbose
 
       - name: Die eigene XRechnung setzen — als XML, als PDF, und die Gegenprobe
         run: |
@@ -453,6 +459,7 @@ jobs:
           # Präparieren die Datei beschädigt hat, wäre der Lauf rot.
           python scripts/erechnung_pruefen.py --mustang /tmp/Mustang-CLI.jar \
             --gut /tmp/eigene-rechnung.pdf /tmp/eigene-xrechnung.xml /tmp/eigene-xrechnung.pdf \
+                  /tmp/eigene-rechnung-steuersaetze.pdf /tmp/eigene-rechnung-kleinbetrag.pdf \
                   /tmp/ref/EN16931_Einfach.pdf /tmp/ref/validXRV30.xml /tmp/ref/validXRechnung.pdf \
             --schlecht /tmp/eigene-xrechnung-ohne-referenz.xml::BR-DE-15 \
                        /tmp/ref/invalidXRechnung.pdf

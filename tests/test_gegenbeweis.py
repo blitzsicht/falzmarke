@@ -915,3 +915,53 @@ def test_mit_verstellter_stellenzahl_geht_derselbe_betrag_durch(monkeypatch):
     emit_xml._betrag(1240.005, "betrag")           # darf jetzt nicht mehr werfen
     assert "rechnung.betrag_stellen" not in _stellenbefund(1240.005), \
         "lint prüft gegen eine eigene Stellenzahl, nicht gegen die des Emitters"
+
+
+# ── Rechnung: Steuersatz ohne Summenzeile und Ländercode (#119) ─────────────
+#
+# Beide Regeln sind neu. Die Sabotage verändert je genau eine Stelle eines
+# echten Beispiels; die Kontrollprobe davor zeigt, dass dasselbe Beispiel
+# unverändert frei von genau diesem Befund ist.
+
+RECHNUNG_PROFILE = REPO / "skill" / "falzmarke" / "typst" / "profiles"
+STEUERSAETZE_QUELLE = REPO / "examples" / "rechnung-steuersaetze.md"
+SIEBEN_PROZENT_ZEILE = "    - satz: 7\n      basis: 100.00\n      betrag: 7.00\n"
+
+
+def _rechnungsregeln(tmp_path: Path, quelle: Path, alt: str | None = None,
+                     neu: str = "") -> set[str]:
+    text = quelle.read_text(encoding="utf-8")
+    if alt is not None:
+        assert text.count(alt) == 1, f"Anker „{alt.strip()}“ nicht genau einmal in {quelle.name}"
+        text = text.replace(alt, neu)
+    pfad = tmp_path / quelle.name
+    pfad.write_text(text, encoding="utf-8")
+    return _fehlerregeln(falzmarke.linte(pfad, profil_verzeichnis=RECHNUNG_PROFILE))
+
+
+def test_zwei_steuersaetze_mit_je_einer_summenzeile_sind_kein_befund(tmp_path):
+    assert "rechnung.steuersatz" not in _rechnungsregeln(tmp_path, STEUERSAETZE_QUELLE)
+
+
+def test_eine_fehlende_summenzeile_faellt_auf(tmp_path):
+    regeln = _rechnungsregeln(tmp_path, STEUERSAETZE_QUELLE, SIEBEN_PROZENT_ZEILE)
+    assert "rechnung.steuersatz" in regeln, regeln
+
+
+def test_ein_amtlicher_laendercode_ist_kein_befund(tmp_path):
+    assert "rechnung.land" not in _rechnungsregeln(tmp_path, RECHNUNG_QUELLE)
+
+
+def test_ein_ausgeschriebenes_land_faellt_auf(tmp_path):
+    regeln = _rechnungsregeln(tmp_path, RECHNUNG_QUELLE, "  land: DE\n", "  land: Deutschland\n")
+    assert "rechnung.land" in regeln, regeln
+
+
+def test_lint_prueft_gegen_die_liste_des_emitters(tmp_path, monkeypatch):
+    """Nimmt die Liste des Emitters „DEUTSCHLAND“ auf, muss lint schweigen —
+    sonst prüft lint gegen eine eigene Liste, und beide könnten auseinanderlaufen."""
+    from falzmarke import emit_xml
+
+    monkeypatch.setattr(emit_xml, "LAENDERCODES", emit_xml.LAENDERCODES | {"DEUTSCHLAND"})
+    regeln = _rechnungsregeln(tmp_path, RECHNUNG_QUELLE, "  land: DE\n", "  land: Deutschland\n")
+    assert "rechnung.land" not in regeln, "lint prüft nicht gegen emit_xml.LAENDERCODES"

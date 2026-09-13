@@ -24,6 +24,13 @@ briefe/
 # lag die Datei ja da.
 !examples/email/profiles/assets/*.png
 
+# Dieselbe Falle bei den Rechnungs-Goldens (#119): `*.pdf` oben wuerde die
+# eingefrorenen PDF-Goldens verschlucken, ohne dass `git add` einen Fehler
+# meldet. Ohne diese Ausnahme fehlen sie in jedem frischen Klon, und
+# `test_zu_jedem_beispiel_ein_pdf_golden` faellt dort, wo lokal nichts
+# auffiel, weil die Datei ja auf der Platte lag.
+!tests/golden/rechnung/*.pdf
+
 # Die Videoausgaben gehoeren ins Repo: das README bindet demo.gif direkt ein,
 # und tests/test_tape.py prueft demo.ascii gegen einen echten CLI-Lauf. Sie
 # fallen unter keine Regel oben — der Hinweis steht hier, damit niemand spaeter

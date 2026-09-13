@@ -766,7 +766,10 @@ def _rechnung_einbettung(kopf: dict, profil: dict, arbeit: Path) -> dict:
         raise Eingabefehler(str(fehler)) from None
 
     ziel = arbeit / RECHNUNG_XML_NAME
-    ziel.write_text(xml, encoding="utf-8")
+    # Bytes statt Text: `write_text` übersetzt unter Windows jedes `\n` in
+    # `\r\n`, und die eingebettete XML sähe je nach Rechner anders aus. Gefunden
+    # am 13.09.2026 von den Goldens aus #119 in der Windows-Matrix.
+    ziel.write_bytes(xml.encode("utf-8"))
     return {
         "datei": str(ziel),
         "typ": "text/xml",
@@ -1011,6 +1014,16 @@ def rendere(
         }
         if FONT_DIR.is_dir():
             argumente["font_paths"] = [str(FONT_DIR)]
+
+        # Ohne `timestamp` setzt Typst `/CreationDate` und `/ModDate` auf die
+        # Rechnerzeit — gemessen am 13.09.2026: zwei Läufe über
+        # `examples/rechnung.md` im Abstand von zwei Sekunden ergeben andere
+        # Bytes. Das bleibt so, denn die Erstellungszeit einer Datei ist nicht
+        # das Briefdatum. Wie bei der `.eml` nagelt `SOURCE_DATE_EPOCH` sie für
+        # einen Golden-Vergleich fest (#119).
+        epoch = os.environ.get("SOURCE_DATE_EPOCH")
+        if epoch:
+            argumente["timestamp"] = dt.datetime.fromtimestamp(int(epoch), tz=dt.timezone.utc)
 
         # Ohne diese Zeile zieht Typst Schriften vom Rechner, auf dem gerade
         # gesetzt wird. Gemessen am 25.08.2026: ein Brief mit einem Emoji
