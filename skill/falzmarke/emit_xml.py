@@ -80,6 +80,10 @@ EINHEIT_OHNE = "C62"
 #: Umsatzsteuer, Regelsatz. Beides in beiden Referenzen belegt.
 STEUER_TYP = "VAT"
 STEUER_KATEGORIE = "S"
+#: Kategorie für die Rechnung eines Kleinunternehmers (ADR 0041): „Exempt from
+#: VAT". So in der XRechnung-Spezifikation 3.0.2, Kap. 13.3, und im FeRD-Beispiel
+#: E13. Nicht `O` — das verböte die USt-IdNr. des Verkäufers (BR-O-02).
+STEUER_KATEGORIE_KLEINUNTERNEHMER = "E"
 
 #: Vorgabewährung. Der Datenvertrag kennt (noch) keine andere.
 WAEHRUNG = "EUR"
@@ -232,6 +236,80 @@ def xrechnung_maengel(kopf: dict, profil: dict) -> list[str]:
     return maengel
 
 
+def ist_kleinunternehmer(profil: dict) -> bool:
+    """`rechnung.kleinunternehmer: true` im Profil — nur ein echtes `true`.
+
+    Ein `"ja"` oder `1` gilt nicht: YAML liest `ja` als Text, und ein Status, der
+    die Steuerkategorie der Rechnung umstellt, wird nicht aus Text geraten.
+    `lint` meldet einen solchen Wert (`rechnung.kleinunternehmer`).
+    """
+    return (profil.get("rechnung") or {}).get("kleinunternehmer") is True
+
+
+def kleinunternehmer_hinweis(profil: dict) -> str:
+    """Der Hinweis nach § 34a Nr. 5 UStDV — so, wie er im Profil steht.
+
+    falzmarke gibt keinen Text vor (ADR 0041, Entscheidung 2) und bewertet den
+    vorhandenen nicht. Leer, wenn nichts dasteht.
+    """
+    return str((profil.get("rechnung") or {}).get("kleinunternehmer_hinweis") or "").strip()
+
+
+def kleinunternehmer_maengel(kopf: dict, profil: dict) -> list[tuple[str, str]]:
+    """Was eine Rechnung verletzt, die unter `kleinunternehmer:` steht oder stehen müsste.
+
+    Liste aus `(regel, meldung)`. Dieselbe Liste nutzt `lint` — der MCP-Dienst
+    ruft `rendere()` ohne `lint` auf, deshalb prüft der Emitter sie ebenso
+    (ADR 0041). Verglichen werden gegebene Werte, gerechnet wird nichts.
+    """
+    maengel: list[tuple[str, str]] = []
+    positionen = [p for p in (kopf.get("positionen") or []) if isinstance(p, dict)]
+    summen = kopf.get("summen") if isinstance(kopf.get("summen"), dict) else {}
+
+    if not ist_kleinunternehmer(profil):
+        for nummer, position in enumerate(positionen, start=1):
+            if position.get("steuersatz") is None or position.get("steuersatz") == "":
+                maengel.append(("rechnung.position", f"Position {nummer}: `steuersatz:` fehlt"))
+        if isinstance(kopf.get("summen"), dict) and not (summen.get("steuer") or []):
+            maengel.append((
+                "rechnung.steuer",
+                "`summen.steuer` ist leer. Ist der Absender Kleinunternehmer, gehört "
+                "`kleinunternehmer: true` und ein `kleinunternehmer_hinweis:` in den "
+                "Abschnitt `rechnung:` des Profils (§ 19 UStG, ADR 0041)."))
+        return maengel
+
+    if not kleinunternehmer_hinweis(profil):
+        maengel.append((
+            "rechnung.kleinunternehmer_hinweis",
+            "`rechnung.kleinunternehmer_hinweis:` fehlt im Profil. § 34a Nr. 5 UStDV "
+            "verlangt einen Hinweis, dass die Steuerbefreiung für Kleinunternehmer gilt; "
+            "falzmarke gibt keinen Wortlaut vor (BR-E-10)."))
+    mit_satz = [n for n, p in enumerate(positionen, start=1) if "steuersatz" in p]
+    if mit_satz:
+        maengel.append((
+            "rechnung.kleinunternehmer_steuer",
+            "Position " + ", ".join(str(n) for n in mit_satz) + " trägt `steuersatz:`, "
+            "obwohl das Profil `kleinunternehmer: true` sagt — die Umsätze sind nach "
+            "§ 19 UStG steuerfrei, die Angabe entfällt."))
+    if summen.get("steuer") or summen.get("steuer_gesamt") is not None:
+        maengel.append((
+            "rechnung.kleinunternehmer_steuer",
+            "`summen:` trägt `steuer` oder `steuer_gesamt`, obwohl das Profil "
+            "`kleinunternehmer: true` sagt — ohne Umsatzsteuer entfallen beide."))
+    netto, brutto = summen.get("netto"), summen.get("brutto")
+    if netto is not None and brutto is not None:
+        try:
+            gleich = Decimal(str(netto)) == Decimal(str(brutto))
+        except (InvalidOperation, ValueError):
+            gleich = True               # keine Zahl — meldet die Zahlenprüfung
+        if not gleich:
+            maengel.append((
+                "rechnung.kleinunternehmer_summe",
+                f"`summen.brutto: {brutto}` ist nicht gleich `summen.netto: {netto}` — "
+                "ohne Umsatzsteuer sind beide derselbe Betrag (BR-CO-15)."))
+    return maengel
+
+
 class RechnungUnvollstaendig(ValueError):
     """Eine Angabe fehlt, die das Profil EN 16931 verlangt.
 
@@ -319,11 +397,11 @@ def einheit_code(wert) -> str:
 def _partei(eltern, name: str, bezeichnung: str, anschrift: dict,
             steuernummern: list[tuple[str, str]] | None = None,
             kontakt: dict | None = None, elektronisch: str | None = None,
-            kennung: str | None = None) -> None:
+            kennung: str | None = None, beschreibung: str | None = None) -> None:
     """Eine Partei in der Elementfolge des Schemas.
 
-    Die Folge ist nicht frei: Kennung, Name, Kontakt, Anschrift, elektronische
-    Adresse, Steuernummern — abgelesen an `validXRV30.xml`, die Kennung an
+    Die Folge ist nicht frei: Kennung, Name, Beschreibung, Kontakt, Anschrift,
+    elektronische Adresse, Steuernummern — abgelesen an `validXRV30.xml`, die Kennung an
     FeRD `E13_01_Kleinunternehmer_ohneUStId.xml`. Eine vertauschte Folge
     lehnt der fremde Prüfer ab, auch wenn jedes Element für sich stimmt.
     """
@@ -331,6 +409,10 @@ def _partei(eltern, name: str, bezeichnung: str, anschrift: dict,
     if kennung:
         _text(partei, f"{{{RAM}}}ID", kennung)
     _text(partei, f"{{{RAM}}}Name", bezeichnung)
+    if beschreibung:
+        # BT-33, Seller additional legal information — hier der Hinweis des
+        # Kleinunternehmers, wie in XRechnung 3.0.2 Kap. 13.3 und FeRD E13.
+        _text(partei, f"{{{RAM}}}Description", beschreibung)
     if kontakt:
         ansprech = ET.SubElement(partei, f"{{{RAM}}}DefinedTradeContact")
         if kontakt.get("name"):
@@ -475,6 +557,11 @@ def erzeuge(kopf: dict, profil: dict) -> str:
             raise RechnungUnvollstaendig(
                 "Für `erechnung: xrechnung` fehlt: " + "; ".join(fehlend))
 
+    maengel = kleinunternehmer_maengel(kopf, profil)
+    if maengel:
+        raise RechnungUnvollstaendig("; ".join(meldung for _, meldung in maengel))
+    kleinunternehmer = ist_kleinunternehmer(profil)
+
     wurzel = ET.Element(f"{{{RSM}}}CrossIndustryInvoice")
 
     zusammenhang = ET.SubElement(wurzel, f"{{{RSM}}}ExchangedDocumentContext")
@@ -502,16 +589,16 @@ def erzeuge(kopf: dict, profil: dict) -> str:
     if not positionen:
         raise RechnungUnvollstaendig("`positionen:` fehlt — ohne sie ist es keine Rechnung.")
     for nummer, position in enumerate(positionen, start=1):
-        _position(vorgang, nummer, position)
+        _position(vorgang, nummer, position, kleinunternehmer)
 
-    _kopfdaten(vorgang, kopf, profil)
+    _kopfdaten(vorgang, kopf, profil, kleinunternehmer)
 
     ET.indent(wurzel, space="  ")
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
             + ET.tostring(wurzel, encoding="unicode") + "\n")
 
 
-def _position(vorgang, nummer: int, position: dict) -> None:
+def _position(vorgang, nummer: int, position: dict, kleinunternehmer: bool = False) -> None:
     zeile = ET.SubElement(vorgang, f"{{{RAM}}}IncludedSupplyChainTradeLineItem")
     verweis = ET.SubElement(zeile, f"{{{RAM}}}AssociatedDocumentLineDocument")
     _text(verweis, f"{{{RAM}}}LineID", nummer)
@@ -531,14 +618,18 @@ def _position(vorgang, nummer: int, position: dict) -> None:
     abrechnung = ET.SubElement(zeile, f"{{{RAM}}}SpecifiedLineTradeSettlement")
     steuer = ET.SubElement(abrechnung, f"{{{RAM}}}ApplicableTradeTax")
     _text(steuer, f"{{{RAM}}}TypeCode", STEUER_TYP)
-    _text(steuer, f"{{{RAM}}}CategoryCode", STEUER_KATEGORIE)
-    _text(steuer, f"{{{RAM}}}RateApplicablePercent", _betrag(position.get("steuersatz", 0), f"positionen[{nummer}].steuersatz"))
+    if kleinunternehmer:
+        _text(steuer, f"{{{RAM}}}CategoryCode", STEUER_KATEGORIE_KLEINUNTERNEHMER)
+        _text(steuer, f"{{{RAM}}}RateApplicablePercent", "0.00")
+    else:
+        _text(steuer, f"{{{RAM}}}CategoryCode", STEUER_KATEGORIE)
+        _text(steuer, f"{{{RAM}}}RateApplicablePercent", _betrag(position["steuersatz"], f"positionen[{nummer}].steuersatz"))
     summe = ET.SubElement(
         abrechnung, f"{{{RAM}}}SpecifiedTradeSettlementLineMonetarySummation")
     _text(summe, f"{{{RAM}}}LineTotalAmount", _betrag(position.get("betrag", 0), f"positionen[{nummer}].betrag"))
 
 
-def _kopfdaten(vorgang, kopf: dict, profil: dict) -> None:
+def _kopfdaten(vorgang, kopf: dict, profil: dict, kleinunternehmer: bool = False) -> None:
     vereinbarung = ET.SubElement(vorgang, f"{{{RAM}}}ApplicableHeaderTradeAgreement")
     referenz = kopf.get("leitweg_id") or kopf.get("kaeuferreferenz")
     if referenz:
@@ -548,7 +639,8 @@ def _kopfdaten(vorgang, kopf: dict, profil: dict) -> None:
             _verkaeufer_anschrift(profil), _steuernummern(profil),
             kontakt=_kontakt(kopf, profil),
             elektronisch=(profil.get("rechnung") or {}).get("adresse"),
-            kennung=_verkaeufer_kennung(profil))
+            kennung=_verkaeufer_kennung(profil),
+            beschreibung=kleinunternehmer_hinweis(profil) if kleinunternehmer else None)
     name, anschrift = _empfaenger(kopf)
     _partei(vereinbarung, "BuyerTradeParty", name, anschrift,
             elektronisch=anschrift.get("adresse"))
@@ -570,15 +662,22 @@ def _kopfdaten(vorgang, kopf: dict, profil: dict) -> None:
             "`summen:` fehlt. Das Profil EN 16931 verlangt Netto, Steuer und Brutto — "
             "falzmarke bildet sie nicht (ADR 0039).")
 
-    if not (summen.get("steuer") or []):
-        # Nicht „null Euro Steuer" setzen: Die Kategorie ist fest `S` (Regelsatz).
-        # Eine steuerfreie Rechnung, etwa nach § 19 UStG, bräuchte eine andere —
-        # mit `S` entstünde eine Datei, die falsch ausgezeichnet ist und trotzdem
-        # durchläuft. Das ist ein eigener Vorgang.
+    fehlend = [f for f in ("netto", "brutto") if summen.get(f) is None]
+    if fehlend:
         raise RechnungUnvollstaendig(
-            "`summen.steuer` ist leer. Eine Rechnung ohne Umsatzsteuer (etwa nach "
-            "§ 19 UStG) erzeugt falzmarke noch nicht: Die Steuerkategorie wäre "
-            "falsch ausgezeichnet.")
+            "`summen:` fehlt " + ", ".join(f"`{f}:`" for f in fehlend))
+
+    if kleinunternehmer:
+        # Eine Aufschlüsselung mit Kategorie E: Steuer 0, Satz 0, der Hinweis als
+        # BT-120, Bemessungsgrundlage ist `summen.netto` — übertragen, nicht
+        # aus den Positionen summiert (ADR 0039, ADR 0041; BR-E-08, BR-E-09).
+        steuer = ET.SubElement(abrechnung, f"{{{RAM}}}ApplicableTradeTax")
+        _text(steuer, f"{{{RAM}}}CalculatedAmount", "0.00")
+        _text(steuer, f"{{{RAM}}}TypeCode", STEUER_TYP)
+        _text(steuer, f"{{{RAM}}}ExemptionReason", kleinunternehmer_hinweis(profil))
+        _text(steuer, f"{{{RAM}}}BasisAmount", _betrag(summen["netto"], "summen.netto"))
+        _text(steuer, f"{{{RAM}}}CategoryCode", STEUER_KATEGORIE_KLEINUNTERNEHMER)
+        _text(steuer, f"{{{RAM}}}RateApplicablePercent", "0.00")
 
     for nummer_steuer, eintrag in enumerate(summen.get("steuer") or [], start=1):
         if eintrag.get("basis") is None:
@@ -601,15 +700,11 @@ def _kopfdaten(vorgang, kopf: dict, profil: dict) -> None:
         _text(bedingungen, f"{{{RAM}}}Description",
               f"Zahlbar bis {datum_kompakt(kopf['zahlungsziel'])}")
 
-    fehlend = [f for f in ("netto", "brutto") if summen.get(f) is None]
-    if fehlend:
-        raise RechnungUnvollstaendig(
-            "`summen:` fehlt " + ", ".join(f"`{f}:`" for f in fehlend))
     gesamt = ET.SubElement(
         abrechnung, f"{{{RAM}}}SpecifiedTradeSettlementHeaderMonetarySummation")
     _text(gesamt, f"{{{RAM}}}LineTotalAmount", _betrag(summen["netto"], "summen.netto"))
     _text(gesamt, f"{{{RAM}}}TaxBasisTotalAmount", _betrag(summen["netto"], "summen.netto"))
-    wert, feld = _steuer_gesamt(summen)
+    wert, feld = ("0.00", "0") if kleinunternehmer else _steuer_gesamt(summen)
     _text(gesamt, f"{{{RAM}}}TaxTotalAmount", _betrag(wert, feld), currencyID=WAEHRUNG)
     _text(gesamt, f"{{{RAM}}}GrandTotalAmount", _betrag(summen["brutto"], "summen.brutto"))
     _text(gesamt, f"{{{RAM}}}DuePayableAmount", _betrag(summen["brutto"], "summen.brutto"))

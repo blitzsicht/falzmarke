@@ -20,6 +20,13 @@
 # Keine Prüfung des Steuersatzes gegen § 12 UStG — die Vorschrift ist nicht
 # erhoben, und eine Regel ohne Beleg wird nicht erfunden. Kein Nachrechnen des
 # Steuerbetrags je Satz (ADR 0039).
+#
+# ── Die eine Summenregel, die ein Fehler ist ──────────────────────────────
+#
+# Summenabweichungen sind Warnungen (`rechnung.summen`, ADR 0039). Die Ausnahme
+# ist `rechnung.kleinunternehmer_summe`: Ohne Umsatzsteuer gibt es keinen
+# Rundungsfall, und jede Abweichung zwischen `netto` und `brutto` verletzte in
+# der XML BR-CO-15. Begründet in ADR 0041, Entscheidung 2.
 
 regeln:
 
@@ -62,7 +69,7 @@ regeln:
       Bezugspunkt voraus, den der Empfänger anders lesen kann als der Absender.
 
   - id: rechnung.position
-    titel: Jede Position trägt Bezeichnung, Menge, Steuersatz und Betrag
+    titel: Jede Position trägt Bezeichnung, Menge, Betrag und — außer beim Kleinunternehmer — den Steuersatz
     lint: rechnung.position
     ebene: werkzeug
     herkunft: werkzeug
@@ -335,3 +342,69 @@ regeln:
       blieb unbeanstandet und landete unverändert als `<ram:CountryID>` in der
       eingebetteten XML. Geprüft wird gegen die amtlich vergebenen Codes
       (`emit_xml.LAENDERCODES`), nicht nur die Form „zwei Buchstaben".
+
+  # ── Rechnungen von Kleinunternehmern (#317, ADR 0041) ────────────────────
+
+  - id: rechnung.steuer
+    titel: Eine Rechnung ohne Kleinunternehmer-Status trägt Steuerzeilen
+    lint: rechnung.steuer
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Ohne `rechnung.kleinunternehmer: true` im Profil zeichnet die XML jede
+      Position als Regelsatz aus (Kategorie S). Eine leere `summen.steuer`
+      ergäbe dann eine falsch ausgezeichnete Datei, die trotzdem durchläuft. Die
+      Meldung nennt das Profilfeld, weil das der häufigste Grund ist.
+
+  - id: rechnung.kleinunternehmer
+    titel: Der Kleinunternehmer-Status ist true oder false
+    lint: rechnung.kleinunternehmer
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Der Status stellt die Steuerkategorie um (S gegen E). YAML liest `ja` als
+      Text; ein solcher Wert wird gemeldet und nicht als Zustimmung gelesen.
+
+  - id: rechnung.kleinunternehmer_hinweis
+    titel: Ein Kleinunternehmer-Profil trägt einen Hinweistext
+    lint: rechnung.kleinunternehmer_hinweis
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      § 34a Nr. 5 UStDV verlangt einen Hinweis, dass die Steuerbefreiung für
+      Kleinunternehmer gilt; die XML trägt ihn als BT-120 und BT-33, und ohne
+      ihn scheitert sie an BR-E-10. falzmarke gibt keinen Wortlaut vor und
+      bewertet den vorhandenen nicht (ADR 0041, Entscheidung 2).
+
+  - id: rechnung.kleinunternehmer_steuer
+    titel: Eine Kleinunternehmer-Rechnung trägt keinen Steuersatz und keine Steuerzeile
+    lint: rechnung.kleinunternehmer_steuer
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Die Umsätze sind nach § 19 Abs. 1 UStG steuerfrei; die XML setzt Kategorie
+      E mit Satz 0 (BR-E-05). Ein `steuersatz:` in einer Position oder eine
+      Zeile in `summen.steuer` widerspräche dem, und welche Seite gilt, rät
+      falzmarke nicht. Weil der Status für das ganze Profil gilt, schließt diese
+      Regel zugleich eine Mischung aus steuerpflichtigen und steuerfreien
+      Positionen aus.
+
+  - id: rechnung.kleinunternehmer_summe
+    titel: Bei einer Kleinunternehmer-Rechnung sind Netto und Brutto gleich
+    lint: rechnung.kleinunternehmer_summe
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Ein Vergleich gegebener Werte, kein Rechnen (ADR 0039). Fehler statt
+      Warnung, anders als `rechnung.summen`: Ohne Steuer gibt es keine Rundung,
+      und eine Abweichung verletzte BR-CO-15 in der XML.

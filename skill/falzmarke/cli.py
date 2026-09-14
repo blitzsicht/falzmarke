@@ -591,6 +591,8 @@ def linte(brief_pfad: Path, profil_verzeichnis: Path | None = None) -> lint_modu
                 # Braucht Kopf und Profil — deshalb hier und nicht in einer der
                 # beiden Prüfungen, die nur eines von beidem sehen (#117).
                 lint_modul.pruefe_xrechnung(kopf, profil, bericht)
+                # Ebenso: Steuersatz oder Kleinunternehmer-Hinweis hängt am Profil (ADR 0041).
+                lint_modul.pruefe_steuerangaben(kopf, profil, kopf_roh, bericht)
             if str(kopf.get("typ") or "brief") == "email":
                 # Der Pfad wird mitgegeben, weil eine Profildatei auf Dateien
                 # neben sich zeigen kann (`email.logo`) — ohne ihn bliebe die
@@ -712,7 +714,7 @@ def _euro(wert) -> str:
     return ganz.replace(",", ".") + "," + rest + " EUR"
 
 
-def _positionstabelle(kopf: dict) -> str:
+def _positionstabelle(kopf: dict, profil: dict | None = None) -> str:
     """Die Positionen und Summen als Typst-Tabelle (#116).
 
     **Gesetzt, nicht abgeschrieben.** Bis #116 stand die Tabelle als Markdown im
@@ -721,7 +723,15 @@ def _positionstabelle(kopf: dict) -> str:
     bis die Buchhaltung des Empfängers die XML einliest (#119).
 
     Gerechnet wird nichts (ADR 0039): Jede Zahl steht so in der Quelle.
+
+    **Beim Kleinunternehmer** (ADR 0041) nur der Gesamtbetrag: Eine Zeile
+    „Summe netto" mit demselben Wert darüber wäre Rauschen, eine Steuerzeile
+    gibt es nicht. Darunter steht der Hinweis aus dem Profil, im selben Wortlaut
+    wie in der XML (BT-120, BT-33).
     """
+    from falzmarke import emit_xml
+
+    kleinunternehmer = emit_xml.ist_kleinunternehmer(profil or {})
     zeilen = [["Position", "Menge", "Einzelpreis", "Betrag"]]
     for position in kopf.get("positionen") or []:
         menge = position.get("menge", "")
@@ -735,7 +745,7 @@ def _positionstabelle(kopf: dict) -> str:
         ])
 
     summen = kopf.get("summen") or {}
-    if summen.get("netto") is not None:
+    if summen.get("netto") is not None and not kleinunternehmer:
         zeilen.append(["Summe netto", "", "", _euro(summen["netto"])])
     for steuer in summen.get("steuer") or []:
         zeilen.append([f"Umsatzsteuer {steuer.get('satz', '')} %", "", "",
@@ -744,6 +754,10 @@ def _positionstabelle(kopf: dict) -> str:
         zeilen.append(["Gesamtbetrag", "", "", _euro(summen["brutto"])])
 
     tabelle = emit_modul.tabelle(zeilen, ["left", "right", "right", "right"])
+    if kleinunternehmer:
+        hinweis = emit_modul.absatz(emit_modul.as_text(emit_xml.kleinunternehmer_hinweis(profil),
+                                                  typografie_anwenden=False))
+        return "\n\n" + tabelle + "\n\n" + hinweis + "\n"
     return "\n\n" + tabelle + "\n"
 
 
@@ -934,7 +948,7 @@ def rendere(
             # ab. Andersherum erreichte ein kaputter Wert zuerst `_euro` und endete
             # als roher Traceback (Review von #116, 13.09.2026).
             eingebettet = eingebettet + [_rechnung_einbettung(kopf, profil, arbeit)]
-            body_typst += _positionstabelle(kopf)
+            body_typst += _positionstabelle(kopf, profil)
 
         # Eigener Briefkopf, falls das Profil einen mitbringt
         kopf_import, kopf_argument = "", ""

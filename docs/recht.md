@@ -213,6 +213,22 @@ Beschreibend, nicht bewertend:
 Was daraus für das Datenmodell folgt, ist nicht hier entschieden, sondern in den Vorgängen #111
 und #112.
 
+### Rechnungen von Kleinunternehmern
+
+Die Umsätze eines im Inland ansässigen Kleinunternehmers sind nach
+[§ 19 Absatz 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html) steuerfrei. Die
+Grenzen liegen bei einem Gesamtumsatz von höchstens 25 000 € im Vorjahr und höchstens 100 000 €
+im laufenden Jahr. [§ 34a UStDV](https://www.gesetze-im-internet.de/ustdv_1980/__34a.html) nennt
+die Mindestangaben einer solchen Rechnung. Dazu gehört das Entgelt in einer Summe mit dem
+**Hinweis, dass die Steuerbefreiung für Kleinunternehmer gilt**. Nach dem BMF-Schreiben vom
+18.03.2025 darf der Hinweis umgangssprachlich sein, wenn er eindeutig ist (Abschn. 14.7a Abs. 1
+UStAE). Eine E-Rechnung setzt beim Kleinunternehmer die Zustimmung des Empfängers voraus
+(Abschn. 14.7a Abs. 3 UStAE).
+
+falzmarke überträgt den Status und den Hinweis aus dem Profil ([ADR 0041](entscheidungen/0041-kleinunternehmer.md)).
+Es prüft weder die Grenzen noch den Wortlaut noch die Zustimmung. Das sind Tatsachen und
+Bewertungen außerhalb des Werkzeugs.
+
 ## Was ausdrücklich nicht behauptet wird
 
 - **Keine Zertifizierung.** falzmarke ist kein Produkt des DIN, steht in keiner Verbindung zum

@@ -965,3 +965,73 @@ def test_lint_prueft_gegen_die_liste_des_emitters(tmp_path, monkeypatch):
     monkeypatch.setattr(emit_xml, "LAENDERCODES", emit_xml.LAENDERCODES | {"DEUTSCHLAND"})
     regeln = _rechnungsregeln(tmp_path, RECHNUNG_QUELLE, "  land: DE\n", "  land: Deutschland\n")
     assert "rechnung.land" not in regeln, "lint prüft nicht gegen emit_xml.LAENDERCODES"
+
+
+# ── Rechnung eines Kleinunternehmers (#317, ADR 0041) ───────────────────────
+#
+# Je Regel: das Beispiel ist frei davon, und genau eine Änderung an Quelle oder
+# Profil lässt genau diese Regel anschlagen. Quelle und Profil liegen als Kopie
+# nebeneinander, das Profil in `profiles/` neben dem Schreiben.
+
+KU_QUELLE = REPO / "examples" / "rechnung-kleinunternehmer.md"
+KU_PROFIL = REPO / "examples" / "profiles" / "example-kleinunternehmer.yaml"
+KU_HINWEIS = "Steuerfreie Kleinunternehmerleistung nach § 19 UStG."
+
+
+def _ku_regeln(tmp_path: Path, quelle_alt: str | None = None, quelle_neu: str = "",
+               profil_alt: str | None = None, profil_neu: str = "") -> set[str]:
+    text = KU_QUELLE.read_text(encoding="utf-8")
+    profil = KU_PROFIL.read_text(encoding="utf-8")
+    if quelle_alt is not None:
+        assert text.count(quelle_alt) == 1, f"Anker „{quelle_alt.strip()}“ nicht genau einmal"
+        text = text.replace(quelle_alt, quelle_neu)
+    if profil_alt is not None:
+        assert profil.count(profil_alt) == 1, f"Anker „{profil_alt.strip()}“ nicht genau einmal"
+        profil = profil.replace(profil_alt, profil_neu)
+    (tmp_path / "profiles").mkdir()
+    (tmp_path / "profiles" / KU_PROFIL.name).write_text(profil, encoding="utf-8")
+    pfad = tmp_path / KU_QUELLE.name
+    pfad.write_text(text, encoding="utf-8")
+    return _fehlerregeln(falzmarke.linte(pfad, profil_verzeichnis=RECHNUNG_PROFILE))
+
+
+def test_die_kleinunternehmer_rechnung_ist_unsabotiert_frei(tmp_path):
+    regeln = _ku_regeln(tmp_path)
+    assert not regeln, regeln
+
+
+def test_ein_fehlender_hinweis_faellt_auf(tmp_path):
+    regeln = _ku_regeln(tmp_path, profil_alt=f"  kleinunternehmer_hinweis: {KU_HINWEIS}\n")
+    assert "rechnung.kleinunternehmer_hinweis" in regeln, regeln
+
+
+def test_ein_steuersatz_trotz_status_faellt_auf(tmp_path):
+    regeln = _ku_regeln(tmp_path, "    einzelpreis: 40.00\n",
+                        "    einzelpreis: 40.00\n    steuersatz: 19\n")
+    assert "rechnung.kleinunternehmer_steuer" in regeln, regeln
+
+
+def test_brutto_ungleich_netto_faellt_auf(tmp_path):
+    regeln = _ku_regeln(tmp_path, "  brutto: 370.00\n", "  brutto: 440.30\n")
+    assert "rechnung.kleinunternehmer_summe" in regeln, regeln
+
+
+def test_ein_status_als_text_faellt_auf(tmp_path):
+    regeln = _ku_regeln(tmp_path, profil_alt="  kleinunternehmer: true\n",
+                        profil_neu="  kleinunternehmer: ja\n")
+    assert "rechnung.kleinunternehmer" in regeln, regeln
+
+
+def test_ohne_status_fehlen_steuersatz_und_steuerzeile(tmp_path):
+    regeln = _ku_regeln(tmp_path, profil_alt="  kleinunternehmer: true\n", profil_neu="")
+    assert {"rechnung.position", "rechnung.steuer"} <= regeln, regeln
+
+
+def test_lint_prueft_gegen_die_maengelliste_des_emitters(tmp_path, monkeypatch):
+    """Meldet der Emitter nichts, muss lint schweigen — sonst hielte lint eine
+    eigene Liste, und beide könnten Verschiedenes verlangen."""
+    from falzmarke import emit_xml
+
+    monkeypatch.setattr(emit_xml, "kleinunternehmer_maengel", lambda kopf, profil: [])
+    regeln = _ku_regeln(tmp_path, "  brutto: 370.00\n", "  brutto: 440.30\n")
+    assert "rechnung.kleinunternehmer_summe" not in regeln, regeln
