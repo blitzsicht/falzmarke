@@ -1552,7 +1552,8 @@ def befehl_email(args) -> int:
             # Hinweisen steht, wird überlesen — genau der Fehler, den der
             # Betreiber gemeldet hat. `flush` vorher, sonst schiebt sich
             # gepufferte Standardausgabe noch dahinter.
-            warnung = oeffnen_modul.absender_warnung(felder.get("absender") or "", lage.konto)
+            warnung = oeffnen_modul.absender_warnung(felder.get("absender") or "", lage.konto,
+                                                    lage.suche)
             if warnung:
                 sys.stdout.flush()
                 print(warnung, file=sys.stderr)

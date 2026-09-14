@@ -188,7 +188,10 @@ FRIST_ENTWURF_S = 90
 #: klassischen Outlook kommt das Konto im Fenster an. Im neuen Outlook sieht
 #: AppleScript kein einziges Konto — die drei Suchen laufen dort leer, der
 #: Entwurf entsteht auf dem Standardkonto, und die zweite Zeile des Nachweises
-#: sagt das. `sender` statt `account` ist kein Ausweg: Es wird im neuen Outlook
+#: sagt das. Die dritte Zeile sagt, ob die Suche das Konto fand (#315):
+#: `gefunden`, `fehlt` — Outlook zeigte Konten, aber keins mit dieser
+#: Adresse — oder `-`, wenn es gar keine zeigte. Nur `fehlt` belegt, dass es das
+#: Konto nicht gibt; `-` ist „nicht geprüft“. `sender` statt `account` ist kein Ausweg: Es wird im neuen Outlook
 #: angenommen und zurückgelesen, das Fenster zeigt trotzdem ein anderes Konto.
 #:
 #: `open` steht **nach** dem Auslesen, und das ist gemessen: Danach meldet
@@ -204,19 +207,23 @@ on run argv
 \tset absender to item 6 of argv
 \ttell application "Microsoft Outlook"
 \t\tset konto to missing value
+\t\tset gesehen to 0
 \t\tif absender is not "" then
 \t\t\ttry
 \t\t\t\trepeat with a in (every exchange account)
+\t\t\t\t\tset gesehen to gesehen + 1
 \t\t\t\t\tif (email address of a) is absender then set konto to contents of a
 \t\t\t\tend repeat
 \t\t\tend try
 \t\t\ttry
 \t\t\t\trepeat with a in (every imap account)
+\t\t\t\t\tset gesehen to gesehen + 1
 \t\t\t\t\tif (email address of a) is absender then set konto to contents of a
 \t\t\t\tend repeat
 \t\t\tend try
 \t\t\ttry
 \t\t\t\trepeat with a in (every pop account)
+\t\t\t\t\tset gesehen to gesehen + 1
 \t\t\t\t\tif (email address of a) is absender then set konto to contents of a
 \t\t\t\tend repeat
 \t\t\tend try
@@ -243,7 +250,13 @@ on run argv
 \t\ttry
 \t\t\tset kontoadresse to email address of (account of entwurf)
 \t\tend try
-\t\tset nachweis to nachweis & linefeed & kontoadresse
+\t\tset suche to "-"
+\t\tif konto is not missing value then
+\t\t\tset suche to "gefunden"
+\t\telse if gesehen > 0 then
+\t\t\tset suche to "fehlt"
+\t\tend if
+\t\tset nachweis to nachweis & linefeed & kontoadresse & linefeed & suche
 \tend tell
 \treturn nachweis
 end run
@@ -402,6 +415,10 @@ class Entwurfslage(NamedTuple):
     #: am fertigen Objekt gelesen hat. `None`, wenn das Programm keins nennt
     #: (#305). Ein Beleg nur im klassischen Outlook; siehe `SKRIPT_OUTLOOK`.
     konto: str | None = None
+    #: Ob die Suche ein Konto zur Adresse des Profils fand: `"gefunden"`,
+    #: `"fehlt"` oder `None` — nicht geprüft, weil Outlook keine Konten zeigte
+    #: oder das Skript die Zeile nicht liefert (#315).
+    suche: str | None = None
 
 
 def _steuere(skript: str, kennung: str, *, laufen=subprocess.run) -> str | None:
@@ -456,27 +473,53 @@ def konto_aus_nachweis(ausgabe: str) -> str | None:
     return None if wert in ("", "-") else wert
 
 
+def suche_aus_nachweis(ausgabe: str) -> str | None:
+    """Die dritte Zeile: `"gefunden"`, `"fehlt"` oder `None` für nicht geprüft (#315)."""
+    zeilen = ausgabe.strip().splitlines()
+    if len(zeilen) < 3:
+        return None
+    wert = zeilen[2].strip()
+    return wert if wert in ("gefunden", "fehlt") else None
+
+
 def skript_setzt_konto(skript: str) -> bool:
     """Legt das Skript den Entwurf auf ein Konto? Für die Gegenprobe (#305)."""
     return "properties {account:konto," in skript
 
 
-def absender_warnung(soll: str, ist: str | None) -> str | None:
+def absender_warnung(soll: str, ist: str | None, suche: str | None = None) -> str | None:
     """Die Zeile, die nicht überlesen werden darf — oder `None`, wenn alles passt.
 
     Der Entwurf entsteht auch bei falschem Konto: So hat es der Betreiber am
     13.09.2026 entschieden. Ein Fenster, dessen Absender man umstellen muss, ist
     besser als keins — solange man es gesagt bekommt.
+
+    Drei Fälle, weil es drei verschiedene Reparaturen sind (#315):
+
+    * `suche == "fehlt"` — Outlook zeigte Konten, aber keins mit dieser Adresse.
+      „Von“ umstellen geht dann nicht, und die Signatur im Rumpf nennt trotzdem
+      die Adresse des Profils. Am 14.09.2026 so verschickt: Absender das
+      Standardkonto, Signatur eine andere Adresse. Die Reparatur ist ein anderes
+      Profil oder ein eingerichtetes Konto.
+    * das Konto am Entwurf weicht ab, obwohl es das gesuchte gibt — umstellen.
+    * nichts lesbar (neues Outlook) — nicht geprüft, und das steht auch so da.
     """
     if not soll:
         return None
     if ist and ist.strip().lower() == soll.strip().lower():
         return None
+    von = ist or "dem Standardkonto"
+    if suche == "fehlt":
+        return (f"ABSENDER PRÜFEN: In Outlook gibt es kein Konto {soll}. Der Entwurf geht "
+                f"von {von} raus, die Signatur nennt aber {soll}. „Von“ umstellen geht "
+                "nicht — ein Profil mit einem vorhandenen Konto wählen oder das Konto in "
+                "Outlook einrichten.")
     if ist:
         return (f"ABSENDER PRÜFEN: Der Entwurf kommt von {ist}, das Profil sagt {soll}. "
                 "In Outlook unter „Von“ umstellen.")
-    return (f"ABSENDER PRÜFEN: Outlook hat kein Konto {soll} angeboten — der Entwurf "
-            "liegt auf dem Standardkonto. In Outlook unter „Von“ umstellen.")
+    return (f"ABSENDER PRÜFEN: Outlook zeigte keine Konten — ob es {soll} dort gibt, ist "
+            "nicht geprüft. Der Entwurf liegt auf dem Standardkonto. In Outlook unter "
+            "„Von“ umstellen, falls die Adresse dort steht.")
 
 
 def _nachweis_stimmt(ausgabe: str, felder: Mapping) -> str | None:
@@ -587,4 +630,5 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
         _steuere(programm.verwerfen, kennung, laufen=laufen)
         return Entwurfslage(None, f"angelegt, aber nicht zu öffnen: {nicht_geoeffnet}")
 
-    return Entwurfslage(programm.name, "", konto=konto_aus_nachweis(lauf.stdout or ""))
+    return Entwurfslage(programm.name, "", konto=konto_aus_nachweis(lauf.stdout or ""),
+                        suche=suche_aus_nachweis(lauf.stdout or ""))
