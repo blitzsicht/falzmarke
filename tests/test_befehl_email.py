@@ -532,6 +532,20 @@ def test_ein_falsches_konto_steht_als_letzte_zeile(tmp_path, monkeypatch, capsys
     assert ausgabe.err.rstrip().splitlines()[-1].startswith("ABSENDER PRÜFEN"), ausgabe.err
 
 
+def test_ohne_konto_nennt_die_letzte_zeile_die_signatur(tmp_path, monkeypatch, capsys):
+    """#315: Gibt es das Konto nicht, reicht die Suche bis in die Ausgabe."""
+    from falzmarke import oeffnen
+
+    monkeypatch.setattr(oeffnen, "entwurf", lambda *_a, **_k: oeffnen.Entwurfslage(
+        "Testprogramm", "", konto="fremd@example.com", suche="fehlt"))
+    code = falzmarke.main(["email", str(_schreibe(tmp_path)), "--profiles", str(PROFILE),
+                           "--oeffnen"])
+    letzte = capsys.readouterr().err.rstrip().splitlines()[-1]
+    assert code == 0
+    assert letzte.startswith("ABSENDER PRÜFEN: In Outlook gibt es kein Konto"), letzte
+    assert "Signatur" in letzte
+
+
 def test_gegenprobe_das_passende_konto_meldet_nichts(tmp_path, monkeypatch, capsys):
     from falzmarke import eml as eml_modul, oeffnen
 
