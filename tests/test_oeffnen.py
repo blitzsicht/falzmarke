@@ -686,3 +686,62 @@ def test_gegenprobe_das_richtige_konto_bleibt_still():
 def test_ohne_absender_im_profil_gibt_es_nichts_zu_pruefen():
     assert oeffnen.absender_warnung("", None) is None
 
+
+
+# ── Kein Konto zur Adresse des Profils (#315) ──────────────────────────────
+#
+# ANLASS (Betreiber, 14.09.2026): „signatur stimmt nicht mit absender überein".
+# Das Profil nannte eine Adresse, für die Outlook kein Konto hatte. Der Entwurf
+# lag auf dem Standardkonto, die Signatur im Rumpf nannte die Profiladresse, und
+# die Warnzeile riet „unter Von umstellen" — dort stand die Adresse gar nicht.
+# Die Suche im Skript wusste es; weitergegeben wurde nur das Konto am Entwurf.
+
+
+def test_die_suche_kommt_aus_der_dritten_zeile():
+    assert oeffnen.suche_aus_nachweis("97 1 0 0 0\njoe@example.de\nfehlt") == "fehlt"
+    assert oeffnen.suche_aus_nachweis("97 1 0 0 0\ninfo@example.de\ngefunden\n") == "gefunden"
+    # „-" heißt: Outlook zeigte keine Konten. Das ist nicht geprüft, nicht „fehlt".
+    assert oeffnen.suche_aus_nachweis("97 1 0 0 0\n-\n-") is None
+    # Ein Nachweis ohne dritte Zeile (älteres Skript) ist ebenfalls nicht geprüft.
+    assert oeffnen.suche_aus_nachweis("97 1 0 0 0\njoe@example.de") is None
+
+
+def test_das_skript_meldet_die_suche_mit():
+    skript = oeffnen.SKRIPT_OUTLOOK
+    # Jede der drei Kontoarten zählt mit — sonst hieße ein reines IMAP-Postfach „keine Konten".
+    assert skript.count("set gesehen to gesehen + 1") == 3
+    assert "linefeed & kontoadresse & linefeed & suche" in skript
+    assert 'set suche to "fehlt"' in skript
+
+
+def test_die_suche_reist_bis_in_die_entwurfslage():
+    felder = {**FELDER, "absender": "privat@example.de"}
+    antwort = Antwortet(nachweis="97 1 0 0 0\njoe@example.de\nfehlt")
+    lage = oeffnen.entwurf(felder, plattform="darwin",
+                           umgebung={"DISPLAY": ":0"}, laufen=antwort)
+    assert (lage.konto, lage.suche) == ("joe@example.de", "fehlt")
+
+
+def test_ohne_konto_wird_nicht_zum_umstellen_geraten():
+    meldung = oeffnen.absender_warnung("privat@example.de", "joe@example.de", "fehlt")
+    assert meldung and meldung.startswith("ABSENDER PRÜFEN")
+    assert "kein Konto privat@example.de" in meldung
+    assert "Signatur" in meldung and "joe@example.de" in meldung
+    assert "unter „Von“ umstellen." not in meldung
+
+
+def test_gegenprobe_ohne_suchergebnis_bliebe_es_beim_umstellen():
+    """Dieselben Adressen ohne die dritte Zeile ergeben den alten Rat. Die neue
+    Meldung hängt also am Suchergebnis und nicht an den Adressen."""
+    meldung = oeffnen.absender_warnung("privat@example.de", "joe@example.de", None)
+    assert "unter „Von“ umstellen." in meldung and "kein Konto" not in meldung
+
+
+def test_ein_vorhandenes_aber_nicht_gesetztes_konto_bleibt_beim_umstellen():
+    meldung = oeffnen.absender_warnung("info@example.de", "joe@example.de", "gefunden")
+    assert "unter „Von“ umstellen." in meldung and "kein Konto" not in meldung
+
+
+def test_ohne_lesbare_konten_steht_nicht_geprueft_da():
+    meldung = oeffnen.absender_warnung("info@example.de", None, None)
+    assert "nicht geprüft" in meldung and "kein Konto" not in meldung
