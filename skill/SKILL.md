@@ -161,11 +161,12 @@ Sechs Befehle gehören nicht zu jedem Brief und stehen deshalb nicht im Ablauf o
 python3 scripts/falzmarke.py xml rechnung.md -o rechnung.xml
 ```
 
-Für `typ: rechnung`. **An öffentliche Auftraggeber geht die XRechnung als XML, nicht als PDF** —
-dafür steht im Kopf `erechnung: xrechnung` und die `leitweg_id:` der Behörde; an Firmen genügt
-die Rechnung aus `render`, die ihre Daten nach EN 16931 eingebettet mitführt. Prüft vorweg wie
-`render`, schreibt bei einem Fehler nichts und nennt die Fassung, die in der geschriebenen Datei
-steht. Welche Fassung ein Empfänger annimmt, entscheidet der Empfänger.
+Für `typ: rechnung`. **An öffentliche Auftraggeber geht die XRechnung als reine XML, an Firmen
+die Rechnung als PDF mit eingebetteter ZUGFeRD-XML nach EN 16931** — dafür steht im Kopf
+`erechnung: xrechnung` und die `leitweg_id:` der Behörde; ohne diese Angabe erzeugt `render` die
+Fassung für Firmen. Prüft vorweg wie `render`, schreibt bei einem Fehler nichts und nennt die
+Fassung, die in der geschriebenen Datei steht. Welche Fassung ein Empfänger annimmt, entscheidet
+der Empfänger.
 
 **`serie` — eine Vorlage plus eine Datenquelle ergibt n Briefe.**
 

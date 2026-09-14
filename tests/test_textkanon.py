@@ -129,7 +129,8 @@ def test_der_satz_zur_quellenlage_steht_da(datei, saetze):
 
 
 @pytest.mark.parametrize("datei", ["README.md", "docs/recht.md", "skill/SKILL.md",
-                                   "skill/references/frontmatter.md", "docs/cli.md"])
+                                   "skill/references/frontmatter.md", "docs/cli.md",
+                                   "docs/rechnung.md"])
 def test_keine_ungedeckte_konformitaetsbehauptung(datei):
     """„normgerecht“ ohne den Satz zur Quellenlage wäre eine Behauptung, die
     niemand geprüft hat. Verneinungen bleiben erlaubt."""
