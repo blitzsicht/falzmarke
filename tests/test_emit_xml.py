@@ -247,6 +247,38 @@ def test_text_statt_zahl_ergibt_eine_meldung_und_keinen_traceback(profil):
 #
 # Alle drei verlangt XRechnung (BR-DE-2/5/6/7, BR-DE-1/23, Peppol R020); unter
 # EN 16931 sind sie freiwillig und werden geschrieben, sobald sie da sind. Die
+def _verkaeuferkennung(baum) -> list[str]:
+    return [k.text for k in baum.findall(f".//{{{RAM}}}SellerTradeParty/{{{RAM}}}ID")]
+
+
+def test_nur_mit_steuernummer_ist_sie_auch_die_verkaeuferkennung(profil):
+    """BR-CO-26 (#316): BT-32 allein genügt nicht, BT-29 muss dazu — und als
+    erstes Kind der Partei, sonst lehnt das Schema die Folge ab."""
+    eigen = copy.deepcopy(profil)
+    eigen["rechnung"] = {"steuernummer": "244/107/01234", "land": "DE"}
+    baum = ET.fromstring(emit_xml.erzeuge(KOPF, eigen))
+    assert _verkaeuferkennung(baum) == ["244/107/01234"]
+    assert _kinder(baum.find(f".//{{{RAM}}}SellerTradeParty"))[:2] == ["ID", "Name"]
+
+
+def test_mit_ust_idnr_bleibt_die_verkaeuferkennung_weg(baum):
+    """Kontrollprobe: Mit USt-IdNr. ist BR-CO-26 erfüllt, die Datei bleibt, wie sie war."""
+    assert _verkaeuferkennung(baum) == []
+
+
+def test_mit_beiden_nummern_bleibt_die_verkaeuferkennung_weg(profil):
+    eigen = _profil_mit(profil, steuernummer="244/107/01234")
+    assert eigen["rechnung"]["ust_idnr"]
+    assert _verkaeuferkennung(ET.fromstring(emit_xml.erzeuge(KOPF, eigen))) == []
+
+
+def test_der_kaeufer_bekommt_keine_kennung(profil):
+    eigen = copy.deepcopy(profil)
+    eigen["rechnung"] = {"steuernummer": "244/107/01234", "land": "DE"}
+    baum = ET.fromstring(emit_xml.erzeuge(KOPF, eigen))
+    assert baum.find(f".//{{{RAM}}}BuyerTradeParty/{{{RAM}}}ID") is None
+
+
 # Elementfolge ist an `validXRV30.xml` aus dem Mustang-Testmaterial abgelesen.
 
 def _profil_mit(profil, **rechnung) -> dict:

@@ -318,14 +318,18 @@ def einheit_code(wert) -> str:
 
 def _partei(eltern, name: str, bezeichnung: str, anschrift: dict,
             steuernummern: list[tuple[str, str]] | None = None,
-            kontakt: dict | None = None, elektronisch: str | None = None) -> None:
+            kontakt: dict | None = None, elektronisch: str | None = None,
+            kennung: str | None = None) -> None:
     """Eine Partei in der Elementfolge des Schemas.
 
-    Die Folge ist nicht frei: Name, Kontakt, Anschrift, elektronische Adresse,
-    Steuernummern — abgelesen an `validXRV30.xml`. Eine vertauschte Folge
+    Die Folge ist nicht frei: Kennung, Name, Kontakt, Anschrift, elektronische
+    Adresse, Steuernummern — abgelesen an `validXRV30.xml`, die Kennung an
+    FeRD `E13_01_Kleinunternehmer_ohneUStId.xml`. Eine vertauschte Folge
     lehnt der fremde Prüfer ab, auch wenn jedes Element für sich stimmt.
     """
     partei = ET.SubElement(eltern, f"{{{RAM}}}{name}")
+    if kennung:
+        _text(partei, f"{{{RAM}}}ID", kennung)
     _text(partei, f"{{{RAM}}}Name", bezeichnung)
     if kontakt:
         ansprech = ET.SubElement(partei, f"{{{RAM}}}DefinedTradeContact")
@@ -362,6 +366,23 @@ def _verkaeufer_anschrift(profil: dict) -> dict:
             + ", ".join(f"`{f}`" for f in fehlend))
     return {"plz": absender["plz"], "strasse": absender["strasse"],
             "ort": absender["ort"], "land": rechnung["land"]}
+
+
+def _verkaeufer_kennung(profil: dict) -> str | None:
+    """Die Steuernummer als Verkäuferkennung (BT-29), aber nur ohne USt-IdNr.
+
+    BR-CO-26 verlangt BT-29, BT-30 oder BT-31. Die Steuernummer steht als BT-32
+    in `SpecifiedTaxRegistration` und zählt dafür nicht: Ein Profil nur mit
+    `steuernummer:` ergab eine Rechnung, die Mustang und der KoSIT-Validator an
+    BR-CO-26 ablehnten (gemessen am 14.09.2026, #316). Das ist ein Behelf, wie
+    ihn das FeRD-Beispiel E13 vormacht — XRechnung 3.0.2 beschreibt BT-29
+    eigentlich als Kennung, die der Käufer vergibt (ADR 0041). Mit USt-IdNr.
+    ist BR-CO-26 erfüllt, und die Datei bleibt, wie sie war.
+    """
+    rechnung = profil.get("rechnung") or {}
+    if rechnung.get("ust_idnr") or not rechnung.get("steuernummer"):
+        return None
+    return str(rechnung["steuernummer"])
 
 
 def _steuernummern(profil: dict) -> list[tuple[str, str]]:
@@ -526,7 +547,8 @@ def _kopfdaten(vorgang, kopf: dict, profil: dict) -> None:
     _partei(vereinbarung, "SellerTradeParty", (profil.get("absender") or {})["name"],
             _verkaeufer_anschrift(profil), _steuernummern(profil),
             kontakt=_kontakt(kopf, profil),
-            elektronisch=(profil.get("rechnung") or {}).get("adresse"))
+            elektronisch=(profil.get("rechnung") or {}).get("adresse"),
+            kennung=_verkaeufer_kennung(profil))
     name, anschrift = _empfaenger(kopf)
     _partei(vereinbarung, "BuyerTradeParty", name, anschrift,
             elektronisch=anschrift.get("adresse"))
