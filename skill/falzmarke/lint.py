@@ -171,9 +171,11 @@ POSITION_FELDER = frozenset({
 })
 
 #: Und was er tragen MUSS. „Menge und die Art (handelsübliche Bezeichnung)" nach
-#: § 14 Absatz 4 Nummer 5, dazu der Steuersatz nach Nummer 8 und der Betrag —
-#: letzterer, weil falzmarke ihn nicht bildet (ADR 0039).
-POSITION_PFLICHT = ("bezeichnung", "menge", "steuersatz", "betrag")
+#: § 14 Absatz 4 Nummer 5 und der Betrag, weil falzmarke ihn nicht bildet
+#: (ADR 0039). Der Steuersatz nach Nummer 8 steht NICHT hier: Beim
+#: Kleinunternehmer entfällt er, und ob der Absender einer ist, steht im Profil,
+#: das diese Prüfung nicht sieht. `pruefe_steuerangaben` verlangt ihn (ADR 0041).
+POSITION_PFLICHT = ("bezeichnung", "menge", "betrag")
 
 #: Was unter `summen:` stehen darf. Alle drei sind GEGEBEN: falzmarke rechnet
 #: nicht (ADR 0039), es prüft nur, ob sie zueinander passen.
@@ -281,7 +283,8 @@ PROFIL_EMAIL_FELDER = frozenset({
 #: Der Abschnitt `rechnung:` im Profil (#116). Nur, was ein Brief nicht braucht:
 #: Name, Straße, PLZ und Ort stehen unter `absender:` und werden von dort
 #: gelesen — doppelt gepflegt liefen die beiden Fassungen auseinander.
-PROFIL_RECHNUNG_FELDER = frozenset({"ust_idnr", "steuernummer", "land", "bank", "adresse"})
+PROFIL_RECHNUNG_FELDER = frozenset({"ust_idnr", "steuernummer", "land", "bank", "adresse",
+                                    "kleinunternehmer", "kleinunternehmer_hinweis"})
 
 #: `rechnung.bank` (#117): das Konto für den Zahlungsweg in der XML. Die
 #: Fußzeile trägt die IBAN weiter als Text für Menschen; das Feld ist die
@@ -996,6 +999,14 @@ def pruefe_rechnung_profil(profil: dict, bericht: Bericht) -> None:
             bericht.fehler(1, "rechnung.adresse", grund,
                            "die elektronische Adresse des Ausstellers ist eine E-Mail-Adresse")
 
+    if "kleinunternehmer" in abschnitt and not isinstance(abschnitt["kleinunternehmer"], bool):
+        bericht.fehler(
+            1, "rechnung.kleinunternehmer",
+            f"`rechnung.kleinunternehmer: {abschnitt['kleinunternehmer']}` ist weder `true` "
+            "noch `false`",
+            "der Status stellt die Steuerkategorie der Rechnung um und wird nicht aus "
+            "Text geraten — `true` oder `false` ohne Anführungszeichen")
+
     if not (abschnitt.get("ust_idnr") or abschnitt.get("steuernummer")):
         bericht.fehler(
             1, "rechnung.steuernummer",
@@ -1370,6 +1381,29 @@ def pruefe_xrechnung(kopf: dict, profil: dict, bericht: Bericht) -> None:
         bericht.fehler(1, "rechnung.xrechnung", f"für `erechnung: xrechnung` fehlt {mangel}",
                        "XRechnung verlangt Käuferreferenz, Kontakt, Konto und die "
                        "elektronischen Adressen beider Seiten")
+
+
+def pruefe_steuerangaben(kopf: dict, profil: dict, kopf_roh: str, bericht: Bericht) -> None:
+    """Steuersatz und Steuerzeilen — abhängig davon, ob das Profil `kleinunternehmer:` sagt.
+
+    Braucht Kopf UND Profil, wie `pruefe_xrechnung`. Dieselbe Liste wie der
+    Emitter (`emit_xml.kleinunternehmer_maengel`), damit `lint` und das Erzeugen
+    nie Verschiedenes verlangen (ADR 0041).
+    """
+    from falzmarke import emit_xml as _emit_xml
+
+    hinweise = {
+        "rechnung.position": "§ 14 Absatz 4 Nummer 8 UStG verlangt den anzuwendenden Steuersatz",
+        "rechnung.steuer": "falzmarke setzt keine Rechnung ohne Steuerzeile als Regelsatz-Rechnung",
+        "rechnung.kleinunternehmer_hinweis":
+            "den eigenen Wortlaut eintragen; ob er genügt, bewertet falzmarke nicht",
+        "rechnung.kleinunternehmer_steuer": "`steuersatz:`, `summen.steuer` und `steuer_gesamt` streichen",
+        "rechnung.kleinunternehmer_summe": "beide Beträge prüfen — falzmarke setzt keinen ein",
+    }
+    for regel, meldung in _emit_xml.kleinunternehmer_maengel(kopf, profil):
+        feld = "summen" if regel != "rechnung.position" else "positionen"
+        zeile = 1 if regel == "rechnung.kleinunternehmer_hinweis" else _feldzeile(kopf_roh, feld)
+        bericht.fehler(zeile, regel, meldung, hinweise[regel])
 
 
 def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:

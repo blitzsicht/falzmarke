@@ -82,6 +82,26 @@ Wer verlässlich nachgerechnete Zahlen will, bekommt sie vom fremden Prüfer: Mu
 Summen einer Rechnung nach (der Schalter dafür bleibt in der CI eingeschaltet), und genau das ist
 die Arbeitsteilung — wer überträgt, lässt nachrechnen.
 
+## Rechnungen von Kleinunternehmern
+
+Sagt das Profil `rechnung.kleinunternehmer: true`, entsteht eine Rechnung ohne Umsatzsteuer nach
+[§ 19 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html) ([ADR 0041](entscheidungen/0041-kleinunternehmer.md)). Die XML trägt Kategorie E,
+Satz 0 und Steuer 0, dazu den Hinweis aus `rechnung.kleinunternehmer_hinweis:` als BT-120 und
+BT-33. Einen VATEX-Code gibt es dafür nicht. Das PDF zeigt den Gesamtbetrag und darunter
+denselben Hinweis. Die CI prüft je ein Beispiel als ZUGFeRD und als XRechnung bei Mustang, die
+XRechnung auch beim KoSIT-Validator. Die Gegenproben ohne Hinweis und mit Steuersatz müssen an
+BR-E-10 und BR-E-05 scheitern.
+
+- **Den Wortlaut des Hinweises gibt falzmarke nicht vor** und bewertet ihn nicht.
+- **Ob die Umsatzgrenzen eingehalten sind**, weiß das Werkzeug nicht. Wer die Grenze
+  überschreitet, stellt sein Profil um.
+- **§ 34a Satz 4 UStDV erlaubt dem Kleinunternehmer immer eine sonstige Rechnung**, also auch das
+  PDF allein. falzmarke bettet die XML trotzdem ein, wie bei jeder Rechnung. Eine E-Rechnung
+  eines Kleinunternehmers setzt nach Abschn. 14.7a Abs. 3 UStAE die Zustimmung des Empfängers
+  voraus. Das prüft falzmarke nicht.
+- **Gutschriften und die Kleinunternehmer-Identifikationsnummer** ([§ 19 Abs. 4 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html)) gehören
+  nicht dazu.
+
 ## Was falzmarke nicht übernimmt
 
 - **falzmarke vergibt keine Rechnungsnummern.** `rechnungsnummer:` steht in der Quelle und wird

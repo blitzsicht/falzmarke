@@ -98,11 +98,13 @@ steuerfreien Positionen nicht entstehen, ohne dass die erste Regel unten anschl�
 
 | Regel | Fehler, wenn |
 |---|---|
-| `rechnung.kleinunternehmer_steuer` | `kleinunternehmer: true` und ein `steuersatz:` ungleich 0 oder eine Zeile in `summen.steuer` |
+| `rechnung.kleinunternehmer_steuer` | `kleinunternehmer: true` und ein `steuersatz:` (auch 0), eine Zeile in `summen.steuer` oder `steuer_gesamt` |
 | `rechnung.kleinunternehmer_hinweis` | `kleinunternehmer: true` und `kleinunternehmer_hinweis:` fehlt oder ist leer (BR-E-10) |
 | `rechnung.kleinunternehmer_summe` | `kleinunternehmer: true` und `brutto:` ungleich `netto:` |
 
-Die heutige Meldung „`summen.steuer` ist leer" verweist künftig auf das Profilfeld.
+Dazu kommen zwei Regeln für den Rand: `rechnung.kleinunternehmer` meldet einen Status, der nicht
+`true` oder `false` ist, denn YAML liest `ja` als Text. Und `rechnung.steuer` meldet eine leere
+`summen.steuer` ohne Status. Diese Meldung verweist auf das Profilfeld.
 
 `rechnung.kleinunternehmer_summe` weicht bewusst vom Muster „eine Summenabweichung ist eine
 Warnung" ab (`rechnung.summen`, ADR 0039). Hier ist kein Rundungsfall denkbar: Bei Steuer 0 wäre
@@ -149,7 +151,8 @@ falzmarke bewertet nicht, ob der Text die Anforderung aus § 34a Nr. 5 erfüllt.
      Gegenprobe ohne BT-29 muss an BR-CO-26 scheitern.
    - Changelog-Fragment `behoben`.
 2. **Vorgang B — § 19 (#317).**
-   - Profilfelder und Datenvertrag: `frontmatter.md`, `docs/profiles.md`.
+   - Profilfelder und Datenvertrag: `frontmatter.md`. `docs/profiles.md` beschreibt den
+     Abschnitt `rechnung:` nicht und bleibt deshalb unberührt.
    - Die drei Lint-Regeln in `regeln/rechnung.yaml` und dieselben Prüfungen in `emit_xml`.
    - Emitter mit Kategorie E, BT-120 und BT-33.
    - PDF: Summentabelle ohne Nettozeile, Hinweis darunter.

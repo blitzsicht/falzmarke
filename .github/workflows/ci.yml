@@ -443,6 +443,25 @@ jobs:
           python scripts/erechnung_ohne_referenz.py /tmp/eigene-xrechnung.xml \
             /tmp/eigene-xrechnung-ohne-referenz.xml
 
+      - name: Die Rechnung eines Kleinunternehmers — und die Gegenproben
+        run: |
+          set -euo pipefail
+          # #317, ADR 0041: Kategorie E, Satz 0, Hinweis in BT-120 und BT-33.
+          # Die Gegenproben entstehen aus UNSERER Datei und müssen an genau
+          # BR-E-10 (Hinweis fehlt) und BR-E-05 (Satz nicht 0) scheitern.
+          PYTHONPATH=skill python -m falzmarke.cli render examples/rechnung-kleinunternehmer.md \
+            -o /tmp/eigene-kleinunternehmer.pdf --verbose
+          PYTHONPATH=skill python -m falzmarke.cli xml examples/rechnung-kleinunternehmer.md \
+            -o /tmp/eigene-kleinunternehmer.xml
+          PYTHONPATH=skill python -m falzmarke.cli xml examples/xrechnung-kleinunternehmer.md \
+            -o /tmp/eigene-xrechnung-kleinunternehmer.xml
+          for art in ohne-hinweis mit-satz; do
+            python scripts/erechnung_kleinunternehmer_gegenprobe.py "$art" \
+              /tmp/eigene-kleinunternehmer.xml "/tmp/kleinunternehmer-$art.xml"
+            python scripts/erechnung_kleinunternehmer_gegenprobe.py "$art" \
+              /tmp/eigene-xrechnung-kleinunternehmer.xml "/tmp/xrechnung-kleinunternehmer-$art.xml"
+          done
+
       - name: Aus einem Profil nur mit Steuernummer — und die Gegenprobe
         run: |
           set -euo pipefail
@@ -484,10 +503,15 @@ jobs:
             --gut /tmp/eigene-rechnung.pdf /tmp/eigene-xrechnung.xml /tmp/eigene-xrechnung.pdf \
                   /tmp/eigene-rechnung-steuersaetze.pdf /tmp/eigene-rechnung-kleinbetrag.pdf \
                   /tmp/nur-steuernummer.xml /tmp/nur-steuernummer-xrechnung.xml \
+                  /tmp/eigene-kleinunternehmer.pdf /tmp/eigene-xrechnung-kleinunternehmer.xml \
                   /tmp/ref/EN16931_Einfach.pdf /tmp/ref/validXRV30.xml /tmp/ref/validXRechnung.pdf \
             --schlecht /tmp/eigene-xrechnung-ohne-referenz.xml::BR-DE-15 \
                        /tmp/nur-steuernummer-ohne-kennung.xml::BR-CO-26 \
                        /tmp/nur-steuernummer-xrechnung-ohne-kennung.xml::BR-CO-26 \
+                       /tmp/kleinunternehmer-ohne-hinweis.xml::BR-E-10 \
+                       /tmp/kleinunternehmer-mit-satz.xml::BR-E-05 \
+                       /tmp/xrechnung-kleinunternehmer-ohne-hinweis.xml::BR-E-10 \
+                       /tmp/xrechnung-kleinunternehmer-mit-satz.xml::BR-E-05 \
                        /tmp/ref/invalidXRechnung.pdf
 
       - name: KoSIT-Validator und Konfiguration XRechnung
@@ -511,9 +535,12 @@ jobs:
           # auch hier an genau BR-DE-15 scheitern.
           python scripts/erechnung_kosit.py --validator /tmp/kosit-validator.jar \
             --konfiguration /tmp/kosit-konfiguration \
-            --gut /tmp/eigene-xrechnung.xml /tmp/nur-steuernummer-xrechnung.xml /tmp/ref/validXRV30.xml \
+            --gut /tmp/eigene-xrechnung.xml /tmp/nur-steuernummer-xrechnung.xml \
+                  /tmp/eigene-xrechnung-kleinunternehmer.xml /tmp/ref/validXRV30.xml \
             --schlecht /tmp/eigene-xrechnung-ohne-referenz.xml::BR-DE-15 \
-                       /tmp/nur-steuernummer-xrechnung-ohne-kennung.xml::BR-CO-26
+                       /tmp/nur-steuernummer-xrechnung-ohne-kennung.xml::BR-CO-26 \
+                       /tmp/xrechnung-kleinunternehmer-ohne-hinweis.xml::BR-E-10 \
+                       /tmp/xrechnung-kleinunternehmer-mit-satz.xml::BR-E-05
 
   changelog:
     # Ein Vorgang, der das Werkzeug aendert, traegt einen Punkt in den Verlauf

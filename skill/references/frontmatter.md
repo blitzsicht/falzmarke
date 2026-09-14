@@ -329,8 +329,36 @@ verantwortet der Absender. Bei genau einem Satz ist dessen Betrag der Gesamtbetr
 `steuer_gesamt:` da und passt nicht zu den Einzelbeträgen, erscheint eine Warnung; in die
 XML kommt trotzdem, was dasteht.
 
-**Eine Rechnung ohne Umsatzsteuer** (etwa nach [§ 19 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html)) erzeugt falzmarke noch nicht. Die
-XML zeichnet jede Steuer als Regelsatz aus; eine steuerfreie Rechnung stünde damit falsch da.
+**Die Rechnung eines Kleinunternehmers** ([§ 19 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html), [ADR 0041](../../docs/entscheidungen/0041-kleinunternehmer.md))
+entsteht, wenn das Profil es sagt:
+
+```yaml
+# im Profil
+rechnung:
+  steuernummer: 244/107/01234
+  land: DE
+  kleinunternehmer: true
+  kleinunternehmer_hinweis: "…"   # Pflicht, ohne Vorgabe — Ihr eigener Wortlaut
+```
+
+Im Schreiben entfallen dann `steuersatz:` in den Positionen, `summen.steuer` und
+`steuer_gesamt`. `summen:` trägt `netto:` und `brutto:`, und beide sind gleich. Das PDF zeigt nur
+den Gesamtbetrag und darunter den Hinweis. Die XML zeichnet jede Position mit Kategorie E und
+Satz 0 aus und trägt den Hinweis als BT-120 und BT-33.
+
+`lint` meldet als Fehler:
+- einen fehlenden oder leeren Hinweis
+- einen `steuersatz:` oder eine Steuerzeile trotz `kleinunternehmer: true`
+- ein `brutto` ungleich `netto`
+- einen Status, der nicht `true` oder `false` ist
+
+Umgekehrt meldet `lint` eine Rechnung **ohne** Steuerzeile aus einem Profil ohne Status, statt sie
+als Regelsatz auszuzeichnen.
+
+§ 34a Nr. 5 UStDV verlangt einen Hinweis, dass die Steuerbefreiung für Kleinunternehmer gilt.
+Welche Formulierung genügt, bewertet falzmarke nicht. Das BMF-Schreiben vom 18.03.2025
+(Abschn. 14.7a Abs. 1 UStAE) nennt als Beispiel „steuerfreier Kleinunternehmer". Ob die
+Umsatzgrenzen eingehalten sind, kann falzmarke nicht wissen.
 
 **Bankverbindung, Steuernummer und USt-IdNr. stehen im Profil**, nicht im einzelnen Schreiben —
 wie die Absenderangaben. Dafür gibt es dort einen eigenen Abschnitt:
@@ -413,7 +441,7 @@ eine Behörde die XML erwartet.
 | `positionen` | ja | `lint` meldet einen Fehler — eine Rechnung ohne Positionen ist keine. |
 | `positionen[].bezeichnung` | ja | Fehler — § 14 Abs. 4 Nr. 5 verlangt „die Art". |
 | `positionen[].menge` | ja | Fehler — ebenda, „die Menge". |
-| `positionen[].steuersatz` | ja | Fehler — § 14 Abs. 4 Nr. 8. Außerhalb 0 bis 99 ebenso. |
+| `positionen[].steuersatz` | ja, außer beim Kleinunternehmer | Fehler — § 14 Abs. 4 Nr. 8. Außerhalb 0 bis 99 ebenso. Beim Kleinunternehmer ist er umgekehrt ein Fehler. |
 | `positionen[].betrag` | ja | Fehler — falzmarke bildet den Betrag nicht aus Menge und Preis. |
 | `positionen[].einheit`, `einzelpreis` | nein | Nichts. Sie stehen dann nicht auf der Rechnung. |
 | `leistungsdatum` / `leistungszeitraum` | eines | Nichts wird gemeldet. Beide zugleich sind ein Fehler; ein Zeitraum braucht `von:` **und** `bis:`. |
