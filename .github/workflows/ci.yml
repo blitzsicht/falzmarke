@@ -443,6 +443,29 @@ jobs:
           python scripts/erechnung_ohne_referenz.py /tmp/eigene-xrechnung.xml \
             /tmp/eigene-xrechnung-ohne-referenz.xml
 
+      - name: Aus einem Profil nur mit Steuernummer — und die Gegenprobe
+        run: |
+          set -euo pipefail
+          # #316: Ohne USt-IdNr. verlangt BR-CO-26 die Steuernummer zusätzlich
+          # als Verkäuferkennung (BT-29). Das Profil entsteht aus dem
+          # mitgelieferten, und beide Proben unten zeigen, dass die Ersetzung
+          # gegriffen hat — sonst prüfte der Schritt still das alte Profil.
+          mkdir -p /tmp/nur-steuernummer
+          sed 's|^  ust_idnr: DE123456789$|  steuernummer: 244/107/01234|' \
+            skill/falzmarke/typst/profiles/example.yaml > /tmp/nur-steuernummer/example.yaml
+          if grep -q '^  ust_idnr:' /tmp/nur-steuernummer/example.yaml; then
+            echo "FEHL  das Profil trägt noch eine USt-IdNr."; exit 1
+          fi
+          grep -q '^  steuernummer: 244/107/01234$' /tmp/nur-steuernummer/example.yaml
+          PYTHONPATH=skill python -m falzmarke.cli xml examples/rechnung.md \
+            --profiles /tmp/nur-steuernummer -o /tmp/nur-steuernummer.xml
+          PYTHONPATH=skill python -m falzmarke.cli xml examples/xrechnung.md \
+            --profiles /tmp/nur-steuernummer -o /tmp/nur-steuernummer-xrechnung.xml
+          python scripts/erechnung_ohne_kennung.py /tmp/nur-steuernummer.xml \
+            /tmp/nur-steuernummer-ohne-kennung.xml
+          python scripts/erechnung_ohne_kennung.py /tmp/nur-steuernummer-xrechnung.xml \
+            /tmp/nur-steuernummer-xrechnung-ohne-kennung.xml
+
       - name: Gegen das fremde Werkzeug halten
         run: |
           # Exit 0 alles wie erwartet, 1 ein Befund, 2 NICHT GEPRÜFT. Jeder
@@ -460,8 +483,11 @@ jobs:
           python scripts/erechnung_pruefen.py --mustang /tmp/Mustang-CLI.jar \
             --gut /tmp/eigene-rechnung.pdf /tmp/eigene-xrechnung.xml /tmp/eigene-xrechnung.pdf \
                   /tmp/eigene-rechnung-steuersaetze.pdf /tmp/eigene-rechnung-kleinbetrag.pdf \
+                  /tmp/nur-steuernummer.xml /tmp/nur-steuernummer-xrechnung.xml \
                   /tmp/ref/EN16931_Einfach.pdf /tmp/ref/validXRV30.xml /tmp/ref/validXRechnung.pdf \
             --schlecht /tmp/eigene-xrechnung-ohne-referenz.xml::BR-DE-15 \
+                       /tmp/nur-steuernummer-ohne-kennung.xml::BR-CO-26 \
+                       /tmp/nur-steuernummer-xrechnung-ohne-kennung.xml::BR-CO-26 \
                        /tmp/ref/invalidXRechnung.pdf
 
       - name: KoSIT-Validator und Konfiguration XRechnung
@@ -485,8 +511,9 @@ jobs:
           # auch hier an genau BR-DE-15 scheitern.
           python scripts/erechnung_kosit.py --validator /tmp/kosit-validator.jar \
             --konfiguration /tmp/kosit-konfiguration \
-            --gut /tmp/eigene-xrechnung.xml /tmp/ref/validXRV30.xml \
-            --schlecht /tmp/eigene-xrechnung-ohne-referenz.xml::BR-DE-15
+            --gut /tmp/eigene-xrechnung.xml /tmp/nur-steuernummer-xrechnung.xml /tmp/ref/validXRV30.xml \
+            --schlecht /tmp/eigene-xrechnung-ohne-referenz.xml::BR-DE-15 \
+                       /tmp/nur-steuernummer-xrechnung-ohne-kennung.xml::BR-CO-26
 
   changelog:
     # Ein Vorgang, der das Werkzeug aendert, traegt einen Punkt in den Verlauf

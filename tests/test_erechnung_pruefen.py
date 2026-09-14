@@ -238,7 +238,11 @@ def test_die_ci_laedt_die_version_die_das_skript_erwartet():
 def test_die_ci_faehrt_das_skript_mit_gegenprobe():
     text = CI.read_text(encoding="utf-8")
     assert "scripts/erechnung_pruefen.py" in text
-    aufruf = text[text.index("scripts/erechnung_pruefen.py"):][:400]
+    # Der ganze Aufruf, bis zur ersten Zeile ohne Fortsetzungszeichen — nicht
+    # ein festes Zeichenfenster, das mit jeder weiteren Datei zu kurz wird (#316).
+    zeilen = text[text.index("scripts/erechnung_pruefen.py"):].splitlines()
+    ende = next(i for i, z in enumerate(zeilen) if not z.rstrip().endswith("\\"))
+    aufruf = "\n".join(zeilen[:ende + 1])
     assert "--gut" in aufruf and "--schlecht" in aufruf, aufruf
 
 
