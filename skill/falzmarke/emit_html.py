@@ -210,8 +210,14 @@ def liste(punkte: list[str], nummeriert: bool = False, start: int = 1) -> str:
     die Marke wäre die Liste die eine Stelle, an der ein Deckel unbemerkt
     zurückkommen könnte.
     """
+    # Der letzte Punkt trägt keinen Abstand nach unten: Den setzt die Hülle. Mit
+    # beiden standen unter dem Listenende 16 px, unter einem Absatz 12 px — und
+    # ein Client, der die Ränder addiert statt zusammenzufassen (die Word-Engine
+    # des klassischen Outlook, ? ungeprüft), zeigt den Unterschied (#322, Befund 5).
+    abstaende = ["0 0 4px"] * (len(punkte) - 1) + ["0"]
     zeilen = [
-        f'<li class="{KLASSE_TEXT}" style="margin: 0 0 4px; {TEXTSTIL}">{p}</li>' for p in punkte
+        f'<li class="{KLASSE_TEXT}" style="margin: {abstand}; {TEXTSTIL}">{p}</li>'
+        for abstand, p in zip(abstaende, punkte)
     ]
     stil = f"margin: 0 0 {ABSTAND_UNTEN}; padding-left: 22px; {TEXTSTIL}"
     if nummeriert:
