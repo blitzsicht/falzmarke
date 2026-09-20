@@ -470,6 +470,18 @@ def _loese_aus(regel: str, tmp_path):
         (tmp_path / "probe.bin").write_bytes(b"\0" * (20 * 1_048_576))
         return linte(tmp_path, MAIL + "anlagen_dateien: [probe.bin]\n",
                      "anbei die Datei probe.bin.\n")
+    # Leitwort und Schlusspunkt im Betreff (#296). Ihre Regelnamen legt der
+    # Katalog fest, nicht dieser Test — gefunden wird der Auslöser deshalb über
+    # den Titel des Eintrags, der seinen Gegenstand nennen muss.
+    from falzmarke import regeln as regelsatz
+    eintrag = regelsatz.fuer_lint(regel)
+    titel = eintrag["titel"].lower() if eintrag else ""
+    if "leitwort" in titel:
+        return linte(tmp_path, MAIL.replace("betreff: Angebot Nr. 2026-0815",
+                                            'betreff: "Betreff: Angebot Nr. 2026-0815"'))
+    if "punkt" in titel:
+        return linte(tmp_path, MAIL.replace("betreff: Angebot Nr. 2026-0815",
+                                            "betreff: Angebot Nr. 2026-0815."))
     raise AssertionError(f"kein Auslöser für {regel} — bitte einen ergänzen")
 
 

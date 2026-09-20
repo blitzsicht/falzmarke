@@ -85,16 +85,20 @@ def test_unmoegliches_datum_ergibt_keinen_traceback(tmp_path):
 # ── Betreff, Anrede, Gruß ───────────────────────────────────────────────────
 
 @pytest.mark.parametrize(
-    "betreff,regel",
+    "betreff,gesagt",
     [
-        ('"Betreff: Angebot"', "betreff"),
-        ("Angebot Nr. 4711.", "betreff"),
-        ("A" * 200, "betreff"),
+        ('"Betreff: Angebot"', "Leitwort"),
+        ("Angebot Nr. 4711.", "Punkt"),
+        ("A" * 200, "Zeichen"),
     ],
 )
-def test_betreffregeln(tmp_path, betreff, regel):
+def test_betreffregeln(tmp_path, betreff, gesagt):
+    """Gefragt wird, WAS gemeldet wird, nicht unter welchem Namen: Leitwort und
+    Schlusspunkt haben seit #296 eigene Regelnamen, die Länge behält `betreff`.
+    Die Namen prüft `test_betreff_regeln.py`."""
     bericht = linte(tmp_path, KOPF.replace("betreff: Ein Betreff", f"betreff: {betreff}"))
-    assert regel in regeln(bericht)
+    fehler = [b for b in bericht.befunde if b.schwere == "Fehler"]
+    assert any(gesagt in b.meldung for b in fehler), bericht.als_text("brief.md")
 
 
 def test_zweizeiliger_betreff_ist_erlaubt(tmp_path):
@@ -595,7 +599,7 @@ anrede: Sehr geehrte Damen und Herren
 
 
 @pytest.mark.parametrize("kopf", [KURZ, LANG], ids=["kurzer Kopf", "langer Kopf"])
-@pytest.mark.parametrize("feld,regel", [("betreff:", "betreff"), ("anrede:", "anrede")])
+@pytest.mark.parametrize("feld,regel", [("betreff:", "betreff.schlusspunkt"), ("anrede:", "anrede")])
 def test_die_gemeldete_zeile_steht_wirklich_dort(tmp_path, kopf, feld, regel):
     """Der Betreff endet auf einen Punkt, die Anrede ohne Komma — beide lösen
     aus, und beide melden über `_feldzeile`."""

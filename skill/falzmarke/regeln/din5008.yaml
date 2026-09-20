@@ -364,6 +364,32 @@ regeln:
       Eigene Herleitung aus Satzbreite und Schriftgröße. Die Norm nennt keine
       Zeichenzahl; sie begrenzt den Betreff auf zwei Zeilen.
 
+  - id: werkzeug.betreff_leitwort
+    titel: Betreff ohne das Leitwort „Betreff“
+    lint: betreff.leitwort
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Datenvertrag des Werkzeugs, keine Normaussage (#296): In
+      `references/din5008.md` steht nichts zum Leitwort, und ob eine der
+      Briefquellen es hergibt, ist nicht geprüft. Der Betreff steht für sich;
+      ein „Betreff:“ davor wäre doppelt. Bis eine Quelle vorliegt, bleibt es
+      eine Zusage des Werkzeugs und heißt deshalb `werkzeug`, nicht `offen`.
+      Getrennt von `werkzeug.betreff_laenge`, damit eine Herabstufung der Länge
+      das Leitwort nicht mitzieht.
+
+  - id: werkzeug.betreff_schlusspunkt
+    titel: Betreff ohne Schlusspunkt
+    lint: betreff.schlusspunkt
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Datenvertrag des Werkzeugs, keine Normaussage (#296): `references/din5008.md`
+      sagt zum Schlusspunkt nichts. Gleiche Lage und gleiche Begründung wie bei
+      `werkzeug.betreff_leitwort`; getrennt von der Länge aus demselben Grund.
+
   - id: werkzeug.url_im_text
     titel: URL im Brieftext
     lint: url
