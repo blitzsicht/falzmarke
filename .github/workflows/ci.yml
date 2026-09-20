@@ -256,7 +256,7 @@ jobs:
           # gewinnt deshalb nichts (#195).
           # Stand 20.09.2026 — Version und Digest gehören zusammen angehoben.
           VERAPDF_VERSION: "1.30.2"
-          VERAPDF_SHA256: "6cc6341cb1af644044054b81f00a6590a7918abb18f762243de115258bcad838"
+          VERAPDF_SHA256: "0000000000000000000000000000000000000000000000000000000000000000"
         run: |
           # Java bringt der Runner mit; ein eigener setup-java-Schritt wäre eine
           # weitere Action, die gepinnt und gepflegt werden müsste.
