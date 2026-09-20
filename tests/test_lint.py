@@ -599,7 +599,7 @@ anrede: Sehr geehrte Damen und Herren
 
 
 @pytest.mark.parametrize("kopf", [KURZ, LANG], ids=["kurzer Kopf", "langer Kopf"])
-@pytest.mark.parametrize("feld,regel", [("betreff:", "betreff"), ("anrede:", "anrede")])
+@pytest.mark.parametrize("feld,regel", [("betreff:", "betreff.schlusspunkt"), ("anrede:", "anrede")])
 def test_die_gemeldete_zeile_steht_wirklich_dort(tmp_path, kopf, feld, regel):
     """Der Betreff endet auf einen Punkt, die Anrede ohne Komma — beide lösen
     aus, und beide melden über `_feldzeile`."""
