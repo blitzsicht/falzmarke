@@ -1035,3 +1035,88 @@ def test_lint_prueft_gegen_die_maengelliste_des_emitters(tmp_path, monkeypatch):
     monkeypatch.setattr(emit_xml, "kleinunternehmer_maengel", lambda kopf, profil: [])
     regeln = _ku_regeln(tmp_path, "  brutto: 370.00\n", "  brutto: 440.30\n")
     assert "rechnung.kleinunternehmer_summe" not in regeln, regeln
+
+
+# ── Der Innenabstand der Tabellenzellen (#151) ──────────────────────────────
+#
+# Die Rasterprüfung nimmt Tabellen aus, und damit ist ihr die Zeilenhöhe
+# gleich: Wer `y: 1.4mm` in `emit.py` ändert, verschiebt alles unter der
+# Tabelle und bekommt von ihr keinen roten Punkt. Gemessen wird das von
+# `test_raster.py::test_eine_tabellenzeile_ist_so_hoch_wie_beschlossen`. Hier
+# steht, dass diese Messung rot werden KANN — mit dem Innenabstand, an dem sie
+# hängt, nicht mit einer Kopie davon.
+#
+# Sabotiert wird die Ausgabe des echten Emitters an genau einer Stelle, und die
+# Sabotage muss ihren Anker finden: Stünde der Innenabstand dort nicht mehr so,
+# verstellte sie nichts, und jede Probe unten wäre aus dem falschen Grund grün.
+
+import tabellenmessung as _tabelle                                  # noqa: E402
+
+TABELLE = REPO / "examples" / "brief-tabelle.md"
+INNENABSTAND = "inset: (x: 2mm, y: 1.4mm),"
+
+#: Texthöhe einer 11-pt-Zeile in mm. Die erwartete Zeilenhöhe der Sabotage ist
+#: sie plus zweimal der verstellte Innenabstand: 3,88 + 2 · 1,4 = 6,68.
+TEXTHOEHE_MM = 3.88
+
+
+def _tabellen_pdf(tmp_path: Path, monkeypatch, y: str | None) -> tuple[Path, str]:
+    if y is not None:
+        echt = _emit.tabelle
+
+        def sabotiert(zeilen, ausrichtungen):
+            text = echt(zeilen, ausrichtungen)
+            assert INNENABSTAND in text, (
+                f"Anker „{INNENABSTAND}“ steht nicht mehr im Emitter — "
+                "die Sabotage träfe nichts")
+            return text.replace(INNENABSTAND, f"inset: (x: 2mm, y: {y}),")
+
+        monkeypatch.setattr(_emit, "tabelle", sabotiert)
+    return falzmarke.rendere(TABELLE, tmp_path / "tabelle.pdf")
+
+
+def _weicht_ab(hoehen: list[float]) -> list[float]:
+    return [h for h in hoehen
+            if abs(h - _tabelle.ZEILENHOEHE_MM) > _tabelle.TOLERANZ_MM]
+
+
+def test_die_tabelle_haelt_unsabotiert_die_sollhoehe(tmp_path, monkeypatch):
+    """Kontrollprobe. Ohne sie misst jede Sabotage unten nur, dass die Messung
+    schon im Ausgangszustand danebenlag."""
+    pdf, _ = _tabellen_pdf(tmp_path, monkeypatch, None)
+    hoehen = _tabelle.zeilenhoehen_mm(pdf)
+    assert len(hoehen) >= 4, hoehen
+    assert _weicht_ab(hoehen) == [], hoehen
+
+
+@pytest.mark.parametrize("y", ["2.293mm", "0.176mm", "1.5mm"],
+                         ids=["rastertreu-luftig", "rastertreu-eng", "eine-spur-mehr"])
+def test_ein_veraenderter_innenabstand_macht_die_messung_rot(tmp_path, monkeypatch, y):
+    """Je Wert einzeln gefahren: die beiden rastertreuen Wege aus dem Vorgang
+    (2,293 mm: 2,00 Rasterzeilen; 0,176 mm: 1,00) und 0,1 mm mehr, die kleinste
+    Änderung, die ein Mensch am Ausdruck nicht sähe.
+
+    Erwartet wird die Höhe NAMENTLICH — Texthöhe plus zweimal der neue Abstand
+    —, nicht „irgendeine andere". Eine Sabotage, die die Zeilen anders verstellt
+    als gedacht, hat etwas anderes getroffen als den Innenabstand.
+    """
+    pdf, _ = _tabellen_pdf(tmp_path, monkeypatch, y)
+    hoehen = _tabelle.zeilenhoehen_mm(pdf)
+    erwartet = TEXTHOEHE_MM + 2 * float(y.removesuffix("mm"))
+
+    assert _weicht_ab(hoehen) == hoehen, (
+        f"y = {y}: die Messung bleibt bei {[round(h, 2) for h in hoehen]} grün")
+    assert all(abs(h - erwartet) <= _tabelle.TOLERANZ_MM for h in hoehen), (
+        f"y = {y}: erwartet {erwartet:.2f} mm je Zeile, gemessen "
+        f"{[round(h, 2) for h in hoehen]} — die Sabotage hat etwas anderes verstellt")
+
+
+def test_die_rasterpruefung_sieht_den_verstellten_innenabstand_nicht(tmp_path, monkeypatch):
+    """Der Grund, warum es die Messung oben überhaupt braucht: Mit 2,293 mm
+    verschwinden die Brüche INNERHALB der Tabelle, und die beiden Übergänge sind
+    ausgenommen — `geometrie.pruefe` bleibt beim Zeilenraster stumm, obwohl die
+    Tabelle um 9 mm gewachsen ist. Fiele die Prüfung hier an, wäre die neue
+    Messung überflüssig, und niemand hätte es bemerkt."""
+    pdf, form = _tabellen_pdf(tmp_path, monkeypatch, "2.293mm")
+    gescheitert = _gescheitert(pdf, form)
+    assert not [n for n in gescheitert if "Zeilenraster" in n], gescheitert

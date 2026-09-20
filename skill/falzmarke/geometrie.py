@@ -455,11 +455,26 @@ def _ursache_ueberlauf(span: Span, tabellen: list[tuple[float, float]],
 def _tabellenbereiche(seite) -> list[tuple[float, float]]:
     """y-Bereiche, in denen eine Tabelle steht — an ihren Rahmenlinien erkannt.
 
-    Warum Tabellen nicht mitgemessen werden: Die Höhe einer Tabellenzeile hängt
-    am Innenabstand der Zellen, nicht am Zeilenraster. Rastertreu wäre sie erst
-    bei 0,18 mm Innenabstand — dann kleben die Zellen aneinander. Das ist eine
-    Abwägung zwischen Raster und Lesbarkeit, und sie gehört entschieden, nicht
-    von einer Prüfung erzwungen (Issue #151).
+    Warum Tabellen nicht mitgemessen werden, und dass das gewollt ist
+    (beschlossen am 20.09.2026, Issue #151): Die Höhe einer Tabellenzeile hängt
+    am Innenabstand der Zellen, nicht am Zeilenraster. Bei 11 pt und 1,4 mm
+    Innenabstand (`inset` in `emit.py`) misst eine Zeile 6,68 mm, das sind 1,58
+    Rasterzeilen. Der Ein- und der Austritt, also Absatz → erste Zeile und
+    letzte Zeile → Absatz, messen je 2,33. Alles unterhalb einer Tabelle steht
+    damit auf einem anderen Raster als alles darüber.
+
+    Die Lesbarkeit gewinnt gegen das Raster. Rastertreu wären zwei Werte:
+    2,293 mm Innenabstand (2,00 Rasterzeilen) lässt eine fünfzeilige Tabelle
+    um 9 mm wachsen und ändert jedes Bild, in dem eine Tabelle vorkommt;
+    0,176 mm (1,00) ist kein Innenabstand mehr, die Zellen klebten aneinander.
+    Die beiden Übergänge blieben auch bei 2,293 mm gebrochen (2,54 statt
+    2,33), der Bruch verschwände also selbst auf dem teuren Weg nicht ganz.
+
+    Dass die Ausnahme nicht still wächst, hält `tests/test_raster.py` fest: Es
+    misst die Zeilenhöhe im gerenderten PDF gegen einen Sollwert, der als Zahl
+    in `tests/tabellenmessung.py` steht und nicht aus `emit.py` gelesen wird.
+    Ändert jemand den Innenabstand, wird dieser Test rot, und die Zahlen oben
+    sind dann neu zu messen.
 
     Erkannt statt aufgelistet: Eine Ausnahmeliste wäre ein zweiter Ort, an dem
     sich ein Layoutfehler verstecken könnte. Ein Tabellenrahmen dagegen ist
