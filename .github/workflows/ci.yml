@@ -249,12 +249,25 @@ jobs:
           pip install -r skill/requirements.txt pytest
 
       - name: veraPDF installieren
+        env:
+          # Der Digest deckt Stabilität ab, nicht Authentizität: Er schützt davor,
+          # dass sich die Datei später still ändert, nicht davor, dass sie von Anfang
+          # an eine andere war. Die GPG-Signatur liegt auf demselben Server und
+          # gewinnt deshalb nichts (#195).
+          # Stand 20.09.2026 — Version und Digest gehören zusammen angehoben.
+          VERAPDF_VERSION: "1.30.2"
+          VERAPDF_SHA256: "6cc6341cb1af644044054b81f00a6590a7918abb18f762243de115258bcad838"
         run: |
           # Java bringt der Runner mit; ein eigener setup-java-Schritt wäre eine
           # weitere Action, die gepinnt und gepflegt werden müsste.
           java -version
-          curl -sSL --retry 3 -o /tmp/verapdf-installer.zip \
-            https://software.verapdf.org/releases/verapdf-installer.zip
+          # Verzeichnis ist die Minor-Version, Datei die volle — beides aus derselben
+          # Variablen, damit ein Versionssprung nur an einer Stelle passiert.
+          url="https://software.verapdf.org/releases/${VERAPDF_VERSION%.*}/verapdf-greenfield-${VERAPDF_VERSION}-installer.zip"
+          curl -sSL --retry 3 -o /tmp/verapdf-installer.zip "$url"
+          # Vor dem Entpacken, nicht danach: Was hier nicht stimmt, wird gar nicht
+          # erst ausgeführt.
+          echo "${VERAPDF_SHA256}  /tmp/verapdf-installer.zip" | sha256sum -c -
           unzip -q /tmp/verapdf-installer.zip -d /tmp/verapdf-installer
           cd /tmp/verapdf-installer/verapdf-greenfield-*
           cat > auto-install.xml <<'XML'
