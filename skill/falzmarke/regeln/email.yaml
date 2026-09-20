@@ -722,6 +722,31 @@ regeln:
       ohne `<th>` UND ohne die Marke ist ein Befund, egal welche Absicht
       dahinterstand.
 
+  - id: eml.anker_als_knopf
+    titel: Ein Knopf ist ein Tabellengerüst, kein Anker mit Kasten
+    pruefung: anker_als_knopf
+    ebene: praxis
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      Der Befund aus #322: Am 14.09.2026 gingen zwei Mails mit derselben
+      mitgebrachten Signatur (#275) raus, `verify --email` meldete 27/27 und
+      29/29, und in Outlook für Mac überlappte der Termin-Knopf die Zeile davor
+      und zerfiel in zwei Kästen. Der Google-Knopf derselben Signatur stand in
+      einem `<table><td>`-Gerüst und hielt seine Form.
+
+      **Was belegt ist und was nicht.** Beobachtet ist der Unterschied der beiden
+      Aufbauten. Dass `display:inline-block`, `padding` und `margin` an einem
+      `<a>` die einzelne Ursache sind, ist die Deutung des Vorgangs, nicht
+      gemessen — deshalb `praxis` und `werkzeug` (ADR 0035), also nie ein Fehler.
+
+      Gefunden wird `display:inline-block` **zusammen mit** `padding*` oder
+      `margin*` im `style` desselben `<a>`; jedes Merkmal allein und ein Kasten
+      am `<span>` bleiben unbeanstandet. Gemessen wird der ganze HTML-Teil, die
+      Meldung nennt Linktext und Ziel. Geändert wird nichts: Die Signatur
+      stammt aus cw-core, und wer sie ändert, ändert sie an der Quelle.
+
   - id: eml.quellteil
     titel: Der Quellteil ist als CommonMark ausgezeichnet
     pruefung: quellteil

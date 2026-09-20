@@ -681,6 +681,91 @@ def test_dieselbe_regel_als_warnung_laesst_den_bericht_gruen(tmp_path, monkeypat
     assert "1 Warnung" in knapp, knapp
 
 
+# ── Der Knopf als Anker in einer mitgebrachten Signatur (#322) ──────────────
+#
+# Zwei Proben, nicht eine. Dass die Prüfung bei `<a style="display:inline-block;
+# padding:6px">` rot wird, sagt allein nur, dass sie manchmal anschlägt — nicht,
+# dass sie unterscheidet. Ein Prüfer, der jede Signatur mit Knopf beanstandet,
+# besteht die erste Probe ebenso. Erst die zweite, dieselbe Signatur im
+# Tabellengerüst, zeigt, dass es am Aufbau liegt und nicht am Knopf.
+#
+# Beide Signaturen tragen außerdem den Google-Knopf aus `blitzsicht.html`, der
+# in Outlook seine Form hält (`signatur_knopf.TABELLENKNOPF_BEWERTEN`): Was der
+# Prüfer an ihm findet, wäre der Fehlalarm — er steht in der grünen Probe mit
+# darin und bleibt dort ohne Befund.
+
+from signatur_knopf import eml_mit_signatur, html_der_eml, signatur    # noqa: E402
+
+#: Der Anker aus der Aufgabe, wörtlich — ohne `href`. Ein Anker ohne Ziel bleibt
+#: ein Anker: Auch der zerfällt in Outlook, und eine Prüfung, die nur Anker MIT
+#: `href` findet, ließe genau den Fall der Aufgabe durch.
+ANKER_WOERTLICH = '<a style="display:inline-block;padding:6px">Termin vereinbaren</a>'
+
+#: Dasselbe Aussehen in dem Gerüst, das dort nachweislich hält.
+TABELLE_WOERTLICH = (
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>'
+    '<td style="padding:6px"><a>Termin vereinbaren</a></td></tr></table>')
+
+
+def _rot(tmp_path: Path, knopf: str) -> set[str]:
+    """Die Namen der Prüfungen, die an einer Nachricht mit diesem Knopf anschlagen.
+
+    Es wird kein Regelname vorausgesetzt: Gemessen wird, ob IRGENDEINE Prüfung
+    anschlägt, und die Kontrolle unten sagt, dass es dieselbe eine ist.
+    """
+    pfad = eml_mit_signatur(tmp_path, signatur(knopf))
+    return {p.name for p in _eml_pruefung.pruefe(pfad).pruefungen if not p.bestanden}
+
+
+def test_der_anker_als_knopf_macht_die_pruefung_rot(tmp_path):
+    """Erste Probe. Die Sabotage muss in der fertigen Datei stehen — sonst ist
+    ein rotes Ergebnis hier ein anderer Fehler und kein Beleg."""
+    pfad = eml_mit_signatur(tmp_path, signatur(ANKER_WOERTLICH))
+    assert "display:inline-block" in html_der_eml(pfad), \
+        "der Anker steht nicht in der Datei — die Probe misst nichts"
+    bericht = _eml_pruefung.pruefe(pfad)
+    rot = [p for p in bericht.pruefungen if not p.bestanden]
+    assert len(rot) == 1, bericht.als_text(ausfuehrlich=True)
+
+
+def test_dasselbe_geruest_als_tabelle_laesst_die_pruefung_gruen(tmp_path):
+    """Zweite Probe, und sie trägt den Nachweis (AC 4): Ohne sie wäre offen, ob
+    die Prüfung nur immer rot meldet.
+
+    Mit der Vorbedingung vorweg: Ein Grün ist nur dann eines, wenn es dieselbe
+    Prüfung ist, die eben noch rot wurde. Ohne sie bestünde diese Probe auch
+    dort, wo es die Prüfung gar nicht gibt.
+    """
+    (tmp_path / "schlecht").mkdir()
+    assert len(_rot(tmp_path / "schlecht", ANKER_WOERTLICH)) == 1, \
+        "die Vorbedingung fehlt: die Prüfung wird an der ersten Probe nicht rot"
+
+    pfad = eml_mit_signatur(tmp_path, signatur(TABELLE_WOERTLICH))
+    html = html_der_eml(pfad)
+    assert "inline-block" not in html, "der Anker ist noch da — die Probe misst nichts"
+    assert "Termin vereinbaren" in html and "<td" in html
+    bericht = _eml_pruefung.pruefe(pfad)
+    assert not [p for p in bericht.pruefungen if not p.bestanden], \
+        bericht.als_text(ausfuehrlich=True)
+    assert not bericht.warnungen, bericht.als_text()
+
+
+def test_beide_proben_unterscheiden_sich_nur_im_knopf(tmp_path):
+    """Die Kontrolle über beiden: Was zwischen den Läufen anders ist, ist genau
+    die eine Prüfung — dieselbe Zahl an Prüfungen, dieselben Namen, ein
+    Unterschied. Sonst hätte die zweite Probe einen anderen Grund für ihr Grün
+    als die erste für ihr Rot."""
+    (tmp_path / "a").mkdir()
+    (tmp_path / "b").mkdir()
+    schlecht = eml_mit_signatur(tmp_path / "a", signatur(ANKER_WOERTLICH))
+    gut = eml_mit_signatur(tmp_path / "b", signatur(TABELLE_WOERTLICH))
+    namen_schlecht = [p.name for p in _eml_pruefung.pruefe(schlecht).pruefungen]
+    namen_gut = [p.name for p in _eml_pruefung.pruefe(gut).pruefungen]
+    assert namen_schlecht == namen_gut, "die Läufe prüfen nicht dasselbe"
+    assert len(_rot(tmp_path / "a", ANKER_WOERTLICH)) == 1
+    assert _rot(tmp_path / "b", TABELLE_WOERTLICH) == set()
+
+
 def test_die_briefmasse_bleiben_fehler(tmp_path):
     """Der Default trägt: Die Maße des Briefes kennen den Katalog nicht.
 

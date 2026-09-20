@@ -93,7 +93,7 @@ falzmarke email nachricht.md --oeffnen
 
 ```
 OK  geschrieben: nachricht.eml
-OK  verify: 25/25 Prüfungen bestanden
+OK  verify: 26/26 Prüfungen bestanden
 OK  Entwurf angelegt: Microsoft Outlook
 ```
 
@@ -179,6 +179,14 @@ kein Skript, kein externes Stylesheet, kein Zählpixel, keine Layouttabelle ohne
 Fundstelle und dem Namen der Datei, nicht stillschweigend eingesetzt. Der Kanal gibt nicht nach,
 damit die Quelle nachbessert. Die Begründung steht im Nachtrag zu
 [ADR 0034](entscheidungen/0034-email-ist-ausgabe.md).
+
+Eine Sache lehnt der Kanal nicht ab, sondern meldet sie erst in `verify --email`: ein Anker, der
+selbst der Kasten sein will — `display:inline-block` zusammen mit `padding` oder `margin` im
+`style` eines `<a>`. Outlook für Mac hat am 14.09.2026 einen so gebauten Knopf über die Zeile davor
+gelegt und in zwei Rahmen zerlegt, während der Tabellenknopf derselben Signatur seine Form hielt.
+Die Warnung nennt Linktext und Ziel und sagt, was an die Stelle gehört: ein `<table><td>`-Gerüst mit
+dem Anker nur als Träger von Farbe und Schrift. Die Signatur ändert falzmarke nicht — sie kommt aus
+`cw-core`, und wer sie ändert, ändert sie dort.
 
 Ohne `signatur_text` bleibt der Textteil die Signatur aus den Profilblöcken. Das ist Absicht: Ein
 Textteil, der etwas anderes sagt als der HTML-Teil, fällt bei `verify --email` als fehlender

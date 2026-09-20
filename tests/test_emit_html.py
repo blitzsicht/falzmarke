@@ -154,3 +154,81 @@ def test_unbekannter_knoten_bricht_ab():
 
     with pytest.raises(TypeError, match="HTML-Emitter"):
         html._block(Erfunden())
+
+
+# ── Der Abstand unter einer Liste (#322, Befund 5) ──────────────────────────
+#
+# Am 14.09.2026 stand in beiden Kundenmails zwischen dem letzten Listenpunkt und
+# dem nächsten Absatz etwa der Platz von zwei Leerzeilen. Vermutet war der Emitter;
+# gemessen ist hier, was er SELBST an Abstand unter das Listenende setzt.
+#
+# **Was gemessen wird und was nicht.** Gemessen wird der Wert im gesetzten HTML:
+# der untere Abstand des letzten `<li>` plus der der Liste. Ein Browser fasst die
+# beiden zusammen (der größere gilt), die Word-Engine des klassischen Outlook
+# addiert sie — dass sie das tut, ist hier NICHT gemessen (? ungeprüft, kein
+# Outlook in der Prüfumgebung). Der Test verlangt deshalb das, was in beiden
+# Fällen stimmt: Unter dem Listenende steht nicht mehr Platz als unter einem
+# Absatz — auch dann nicht, wenn ein Client die Ränder addiert.
+#
+# Wer stattdessen zeigt, dass der Abstand gewollt ist, und ihn mit Messwert
+# dokumentiert (AC 5 lässt beides zu), löscht diesen Test mit der Begründung im
+# Commit — und lässt ihn nicht stillschweigend rot stehen.
+
+def _unten(tag: str) -> float:
+    """Der untere Außenabstand aus dem `style` eines Tags, in Pixeln.
+
+    Versteht `margin-bottom` und die Kurzform mit ein bis vier Werten. Fehlt die
+    Angabe, ist es 0 — der Standardwert der Mail-Clients ist hier ohne Belang,
+    weil der Emitter an jedem Block ausdrücklich `margin` setzt.
+    """
+    stil = re.search(r'style="([^"]*)"', tag).group(1)
+    einzeln = re.search(r"(?:^|;)\s*margin-bottom:\s*([\d.]+)", stil)
+    if einzeln:
+        return float(einzeln.group(1))
+    kurz = re.search(r"(?:^|;)\s*margin:\s*([^;]+)", stil)
+    if not kurz:
+        return 0.0
+    werte = [float(w) for w in re.findall(r"[\d.]+", kurz.group(1))]
+    if not werte:
+        return 0.0
+    return werte[{1: 0, 2: 0, 3: 2, 4: 2}[min(len(werte), 4)]]
+
+
+def _platz_unter_der_liste(ausgabe: str, huelle: str) -> float:
+    """Was unter dem letzten Punkt steht: sein Abstand plus der der Liste."""
+    liste = re.findall(rf"<{huelle}\b[^>]*>", ausgabe)[0]
+    letzter_punkt = re.findall(r"<li\b[^>]*>", ausgabe)[-1]
+    return _unten(liste) + _unten(letzter_punkt)
+
+
+@pytest.mark.parametrize("huelle, quelle", [
+    ("ul", "- eins\n- zwei\n- drei\n"),
+    ("ol", "1. eins\n2. zwei\n3. drei\n"),
+], ids=["Aufzählung", "Nummerierung"])
+def test_unter_dem_listenende_steht_nicht_mehr_platz_als_unter_einem_absatz(huelle, quelle):
+    ausgabe = _setze(quelle)
+
+    # Kontrollen zuerst: Die Messung muss zwei Dinge können, sonst sagt ihr Wert
+    # nichts. Sie muss einen Absatz mit seinem tatsächlichen Abstand lesen
+    # (positiv, und nicht 0 nur weil die Regex ins Leere greift), und sie muss
+    # die Kurz- und Langform unterscheiden.
+    absatz = re.findall(r"<p\b[^>]*>", _setze("Ein Satz.\n"))[0]
+    assert _unten(absatz) == float(html.ABSTAND_UNTEN.removesuffix("px")) > 0
+    assert _unten('<li style="margin: 0 0 4px;">') == 4
+    assert _unten('<li style="margin: 0;">') == 0
+    assert _unten('<li style="margin: 3px 5px;">') == 3
+    assert _unten('<li style="margin-bottom: 7px;">') == 7
+
+    platz = _platz_unter_der_liste(ausgabe, huelle)
+    erlaubt = _unten(absatz)
+    assert platz <= erlaubt, (
+        f"Unter dem letzten Punkt stehen {platz:g} px (Punkt + Liste), unter einem "
+        f"Absatz {erlaubt:g} px — in einem Client, der die Ränder addiert, ist das "
+        "mehr Leerraum als zwischen zwei Absätzen")
+
+    # Und nicht dadurch erkauft, dass der Abstand zwischen den Punkten verschwindet:
+    # Nur der LETZTE Punkt gibt den seinen ab.
+    punkte = re.findall(r"<li\b[^>]*>", ausgabe)
+    assert len(punkte) == 3
+    assert all(_unten(p) > 0 for p in punkte[:-1]), (
+        "die Punkte untereinander haben keinen Abstand mehr")

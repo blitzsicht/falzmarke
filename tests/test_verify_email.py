@@ -658,3 +658,211 @@ def test_ein_schmaleres_logo_bekommt_eine_andere_breite(tmp_path, profil):
     html = eml.htmlteil(KOPF, profil, md.lies(QUELLE),
                         logo=eml.Logo("datei", f"cid:{eml.LOGO_CID}", logo))
     assert 'width="40" height="40"' in html
+
+
+# ── Der Knopf als Anker in einer mitgebrachten Signatur (#322) ──────────────
+#
+# Am 14.09.2026 meldete `verify --email` 27/27 und 29/29, und in Outlook für Mac
+# zerfiel der Termin-Knopf der Signatur in zwei Kästen und überlappte die Zeile
+# davor. Outlook ignoriert `display:inline-block`, `margin` und `padding` auf
+# einem `<a>`. Eine mitgebrachte Signatur (#275) wurde eingebettet, ohne dass die
+# Prüfung sie ansah.
+#
+# Gemessen wird an der fertigen Datei und ohne Namen: Welche Prüfung anschlägt,
+# steht im Bericht, nicht in diesem Test. Was hier festgehalten wird, ist die
+# Wirkung — ein Anker als Kasten wird beanstandet, derselbe Knopf im
+# Tabellengerüst nicht, und die Meldung sagt, wo und was stattdessen.
+
+from signatur_knopf import (                                           # noqa: E402
+    ANKERKNOPF_TERMIN, TABELLENKNOPF_TERMIN, eml_mit_signatur, html_der_eml, signatur)
+
+#: Die Zahl der Prüfungen der Nachricht aus `signatur_knopf.eml_mit_signatur`
+#: vor #322 — am 20.09.2026 gemessen: 25. Die Mails vom 14.09. trugen mehr
+#: Prüfungen (Quellteil, Anhänge: 27 und 29), die Rechnung ist dieselbe: Aus
+#: 27/27 wird 28/28 (AC 3), hier aus 25/25 also 26/26 — eine mehr, nicht keine
+#: und nicht zwei.
+PRUEFUNGEN_VOR_322 = 25
+
+
+def _rot(bericht) -> list:
+    """Alle Prüfungen, die nicht bestanden haben — Fehler und Warnungen.
+
+    „Rot" heißt hier `not bestanden` und nicht `not bericht.ok`. Ob die Prüfung
+    ein Fehler oder nur eine Warnung ist, entscheidet der Regelkatalog (ADR 0035:
+    Verhalten eines Mailprogramms ist Praxis, und Praxis ist nie ein Fehler).
+    Diese Tests legen die Stufe nicht fest — sie verlangen nur, dass der Befund
+    im Bericht steht und nicht still bleibt.
+    """
+    return [p for p in bericht.pruefungen if not p.bestanden]
+
+
+def test_die_neue_pruefung_steht_in_der_zaehlung(tmp_path):
+    """AC 3: aus 27/27 wird 28/28 — eine Prüfung mehr, nicht keine und nicht zwei.
+
+    Gezählt wird an der grünen Nachricht: Eine Prüfung, die nur im Fehlerfall
+    einen Eintrag schriebe, sähe im grünen Lauf aus wie keine (wie beim
+    Quellteil: „nicht prüfbar" steht dort ausdrücklich da).
+
+    Dieselbe Nachricht ist die Kontrollprobe für alles Folgende: Sie trägt den
+    Knopf im Tabellengerüst und muss ganz grün sein — sonst sähe „die Prüfung
+    schlägt an" weiter unten nach einem Beleg aus, ohne einer zu sein.
+    """
+    pfad = eml_mit_signatur(tmp_path, signatur(TABELLENKNOPF_TERMIN))
+    assert "inline-block" not in html_der_eml(pfad)
+    bericht = pruefung_eml.pruefe(pfad)
+    soll = PRUEFUNGEN_VOR_322 + 1
+    assert len(bericht.pruefungen) == soll, (
+        f"{len(bericht.pruefungen)} Prüfungen statt {soll}")
+    assert f"{soll}/{soll}" in bericht.als_text(), bericht.als_text()
+    assert bericht.ok and not bericht.warnungen and not _rot(bericht), \
+        bericht.als_text(ausfuehrlich=True)
+
+
+def test_der_anker_als_knopf_faellt_auf(tmp_path):
+    """AC 1, in der Form vom 14.09.2026 — zeichengenau der Termin-Knopf aus
+    `blitzsicht.html`. Genau eine Prüfung schlägt an, und die Zahl bleibt gleich:
+    Dass sie im Fehlerfall dazukommt und im grünen fehlt, wäre ein anderer Fehler.
+    """
+    pfad = eml_mit_signatur(tmp_path, signatur(ANKERKNOPF_TERMIN))
+    assert "display:inline-block" in html_der_eml(pfad), (
+        "die Sabotage steht nicht in der Datei — der Test würde nichts messen")
+    bericht = pruefung_eml.pruefe(pfad)
+    rot = _rot(bericht)
+    assert len(rot) == 1, bericht.als_text(ausfuehrlich=True)
+    assert len(bericht.pruefungen) == PRUEFUNGEN_VOR_322 + 1
+
+
+#: (Bezeichnung, der ganze Anker). Vollständige Tags statt eines Stil-Schnipsels:
+#: Die Prüfung muss den Anker finden, wie auch immer er geschrieben ist —
+#: Attributreihenfolge, Zeilenumbruch und Anführungszeichen sind in fremdem HTML
+#: nicht zu erwarten, sondern zu ertragen.
+ANKER_MIT_KASTEN = [
+    ("inline-block und padding",
+     '<a href="https://example.de/termin" '
+     'style="display:inline-block;padding:6px 12px;">Termin vereinbaren</a>'),
+    ("inline-block und margin",
+     '<a href="https://example.de/termin" '
+     'style="display:inline-block;margin-top:10px;">Termin vereinbaren</a>'),
+    ("beides, mit Leerzeichen",
+     '<a href="https://example.de/termin" '
+     'style="display: inline-block; margin-top: 10px; padding: 6px 12px;">Termin vereinbaren</a>'),
+    ("nur eine Seite gepolstert",
+     '<a href="https://example.de/termin" '
+     'style="display:inline-block;padding-left:12px;">Termin vereinbaren</a>'),
+    ("Stil vor dem Ziel",
+     '<a style="display:inline-block;padding:6px 12px;" '
+     'href="https://example.de/termin">Termin vereinbaren</a>'),
+    ("einfache Anführungszeichen",
+     "<a href='https://example.de/termin' "
+     "style='display:inline-block;padding:6px 12px;'>Termin vereinbaren</a>"),
+    ("Tag über mehrere Zeilen",
+     '<a href="https://example.de/termin"\n'
+     '   style="font-size: 13px;\n'
+     '          display: inline-block;\n'
+     '          padding: 6px 12px;">Termin vereinbaren</a>'),
+    ("Großbuchstaben",
+     '<a href="https://example.de/termin" '
+     'style="DISPLAY:INLINE-BLOCK;PADDING:6px;">Termin vereinbaren</a>'),
+]
+
+
+@pytest.mark.parametrize("anker", [a for _, a in ANKER_MIT_KASTEN],
+                         ids=[n for n, _ in ANKER_MIT_KASTEN])
+def test_jede_schreibweise_des_ankers_als_kasten_faellt_auf(tmp_path, anker):
+    pfad = eml_mit_signatur(tmp_path, signatur(anker))
+    assert "inline-block" in html_der_eml(pfad).lower(), (
+        "die Sabotage steht nicht in der Datei — der Test würde nichts messen")
+    bericht = pruefung_eml.pruefe(pfad)
+    assert len(_rot(bericht)) == 1, bericht.als_text(ausfuehrlich=True)
+
+
+#: Die Gegenprobe der Gegenprobe. Jeder dieser Fälle hat ein Merkmal des
+#: schlechten Knopfes — aber nicht die Kombination auf einem Anker. Eine Prüfung,
+#: die nur „irgendwo inline-block" oder „irgendwo padding" sucht, schlüge hier an
+#: und wäre für jede Signatur mit Tabellenknopf ein Fehlalarm.
+ANKER_OHNE_KASTEN = [
+    ("inline-block allein",
+     '<a href="https://example.de/termin" '
+     'style="display:inline-block;color:#1a3a5c;">Termin vereinbaren</a>'),
+    ("Kasten am Span, Anker ohne",
+     '<span style="display:inline-block;padding:6px 12px;">'
+     '<a href="https://example.de/termin" '
+     'style="color:#1a3a5c;text-decoration:none;">Termin vereinbaren</a></span>'),
+]
+
+
+@pytest.mark.parametrize("anker", [a for _, a in ANKER_OHNE_KASTEN],
+                         ids=[n for n, _ in ANKER_OHNE_KASTEN])
+def test_ohne_die_kombination_auf_dem_anker_bleibt_es_gruen(tmp_path, anker):
+    """AC 1 nennt die Kombination: `display:inline-block` **zusammen mit**
+    `padding` oder `margin` **auf einem `<a>`**.
+
+    Jeder Fall trägt beide Hälften: erst die Vorbedingung, dass dieselbe
+    Prüfung den falschen Knopf findet, dann, dass sie den Nachbau mit nur einem
+    der Merkmale durchlässt. Ohne die erste Hälfte wäre das Grün der zweiten
+    auch das einer Prüfung, die es gar nicht gibt.
+    """
+    (tmp_path / "schlecht").mkdir()
+    schlecht = pruefung_eml.pruefe(
+        eml_mit_signatur(tmp_path / "schlecht", signatur(ANKERKNOPF_TERMIN)))
+    assert len(_rot(schlecht)) == 1, "die Vorbedingung fehlt: der falsche Knopf wird nicht gefunden"
+
+    bericht = pruefung_eml.pruefe(eml_mit_signatur(tmp_path, signatur(anker)))
+    assert not _rot(bericht), bericht.als_text(ausfuehrlich=True)
+
+
+def test_die_meldung_nennt_die_stelle_und_den_ersatz(tmp_path):
+    """AC 2: Ein bloßes „unzulässig" hilft niemandem, der die Signatur nicht
+    geschrieben hat.
+
+    Die Signatur trägt zwei Knöpfe, und nur einer ist falsch. Die Meldung muss
+    auf **diesen** zeigen — an Linktext oder Ziel erkennbar — und darf nicht
+    den guten mitnennen; sonst sagte sie nur „irgendwo in der Signatur".
+    Gelesen wird, was der Mensch sieht: der knappe Bericht.
+    """
+    pfad = eml_mit_signatur(tmp_path, signatur(ANKERKNOPF_TERMIN))
+    text = pruefung_eml.pruefe(pfad).als_text()
+    kleingeschrieben = text.lower()
+
+    assert "inline-block" in kleingeschrieben, f"nennt nicht, was falsch ist:\n{text}"
+    assert "<table" in kleingeschrieben and "<td" in kleingeschrieben, (
+        f"nennt nicht, was an die Stelle gehört:\n{text}")
+    assert "Termin vereinbaren" in text or "example.de/termin" in text, (
+        f"nennt die Stelle nicht:\n{text}")
+    assert "Bewertung abgeben" not in text and "example.de/bewerten" not in text, (
+        f"zeigt auch auf den richtig gebauten Knopf:\n{text}")
+
+    # Die Rückseite: Ohne den falschen Knopf gibt es keine Meldung. Sonst wäre
+    # die Stelle, die sie nennt, nicht die, an der der Befund liegt, sondern die,
+    # die sie zuerst findet.
+    (tmp_path / "gut").mkdir()
+    gut = pruefung_eml.pruefe(
+        eml_mit_signatur(tmp_path / "gut", signatur(TABELLENKNOPF_TERMIN))).als_text()
+    assert "inline-block" not in gut.lower(), gut
+    assert "Termin vereinbaren" not in gut and "Bewertung abgeben" not in gut, gut
+
+
+def test_cli_meldet_den_anker_als_knopf(tmp_path):
+    """AC 1 heißt „`verify --email` meldet". Bis hierher lief alles über
+    `pruefe()`; den Weg, den der Mensch nimmt, geht dieser Test."""
+    import subprocess
+    import sys
+
+    from conftest import REPO
+
+    pfad = eml_mit_signatur(tmp_path, signatur(ANKERKNOPF_TERMIN))
+    lauf = subprocess.run(
+        [sys.executable, str(REPO / "skill" / "scripts" / "falzmarke.py"),
+         "verify", "--email", str(pfad)],
+        capture_output=True, text=True, encoding="utf-8")
+    assert "inline-block" in lauf.stdout, lauf.stdout + lauf.stderr
+    assert "<table" in lauf.stdout.lower(), lauf.stdout
+
+    (tmp_path / "gut").mkdir()
+    gut = subprocess.run(
+        [sys.executable, str(REPO / "skill" / "scripts" / "falzmarke.py"),
+         "verify", "--email",
+         str(eml_mit_signatur(tmp_path / "gut", signatur(TABELLENKNOPF_TERMIN)))],
+        capture_output=True, text=True, encoding="utf-8")
+    assert gut.returncode == 0, gut.stdout + gut.stderr
+    assert "inline-block" not in gut.stdout

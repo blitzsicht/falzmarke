@@ -21,6 +21,7 @@ import re
 import unicodedata
 from email import policy
 from email.utils import getaddresses, parsedate_to_datetime
+from html import unescape
 from pathlib import Path
 
 from falzmarke import emit_html
@@ -41,7 +42,7 @@ SIGNATUR_TRENNER = "-- "
 
 
 def _wahr(bericht: Bericht, regel: str, name: str, bedingung: bool,
-          soll: str, ist: str) -> None:
+          soll: str, ist: str, ursache: str = "") -> None:
     """Eine Prüfung, deren Stufe aus dem Regelkatalog kommt (#292).
 
     Jede Prüfung hier nennt ihren Regelnamen. Daraus holt `regeln.deckel()` die
@@ -62,7 +63,7 @@ def _wahr(bericht: Bericht, regel: str, name: str, bedingung: bool,
     """
     stufe = (STUFE_WARNUNG if regeln.deckel_von_pruefung(regel) == regeln.DECKEL_WARNUNG
              else STUFE_FEHLER)
-    bericht.add(name, soll, ist, "—", bool(bedingung), stufe=stufe)
+    bericht.add(name, soll, ist, "—", bool(bedingung), ursache=ursache, stufe=stufe)
 
 
 class EmlUnlesbar(ValueError):
@@ -219,6 +220,64 @@ def _woerter(text: str) -> set[str]:
     """
     return {w.strip(RANDZEICHEN) for w in _normalisiert(text).split()
             if any(z.isalnum() for z in w)} - {""}
+
+
+# ── Der Knopf als Anker (#322) ──────────────────────────────────────────────
+
+#: Ein öffnendes `<a …>`. Ein Attributwert in Anführungszeichen darf ein `>`
+#: tragen, ein Tag mehrere Zeilen füllen — beides in fremdem HTML zu ertragen.
+#: `(?=[\s>/])` hält `<abbr>` und `<address>` heraus.
+_ANKER_TAG = re.compile(r"""<a(?=[\s>/])(?:"[^"]*"|'[^']*'|[^>"'])*>""", re.I)
+_STIL = re.compile(r"""(?<![\w-])style\s*=\s*(?:"([^"]*)"|'([^']*)')""", re.I)
+_HREF = re.compile(r"""(?<![\w-])href\s*=\s*(?:"([^"]*)"|'([^']*)')""", re.I)
+_INLINE_BLOCK = re.compile(r"(?:^|;)\s*display\s*:\s*inline-block\b", re.I)
+#: `padding`, `margin` und jede Seitenform (`padding-left`, `margin-top`, …).
+_ABSTAND = re.compile(r"(?:^|;)\s*(?:padding|margin)(?:-[a-z]+)?\s*:", re.I)
+
+ANKER_ALS_KNOPF_URSACHE = (
+    "Am 14.09.2026 überlappte in Outlook für Mac ein so gebauter Knopf die Zeile "
+    "davor und zerfiel in zwei Kästen, während der Tabellenknopf derselben "
+    "Signatur seine Form hielt. An die Stelle gehört ein "
+    '<table role="presentation"><tr><td style="padding:…;border:…"> mit dem <a> '
+    "darin, der nur Farbe und Schrift trägt — Rahmen, Innenabstand und Abstand "
+    "nach außen stehen an der Tabelle und der Zelle."
+)
+
+
+def anker_als_knopf(dokument: str) -> list[tuple[str, str]]:
+    """Anker, die selbst ein Kasten sein wollen: (Linktext, Ziel) je Fund.
+
+    Gefunden wird `display:inline-block` **zusammen mit** `padding*` oder
+    `margin*` im `style` desselben `<a>`. Jedes Merkmal allein ist harmlos, und
+    ein Kasten an einem `<span>` mit unauffälligem Anker darin ist genau das
+    Gerüst, das hält — eine Prüfung über „irgendwo inline-block" wäre für jede
+    Signatur mit Tabellenknopf ein Fehlalarm.
+    """
+    funde = []
+    for treffer in _ANKER_TAG.finditer(dokument):
+        stil = _STIL.search(treffer.group(0))
+        werte = next((g for g in stil.groups() if g is not None), "") if stil else ""
+        if not (_INLINE_BLOCK.search(werte) and _ABSTAND.search(werte)):
+            continue
+        href = _HREF.search(treffer.group(0))
+        ziel = next((g for g in href.groups() if g is not None), "") if href else ""
+        rest = dokument[treffer.end():]
+        ende = re.search(r"</a\s*>", rest, re.I)
+        inhalt = rest[:ende.start()] if ende else ""
+        text = " ".join(unescape(re.sub(r"<[^>]+>", " ", inhalt)).split())
+        funde.append((text, ziel))
+    return funde
+
+
+def _stellen(funde: list[tuple[str, str]], hoechstens: int = 3) -> str:
+    """Wo die Anker stehen, so wie ein Mensch sie in der Signatur wiederfindet."""
+    def kurz(text: str) -> str:
+        return text if len(text) <= 40 else text[:39] + "…"
+    zeilen = [f"„{kurz(text) or 'ohne Text'}“ → {kurz(ziel) or 'ohne href'}"
+              for text, ziel in funde[:hoechstens]]
+    if len(funde) > hoechstens:
+        zeilen.append(f"und {len(funde) - hoechstens} weitere")
+    return "; ".join(zeilen)
 
 
 # ── Die einzelnen Prüfungen ─────────────────────────────────────────────────
@@ -382,6 +441,16 @@ def _pruefe_htmlteil(teil, bericht: Bericht) -> None:
     _wahr(bericht, "tabellenart", "Tabellen sind Daten oder gekennzeichnetes Layout", not offen,
                  "jede mit <th> oder role=presentation",
                  f"{len(offen)} ohne beides" if offen else "alle gekennzeichnet")
+
+    # Eine mitgebrachte Signatur (#275) wird eingebettet, ohne dass jemand sie
+    # ansieht — am 14.09.2026 meldete diese Datei 27/27 und 29/29, und in Outlook
+    # für Mac zerfiel der Termin-Knopf der Signatur. Gemessen wird der ganze
+    # HTML-Teil und nicht nur die Signatur: Der Anker zerfällt an jeder Stelle.
+    anker = anker_als_knopf(html)
+    _wahr(bericht, "anker_als_knopf", "Kein Anker als Knopf", not anker,
+                 "kein <a> mit display:inline-block und padding oder margin",
+                 _stellen(anker) if anker else "keiner",
+                 ursache=ANKER_ALS_KNOPF_URSACHE if anker else "")
 
 
 def _pruefe_gleichlaut(text_teil, html_teil, bericht: Bericht) -> None:
