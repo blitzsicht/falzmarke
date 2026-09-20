@@ -196,6 +196,35 @@ regeln:
       verschieden. Damit ist es Praxis und keine Vorschrift, also eine Warnung.
       Die Schwelle selbst wird gesondert nachgezogen (Grenzen als Stufen).
 
+  - id: email.betreff_leitwort
+    titel: Betreff der E-Mail ohne das Leitwort „Betreff“
+    lint: email.betreff_leitwort
+    ebene: praxis
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      Das Leitwort steht im Vorschaufenster neben dem, was der Client ohnehin
+      „Betreff“ nennt (#296). Das ist Darstellungsverhalten, also Praxis und
+      höchstens eine Warnung. Bis v0.8.1 hing die Meldung am Brief-Eintrag
+      `werkzeug.betreff_laenge` und wirkte als Fehler; seit #296 hat sie einen
+      eigenen Eintrag und die Ebene, die ihre Begründung trägt. Getrennt von
+      `email.betreff_laenge`, damit eine Herabstufung der Länge das Leitwort
+      nicht mitzieht.
+
+  - id: email.betreff_schlusspunkt
+    titel: Betreff der E-Mail ohne Schlusspunkt
+    lint: email.betreff_schlusspunkt
+    ebene: praxis
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      Übersichten und Vorschaufenster zeigen den Betreff als Überschrift; ein
+      Punkt am Ende liest sich dort wie ein Satzende (#296). Praxis, also
+      höchstens eine Warnung. Eine Quelle dafür gibt es nicht — `herkunft:
+      werkzeug`. Gleiche Herkunft der Meldung wie bei `email.betreff_leitwort`.
+
   - id: email.anlage_groesse
     titel: Anhänge bleiben unter den Grenzen der Zielprogramme
     lint: email.anlage_groesse

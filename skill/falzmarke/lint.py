@@ -726,10 +726,10 @@ def pruefe_email_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> Non
         # einem anderen Grund gelten: Das Leitwort „Betreff:" steht im
         # Vorschaufenster neben dem, was der Client ohnehin „Betreff" nennt.
         if betreff.lower().startswith(("betreff:", "betreff ")):
-            bericht.fehler(ort, "betreff", "beginnt mit dem Leitwort „Betreff“",
+            bericht.fehler(ort, "email.betreff_leitwort", "beginnt mit dem Leitwort „Betreff“",
                            "das Leitwort entfällt — der Client schreibt es davor")
         if betreff.endswith("."):
-            bericht.fehler(ort, "betreff", "endet mit einem Punkt",
+            bericht.fehler(ort, "email.betreff_schlusspunkt", "endet mit einem Punkt",
                            "der Betreff steht ohne Schlusspunkt")
         if len(betreff) > EMAIL_BETREFF_MAX:
             bericht.fehler(
@@ -1709,10 +1709,10 @@ def pruefe_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
     if betreff:
         ort = _feldzeile(kopf_roh, "betreff")
         if betreff.lower().startswith("betreff"):
-            bericht.fehler(ort, "betreff", "beginnt mit dem Leitwort „Betreff“",
+            bericht.fehler(ort, "betreff.leitwort", "beginnt mit dem Leitwort „Betreff“",
                            "das Leitwort entfällt — der Betreff steht für sich")
         if betreff.endswith("."):
-            bericht.fehler(ort, "betreff", "endet mit einem Punkt",
+            bericht.fehler(ort, "betreff.schlusspunkt", "endet mit einem Punkt",
                            "der Betreff steht ohne Schlusspunkt")
         if len(betreff) > BETREFF_MAX_ZEICHEN:
             bericht.fehler(

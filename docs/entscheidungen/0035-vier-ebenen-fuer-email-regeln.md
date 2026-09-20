@@ -246,3 +246,29 @@ Betreff, Brief und E-Mail) am Eintrag `werkzeug.betreff_laenge`, der von der Bet
 Für Leitwort und Schlusspunkt gibt es im Repository **keine** Quelle — auch nicht in
 `references/din5008.md`. Ob sie Fehler bleiben, eine Quelle bekommen oder entfallen, ist eine
 Entscheidung über die Quellenlage und steht noch aus.
+
+### Nachtrag vom 20.09.2026: Leitwort und Schlusspunkt (#296)
+
+Die offene Frage ist entschieden, und zwar für **Option 1**: eigene Einträge mit `herkunft:
+werkzeug`, ohne Quelle. Leitwort und Schlusspunkt sind ein Datenvertrag des Werkzeugs, keine
+Normaussage — das sagt `werkzeug` aus, und für eine Quelle hat niemand die vier in Frage
+kommenden geprüft (`dinbrief`, `koma_script`, `letter_pro`, `federwerk`). Abgeschaltet wird nichts
+(Option 3): Die Prüfung nützt heute.
+
+| Dokumentart | Meldung | Regelname | Eintrag | wirkt als |
+|---|---|---|---|---|
+| Brief | Leitwort | `betreff.leitwort` | `werkzeug.betreff_leitwort` | Fehler |
+| Brief | Schlusspunkt | `betreff.schlusspunkt` | `werkzeug.betreff_schlusspunkt` | Fehler |
+| E-Mail | Leitwort | `email.betreff_leitwort` | `email.betreff_leitwort` (Ebene `praxis`) | Warnung |
+| E-Mail | Schlusspunkt | `email.betreff_schlusspunkt` | `email.betreff_schlusspunkt` (Ebene `praxis`) | Warnung |
+
+`werkzeug.betreff_laenge` und `email.betreff_laenge` behalten nur noch die Länge. Eine
+Herabstufung der Länge zieht Leitwort und Schlusspunkt nicht mehr mit;
+`tests/test_betreff_regeln.py` misst das mit Sabotage an der Herkunft beider Längeneinträge.
+
+**Die Wirkung hat sich für die E-Mail geändert, im Brief nicht.** Leitwort und Schlusspunkt einer
+Mail wirkten bisher als Fehler, weil sie am Brief-Eintrag hingen, der keine Ebene trägt. Der
+Vorgangstext sagt an zwei Stellen „Warnung in der Mail über Ebene `praxis`“ — das gilt jetzt, und
+die Begründung trägt: Das Leitwort steht im Vorschaufenster neben dem, was der Client ohnehin
+„Betreff“ nennt; das ist Darstellungsverhalten, keine Vorschrift. Wer die Mail-Regeln lieber als
+Fehler behalten will, setzt `ebene: werkzeug` in `email.yaml`; beides besteht die Tests.
