@@ -59,10 +59,28 @@ def test_beispiele_sind_sauber(name):
 
 # ── Datum ───────────────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("wert", ["morgen", "25.08.2026", "20260825", "nächsten Montag", ""])
+@pytest.mark.parametrize("wert", ["morgen", "25.08.2026", "20260825", "nächsten Montag"])
 def test_datum_muss_iso_sein(tmp_path, wert):
-    bericht = linte(tmp_path, KOPF.replace("datum: 2026-08-25", f"datum: {wert or "''"}"))
-    assert "datum" in regeln(bericht)
+    """Warnung statt Fehler (#31): Die Regel `schreibweise.datum` stützte sich
+    auf Wikipedia und `onlineprinters`; die zweite Quelle schweigt zum Format.
+    Mit einer sprechenden Quelle darf sie einen Lauf nicht mehr scheitern
+    lassen. Gemeldet wird trotzdem, und zwar für jede dieser Eingaben.
+
+    Dieselbe Eingabe (`morgen`) steht in `test_json_ausgabe_einer_warnung`
+    unten — beide erwarten eine Warnung, keiner einen Fehler.
+    """
+    bericht = linte(tmp_path, KOPF.replace("datum: 2026-08-25", f"datum: {wert}"))
+    assert "datum" in warnungen(bericht), bericht.als_text("brief.md")
+    assert "datum" not in regeln(bericht), bericht.als_text("brief.md")
+
+
+def test_ein_leeres_datum_wird_gemeldet(tmp_path):
+    """Der Randfall `datum: ''` — hier meldet nicht die Formatprüfung, sondern
+    der Pflichtfeld-Check, unter demselben Regelnamen `datum`. Wie schwer, ist
+    hier bewusst offen: Ob ein fehlendes Pflichtfeld dieselbe Stufe erbt wie das
+    Format, entscheidet #31 nicht. Gemeldet werden muss es."""
+    bericht = linte(tmp_path, KOPF.replace("datum: 2026-08-25", "datum: ''"))
+    assert "datum" in warnungen(bericht) | regeln(bericht), bericht.als_text("brief.md")
 
 
 @pytest.mark.parametrize("wert", ["2026-08-25", "2028-02-29", "2026-01-01"])
@@ -144,8 +162,12 @@ def test_sieben_anschriftzeilen(tmp_path):
 
 
 def test_vier_vermerke(tmp_path):
+    """Warnung statt Fehler (#31): Die Zeilenzahl ist aus der Zonenhöhe
+    abgeleitet, nicht zitiert; `onlineprinters` erwähnt die Zonen, nennt aber
+    keine Zeilenzahl. Es bleibt eine volle Quelle."""
     bericht = linte(tmp_path, KOPF + "vermerke: [Eins, Zwei, Drei, Vier]\n")
-    assert "vermerke" in regeln(bericht)
+    assert "vermerke" in warnungen(bericht), bericht.als_text("brief.md")
+    assert "vermerke" not in regeln(bericht), bericht.als_text("brief.md")
 
 
 def test_auslandsanschrift_ohne_grossschreibung_warnt(tmp_path):
@@ -370,9 +392,15 @@ def test_der_kodierungsaufschlag_ist_der_der_base64_kodierung(tmp_path):
 
 # ── Verhalten der Befehle ───────────────────────────────────────────────────
 
+#: Ein Eingabefehler, der es bleibt: `werkzeug.betreff_schlusspunkt` hat keine
+#: Quelle, die schweigen könnte — sie ist Sache des Werkzeugs. Bis #31 stand hier
+#: `datum: morgen`; seither ist das eine Warnung und bricht keinen Render mehr ab.
+KOPF_MIT_FEHLER = KOPF.replace("betreff: Ein Betreff", "betreff: Ein Betreff.")
+
+
 def test_render_bricht_vor_dem_setzen_ab(tmp_path):
     """Ein Eingabefehler darf keinen Render kosten — und kein PDF hinterlassen."""
-    brief = schreibe(tmp_path, KOPF.replace("datum: 2026-08-25", "datum: morgen"))
+    brief = schreibe(tmp_path, KOPF_MIT_FEHLER)
     ziel = tmp_path / "aus.pdf"
     ergebnis = subprocess.run(
         [sys.executable, str(CLI), "render", str(brief), "-o", str(ziel)],
@@ -384,14 +412,29 @@ def test_render_bricht_vor_dem_setzen_ab(tmp_path):
 
 
 def test_json_ausgabe(tmp_path):
-    brief = schreibe(tmp_path, KOPF.replace("datum: 2026-08-25", "datum: morgen"))
+    brief = schreibe(tmp_path, KOPF_MIT_FEHLER)
     ergebnis = subprocess.run(
         [sys.executable, str(CLI), "lint", str(brief), "--json"], capture_output=True, text=True, encoding="utf-8"
     )
     bericht = json.loads(ergebnis.stdout)
     assert bericht["ok"] is False and bericht["fehler"] == 1
-    assert bericht["befunde"][0]["regel"] == "datum"
+    assert bericht["befunde"][0]["regel"] == "betreff.schlusspunkt"
     assert bericht["befunde"][0]["korrektur"]
+
+
+def test_json_ausgabe_einer_warnung(tmp_path):
+    """Dieselbe Eingabe wie `test_datum_muss_iso_sein`: `datum: morgen`. Beide
+    Tests müssen zusammenpassen (#31, AC 6) — wer hier einen Fehler erwartete,
+    widerspräche dem anderen. Der Lauf ist ok, die Warnung steht trotzdem da."""
+    brief = schreibe(tmp_path, KOPF.replace("datum: 2026-08-25", "datum: morgen"))
+    ergebnis = subprocess.run(
+        [sys.executable, str(CLI), "lint", str(brief), "--json"], capture_output=True, text=True, encoding="utf-8"
+    )
+    bericht = json.loads(ergebnis.stdout)
+    assert bericht["ok"] is True and bericht["fehler"] == 0, ergebnis.stdout
+    datum = [b for b in bericht["befunde"] if b["regel"] == "datum"]
+    assert [b["schwere"] for b in datum] == ["Warnung"], ergebnis.stdout
+    assert datum[0]["korrektur"]
 
 
 def test_lint_ist_schnell():

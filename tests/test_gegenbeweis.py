@@ -380,9 +380,11 @@ def test_ein_emitter_ohne_zeichenkette_wertet_wirklich_aus(tmp_path, monkeypatch
 # grün, weil kein Test je gegen eine sabotierte Prüfung läuft.
 #
 # Sabotiert wird hier deshalb die Prüfung selbst — eine Konstante, an der die
-# Regel hängt —, nicht ihr Ergebnis. Erste Staffel: die Regeln mit
-# `wirkung: fehler`, die aus mehrfach belegten Quellen stammen (sie dürfen
-# laut `deckel()` überhaupt Fehler sein und wiegen deshalb am schwersten).
+# Regel hängt —, nicht ihr Ergebnis. Erste Staffel: die Linter-Regeln aus
+# Normquellen (`mehrfach_bestaetigt` oder `einzeln_belegt`). Bis #31 waren es die
+# mit `wirkung: fehler` aus mehrfach belegten Quellen — `vermerke` und `datum`.
+# Beide stehen seither auf Warnung, weil die zweite Quelle zu ihnen schweigt;
+# die Prüfung selbst ist dieselbe und gehört weiter sabotiert.
 
 LINT_KOPF = """profil: example
 empfaenger: [Muster GmbH, Musterstraße 1, 12345 Musterstadt]
@@ -400,6 +402,16 @@ def _linte(tmp_path: Path, kopf: str) -> _lint.Bericht:
 
 def _fehlerregeln(bericht: _lint.Bericht) -> set[str]:
     return {b.regel for b in bericht.befunde if b.schwere == _lint.FEHLER}
+
+
+def _gemeldet(bericht: _lint.Bericht) -> set[str]:
+    """Jede Regel, die etwas gemeldet hat — als Fehler **oder** Warnung.
+
+    Die Sabotagen unten fragen, ob eine Prüfung noch *anschlägt*, nicht, wie
+    schwer. Seit #31 stehen `vermerke` und `datum` auf Warnung; eine Probe auf
+    `_fehlerregeln` sähe sie weder vor noch nach der Sabotage und bewiese nichts.
+    """
+    return {b.regel for b in bericht.befunde}
 
 
 def _sabotiere_konstante(monkeypatch, name: str, alt, neu) -> None:
@@ -434,20 +446,23 @@ LINT_REGELN_MIT_GEGENBEWEIS = {"vermerke", "datum"}
 
 
 def test_lint_gegenbeweis_deckung():
-    """Wie viele der Regeln, die überhaupt Fehler sein dürfen, eine Sabotage-
-    Gegenprobe haben. Ohne diese Zählung altert die Lücke aus Issue #197
-    still weiter, statt beim Wachsen der Regeldatei aufzufallen."""
+    """Wie viele der Linter-Regeln aus Normquellen eine Sabotage-Gegenprobe
+    haben. Ohne diese Zählung altert die Lücke aus Issue #197 still weiter,
+    statt beim Wachsen der Regeldatei aufzufallen.
+
+    Kandidat ist, was eine Quelle hat, die zur Norm etwas sagen soll — nicht
+    mehr, was Fehler sein *darf*: Seit #31 ist das keine dieser Regeln mehr.
+    """
     kandidaten = {
         r["lint"] for r in _regeln.alle()
-        if r.get("lint") and r.get("wirkung") == "fehler"
-        and r.get("herkunft") == _regeln.MEHRFACH
+        if r.get("lint") and r.get("herkunft") in (_regeln.MEHRFACH, _regeln.EINZELN)
     }
     unbekannt = LINT_REGELN_MIT_GEGENBEWEIS - kandidaten
     assert not unbekannt, (
         f"Gegenprobe für Regel(n), die es als Kandidat so nicht (mehr) gibt: {unbekannt}")
     print(
         f"\nLint-Gegenbeweis-Abdeckung: {len(LINT_REGELN_MIT_GEGENBEWEIS)}/{len(kandidaten)} "
-        "Regeln mit wirkung: fehler aus mehrfach belegten Quellen "
+        "Linter-Regeln aus Normquellen "
         f"(offen: {sorted(kandidaten - LINT_REGELN_MIT_GEGENBEWEIS)})."
     )
 
@@ -459,9 +474,9 @@ def test_lint_unsabotiert_ist_gruen(tmp_path):
     von Anfang an nie kam, kann durch die Sabotage nicht verschwinden.
     """
     bericht = _linte(tmp_path, LINT_KOPF + "vermerke: [Eins, Zwei, Drei, Vier]\n")
-    assert "vermerke" in _fehlerregeln(bericht)
+    assert "vermerke" in _gemeldet(bericht)
     bericht = _linte(tmp_path, LINT_KOPF.replace("datum: 2026-08-25", "datum: 20260825"))
-    assert "datum" in _fehlerregeln(bericht)
+    assert "datum" in _gemeldet(bericht)
 
 
 def test_verstellter_vermerke_schwellwert_faellt_nicht_mehr_auf(tmp_path, monkeypatch):
@@ -469,7 +484,7 @@ def test_verstellter_vermerke_schwellwert_faellt_nicht_mehr_auf(tmp_path, monkey
     verstellt, darf das nur diese eine Prüfung merken, sonst nichts."""
     _sabotiere_konstante(monkeypatch, "VERMERKE_MAX_ZEILEN", 3, 99)
     bericht = _linte(tmp_path, LINT_KOPF + "vermerke: [Eins, Zwei, Drei, Vier]\n")
-    assert "vermerke" not in _fehlerregeln(bericht), (
+    assert "vermerke" not in _gemeldet(bericht), (
         "Die Sabotage hat nicht gewirkt — vier Vermerke wären mit dem "
         "verstellten Schwellwert nicht mehr zu beanstanden"
     )
@@ -486,7 +501,7 @@ def test_verstelltes_iso_datum_faellt_nicht_mehr_auf(tmp_path, monkeypatch):
     _sabotiere_regex(
         monkeypatch, "ISO_DATUM", r"^\d{4}-\d{2}-\d{2}$", r"^\d{4}-?\d{2}-?\d{2}$")
     bericht = _linte(tmp_path, LINT_KOPF.replace("datum: 2026-08-25", "datum: 20260825"))
-    assert "datum" not in _fehlerregeln(bericht), (
+    assert "datum" not in _gemeldet(bericht), (
         "Die Sabotage hat nicht gewirkt — 20260825 ohne Bindestriche wäre mit "
         "dem durchlässigen Muster nicht mehr zu beanstanden"
     )
@@ -497,7 +512,7 @@ def test_verstelltes_iso_datum_faellt_nicht_mehr_auf(tmp_path, monkeypatch):
     # Ein Datum, das auch `date.fromisoformat` ablehnt, bleibt erkannt — die
     # Sabotage trifft nur die eine Lücke, nicht die ganze Prüfung.
     bericht = _linte(tmp_path, LINT_KOPF.replace("datum: 2026-08-25", "datum: morgen"))
-    assert "datum" in _fehlerregeln(bericht)
+    assert "datum" in _gemeldet(bericht)
 
 
 # ── Die Signatur-Fixture: sabotierte Quellzeile, nicht sabotiertes Ergebnis ──

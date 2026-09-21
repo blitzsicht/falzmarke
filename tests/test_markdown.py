@@ -46,13 +46,16 @@ GESETZT = [
     # In Typst steht ein geschützter Backslash doppelt; gelesen wird einer.
     ("Pfad C:\\\\Ordner\\\\Datei nennen", ["C:\\\\Ordner"]),
     ('Er sagte "Hallo" dazu', ["„Hallo“"]),
-    ("Gilt z.B. und d.h. hier", [f"z.{NBSP}B.", f"d.{NBSP}h."]),
+    # Abkürzungen (z. B., d. h.) verbindet der Pass seit #31 nicht mehr selbst:
+    # onlineprinters schweigt dazu, die zweite volle Quelle fiel weg. Dass sie
+    # dafür gemeldet werden, prüft tests/test_typografie_hinweise.py.
     ("Angebot -- Nachtrag folgt", ["–"]),
     # Einheiten (10 %, 5 km) stehen nur in einer Quelle und werden seit v0.4
-    # nicht mehr automatisch verbunden — siehe tests/test_quellenlage.py.
-    # § und Datum bleiben: Paragrafzeichen ist Satztechnik, das Datum ist
-    # mehrfach belegt.
-    ("Es sind 10 % und 5 km und § 3 und 25. August", [f"§{NBSP}3", f"25.{NBSP}August"]),
+    # nicht mehr automatisch verbunden — siehe tests/test_quellenlage.py. Das
+    # Datum kam mit #31 dazu: seine dritte Quelle schweigt. Übrig bleibt das
+    # Paragrafzeichen, und genau darum steht der Fall noch hier — es ist
+    # Satztechnik des Werkzeugs und hängt an keiner Quelle.
+    ("Es sind 10 % und 5 km und § 3 und 25. August", [f"§{NBSP}3"]),
     ("5&nbsp;km und AT&amp;T und &copy; 2026", [f"5{NBSP}km", "AT&T", "©"]),
 ]
 

@@ -142,9 +142,14 @@ def test_die_herkunft_in_den_daten_steuert_den_pass(monkeypatch, schritt):
 
 # ── AC 1: Ein zurückgehaltener Schritt wird zur Warnung ─────────────────────
 
-@pytest.mark.parametrize("schritt", ["_einheiten", "_vor_angabe"])
+@pytest.mark.parametrize("schritt", sorted(STELLEN))
 def test_zurueckgehaltener_schritt_wird_zur_warnung(tmp_path, schritt):
-    """Beide Schritte stehen heute auf `einzeln_belegt` — der Pass setzt nichts."""
+    """Alle vier Schritte sind heute zurückgehalten — der Pass setzt nichts.
+
+    `_einheiten` und `_vor_angabe` standen schon vor #31 auf `einzeln_belegt`
+    (bzw. führen jetzt `werkzeug`, ohne dass sich das ändert); `_datum` und
+    `_abkuerzungen` kamen mit #31 dazu, weil ihre zweite volle Quelle schweigt.
+    """
     probe, stelle = STELLEN[schritt]
     assert regeln.darf_automatisch_ersetzen(schritt) is False, "Vorbedingung: Schritt ist zurückgehalten"
     assert typografie.anwenden(probe) == probe, "Vorbedingung: der Pass ändert den Text nicht"
@@ -231,19 +236,27 @@ def test_dieselbe_stelle_warnt_nur_herabgestuft(tmp_path, monkeypatch, schritt):
         assert bericht.anzahl_warnungen == 0, bericht.als_text("brief.md")
 
 
-def test_getragene_regeln_setzen_weiter_und_nur_die_zurueckgehaltene_warnt(tmp_path):
-    """Der Ist-Stand: `_datum` und `_abkuerzungen` sind mehrfach belegt und
-    werden gesetzt, `_einheiten` ist es nicht. Aus drei Stellen wird eine
-    Warnung — die dritte."""
-    saetze = [STELLEN["_datum"][0], STELLEN["_abkuerzungen"][0], "Die Sendung wiegt 10 kg."]
-    assert typografie.NBSP in typografie.anwenden(saetze[0]), "Vorbedingung: das Datum wird gesetzt"
-    assert typografie.NBSP in typografie.anwenden(saetze[1]), "Vorbedingung: die Abkürzung wird gesetzt"
+def test_seit_31_setzt_keiner_der_vier_schritte_und_jeder_warnt(tmp_path):
+    """Der Ist-Stand nach #31: `_datum` und `_abkuerzungen` waren mehrfach belegt
+    und wurden gesetzt — bis sich zeigte, dass ihre zweite volle Quelle zur
+    Regel schweigt. Jetzt setzt keiner der vier Schritte mehr; aus vier
+    Stellen werden vier Warnungen, eine je Schritt und keine doppelt.
+
+    Der Test steht an der Stelle von `…setzen_weiter_und_nur_die_zurueckgehaltene_warnt`:
+    Jener hielt den Zustand fest, in dem zwei von drei setzten. Der Zustand
+    ist nicht mehr da, und wer ihn wollte, müsste #31 zurücknehmen.
+    """
+    saetze = [probe for probe, _ in STELLEN.values()]
+    for probe in saetze:
+        assert typografie.anwenden(probe) == probe, f"der Pass setzt weiter: {probe!r}"
 
     bericht, pfad = linte(tmp_path, "\n\n".join(saetze) + "\n")
     gefunden = hinweise(bericht)
-    assert [b.zeile for b in gefunden] == [zeile_von(pfad, saetze[2])], bericht.als_text("brief.md")
-    assert "10 kg" in klartext(gefunden[0])
-    assert bericht.anzahl_warnungen == 1, bericht.als_text("brief.md")
+    assert sorted(b.zeile for b in gefunden) == sorted(zeile_von(pfad, s) for s in saetze), (
+        bericht.als_text("brief.md"))
+    assert {b.regel for b in gefunden} == {regeln.fuer_typografie(s)["id"] for s in STELLEN}
+    assert (bericht.anzahl_fehler, bericht.anzahl_warnungen) == (0, len(STELLEN)), (
+        bericht.als_text("brief.md"))
 
 
 # ── Gegenproben: die Warnung kommt nicht immer ──────────────────────────────

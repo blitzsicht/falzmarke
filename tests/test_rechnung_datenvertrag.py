@@ -223,8 +223,14 @@ def test_ein_vollstaendiger_zeitraum_ist_sauber(tmp_path):
 
 
 def test_ein_ungueltiges_zahlungsziel_wird_gemeldet(tmp_path):
+    """Gemeldet, aber seit #31 als Warnung: Die Datumsprüfung ist dieselbe wie im
+    Brief (`schreibweise.datum`), und deren zweite Quelle schweigt zum Format.
+    Die XML-Erzeugung weist ein unbrauchbares Datum ohnehin selbst ab
+    (`test_ein_kaputtes_datum_wird_gemeldet` in test_emit_xml.py)."""
     bericht = _bericht(tmp_path, _ersetzt("zahlungsziel: 2026-10-31", "zahlungsziel: bald"))
-    assert bericht.anzahl_fehler >= 1
+    gemeldet = [b for b in bericht.befunde if b.regel == "datum"]
+    assert gemeldet and "bald" in gemeldet[0].meldung, bericht.als_text("rechnung.md")
+    assert gemeldet[0].schwere == "Warnung"
 
 
 # ── Die Summenprobe: sie meldet, und sie hält nicht an (ADR 0039) ────────────
