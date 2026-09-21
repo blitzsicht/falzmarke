@@ -746,12 +746,12 @@ def pruefe_email_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> Non
     anrede = str(kopf.get("anrede") or "").strip()
     if anrede and not anrede.endswith(","):
         bericht.fehler(_feldzeile(kopf_roh, "anrede"), "anrede", "endet nicht mit Komma",
-                       "nach DIN endet die Anrede mit einem Komma")
+                       "das Werkzeug hält ein Komma am Ende der Anrede für richtig")
 
     gruss = str(kopf.get("gruss") or "").strip()
     if gruss.endswith(","):
         bericht.fehler(_feldzeile(kopf_roh, "gruss"), "gruss", "endet mit Komma",
-                       "die Grußformel steht ohne Komma")
+                       "das Werkzeug hält die Grußformel ohne Komma für richtig")
 
     # Zweimal dieselbe Adresse heißt: Der Empfänger bekommt die Mail zweimal,
     # oder sein Server verwirft eine — beides bemerkt der Absender nicht.
@@ -1685,7 +1685,7 @@ def pruefe_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
             )
         if any(not str(z).strip() for z in zeilen):
             bericht.fehler(ort, "empfaenger", "Leerzeile im Anschriftfeld",
-                           "die Norm lässt im Anschriftfeld keine Leerzeilen zu")
+                           "das Werkzeug hält eine Anschrift ohne Leerzeilen für richtig")
         if len(zeilen) >= 2:
             letzte = str(zeilen[-1]).strip()
             vorletzte = str(zeilen[-2]).strip()
@@ -1723,12 +1723,12 @@ def pruefe_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
     anrede = str(kopf.get("anrede") or "").strip()
     if anrede and not anrede.endswith(","):
         bericht.fehler(_feldzeile(kopf_roh, "anrede"), "anrede", "endet nicht mit Komma",
-                       "nach DIN endet die Anrede mit einem Komma")
+                       "das Werkzeug hält ein Komma am Ende der Anrede für richtig")
 
     gruss = str(kopf.get("gruss") or "").strip()
     if gruss.endswith(","):
         bericht.fehler(_feldzeile(kopf_roh, "gruss"), "gruss", "endet mit Komma",
-                       "die Grußformel steht ohne Komma")
+                       "das Werkzeug hält die Grußformel ohne Komma für richtig")
 
     infoblock = kopf.get("infoblock") or {}
     if isinstance(infoblock, dict):
