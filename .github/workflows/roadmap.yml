@@ -22,6 +22,7 @@ permissions:
 jobs:
   roadmap:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       issues: read           # Meilensteine und offene Issues lesen
     steps:
