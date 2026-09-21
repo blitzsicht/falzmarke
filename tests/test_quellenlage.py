@@ -1137,3 +1137,217 @@ def test_form_a_traegt_jetzt_zwei_volle_quellen_bleibt_aber_warnung():
     assert len({quellen[n]["gruppe"] for n in volle}) >= 2, "zwei Quellen, aber eine Gruppe"
     assert regel["herkunft"] == regeln.EINZELN
     assert regel["wirkung"] == "warnung"
+
+
+# ── Was quellenlos wurde, beruft sich in seiner Meldung nicht mehr auf die Norm (#328)
+#
+# #31 hat `text.anrede_komma`, `text.gruss_ohne_komma` und
+# `text.anschrift_ohne_leerzeilen` die letzte zählende Quelle genommen; sie führen
+# `herkunft: werkzeug`. Die Korrekturhinweise in `lint.py` sagten weiter „nach DIN
+# endet die Anrede mit einem Komma“ und „die Norm lässt im Anschriftfeld keine
+# Leerzeilen zu“ — dieselbe Quellenbehauptung, nur eine Ebene tiefer. Gemessen wird
+# am fertigen Befund, den `cli.linte` für ein echtes Frontmatter liefert, nicht am
+# Quelltext von `lint.py`: Der Hinweis steht dort an vier Stellen (Brief und Mail),
+# und eine Suche im Quelltext trifft auch die eigene Prosa.
+
+import re
+
+from falzmarke import cli as falzmarke_cli
+
+from conftest import SKILL
+
+_PROFILE = SKILL / "falzmarke" / "typst" / "profiles"
+
+#: Was eine Norm-Berufung ausmacht: das Wort selbst, oder das Gütesiegel, das
+#: CLAUDE.md ohnehin verbietet. „Normabgleich“ zählt nicht — ehrlich ist gerade
+#: der Hinweis, dass er aussteht.
+_NORMBERUFUNG = re.compile(r"\b(?:DIN|Norm(?:en)?)\b|normgerecht|normkonform", re.IGNORECASE)
+
+_BRIEFKOPF = """profil: example
+empfaenger: [Muster GmbH, Musterstraße 1, 12345 Musterstadt]
+datum: 2026-08-25
+betreff: Ein Betreff
+anrede: Sehr geehrte Damen und Herren,
+"""
+
+_MAILKOPF = """typ: email
+profil: example
+an: erika.muster@example.de
+betreff: Ein Betreff
+anrede: Sehr geehrte Frau Muster,
+"""
+
+#: (Fall, Frontmatter, Regelname des Linters, Regel-ID in der Regeldatei, Stichwort
+#: der Meldung). Das Stichwort trennt den gesuchten Befund von anderen unter
+#: demselben Regelnamen (`empfaenger` meldet auch Zeilenzahl und Auslandsanschrift).
+_UMGEWIDMET = [
+    ("brief-anrede",
+     _BRIEFKOPF.replace("Herren,", "Herren"),
+     "anrede", "text.anrede_komma", "Komma"),
+    ("brief-gruss",
+     _BRIEFKOPF + "gruss: Mit freundlichen Grüßen,\n",
+     "gruss", "text.gruss_ohne_komma", "Komma"),
+    ("brief-empfaenger",
+     _BRIEFKOPF.replace("[Muster GmbH, Musterstraße 1, 12345 Musterstadt]",
+                        '[Muster GmbH, "", 12345 Musterstadt]'),
+     "empfaenger", "text.anschrift_ohne_leerzeilen", "Leerzeile"),
+    ("mail-anrede",
+     _MAILKOPF.replace("Muster,", "Muster"),
+     "anrede", "text.anrede_komma", "Komma"),
+    ("mail-gruss",
+     _MAILKOPF + "gruss: Viele Grüße,\n",
+     "gruss", "text.gruss_ohne_komma", "Komma"),
+]
+
+
+def _steht_an_der_richtigen_stelle(regelname: str, kennung: str) -> None:
+    """Die Regel muss wirklich umgewidmet sein — sonst misst der Fall etwas anderes."""
+    regel = regeln.fuer_lint(regelname)
+    assert regel["id"] == kennung and regel["herkunft"] == regeln.WERKZEUG, (
+        f"{kennung} trägt nicht mehr `werkzeug` — dann steht der Test an der "
+        f"falschen Stelle: {regel['id']} / {regel['herkunft']}")
+
+
+def _befund(tmp_path, kopf: str, regelname: str, stichwort: str):
+    """Der eine Befund, den das Frontmatter auslöst — samt Beleg, dass es ihn gibt."""
+    pfad = tmp_path / "probe.md"
+    pfad.write_text(f"---\n{kopf}---\nText des Briefes.\n", encoding="utf-8")
+    bericht = falzmarke_cli.linte(pfad, profil_verzeichnis=_PROFILE)
+    treffer = [b for b in bericht.befunde
+               if b.regel == regelname and stichwort in b.meldung]
+    assert len(treffer) == 1, (
+        f"kein einzelner Befund `{regelname}` mit „{stichwort}“ — dann misst dieser "
+        f"Test nichts:\n{bericht.als_text('probe.md')}")
+    return treffer[0]
+
+
+#: Die Fälle, deren Hinweis die Norm heute beim Namen nennt. Der Hinweis zu `gruss`
+#: („die Grußformel steht ohne Komma“) tut es nicht — er behauptet nackt, ohne
+#: Absender. Für ihn misst der Ton-Test darunter und Probe B der Gegenprobe; ein
+#: Norm-Test wäre dort von Anfang an grün und prüfte nichts.
+_NENNT_DIE_NORM = [f for f in _UMGEWIDMET if f[2] != "gruss"]
+
+
+@pytest.mark.parametrize("fall, kopf, regelname, kennung, stichwort", _NENNT_DIE_NORM,
+                         ids=[f[0] for f in _NENNT_DIE_NORM])
+def test_die_meldung_einer_quellenlosen_regel_beruft_sich_nicht_auf_die_norm(
+        tmp_path, fall, kopf, regelname, kennung, stichwort):
+    """AC 1 und AC 4: Brief **und** Mail. Jeder Fall ist für sich rot, solange
+    seine Fundstelle in `lint.py` die Norm nennt — eine allein ließe die andere
+    Behauptung stehen."""
+    _steht_an_der_richtigen_stelle(regelname, kennung)
+    befund = _befund(tmp_path, kopf, regelname, stichwort)
+    gesagt = f"{befund.meldung} | {befund.korrektur}"
+    assert not _NORMBERUFUNG.search(gesagt), (
+        f"{fall}: die Regel hat keine zählende Quelle, die Meldung beruft sich "
+        f"trotzdem auf die Norm: {gesagt}")
+
+
+@pytest.mark.parametrize("fall, kopf, regelname, kennung, stichwort", _UMGEWIDMET,
+                         ids=[f[0] for f in _UMGEWIDMET])
+def test_der_hinweis_einer_quellenlosen_regel_sagt_wessen_urteil_es_ist(
+        tmp_path, fall, kopf, regelname, kennung, stichwort):
+    """AC 1, die andere Hälfte: Die Norm nur zu streichen ließe einen Befehl ohne
+    Absender stehen. Vorbild ist #296: „das hält das Werkzeug für richtig“ — der
+    Hinweis sagt, dass es das Werkzeug ist, das hier urteilt."""
+    _steht_an_der_richtigen_stelle(regelname, kennung)
+    befund = _befund(tmp_path, kopf, regelname, stichwort)
+    assert "Werkzeug" in befund.korrektur, (
+        f"{fall}: der Hinweis nennt das Werkzeug nicht als Urheber: {befund.korrektur!r}")
+
+
+#: Die dritte und vierte Fundstelle derselben Behauptung, nicht in der Aufgabe
+#: genannt: `cli.baue_daten` bricht beim Setzen hart ab und sagte „die Anrede endet
+#: nach DIN mit einem Komma“ (cli.py:333) und „die Grußformel steht ohne Komma“
+#: (cli.py:337). Es ist dieselbe Regel, nur der Weg zum Nutzer ist ein anderer —
+#: und AC 4 begründet sich genau damit: Eine Fundstelle allein ließe die andere
+#: Behauptung stehen. Gemessen wird `baue_daten` selbst, nicht `rendere`: Bis zur
+#: Anrede braucht der Abbruch kein Typst, und ein Test über `rendere` wäre in einer
+#: Umgebung ohne das Paket aus dem falschen Grund rot.
+_BEIM_SETZEN = [
+    ("setzen-anrede", _BRIEFKOPF.replace("Herren,", "Herren"), "text.anrede_komma"),
+    ("setzen-gruss", _BRIEFKOPF + "gruss: Mit freundlichen Grüßen,\n", "text.gruss_ohne_komma"),
+]
+
+
+@pytest.mark.parametrize("fall, kopf, kennung", _BEIM_SETZEN, ids=[f[0] for f in _BEIM_SETZEN])
+def test_auch_der_abbruch_beim_setzen_beruft_sich_nicht_auf_die_norm(tmp_path, fall, kopf, kennung):
+    pfad = tmp_path / "probe.md"
+    pfad.write_text(f"---\n{kopf}---\nText des Briefes.\n", encoding="utf-8")
+    kopf_daten, _, _ = falzmarke_cli.lies_brief(pfad)
+    profil, profil_pfad = falzmarke_cli.lade_profil(kopf_daten["profil"], _PROFILE, pfad)
+    arbeit = tmp_path / "arbeit"
+    falzmarke_cli.baue_arbeitsverzeichnis(arbeit)
+
+    with pytest.raises(falzmarke_cli.Eingabefehler) as fehler:
+        falzmarke_cli.baue_daten(kopf_daten, profil, profil_pfad, arbeit, pfad)
+    meldung = str(fehler.value)
+
+    assert "Komma" in meldung, (
+        f"{fall}: der Abbruch kommt nicht von der Komma-Prüfung — dann misst der Test "
+        f"etwas anderes: {meldung!r}")
+    assert next(r for r in regeln.alle() if r["id"] == kennung)["herkunft"] == regeln.WERKZEUG
+    assert not _NORMBERUFUNG.search(meldung), (
+        f"{fall}: die Regel hat keine zählende Quelle, der Abbruch beruft sich "
+        f"trotzdem auf die Norm: {meldung!r}")
+    assert "Werkzeug" in meldung, f"{fall}: der Abbruch nennt das Werkzeug nicht: {meldung!r}"
+
+
+def test_gegenprobe_die_regel_mit_quelle_nennt_sie_die_umgewidmete_nicht_mehr(tmp_path):
+    """AC 5 und AC 2 in einem Durchgang — zwei Proben, die ein verschiedenes
+    Ergebnis liefern müssen, sonst ist offen, ob nur pauschal ersetzt wurde.
+
+    Probe A: `vermerke` (`text.vermerke_max_3`) blieb `einzeln_belegt` und nennt
+    seine Quelle weiter in der Meldung; sie wird aus der Regeldatei gelesen, nicht
+    fest verdrahtet.
+    Probe A′: `infoblock.telefon` (`schreibweise.telefon`) behielt ihre Quelle und
+    damit ihren Ton — „Schreibweise der Norm“ bleibt stehen (AC 2). Ohne diese
+    Probe genügte es, jedes „Norm“ aus `lint.py` zu tilgen.
+    Probe B: die fünf umgewidmeten Fälle nennen keine Quelle und tragen den Ton des
+    Werkzeugs.
+
+    Vorab die Probe des Messmittels: Das Muster für „beruft sich auf die Norm“
+    muss die beiden alten Hinweise treffen und den neuen Ton in Ruhe lassen. Ein
+    erster Entwurf (`Normen?`) traf „die Norm lässt …“ nicht, und der Fall
+    `brief-empfaenger` blieb zu Unrecht grün.
+    """
+    for alt in ("nach DIN endet die Anrede mit einem Komma",
+                "die Norm lässt im Anschriftfeld keine Leerzeilen zu"):
+        assert _NORMBERUFUNG.search(alt), f"das Muster erkennt die alte Berufung nicht: {alt!r}"
+    for neu in ("das Werkzeug hält ein Komma nach der Anrede für richtig",
+                "bis zum Normabgleich eine Setzgewohnheit des Werkzeugs",
+                "Leerzeilen im Anschriftfeld hält das Werkzeug für falsch"):
+        assert not _NORMBERUFUNG.search(neu), f"das Muster schlägt am neuen Ton an: {neu!r}"
+
+    # Probe A
+    vermerke = regeln.fuer_lint("vermerke")
+    assert vermerke["herkunft"] == regeln.EINZELN, (
+        "`text.vermerke_max_3` ist nicht mehr einzeln belegt — Probe A misst nichts mehr")
+    titel = regeln.quellen()[vermerke["quellen"][0]]["titel"]
+    zu_viele = _BRIEFKOPF + "vermerke: [Einschreiben, Persönlich, Eilt, Vertraulich]\n"
+    mit_quelle = _befund(tmp_path, zu_viele, "vermerke", "Zeilen")
+    assert "einzeln belegt" in mit_quelle.meldung and titel in mit_quelle.meldung, (
+        f"die Regel mit Quelle nennt sie nicht mehr: {mit_quelle.meldung!r}")
+
+    # Probe A′
+    assert regeln.fuer_lint("infoblock.telefon") is None, (
+        "`infoblock.telefon` ist jetzt einer Regel zugeordnet — Probe A′ lesen")
+    telefon = next(r for r in regeln.alle() if r["id"] == "schreibweise.telefon")
+    assert telefon["herkunft"] == regeln.EINZELN and telefon["quellen"], (
+        "`schreibweise.telefon` hat ihre Quelle verloren — Probe A′ misst nichts mehr")
+    kopf = _BRIEFKOPF + 'infoblock:\n  telefon: "(0941) 620/9800"\n'
+    mit_ton = _befund(tmp_path, kopf, "infoblock.telefon", "Vorwahl")
+    assert "Norm" in mit_ton.meldung and "Norm" in mit_ton.korrektur, (
+        f"die Regel mit Quelle hat ihren Ton verloren: {mit_ton.meldung!r} | {mit_ton.korrektur!r}")
+
+    # Probe B
+    umgestellt = []
+    for fall, kopf, regelname, _, stichwort in _UMGEWIDMET:
+        befund = _befund(tmp_path, kopf, regelname, stichwort)
+        nennt_quelle = "Quelle:" in befund.meldung or "einzeln belegt" in befund.meldung
+        hat_ton = "Werkzeug" in befund.korrektur
+        if nennt_quelle or _NORMBERUFUNG.search(befund.korrektur) or not hat_ton:
+            umgestellt.append(fall)
+    assert not umgestellt, (
+        f"Diese Fälle sind nicht umgestellt (Quelle genannt, Norm berufen oder kein "
+        f"Werkzeug-Ton): {umgestellt}")
