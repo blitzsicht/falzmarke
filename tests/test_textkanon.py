@@ -446,12 +446,45 @@ def _gemessen() -> dict[str, tuple[int, str]]:
             (sum(1 for k in betroffen if _herkunft_von(k) == regeln.WERKZEUG), r"werkzeug"),
         "von Fehler auf Warnung gefallen":
             (sum(1 for k in betroffen if _herkunft_von(k) == regeln.EINZELN), r"Warnung|warn"),
+        #: Offener Rest 1. Ohne diese blieb die Suite grün, während der Abschnitt
+        #: falsche Zahlen nannte — genau die stille Alterung, gegen die #329
+        #: angetreten ist. Fiele `geometrie.seitenformat` auf `einzeln_belegt`,
+        #: wären beide Zahlen falsch.
+        #:
+        #: Die Gesamtzahl „auf mehrfach bestätigt" steht bewusst NICHT hier: Sie
+        #: ist zurzeit ebenfalls 10 wie die schweigenden Quellen, und zwei gleiche
+        #: Zahlen kann die Nähe-Suche nicht trennen (siehe der Test darunter).
+        #: Gedeckt ist sie trotzdem — sie ist die Summe dieser beiden.
+        "davon Quellen derselben Gruppe": (_gruppenlage()[0], r"Zeichnung"),
+        "davon Unabhängigkeit ungeprüft": (_gruppenlage()[1], r"Träger"),
     }
+
+
+def _mehrfach() -> list[dict]:
+    """Regeln, die einen Lauf scheitern lassen dürfen."""
+    return [r for r in regeln.alle() if r.get("herkunft") == "mehrfach_bestaetigt"]
+
+
+def _gruppenlage() -> tuple[int, int]:
+    """(Regeln, deren Quellen dieselbe Gruppe teilen; Rest).
+
+    Zwei Quellen einer Gruppe sind nicht unabhängig — die Gruppe ist genau
+    dafür da. Gezählt statt geschrieben, damit die Zahlen mit den Daten wandern.
+    """
+    q = regeln.quellen()
+    gleich = 0
+    for r in _mehrfach():
+        gruppen = [q.get(n, {}).get("gruppe", n) for n in (r.get("quellen") or [])]
+        if len(set(gruppen)) < len(gruppen):
+            gleich += 1
+    return gleich, len(_mehrfach()) - gleich
 
 
 @pytest.mark.parametrize("was", ["Regeln gesamt", "ungeprüfte Quelle-Regel-Paare",
                                  "schweigende Quellen", "davon jetzt Werkzeugprüfung",
-                                 "von Fehler auf Warnung gefallen"])
+                                 "von Fehler auf Warnung gefallen",
+                                 "davon Quellen derselben Gruppe",
+                                 "davon Unabhängigkeit ungeprüft"])
 def test_der_stufenabschnitt_nennt_die_gemessene_zahl(was):
     """AC 1: Die Zahlen des Abschnitts sind die der Regeldatei von heute."""
     erwartet, stichwort = _gemessen()[was]
@@ -606,7 +639,13 @@ def test_ein_richtig_nachgezaehlter_abschnitt_besteht_dieselben_pruefungen():
         + ", ".join(f"`{k}`" for k in gefallen) + " |\n\n"
         "Das ist mit #31 geschehen. Offen bleiben "
         f"{z['ungeprüfte Quelle-Regel-Paare']} ungeprüfte Quelle-Regel-Paare; "
-        "sie betreffen überwiegend Maßzeichnungen und bleiben Handarbeit.\n")
+        "sie betreffen überwiegend Maßzeichnungen und bleiben Handarbeit.\n\n"
+        # Offener Rest 1 gehört in die Gegenprobe wie jede andere Zahl: Ein
+        # richtig nachgezählter Abschnitt nennt auch ihn.
+        f"| {z['davon Quellen derselben Gruppe']} | stützen sich auf zwei Quellen, "
+        "die dieselbe **Zeichnung** sind |\n"
+        f"| {z['davon Unabhängigkeit ungeprüft']} | zwei Quellen desselben "
+        "**Trägers**, Unabhängigkeit ungeprüft |\n")
     text = _glatt(re.sub(r"\s*\n>?\s*", " ", roh))
 
     for was, (n, stichwort) in _gemessen().items():

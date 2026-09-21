@@ -72,7 +72,7 @@ Regel **nachweislich schweigen**: Sie zählen nicht mehr mit.
 |---|---|
 | 122 | Regeln insgesamt |
 | 10 | Quelle-Regel-Paare, bei denen die Quelle **nachweislich schweigt** — alle `onlineprinters` ([Befund](quellenpruefung-onlineprinters-2026-08-27.md)) |
-| 7 | dieser Regeln führen jetzt `herkunft: werkzeug` — eine Setzgewohnheit des Werkzeugs, keine Aussage der Norm |
+| 7 | der betroffenen Regeln führen jetzt `herkunft: werkzeug` — eine Setzgewohnheit des Werkzeugs, keine Aussage der Norm |
 | 3 | fielen von Fehler auf Warnung: `schreibweise.datum`, `schreibweise.abkuerzungen`, `text.vermerke_max_3` — ihre zweite volle Quelle schwieg, es bleibt eine. Der Typografie-Pass meldet Datum und Abkürzungen seither nur noch, er ersetzt sie nicht mehr |
 
 Die sieben Werkzeugprüfungen waren schon vorher Warnungen; bei ihnen ändert sich nur die
