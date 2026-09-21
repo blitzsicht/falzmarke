@@ -18,10 +18,12 @@ entscheiden, statt sie beiläufig zu verlieren.
 from __future__ import annotations
 
 import re
+from datetime import date
 
 import pytest
 
 from conftest import REPO
+from falzmarke import regeln
 
 # Kern des Satzes, ohne die verlinkten Teile — die dürfen sich ändern.
 QUELLENLAGE = (
@@ -323,3 +325,304 @@ def test_die_doku_nennt_die_geltende_infoblock_grenze():
         assert gefunden, f"{datei}: keine Zeichengrenze genannt — misst der Test noch etwas?"
         assert str(INFOBLOCK_WERT_MAX) in gefunden, (
             f"{datei} nennt {gefunden}, die Grenze steht auf {INFOBLOCK_WERT_MAX}")
+
+
+
+# ── „Was die Stufen derzeit wert sind“ altert nicht still (#329) ────────────
+#
+# Der Abschnitt in docs/recht.md zählte am 27.08.2026 nach und schloss mit
+# „bewusst nicht geschehen“: Die Stufen blieben, wie sie waren. Seit #31 zählt
+# eine schweigende Quelle nicht mehr — der Abschnitt beschrieb einen Stand, den
+# es nicht mehr gab, und niemand merkte es, weil kein Test ihn hielt. Die
+# Sätze zur Quellenlage oben halten nur zwei Wortlaute fest; die *Zahlen* in
+# dieser Datei alterten ungeprüft.
+#
+# Gehalten wird hier deshalb zweierlei: Die Zahlen sind die, die die
+# Regeldatei jetzt hergibt (gezählt aus den Daten, nicht als zweite Konstante
+# — sonst prüfte sich die Doku an einer Kopie ihrer selbst), und sie tragen
+# eine Standangabe. Ändert sich die Regeldatei, wird dieser Test rot und der
+# Abschnitt muss neu gezählt und neu datiert werden.
+
+STUFEN_UEBERSCHRIFT = "Was die Stufen derzeit wert sind"
+
+#: Der Stand, an dem #329 nachgemessen hat — jünger darf die Standangabe sein,
+#: älter nicht: Sonst stünde die Zahl vor #31, und genau das ist der Fehler.
+STAND_FRUEHESTENS = date(2026, 9, 21)
+
+_ZAHLWOERTER = {2: "zwei", 3: "drei", 4: "vier", 5: "fünf", 6: "sechs", 7: "sieben",
+                8: "acht", 9: "neun", 10: "zehn", 11: "elf", 12: "zwölf"}
+
+#: Wortlaute, die nach #31 falsch sind. Beide Sätze standen bis #329 im
+#: Abschnitt; sie behaupteten, es sei nichts herabgestuft worden.
+VERALTET = {
+    "bewusst nicht geschehen": r"bewusst\s+nicht\s+geschehen",
+    "Stufen unverändert geblieben": r"Stufen\s+unverändert\s+geblieben",
+    "sechs Warnungen, deren einzige Quelle schweigt":
+        r"sechs\s+Warnungen,?\s+deren\s+einzige\s+Quelle",
+}
+
+
+#: Was zum offenen Rest gesagt sein muss (AC 3). Gemessen am 21.09.2026 verteilen
+#: sich die 44 Paare auf letter_pro 15, massskizze_b 12, onlineprinters 10,
+#: wikipedia 5, koma_script 1 und massskizze_a 1 — „Maßzeichnungen“ ist also
+#: nur ein Teil. Der Test verlangt das Wort, nicht die Behauptung, es seien alle:
+#: „überwiegend Maßzeichnungen und Quelltexte“ genügt und stimmt.
+OFFENER_REST = {
+    "dass er Handarbeit bleibt": r"Handarbeit",
+    "dass er Maßzeichnungen betrifft": r"Maßzeichnung",
+}
+
+
+def _glatt(text: str) -> str:
+    """Ohne Auszeichnung: `**nicht**` und „nicht“ sind für die Suche dasselbe.
+
+    Der Unterstrich bleibt — Regelkennungen wie `text.vermerke_max_3` brauchen ihn.
+    """
+    return re.sub(r"[*`]", "", text)
+
+
+def _abschnitt_stufen() -> str:
+    """Der Abschnitt „Was die Stufen derzeit wert sind“, als glatter Fließtext."""
+    roh = (REPO / "docs/recht.md").read_text(encoding="utf-8")
+    treffer = [t for t in re.split(r"(?m)^## ", roh) if t.startswith(STUFEN_UEBERSCHRIFT)]
+    assert len(treffer) == 1, (
+        f"docs/recht.md: Abschnitt „{STUFEN_UEBERSCHRIFT}“ nicht genau einmal gefunden "
+        f"({len(treffer)}) — misst dieser Test noch etwas?")
+    return _glatt(re.sub(r"\s*\n>?\s*", " ", treffer[0]))
+
+
+def _zahl_bei(text: str, zahl: int, stichwort: str, fenster: int = 100) -> bool:
+    """Steht `zahl` (als Ziffern oder Wort) als eigenes Wort im Text, mit dem
+    `stichwort` in der Nähe?
+
+    „Eigenes Wort“ heißt: `3` trifft weder `dreizehn` noch `vermerke_max_3` noch
+    `#31`, und `7` nicht `27.08.2026`. Ohne die Nähe zum Stichwort träfe jede
+    Ziffer irgendwo im Abschnitt, und der Test wäre erfüllt, ohne dass die Zahl
+    etwas Gezähltes bezeichnet.
+    """
+    formen = [str(zahl)] + ([_ZAHLWOERTER[zahl]] if zahl in _ZAHLWOERTER else [])
+    for form in formen:
+        for treffer in re.finditer(rf"(?<![\w.,-]){form}(?!\w|[.,]\d)", text, re.I):
+            nah = text[max(0, treffer.start() - fenster): treffer.end() + fenster]
+            if re.search(stichwort, nah, re.I):
+                return True
+    return False
+
+
+def _stand_daten(text: str, fenster: int = 60) -> list[date]:
+    """Alle Datumsangaben, die nach einem Stand aussehen: ein Datum mit
+    „Stand“, „gemessen“ oder „nachgezählt“ in der Nähe."""
+    daten = []
+    for treffer in re.finditer(r"\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b", text):
+        nah = text[max(0, treffer.start() - fenster): treffer.end() + fenster]
+        if not re.search(r"Stand|gemessen|nachgezählt|nachgemessen|gezählt", nah, re.I):
+            continue
+        tag, monat, jahr = (int(g) for g in treffer.groups())
+        try:
+            daten.append(date(jahr, monat, tag))
+        except ValueError:
+            continue
+    return daten
+
+
+def _herkunft_von(kennung: str) -> str:
+    return next(r["herkunft"] for r in regeln.alle() if r["id"] == kennung)
+
+
+def _gemessen() -> dict[str, tuple[int, str]]:
+    """Was der Abschnitt nennen muss: Bezeichnung → (Zahl aus den Daten, Stichwort).
+
+    Aus `regeln.alle()`, `schweigende_quellen()` und `ohne_belegpruefung()`
+    gezählt — dieselben Funktionen, an denen tests/test_quellenlage.py die
+    Beleglage festhält.
+    """
+    schweigend = regeln.schweigende_quellen()
+    betroffen = {kennung for kennung, _ in schweigend}
+    return {
+        "Regeln gesamt": (len(regeln.alle()), r"Regel"),
+        "ungeprüfte Quelle-Regel-Paare": (len(regeln.ohne_belegpruefung()), r"Paar"),
+        "schweigende Quellen": (len(schweigend), r"schweig|nichts"),
+        "davon jetzt Werkzeugprüfung":
+            (sum(1 for k in betroffen if _herkunft_von(k) == regeln.WERKZEUG), r"werkzeug"),
+        "von Fehler auf Warnung gefallen":
+            (sum(1 for k in betroffen if _herkunft_von(k) == regeln.EINZELN), r"Warnung|warn"),
+    }
+
+
+@pytest.mark.parametrize("was", ["Regeln gesamt", "ungeprüfte Quelle-Regel-Paare",
+                                 "schweigende Quellen", "davon jetzt Werkzeugprüfung",
+                                 "von Fehler auf Warnung gefallen"])
+def test_der_stufenabschnitt_nennt_die_gemessene_zahl(was):
+    """AC 1: Die Zahlen des Abschnitts sind die der Regeldatei von heute."""
+    erwartet, stichwort = _gemessen()[was]
+    assert erwartet > 0, f"{was}: gemessen 0 — dann zählt dieser Test nichts"
+    assert _zahl_bei(_abschnitt_stufen(), erwartet, stichwort), (
+        f"docs/recht.md, „{STUFEN_UEBERSCHRIFT}“: nennt nicht {erwartet} ({was}).\n"
+        "Die Regeldatei hat sich verschoben oder der Abschnitt wurde nie nachgezählt. "
+        "Neu zählen, datieren und hier nichts anpassen — die Zahl kommt aus den Daten.")
+
+
+def test_der_stufenabschnitt_nennt_die_drei_regeln_die_auf_warnung_fielen():
+    """AC 1, zweite Hälfte der Zahl 3: Sie steht nicht allein, sondern mit den
+    Kennungen — sonst ließe sich nicht nachprüfen, welche drei gemeint sind."""
+    gefallen = sorted(k for k, _ in regeln.schweigende_quellen()
+                      if _herkunft_von(k) == regeln.EINZELN)
+    assert gefallen, "keine auf Warnung gefallene Regel — dann misst dieser Test nichts"
+    text = _abschnitt_stufen()
+    fehlt = [k for k in gefallen if k not in text]
+    assert not fehlt, f"docs/recht.md, „{STUFEN_UEBERSCHRIFT}“: nennt nicht {fehlt}"
+
+
+def test_der_stufenabschnitt_traegt_eine_standangabe():
+    """AC 1: „Eine Zahl ohne Datum altert still.“ Das Datum muss neuer sein als
+    der Abschnitt vom 27.08.2026 — sonst steht die Zahl vor #31 — und darf nicht
+    in der Zukunft liegen."""
+    daten = _stand_daten(_abschnitt_stufen())
+    assert daten, ("docs/recht.md: keine Standangabe im Abschnitt — ein Datum mit "
+                   "„Stand“, „gemessen“ oder „nachgezählt“ in der Nähe fehlt.")
+    brauchbar = [d for d in daten if STAND_FRUEHESTENS <= d <= date.today()]
+    assert brauchbar, (
+        "docs/recht.md: Standangaben " + ", ".join(d.strftime("%d.%m.%Y") for d in daten)
+        + f" — keine ab {STAND_FRUEHESTENS.strftime('%d.%m.%Y')} (Nachmessung von #329) "
+        "und nicht nach heute.")
+
+
+def test_der_stufenabschnitt_sagt_dass_es_mit_31_geschehen_ist():
+    """AC 2: Der Satz „bewusst nicht geschehen“ ist ersetzt — es *ist*
+    geschehen, und der Abschnitt nennt den Vorgang, mit dem."""
+    text = _glatt(_fliesstext(REPO / "docs/recht.md"))
+    noch_da = [name for name, muster in VERALTET.items() if re.search(muster, text)]
+    assert not noch_da, (
+        f"docs/recht.md sagt weiter: {noch_da}. Seit #31 stimmt das nicht mehr — "
+        "eine schweigende Quelle zählt nicht mit, drei Regeln fielen von Fehler auf Warnung.")
+    assert re.search(r"#31(?!\d)", _abschnitt_stufen()), (
+        f"docs/recht.md, „{STUFEN_UEBERSCHRIFT}“: nennt #31 nicht — "
+        "dann steht nirgends, womit es geschehen ist.")
+
+
+def test_der_stufenabschnitt_nennt_den_offenen_rest_als_handarbeit():
+    """AC 3: Die ungeprüften Paare stehen als offener Rest daneben — mit dem
+    Hinweis, dass sie Maßzeichnungen betreffen und Handarbeit bleiben."""
+    text = _abschnitt_stufen()
+    fehlt = [was for was, muster in OFFENER_REST.items() if not re.search(muster, text)]
+    assert not fehlt, (
+        f"docs/recht.md, „{STUFEN_UEBERSCHRIFT}“: der offene Rest sagt nicht: {fehlt}")
+
+
+def test_wer_dieselbe_zeichnung_nennt_zaehlt_nach_31():
+    """Die Zeile „9 stützen sich auf dieselbe Zeichnung“ war die Zahl vor #31:
+    `text.vermerke_max_3` hing an `onlineprinters` und fiel heraus. Bleibt die
+    Zeile im Abschnitt, muss ihre Zahl die von `stufe_traegt_nicht()` sein.
+
+    Bedingt, weil die Zeile wegfallen darf — nicht aber falsch weiterstehen.
+    """
+    text = _abschnitt_stufen()
+    if "dieselbe Zeichnung" not in text:
+        pytest.skip("Der Abschnitt nennt die Zeile nicht mehr")
+    erwartet = len(regeln.stufe_traegt_nicht())
+    assert erwartet > 0
+    assert _zahl_bei(text, erwartet, r"Zeichnung"), (
+        f"docs/recht.md nennt „dieselbe Zeichnung“, aber nicht {erwartet} dabei — "
+        "die Liste in `regeln.stufe_traegt_nicht()` ist seit #31 kürzer.")
+
+
+# ── Gegenproben: Ohne sie belegt oben nur, dass gerade etwas dasteht ────────
+
+def test_die_zahlensuche_trennt_richtige_von_falscher_zahl():
+    """`_zahl_bei` darf nur anschlagen, wo die Zahl wirklich als Zählung steht."""
+    satz = "Von 122 Regeln tragen 44 Quelle-Regel-Paare keine Prüfung."
+    assert _zahl_bei(satz, 122, "Regel")
+    assert _zahl_bei(satz, 44, "Paar")
+    # Die falsche Zahl, dasselbe Stichwort — das ist die Sabotage.
+    assert not _zahl_bei(satz.replace("122", "121"), 122, "Regel")
+    assert not _zahl_bei(satz.replace("44", "45"), 44, "Paar")
+    # Das Wort zählt wie die Ziffer.
+    assert _zahl_bei("Sieben Regeln führen werkzeug.", 7, "werkzeug")
+    # Zu weit vom Stichwort weg: keine Zählung *dieser* Sache.
+    assert not _zahl_bei("122 " + "x" * 300 + " Regeln", 122, "Regel")
+
+
+def test_die_zahlensuche_greift_nicht_in_fremde_zahlen():
+    """Die Ziffer 3 steckt in `dreizehn`, `text.vermerke_max_3`, `#31`; die 7 in
+    einem Datum. Trifft sie dort, ist der Test erfüllt, ohne dass etwas gezählt wäre."""
+    assert not _zahl_bei("Von den dreizehn normbezogenen Regeln", 3, "Regel")
+    assert not _zahl_bei("die Regel text.vermerke_max_3 warnt", 3, "Regel")
+    assert not _zahl_bei("Regeln seit #31", 3, "Regel")
+    assert not _zahl_bei("Regeln, Stand 27.08.2026", 7, "Regel")
+    assert not _zahl_bei("Regeln, Stand 27.08.2026", 8, "Regel")
+    assert not _zahl_bei("Berichtigung 1:2020-07 und Regeln", 7, "Regel")
+    # Und die Kontrolle dazu: dieselbe Zahl, richtig geschrieben, trifft.
+    assert _zahl_bei("Drei Regeln fielen auf Warnung", 3, "Warnung")
+
+
+def test_die_standsuche_trennt_alten_von_neuem_stand():
+    """AC 1: Der Abschnitt von heute trägt den 27.08.2026 — der ist zu alt."""
+    alt = "Am 27.08.2026 wurde nachgezählt, was die Regeln tatsächlich tragen."
+    assert _stand_daten(alt) == [date(2026, 8, 27)]
+    assert not any(STAND_FRUEHESTENS <= d for d in _stand_daten(alt)), \
+        "der alte Stand darf nicht als aktuell gelten"
+    assert STAND_FRUEHESTENS in _stand_daten("Stand: 21.09.2026, gemessen gegen main.")
+    assert STAND_FRUEHESTENS in _stand_daten("Am 21.09.2026 nachgezählt.")
+    # Ein Datum ohne Bezug zum Zählen ist keine Standangabe.
+    assert _stand_daten("Das EHUG trat am 01.01.2007 in Kraft.") == []
+    # Und ein unmögliches Datum bricht die Suche nicht ab.
+    assert _stand_daten("Stand 31.02.2026 und Stand 21.09.2026.") == [date(2026, 9, 21)]
+
+
+def test_die_veraltet_muster_treffen_den_alten_wortlaut():
+    """AC 2: Die Muster müssen den Satz kennen, den sie streichen sollen — und
+    wortgetreu in der Form, in der er in der Markdown-Quelle stand."""
+    alt = {
+        "bewusst nicht geschehen": "Das ist bewusst **nicht** geschehen: Der Normabgleich",
+        "Stufen unverändert geblieben": "hierher, weil die Stufen unverändert\ngeblieben sind.",
+        "sechs Warnungen, deren einzige Quelle schweigt":
+            "Dazu sechs Warnungen, deren einzige Quelle zu ihnen schweigt.",
+    }
+    assert alt.keys() == VERALTET.keys()
+    for name, muster in VERALTET.items():
+        satz = _glatt(re.sub(r"\s*\n>?\s*", " ", alt[name]))
+        assert re.search(muster, satz), f"{name}: das Muster kennt den alten Satz nicht"
+    # Der neue, richtige Wortlaut darf nicht anschlagen — sonst bliebe er rot.
+    neu = "Mit #31 ist es geschehen: sieben Regeln führen jetzt `werkzeug`."
+    assert not any(re.search(m, _glatt(neu)) for m in VERALTET.values())
+
+
+def test_ein_richtig_nachgezaehlter_abschnitt_besteht_dieselben_pruefungen():
+    """Gegenprobe in die andere Richtung: Ist der Abschnitt so, wie AC 1 bis 3 ihn
+    beschreiben, darf keine Prüfung oben rot bleiben. Sonst wäre sie strenger
+    als der Auftrag, und die Umsetzung liefe gegen eine Wand, die niemand
+    beschlossen hat. Die Zahlen kommen aus den Daten, nicht aus dem Text hier."""
+    z = {was: n for was, (n, _) in _gemessen().items()}
+    gefallen = sorted(k for k, _ in regeln.schweigende_quellen()
+                      if _herkunft_von(k) == regeln.EINZELN)
+    roh = (
+        "Stand 21.09.2026, gemessen gegen `main` nach dem Merge von #31.\n\n"
+        "| | |\n|---|---|\n"
+        f"| {z['Regeln gesamt']} | Regeln gesamt |\n"
+        f"| {z['schweigende Quellen']} | Quelle-Regel-Paare, bei denen die Quelle "
+        "**nachweislich schweigt** (alle `onlineprinters`) |\n"
+        f"| {z['davon jetzt Werkzeugprüfung']} | davon führen jetzt `herkunft: werkzeug` |\n"
+        f"| {z['von Fehler auf Warnung gefallen']} | fielen von Fehler auf Warnung: "
+        + ", ".join(f"`{k}`" for k in gefallen) + " |\n\n"
+        "Das ist mit #31 geschehen. Offen bleiben "
+        f"{z['ungeprüfte Quelle-Regel-Paare']} ungeprüfte Quelle-Regel-Paare; "
+        "sie betreffen überwiegend Maßzeichnungen und bleiben Handarbeit.\n")
+    text = _glatt(re.sub(r"\s*\n>?\s*", " ", roh))
+
+    for was, (n, stichwort) in _gemessen().items():
+        assert _zahl_bei(text, n, stichwort), f"{was}: {n} nicht gefunden"
+    assert all(k in text for k in gefallen)
+    assert any(STAND_FRUEHESTENS <= d <= date.today() for d in _stand_daten(text))
+    assert not any(re.search(m, text) for m in VERALTET.values())
+    assert re.search(r"#31(?!\d)", text)
+    assert all(re.search(m, text) for m in OFFENER_REST.values())
+
+
+def test_die_gemessenen_zahlen_sind_nicht_leer_und_verschieden():
+    """Zählwerte > 0 statt bloßer Fehlerfreiheit: Fielen zwei Zahlen zusammen
+    (oder wären sie 0), träfe die Nähe-Suche mit einer Ziffer beide."""
+    gemessen = _gemessen()
+    zahlen = [z for z, _ in gemessen.values()]
+    assert all(z > 0 for z in zahlen), gemessen
+    assert len(set(zahlen)) == len(zahlen), (
+        f"zwei Zählungen liefern dieselbe Zahl: {gemessen} — die Suche trennte sie nicht mehr")
