@@ -21,7 +21,7 @@ import os
 import pytest
 
 from falzmarke import cli as falzmarke
-from conftest import REPO, SKILL
+from conftest import REPO, SKILL, ohne_typografiehinweise
 
 PROFILE = SKILL / "falzmarke" / "typst" / "profiles"
 
@@ -87,7 +87,10 @@ def _regeln(bericht, schwere: str | None = None) -> list[str]:
 
 def test_eine_vollstaendige_rechnung_ist_sauber(tmp_path):
     bericht = _bericht(tmp_path)
-    assert not bericht.befunde, [b.als_zeile("rechnung.md") for b in bericht.befunde]
+    # Ohne die Hinweise des Typografie-Passes (#330): Der Füllsatz „unsere
+    # Rechnung für …" trägt einen; hier geht es um den Datenvertrag.
+    befunde = ohne_typografiehinweise(bericht)
+    assert not befunde, [b.als_zeile("rechnung.md") for b in befunde]
 
 
 def test_der_typ_ist_bekannt(tmp_path):
@@ -216,7 +219,7 @@ def test_ein_vollstaendiger_zeitraum_ist_sauber(tmp_path):
     """Die Gegenrichtung: Ohne sie belegten die zwei Tests darüber nur, dass
     JEDER Zeitraum gemeldet wird."""
     kopf = _ersetzt("leistungsdatum: 2026-10-03", "leistungszeitraum: {von: 2026-10-01, bis: 2026-10-03}")
-    assert not _bericht(tmp_path, kopf).befunde
+    assert not ohne_typografiehinweise(_bericht(tmp_path, kopf))
 
 
 def test_ein_ungueltiges_zahlungsziel_wird_gemeldet(tmp_path):
@@ -469,7 +472,8 @@ def _xrechnung_regeln(tmp_path, ersetzen: tuple[str, str] | None = None, anhaeng
         text = text.replace("leistungsdatum:", anhaengen + "\nleistungsdatum:", 1)
     pfad = tmp_path / "x.md"
     pfad.write_text(text, encoding="utf-8")
-    return {b.regel for b in falzmarke.linte(pfad, PROFILE).befunde}
+    # Ohne die Hinweise des Typografie-Passes (#330), wie die Kontrollproben unten.
+    return {b.regel for b in ohne_typografiehinweise(falzmarke.linte(pfad, PROFILE))}
 
 
 def test_das_xrechnung_beispiel_ist_sauber(tmp_path):
@@ -510,7 +514,7 @@ def test_gegenprobe_ohne_empfaengeradresse_unter_en16931_still(tmp_path):
     assert "erechnung:" not in pfad_text and "einkauf@example.de" not in pfad_text
     pfad = tmp_path / "en16931.md"
     pfad.write_text(pfad_text, encoding="utf-8")
-    text_regeln = {b.regel for b in falzmarke.linte(pfad, PROFILE).befunde}
+    text_regeln = {b.regel for b in ohne_typografiehinweise(falzmarke.linte(pfad, PROFILE))}
     assert text_regeln == set(), text_regeln
 
 

@@ -67,6 +67,26 @@ def profilpfad(beispiel: Path, name: str) -> Path:
     raise AssertionError(f"kein Profil `{name}` neben {beispiel} und nicht in {PROFILE}")
 
 
+def ohne_typografiehinweise(bericht) -> list:
+    """Die Befunde eines Lint-Berichts, ohne die Hinweise des Typografie-Passes (#330).
+
+    Seit #330 meldet der Linter, was der Typografie-Pass zurückhält: eine
+    Warnung je Schritt, dessen Regel nur einzeln belegt ist, unter der Kennung
+    dieser Regel (`schreibweise.einheiten`, …). Ein Test, der „keine Befunde"
+    fordert, meint damit die Eingabe — nicht die Frage, ob das Beispiel ein
+    „5 kg" oder ein „Rechnung Nr." enthält.
+
+    Die Ausnahme ist eng: nur Befunde unter der Kennung einer Regel mit
+    `typografie:`-Zuordnung. Jede andere Warnung zählt weiter. Lazy importiert,
+    weil conftest sonst schon beim Sammeln das Paket laden müsste.
+    """
+    from falzmarke import regeln
+
+    kennungen = {r["id"] for r in regeln.alle() if r.get("typografie")}
+    assert kennungen, "keine Regel trägt `typografie:` — der Filter nähme nichts aus"
+    return [b for b in bericht.befunde if b.regel not in kennungen]
+
+
 def _fassung(pfad: Path) -> str:
     """Die Dialektfassung eines Beispiels, ohne YAML zu laden.
 

@@ -30,7 +30,7 @@ from falzmarke import cli as falzmarke
 from falzmarke import emit_text as text
 from falzmarke import markdown as md
 from falzmarke import pruefung_eml
-from conftest import EMAIL_BEISPIELE, REPO
+from conftest import EMAIL_BEISPIELE, REPO, ohne_typografiehinweise
 
 GOLDEN = REPO / "tests" / "golden" / "email"
 ANLAGE = REPO / "examples" / "email" / "anlagen" / "rechnung-2026-0815.md"
@@ -162,7 +162,37 @@ def test_zwei_laeufe_ueber_dasselbe_beispiel_sind_gleich(tmp_path):
 def test_lint_ist_sauber(beispiel):
     bericht = falzmarke.linte(beispiel, None)
     assert bericht.ok, bericht.als_text(beispiel.name)
-    assert not bericht.befunde, bericht.als_text(beispiel.name)
+    # Ohne die Hinweise des Typografie-Passes (#330): Sie sagen, was der Pass
+    # zurückhält, und stehen unten je Beispiel für sich. „Sauber" meint hier die
+    # Eingabe — jede andere Warnung zählt weiter.
+    assert not ohne_typografiehinweise(bericht), bericht.als_text(beispiel.name)
+
+
+#: Beispiel -> ein Stichwort, das die Meldung nennen muss. Jedes Beispiel steht
+#: für eine andere Stelle im Baum: Fließtext, Aufzählung, Tabellenzelle. Ein
+#: Hinweis, der nur im Absatz griffe, ließe die anderen still.
+TYPOGRAFIEHINWEISE = {
+    "email-angebot": "EUR",     # Fließtext: „2.240,00 EUR netto"
+    "email-liste": "Uhr",       # Aufzählung: „ab 8:00 Uhr"
+    "email-tabelle": "EUR",     # Tabellenzelle: „1.240,00 EUR"
+    "email-mahnung": "Nr.",     # Fließtext: „Rechnung Nr. 2026-0815"
+}
+
+
+@pytest.mark.parametrize("name,stichwort", sorted(TYPOGRAFIEHINWEISE.items()))
+def test_lint_nennt_die_zurueckgehaltene_ersetzung_im_beispiel(name, stichwort):
+    """AC 1 (#330) am echten Beispiel: Die Regel für Einheiten und Angaben ist nur
+    einzeln belegt, der Pass setzt das geschützte Leerzeichen deshalb nicht —
+    der Linter muss es sagen. Vor #330 blieb `vorschlaege()` ohne Aufrufer."""
+    beispiel = REPO / "examples" / "email" / f"{name}.md"
+    assert beispiel in EMAIL_BEISPIELE, f"{beispiel.name} ist kein Mail-Beispiel mehr"
+    bericht = falzmarke.linte(beispiel, None)
+
+    hinweise = [b for b in bericht.befunde if b not in ohne_typografiehinweise(bericht)]
+    assert hinweise, f"{name}: kein Hinweis des Typografie-Passes\n" + bericht.als_text(name)
+    assert all(b.schwere == "Warnung" for b in hinweise), "ein Hinweis ist nie ein Fehler"
+    assert any(stichwort in b.meldung for b in hinweise), [b.meldung for b in hinweise]
+    assert bericht.ok, "die Hinweise halten den Lauf nicht an"
 
 
 def test_lint_kann_an_einem_beispiel_rot_werden(tmp_path):
