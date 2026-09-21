@@ -26,7 +26,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from falzmarke import baum, emit
+from falzmarke import baum, emit, typografie
 
 #: Die Fassungen des Dialekts. Wer eine hinzufügt, trägt sie hier ein und
 #: erweitert die Tabellen darunter — sonst gilt sie stillschweigend als 1.0.
@@ -82,6 +82,9 @@ class Hinweis:
     meldung: str
     #: Wie bei `MarkdownFehler` — der Name der Regel, sonst `markdown`.
     regel: str = "markdown"
+    #: Was zu tun ist, sonst leer. Der Linter setzt es als eigene Zeile unter
+    #: die Meldung (`Befund.korrektur`).
+    korrektur: str = ""
 
 
 @dataclass
@@ -101,8 +104,9 @@ class Lage:
     ziel: str = "brief"
     hinweise: list = field(default_factory=list)
 
-    def melde(self, zeile: int, meldung: str, regel: str = "markdown") -> None:
-        self.hinweise.append(Hinweis(zeile, meldung, regel))
+    def melde(self, zeile: int, meldung: str, regel: str = "markdown",
+              korrektur: str = "") -> None:
+        self.hinweise.append(Hinweis(zeile, meldung, regel, korrektur))
 
 
 # Knotentypen, die in JEDER Fassung gesetzt werden.
@@ -158,6 +162,20 @@ BENENNUNG = {
 HINWEIS_SPRACHE = (
     "die Sprachangabe `{info}` wird nicht ausgewertet — ein Brief setzt Code "
     "ohne Einfärbung; die Angabe kann weg"
+)
+
+
+#: Ein Schritt des Typografie-Passes, den die Quellenlage zurückhält (#330).
+#: `typografie.anwenden()` setzt an der Stelle nichts; gesagt wird es hier,
+#: sonst sähe der Brief anders aus, als er geschrieben wurde, oder gar
+#: nichts geschähe — und beide Male erführe der Schreibende nichts davon.
+#:
+#: Auf Meldung und Korrektur verteilt, weil der Linter beide auf eigene Zeilen
+#: setzt: Eine einzige Zeile mit Stelle, Ersetzung und Grund brach in der
+#: Aufnahme des README-Demos um (`tests/test_tape.py`, 109 Spalten).
+HINWEIS_TYPOGRAFIE = "Leerzeichen schützen: „{stelle}“"
+KORREKTUR_TYPOGRAFIE = (
+    "selbst setzen; die Regel ist nur einzeln belegt und wird nicht automatisch gesetzt"
 )
 
 
@@ -382,32 +400,60 @@ def _nur_text(knoten) -> str:
     return "".join(stuecke)
 
 
-def _inline(knoten, lage: Lage) -> tuple:
-    """Inline-Inhalt eines Absatzes oder einer Zelle, als Baumknoten."""
+def _melde_zurueckgehaltenes(text: str, zeile: int, lage: Lage) -> None:
+    """Was der Typografie-Pass an diesem Text zurückhält, als Hinweis (#330).
+
+    Der Pass läuft auf genau diesen Textknoten. Eine Regel, die nur eine
+    Quelle trägt, ändert den Text nicht — und ohne diesen Hinweis erführe
+    niemand, dass dort etwas anders stünde, wenn sie sie trüge.
+    """
+    for kennung, stelle in typografie.vorschlaege(text):
+        lage.melde(zeile, HINWEIS_TYPOGRAFIE.format(stelle=stelle), kennung,
+                   KORREKTUR_TYPOGRAFIE)
+
+
+def _inline(knoten, lage: Lage, lauf: list | None = None,
+            typografie_melden: bool = True) -> tuple:
+    """Inline-Inhalt eines Absatzes oder einer Zelle, als Baumknoten.
+
+    `lauf` ist die Quellzeile, an der das Lesen gerade steht — eine Liste mit
+    einem Eintrag, damit die Verschachtelung (`**fett**`, Link) sie
+    weiterzählt. Ein Absatz über mehrere Zeilen meldet so die Zeile der
+    Stelle, nicht die des Absatzanfangs.
+
+    `typografie_melden` schaltet nur die Hinweise des Typografie-Passes ab
+    (#330), nie den Pass selbst: Der Text wird gleich gesetzt.
+    """
+    if lauf is None:
+        lauf = [_zeile(knoten, lage)]
     teile = []
     for kind in knoten.children or []:
         typ = kind.type
         if typ == "text":
             teile.append(baum.Text(kind.content))
+            if typografie_melden:
+                _melde_zurueckgehaltenes(kind.content, lauf[0], lage)
         elif typ == "softbreak":
             # Ein weicher Umbruch ist ein Leerzeichen und sonst nichts — die
             # typografischen Ersetzungen haben daran nichts zu suchen.
             teile.append(baum.Text(" ", typografie=False))
+            lauf[0] += 1
         elif typ == "hardbreak":
             teile.append(baum.Umbruch())
+            lauf[0] += 1
         elif typ == "strong":
-            teile.append(baum.Stark(_inline(kind, lage)))
+            teile.append(baum.Stark(_inline(kind, lage, lauf, typografie_melden)))
         elif typ == "em":
-            teile.append(baum.Betont(_inline(kind, lage)))
+            teile.append(baum.Betont(_inline(kind, lage, lauf, typografie_melden)))
         elif typ == "inline":
-            teile.extend(_inline(kind, lage))
+            teile.extend(_inline(kind, lage, lauf, typografie_melden))
         elif typ == "link":
             # Nur in einer E-Mail. Im Brief bleibt es bei der Ablehnung aus
             # `ABLEHNUNG` — auf Papier gibt es nichts zum Anklicken.
             if lage.ziel != "email":
                 _lehne_ab(kind, lage)
             ziel = str((kind.attrs or {}).get("href", ""))
-            inhalt = _inline(kind, lage)
+            inhalt = _inline(kind, lage, lauf, typografie_melden)
             _pruefe_link(ziel, _nur_text(inhalt), _zeile(kind, lage), lage)
             teile.append(baum.Link(ziel=ziel, kinder=inhalt))
         elif typ == "code_inline":
@@ -436,6 +482,12 @@ def _liste(knoten, lage: Lage, tiefe: int) -> baum.Liste:
         )
 
     punkte = [p for p in knoten.children if p.type == "list_item"]
+    # Die Zeile, die als Liste gesetzt wird, obwohl sie ein Satz sein könnte:
+    # Ihr Hinweis verlangt ohnehin, die Zeile zu ändern (`2\. Mahnung`). Was
+    # der Typografie-Pass an ihr zurückhält, meldet der nächste Lauf — dann
+    # steht sie als Absatz da. Zwei Hinweise auf einmal machten aus der einen
+    # Frage („Liste oder Satz?“) zwei, bevor sie beantwortet ist.
+    einzelne_nummer = len(punkte) < 2 and knoten.type == "ordered_list"
     if len(punkte) < 2:
         zeile = _zeile(knoten, lage)
         if knoten.type == "ordered_list":
@@ -476,7 +528,7 @@ def _liste(knoten, lage: Lage, tiefe: int) -> baum.Liste:
         stuecke = []
         for kind in punkt.children or []:
             if kind.type == "paragraph":
-                stuecke.extend(_inline(kind, lage))
+                stuecke.extend(_inline(kind, lage, typografie_melden=not einzelne_nummer))
             elif kind.type in ("bullet_list", "ordered_list"):
                 stuecke.append(_liste(kind, lage, tiefe + 1))
             else:

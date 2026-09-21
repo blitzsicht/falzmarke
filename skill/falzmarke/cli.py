@@ -567,7 +567,7 @@ def linte(brief_pfad: Path, profil_verzeichnis: Path | None = None) -> lint_modu
     # Was gesetzt wird, aber auffällt. Der Linter ist die Stelle, an der es
     # jemand liest — die Prüfung selbst kann nur abbrechen oder durchlassen.
     for hinweis in hinweise:
-        bericht.warnung(hinweis.zeile, hinweis.regel, hinweis.meldung)
+        bericht.warnung(hinweis.zeile, hinweis.regel, hinweis.meldung, hinweis.korrektur)
 
     if kopf.get("profil"):
         try:
