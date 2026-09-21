@@ -59,30 +59,48 @@ sähe anders aus, als er geschrieben wurde, und niemand erführe warum.
 
 ## Was die Stufen derzeit wert sind
 
-Die Tabelle oben sagt, was eine Stufe **bedeutet**. Am 27.08.2026 wurde nachgezählt, was die
-Regeln tatsächlich tragen — und das Ergebnis gehört hierher, weil die Stufen unverändert
-geblieben sind.
+Die Tabelle oben sagt, was eine Stufe **bedeutet**. Hier steht, was die Regeln tatsächlich
+tragen. **Stand: 21.09.2026**, gemessen gegen `main` nach dem Merge von #31. Die Zahlen kommen aus
+der Regeldatei; `tests/test_textkanon.py` zählt sie bei jedem Lauf nach und wird rot, sobald
+dieser Abschnitt ihnen nicht mehr folgt.
 
-Von 23 Regeln mit Wirkung *Fehler* sind zehn Werkzeugprüfungen ohne Normbezug. Von den
-**dreizehn normbezogenen** trägt **keine einzige nachweislich zwei unabhängige Belege**:
+Am 27.08.2026 war nachgezählt worden, dass mehrere Regeln ihre Stufe nicht tragen, und die
+Stufen blieben zunächst, wie sie waren. Mit #31 ist das für die Quellen geschehen, die zu einer
+Regel **nachweislich schweigen**: Sie zählen nicht mehr mit.
 
 | | |
 |---|---|
-| 9 | stützen sich auf zwei Quellen, die **dieselbe Zeichnung** sind ([Befund](quellenunabhaengigkeit-2026-08-27.md)) |
-| 2 | die zweite Quelle **sagt zur Regel nichts** ([Befund](quellenpruefung-onlineprinters-2026-08-27.md)); es bleibt eine |
+| 122 | Regeln insgesamt |
+| 10 | Quelle-Regel-Paare, bei denen die Quelle **nachweislich schweigt** — alle `onlineprinters` ([Befund](quellenpruefung-onlineprinters-2026-08-27.md)) |
+| 7 | dieser Regeln führen jetzt `herkunft: werkzeug` — eine Setzgewohnheit des Werkzeugs, keine Aussage der Norm |
+| 3 | fielen von Fehler auf Warnung: `schreibweise.datum`, `schreibweise.abkuerzungen`, `text.vermerke_max_3` — ihre zweite volle Quelle schwieg, es bleibt eine |
+
+Die sieben Werkzeugprüfungen waren schon vorher Warnungen; für sie ändert sich die Herkunft, und
+der Typografie-Pass setzt dort nichts mehr von selbst.
+
+**Offener Rest 1 — Regeln, die strenger sind, als ihr Beleg trägt.** Zehn Regeln stehen noch
+auf „mehrfach bestätigt" und dürfen einen Lauf scheitern lassen. Davon:
+
+| | |
+|---|---|
+| 8 | stützen sich auf zwei Quellen, die **dieselbe Zeichnung** sind ([Befund](quellenunabhaengigkeit-2026-08-27.md)) |
 | 2 | zwei Quellen desselben Trägers, Unabhängigkeit **ungeprüft** |
 
-Dazu sechs Warnungen, deren einzige Quelle zu ihnen schweigt.
+Das ist eine Entscheidung, keine Nachlässigkeit, und sie steht hier, damit niemand die Tabelle
+oben für eine Zusage hält, die sie im Einzelfall nicht einlöst: Der Normabgleich
+([unten](#wie-sich-das-ändert)) ersetzt ohnehin jede Herkunftsstufe durch eine Fundstelle.
 
-**Nach dem eigenen Maßstab müssten die betroffenen Regeln herabgestuft werden** — von Fehler auf
-Warnung, teils auf „offen". Das ist bewusst **nicht** geschehen: Der Normabgleich
-([unten](#wie-sich-das-ändert)) ersetzt ohnehin jede Herkunftsstufe durch eine Fundstelle und
-macht die Frage gegenstandslos. Bis dahin bleiben diese Regeln strenger, als ihr Beleg trägt.
+**Offener Rest 2 — Quellen, die niemand auf Aussage zur Regel gelesen hat.** 44 Quelle-Regel-Paare
+sind ungeprüft: Bei ihnen steht nicht fest, ob die Quelle die Regel trägt oder zu ihr schweigt.
+Das ist nicht „kein Beleg", sondern „nicht nachgesehen", und diese beiden Zustände werden nicht
+verwechselt. Die Paare betreffen überwiegend Maßzeichnungen und Quelltexte. Bei einer Zeichnung
+reicht keine Stichwortsuche: Sie zeigt ein Beispieldatum, ohne die Regel zu sagen. Das bleibt
+Handarbeit — Quelle ansehen, Maß gegen Regel halten, das Ergebnis unter `belegt_durch:` in der
+Regeldatei eintragen.
 
-Das ist eine Entscheidung, keine Nachlässigkeit — und sie steht hier, damit niemand die Tabelle
-oben für eine Zusage hält, die sie im Einzelfall nicht einlöst. Die Sollwerte selbst sind davon
-unberührt: Sie sind an gerenderten PDFs gemessen und stimmen mit den Zeichnungen überein. Zur
-Debatte steht nicht, ob sie richtig sind, sondern wie stark sie belegt sind.
+Die Sollwerte selbst sind davon unberührt: Sie sind an gerenderten PDFs gemessen und stimmen mit
+den Zeichnungen überein. Zur Debatte steht nicht, ob sie richtig sind, sondern wie stark sie
+belegt sind.
 
 ## Pflichtangaben in E-Mails
 
