@@ -94,6 +94,98 @@ def test_der_regelnamen_leser_findet_ueberhaupt_etwas():
     assert len(_linter_regelnamen()) >= 8
 
 
+# ── Dieselbe Pflicht für die Schritte des Typografie-Passes (#332) ──────────
+#
+# `typografie.SCHRITTE` nennt je Schritt den Namen der Regel, an der er hängt.
+# Bis #332 prüfte das niemand: Der Schritt `_vor_angabe` hing an
+# `schreibweise.zahlengliederung`, und keine Probe fragte, ob die Regel sagt,
+# was der Schritt tut. Die Zuordnung Schritt → Eintrag ist jetzt Pflicht, und
+# zwar maschinell — gelesen wird der Syntaxbaum von typografie.py, nicht eine
+# Liste, die man nachzuziehen vergisst. Ein neuer Schrittname ohne Eintrag in der
+# Regeldatei lässt die Probe scheitern; der Eintrag gehört in dieselbe Änderung.
+
+
+def _typografie_schrittnamen() -> set[str]:
+    """Die Regelnamen in `typografie.SCHRITTE` — aus dem Syntaxbaum.
+
+    Gelesen wird das zweite Element jedes Paars der Liste. Ein Schritt ohne
+    Namen (`None`) ist Satztechnik des Werkzeugs und braucht keinen Eintrag.
+    """
+    import ast
+    import pathlib
+
+    quelle = pathlib.Path(typografie.__file__).read_text(encoding="utf-8")
+    namen = set()
+    for knoten in ast.walk(ast.parse(quelle)):
+        if not (isinstance(knoten, ast.Assign) and isinstance(knoten.value, ast.List)
+                and any(isinstance(z, ast.Name) and z.id == "SCHRITTE" for z in knoten.targets)):
+            continue
+        for paar in knoten.value.elts:
+            if isinstance(paar, ast.Tuple) and len(paar.elts) == 2:
+                zweites = paar.elts[1]
+                if isinstance(zweites, ast.Constant) and isinstance(zweites.value, str):
+                    namen.add(zweites.value)
+    return namen
+
+
+def _schritte_ohne_eintrag(katalog: list[dict]) -> list[str]:
+    zugeordnet = {r["typografie"] for r in katalog if r.get("typografie")}
+    return sorted(_typografie_schrittnamen() - zugeordnet)
+
+
+def _schritte_mit_zwei_regeln(katalog: list[dict]) -> list[str]:
+    """`regeln._nach_typografie` baut ein Wörterbuch: Beanspruchen zwei Einträge
+    denselben Schritt, gewinnt der letzte, und der andere bleibt stumm stehen."""
+    gesehen: dict[str, int] = {}
+    for regel in katalog:
+        if regel.get("typografie"):
+            gesehen[regel["typografie"]] = gesehen.get(regel["typografie"], 0) + 1
+    return sorted(schritt for schritt, anzahl in gesehen.items() if anzahl > 1)
+
+
+def test_der_schrittnamen_leser_findet_ueberhaupt_etwas():
+    """Gegenprobe: Eine leere Menge würde die Tests darunter immer bestehen."""
+    namen = _typografie_schrittnamen()
+    assert {"_abkuerzungen", "_datum", "_einheiten", "_vor_angabe"} <= namen, namen
+
+
+def test_jeder_benannte_typografie_schritt_ist_zugeordnet():
+    fehlend = _schritte_ohne_eintrag(regeln.alle())
+    assert not fehlend, (
+        f"Diese Schritte des Typografie-Passes stehen in keiner Zeile von din5008.yaml: {fehlend}. "
+        "Jeder braucht einen Eintrag mit `typografie:`, Herkunft und einem Titel, der sagt, was er tut.")
+
+
+def test_kein_eintrag_ohne_schritt_im_code():
+    """Die Gegenrichtung: ein Eintrag, dessen Schritt es nicht mehr gibt, sieht
+    in der Normreferenz wie eine wirksame Regel aus."""
+    bekannt = {r["typografie"] for r in regeln.alle() if r.get("typografie")}
+    verwaist = sorted(bekannt - _typografie_schrittnamen())
+    assert not verwaist, f"Diese Einträge nennen einen Schritt, den es nicht gibt: {verwaist}"
+
+
+def test_kein_schritt_haengt_an_zwei_regeln():
+    doppelt = _schritte_mit_zwei_regeln(regeln.alle())
+    assert not doppelt, (
+        f"Diese Schritte beansprucht mehr als ein Eintrag: {doppelt}. Ein Wörterbuch behält "
+        "den letzten — welcher, hinge an der Reihenfolge in der Datei.")
+
+
+def test_die_zuordnung_der_schritte_wuerde_eine_luecke_und_einen_doppelten_bemerken():
+    """Gegenprobe: Die Prüfungen darüber sind grün, solange nichts fehlt — hier
+    fehlt etwas, und sie müssen es finden."""
+    katalog = regeln.alle()
+    assert _schritte_ohne_eintrag(katalog) == [] and _schritte_mit_zwei_regeln(katalog) == [], (
+        "Vorbedingung: der echte Bestand ist sauber")
+
+    ohne = [r for r in katalog if r.get("typografie") != "_vor_angabe"]
+    assert len(ohne) == len(katalog) - 1, "die Sabotage nahm nichts heraus"
+    assert _schritte_ohne_eintrag(ohne) == ["_vor_angabe"]
+
+    zwilling = dict(next(r for r in katalog if r.get("typografie") == "_vor_angabe"), id="probe.zwilling")
+    assert _schritte_mit_zwei_regeln(katalog + [zwilling]) == ["_vor_angabe"]
+
+
 # ── Dieselbe Pflicht für die Prüfungen der fertigen Datei (#292) ────────────
 #
 # `pruefung_eml.py` misst die fertige `.eml`. Bis #292 trug dort keine Prüfung

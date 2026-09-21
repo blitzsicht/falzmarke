@@ -73,6 +73,7 @@ sich falzmarke auf eine einzige Implementierung. Hier zuerst nachsehen.
 |---|---|---|---|---|
 | `schreibweise.datum` | `25. August 2026` / `2026-08-25` | | | |
 | `schreibweise.abkuerzungen` | `z. B.` mit geschütztem Leerzeichen | | | |
+| `schreibweise.kuerzel_vor_angabe` | `Nr. 4711` mit geschütztem Leerzeichen | | | |
 | `schreibweise.telefon` | `0941 620-9800` | | | |
 | `schreibweise.zahlengliederung` | Dreiergruppen | | | |
 | `schreibweise.iban` | Vierergruppen | | | |
