@@ -330,11 +330,13 @@ def baue_daten(kopf: dict, profil: dict, profil_pfad: Path, arbeitsverzeichnis: 
 
     anrede = str(kopf.get("anrede") or "Sehr geehrte Damen und Herren,").strip()
     if not anrede.endswith(","):
-        raise Eingabefehler(f"anrede: '{anrede}' — die Anrede endet nach DIN mit einem Komma.")
+        raise Eingabefehler(
+            f"anrede: '{anrede}' — das Werkzeug hält ein Komma am Ende der Anrede für richtig.")
 
     gruss = str(kopf.get("gruss") or profil.get("gruss") or "Mit freundlichen Grüßen").strip()
     if gruss.endswith(","):
-        raise Eingabefehler(f"gruss: '{gruss}' — die Grußformel steht ohne Komma.")
+        raise Eingabefehler(
+            f"gruss: '{gruss}' — das Werkzeug hält die Grußformel ohne Komma für richtig.")
 
     unterzeichner = str(
         kopf.get("unterzeichner") or profil.get("unterzeichner") or profil["absender"]["name"]
