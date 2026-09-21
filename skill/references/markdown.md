@@ -49,7 +49,9 @@ Wer eine Zeile umbrechen will, setzt `\` ans Ende.
 ## Was von selbst passiert
 
 Ein Typografie-Pass setzt von den Normregeln die mehrfach belegten von selbst, ohne dass du daran
-denken musst — Satzzeichen (`--`, `"Wort"`) und `§ 5` immer:
+denken musst. Satzzeichen (`--`, `"Wort"`) und `§ 5` setzt er immer: Das ist Satztechnik des
+Werkzeugs ohne eigenen Regeleintrag. Dass die Tabelle „Quellenlage je Regel“ das `§` im Titel
+der Einheiten-Regel nennt, ändert daran nichts:
 
 | Du schreibst | Im PDF steht |
 |---|---|
