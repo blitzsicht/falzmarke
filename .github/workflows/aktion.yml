@@ -36,6 +36,7 @@ jobs:
   selbsttest:
     name: Aktion auf den eigenen Beispielen
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
@@ -76,6 +77,7 @@ jobs:
   mit-pypi:
     name: Der Weg, den fremde Repositories gehen
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
@@ -120,6 +122,7 @@ jobs:
   gegenprobe:
     name: Ohne Treffer muss sie fehlschlagen
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 

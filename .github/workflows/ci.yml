@@ -4,6 +4,14 @@ on:
   push:
     branches: [main]
   pull_request:
+  # KEIN `workflow_dispatch`. Ein erster Entwurf hatte es, weil ein Lauf ohne Commit
+  # bequem ist — es haette aber zwei Pflicht-Checks aushebeln koennen: `Changelog-Eintrag`
+  # und `Closing-Keyword` laufen nur `if: github.event_name == 'pull_request'`, melden bei
+  # jedem anderen Ereignis `skipped`, und GitHub wertet einen uebersprungenen Job als
+  # erfuellt. Da fuer die Mergebarkeit der JUENGSTE Check-Run je Name zaehlt, haette ein
+  # `gh workflow run ci.yml --ref <pr-branch>` ein rotes Changelog-Gate durch ein gruenes
+  # `skipped` ersetzt, ohne dass das Gate je gelaufen waere. Wer die Suite ohne Commit
+  # fahren will, nimmt einen Draft-PR.
 
 # Voreinstellung fuer alle Jobs: nur lesen. Wer mehr braucht,
 # sagt es im Job — sichtbar und begrenzt.
@@ -12,11 +20,31 @@ permissions:
 
 jobs:
   tests:
+    # ZU KLAEREN (ops, Actions-Kosten): 430 macOS-Minuten kosten 26,66 USD im Monat,
+    # dieselbe Rechenzeit auf Linux 2,58 USD -- Faktor 10; Windows ist Faktor 2. Zusammen
+    # sind das ueber ein Drittel der Actions-Kosten der Organisation (gemessen ueber die
+    # Abrechnungs-API, 01.-21.09.2026). Die naheliegende Loesung -- Matrix im PR auf Linux
+    # kuerzen -- scheitert an den Pflicht-Checks: das Ruleset `main` verlangt namentlich
+    # `tests (macos-latest)` und `tests (windows-latest)`. Ein Check, der im PR nicht mehr
+    # entsteht, sperrt main dauerhaft (genau der Fall, vor dem scripts/pflicht_checks.py
+    # im Docstring warnt).
+    #
+    # Drei Wege, alle mit demselben Haken: (a) ein dynamischer Matrix-Ausdruck
+    # `os: ${{ github.event_name == 'push' && fromJSON('[…3 OS…]') || fromJSON('["ubuntu-latest"]') }}`
+    # -- braucht keine doppelten Schritte, aber pflicht_checks.py kann die Matrix dann
+    # nicht mehr statisch expandieren; (b) ein zweiter Job mit
+    # `if: github.event_name == 'push'`, den die vorhandene NUR_MAIN_MARKER-Logik von
+    # selbst aus der Pflichtliste nimmt -- braucht die Schritte doppelt oder als Composite
+    # Action; (c) ein Job-`if`, das `matrix` liest -- geht nicht, der Kontext ist dort
+    # nicht verfuegbar. In jedem Fall muss das Ruleset im selben Zug mitziehen
+    # (scripts/repo-einstellungen.sh). Deshalb hier bewusst unveraendert: der Umbau gehoert
+    # in einen eigenen Vorgang, in dem Workflow und Ruleset zusammen umgestellt werden.
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
@@ -99,6 +127,7 @@ jobs:
   frischklon:
     needs: tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
@@ -133,6 +162,7 @@ jobs:
   skill-paket:
     needs: tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
@@ -189,6 +219,7 @@ jobs:
     # sonst wartet das Ruleset auf einen Check, den GitHub nie meldet.
     name: MCP-Dienst im Container
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
@@ -236,6 +267,7 @@ jobs:
     # gleich entsteht.
     name: PDF-Konformität (veraPDF, fremdes Werkzeug)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
@@ -374,6 +406,7 @@ jobs:
     # Pin. Die Referenzdateien prüft dieser Job selbst, denn nur er holt sie.
     name: E-Rechnung (Mustang, fremdes Werkzeug)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
@@ -573,6 +606,7 @@ jobs:
     name: Changelog-Eintrag
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: read       # `gh pr view` liest Dateien, Autor und Labels
@@ -616,6 +650,7 @@ jobs:
     name: Closing-Keyword
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: read       # `gh pr view` liest Rumpf und Labels

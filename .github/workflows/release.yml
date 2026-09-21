@@ -24,6 +24,7 @@ permissions:
 jobs:
   skill-paket:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write        # Release anlegen und Asset anhaengen
       id-token: write        # OIDC fuer die Herkunftsbestaetigung
@@ -142,6 +143,7 @@ jobs:
     name: Auf PyPI veroeffentlichen (unumkehrbar)
     needs: skill-paket
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment: pypi
     permissions:
       contents: read
@@ -232,6 +234,7 @@ jobs:
     name: Im MCP-Registry eintragen
     needs: pypi
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       id-token: write        # nur hierfuer: das OIDC-Token
