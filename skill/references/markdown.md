@@ -48,20 +48,31 @@ Wer eine Zeile umbrechen will, setzt `\` ans Ende.
 
 ## Was von selbst passiert
 
-Ein Typografie-Pass wendet die Schreibregeln der Norm an, ohne dass du daran denken musst:
+Ein Typografie-Pass setzt von den Normregeln die mehrfach belegten von selbst, ohne dass du daran
+denken musst. Satzzeichen (`--`, `"Wort"`) und `§ 5` setzt er immer: Das ist Satztechnik des
+Werkzeugs ohne eigenen Regeleintrag. Dass die Tabelle „Quellenlage je Regel“ das `§` im Titel
+der Einheiten-Regel nennt, ändert daran nichts:
 
 | Du schreibst | Im PDF steht |
 |---|---|
 | `z. B.`, `u. a.`, `d. h.` | mit geschütztem Leerzeichen — bricht nie um |
-| `10 %`, `5 km`, `1.234,56 EUR` | Zahl und Einheit bleiben zusammen |
 | `§ 5` | Paragraphenzeichen bleibt am Wert |
 | `25. August` | Tag und Monat bleiben zusammen |
 | `--` | – (Halbgeviertstrich) |
 | `"Wort"` | „Wort“ |
 
-Geändert wird nur, wo die Regel **mehrfach belegt** ist. Was der Pass sonst geändert hätte,
-kann er als Vorschlag ausgeben, ohne den Brief anzufassen — siehe
-[Quellenlage je Regel](din5008.md#quellenlage-je-regel).
+## Was nur gemeldet wird
+
+Einheiten und Kürzel vor einer Angabe setzt der Pass **nicht**: `10 %`, `5 km`, `1.234,56 EUR`,
+`8:00 Uhr` sowie `Tel. 0941 …`, `Nr. 4711`, `Rechnung 4711` bleiben, wie du sie schreibst, und
+können an dem Leerzeichen umbrechen. Beide Regeln stehen nur in einer einzigen Quelle, und das
+Werkzeug ersetzt nicht automatisch, was es nicht belegen kann. Stattdessen warnt `lint` an jeder
+Stelle („Leerzeichen schützen: …“) und nennt sie samt Zeile. Dann setzt du das geschützte
+Leerzeichen selbst, mit `&nbsp;`: `5&nbsp;km`. Steht es, schweigt `lint`.
+
+Welche Regeln mehrfach und welche einzeln belegt sind, steht in der aus den Regeldaten erzeugten
+Tabelle [Quellenlage je Regel](din5008.md#quellenlage-je-regel) — nicht hier. Trägt eine Regel
+später ihre Stufe, setzt der Pass die Stelle von selbst und `lint` warnt dort nicht mehr.
 
 ## Was nur Fassung 1.1 setzt
 
