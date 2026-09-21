@@ -248,9 +248,7 @@ Werkzeuge aufrufen kann statt über die Kommandozeile. Kein Befehl für den Brie
 
   Der Typografie-Pass setzt geschützte Leerzeichen bei Abkürzungen (`z. B.`), Datum
   (`25. August`) und Paragraphenzeichen (`§ 5`) von selbst — dort sind von Hand eingefügte
-  überflüssig.
-
-  Bei Einheiten
+  überflüssig. Bei Einheiten
   (`10 %`, `5 kg`) und Kürzeln vor einer Angabe (`Tel.`, `Nr.`) setzt er nichts, weil die
   Regel nur in einer einzigen Quelle steht und das Werkzeug nicht automatisch ersetzt, was es
   nicht belegen kann. Dort **warnt `lint` an der Stelle** — die Warnung ist nicht überflüssig,
