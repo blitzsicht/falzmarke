@@ -271,9 +271,26 @@ regeln:
         Details an“ (09161 6209800, 09161 620980-XX, Sondernummern)
     wirkung: warnung
 
+  - id: schreibweise.kuerzel_vor_angabe
+    titel: "Geschütztes Leerzeichen hinter Kürzeln vor einer Angabe: Nr. 4711, Tel. 0941, Az. 12/26"
+    typografie: _vor_angabe
+    herkunft: einzeln_belegt
+    quellen: [onlineprinters]
+    belegt_durch:
+      onlineprinters: >-
+        Nicht gesondert nachgelesen. Die Prüfung vom 27.08.2026 lief unter
+        zahlengliederung und suchte „Dreiergruppen“ und „geschützt“; beides
+        kommt auf der Seite nicht vor. Was die Seite zu Kürzeln wie Nr. oder
+        Tel. sagt, ist offen.
+    wirkung: warnung
+    bemerkung: >-
+      Setzgewohnheit des Werkzeugs, keine Aussage, die eine der Quellen
+      trägt; die Stufe steht bis zum Normabgleich (#31) unverändert. Die Liste
+      `VOR_ANGABE` in typografie.py enthält auch „Rechnung“, das kein Kürzel
+      ist — ob es dort bleibt, ist offen (#332).
+
   - id: schreibweise.zahlengliederung
     titel: "Zahlen in Dreiergruppen mit geschütztem Leerzeichen: 1 234 567,89"
-    typografie: _vor_angabe
     herkunft: einzeln_belegt
     quellen: [onlineprinters]
     belegt_durch:
@@ -281,6 +298,12 @@ regeln:
         SCHWEIGT — „Dreiergruppen“ kommt auf der Seite nicht vor, „geschützt“
         ebenso wenig.
     wirkung: warnung
+    bemerkung: >-
+      Kein Schritt und keine Prüfung setzt diese Regel um: Der Typografie-Pass
+      gliedert keine Zahlen. Bis #332 hing `_vor_angabe` (geschütztes
+      Leerzeichen hinter Nr., Tel., Az.) fälschlich an ihr; er trägt jetzt
+      schreibweise.kuerzel_vor_angabe. Die Regel bleibt als Vorgabe stehen, bis
+      der Normabgleich über sie entscheidet.
 
   - id: schreibweise.iban
     titel: "IBAN in Vierergruppen"
