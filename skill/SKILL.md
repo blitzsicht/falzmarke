@@ -245,8 +245,9 @@ Werkzeuge aufrufen kann statt über die Kommandozeile. Kein Befehl für den Brie
   `dialekt: "1.1"`. Ein Auszug wird nie typografisch geändert, und das Werkzeug bricht ihn
   nicht um; eine Zeile über 68 Zeichen bricht allerdings der Satz um oder sie läuft über —
   `lint` meldet sie deshalb vorher. Der
-  Typografie-Pass setzt geschützte Leerzeichen bei Abkürzungen (`z. B.`) und Datum
-  (`25. August`) von selbst — dort sind von Hand eingefügte überflüssig. Bei Einheiten
+  Typografie-Pass setzt geschützte Leerzeichen bei Abkürzungen (`z. B.`), Datum
+  (`25. August`) und Paragraphenzeichen (`§ 5`) von selbst — dort sind von Hand eingefügte
+  überflüssig. Bei Einheiten
   (`10 %`, `5 kg`) und Kürzeln vor einer Angabe (`Tel.`, `Nr.`) setzt er nichts, weil die
   Regel nur in einer einzigen Quelle steht und das Werkzeug nicht automatisch ersetzt, was es
   nicht belegen kann. Dort **warnt `lint` an der Stelle** — die Warnung ist nicht überflüssig,

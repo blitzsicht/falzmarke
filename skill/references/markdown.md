@@ -48,8 +48,8 @@ Wer eine Zeile umbrechen will, setzt `\` ans Ende.
 
 ## Was von selbst passiert
 
-Ein Typografie-Pass wendet die Schreibregeln der Norm an, soweit sie mehrfach belegt sind —
-ohne dass du daran denken musst:
+Ein Typografie-Pass setzt von den Normregeln die mehrfach belegten von selbst, ohne dass du daran
+denken musst — Satzzeichen (`--`, `"Wort"`) und `§ 5` immer:
 
 | Du schreibst | Im PDF steht |
 |---|---|
