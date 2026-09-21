@@ -412,17 +412,13 @@ def _melde_zurueckgehaltenes(text: str, zeile: int, lage: Lage) -> None:
                    KORREKTUR_TYPOGRAFIE)
 
 
-def _inline(knoten, lage: Lage, lauf: list | None = None,
-            typografie_melden: bool = True) -> tuple:
+def _inline(knoten, lage: Lage, lauf: list | None = None) -> tuple:
     """Inline-Inhalt eines Absatzes oder einer Zelle, als Baumknoten.
 
     `lauf` ist die Quellzeile, an der das Lesen gerade steht — eine Liste mit
     einem Eintrag, damit die Verschachtelung (`**fett**`, Link) sie
     weiterzählt. Ein Absatz über mehrere Zeilen meldet so die Zeile der
     Stelle, nicht die des Absatzanfangs.
-
-    `typografie_melden` schaltet nur die Hinweise des Typografie-Passes ab
-    (#330), nie den Pass selbst: Der Text wird gleich gesetzt.
     """
     if lauf is None:
         lauf = [_zeile(knoten, lage)]
@@ -431,8 +427,7 @@ def _inline(knoten, lage: Lage, lauf: list | None = None,
         typ = kind.type
         if typ == "text":
             teile.append(baum.Text(kind.content))
-            if typografie_melden:
-                _melde_zurueckgehaltenes(kind.content, lauf[0], lage)
+            _melde_zurueckgehaltenes(kind.content, lauf[0], lage)
         elif typ == "softbreak":
             # Ein weicher Umbruch ist ein Leerzeichen und sonst nichts — die
             # typografischen Ersetzungen haben daran nichts zu suchen.
@@ -442,18 +437,18 @@ def _inline(knoten, lage: Lage, lauf: list | None = None,
             teile.append(baum.Umbruch())
             lauf[0] += 1
         elif typ == "strong":
-            teile.append(baum.Stark(_inline(kind, lage, lauf, typografie_melden)))
+            teile.append(baum.Stark(_inline(kind, lage, lauf)))
         elif typ == "em":
-            teile.append(baum.Betont(_inline(kind, lage, lauf, typografie_melden)))
+            teile.append(baum.Betont(_inline(kind, lage, lauf)))
         elif typ == "inline":
-            teile.extend(_inline(kind, lage, lauf, typografie_melden))
+            teile.extend(_inline(kind, lage, lauf))
         elif typ == "link":
             # Nur in einer E-Mail. Im Brief bleibt es bei der Ablehnung aus
             # `ABLEHNUNG` — auf Papier gibt es nichts zum Anklicken.
             if lage.ziel != "email":
                 _lehne_ab(kind, lage)
             ziel = str((kind.attrs or {}).get("href", ""))
-            inhalt = _inline(kind, lage, lauf, typografie_melden)
+            inhalt = _inline(kind, lage, lauf)
             _pruefe_link(ziel, _nur_text(inhalt), _zeile(kind, lage), lage)
             teile.append(baum.Link(ziel=ziel, kinder=inhalt))
         elif typ == "code_inline":
@@ -482,12 +477,6 @@ def _liste(knoten, lage: Lage, tiefe: int) -> baum.Liste:
         )
 
     punkte = [p for p in knoten.children if p.type == "list_item"]
-    # Die Zeile, die als Liste gesetzt wird, obwohl sie ein Satz sein könnte:
-    # Ihr Hinweis verlangt ohnehin, die Zeile zu ändern (`2\. Mahnung`). Was
-    # der Typografie-Pass an ihr zurückhält, meldet der nächste Lauf — dann
-    # steht sie als Absatz da. Zwei Hinweise auf einmal machten aus der einen
-    # Frage („Liste oder Satz?“) zwei, bevor sie beantwortet ist.
-    einzelne_nummer = len(punkte) < 2 and knoten.type == "ordered_list"
     if len(punkte) < 2:
         zeile = _zeile(knoten, lage)
         if knoten.type == "ordered_list":
@@ -528,7 +517,7 @@ def _liste(knoten, lage: Lage, tiefe: int) -> baum.Liste:
         stuecke = []
         for kind in punkt.children or []:
             if kind.type == "paragraph":
-                stuecke.extend(_inline(kind, lage, typografie_melden=not einzelne_nummer))
+                stuecke.extend(_inline(kind, lage))
             elif kind.type in ("bullet_list", "ordered_list"):
                 stuecke.append(_liste(kind, lage, tiefe + 1))
             else:
