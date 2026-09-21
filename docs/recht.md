@@ -73,25 +73,29 @@ Regel **nachweislich schweigen**: Sie zählen nicht mehr mit.
 | 122 | Regeln insgesamt |
 | 10 | Quelle-Regel-Paare, bei denen die Quelle **nachweislich schweigt** — alle `onlineprinters` ([Befund](quellenpruefung-onlineprinters-2026-08-27.md)) |
 | 7 | dieser Regeln führen jetzt `herkunft: werkzeug` — eine Setzgewohnheit des Werkzeugs, keine Aussage der Norm |
-| 3 | fielen von Fehler auf Warnung: `schreibweise.datum`, `schreibweise.abkuerzungen`, `text.vermerke_max_3` — ihre zweite volle Quelle schwieg, es bleibt eine |
+| 3 | fielen von Fehler auf Warnung: `schreibweise.datum`, `schreibweise.abkuerzungen`, `text.vermerke_max_3` — ihre zweite volle Quelle schwieg, es bleibt eine. Der Typografie-Pass meldet Datum und Abkürzungen seither nur noch, er ersetzt sie nicht mehr |
 
-Die sieben Werkzeugprüfungen waren schon vorher Warnungen; für sie ändert sich die Herkunft, und
-der Typografie-Pass setzt dort nichts mehr von selbst.
+Die sieben Werkzeugprüfungen waren schon vorher Warnungen; bei ihnen ändert sich nur die
+Herkunft, die Wirkung bleibt Warnung.
 
-**Offener Rest 1 — Regeln, die strenger sind, als ihr Beleg trägt.** Zehn Regeln stehen noch
-auf „mehrfach bestätigt" und dürfen einen Lauf scheitern lassen. Davon:
+**Offener Rest 1 — Regeln, die strenger sind, als ihr Beleg trägt.**
 
 | | |
 |---|---|
-| 8 | stützen sich auf zwei Quellen, die **dieselbe Zeichnung** sind ([Befund](quellenunabhaengigkeit-2026-08-27.md)) |
-| 2 | zwei Quellen desselben Trägers, Unabhängigkeit **ungeprüft** |
+| 10 | Regeln stehen noch auf „mehrfach bestätigt" und dürfen einen Lauf scheitern lassen |
+| 8 | davon stützen sich auf zwei Quellen, die **dieselbe Zeichnung** sind ([Befund](quellenunabhaengigkeit-2026-08-27.md)) |
+| 2 | davon zwei Quellen desselben Trägers, Unabhängigkeit **ungeprüft** |
 
 Das ist eine Entscheidung, keine Nachlässigkeit, und sie steht hier, damit niemand die Tabelle
 oben für eine Zusage hält, die sie im Einzelfall nicht einlöst: Der Normabgleich
 ([unten](#wie-sich-das-ändert)) ersetzt ohnehin jede Herkunftsstufe durch eine Fundstelle.
 
-**Offener Rest 2 — Quellen, die niemand auf Aussage zur Regel gelesen hat.** 44 Quelle-Regel-Paare
-sind ungeprüft: Bei ihnen steht nicht fest, ob die Quelle die Regel trägt oder zu ihr schweigt.
+**Offener Rest 2 — Quellen, die niemand auf Aussage zur Regel gelesen hat.**
+
+| | |
+|---|---|
+| 44 | Quelle-Regel-Paare sind ungeprüft: Bei ihnen steht nicht fest, ob die Quelle die Regel trägt oder zu ihr schweigt |
+
 Das ist nicht „kein Beleg", sondern „nicht nachgesehen", und diese beiden Zustände werden nicht
 verwechselt. Die Paare betreffen überwiegend Maßzeichnungen und Quelltexte. Bei einer Zeichnung
 reicht keine Stichwortsuche: Sie zeigt ein Beispieldatum, ohne die Regel zu sagen. Das bleibt
