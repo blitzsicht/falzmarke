@@ -109,15 +109,21 @@ def test_einzelne_nummer_wird_gesetzt_und_gemeldet(eingabe, start, erwartet):
     ergebnis = konvertiere(eingabe, hinweise=hinweise)
     # Der Startwert bleibt erhalten: Es wird nichts still umnummeriert.
     assert erwartet in ergebnis, f"{erwartet!r} fehlt in:\n{ergebnis}"
-    assert len(hinweise) == 1, f"genau eine Meldung erwartet, bekam {hinweise}"
-    assert "den Punkt schützen" in hinweise[0].meldung
+    # Nach Regel filtern, nicht zählen: Seit #330 meldet derselbe Text zusätzlich,
+    # was der Typografie-Pass zurückhält („Rechnung 4711" braucht ein geschütztes
+    # Leerzeichen). Das ist eine andere Aussage unter einer anderen Regel — die
+    # Markdown-Meldung muss trotzdem genau einmal kommen.
+    eigene = [h for h in hinweise if h.regel == "markdown"]
+    assert len(eigene) == 1, f"genau eine Markdown-Meldung erwartet, bekam {hinweise}"
+    assert "den Punkt schützen" in eigene[0].meldung
 
 
 def test_einzelne_nummer_meldet_auch_in_fassung_11():
     """Die Herabstufung gilt für beide Fassungen, nicht nur die neue."""
     hinweise = []
     konvertiere("2. Mahnung zur Rechnung 4711", dialekt="1.1", hinweise=hinweise)
-    assert len(hinweise) == 1
+    eigene = [h for h in hinweise if h.regel == "markdown"]
+    assert len(eigene) == 1, f"genau eine Markdown-Meldung erwartet, bekam {hinweise}"
 
 
 def test_ohne_hinweisliste_geht_die_meldung_nicht_verloren_sondern_der_brief_steht():
