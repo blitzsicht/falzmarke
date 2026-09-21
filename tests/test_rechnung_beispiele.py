@@ -63,7 +63,7 @@ import pypdf
 import pytest
 
 from falzmarke import cli as falzmarke
-from conftest import REPO, PROFILE, RECHNUNG_BEISPIELE
+from conftest import REPO, PROFILE, RECHNUNG_BEISPIELE, ohne_typografiehinweise
 
 GOLDEN = REPO / "tests" / "golden" / "rechnung"
 
@@ -254,7 +254,10 @@ def test_ein_uebereinstimmender_steuersatz_ist_kein_befund():
     Summe stimmen überein. Ohne sie belegte die Gegenprobe unten nur, dass der
     Linter IRGENDETWAS meldet."""
     bericht = falzmarke.linte(REPO / "examples" / "rechnung.md", profil_verzeichnis=PROFILE)
-    assert not bericht.befunde, [b.als_zeile("rechnung.md") for b in bericht.befunde]
+    # Ohne die Hinweise des Typografie-Passes (#330): „unsere Rechnung für" trägt
+    # einen — das Beispiel meint die Steuersätze, nicht die Schreibweise.
+    befunde = ohne_typografiehinweise(bericht)
+    assert not befunde, [b.als_zeile("rechnung.md") for b in befunde]
 
 
 def test_ein_steuersatz_ohne_summenzeile_wird_gemeldet(tmp_path):

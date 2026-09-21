@@ -13,6 +13,7 @@ hängt an Spracheinstellungen und Version.
 from __future__ import annotations
 
 import re
+from difflib import SequenceMatcher
 
 NBSP = " "          # geschütztes Leerzeichen
 SCHMAL = " "        # schmales geschütztes Leerzeichen
@@ -115,8 +116,11 @@ def anwenden(text: str) -> str:
     Ein Schritt, dessen Regel nur in einer einzigen Quelle steht, ändert den
     Text **nicht**. Eine stille Ersetzung auf dünner Grundlage wäre der
     schlechteste Fall: Der Brief sähe anders aus, als er geschrieben wurde,
-    und niemand erführe warum. `vorschlaege()` sammelt stattdessen, was der
-    Schritt geändert hätte; der Linter macht Warnungen daraus.
+    und niemand erführe warum. `vorschlaege()` sammelt stattdessen die Stellen,
+    an denen der Schritt etwas geändert hätte; `markdown.lies()` macht daraus
+    je Stelle einen Hinweis und `falzmarke lint` eine Warnung. Die Warnung ist
+    der Ersatz für die Ersetzung, nicht ihre Begleitung: Trägt die Regel ihre
+    Stufe, wird ersetzt und nicht gewarnt.
     """
     from falzmarke import regeln
 
@@ -126,11 +130,39 @@ def anwenden(text: str) -> str:
     return text
 
 
-def vorschlaege(text: str) -> list[tuple[str, str]]:
-    """Was ein zurückgehaltener Schritt geändert hätte.
+def _stellen(text: str, geaendert: str) -> list[str]:
+    """Die Stellen von `text`, an denen `geaendert` abweicht — je mit dem Wort
+    links und rechts davon, damit man sie im Brief wiederfindet.
 
-    Gibt Paare (Regelname, geänderter Ausschnitt) zurück — leer, wenn nichts
-    anzumerken ist. Der Text selbst bleibt unberührt.
+    Ein Schritt ist hier ein Schwarzkasten: Sein Ergebnis wird mit der
+    Vorlage verglichen, statt seine Muster ein zweites Mal zu führen. Sonst
+    stünde jede Regel an zwei Stellen, und eine davon könnte altern.
+    Überlappende Stellen werden eine (`u. a. m.` ergibt eine, nicht zwei).
+    """
+    spannen: list[list[int]] = []
+    for art, von, bis, _, _ in SequenceMatcher(None, text, geaendert, autojunk=False).get_opcodes():
+        if art == "equal":
+            continue
+        while von > 0 and not text[von - 1].isspace():
+            von -= 1
+        while bis < len(text) and not text[bis].isspace():
+            bis += 1
+        if spannen and von <= spannen[-1][1]:
+            spannen[-1][1] = max(spannen[-1][1], bis)
+        else:
+            spannen.append([von, bis])
+    return [text[von:bis] for von, bis in spannen]
+
+
+def vorschlaege(text: str) -> list[tuple[str, str]]:
+    """Wo ein zurückgehaltener Schritt etwas geändert hätte.
+
+    Gibt je Stelle ein Paar (Regelkennung, Stelle) zurück, die Stelle so, wie
+    sie im Text steht — leer, wenn nichts anzumerken ist. Der Text selbst
+    bleibt unberührt.
+
+    Eine Regel ohne Beleg (`offen`) taucht hier nicht auf: Sie wird weder
+    ersetzt noch gemeldet, wie im Linter (`regeln.deckel`).
     """
     from falzmarke import regeln
 
@@ -138,8 +170,13 @@ def vorschlaege(text: str) -> list[tuple[str, str]]:
     for schritt, regelname in SCHRITTE:
         if regelname is None or regeln.darf_automatisch_ersetzen(regelname):
             continue
+        regel = regeln.fuer_typografie(regelname)
+        if regeln.deckel(regel) == regeln.DECKEL_KEINE:
+            continue
         geaendert = schritt(text)
-        if geaendert != text:
-            regel = regeln.fuer_typografie(regelname)
-            offen.append((regel["id"] if regel else regelname, geaendert))
+        if geaendert == text:
+            continue
+        kennung = regel["id"] if regel else regelname
+        for stelle in _stellen(text, geaendert):
+            offen.append((kennung, stelle))
     return offen
