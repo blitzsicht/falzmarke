@@ -365,18 +365,45 @@ def test_gegenprobe_eine_herabgestufte_fehlerregel_faellt_auf():
 # ── Q2: Der Typografie-Pass ändert nur auf tragfähiger Grundlage ────────────
 
 def test_einzeln_belegte_ersetzung_aendert_den_text_nicht():
-    """`schreibweise.einheiten` steht nur in einer Quelle — die Ersetzung
-    zwischen Zahl und Einheit unterbleibt deshalb."""
-    assert regeln.fuer_typografie("_einheiten")["herkunft"] == regeln.EINZELN
+    """`schreibweise.einheiten` hat keine Quelle, die zur Sache etwas sagt (#31)
+    — die Ersetzung zwischen Zahl und Einheit unterbleibt trotzdem.
+
+    Die Regel führt seither `werkzeug`: eine Setzgewohnheit ohne Beleg. Diese
+    Herkunft dürfte nach `DARF_FEHLER_SEIN` ersetzen; hier soll sie es nicht,
+    denn sie wirkt weiter als Warnung (AC 2) und verstummt nicht zur Ersetzung.
+    """
+    assert regeln.fuer_typografie("_einheiten")["herkunft"] == regeln.WERKZEUG
     text = "Die Sendung wiegt 5 kg."
     assert typografie.anwenden(text) == text
+    assert any(k == "schreibweise.einheiten" for k, _ in typografie.vorschlaege(text)), (
+        "die zurückgehaltene Ersetzung ist nicht mehr sichtbar — die Regel wäre verstummt")
 
 
-def test_mehrfach_belegte_ersetzung_greift_weiterhin():
-    """Gegenprobe: Ein Pass, der gar nichts mehr täte, wäre kein Fortschritt.
-    `schreibweise.abkuerzungen` ist mehrfach belegt und wirkt."""
-    assert regeln.fuer_typografie("_abkuerzungen")["herkunft"] == regeln.MEHRFACH
-    assert typografie.NBSP in typografie.anwenden("siehe z. B. dort")
+@pytest.mark.parametrize("schritt, text", [
+    ("_abkuerzungen", "siehe z. B. dort"),
+    ("_datum", "am 3. Oktober"),
+])
+def test_herabgestufte_ersetzung_aendert_den_text_nicht(monkeypatch, schritt, text):
+    """AC 3: Datum und Abkürzungen standen auf `mehrfach_bestaetigt`, gestützt
+    auf zwei volle Quellen — deren zweite (`onlineprinters`) schweigt. Mit nur
+    einer sprechenden Quelle setzt der Pass nichts mehr, sagt es aber.
+
+    Die zweite Hälfte ist die Gegenprobe: Ohne sie hielte der Test nur fest,
+    dass der Pass nie setzt. Unter `mehrfach_bestaetigt` setzt er dieselbe
+    Stelle, dann ist der Unterschied die Stufe und nicht der Text.
+    """
+    regel = regeln.fuer_typografie(schritt)
+    assert regel["herkunft"] == regeln.EINZELN, regel["id"]
+    assert typografie.NBSP not in typografie.anwenden(text), (
+        f"{regel['id']}: der Pass setzt weiter, obwohl die zweite Quelle schweigt")
+    assert any(k == regel["id"] for k, _ in typografie.vorschlaege(text)), (
+        f"{regel['id']}: nichts zu sehen — die Regel wäre verstummt statt herabgestuft")
+
+    echt = regeln._nach_typografie()
+    monkeypatch.setattr(regeln, "_nach_typografie", lambda: {
+        **echt, schritt: {**echt[schritt], "herkunft": regeln.MEHRFACH}})
+    assert typografie.NBSP in typografie.anwenden(text), (
+        "Gegenprobe: unter `mehrfach_bestaetigt` müsste dieselbe Stelle gesetzt werden")
 
 
 def test_zurueckgehaltene_ersetzung_wird_als_vorschlag_sichtbar():
@@ -567,8 +594,11 @@ STUFE_TRAEGT_NICHT = [
     "geometrie.form_b.zonen",
     "geometrie.grundzeilenhoehe",
     "geometrie.lochmarke",
-    "text.vermerke_max_3",
 ]
+# `text.vermerke_max_3` stand bis zum 21.09.2026 in dieser Liste. Ihre zweite
+# volle Quelle (`onlineprinters`) schweigt (#31), die Regel ist deshalb nicht
+# mehr mehrfach belegt und fällt aus der Messung heraus — nicht, weil sie
+# nachgetragen wurde, sondern weil sie die Stufe nicht mehr behauptet.
 
 
 def test_jede_quelle_traegt_eine_gruppe():
@@ -621,7 +651,11 @@ def test_die_messung_wuerde_eine_verschiebung_bemerken():
 # rohe HTML gegengeprüft, damit sie nicht an der Textextraktion hängen.
 # Ergebnis in `belegt_durch` je Regel — auch dort, wo die Quelle schweigt.
 #
-# Nichts davon ändert Stufen oder entfernt Quellen. Der Test hält den Stand.
+# Bis zum 21.09.2026 änderte nichts davon Stufen; die Entscheidung vom
+# 27.08.2026 („Stufen bleiben, bis #12 kommt“) hielt sie unangetastet. Der
+# zweite Zuschnitt von #31 nimmt sie zurück: Eine Quelle, deren `belegt_durch`
+# mit `SCHWEIGT` beginnt, zählt für die Stufe nicht mehr mit. `belegt_durch`
+# sagt weiter, warum sie schweigt; `schweigende_quellen()` liest es von dort.
 
 SCHWEIGENDE_QUELLEN = [
     ("schreibweise.abkuerzungen", "onlineprinters"),
@@ -676,6 +710,246 @@ def test_die_pruefung_wuerde_ein_stilles_schweigen_bemerken():
     ohne = {"id": "probe", "quellen": ["onlineprinters"],
             "belegt_durch": {"onlineprinters": "Absatz X, Beispiel Y"}}
     assert not str(ohne["belegt_durch"]["onlineprinters"]).startswith(regeln.SCHWEIGT)
+
+
+# ── Eine schweigende Quelle zählt für die Stufe nicht mit (#31, zweiter Zuschnitt)
+#
+# Bis hierher wurde das Schweigen nur *gemessen*. Jetzt hat es Folgen: Eine
+# Regel trägt ihre Stufe nur mit Quellen, die zur Sache etwas sagen.
+
+#: Sechs Regeln, deren einzige Quelle schweigt, dazu `text.anrede_komma`, deren
+#: zweite Quelle (`letter_pro`) zählt nicht voll. Keine hat danach eine zählende
+#: Quelle — sie führen `werkzeug`: Setzgewohnheit des Werkzeugs, kein Beleg.
+NUR_NOCH_WERKZEUG = [
+    "schreibweise.einheiten",
+    "schreibweise.geldbetrag",
+    "schreibweise.zahlengliederung",
+    "text.anlagen_ohne_doppelpunkt",
+    "text.anrede_komma",
+    "text.anschrift_ohne_leerzeilen",
+    "text.gruss_ohne_komma",
+]
+
+#: Drei Regeln mit je einer sprechenden Quelle neben der schweigenden. Sie
+#: fielen von Fehler auf Warnung — gewollt, nicht umgangen.
+NUR_NOCH_EINZELN = [
+    "schreibweise.abkuerzungen",
+    "schreibweise.datum",
+    "text.vermerke_max_3",
+]
+
+
+def _regel(kennung: str) -> dict:
+    return next(r for r in regeln.alle() if r["id"] == kennung)
+
+
+def _traegt_ihre_stufe(regel: dict, quellen: dict, schweigend: set) -> bool:
+    """Dieselbe Zählung wie `_pruefe_beleglage`, aber aus den rohen Daten und
+    ohne die Schweiger — als unabhängige Probe der echten Regeldatei."""
+    namen = [n for n in regeln._quellennamen(regel) if (regel["id"], n) not in schweigend]
+    stufen = [quellen[n]["zaehlt"] for n in namen]
+    voll = stufen.count(regeln.ZAEHLT_VOLL)
+    belege = voll + stufen.count(regeln.ZAEHLT_EINZELN)
+    herkunft = regel["herkunft"]
+    if herkunft in regeln.MINDESTENS_VOLL:
+        return voll >= regeln.MINDESTENS_VOLL[herkunft]
+    if herkunft in regeln.MINDESTENS_IRGENDEIN_BELEG:
+        return belege >= 1
+    return True
+
+
+def test_keine_stufe_ruht_auf_einer_schweigenden_quelle():
+    """AC 1 an der echten Regeldatei: Wer eine Quelle abzieht, die schweigt,
+    hat die Stufe noch. Gezählt wird hier aus den Rohdaten, nicht über den
+    Lader — sonst prüfte sich der Lader an sich selbst."""
+    schweigend = set(regeln.schweigende_quellen())
+    assert schweigend, "keine schweigende Quelle — dann misst dieser Test nichts"
+    quellen = regeln.quellen()
+    zu_hoch = sorted(r["id"] for r in regeln.alle()
+                     if not _traegt_ihre_stufe(r, quellen, schweigend))
+    assert not zu_hoch, (
+        "Diese Regeln tragen ihre Stufe nur mit einer Quelle, die zur Regel "
+        f"schweigt: {zu_hoch}")
+
+
+def test_die_zaehlung_ohne_schweiger_wuerde_eine_zu_hohe_stufe_bemerken():
+    """Gegenprobe: Zwei volle Quellen, eine davon stumm, sind keine zwei."""
+    quellen = {"a": {"zaehlt": regeln.ZAEHLT_VOLL}, "b": {"zaehlt": regeln.ZAEHLT_VOLL}}
+    regel = {"id": "probe", "herkunft": regeln.MEHRFACH, "quellen": ["a", "b"]}
+    assert _traegt_ihre_stufe(regel, quellen, set()) is True
+    assert _traegt_ihre_stufe(regel, quellen, {("probe", "b")}) is False
+    einzeln = {"id": "probe", "herkunft": regeln.EINZELN, "quellen": ["a"]}
+    assert _traegt_ihre_stufe(einzeln, quellen, {("probe", "a")}) is False
+
+
+def test_die_sieben_ohne_zaehlende_quelle_fuehren_werkzeug():
+    """AC 2: Sie tragen `herkunft: werkzeug` und wirken weiter als Warnung.
+
+    „Weiter als Warnung“ heißt hier `deckel()`, nicht nur `wirkung:` in der
+    Datei: `werkzeug` steht in `DARF_FEHLER_SEIN`, und ohne Zusatz würde aus
+    `gruss` und `anrede` mit der Herabstufung ein Fehler. Die Regel wäre nicht
+    verstummt, sondern schärfer geworden.
+    """
+    falsch = {k: _regel(k)["herkunft"] for k in NUR_NOCH_WERKZEUG
+              if _regel(k)["herkunft"] != regeln.WERKZEUG}
+    assert not falsch, f"Nicht `werkzeug`: {falsch}"
+
+    zu_scharf = {k: regeln.deckel(_regel(k)) for k in NUR_NOCH_WERKZEUG
+                 if regeln.deckel(_regel(k)) != regeln.DECKEL_WARNUNG}
+    assert not zu_scharf, (
+        f"Diese Regeln dürften nach `deckel()` mehr als warnen: {zu_scharf}")
+
+    verstummt = [k for k in NUR_NOCH_WERKZEUG if _regel(k).get("wirkung") != "warnung"]
+    assert not verstummt, f"`wirkung:` nicht mehr `warnung`: {verstummt}"
+
+
+def test_die_drei_mit_sprechender_quelle_fallen_auf_warnung():
+    """AC 3: Fehler → Warnung, ausdrücklich gewollt und im Regeltext gesagt."""
+    for kennung in NUR_NOCH_EINZELN:
+        regel = _regel(kennung)
+        assert regel["herkunft"] == regeln.EINZELN, f"{kennung}: {regel['herkunft']}"
+        assert regel["wirkung"] == "warnung", f"{kennung}: wirkung {regel['wirkung']!r}"
+        assert regeln.deckel(regel) == regeln.DECKEL_WARNUNG, kennung
+        assert "#31" in (regel.get("bemerkung") or ""), (
+            f"{kennung}: Die Herabstufung gehört in den Regeltext (`bemerkung:`), "
+            "mit Verweis auf #31 — sonst fällt sie als Nebenwirkung niemandem auf.")
+
+
+def test_kein_fehler_aus_den_zehn_schweigenden_regeln():
+    """AC 2 und 3 zusammen, von der anderen Seite: Von den zehn Regeln, bei denen
+    `onlineprinters` schweigt, darf keine mehr als warnen."""
+    zu_scharf = sorted(k for k, _ in regeln.schweigende_quellen()
+                       if regeln.deckel(_regel(k)) != regeln.DECKEL_WARNUNG)
+    assert not zu_scharf, f"Darf nach `deckel()` mehr als warnen: {zu_scharf}"
+
+
+def test_nicht_geprueft_ist_kein_schweigen():
+    """AC 4: `schreibweise.kuerzel_vor_angabe` bleibt, wie sie ist.
+
+    Ihre Fundstelle sagt „Nicht gesondert nachgelesen“ — das ist der dritte
+    Zustand, weder Beleg noch Schweigen. Er darf nicht als Schweigen gelesen
+    werden, sonst verlöre eine Regel ihre Stufe, weil niemand nachgesehen hat.
+    """
+    regel = _regel("schreibweise.kuerzel_vor_angabe")
+    assert ("schreibweise.kuerzel_vor_angabe", "onlineprinters") not in regeln.schweigende_quellen()
+    assert regel["herkunft"] == regeln.EINZELN
+    assert regel["quellen"] == ["onlineprinters"]
+    assert regel["wirkung"] == "warnung"
+    assert regel["belegt_durch"]["onlineprinters"].startswith("Nicht gesondert nachgelesen")
+    assert regeln.deckel(regel) == regeln.DECKEL_WARNUNG
+    assert regeln.darf_automatisch_ersetzen("_vor_angabe") is False
+
+
+def _belegt_durch(ziel: str, quelle: str, text: str, dazu: bool = False):
+    """Sabotage für `_regeldatei`: die Fundstelle einer Quelle einer Regel setzen.
+
+    `dazu=True` nimmt die Quelle zusätzlich in die Quellenliste auf — für den
+    Fall, dass die Regel sie noch nicht nennt.
+    """
+    def kippen(daten):
+        for regel in daten["regeln"]:
+            if regel["id"] != ziel:
+                continue
+            if dazu and quelle not in (regel.get("quellen") or []):
+                regel["quellen"] = [*(regel.get("quellen") or []), quelle]
+            regel["belegt_durch"] = {**(regel.get("belegt_durch") or {}), quelle: text}
+    return kippen
+
+
+SCHWEIGT_ERFUNDEN = "SCHWEIGT — zur Gegenprobe erfunden, die Quelle sagt dazu nichts."
+FUNDSTELLE_ERFUNDEN = "Absatz „Zonen“ der Zeichnung, zur Gegenprobe erfunden."
+
+
+def _mehrfach_mit_genau_zwei_vollen():
+    """(Regel, ihre beiden vollen Quellen, eine volle Quelle, die sie nicht nennt).
+
+    Zur Laufzeit gesucht, nicht fest verdrahtet: Ein Test, der eine bestimmte
+    Regel sabotiert, läuft ins Leere, sobald sie ihre Eigenschaft verliert —
+    dieselbe Lehre wie bei `test_mehrfach_ohne_zwei_volle_quellen_wird_abgewiesen`.
+    """
+    quellen = regeln.quellen()
+    for regel in regeln.alle():
+        if regel["herkunft"] != regeln.MEHRFACH:
+            continue
+        namen = regel.get("quellen") or []
+        volle = [n for n in namen if quellen[n]["zaehlt"] == regeln.ZAEHLT_VOLL]
+        if len(volle) != 2 or (regel.get("belegt_durch") or {}):
+            continue
+        fremde = [n for n, d in quellen.items()
+                  if d["zaehlt"] == regeln.ZAEHLT_VOLL and n not in namen]
+        if fremde:
+            return regel["id"], volle, fremde[0]
+    raise AssertionError(
+        "Keine mehrfach belegte Regel mit genau zwei vollen Quellen und ohne "
+        "`belegt_durch` — dann kann dieser Test nichts sabotieren und belegt nichts.")
+
+
+def test_eine_schweigende_quelle_kostet_die_mehrfach_stufe(tmp_path):
+    """AC 1, mit Gegenprobe im selben Durchgang: dieselbe Änderung an derselben
+    Quelle — einmal mit Fundstelle, einmal mit `SCHWEIGT`. Nur die zweite darf
+    die Stufe kosten, sonst misst der Test die Sabotage und nicht den Schalter.
+    """
+    ziel, volle, _ = _mehrfach_mit_genau_zwei_vollen()
+
+    _laden(_regeldatei(tmp_path, _belegt_durch(ziel, volle[0], FUNDSTELLE_ERFUNDEN)))
+
+    with pytest.raises(regeln_modul.Regelfehler) as fehler:
+        _laden(_regeldatei(tmp_path, _belegt_durch(ziel, volle[0], SCHWEIGT_ERFUNDEN)))
+    assert ziel in str(fehler.value), str(fehler.value)
+
+
+def test_eine_schweigende_quelle_kostet_auch_die_einzeln_stufe(tmp_path):
+    """AC 1 für `einzeln_belegt`: Trägt nur noch eine schweigende Quelle die
+    Regel, ist sie „offen, nicht belegt“ — und darf nicht `einzeln_belegt` heißen.
+    """
+    quellen = regeln.quellen()
+    kandidaten = [
+        r["id"] for r in regeln.alle()
+        if r["herkunft"] == regeln.EINZELN
+        and [n for n in r["quellen"] if quellen[n]["zaehlt"] != regeln.ZAEHLT_NIE] == r["quellen"]
+        and len(r["quellen"]) == 1
+        and not str((r.get("belegt_durch") or {}).get(r["quellen"][0], "")).startswith(
+            (regeln.SCHWEIGT, "Nicht gesondert"))
+    ]
+    assert kandidaten, (
+        "Keine einzeln belegte Regel mit genau einer sprechenden Quelle — dann "
+        "kann dieser Test nichts sabotieren.")
+    ziel = kandidaten[0]
+    quelle = _regel(ziel)["quellen"][0]
+
+    _laden(_regeldatei(tmp_path, _belegt_durch(ziel, quelle, FUNDSTELLE_ERFUNDEN)))
+
+    with pytest.raises(regeln_modul.Regelfehler) as fehler:
+        _laden(_regeldatei(tmp_path, _belegt_durch(ziel, quelle, SCHWEIGT_ERFUNDEN)))
+    assert ziel in str(fehler.value), str(fehler.value)
+
+
+def test_gegenprobe_zwei_proben_verlieren_die_stufe_und_behalten_sie(tmp_path):
+    """AC 8, beide Hälften in einem Test, damit keine ohne die andere grün wird.
+
+    Probe A: Eine Regel, deren einzige zählende Quelle auf `SCHWEIGT` gesetzt
+    wird, verliert ihre Stufe — hier die mehrfach belegte, von zwei vollen
+    Quellen auf eine.
+
+    Probe B: Eine mit zwei sprechenden behält sie. Dieselbe Regel bekommt eine
+    dritte volle Quelle, die schweigt: Es bleiben zwei, sie lädt.
+
+    Und Probe C hält die Grenze zum dritten Zustand: „Nicht gesondert
+    nachgelesen“ ist kein Schweigen und kostet keine Stufe.
+    """
+    ziel, volle, fremde = _mehrfach_mit_genau_zwei_vollen()
+
+    with pytest.raises(regeln_modul.Regelfehler):
+        _laden(_regeldatei(tmp_path, _belegt_durch(ziel, volle[0], SCHWEIGT_ERFUNDEN)))
+
+    geladen = _laden(_regeldatei(
+        tmp_path, _belegt_durch(ziel, fremde, SCHWEIGT_ERFUNDEN, dazu=True)))
+    regel = next(r for r in geladen["regeln"] if r["id"] == ziel)
+    assert regel["herkunft"] == regeln.MEHRFACH
+    assert fremde in regel["quellen"], "Die Sabotage hat die Quelle nicht eingetragen"
+
+    _laden(_regeldatei(tmp_path, _belegt_durch(
+        ziel, volle[0], "Nicht gesondert nachgelesen. Was die Quelle dazu sagt, ist offen.")))
 
 
 # ── Die zweite Achse: Ebenen (ADR 0035) ─────────────────────────────────────
