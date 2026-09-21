@@ -167,6 +167,19 @@ def _pruefe_regel(regel: dict, pfad, ebene_pflicht: bool,
         raise Regelfehler(
             f"{pfad.name}: {kennung} hat ebene={ebene!r}, zulässig sind {sorted(EBENEN)}")
 
+    # `deckel:` kennt nur `warnung`, und nur bei `werkzeug` (siehe `deckel()`).
+    # Ein Tippfehler dürfte nicht still nichts bewirken: Die Regel bliebe ein
+    # Fehler, und niemand sähe es.
+    if regel.get("deckel") not in (None, DECKEL_WARNUNG):
+        raise Regelfehler(
+            f"{pfad.name}: {kennung} hat deckel={regel['deckel']!r}, "
+            f"zulässig ist nur {DECKEL_WARNUNG!r}")
+    if regel.get("deckel") and herkunft != WERKZEUG:
+        raise Regelfehler(
+            f"{pfad.name}: {kennung} hat deckel={regel['deckel']!r} bei "
+            f"herkunft={herkunft!r}. Der Deckel gilt nur für `werkzeug`; sonst "
+            "ist die Herkunft die Grenze.")
+
     # Eine belegte Regel ohne Quelle wäre eine Behauptung.
     if herkunft in (MEHRFACH, EINZELN, PRIMAER) and not regel.get("quellen"):
         raise Regelfehler(f"{pfad.name}: {kennung} ist {herkunft}, nennt aber keine Quelle.")
@@ -201,8 +214,17 @@ def _pruefe_beleglage(kennung: str, regel: dict, quellen: dict) -> None:
                 "entscheidbar, ob sie eine Regel trägt.")
         stufen.append(stufe)
 
+    # Eine Quelle, die zur Regel schweigt, steht in der Liste, trägt aber nichts
+    # (#31). Sie fällt aus der Zählung, nicht aus der Datei: `belegt_durch` sagt
+    # weiter, warum sie schweigt.
+    schweiger = [n for n in namen if _schweigt(regel, n)]
+    stufen = [s for n, s in zip(namen, stufen) if n not in schweiger]
+
     voll = stufen.count(ZAEHLT_VOLL)
     belege = voll + stufen.count(ZAEHLT_EINZELN)
+    schweigt_hinweis = (
+        f"        Schweigt zur Regel (zählt nicht mit): {', '.join(schweiger)}\n"
+        if schweiger else "")
 
     noetig = MINDESTENS_VOLL.get(herkunft)
     if noetig is not None and voll < noetig:
@@ -212,6 +234,7 @@ def _pruefe_beleglage(kennung: str, regel: dict, quellen: dict) -> None:
             f"voll zählende Quelle(n) — nötig sind {noetig}.\n"
             f"        Genannt: {', '.join(namen) or 'keine'}\n"
             f"        Zählt nicht voll: {', '.join(schwach) or '—'}\n"
+            f"{schweigt_hinweis}"
             "        Entweder eine unabhängige Quelle ergänzen oder die Regel "
             "auf einzeln_belegt zurückstufen.")
 
@@ -219,6 +242,7 @@ def _pruefe_beleglage(kennung: str, regel: dict, quellen: dict) -> None:
         raise Regelfehler(
             f"{regel.get('_datei', 'Regeldatei')}: {kennung} ist {herkunft}, aber keine der genannten "
             f"Quellen trägt sie ({', '.join(namen) or 'keine'}). "
+            f"{'Es schweigt: ' + ', '.join(schweiger) + '. ' if schweiger else ''}"
             "Dann ist sie offen, nicht belegt.")
 
 
@@ -255,7 +279,7 @@ def unabhaengige_belege(regel: dict) -> set[str]:
     return {
         q[name].get("gruppe", name)
         for name in _quellennamen(regel)
-        if q.get(name, {}).get("zaehlt") == ZAEHLT_VOLL
+        if q.get(name, {}).get("zaehlt") == ZAEHLT_VOLL and not _schweigt(regel, name)
     }
 
 
@@ -265,22 +289,32 @@ def unabhaengige_belege(regel: dict) -> set[str]:
 SCHWEIGT = "SCHWEIGT"
 
 
+def _schweigt(regel: dict, quelle: str) -> bool:
+    """Hat jemand nachgelesen und festgestellt, dass die Quelle zur Regel schweigt?
+
+    Nur der Vorsatz `SCHWEIGT` zählt. „Nicht gesondert nachgelesen“ ist der
+    dritte Zustand — weder Beleg noch Schweigen — und kostet keine Stufe: Eine
+    Regel verlöre sie sonst, weil niemand nachgesehen hat.
+    """
+    fundstelle = (regel.get("belegt_durch") or {}).get(quelle)
+    return str(fundstelle or "").lstrip().startswith(SCHWEIGT)
+
+
 def schweigende_quellen() -> list[tuple[str, str]]:
     """Paare (Regel, Quelle), bei denen die Quelle zur Regel nichts sagt.
 
-    Der Befund von Issue #31: Die Validierung prüft, ob eine Regel ihre
+    Der Befund von Issue #31: Die Validierung prüfte, ob eine Regel ihre
     Zählstufe trägt — nicht, ob die genannte Quelle zur Sache überhaupt etwas
     hergibt. Wo das nachgelesen wurde, steht das Ergebnis in `belegt_durch`.
 
-    Auch diese Funktion **misst nur**. Sie entfernt keine Quelle und stuft
-    nichts herab.
+    Diese Funktion **misst nur**. Dass eine schweigende Quelle für die Stufe
+    nicht mitzählt, steht in `_pruefe_beleglage`, das dieselbe Erkennung
+    (`_schweigt`) benutzt.
     """
-    ergebnis = []
-    for regel in alle():
-        for quelle, fundstelle in (regel.get("belegt_durch") or {}).items():
-            if str(fundstelle).lstrip().startswith(SCHWEIGT):
-                ergebnis.append((regel["id"], quelle))
-    return sorted(ergebnis)
+    return sorted((regel["id"], quelle)
+                  for regel in alle()
+                  for quelle in (regel.get("belegt_durch") or {})
+                  if _schweigt(regel, quelle))
 
 
 def ohne_belegpruefung() -> list[tuple[str, str]]:
@@ -369,6 +403,14 @@ def deckel(regel: dict | None) -> str:
     ebene = regel.get("ebene")
     if ebene is not None and ebene not in EBENE_DARF_FEHLER:
         darf_fehler = False
+    # Dritte Grenze, ausdrücklich in der Regeldatei (`deckel: warnung`): Eine
+    # Regel, der #31 die letzte zählende Quelle genommen hat, führt
+    # `herkunft: werkzeug` — und `werkzeug` darf Fehler sein. Ohne diese Zeile
+    # würde aus der Warnung mit der Herabstufung ein Fehler. Sie gilt nur bei
+    # `werkzeug`: Steht die Herkunft anderswo, ist sie die Grenze allein — sonst
+    # überlebte der Deckel eine Anhebung der Herkunft und hielte sie unbemerkt fest.
+    if regel.get("herkunft") == WERKZEUG and regel.get("deckel") == DECKEL_WARNUNG:
+        darf_fehler = False
     return DECKEL_FEHLER if darf_fehler else DECKEL_WARNUNG
 
 
@@ -409,7 +451,11 @@ def quellenhinweis(regelname: str) -> str:
     ebene = regel.get("ebene")
     if ebene in EBENENHINWEIS:
         return EBENENHINWEIS[ebene]
-    if regel.get("herkunft") != EINZELN:
+    # Über `herkunft_von_lint`, nicht am Regelwörterbuch vorbei: Die Herkunft
+    # hat eine Zugriffsstelle, und wer sie ersetzt, ersetzt sie für die Meldung
+    # mit. Vor #31 las das die Regel selbst, und ein Test, der die Zugriffsstelle
+    # austauschte, prüfte nur, dass `gruss` gerade `einzeln_belegt` war.
+    if herkunft_von_lint(regelname) != EINZELN:
         return ""
     namen = regel.get("quellen") or []
     if not namen:
@@ -419,13 +465,13 @@ def quellenhinweis(regelname: str) -> str:
 
 
 def darf_automatisch_ersetzen(schritt: str) -> bool:
-    """Der Typografie-Pass ändert Text nur bei mehrfach belegten Regeln.
+    """Der Typografie-Pass ändert Text nur bei Regeln, die Fehler sein dürfen.
 
     Alles andere wäre eine stille Änderung auf dünner Grundlage: Der Brief
     sähe anders aus, als er geschrieben wurde, wegen einer Regel aus einer
-    einzigen Quelle.
+    einzigen Quelle — oder aus einer, die zur Regel schweigt (#31).
     """
     regel = fuer_typografie(schritt)
     if regel is None:
         return True
-    return regel["herkunft"] in DARF_FEHLER_SEIN
+    return deckel(regel) == DECKEL_FEHLER

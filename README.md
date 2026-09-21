@@ -357,15 +357,17 @@ Der Text unter dem Frontmatter ist **falzmarke-Markdown**, eine dokumentierte Te
 
 | Das geht | Das erledigt falzmarke selbst |
 |---|---|
-| Absätze, `**fett**`, `*kursiv*` | `z. B.` und `§ 5` mit geschütztem Leerzeichen |
+| Absätze, `**fett**`, `*kursiv*` | `§ 5` mit geschütztem Leerzeichen |
 | Aufzählungen und nummerierte Listen | `--` wird zum Halbgeviertstrich – so |
 | Harter Umbruch mit `\` am Zeilenende | `"Wort"` wird zu „Wort“ |
-| Pipe-Tabellen mit Ausrichtung | Tag und Monat bleiben zusammen: `25. August` |
+| Pipe-Tabellen mit Ausrichtung | |
 
-Einheiten (`10 %`, `5 kg`) und Kürzel vor einer Angabe (`Tel.`, `Nr.`) setzt falzmarke
-**nicht** von selbst: Die Regel steht nur in einer einzigen Quelle, deshalb warnt `lint`,
-statt zu ersetzen. Es meldet die Stelle mit Zeile — dann setzt du das
-Leerzeichen selbst, mit `&nbsp;` (`5&nbsp;km`). Welche Regeln mehrfach belegt sind, steht in der
+Abkürzungen (`z. B.`), Datum (`25. August`), Einheiten (`10 %`, `5 kg`) und Kürzel vor einer
+Angabe (`Tel.`, `Nr.`) setzt falzmarke **nicht** von selbst: Keine dieser Regeln steht auf
+mehr als einer Quelle, die etwas dazu sagt — bei Abkürzungen und Datum trägt nur Wikipedia,
+die zweite volle Quelle schweigt (#31). Deshalb warnt `lint`, statt zu ersetzen. Es meldet die
+Stelle mit Zeile — dann setzt du das Leerzeichen selbst, mit `&nbsp;` (`5&nbsp;km`). Welche
+Regeln mehrfach belegt sind, steht in der
 Tabelle [Quellenlage je Regel](https://github.com/blitzsicht/falzmarke/blob/main/skill/references/din5008.md#quellenlage-je-regel).
 
 Links, Bilder und HTML sind **Fehler** — mit Zeile, Grund und Korrektur, nie

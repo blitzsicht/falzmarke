@@ -166,7 +166,8 @@ regeln:
   - id: text.anrede_komma
     titel: Anrede endet mit Komma, der Text darunter beginnt klein
     lint: anrede
-    herkunft: einzeln_belegt
+    herkunft: werkzeug
+    deckel: warnung
     quellen: [onlineprinters, letter_pro]
     belegt_durch:
       onlineprinters: >-
@@ -177,21 +178,30 @@ regeln:
     # nicht geregelt". Die Quelle stand hier, ohne zur Regel etwas beizutragen,
     # und hob sie damit auf eine Stufe, die Laeufe scheitern lassen darf.
     wirkung: warnung
+    bemerkung: >-
+      Seit #31 ohne zählende Quelle: `onlineprinters` schweigt, `letter_pro`
+      setzt das Layout, das geprüft würde, und bestätigt nichts. Eine
+      Setzgewohnheit des Werkzeugs, Warnung bis zum Normabgleich (#12).
 
   - id: text.gruss_ohne_komma
     titel: Grußformel ohne Komma
     lint: gruss
-    herkunft: einzeln_belegt
+    herkunft: werkzeug
+    deckel: warnung
     quellen: [onlineprinters]
     belegt_durch:
       onlineprinters: >-
         SCHWEIGT — „Grußformel“ steht nur im Titel eines verwandten Artikels,
         nicht im Text.
     wirkung: warnung
+    bemerkung: >-
+      Seit #31 ohne zählende Quelle. Eine Setzgewohnheit des Werkzeugs, Warnung
+      bis zum Normabgleich (#12).
 
   - id: text.anlagen_ohne_doppelpunkt
     titel: „Anlage“/„Anlagen“ ohne Doppelpunkt
-    herkunft: einzeln_belegt
+    herkunft: werkzeug
+    deckel: warnung
     quellen: [onlineprinters]
     belegt_durch:
       onlineprinters: >-
@@ -199,6 +209,9 @@ regeln:
         angehängt“ (Telefonanlage). Ein Treffer, der zu einer anderen Sache
         gehört.
     wirkung: warnung
+    bemerkung: >-
+      Seit #31 ohne zählende Quelle. Eine Setzgewohnheit des Werkzeugs, Warnung
+      bis zum Normabgleich (#12).
 
   - id: text.folgeseiten
     titel: Folgeseiten tragen die Seitenzahl, Kopfzeile mit Betreffkurzform empfohlen
@@ -210,55 +223,69 @@ regeln:
   - id: text.anschrift_ohne_leerzeilen
     titel: Anschriftzone bis 6 Zeilen, keine Leerzeilen
     lint: empfaenger
-    herkunft: einzeln_belegt
+    herkunft: werkzeug
+    deckel: warnung
     quellen: [onlineprinters]
     belegt_durch:
       onlineprinters: >-
         SCHWEIGT — „Leerzeile“ kommt auf der Seite nicht vor.
     wirkung: warnung
+    bemerkung: >-
+      Seit #31 ohne zählende Quelle. Eine Setzgewohnheit des Werkzeugs, Warnung
+      bis zum Normabgleich (#12).
 
   - id: text.vermerke_max_3
     titel: Zusatz- und Vermerkzone fasst bis zu 3 Zeilen
     lint: vermerke
-    herkunft: mehrfach_bestaetigt
+    herkunft: einzeln_belegt
     quellen: [massskizze_b, onlineprinters, letter_pro]
     belegt_durch:
       onlineprinters: >-
         SCHWEIGT — die Zonen werden erwähnt, eine Zeilenzahl nicht. Die Regel ist
         ohnehin abgeleitet (12,7 mm Zonenhöhe : 4,23 mm Zeilenhöhe), nicht
         zitiert.
-    wirkung: fehler
-    bemerkung: Folgt aus der Zonenhöhe von 12,7 mm bei 4,23 mm Zeilenhöhe.
+    wirkung: warnung
+    bemerkung: >-
+      Folgt aus der Zonenhöhe von 12,7 mm bei 4,23 mm Zeilenhöhe. Bis #31 ein
+      Fehler (mehrfach bestätigt); die zweite volle Quelle schweigt, es bleibt
+      die Zeichnung allein — seither eine Warnung.
 
   # ── Schreibweisen ────────────────────────────────────────────────────────
   - id: schreibweise.datum
     titel: "Datum als „25. August 2026“ oder „2026-08-25“"
     lint: datum
     typografie: _datum
-    herkunft: mehrfach_bestaetigt
+    herkunft: einzeln_belegt
     quellen: [wikipedia, onlineprinters, letter_pro]
     belegt_durch:
       onlineprinters: >-
         SCHWEIGT — der Artikel nennt „korrekte Schreibweisen von Datum“ nur als
         Thema der Norm und gibt kein Format an. Die Regel trägt Wikipedia, die
         beide Formen ausdrücklich nennt.
-    wirkung: fehler
+    wirkung: warnung
     bemerkung: >-
       Wikipedia nennt beide Formen ausdrücklich. Der Linter prüft nur, dass ein
-      Datumsfeld eine dieser Formen hat, nicht welche.
+      Datumsfeld eine dieser Formen hat, nicht welche. Bis #31 ein Fehler und
+      eine selbsttätige Ersetzung (mehrfach bestätigt); die zweite volle Quelle
+      schweigt, es bleibt Wikipedia allein — seither eine Warnung, der
+      Typografie-Pass setzt nicht mehr und meldet stattdessen.
 
   - id: schreibweise.abkuerzungen
     titel: "Abkürzungen mit geschütztem Leerzeichen: z. B., u. a."
     typografie: _abkuerzungen
-    herkunft: mehrfach_bestaetigt
+    herkunft: einzeln_belegt
     quellen: [wikipedia, onlineprinters, letter_pro]
     belegt_durch:
       onlineprinters: >-
         SCHWEIGT — der Artikel nennt „die richtige Abkürzung von Titeln“ als
         Thema, aber keine Schreibregel. Die Regel trägt Wikipedia („a. a. O., d.
         h., v. l. n. r., z. B.“).
-    wirkung: fehler
-    bemerkung: Wikipedia nennt „a. a. O., d. h., v. l. n. r., z. B.“ wörtlich.
+    wirkung: warnung
+    bemerkung: >-
+      Wikipedia nennt „a. a. O., d. h., v. l. n. r., z. B.“ wörtlich. Bis #31
+      ein Fehler und eine selbsttätige Ersetzung (mehrfach bestätigt); die
+      zweite volle Quelle schweigt, es bleibt Wikipedia allein — seither eine
+      Warnung, der Typografie-Pass setzt nicht mehr und meldet stattdessen.
 
   - id: schreibweise.telefon
     titel: "Telefon „0941 620-9800“, international „+49 941 620-9800“"
@@ -291,7 +318,8 @@ regeln:
 
   - id: schreibweise.zahlengliederung
     titel: "Zahlen in Dreiergruppen mit geschütztem Leerzeichen: 1 234 567,89"
-    herkunft: einzeln_belegt
+    herkunft: werkzeug
+    deckel: warnung
     quellen: [onlineprinters]
     belegt_durch:
       onlineprinters: >-
@@ -299,7 +327,7 @@ regeln:
         ebenso wenig.
     wirkung: warnung
     bemerkung: >-
-      Kein Schritt und keine Prüfung setzt diese Regel um: Der Typografie-Pass
+      Seit #31 ohne zählende Quelle. Kein Schritt und keine Prüfung setzt diese Regel um: Der Typografie-Pass
       gliedert keine Zahlen. Bis #332 hing `_vor_angabe` (geschütztes
       Leerzeichen hinter Nr., Tel., Az.) fälschlich an ihr; er trägt jetzt
       schreibweise.kuerzel_vor_angabe. Die Regel bleibt als Vorgabe stehen, bis
@@ -338,13 +366,17 @@ regeln:
 
   - id: schreibweise.geldbetrag
     titel: "Geldbetrag „1.234,56 EUR“, Währung nachgestellt"
-    herkunft: einzeln_belegt
+    herkunft: werkzeug
+    deckel: warnung
     quellen: [onlineprinters]
     belegt_durch:
       onlineprinters: >-
         SCHWEIGT — „Währungen“ wird als Thema genannt, ein Format nicht. Das
         Kürzel „EUR“ steht nirgends auf der Seite.
     wirkung: warnung
+    bemerkung: >-
+      Seit #31 ohne zählende Quelle. Eine Setzgewohnheit des Werkzeugs, Warnung
+      bis zum Normabgleich (#12).
 
   - id: schreibweise.auslandsanschrift
     titel: Ort und Land in Großbuchstaben, Land auf Deutsch in der letzten Zeile
@@ -369,12 +401,17 @@ regeln:
   - id: schreibweise.einheiten
     titel: Einheiten und Zeichen nicht vom Zahlwert trennen (5 kg, 20 %, § 3)
     typografie: _einheiten
-    herkunft: einzeln_belegt
+    herkunft: werkzeug
+    deckel: warnung
     quellen: [onlineprinters]
     belegt_durch:
       onlineprinters: >-
         SCHWEIGT — im Artikel nicht erwähnt.
     wirkung: warnung
+    bemerkung: >-
+      Seit #31 ohne zählende Quelle. Eine Setzgewohnheit des Werkzeugs: Der
+      Typografie-Pass setzt nicht, er meldet, bis der Normabgleich (#12) über
+      die Regel entscheidet.
 
   # ── Prüfungen des Werkzeugs, keine Normaussage ───────────────────────────
   - id: werkzeug.betreff_laenge
