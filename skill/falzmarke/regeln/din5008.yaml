@@ -302,13 +302,24 @@ regeln:
     bemerkung: >-
       Seit #31 ohne zählende Quelle. Eine Setzgewohnheit des Werkzeugs, Warnung
       bis zum Normabgleich (#12).
+      Offen seit 22.09.2026: Der Wikipedia-Artikel trägt beide Hälften wörtlich
+      („6 Zeilen für die Anschriftzone (AZ)“, „Leerzeilen innerhalb der Anschrift
+      sind nicht vorgesehen“) und ist hier nur nie als Quelle eingetragen worden.
+      Die Einstufung als Werkzeugprüfung ist damit fraglich. Sie zu ändern rollt
+      allerdings den Meldetext `brief-empfaenger` aus #328 zurück — deshalb ein
+      eigener Vorgang und keine Nebenwirkung dieser Quellenprüfung.
 
   - id: text.vermerke_max_3
     titel: Zusatz- und Vermerkzone fasst bis zu 3 Zeilen
     lint: vermerke
     herkunft: einzeln_belegt
-    quellen: [massskizze_b, onlineprinters, letter_pro]
+    quellen: [massskizze_b, onlineprinters, wikipedia, letter_pro]
     belegt_durch:
+      wikipedia: >-
+        Nennt die Zahl ohne Umweg über die Höhe: „Das EDV-gerechte
+        Anschriftenfeld ist 9-zeilig nach internationaler Normung aufgebaut:
+        3 Zeilen für die Zusatz- und Vermerkzone (ZVZ), 6 Zeilen für die
+        Anschriftzone (AZ).“
       massskizze_b: >-
         SCHWEIGT — bemaßt die Zone mit 17,7 mm, nennt aber keine Zeilenzahl. Die
         Regel ist abgeleitet (12,7 mm : 4,23 mm), und die 12,7 mm stehen in
@@ -319,9 +330,12 @@ regeln:
         zitiert.
     wirkung: warnung
     bemerkung: >-
-      Folgt aus der Zonenhöhe von 12,7 mm bei 4,23 mm Zeilenhöhe. Bis #31 ein
-      Fehler (mehrfach bestätigt); die zweite volle Quelle schweigt, es bleibt
-      die Zeichnung allein — seither eine Warnung.
+      Bis #31 ein Fehler (mehrfach bestätigt), seither eine Warnung: Erst schwieg
+      `onlineprinters`, am 22.09.2026 kam `massskizze_b` dazu — die Zeichnung
+      bemaßt die Zone, zählt aber keine Zeilen. Am selben Tag trat der
+      Wikipedia-Artikel an ihre Stelle, und der nennt die 3 Zeilen unmittelbar.
+      Die Ableitung über die Zonenhöhe (12,7 mm : 4,23 mm) ist damit nicht mehr
+      die einzige Begründung, sondern nur noch die Gegenrechnung dazu.
 
   # ── Schreibweisen ────────────────────────────────────────────────────────
   - id: schreibweise.datum

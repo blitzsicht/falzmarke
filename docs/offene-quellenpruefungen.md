@@ -20,7 +20,7 @@ zehn schwiegen, und drei Regeln fielen von Fehler auf Warnung
 ([Befund](quellenpruefung-onlineprinters-2026-08-27.md)).
 
 Derzeit hängen **10 Regeln mit Wirkung `fehler`** an mindestens einem ungeprüften
-Paar; schwiegen alle ungeprüften Quellen, verlören **11 Regeln** ihre Stufe. Das ist der
+Paar; schwiegen alle ungeprüften Quellen, verlören **10 Regeln** ihre Stufe. Das ist der
 ungünstigste Fall, nicht der erwartete — dass eine bemaßte Zeichnung zum Seitenformat schweigt,
 ist unwahrscheinlich. Die Zahl sagt, wie viel auf ungeprüftem Grund steht.
 
@@ -87,7 +87,7 @@ Zählstufe `einzeln`, Gruppe `letter_pro`.
 | `schreibweise.abkuerzungen` | Warnung | Abkürzungen mit geschütztem Leerzeichen: z. B., u. a. | bleibt |
 | `schreibweise.datum` | Warnung | Datum als „25. August 2026“ oder „2026-08-25“ | bleibt |
 | `text.anrede_komma` | Warnung | Anrede endet mit Komma, der Text darunter beginnt klein | unberührt |
-| `text.vermerke_max_3` | Warnung | Zusatz- und Vermerkzone fasst bis zu 3 Zeilen | **verliert jeden Beleg** |
+| `text.vermerke_max_3` | Warnung | Zusatz- und Vermerkzone fasst bis zu 3 Zeilen | bleibt |
 
 ## 3. `koma_script` — 1 Paar
 
