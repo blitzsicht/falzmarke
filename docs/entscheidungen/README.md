@@ -32,3 +32,4 @@ gelesen wird und die niemand nachpflegt.
 | [0042](0042-quellenpruefung-ruht.md) | Die Quellenprüfung ruht, der erreichte Stand gilt | 22.09.2026 |
 | [0043](0043-sternschwelle-gilt-weiter.md) | Die Sternschwelle für den Normabgleich gilt weiter | 22.09.2026 |
 | [0044](0044-woertlicher-beleg-schlaegt-werkzeugeinstufung.md) | Was eine geführte Quelle wörtlich sagt, ist keine Werkzeugprüfung | 22.09.2026 |
+| [0045](0045-meilenstein-vor-verbreitung-ist-erledigt.md) | Der Meilenstein „Vor Verbreitung“ wird geschlossen | 22.09.2026 |
