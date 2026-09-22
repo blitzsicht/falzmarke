@@ -29,3 +29,5 @@ gelesen wird und die niemand nachpflegt.
 | [0039](0039-falzmarke-rechnet-nicht.md) | falzmarke rechnet nicht | 11.09.2026 |
 | [0040](0040-xrechnung-3-0-in-cii.md) | XRechnung 3.0 in CII | 13.09.2026 |
 | [0041](0041-kleinunternehmer.md) | Rechnungen von Kleinunternehmern (§ 19 UStG) | 14.09.2026 |
+| [0042](0042-quellenpruefung-ruht.md) | Die Quellenprüfung ruht, der erreichte Stand gilt | 22.09.2026 |
+| [0043](0043-sternschwelle-gilt-weiter.md) | Die Sternschwelle für den Normabgleich gilt weiter | 22.09.2026 |

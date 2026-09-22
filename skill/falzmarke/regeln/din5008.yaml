@@ -34,18 +34,33 @@ regeln:
     titel: Briefkopfhöhe Form B, 45 mm
     herkunft: mehrfach_bestaetigt
     quellen: [massskizze_b, onlineprinters, letter_pro]
+    belegt_durch:
+      massskizze_b: >-
+        Bemaßt mit 45 mm von der oberen Blattkante bis zur Unterkante des mit
+        „Feld für Briefkopf, Form B“ beschrifteten Felds.
     wirkung: fehler
 
   - id: geometrie.form_b.anschriftfeld
     titel: Anschriftfeld 85 × 45 mm, linke Kante 20 mm, Text ab 25 mm
     herkunft: mehrfach_bestaetigt
     quellen: [massskizze_b, onlineprinters, letter_pro]
+    belegt_durch:
+      massskizze_b: >-
+        85 mm Außenbreite und 45 mm Höhe bemaßt, linke Kante bei 20 mm. Der
+        Textbeginn bei 25 mm steht als Innenbreite 80 mm daneben, markiert
+        durch die gestrichelte Senkrechte: 20 + (85 − 80) = 25.
     wirkung: fehler
 
   - id: geometrie.form_b.zonen
     titel: Rücksendeangabe 5 mm, Zusatz-/Vermerkzone 12,7 mm, Anschriftzone 27,3 mm
     herkunft: mehrfach_bestaetigt
     quellen: [massskizze_b, onlineprinters, letter_pro]
+    belegt_durch:
+      massskizze_b: >-
+        Trägt die Anschriftzone mit 27,3 mm und die Zone darüber mit 17,7 mm,
+        beschriftet als „Zusatz- und Vermerkzone mit integrierter
+        Rücksendeangabe“. Die Aufteilung dieser 17,7 mm in 5 + 12,7 zeigt sie
+        nicht — dazu schweigt sie. Offene Frage 4 der Normabgleich-Prüfliste.
     wirkung: fehler
     bemerkung: >-
       Die Maßzeichnung fasst die ersten beiden zu 17,7 mm zusammen
@@ -56,12 +71,22 @@ regeln:
     titel: Informationsblock x = 125 mm, Breite 75 mm, Oberkante 50 mm
     herkunft: mehrfach_bestaetigt
     quellen: [massskizze_b, onlineprinters, letter_pro]
+    belegt_durch:
+      massskizze_b: >-
+        Alle drei Werte bemaßt: 125 mm bis zur linken Kante, Breite 75 mm,
+        Oberkante 50 mm. Das Restmaß 10 mm bis zur rechten Blattkante
+        schließt die Zeile (125 + 75 + 10 = 210).
     wirkung: fehler
 
   - id: geometrie.form_b.falzmarken
     titel: Falzmarken bei 105 und 210 mm
     herkunft: mehrfach_bestaetigt
     quellen: [massskizze_b, onlineprinters, letter_pro]
+    belegt_durch:
+      massskizze_b: >-
+        Faltmarke 1 bei 105 mm bemaßt und beschriftet. Die zweite Marke steht
+        als weitere 105 mm darunter (105 + 105 = 210); das Restmaß 87 mm bis
+        zur unteren Blattkante bestätigt die Lage.
     wirkung: fehler
 
   # ── Geometrie, Form A ────────────────────────────────────────────────────
@@ -113,30 +138,62 @@ regeln:
     titel: A4, 210 × 297 mm
     herkunft: mehrfach_bestaetigt
     quellen: [massskizze_b, wikipedia, letter_pro]
+    belegt_durch:
+      wikipedia: >-
+        Abschnitt „Briefvordrucke und Briefvorlagen (Abschnitt 16)“ nennt das
+        Format wörtlich: „auf das Papierformat A4 (210 mm × 297 mm)
+        abgestimmt“.
+      massskizze_b: >-
+        Bemaßt das Blatt nicht, legt es aber in beiden Richtungen fest:
+        125 + 75 + 10 = 210 quer, 105 + 105 + 87 = 297 hoch. Alle sechs
+        Summanden stehen als Maß in der Zeichnung.
     wirkung: fehler
 
   - id: geometrie.lochmarke
     titel: Lochmarke bei 148,5 mm
     herkunft: mehrfach_bestaetigt
     quellen: [massskizze_b, onlineprinters, letter_pro]
+    belegt_durch:
+      massskizze_b: >-
+        148,5 mm von der oberen Blattkante, bemaßt und ausdrücklich als
+        „Lochmarke“ beschriftet.
     wirkung: fehler
 
   - id: geometrie.seitenraender
     titel: Rand links 25 mm, rechts 20 mm, Textbreite 165 mm
     herkunft: mehrfach_bestaetigt
     quellen: [massskizze_b, wikipedia, letter_pro]
+    belegt_durch:
+      wikipedia: >-
+        Abschnitt „Briefgestaltung (Abschnitt 17)“ trägt den linken Rand: „Zeilen
+        beginnen an der Fluchtlinie, 2,5 cm vom linken Blattrand entfernt.“
+        Zum rechten Rand (20 mm) und zur Textbreite (165 mm) sagt der Artikel
+        nichts — diese beiden Werte stehen hier ohne Beleg.
+      massskizze_b: >-
+        Rand links 25 mm und rechts 20 mm bemaßt. Die Textbreite 165 mm steht
+        nicht in der Zeichnung; sie folgt aus 210 − 25 − 20.
     wirkung: fehler
 
   - id: geometrie.grundzeilenhoehe
     titel: Grundzeilenhöhe 4,23 mm (12 pt)
     herkunft: mehrfach_bestaetigt
     quellen: [massskizze_b, onlineprinters, letter_pro]
+    belegt_durch:
+      massskizze_b: >-
+        4,23 mm, zweimal bemaßt als Abstand ober- und unterhalb der Zeile
+        „Seite x von y“. Die Zeichnung nennt den Wert, nicht den Begriff
+        „Grundzeilenhöhe“.
     wirkung: fehler
 
   - id: geometrie.betreffabstand
     titel: Betreff zwei Leerzeilen (8,46 mm) unter dem tieferen von Feld und Block
     herkunft: mehrfach_bestaetigt
     quellen: [massskizze_b, onlineprinters, letter_pro]
+    belegt_durch:
+      massskizze_b: >-
+        8,46 mm, zweimal bemaßt — vom Anschriftfeld und vom Informationsblock
+        je zur Oberkante des Textfelds. Genau die Konstruktion „unter dem
+        tieferen von Feld und Block“.
     wirkung: fehler
 
   - id: geometrie.infoblock_mindesthoehe
@@ -159,6 +216,13 @@ regeln:
     titel: Fließtext mindestens 10 pt, Anschrift und Informationsblock mindestens 8 pt
     herkunft: einzeln_belegt
     quellen: [wikipedia]
+    belegt_durch:
+      wikipedia: >-
+        Trägt die 8 Punkt: „die Postanschrift des Absenders (sogenannte
+        Rücksendeangabe) in kleiner Schrift (8 Punkt)“ — allerdings nur für
+        die Rücksendeangabe, nicht für Anschriftfeld und Informationsblock
+        insgesamt. Zur Mindestgröße des Fließtexts (10 pt) schweigt der
+        Artikel; „Schriftgröße“ steht dort nur als Mittel der Hervorhebung.
     wirkung: warnung
     bemerkung: Wikipedia nennt 8 pt für die Rücksendeangabe (seit 2011 zulässig).
 
@@ -217,6 +281,11 @@ regeln:
     titel: Folgeseiten tragen die Seitenzahl, Kopfzeile mit Betreffkurzform empfohlen
     herkunft: einzeln_belegt
     quellen: [massskizze_b]
+    belegt_durch:
+      massskizze_b: >-
+        Zeigt unterhalb des Textfelds die Zeile „Seite x von y (Bei mehrseitigen
+        Texten)“ — die Seitenzahl also ausdrücklich, und zwar am Fuß. Zur
+        empfohlenen Kopfzeile mit Betreffkurzform sagt sie nichts.
     wirkung: warnung
     bemerkung: Die Zeichnung zeigt „Seite x von y (Bei mehrseitigen Texten)“.
 
@@ -233,22 +302,40 @@ regeln:
     bemerkung: >-
       Seit #31 ohne zählende Quelle. Eine Setzgewohnheit des Werkzeugs, Warnung
       bis zum Normabgleich (#12).
+      Offen seit 22.09.2026: Der Wikipedia-Artikel trägt beide Hälften wörtlich
+      („6 Zeilen für die Anschriftzone (AZ)“, „Leerzeilen innerhalb der Anschrift
+      sind nicht vorgesehen“) und ist hier nur nie als Quelle eingetragen worden.
+      Die Einstufung als Werkzeugprüfung ist damit fraglich. Sie zu ändern rollt
+      allerdings den Meldetext `brief-empfaenger` aus #328 zurück — deshalb ein
+      eigener Vorgang und keine Nebenwirkung dieser Quellenprüfung.
 
   - id: text.vermerke_max_3
     titel: Zusatz- und Vermerkzone fasst bis zu 3 Zeilen
     lint: vermerke
     herkunft: einzeln_belegt
-    quellen: [massskizze_b, onlineprinters, letter_pro]
+    quellen: [massskizze_b, onlineprinters, wikipedia, letter_pro]
     belegt_durch:
+      wikipedia: >-
+        Nennt die Zahl ohne Umweg über die Höhe: „Das EDV-gerechte
+        Anschriftenfeld ist 9-zeilig nach internationaler Normung aufgebaut:
+        3 Zeilen für die Zusatz- und Vermerkzone (ZVZ), 6 Zeilen für die
+        Anschriftzone (AZ).“
+      massskizze_b: >-
+        SCHWEIGT — bemaßt die Zone mit 17,7 mm, nennt aber keine Zeilenzahl. Die
+        Regel ist abgeleitet (12,7 mm : 4,23 mm), und die 12,7 mm stehen in
+        dieser Zeichnung nicht einmal für sich.
       onlineprinters: >-
         SCHWEIGT — die Zonen werden erwähnt, eine Zeilenzahl nicht. Die Regel ist
         ohnehin abgeleitet (12,7 mm Zonenhöhe : 4,23 mm Zeilenhöhe), nicht
         zitiert.
     wirkung: warnung
     bemerkung: >-
-      Folgt aus der Zonenhöhe von 12,7 mm bei 4,23 mm Zeilenhöhe. Bis #31 ein
-      Fehler (mehrfach bestätigt); die zweite volle Quelle schweigt, es bleibt
-      die Zeichnung allein — seither eine Warnung.
+      Bis #31 ein Fehler (mehrfach bestätigt), seither eine Warnung: Erst schwieg
+      `onlineprinters`, am 22.09.2026 kam `massskizze_b` dazu — die Zeichnung
+      bemaßt die Zone, zählt aber keine Zeilen. Am selben Tag trat der
+      Wikipedia-Artikel an ihre Stelle, und der nennt die 3 Zeilen unmittelbar.
+      Die Ableitung über die Zonenhöhe (12,7 mm : 4,23 mm) ist damit nicht mehr
+      die einzige Begründung, sondern nur noch die Gegenrechnung dazu.
 
   # ── Schreibweisen ────────────────────────────────────────────────────────
   - id: schreibweise.datum
@@ -258,6 +345,10 @@ regeln:
     herkunft: einzeln_belegt
     quellen: [wikipedia, onlineprinters, letter_pro]
     belegt_durch:
+      wikipedia: >-
+        Abschnitt „Briefgestaltung (Abschnitt 17)“ nennt beide Formen: „Das Datum
+        wird numerisch 2006-06-07 (JJJJ-MM-TT) oder alphanumerisch
+        7. Juni 2006 geschrieben“.
       onlineprinters: >-
         SCHWEIGT — der Artikel nennt „korrekte Schreibweisen von Datum“ nur als
         Thema der Norm und gibt kein Format an. Die Regel trägt Wikipedia, die
@@ -276,6 +367,11 @@ regeln:
     herkunft: einzeln_belegt
     quellen: [wikipedia, onlineprinters, letter_pro]
     belegt_durch:
+      wikipedia: >-
+        Abschnitt „Abkürzungen (Abschnitt 4.5)“ trägt beides, Leerzeichen und
+        Schutz: „ist zwischen den abgekürzten Wörtern jeweils ein Leerzeichen
+        zu setzen: a. a. O., d. h., v. l. n. r., z. B. usw.“ und „sollte ein
+        geschütztes Leerzeichen verwendet werden“.
       onlineprinters: >-
         SCHWEIGT — der Artikel nennt „die richtige Abkürzung von Titeln“ als
         Thema, aber keine Schreibregel. Die Regel trägt Wikipedia („a. a. O., d.

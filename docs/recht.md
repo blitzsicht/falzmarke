@@ -60,7 +60,7 @@ sähe anders aus, als er geschrieben wurde, und niemand erführe warum.
 ## Was die Stufen derzeit wert sind
 
 Die Tabelle oben sagt, was eine Stufe **bedeutet**. Hier steht, was die Regeln tatsächlich
-tragen. **Stand: 21.09.2026**, gemessen gegen `main` nach dem Merge von #31. Die Zahlen kommen aus
+tragen. **Stand: 22.09.2026**, gemessen gegen `main` nach der ersten Portion der Quellenprüfung. Die Zahlen kommen aus
 der Regeldatei; `tests/test_textkanon.py` zählt sie bei jedem Lauf nach und wird rot, sobald
 dieser Abschnitt ihnen nicht mehr folgt.
 
@@ -71,7 +71,7 @@ Regel **nachweislich schweigen**: Sie zählen nicht mehr mit.
 | | |
 |---|---|
 | 122 | Regeln insgesamt |
-| 10 | Quelle-Regel-Paare, bei denen die Quelle **nachweislich schweigt** — alle `onlineprinters` ([Befund](quellenpruefung-onlineprinters-2026-08-27.md)) |
+| 11 | Quelle-Regel-Paare, bei denen die Quelle **nachweislich schweigt** — zehn davon `onlineprinters` ([Befund](quellenpruefung-onlineprinters-2026-08-27.md)), seit dem 22.09.2026 dazu die Zeichnung `massskizze_b` bei `text.vermerke_max_3` |
 | 7 | der betroffenen Regeln führen jetzt `herkunft: werkzeug` — eine Setzgewohnheit des Werkzeugs, keine Aussage der Norm |
 | 3 | fielen von Fehler auf Warnung: `schreibweise.datum`, `schreibweise.abkuerzungen`, `text.vermerke_max_3` — ihre zweite volle Quelle schwieg, es bleibt eine. Der Typografie-Pass meldet Datum und Abkürzungen seither nur noch, er ersetzt sie nicht mehr |
 
@@ -94,13 +94,22 @@ oben für eine Zusage hält, die sie im Einzelfall nicht einlöst: Der Normabgle
 
 | | |
 |---|---|
-| 44 | Quelle-Regel-Paare sind ungeprüft: Bei ihnen steht nicht fest, ob die Quelle die Regel trägt oder zu ihr schweigt |
+| 27 | Quelle-Regel-Paare sind ungeprüft: Bei ihnen steht nicht fest, ob die Quelle die Regel trägt oder zu ihr schweigt |
 
 Das ist nicht „kein Beleg", sondern „nicht nachgesehen", und diese beiden Zustände werden nicht
 verwechselt. Die Paare betreffen überwiegend Maßzeichnungen und Quelltexte. Bei einer Zeichnung
-reicht keine Stichwortsuche: Sie zeigt ein Beispieldatum, ohne die Regel zu sagen. Das bleibt
+reicht keine Stichwortsuche: Sie zeigt ein Beispieldatum, ohne die Regel zu sagen. Es bleibt
 Handarbeit — Quelle ansehen, Maß gegen Regel halten, das Ergebnis unter `belegt_durch:` in der
 Regeldatei eintragen.
+
+Am 22.09.2026 sind so die Zeichnung `massskizze_b` (zwölf Paare, elf tragend, eines schweigend)
+und der Wikipedia-Artikel (fünf Paare, alle tragend, zwei mit benannter Lücke) abgearbeitet
+worden — 44 → 27. **Danach wurde die Arbeit eingestellt**
+([ADR 0042](entscheidungen/0042-quellenpruefung-ruht.md)): Abgearbeitet sind genau die beiden
+Quellen, deren Prüfung eine Stufe bewegen konnte; von den verbliebenen 27 Paaren liegen 16 bei
+Quellen, die gar keine Belegsgruppe tragen, und 10 bei einer, die keine zweite liefern kann.
+Die 27 sind damit kein Rückstand, sondern ein bewusst getragenes Risiko — welches, steht in
+[Offene Quellenprüfungen](offene-quellenpruefungen.md).
 
 Die Sollwerte selbst sind davon unberührt: Sie sind an gerenderten PDFs gemessen und stimmen mit
 den Zeichnungen überein. Zur Debatte steht nicht, ob sie richtig sind, sondern wie stark sie
