@@ -182,14 +182,18 @@ quellen:
     zaehlt: voll
     abgerufen: 2026-08-25
     bemerkung: >-
-      Nennt ausdrücklich nur: Anschriftfeld 32 mm (Form A) bzw. 50 mm (Form B)
-      unter der Oberkante, Fluchtlinie 25 mm, A4, Datumsformate und die
-      Abkürzungsschreibung mit Leerzeichen. Die übrigen Detailmaße stehen dort
-      nicht — die Quelle trägt weniger, als ihre Nennung vermuten lässt.
+      Nennt ausdrücklich: Anschriftfeld 32 mm (Form A) bzw. 50 mm (Form B)
+      unter der Oberkante, Fluchtlinie 25 mm, A4, Datumsformate, die
+      Abkürzungsschreibung mit Leerzeichen sowie den Aufbau des Anschriftfelds
+      — 9 Zeilen, davon 3 für die Zusatz- und Vermerkzone und 6 für die
+      Anschriftzone, ohne Leerzeilen dazwischen (nachgetragen mit #344; die
+      Aufzählung hatte diese Passage bis zum 22.09.2026 nicht geführt).
+      Die übrigen Detailmaße stehen dort nicht — die Quelle trägt weniger,
+      als ihre Nennung vermuten lässt.
       Eigene Gruppe: Der Artikeltext ist ein anderes Werk als die Zeichnung
       auf Commons. Dass beide unter der Wikimedia Foundation liegen und der
-      Artikel die Zeichnung einbinden koennte, ist NICHT geprueft — zwei
-      Regeln (geometrie.seitenformat, geometrie.seitenraender) stuetzen ihre
+      Artikel die Zeichnung einbinden könnte, ist NICHT geprüft — zwei
+      Regeln (geometrie.seitenformat, geometrie.seitenraender) stützen ihre
       Stufe auf genau dieses Paar. Siehe docs/quellenunabhaengigkeit-2026-08-27.md.
   letter_pro:
     titel: "typst-letter-pro v3.0.0"

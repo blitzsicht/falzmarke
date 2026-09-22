@@ -292,22 +292,30 @@ regeln:
   - id: text.anschrift_ohne_leerzeilen
     titel: Anschriftzone bis 6 Zeilen, keine Leerzeilen
     lint: empfaenger
-    herkunft: werkzeug
-    deckel: warnung
-    quellen: [onlineprinters]
+    herkunft: einzeln_belegt
+    # Wikipedia zuerst: `quellenhinweis()` nennt in der Meldung `quellen[0]`,
+    # und `onlineprinters` schweigt hier — die Meldung sähe sonst eine Quelle
+    # als Beleg vor, die zur Sache nichts sagt.
+    quellen: [wikipedia, onlineprinters]
     belegt_durch:
+      wikipedia: >-
+        Trägt beide Hälften der Regel in eigener Prosa, in einem Satz:
+        „Das EDV-gerechte Anschriftenfeld ist 9-zeilig nach internationaler
+        Normung aufgebaut: 3 Zeilen für die Zusatz- und Vermerkzone (ZVZ),
+        6 Zeilen für die Anschriftzone (AZ). […] Leerzeilen innerhalb der
+        Anschrift sind nicht vorgesehen.“ Kein Normzitat, sondern ein
+        Listenpunkt des Artikels — dieselbe Passage, aus der
+        `text.vermerke_max_3` die 3 Zeilen der ZVZ nimmt.
       onlineprinters: >-
         SCHWEIGT — „Leerzeile“ kommt auf der Seite nicht vor.
     wirkung: warnung
     bemerkung: >-
-      Seit #31 ohne zählende Quelle. Eine Setzgewohnheit des Werkzeugs, Warnung
-      bis zum Normabgleich (#12).
-      Offen seit 22.09.2026: Der Wikipedia-Artikel trägt beide Hälften wörtlich
-      („6 Zeilen für die Anschriftzone (AZ)“, „Leerzeilen innerhalb der Anschrift
-      sind nicht vorgesehen“) und ist hier nur nie als Quelle eingetragen worden.
-      Die Einstufung als Werkzeugprüfung ist damit fraglich. Sie zu ändern rollt
-      allerdings den Meldetext `brief-empfaenger` aus #328 zurück — deshalb ein
-      eigener Vorgang und keine Nebenwirkung dieser Quellenprüfung.
+      Bis zum 22.09.2026 als `herkunft: werkzeug` geführt, weil `onlineprinters`
+      seit #31 schweigt und der Wikipedia-Artikel hier nie als Quelle eingetragen
+      war. Mit #344 nachgetragen: Die Regel ist keine Setzgewohnheit des
+      Werkzeugs, sie steht wörtlich in einer geführten Quelle (ADR 0044).
+      `onlineprinters` schweigt unverändert; die Stufe trägt Wikipedia allein,
+      deshalb Warnung und nicht Fehler.
 
   - id: text.vermerke_max_3
     titel: Zusatz- und Vermerkzone fasst bis zu 3 Zeilen
