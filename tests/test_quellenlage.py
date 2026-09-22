@@ -676,7 +676,7 @@ SCHWEIGENDE_QUELLEN = [
 #: Wie viele Quelle-Regel-Paare noch niemand nachgelesen hat. Die Zahl soll
 #: fallen. Steigt sie, ist eine Quelle eingetragen worden, ohne zu sagen, wo
 #: sie die Regel hergibt — genau der Vorgang, den #31 beenden will.
-UNGEPRUEFTE_PAARE = 32
+UNGEPRUEFTE_PAARE = 27
 
 
 def test_die_schweigenden_quellen_sind_genau_diese():

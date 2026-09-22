@@ -139,6 +139,10 @@ regeln:
     herkunft: mehrfach_bestaetigt
     quellen: [massskizze_b, wikipedia, letter_pro]
     belegt_durch:
+      wikipedia: >-
+        Abschnitt „Briefvordrucke und Briefvorlagen (Abschnitt 16)“ nennt das
+        Format wörtlich: „auf das Papierformat A4 (210 mm × 297 mm)
+        abgestimmt“.
       massskizze_b: >-
         Bemaßt das Blatt nicht, legt es aber in beiden Richtungen fest:
         125 + 75 + 10 = 210 quer, 105 + 105 + 87 = 297 hoch. Alle sechs
@@ -160,6 +164,11 @@ regeln:
     herkunft: mehrfach_bestaetigt
     quellen: [massskizze_b, wikipedia, letter_pro]
     belegt_durch:
+      wikipedia: >-
+        Abschnitt „Briefgestaltung (Abschnitt 17)“ trägt den linken Rand: „Zeilen
+        beginnen an der Fluchtlinie, 2,5 cm vom linken Blattrand entfernt.“
+        Zum rechten Rand (20 mm) und zur Textbreite (165 mm) sagt der Artikel
+        nichts — diese beiden Werte stehen hier ohne Beleg.
       massskizze_b: >-
         Rand links 25 mm und rechts 20 mm bemaßt. Die Textbreite 165 mm steht
         nicht in der Zeichnung; sie folgt aus 210 − 25 − 20.
@@ -207,6 +216,13 @@ regeln:
     titel: Fließtext mindestens 10 pt, Anschrift und Informationsblock mindestens 8 pt
     herkunft: einzeln_belegt
     quellen: [wikipedia]
+    belegt_durch:
+      wikipedia: >-
+        Trägt die 8 Punkt: „die Postanschrift des Absenders (sogenannte
+        Rücksendeangabe) in kleiner Schrift (8 Punkt)“ — allerdings nur für
+        die Rücksendeangabe, nicht für Anschriftfeld und Informationsblock
+        insgesamt. Zur Mindestgröße des Fließtexts (10 pt) schweigt der
+        Artikel; „Schriftgröße“ steht dort nur als Mittel der Hervorhebung.
     wirkung: warnung
     bemerkung: Wikipedia nennt 8 pt für die Rücksendeangabe (seit 2011 zulässig).
 
@@ -315,6 +331,10 @@ regeln:
     herkunft: einzeln_belegt
     quellen: [wikipedia, onlineprinters, letter_pro]
     belegt_durch:
+      wikipedia: >-
+        Abschnitt „Briefgestaltung (Abschnitt 17)“ nennt beide Formen: „Das Datum
+        wird numerisch 2006-06-07 (JJJJ-MM-TT) oder alphanumerisch
+        7. Juni 2006 geschrieben“.
       onlineprinters: >-
         SCHWEIGT — der Artikel nennt „korrekte Schreibweisen von Datum“ nur als
         Thema der Norm und gibt kein Format an. Die Regel trägt Wikipedia, die
@@ -333,6 +353,11 @@ regeln:
     herkunft: einzeln_belegt
     quellen: [wikipedia, onlineprinters, letter_pro]
     belegt_durch:
+      wikipedia: >-
+        Abschnitt „Abkürzungen (Abschnitt 4.5)“ trägt beides, Leerzeichen und
+        Schutz: „ist zwischen den abgekürzten Wörtern jeweils ein Leerzeichen
+        zu setzen: a. a. O., d. h., v. l. n. r., z. B. usw.“ und „sollte ein
+        geschütztes Leerzeichen verwendet werden“.
       onlineprinters: >-
         SCHWEIGT — der Artikel nennt „die richtige Abkürzung von Titeln“ als
         Thema, aber keine Schreibregel. Die Regel trägt Wikipedia („a. a. O., d.

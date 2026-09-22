@@ -94,16 +94,16 @@ oben für eine Zusage hält, die sie im Einzelfall nicht einlöst: Der Normabgle
 
 | | |
 |---|---|
-| 32 | Quelle-Regel-Paare sind ungeprüft: Bei ihnen steht nicht fest, ob die Quelle die Regel trägt oder zu ihr schweigt |
+| 27 | Quelle-Regel-Paare sind ungeprüft: Bei ihnen steht nicht fest, ob die Quelle die Regel trägt oder zu ihr schweigt |
 
 Das ist nicht „kein Beleg", sondern „nicht nachgesehen", und diese beiden Zustände werden nicht
 verwechselt. Die Paare betreffen überwiegend Maßzeichnungen und Quelltexte. Bei einer Zeichnung
 reicht keine Stichwortsuche: Sie zeigt ein Beispieldatum, ohne die Regel zu sagen. Das bleibt
 Handarbeit — Quelle ansehen, Maß gegen Regel halten, das Ergebnis unter `belegt_durch:` in der
 Regeldatei eintragen. Was noch offen ist und in welcher Reihenfolge es sich lohnt, steht in
-[Offene Quellenprüfungen](offene-quellenpruefungen.md); am 22.09.2026 ist daraus die Zeichnung
-`massskizze_b` vollständig abgearbeitet — alle zwölf Paare, elf tragend, eines schweigend
-(44 → 32).
+[Offene Quellenprüfungen](offene-quellenpruefungen.md); am 22.09.2026 sind daraus die Zeichnung
+`massskizze_b` (zwölf Paare, elf tragend, eines schweigend) und der Wikipedia-Artikel (fünf
+Paare, alle tragend, zwei mit benannter Lücke) vollständig abgearbeitet — 44 → 27.
 
 Die Sollwerte selbst sind davon unberührt: Sie sind an gerenderten PDFs gemessen und stimmen mit
 den Zeichnungen überein. Zur Debatte steht nicht, ob sie richtig sind, sondern wie stark sie
