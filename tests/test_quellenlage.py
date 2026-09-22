@@ -667,13 +667,16 @@ SCHWEIGENDE_QUELLEN = [
     ("text.anrede_komma", "onlineprinters"),
     ("text.anschrift_ohne_leerzeilen", "onlineprinters"),
     ("text.gruss_ohne_komma", "onlineprinters"),
+    # Seit 22.09.2026 nicht mehr alle von `onlineprinters`: Die Zeichnung
+    # `massskizze_b` bemaßt die Zone (17,7 mm), nennt aber keine Zeilenzahl.
+    ("text.vermerke_max_3", "massskizze_b"),
     ("text.vermerke_max_3", "onlineprinters"),
 ]
 
 #: Wie viele Quelle-Regel-Paare noch niemand nachgelesen hat. Die Zahl soll
 #: fallen. Steigt sie, ist eine Quelle eingetragen worden, ohne zu sagen, wo
 #: sie die Regel hergibt — genau der Vorgang, den #31 beenden will.
-UNGEPRUEFTE_PAARE = 44
+UNGEPRUEFTE_PAARE = 32
 
 
 def test_die_schweigenden_quellen_sind_genau_diese():
@@ -866,6 +869,14 @@ def _mehrfach_mit_genau_zwei_vollen():
     Zur Laufzeit gesucht, nicht fest verdrahtet: Ein Test, der eine bestimmte
     Regel sabotiert, läuft ins Leere, sobald sie ihre Eigenschaft verliert —
     dieselbe Lehre wie bei `test_mehrfach_ohne_zwei_volle_quellen_wird_abgewiesen`.
+
+    Verlangt wurde hier bis zum 22.09.2026 zusätzlich ein **leeres**
+    `belegt_durch`. Das war zu streng und hätte sich selbst abgeschafft: Je mehr
+    Paare nachgelesen werden, desto sicherer findet die Suche kein Objekt mehr —
+    am 22.09. war es so weit, nachdem `massskizze_b` abgearbeitet war. Gebraucht
+    wird nur, dass keine der beiden vollen Quellen schon schweigt; sonst trägt
+    die Regel gar keine zwei Gruppen und die erste Probe könnte nicht laden.
+    `_belegt_durch` ist additiv und überschreibt genau einen Eintrag.
     """
     quellen = regeln.quellen()
     for regel in regeln.alle():
@@ -873,7 +884,10 @@ def _mehrfach_mit_genau_zwei_vollen():
             continue
         namen = regel.get("quellen") or []
         volle = [n for n in namen if quellen[n]["zaehlt"] == regeln.ZAEHLT_VOLL]
-        if len(volle) != 2 or (regel.get("belegt_durch") or {}):
+        schon_still = any(
+            str((regel.get("belegt_durch") or {}).get(n, "")).startswith(
+                (regeln.SCHWEIGT, "Nicht gesondert")) for n in volle)
+        if len(volle) != 2 or schon_still:
             continue
         fremde = [n for n, d in quellen.items()
                   if d["zaehlt"] == regeln.ZAEHLT_VOLL and n not in namen]
