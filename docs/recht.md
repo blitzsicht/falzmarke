@@ -98,12 +98,18 @@ oben für eine Zusage hält, die sie im Einzelfall nicht einlöst: Der Normabgle
 
 Das ist nicht „kein Beleg", sondern „nicht nachgesehen", und diese beiden Zustände werden nicht
 verwechselt. Die Paare betreffen überwiegend Maßzeichnungen und Quelltexte. Bei einer Zeichnung
-reicht keine Stichwortsuche: Sie zeigt ein Beispieldatum, ohne die Regel zu sagen. Das bleibt
+reicht keine Stichwortsuche: Sie zeigt ein Beispieldatum, ohne die Regel zu sagen. Es bleibt
 Handarbeit — Quelle ansehen, Maß gegen Regel halten, das Ergebnis unter `belegt_durch:` in der
-Regeldatei eintragen. Was noch offen ist und in welcher Reihenfolge es sich lohnt, steht in
-[Offene Quellenprüfungen](offene-quellenpruefungen.md); am 22.09.2026 sind daraus die Zeichnung
-`massskizze_b` (zwölf Paare, elf tragend, eines schweigend) und der Wikipedia-Artikel (fünf
-Paare, alle tragend, zwei mit benannter Lücke) vollständig abgearbeitet — 44 → 27.
+Regeldatei eintragen.
+
+Am 22.09.2026 sind so die Zeichnung `massskizze_b` (zwölf Paare, elf tragend, eines schweigend)
+und der Wikipedia-Artikel (fünf Paare, alle tragend, zwei mit benannter Lücke) abgearbeitet
+worden — 44 → 27. **Danach wurde die Arbeit eingestellt**
+([ADR 0042](entscheidungen/0042-quellenpruefung-ruht.md)): Abgearbeitet sind genau die beiden
+Quellen, deren Prüfung eine Stufe bewegen konnte; von den verbliebenen 27 Paaren liegen 16 bei
+Quellen, die gar keine Belegsgruppe tragen, und 10 bei einer, die keine zweite liefern kann.
+Die 27 sind damit kein Rückstand, sondern ein bewusst getragenes Risiko — welches, steht in
+[Offene Quellenprüfungen](offene-quellenpruefungen.md).
 
 Die Sollwerte selbst sind davon unberührt: Sie sind an gerenderten PDFs gemessen und stimmen mit
 den Zeichnungen überein. Zur Debatte steht nicht, ob sie richtig sind, sondern wie stark sie

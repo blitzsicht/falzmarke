@@ -3,26 +3,34 @@
 <!-- Erzeugt von scripts/offene_paare.py — nicht von Hand ändern.
      Reihenfolge und Erledigt-Abschnitt stehen als REIHENFOLGE bzw. ERLEDIGT dort. -->
 
+> **Diese Arbeit ruht.** [ADR 0042](entscheidungen/0042-quellenpruefung-ruht.md) vom
+> 22.09.2026: Der erreichte Stand gilt als ausreichend, die verbliebenen Paare werden nicht
+> weiter nachgelesen. Dieses Dokument bleibt als Einstiegspunkt, falls die Arbeit wieder
+> aufgenommen wird — es ist kein Rückstand und keine Aufgabenliste.
+
 Erhoben aus `skill/falzmarke/regeln/din5008.yaml`. Begonnen wurde mit 44 Paaren.
 
 Ein *Paar* ist eine Regel und eine Quelle, die sie nennt. Geprüft heißt: Jemand hat in der
 Quelle nachgesehen und das Ergebnis in `belegt_durch:` eingetragen — eine Fundstelle oder
 `SCHWEIGT` mit Begründung.
 
-## Warum das dringlicher ist, als es klingt
+## Was offen bleibt und was das heißt
 
 Ein ungeprüftes Paar wird **mitgezählt**: `unabhaengige_belege()` nimmt jede Quelle mit
 `zaehlt: voll`, solange sie nicht ausdrücklich als schweigend vermerkt ist. Nachlesen kann die
-Lage deshalb nur bestätigen oder verschlechtern — aufwerten kann es keine Regel.
+Lage deshalb nur bestätigen oder verschlechtern — aufwerten kann es keine Regel. Genau das ist
+der Grund, warum die Arbeit ruht: Die beiden Quellen, deren Prüfung etwas bewegen konnte, sind
+abgearbeitet.
 
-Das ist keine Theorie. Bei `onlineprinters` wurden am 27.08.2026 zehn Paare nachgelesen, alle
-zehn schwiegen, und drei Regeln fielen von Fehler auf Warnung
-([Befund](quellenpruefung-onlineprinters-2026-08-27.md)).
+Dass das Risiko nicht theoretisch ist, zeigt der bisherige Verlauf. Bei `onlineprinters` wurden
+am 27.08.2026 zehn Paare nachgelesen, alle zehn schwiegen, und drei Regeln fielen von Fehler auf
+Warnung ([Befund](quellenpruefung-onlineprinters-2026-08-27.md)).
 
 Derzeit hängen **10 Regeln mit Wirkung `fehler`** an mindestens einem ungeprüften
 Paar; schwiegen alle ungeprüften Quellen, verlören **10 Regeln** ihre Stufe. Das ist der
 ungünstigste Fall, nicht der erwartete — dass eine bemaßte Zeichnung zum Seitenformat schweigt,
-ist unwahrscheinlich. Die Zahl sagt, wie viel auf ungeprüftem Grund steht.
+ist unwahrscheinlich. Die Zahl sagt, wie viel auf ungeprüftem Grund steht, und sie ist mit
+ADR 0042 bewusst in Kauf genommen.
 
 ## Erledigt
 
@@ -30,10 +38,11 @@ ist unwahrscheinlich. Die Zahl sagt, wie viel auf ungeprüftem Grund steht.
 
 **`wikipedia` — alle fünf Paare, am 22.09.2026.** Über die API im Volltext geholt (13 020 Zeichen). Alle fünf tragen, keines schweigt. Drei wörtlich: Seitenformat („A4 (210 mm × 297 mm)“), Abkürzungen („z. B.“ samt geschütztem Leerzeichen) und Datum (beide Formen). Zwei mit Lücke: `geometrie.seitenraender` (nur der linke Rand, 2,5 cm Fluchtlinie) und `geometrie.schriftgroessen` (nur die 8 Punkt, und die nur für die Rücksendeangabe).
 
-## Reihenfolge
+## Was liegen bleibt
 
-Sortiert nach Wirkung je Aufwand, nicht nach Stückzahl. Die Spalte „Folge" ist regelbezogen:
-Sie gilt, wenn **alle** ungeprüften Quellen dieser Regel schweigen, nicht nur die der Portion.
+Die Reihenfolge stünde so, wenn die Arbeit wieder aufgenommen würde — sortiert nach Wirkung je
+Aufwand, nicht nach Stückzahl. Die Spalte „Folge" ist regelbezogen: Sie gilt, wenn **alle**
+ungeprüften Quellen dieser Regel schweigen, nicht nur die der Portion.
 
 | # | Quelle | Paare | trägt Gruppe? | Fehler-Regeln | Warum hier |
 |---|---|---|---|---|---|
