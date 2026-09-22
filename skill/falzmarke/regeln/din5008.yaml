@@ -39,6 +39,16 @@ regeln:
         Bemaßt mit 45 mm von der oberen Blattkante bis zur Unterkante des mit
         „Feld für Briefkopf, Form B“ beschrifteten Felds.
     wirkung: fehler
+    bemerkung: >-
+      Nicht zu verwechseln mit den 50 mm, die der Wikipedia-Artikel für das
+      Form-B-Anschriftfeld nennt: Das ist die Oberkante der Zusatz- und
+      Vermerkzone, also die **Unterkante der Rücksendeangabe**, und liegt 5 mm
+      tiefer als der Briefkopf. Der Artikel sagt es selbst — das Anschriftfeld
+      sei „von 40 auf 45 mm vergrößert“ worden, um die Rücksendeangabe
+      aufzunehmen, und es sei „9-zeilig: 3 Zeilen ZVZ, 6 Zeilen AZ“
+      (12,7 + 27,3 = 40,0 → 40 + 5 = 45 → 45 + 5 = 50). Kein Widerspruch,
+      andere Zählweise — siehe #345. Die 32 bzw. 50 mm stehen als Kante auch
+      bei uns: `geometrie.py`, `ruecksende_zone` und `infoblock_oben`.
 
   - id: geometrie.form_b.anschriftfeld
     titel: Anschriftfeld 85 × 45 mm, linke Kante 20 mm, Text ab 25 mm
@@ -77,6 +87,12 @@ regeln:
         Oberkante 50 mm. Das Restmaß 10 mm bis zur rechten Blattkante
         schließt die Zeile (125 + 75 + 10 = 210).
     wirkung: fehler
+    bemerkung: >-
+      Die 50 mm sind dieselbe Kante, die der Wikipedia-Artikel für das
+      Form-B-Anschriftfeld nennt — Oberkante der Zusatz- und Vermerkzone. Hier
+      entsteht die Verwechslung aus #345: Dieselbe Zahl meint bei uns die
+      Oberkante des Informationsblocks, dort den Beginn des Anschriftfelds.
+      Beides trifft zu, es ist eine Linie.
 
   - id: geometrie.form_b.falzmarken
     titel: Falzmarken bei 105 und 210 mm
@@ -107,6 +123,17 @@ regeln:
         Dezember 1976 und Entwurf Mai 1991), nicht auf DIN 5008 — siehe
         quellen.yaml.
     wirkung: warnung
+    bemerkung: >-
+      Nicht zu verwechseln mit den 32 mm, die der Wikipedia-Artikel für das
+      Form-A-Anschriftfeld nennt: Das ist die Oberkante der Zusatz- und
+      Vermerkzone, also die **Unterkante der Rücksendeangabe** (27 + 5), nicht
+      die Unterkante des Briefkopfs. Derselbe 5-mm-Versatz tritt bei Form B auf
+      (45 gegen 50) und hat dort dieselbe Ursache — siehe #345 und die
+      Bemerkung an `geometrie.form_b.briefkopf`. Der Artikel stützt das selbst:
+      Zeile 3 der Vermerkzone stehe „ca. 3,4 cm“ unter dem Blattrand, also
+      weder 27 noch 32. Kein neuer Beleg für diese Regel: Unsere 27 mm folgen
+      aus dem Artikel nur über eine Subtraktion, und daran hängt eine Stufe
+      (#180).
     bemerkung: >-
       Schwächer belegt als Form B, und das ist erst durch diese Erhebung
       aufgefallen. Eine bemaßte Zeichnung für Form A gibt es auf Wikimedia

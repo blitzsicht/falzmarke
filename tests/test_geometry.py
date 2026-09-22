@@ -43,6 +43,40 @@ def test_formspezifische_werte(gerendert, name, soll_falz1, soll_falz2, soll_kop
     assert geometrie.FORM[form]["kopfhoehe"] == soll_kopf
 
 
+@pytest.mark.parametrize("form,soll_kante", [("A", 32.0), ("B", 50.0)])
+def test_die_zahl_der_sekundaerquelle_ist_die_zonenkante_nicht_der_briefkopf(form, soll_kante):
+    """#345: Der Wikipedia-Artikel nennt 32 mm (Form A) und 50 mm (Form B) unter
+    der Blattkante, unsere Regeln sagen 27 und 45 mm. Das ist kein Widerspruch,
+    sondern eine andere Kante — und die Bemerkungen an `geometrie.form_a.masse`,
+    `geometrie.form_b.briefkopf` und `geometrie.form_b.infoblock` behaupten das.
+
+    Hier steht, woran diese Behauptung hängt: an genau einer Linie, die drei
+    Namen trägt. Verschiebt jemand einen der drei Werte allein, wird der Test
+    rot und die Bemerkung mit ihm falsch — ohne diese Probe wäre sie Prosa,
+    die still altert.
+
+    Die Zahl 32 bzw. 50 steht hier ausgeschrieben, weil sie aus der Quelle kommt
+    und nicht aus `geometrie.py`: Ein Test, der beide Seiten aus derselben Datei
+    läse, könnte nicht rot werden.
+    """
+    masse = geometrie.FORM[form]
+    kopf = masse["kopfhoehe"]
+    zone_oben, zone_unten = masse["ruecksende_zone"]
+
+    assert zone_oben == kopf, (
+        f"Form {form}: Die Rücksendezone beginnt bei {zone_oben}, der Briefkopf "
+        f"endet bei {kopf} — dann ist die Herleitung in der Regeldatei hinfällig.")
+    assert zone_unten == soll_kante, (
+        f"Form {form}: Unterkante der Rücksendezone {zone_unten}, die Quelle nennt "
+        f"{soll_kante} — die Bemerkung zu #345 stimmt nicht mehr.")
+    assert masse["infoblock_oben"] == soll_kante, (
+        f"Form {form}: Der Informationsblock beginnt bei {masse['infoblock_oben']}, "
+        f"nicht bei {soll_kante} — es ist dann nicht mehr dieselbe Linie.")
+    assert zone_unten - kopf == 5.0, (
+        f"Form {form}: Die Rücksendezone ist {zone_unten - kopf} mm hoch, nicht 5 — "
+        "der 5-mm-Versatz zur Quelle hätte dann eine andere Ursache.")
+
+
 def test_pdfa_ist_der_standardfall(gerendert):
     for name, (pdf, _) in gerendert.items():
         ist_pdfa, xmp = geometrie.pdfa_geprueft(pdf)
