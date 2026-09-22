@@ -89,11 +89,14 @@ drei Regeln fielen damals von Fehler auf Warnung.
 
 ## Nebenbefund: ADR 0032 und #12 widersprechen sich
 
-Beim Schreiben dieser Entscheidung aufgefallen und hier nur festgehalten, nicht entschieden:
+Beim Schreiben dieser Entscheidung aufgefallen und zunächst nur festgehalten:
 [ADR 0032](0032-verbreitung-vor-normabgleich.md) sagt unter „Folgen" ausdrücklich *„Die
 100-Sterne-Bedingung an #12 entfällt."* Der Vorgang #12 trägt dagegen seit dem 20.09.2026 den
 Abschnitt „Stand der Schwelle" mit dem Satz *„Die Schwelle bleibt"*.
 
-Die Wiedereinführung ist in keiner ADR abgelegt. Nach der Regel im
+Die Wiedereinführung war in keiner ADR abgelegt. Nach der Regel im
 [README](README.md) — „Eine Entscheidung wird nicht überschrieben — sie wird von einer späteren
-abgelöst" — fehlt hier die ablösende Entscheidung.
+abgelöst" — fehlte die ablösende Entscheidung.
+
+**Nachgetragen am selben Tag:** [ADR 0043](0043-sternschwelle-gilt-weiter.md) löst den
+betreffenden Teilsatz aus ADR 0032 ab. Die Schwelle gilt.
