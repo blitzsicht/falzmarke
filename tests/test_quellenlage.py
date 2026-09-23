@@ -720,16 +720,20 @@ def test_die_pruefung_wuerde_ein_stilles_schweigen_bemerken():
 # Bis hierher wurde das Schweigen nur *gemessen*. Jetzt hat es Folgen: Eine
 # Regel trägt ihre Stufe nur mit Quellen, die zur Sache etwas sagen.
 
-#: Sechs Regeln, deren einzige Quelle schweigt, dazu `text.anrede_komma`, deren
+#: Fünf Regeln, deren einzige Quelle schweigt, dazu `text.anrede_komma`, deren
 #: zweite Quelle (`letter_pro`) zählt nicht voll. Keine hat danach eine zählende
 #: Quelle — sie führen `werkzeug`: Setzgewohnheit des Werkzeugs, kein Beleg.
+#:
+#: Bis zum 22.09.2026 stand hier auch `text.anschrift_ohne_leerzeilen`. Sie ist
+#: mit #344 herausgefallen — nicht weil sich das Schweigen von `onlineprinters`
+#: geändert hätte, sondern weil eine zweite, sprechende Quelle dazukam: siehe
+#: BELEGT_STATT_WERKZEUG weiter unten.
 NUR_NOCH_WERKZEUG = [
     "schreibweise.einheiten",
     "schreibweise.geldbetrag",
     "schreibweise.zahlengliederung",
     "text.anlagen_ohne_doppelpunkt",
     "text.anrede_komma",
-    "text.anschrift_ohne_leerzeilen",
     "text.gruss_ohne_komma",
 ]
 
@@ -740,6 +744,13 @@ NUR_NOCH_EINZELN = [
     "schreibweise.datum",
     "text.vermerke_max_3",
 ]
+
+#: Anders als NUR_NOCH_EINZELN: Diese Regel ist nicht von Fehler auf Warnung
+#: gefallen, sie ist von `werkzeug` auf `einzeln_belegt` gestiegen. Der Anlass ist
+#: nicht #31, sondern #344 — die tragende Quelle war nie geprüft worden, sie war
+#: nie eingetragen. Deshalb eine eigene Liste: `test_die_drei_...` verlangt `#31`
+#: in jeder `bemerkung`, und das wäre hier die falsche Begründung.
+BELEGT_STATT_WERKZEUG = ["text.anschrift_ohne_leerzeilen"]
 
 
 def _regel(kennung: str) -> dict:
@@ -785,7 +796,7 @@ def test_die_zaehlung_ohne_schweiger_wuerde_eine_zu_hohe_stufe_bemerken():
     assert _traegt_ihre_stufe(einzeln, quellen, {("probe", "a")}) is False
 
 
-def test_die_sieben_ohne_zaehlende_quelle_fuehren_werkzeug():
+def test_die_sechs_ohne_zaehlende_quelle_fuehren_werkzeug():
     """AC 2: Sie tragen `herkunft: werkzeug` und wirken weiter als Warnung.
 
     „Weiter als Warnung“ heißt hier `deckel()`, nicht nur `wirkung:` in der
@@ -804,6 +815,42 @@ def test_die_sieben_ohne_zaehlende_quelle_fuehren_werkzeug():
 
     verstummt = [k for k in NUR_NOCH_WERKZEUG if _regel(k).get("wirkung") != "warnung"]
     assert not verstummt, f"`wirkung:` nicht mehr `warnung`: {verstummt}"
+
+
+def test_was_eine_quelle_woertlich_traegt_ist_keine_werkzeugpruefung():
+    """#344 / ADR 0044: Eine Regel, die eine geführte Quelle in eigener Prosa
+    nennt, ist kein Werkzeugurteil — auch wenn eine zweite Quelle dazu schweigt.
+
+    Die Probe misst beides, weil nur beides zusammen die Aussage trägt: Die
+    Herkunft ist `einzeln_belegt` UND der Beleg ist ein Fundstellen-Eintrag, kein
+    `SCHWEIGT`. Ohne die zweite Hälfte ließe sich die Stufe durch einen leeren
+    Eintrag erschleichen.
+    """
+    for kennung in BELEGT_STATT_WERKZEUG:
+        regel = _regel(kennung)
+        assert regel["herkunft"] == regeln.EINZELN, f"{kennung}: {regel['herkunft']}"
+        assert "deckel" not in regel, (
+            f"{kennung}: `deckel:` gilt nur für `werkzeug` — die Regeldatei bricht "
+            "sonst beim Laden ab (regeln/__init__.py, `_pruefe_deckel`).")
+        assert regeln.deckel(regel) == regeln.DECKEL_WARNUNG, (
+            f"{kennung}: eine Quelle allein darf keinen Lauf scheitern lassen")
+
+        belege = regel.get("belegt_durch") or {}
+        sprechend = [n for n, text in belege.items() if "SCHWEIGT" not in text]
+        assert sprechend, (
+            f"{kennung}: kein einziger sprechender Beleg — dann ist die Stufe "
+            f"nicht getragen: {sorted(belege)}")
+        assert "#344" in (regel.get("bemerkung") or ""), (
+            f"{kennung}: Der Aufstieg gehört in den Regeltext (`bemerkung:`), mit "
+            "Verweis auf #344 — sonst steht in der Datei kein Grund dafür.")
+
+        # Die Meldung nennt den sprechenden Beleg, nicht den schweigenden:
+        # `quellenhinweis()` nimmt `quellen[0]`, und die Reihenfolge ist deshalb
+        # keine Kosmetik.
+        erster = regel["quellen"][0]
+        assert erster in sprechend, (
+            f"{kennung}: `quellen[0]` ist {erster!r}, und die Quelle schweigt hier — "
+            "die Meldung würde sie trotzdem als Beleg nennen.")
 
 
 def test_die_drei_mit_sprechender_quelle_fallen_auf_warnung():
@@ -1155,14 +1202,18 @@ def test_form_a_traegt_jetzt_zwei_volle_quellen_bleibt_aber_warnung():
 
 # ── Was quellenlos wurde, beruft sich in seiner Meldung nicht mehr auf die Norm (#328)
 #
-# #31 hat `text.anrede_komma`, `text.gruss_ohne_komma` und
-# `text.anschrift_ohne_leerzeilen` die letzte zählende Quelle genommen; sie führen
-# `herkunft: werkzeug`. Die Korrekturhinweise in `lint.py` sagten weiter „nach DIN
-# endet die Anrede mit einem Komma“ und „die Norm lässt im Anschriftfeld keine
-# Leerzeilen zu“ — dieselbe Quellenbehauptung, nur eine Ebene tiefer. Gemessen wird
-# am fertigen Befund, den `cli.linte` für ein echtes Frontmatter liefert, nicht am
-# Quelltext von `lint.py`: Der Hinweis steht dort an vier Stellen (Brief und Mail),
-# und eine Suche im Quelltext trifft auch die eigene Prosa.
+# #31 hat `text.anrede_komma` und `text.gruss_ohne_komma` die letzte zählende
+# Quelle genommen; sie führen `herkunft: werkzeug`. Die Korrekturhinweise in
+# `lint.py` sagten weiter „nach DIN endet die Anrede mit einem Komma“ — dieselbe
+# Quellenbehauptung, nur eine Ebene tiefer. Gemessen wird am fertigen Befund, den
+# `cli.linte` für ein echtes Frontmatter liefert, nicht am Quelltext von
+# `lint.py`: Der Hinweis steht dort an vier Stellen (Brief und Mail), und eine
+# Suche im Quelltext trifft auch die eigene Prosa.
+#
+# `text.anschrift_ohne_leerzeilen` war hier bis zum 22.09.2026 der dritte Fall.
+# Mit #344 hat sie eine sprechende Quelle bekommen und nennt sie wieder — sie
+# steht jetzt in Probe A″ des Gegenprobe-Tests, auf der anderen Seite derselben
+# Messung.
 
 import re
 
@@ -1191,6 +1242,15 @@ betreff: Ein Betreff
 anrede: Sehr geehrte Frau Muster,
 """
 
+#: Die Gegenrichtung zu `_UMGEWIDMET`: derselbe Aufbau, aber eine Regel MIT
+#: sprechender Quelle. Sie stand bis #344 in der Liste darunter (siehe Probe A″).
+_BELEGT_EMPFAENGER = (
+    "brief-empfaenger",
+    _BRIEFKOPF.replace("[Muster GmbH, Musterstraße 1, 12345 Musterstadt]",
+                       '[Muster GmbH, "", 12345 Musterstadt]'),
+    "empfaenger", "text.anschrift_ohne_leerzeilen", "Leerzeile",
+)
+
 #: (Fall, Frontmatter, Regelname des Linters, Regel-ID in der Regeldatei, Stichwort
 #: der Meldung). Das Stichwort trennt den gesuchten Befund von anderen unter
 #: demselben Regelnamen (`empfaenger` meldet auch Zeilenzahl und Auslandsanschrift).
@@ -1201,10 +1261,6 @@ _UMGEWIDMET = [
     ("brief-gruss",
      _BRIEFKOPF + "gruss: Mit freundlichen Grüßen,\n",
      "gruss", "text.gruss_ohne_komma", "Komma"),
-    ("brief-empfaenger",
-     _BRIEFKOPF.replace("[Muster GmbH, Musterstraße 1, 12345 Musterstadt]",
-                        '[Muster GmbH, "", 12345 Musterstadt]'),
-     "empfaenger", "text.anschrift_ohne_leerzeilen", "Leerzeile"),
     ("mail-anrede",
      _MAILKOPF.replace("Muster,", "Muster"),
      "anrede", "text.anrede_komma", "Komma"),
@@ -1317,13 +1373,19 @@ def test_gegenprobe_die_regel_mit_quelle_nennt_sie_die_umgewidmete_nicht_mehr(tm
     Probe A′: `infoblock.telefon` (`schreibweise.telefon`) behielt ihre Quelle und
     damit ihren Ton — „Schreibweise der Norm“ bleibt stehen (AC 2). Ohne diese
     Probe genügte es, jedes „Norm“ aus `lint.py` zu tilgen.
-    Probe B: die fünf umgewidmeten Fälle nennen keine Quelle und tragen den Ton des
+    Probe A″: `empfaenger` (`text.anschrift_ohne_leerzeilen`) hat mit #344 den Weg
+    zurück gemacht — von `werkzeug` auf `einzeln_belegt`. Sie ist die einzige
+    Probe, die rot wird, wenn nur `lint.py` zurückgedreht wird und die Regeldatei
+    stehen bleibt; `test_was_eine_quelle_woertlich_traegt_...` deckt den
+    umgekehrten Fall. Zwei Sabotagen, zwei verschiedene Melder.
+    Probe B: die vier umgewidmeten Fälle nennen keine Quelle und tragen den Ton des
     Werkzeugs.
 
     Vorab die Probe des Messmittels: Das Muster für „beruft sich auf die Norm“
     muss die beiden alten Hinweise treffen und den neuen Ton in Ruhe lassen. Ein
     erster Entwurf (`Normen?`) traf „die Norm lässt …“ nicht, und der Fall
-    `brief-empfaenger` blieb zu Unrecht grün.
+    `brief-empfaenger` blieb zu Unrecht grün. Beide Wortlaute bleiben als Probe
+    stehen, auch der zur Anschrift: Geprüft wird hier das Muster, nicht `lint.py`.
     """
     for alt in ("nach DIN endet die Anrede mit einem Komma",
                 "die Norm lässt im Anschriftfeld keine Leerzeilen zu"):
@@ -1353,6 +1415,19 @@ def test_gegenprobe_die_regel_mit_quelle_nennt_sie_die_umgewidmete_nicht_mehr(tm
     mit_ton = _befund(tmp_path, kopf, "infoblock.telefon", "Vorwahl")
     assert "Norm" in mit_ton.meldung and "Norm" in mit_ton.korrektur, (
         f"die Regel mit Quelle hat ihren Ton verloren: {mit_ton.meldung!r} | {mit_ton.korrektur!r}")
+
+    # Probe A″
+    fall, kopf_leerzeile, regelname, kennung, stichwort = _BELEGT_EMPFAENGER
+    anschrift = _regel(kennung)
+    assert anschrift["herkunft"] == regeln.EINZELN, (
+        f"`{kennung}` ist nicht mehr einzeln belegt — Probe A″ misst nichts mehr")
+    wikipedia = regeln.quellen()[anschrift["quellen"][0]]["titel"]
+    belegt = _befund(tmp_path, kopf_leerzeile, regelname, stichwort)
+    assert "einzeln belegt" in belegt.meldung and wikipedia in belegt.meldung, (
+        f"{fall}: die Regel mit Quelle nennt sie nicht: {belegt.meldung!r}")
+    assert "Werkzeug" not in belegt.korrektur, (
+        f"{fall}: der Hinweis spricht weiter im Werkzeug-Ton, obwohl die Regel "
+        f"seit #344 eine Quelle hat: {belegt.korrektur!r}")
 
     # Probe B
     umgestellt = []

@@ -444,8 +444,13 @@ def _gemessen() -> dict[str, tuple[int, str]]:
         "schweigende Quellen": (len(schweigend), r"schweig|nichts"),
         "davon jetzt Werkzeugprüfung":
             (sum(1 for k in betroffen if _herkunft_von(k) == regeln.WERKZEUG), r"werkzeug"),
-        "von Fehler auf Warnung gefallen":
-            (sum(1 for k in betroffen if _herkunft_von(k) == regeln.EINZELN), r"Warnung|warn"),
+        #: Bezeichnung seit #344 neutral: Bis dahin waren alle diese Regeln von
+        #: Fehler auf Warnung GEFALLEN (#31). `text.anschrift_ohne_leerzeilen`
+        #: ist die erste, die umgekehrt gestiegen ist — von `werkzeug` auf
+        #: `einzeln_belegt`. Die Zählung misst die Stufe, nicht den Weg dorthin,
+        #: und der Name sagt das jetzt auch.
+        "davon jetzt einzeln belegt":
+            (sum(1 for k in betroffen if _herkunft_von(k) == regeln.EINZELN), r"einzeln"),
         #: Offener Rest 1. Ohne diese blieb die Suite grün, während der Abschnitt
         #: falsche Zahlen nannte — genau die stille Alterung, gegen die #329
         #: angetreten ist. Fiele `geometrie.seitenformat` auf `einzeln_belegt`,
@@ -482,7 +487,7 @@ def _gruppenlage() -> tuple[int, int]:
 
 @pytest.mark.parametrize("was", ["Regeln gesamt", "ungeprüfte Quelle-Regel-Paare",
                                  "schweigende Quellen", "davon jetzt Werkzeugprüfung",
-                                 "von Fehler auf Warnung gefallen",
+                                 "davon jetzt einzeln belegt",
                                  "davon Quellen derselben Gruppe",
                                  "davon Unabhängigkeit ungeprüft"])
 def test_der_stufenabschnitt_nennt_die_gemessene_zahl(was):
@@ -495,14 +500,14 @@ def test_der_stufenabschnitt_nennt_die_gemessene_zahl(was):
         "Neu zählen, datieren und hier nichts anpassen — die Zahl kommt aus den Daten.")
 
 
-def test_der_stufenabschnitt_nennt_die_drei_regeln_die_auf_warnung_fielen():
-    """AC 1, zweite Hälfte der Zahl 3: Sie steht nicht allein, sondern mit den
-    Kennungen — sonst ließe sich nicht nachprüfen, welche drei gemeint sind."""
-    gefallen = sorted(k for k, _ in regeln.schweigende_quellen()
-                      if _herkunft_von(k) == regeln.EINZELN)
-    assert gefallen, "keine auf Warnung gefallene Regel — dann misst dieser Test nichts"
+def test_der_stufenabschnitt_nennt_die_regeln_hinter_der_zahl():
+    """AC 1, zweite Hälfte der Zahl: Sie steht nicht allein, sondern mit den
+    Kennungen — sonst ließe sich nicht nachprüfen, welche Regeln gemeint sind."""
+    einzeln = sorted(k for k, _ in regeln.schweigende_quellen()
+                     if _herkunft_von(k) == regeln.EINZELN)
+    assert einzeln, "keine einzeln belegte Regel mit Schweiger — dann misst dieser Test nichts"
     text = _abschnitt_stufen()
-    fehlt = [k for k in gefallen if k not in text]
+    fehlt = [k for k in einzeln if k not in text]
     assert not fehlt, f"docs/recht.md, „{STUFEN_UEBERSCHRIFT}“: nennt nicht {fehlt}"
 
 
@@ -626,8 +631,8 @@ def test_ein_richtig_nachgezaehlter_abschnitt_besteht_dieselben_pruefungen():
     als der Auftrag, und die Umsetzung liefe gegen eine Wand, die niemand
     beschlossen hat. Die Zahlen kommen aus den Daten, nicht aus dem Text hier."""
     z = {was: n for was, (n, _) in _gemessen().items()}
-    gefallen = sorted(k for k, _ in regeln.schweigende_quellen()
-                      if _herkunft_von(k) == regeln.EINZELN)
+    einzeln = sorted(k for k, _ in regeln.schweigende_quellen()
+                     if _herkunft_von(k) == regeln.EINZELN)
     roh = (
         "Stand 21.09.2026, gemessen gegen `main` nach dem Merge von #31.\n\n"
         "| | |\n|---|---|\n"
@@ -635,8 +640,8 @@ def test_ein_richtig_nachgezaehlter_abschnitt_besteht_dieselben_pruefungen():
         f"| {z['schweigende Quellen']} | Quelle-Regel-Paare, bei denen die Quelle "
         "**nachweislich schweigt** (alle `onlineprinters`) |\n"
         f"| {z['davon jetzt Werkzeugprüfung']} | davon führen jetzt `herkunft: werkzeug` |\n"
-        f"| {z['von Fehler auf Warnung gefallen']} | fielen von Fehler auf Warnung: "
-        + ", ".join(f"`{k}`" for k in gefallen) + " |\n\n"
+        f"| {z['davon jetzt einzeln belegt']} | stehen auf `einzeln belegt`: "
+        + ", ".join(f"`{k}`" for k in einzeln) + " |\n\n"
         "Das ist mit #31 geschehen. Offen bleiben "
         f"{z['ungeprüfte Quelle-Regel-Paare']} ungeprüfte Quelle-Regel-Paare; "
         "sie betreffen überwiegend Maßzeichnungen und bleiben Handarbeit.\n\n"
@@ -650,7 +655,7 @@ def test_ein_richtig_nachgezaehlter_abschnitt_besteht_dieselben_pruefungen():
 
     for was, (n, stichwort) in _gemessen().items():
         assert _zahl_bei(text, n, stichwort), f"{was}: {n} nicht gefunden"
-    assert all(k in text for k in gefallen)
+    assert all(k in text for k in einzeln)
     assert any(STAND_FRUEHESTENS <= d <= date.today() for d in _stand_daten(text))
     assert not any(re.search(m, text) for m in VERALTET.values())
     assert re.search(r"#31(?!\d)", text)

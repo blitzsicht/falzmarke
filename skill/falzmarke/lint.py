@@ -1685,7 +1685,7 @@ def pruefe_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
             )
         if any(not str(z).strip() for z in zeilen):
             bericht.fehler(ort, "empfaenger", "Leerzeile im Anschriftfeld",
-                           "das Werkzeug hält eine Anschrift ohne Leerzeilen für richtig")
+                           "die Norm sieht im Anschriftfeld keine Leerzeilen vor")
         if len(zeilen) >= 2:
             letzte = str(zeilen[-1]).strip()
             vorletzte = str(zeilen[-2]).strip()

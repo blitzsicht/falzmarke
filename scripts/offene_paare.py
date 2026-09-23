@@ -57,7 +57,14 @@ ERLEDIGT = [
      "Lücke: `geometrie.form_b.zonen` (die Zeichnung zeigt 17,7 mm als **eine** Zone, "
      "die Aufteilung 5 + 12,7 nicht) und `text.folgeseiten` (Seitenzahl ausdrücklich, "
      "zur empfohlenen Kopfzeile nichts)."),
-    ("`wikipedia` — alle fünf Paare, am 22.09.2026",
+    ("`wikipedia` — alle sechs Paare, am 22.09.2026",
+     "Am selben Tag kam ein sechstes Paar dazu, das vorher gar nicht gezählt wurde: "
+     "`text.anschrift_ohne_leerzeilen` nannte den Artikel nie als Quelle, obwohl er "
+     "beide Hälften der Regel trägt. Eingetragen mit #344 — die Regel ist seither "
+     "`einzeln_belegt` statt `werkzeug` (ADR 0044). Ein neu eingetragenes Paar ist der "
+     "einzige Weg, auf dem eine Regel **aufsteigen** kann; Nachlesen kann sie nur "
+     "bestätigen oder herabstufen. "
+     "Die fünf ursprünglichen Paare: "
      "Über die API im Volltext geholt (13 020 Zeichen). Alle fünf tragen, keines "
      "schweigt. Drei wörtlich: Seitenformat („A4 (210 mm × 297 mm)“), Abkürzungen "
      "(„z. B.“ samt geschütztem Leerzeichen) und Datum (beide Formen). Zwei mit Lücke: "

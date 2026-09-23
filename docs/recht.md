@@ -72,11 +72,14 @@ Regel **nachweislich schweigen**: Sie zählen nicht mehr mit.
 |---|---|
 | 122 | Regeln insgesamt |
 | 11 | Quelle-Regel-Paare, bei denen die Quelle **nachweislich schweigt** — zehn davon `onlineprinters` ([Befund](quellenpruefung-onlineprinters-2026-08-27.md)), seit dem 22.09.2026 dazu die Zeichnung `massskizze_b` bei `text.vermerke_max_3` |
-| 7 | der betroffenen Regeln führen jetzt `herkunft: werkzeug` — eine Setzgewohnheit des Werkzeugs, keine Aussage der Norm |
-| 3 | fielen von Fehler auf Warnung: `schreibweise.datum`, `schreibweise.abkuerzungen`, `text.vermerke_max_3` — ihre zweite volle Quelle schwieg, es bleibt eine. Der Typografie-Pass meldet Datum und Abkürzungen seither nur noch, er ersetzt sie nicht mehr |
+| 6 | der betroffenen Regeln führen jetzt `herkunft: werkzeug` — eine Setzgewohnheit des Werkzeugs, keine Aussage der Norm |
+| 4 | stehen auf `einzeln belegt`. Drei fielen dorthin von Fehler herab: `schreibweise.datum`, `schreibweise.abkuerzungen`, `text.vermerke_max_3` — ihre zweite volle Quelle schwieg, es bleibt eine. Der Typografie-Pass meldet Datum und Abkürzungen seither nur noch, er ersetzt sie nicht mehr. Die vierte, `text.anschrift_ohne_leerzeilen`, ist umgekehrt **gestiegen** — von `werkzeug`, am 22.09.2026 mit [#344](https://github.com/blitzsicht/falzmarke/issues/344) |
 
-Die sieben Werkzeugprüfungen waren schon vorher Warnungen; bei ihnen ändert sich nur die
-Herkunft, die Wirkung bleibt Warnung.
+Die sechs Werkzeugprüfungen waren schon vorher Warnungen; bei ihnen ändert sich nur die
+Herkunft, die Wirkung bleibt Warnung. Auch der Aufstieg von `text.anschrift_ohne_leerzeilen`
+ändert an der Wirkung nichts: Eine Quelle allein darf keinen Lauf scheitern lassen, es bleibt
+bei der Warnung. Was sich ändert, ist die Begründung — die Meldung nennt jetzt wieder eine
+Quelle statt des Werkzeugs ([ADR 0044](entscheidungen/0044-woertlicher-beleg-schlaegt-werkzeugeinstufung.md)).
 
 **Offener Rest 1 — Regeln, die strenger sind, als ihr Beleg trägt.**
 
@@ -104,7 +107,10 @@ Regeldatei eintragen.
 
 Am 22.09.2026 sind so die Zeichnung `massskizze_b` (zwölf Paare, elf tragend, eines schweigend)
 und der Wikipedia-Artikel (fünf Paare, alle tragend, zwei mit benannter Lücke) abgearbeitet
-worden — 44 → 27. **Danach wurde die Arbeit eingestellt**
+worden — 44 → 27. Am selben Tag kam mit [#344](https://github.com/blitzsicht/falzmarke/issues/344)
+ein **sechstes** Wikipedia-Paar hinzu, das vorher niemand gezählt hatte, weil die Quelle bei
+dieser Regel nie eingetragen war; es kam mit Fundstelle und ist deshalb nie ungeprüft gewesen.
+Die 27 bleiben. **Danach wurde die Arbeit eingestellt**
 ([ADR 0042](entscheidungen/0042-quellenpruefung-ruht.md)): Abgearbeitet sind genau die beiden
 Quellen, deren Prüfung eine Stufe bewegen konnte; von den verbliebenen 27 Paaren liegen 16 bei
 Quellen, die gar keine Belegsgruppe tragen, und 10 bei einer, die keine zweite liefern kann.
