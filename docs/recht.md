@@ -33,6 +33,17 @@ wissen nicht mit letzter Sicherheit, ob jede Regel dem Normtext entspricht.**
 | offen — Annahme ohne Beleg | wird nicht geprüft |
 | Werkzeugprüfung — keine Aussage der Norm | Fehler oder Warnung, je nach Sache |
 
+**Für die Briefmaße gilt diese Tabelle nicht.** Sie beschreibt, was der Linter, der
+Typografie-Pass und die Prüfung der fertigen `.eml` aus einer Stufe machen — die drei schlagen
+jede Regel im Katalog nach. Die Nachmessung am fertigen PDF tut das nicht:
+[`skill/falzmarke/geometrie.py`](../skill/falzmarke/geometrie.py) kennt den Regelkatalog nicht
+und lädt ihn auch nicht; jede Abweichung dort ist ein Fehler, gleich auf welcher Stufe die Regel
+steht. Nachgemessen am 24.09.2026 an einem Form-A-Brief: Die Prüfung „Rücksendeangabe,
+Schriftgröße 7–8 pt" gehört zu `geometrie.schriftgroessen` — einzeln belegt —, steht im Bericht
+aber unter den 34 Maßen und nicht unter den Warnungen, deren Zahl 0 war. Bei den Geometrie-Regeln
+sagt die Stufe deshalb etwas über die Beleglage und nichts über die Wirkung. Ob das so bleiben
+soll, ist nicht entschieden; festgehalten ist hier, dass es so ist.
+
 **Nicht jede genannte Quelle zählt zur Bestätigung.** Zwei zählen bewusst nicht:
 
 - **Die eigene Messung am gerenderten PDF.** Sie belegt, dass das Werkzeug einhält, was es sich
@@ -60,7 +71,7 @@ sähe anders aus, als er geschrieben wurde, und niemand erführe warum.
 ## Was die Stufen derzeit wert sind
 
 Die Tabelle oben sagt, was eine Stufe **bedeutet**. Hier steht, was die Regeln tatsächlich
-tragen. **Stand: 22.09.2026**, gemessen gegen `main` nach der ersten Portion der Quellenprüfung. Die Zahlen kommen aus
+tragen. **Stand: 24.09.2026**, gemessen gegen `main` nach der Anhebung von `geometrie.form_a.masse` ([#180](https://github.com/blitzsicht/falzmarke/issues/180)). Die Zahlen kommen aus
 der Regeldatei; `tests/test_textkanon.py` zählt sie bei jedem Lauf nach und wird rot, sobald
 dieser Abschnitt ihnen nicht mehr folgt.
 
@@ -85,9 +96,17 @@ Quelle statt des Werkzeugs ([ADR 0044](entscheidungen/0044-woertlicher-beleg-sch
 
 | | |
 |---|---|
-| 10 | Regeln stehen noch auf „mehrfach bestätigt" und dürfen einen Lauf scheitern lassen |
+| 11 | Regeln stehen auf „mehrfach bestätigt" und dürfen einen Lauf scheitern lassen |
 | 8 | davon stützen sich auf zwei Quellen, die **dieselbe Zeichnung** sind ([Befund](quellenunabhaengigkeit-2026-08-27.md)) |
-| 2 | davon zwei Quellen desselben Trägers, Unabhängigkeit **ungeprüft** |
+| 3 | davon Quellen verschiedener Träger, Unabhängigkeit **ungeprüft**: `geometrie.seitenformat` und `geometrie.seitenraender` (Zeichnung und Artikel, beide unter der Wikimedia Foundation), seit dem 24.09.2026 dazu `geometrie.form_a.masse` (Zeichnung im Onlineprinters-Magazin gegen Fließtext bei Federwerk) |
+
+`geometrie.form_a.masse` ist am 24.09.2026 hinzugekommen — nicht, weil sie schwächer geworden
+wäre, sondern weil sie gestiegen ist ([ADR 0046](entscheidungen/0046-form-a-steigt-auf-mehrfach-bestaetigt.md)).
+Hinter ihr stehen wie bei `geometrie.seitenformat` und `geometrie.seitenraender` **zwei**
+Gruppen; die acht darüber stützen sich auf eine. Ungeprüft ist bei diesen dreien nicht dasselbe:
+Bei den beiden anderen liegen Zeichnung und Artikel unter derselben Stiftung und könnten
+voneinander abhängen, bei Form A sind es zwei Betreiber mit verschiedenen Darstellungsformen.
+Nachgesehen hat es in keinem der drei Fälle jemand.
 
 Das ist eine Entscheidung, keine Nachlässigkeit, und sie steht hier, damit niemand die Tabelle
 oben für eine Zusage hält, die sie im Einzelfall nicht einlöst: Der Normabgleich
@@ -97,7 +116,7 @@ oben für eine Zusage hält, die sie im Einzelfall nicht einlöst: Der Normabgle
 
 | | |
 |---|---|
-| 27 | Quelle-Regel-Paare sind ungeprüft: Bei ihnen steht nicht fest, ob die Quelle die Regel trägt oder zu ihr schweigt |
+| 26 | Quelle-Regel-Paare sind ungeprüft: Bei ihnen steht nicht fest, ob die Quelle die Regel trägt oder zu ihr schweigt |
 
 Das ist nicht „kein Beleg", sondern „nicht nachgesehen", und diese beiden Zustände werden nicht
 verwechselt. Die Paare betreffen überwiegend Maßzeichnungen und Quelltexte. Bei einer Zeichnung
@@ -110,11 +129,16 @@ und der Wikipedia-Artikel (fünf Paare, alle tragend, zwei mit benannter Lücke)
 worden — 44 → 27. Am selben Tag kam mit [#344](https://github.com/blitzsicht/falzmarke/issues/344)
 ein **sechstes** Wikipedia-Paar hinzu, das vorher niemand gezählt hatte, weil die Quelle bei
 dieser Regel nie eingetragen war; es kam mit Fundstelle und ist deshalb nie ungeprüft gewesen.
-Die 27 bleiben. **Danach wurde die Arbeit eingestellt**
+Die 27 blieben. **Danach wurde die Arbeit eingestellt**
 ([ADR 0042](entscheidungen/0042-quellenpruefung-ruht.md)): Abgearbeitet sind genau die beiden
-Quellen, deren Prüfung eine Stufe bewegen konnte; von den verbliebenen 27 Paaren liegen 16 bei
+Quellen, deren Prüfung eine Stufe bewegen konnte; von den verbliebenen Paaren liegen 16 bei
 Quellen, die gar keine Belegsgruppe tragen, und 10 bei einer, die keine zweite liefern kann.
-Die 27 sind damit kein Rückstand, sondern ein bewusst getragenes Risiko — welches, steht in
+Am 24.09.2026 ist eines der 27 herausgefallen: `massskizze_a` bei `geometrie.form_a.masse` hat
+seine Fundstelle bekommen, weil die Stufe der Regel auf ihr steht
+([#180](https://github.com/blitzsicht/falzmarke/issues/180)). Nachgelesen wurde dafür nichts —
+der Beleg stand seit dem 26.08.2026 im Quellen-Register und ist nur an die Regel umgetragen
+worden. Seither sind es **26**, und 16 + 10 geht wieder auf; mit den 27 tat es das nicht.
+Die 26 sind kein Rückstand, sondern ein bewusst getragenes Risiko — welches, steht in
 [Offene Quellenprüfungen](offene-quellenpruefungen.md).
 
 Die Sollwerte selbst sind davon unberührt: Sie sind an gerenderten PDFs gemessen und stimmen mit
