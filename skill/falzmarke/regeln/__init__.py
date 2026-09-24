@@ -103,6 +103,39 @@ class Regelfehler(ValueError):
     """Die Regeldatei ist unbrauchbar — kein Grund, ungeprüft weiterzumachen."""
 
 
+def _yaml_laden(pfad: Path) -> dict:
+    """YAML lesen — und einen doppelt vergebenen Schlüssel abweisen.
+
+    PyYAML nimmt bei zwei gleichen Schlüsseln in derselben Abbildung still den
+    letzten und meldet nichts. Gemessen am 24.09.2026: `geometrie.form_a.masse`
+    trug zwei `bemerkung:` (#345 und #18), und der zuerst geschriebene Absatz —
+    die Erklärung der 32 mm — war im geladenen Regelwerk nicht mehr vorhanden.
+    Kein Test konnte das sehen: Die Datei lädt ja.
+
+    Dieselbe Vorsicht wie bei der doppelten `id:` in `_pruefe_regel()`, nur eine
+    Ebene tiefer. Dort gilt sie für eine Regel, hier für jeden Schlüssel jeder
+    Abbildung — auch in `quellen.yaml` und unter `belegt_durch:`.
+    """
+    import yaml
+
+    class _OhneDoppelte(yaml.SafeLoader):
+        def construct_mapping(self, node, deep=False):
+            zeile: dict = {}
+            for schluessel_node, _ in node.value:
+                schluessel = self.construct_object(schluessel_node, deep=deep)
+                if schluessel in zeile:
+                    raise Regelfehler(
+                        f"{pfad.name}: Schlüssel doppelt vergeben: "
+                        f"{schluessel!r} in Zeile {schluessel_node.start_mark.line + 1} "
+                        f"(steht schon in Zeile {zeile[schluessel]}).\n"
+                        "        YAML nimmt hier still den letzten — der zuerst "
+                        "geschriebene Inhalt wäre verloren, ohne dass etwas meldet.")
+                zeile[schluessel] = schluessel_node.start_mark.line + 1
+            return super().construct_mapping(node, deep=deep)
+
+    return yaml.load(pfad.read_text(encoding="utf-8"), Loader=_OhneDoppelte) or {}
+
+
 @functools.lru_cache(maxsize=1)
 def laden() -> dict:
     """Ein Quellen-Register, mehrere Regeldateien.
@@ -116,11 +149,9 @@ def laden() -> dict:
     Jede Regel merkt sich unter `_datei`, woher sie stammt. Ohne das nennt eine
     Fehlermeldung die Regel, aber nicht die Datei, in der sie zu suchen ist.
     """
-    import yaml
-
     if not QUELLDATEI.is_file():
         raise Regelfehler(f"Quellen-Register fehlt: {QUELLDATEI}")
-    quellen = (yaml.safe_load(QUELLDATEI.read_text(encoding="utf-8")) or {}).get("quellen") or {}
+    quellen = _yaml_laden(QUELLDATEI).get("quellen") or {}
     if not quellen:
         raise Regelfehler(f"{QUELLDATEI.name} enthält keine Quellen.")
 
@@ -129,7 +160,7 @@ def laden() -> dict:
     for pfad, ebene_pflicht in REGELDATEIEN.items():
         if not pfad.is_file():
             raise Regelfehler(f"Regeldatei fehlt: {pfad}")
-        daten = (yaml.safe_load(pfad.read_text(encoding="utf-8")) or {}).get("regeln") or []
+        daten = _yaml_laden(pfad).get("regeln") or []
         if not daten:
             raise Regelfehler(f"{pfad.name} enthält keine Regeln.")
         for regel in daten:

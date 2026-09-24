@@ -508,6 +508,81 @@ def test_die_echte_regeldatei_traegt_ihre_stufen():
     assert len(regeln_modul.alle()) > 0
 
 
+# ── Ein doppelter Schlüssel darf nicht still den ersten fressen (#180) ───────
+#
+# Befund vom 24.09.2026: `geometrie.form_a.masse` trug zwei `bemerkung:` — einen
+# aus #345, einen aus #18. PyYAML nimmt in diesem Fall wortlos den letzten, und
+# der zuerst geschriebene Absatz, die Erklärung der 32 mm, war im geladenen
+# Regelwerk nicht mehr vorhanden. Die Datei lädt ja; nichts hatte etwas zu
+# melden. Seither liest `regeln._yaml_laden()` mit einem eigenen Loader.
+#
+# Die drei Tests gehören zusammen: der erste zeigt, dass es meldet, der zweite,
+# dass es NICHT irgendetwas meldet (sondern denselben Inhalt ohne Duplikat
+# durchlässt), der dritte, dass der Schutz auch für `quellen.yaml` gilt.
+
+def _mit_doppeltem_schluessel(tmp_path, zeilen: str) -> Path:
+    ziel = tmp_path / "regeln.yaml"
+    ziel.write_text(zeilen, encoding="utf-8")
+    return ziel
+
+
+_EINE_REGEL = """regeln:
+  - id: probe.regel
+    titel: Eine Probe
+    herkunft: werkzeug
+{zusatz}    wirkung: warnung
+"""
+
+
+def test_doppelter_schluessel_wird_abgewiesen(tmp_path):
+    ziel = _mit_doppeltem_schluessel(
+        tmp_path, _EINE_REGEL.format(
+            zusatz="    bemerkung: erster Absatz\n    bemerkung: zweiter Absatz\n"))
+    with pytest.raises(regeln_modul.Regelfehler) as fehler:
+        regeln_modul._yaml_laden(ziel)
+    meldung = str(fehler.value)
+    assert "bemerkung" in meldung, meldung
+    assert "doppelt" in meldung, meldung
+
+
+def test_ohne_doppelten_schluessel_laedt_dieselbe_datei(tmp_path):
+    """Die Gegenprobe zur Gegenprobe: Der Wächter darf nicht alles abweisen.
+
+    Ohne sie belegte der Test darüber nur, dass irgendetwas blockt — und ein
+    Loader, der jede Datei ablehnt, bestünde ihn ebenso.
+    """
+    ziel = _mit_doppeltem_schluessel(
+        tmp_path, _EINE_REGEL.format(zusatz="    bemerkung: zweiter Absatz\n"))
+    daten = regeln_modul._yaml_laden(ziel)
+    assert daten["regeln"][0]["bemerkung"] == "zweiter Absatz"
+
+
+def test_der_waechter_gilt_auch_fuer_das_quellen_register(tmp_path):
+    """`quellen.yaml` geht durch dieselbe Funktion — sonst wäre die Hälfte des
+    Bestands ungeschützt, und zwar die, an der jede Stufe hängt."""
+    ziel = tmp_path / "quellen.yaml"
+    ziel.write_text(
+        "quellen:\n"
+        "  probe:\n"
+        "    art: sekundaerquelle\n"
+        "    zaehlt: voll\n"
+        "    zaehlt: nie\n",
+        encoding="utf-8")
+    with pytest.raises(regeln_modul.Regelfehler) as fehler:
+        regeln_modul._yaml_laden(ziel)
+    assert "zaehlt" in str(fehler.value), str(fehler.value)
+
+
+def test_die_echten_regeldateien_haben_keinen_doppelten_schluessel():
+    """Positivprobe am ausgeführten Pfad, nicht an einer Kopie im tmp-Baum.
+
+    `laden()` ist die Stelle, die das System benutzt; sie geht über
+    `_yaml_laden()`. Bricht hier etwas, liegt es an einer echten Datei.
+    """
+    for pfad in [regeln_modul.QUELLDATEI, *regeln_modul.REGELDATEIEN]:
+        assert regeln_modul._yaml_laden(pfad), pfad.name
+
+
 def test_mehrfach_ohne_zwei_volle_quellen_wird_abgewiesen(tmp_path):
     """Der Fall, der v0.5.0 vierzehnmal unbemerkt blieb.
 
@@ -566,10 +641,25 @@ def test_quelle_ohne_zaehlstufe_wird_abgewiesen(tmp_path):
 
 
 def test_einzeln_belegt_braucht_wenigstens_einen_beleg(tmp_path):
-    """`eigene_messung` allein ist kein Beleg — sie misst nur uns selbst."""
+    """`eigene_messung` allein ist kein Beleg — sie misst nur uns selbst.
+
+    Die Regel, an der gekippt wird, steht **nicht** fest im Test. Hier stand bis
+    zum 24.09.2026 `geometrie.form_a.masse`; mit ihrer Anhebung auf
+    `mehrfach_bestaetigt` (#180) hätte dieselbe Sabotage einen anderen Melder
+    ausgelöst — „nur 0 voll zählende Quelle(n)" statt „trägt sie" —, und der Test
+    wäre aus einem Grund rot geworden, den er gar nicht prüft. Derselbe Unfall
+    wie am 29.08.2026 eine Prüfung weiter oben, nur umgekehrt herum.
+    """
+    kandidaten = [r["id"] for r in regeln_modul.alle()
+                  if r.get("herkunft") == regeln_modul.EINZELN and (r.get("quellen") or [])]
+    assert kandidaten, (
+        "Keine Regel mehr auf `einzeln_belegt` mit Quellen — dann kann dieser "
+        "Test nichts sabotieren und belegt nichts.")
+    ziel = kandidaten[0]
+
     def kippen(daten):
         for regel in daten["regeln"]:
-            if regel["id"] == "geometrie.form_a.masse":
+            if regel["id"] == ziel:
                 regel["quellen"] = ["eigene_messung"]
     with pytest.raises(regeln_modul.Regelfehler) as fehler:
         _laden(_regeldatei(tmp_path, kippen))
@@ -688,7 +778,10 @@ SCHWEIGENDE_QUELLEN = [
 #: Wie viele Quelle-Regel-Paare noch niemand nachgelesen hat. Die Zahl soll
 #: fallen. Steigt sie, ist eine Quelle eingetragen worden, ohne zu sagen, wo
 #: sie die Regel hergibt — genau der Vorgang, den #31 beenden will.
-UNGEPRUEFTE_PAARE = 27
+UNGEPRUEFTE_PAARE = 26   # 27 bis zum 24.09.2026 — `massskizze_a` bei `geometrie.form_a.masse`
+                         # hat seine Fundstelle bekommen, weil die Stufe der Regel auf
+                         # ihr steht (#180). Nachgelesen wurde nichts: Der Beleg stand
+                         # im Quellen-Register und ist an die Regel umgetragen worden.
 
 
 def test_die_schweigenden_quellen_sind_genau_diese():
@@ -1124,17 +1217,27 @@ def test_es_belegt_form_a_und_sagt_womit():
     assert "87" in fundstelle and "192" in fundstelle, fundstelle
 
 
-def test_form_a_steigt_dadurch_nicht_auf():
+def test_form_a_steigt_nicht_durch_dinbrief():
     """Abnahmepunkt 3 aus #134, wörtlich: „Keine Regel steigt allein deshalb auf
     mehrfach_bestaetigt, weil eine Quelle dazugekommen ist."
 
     Der Grund steht in `quellen.yaml`: dinbrief beruft sich auf DIN 676, wie
     `koma_script`. Zwei Umsetzungen derselben Grundlage sind keine zwei
     Aussagen über DIN 5008 — und falzmarke misst DIN 5008.
+
+    Bis zum 24.09.2026 stand hier `herkunft == EINZELN`. Die Regel ist mit #180
+    gestiegen, aber **nicht** wegen dinbrief: Die Stufe trägt, wer `zaehlt: voll`
+    ist, und das sind `massskizze_a` und `federwerk`. Genau das misst dieser
+    Test jetzt — die Aussage von #134 gilt unverändert, sie hing nur nie an der
+    Stufe der Regel, sondern an der Einstufung der Quelle.
     """
+    quellen = regeln.quellen()
     regel = [r for r in regeln.alle() if r["id"] == "geometrie.form_a.masse"][0]
-    assert regel["herkunft"] == regeln.EINZELN, regel["herkunft"]
-    assert regel["wirkung"] == "warnung"
+    assert "dinbrief" in regel["quellen"]
+    assert quellen["dinbrief"]["zaehlt"] == regeln.ZAEHLT_EINZELN
+    assert quellen["koma_script"]["zaehlt"] == regeln.ZAEHLT_EINZELN
+    tragend = {n for n in regel["quellen"] if quellen[n]["zaehlt"] == regeln.ZAEHLT_VOLL}
+    assert "dinbrief" not in tragend and "koma_script" not in tragend, tragend
 
 
 def test_die_begruendung_nennt_din_676():
@@ -1182,26 +1285,49 @@ def test_der_unterschied_zu_din_676_ist_benannt():
     assert "2011" in bemerkung, "die Ausgabe, auf die sie sich beruft, gehört genannt"
 
 
-def test_form_a_traegt_jetzt_zwei_volle_quellen_bleibt_aber_warnung():
-    """Der Punkt, an dem diese Runde aufhört.
+def test_form_a_steht_auf_zwei_gruppen_und_wirkt_als_fehler():
+    """Die Entscheidung aus #180, seit dem 24.09.2026 (ADR 0046).
 
-    Mit `massskizze_a` und `federwerk` stehen zwei voll zählende Quellen aus
-    verschiedenen Gruppen hinter der Regel — die Zählung ließe
-    `mehrfach_bestaetigt` zu. Die Anhebung machte aus der Warnung einen Fehler
-    und änderte damit, was das Werkzeug tut. Das ist eine Entscheidung des
-    Betreibers (Issue #180), keine Folge einer Beleglage.
+    Zwei voll zählende Quellen aus verschiedenen Gruppen — `massskizze_a`
+    (Zeichnung, Bezugsnorm 2020) und `federwerk` (Fließtext, schreibt die Maße
+    der DIN 5008 zu). Damit trägt die Regel `mehrfach_bestaetigt`.
 
-    Dieser Test hält beides fest: dass die Beleglage reicht, und dass die Stufe
-    trotzdem nicht angehoben wurde. Fällt die erste Hälfte, ist eine Quelle
-    verschwunden; fällt die zweite, wurde nebenbei entschieden.
+    Der Test hält beide Hälften fest: dass die Beleglage reicht, und dass die
+    Stufe ihr folgt. Fällt die erste, ist eine Quelle verschwunden und die Stufe
+    steht in der Luft; fällt die zweite, hat jemand die Entscheidung
+    zurückgedreht, ohne den ADR anzufassen.
     """
     quellen = regeln.quellen()
     regel = [r for r in regeln.alle() if r["id"] == "geometrie.form_a.masse"][0]
     volle = [n for n in regel["quellen"] if quellen[n].get("zaehlt") == "voll"]
-    assert len(volle) >= 2, volle
-    assert len({quellen[n]["gruppe"] for n in volle}) >= 2, "zwei Quellen, aber eine Gruppe"
-    assert regel["herkunft"] == regeln.EINZELN
-    assert regel["wirkung"] == "warnung"
+    assert sorted(volle) == ["federwerk", "massskizze_a"], volle
+    assert len({quellen[n]["gruppe"] for n in volle}) == 2, "zwei Quellen, aber eine Gruppe"
+    assert regel["herkunft"] == regeln.MEHRFACH
+    assert regel["wirkung"] == "fehler"
+    assert regeln.deckel(regel) == regeln.DECKEL_FEHLER
+
+
+def test_form_a_steht_auf_mehr_gruppen_als_jede_form_b_regel():
+    """Warum die Anhebung nicht am Vergleich mit Form B scheitert.
+
+    #180 führte als Argument, Form B stehe „auf zwei Zeichnungen" und wirke als
+    Fehler. Nachgemessen am 24.09.2026 ist es **eine**: `massskizze_b` und
+    `onlineprinters` tragen dieselbe `gruppe:`, weil sie dieselbe Zeichnung sind
+    (Befund vom 27.08.2026). Die fünf Form-B-Regeln stehen deshalb in
+    `stufe_traegt_nicht()`; Form A steht dort nicht.
+
+    Der Test misst den Kontrast, nicht die Meinung darüber. Verschwindet er —
+    etwa weil jemand für Form B eine echte zweite Quelle nachträgt —, gehört die
+    Begründung in ADR 0046 nachgezogen, und das ist eine gute Nachricht.
+    """
+    form_a = [r for r in regeln.alle() if r["id"] == "geometrie.form_a.masse"][0]
+    form_b = [r for r in regeln.alle() if r["id"].startswith("geometrie.form_b.")]
+    assert form_b, "keine Form-B-Regeln mehr — dann misst dieser Test nichts"
+    for regel in form_b:
+        assert len(regeln.unabhaengige_belege(regel)) == 1, regel["id"]
+        assert regel["id"] in regeln.stufe_traegt_nicht(), regel["id"]
+    assert len(regeln.unabhaengige_belege(form_a)) == 2
+    assert form_a["id"] not in regeln.stufe_traegt_nicht()
 
 
 # ── Was quellenlos wurde, beruft sich in seiner Meldung nicht mehr auf die Norm (#328)

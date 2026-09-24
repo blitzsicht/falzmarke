@@ -41,10 +41,11 @@ REIHENFOLGE: dict[str, tuple[str, str]] = {
         "`zaehlt: einzeln` — hebt keine Regel auf „mehrfach bestätigt“. Hält aber "
         "mehrere Warnungen allein am Leben und ist lokal vendort unter "
         "`skill/falzmarke/typst/vendor/`, also die billigste Arbeit der Liste."),
-    "massskizze_a": ("3",
-        "Zusammen mit `koma_script` ein Durchgang: beide betreffen nur "
-        "`geometrie.form_a.masse`, die schwächste Stelle der Quellenlage."),
-    "koma_script": ("3", "Siehe oben — dieselbe Regel, derselbe Durchgang."),
+    "koma_script": ("3",
+        "Betrifft nur `geometrie.form_a.masse`. Die Regel steht seit dem "
+        "24.09.2026 auf `mehrfach_bestaetigt` (#180), getragen von "
+        "`massskizze_a` und `federwerk` — `koma_script` zählt `einzeln` und "
+        "kann an der Stufe nichts mehr bewegen."),
 }
 
 #: Was abgearbeitet ist, in der Reihenfolge der Erledigung. Prosa, weil der

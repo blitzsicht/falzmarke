@@ -108,9 +108,16 @@ regeln:
   # ── Geometrie, Form A ────────────────────────────────────────────────────
   - id: geometrie.form_a.masse
     titel: Form A — Briefkopf 27 mm, Anschriftfeld ab 27 mm, Falzmarken 87 / 192 mm
-    herkunft: einzeln_belegt
+    herkunft: mehrfach_bestaetigt
     quellen: [massskizze_a, federwerk, koma_script, letter_pro, dinbrief]
     belegt_durch:
+      massskizze_a: >-
+        Eigene Form-A-Zeichnung im selben Artikel, Bezugsnorm DIN 5008:2020.
+        Abgelesen und nachgerechnet: Briefkopf und Anschriftfeld ab 27 mm,
+        Anschriftzone 20 mm von links und 45 mm hoch, Faltmarke 1 bei 87 mm,
+        Lochmarke bei 148,5 mm, von dort 105 mm bis Faltmarke 2 (= 192 mm) und
+        nochmals 105 mm bis zur Blattkante. 87 + 105 + 105 = 297 mm — die
+        Bemaßung geht auf A4 auf, was ein Ablesefehler nicht täte.
       federwerk: >-
         Nennt Form A getrennt von Form B und schreibt die Werte der DIN 5008
         zu: Kopfzeile 27 mm, Faltmarke 1 bei 87 mm, Lochmarke bei 148,5 mm,
@@ -122,7 +129,7 @@ regeln:
         untere Fensterecke 72 mm. Beruft sich dabei auf DIN 676 (Ausgabe
         Dezember 1976 und Entwurf Mai 1991), nicht auf DIN 5008 — siehe
         quellen.yaml.
-    wirkung: warnung
+    wirkung: fehler
     bemerkung: >-
       Nicht zu verwechseln mit den 32 mm, die der Wikipedia-Artikel für das
       Form-A-Anschriftfeld nennt: Das ist die Oberkante der Zusatz- und
@@ -131,34 +138,32 @@ regeln:
       (45 gegen 50) und hat dort dieselbe Ursache — siehe #345 und die
       Bemerkung an `geometrie.form_b.briefkopf`. Der Artikel stützt das selbst:
       Zeile 3 der Vermerkzone stehe „ca. 3,4 cm“ unter dem Blattrand, also
-      weder 27 noch 32. Kein neuer Beleg für diese Regel: Unsere 27 mm folgen
-      aus dem Artikel nur über eine Subtraktion, und daran hängt eine Stufe
-      (#180).
-    bemerkung: >-
-      Schwächer belegt als Form B, und das ist erst durch diese Erhebung
-      aufgefallen. Eine bemaßte Zeichnung für Form A gibt es auf Wikimedia
-      Commons nicht; Wikipedia nennt im Text nur die 32 mm für den Beginn der
-      Anschrift (= 27 mm Feldoberkante plus 5 mm Rücksendezone). Bleibt bis
-      zum Normabgleich eine Warnung.
+      weder 27 noch 32. Kein Beleg für diese Regel: Unsere 27 mm folgen aus dem
+      Artikel nur über eine Subtraktion, und eine Subtraktion ist keine
+      Nennung (ADR 0044). Die Stufe unten steht auf `massskizze_a` und
+      `federwerk`, nicht auf dieser Rechnung.
 
-      Seit dem 29.08.2026 steht `dinbrief` daneben (Issue #134) — die erste
-      Quelle für Form A, die falzmarke nicht selbst benutzt und die ihre Werte
-      ausdrücklich als Form A bezeichnet. Sie hebt die Stufe **nicht**: Wie
-      `koma_script` beruft sie sich auf DIN 676, nicht auf DIN 5008. Zwei
-      Umsetzungen derselben Grundlage sind keine zwei Aussagen über DIN 5008.
+      **Herkunft der Stufe.** `koma_script` und `dinbrief` berufen sich auf
+      DIN 676, nicht auf DIN 5008 (Issue #134) — zwei Umsetzungen derselben
+      Grundlage sind keine zwei Aussagen über DIN 5008, und sie zählen deshalb
+      nur `einzeln`. Getragen wird die Stufe von `massskizze_a` (Zeichnung,
+      Bezugsnorm 2020) und `federwerk` (Fließtext, der die Maße der DIN 5008
+      zuschreibt, Issue #18): zwei voll zählende Quellen aus zwei Gruppen.
 
-      Am selben Tag kam `federwerk` dazu (Issue #18) und schließt die Lücke,
-      um die es dort ging: eine externe Quelle, die alle vier Maße dieser Regel
-      nennt und sie **der DIN 5008** zuschreibt, nicht der DIN 676. Damit steht
-      Form A nicht mehr auf der eigenen Layoutbasis.
+      **Seit dem 24.09.2026 `mehrfach_bestaetigt` (Issue #180, ADR 0046).**
+      Zuvor stand hier `einzeln_belegt` mit dem Vermerk, die Anhebung mache
+      aus der Warnung einen Fehler und ändere damit, was das Werkzeug tut. Das
+      war nachgemessen falsch: Die Geometrie-Regeln tragen weder `lint:` noch
+      `pruefung:`, und `geometrie.py` kennt diesen Katalog nicht — die Maße am
+      fertigen PDF wirken seit jeher als Fehler. Die Stufe hier ist für die
+      Geometrie eine Aussage über die Beleglage, keine über die Wirkung.
 
-      **Die Stufe bleibt trotzdem `einzeln_belegt` — und das ist jetzt eine
-      offene Entscheidung, keine Beleglage.** Mit `massskizze_a` und
-      `federwerk` trägt die Regel zwei voll zählende Quellen aus verschiedenen
-      Gruppen; die Zählung in `regeln/__init__.py` ließe `mehrfach_bestaetigt`
-      zu. Die Anhebung machte aus der Warnung einen Fehler und änderte damit,
-      was das Werkzeug tut. Das gehört entschieden, nicht nebenbei mitgenommen
-      — siehe Issue #180.
+      Der Vergleich mit Form B trägt umgekehrt, als #180 annahm: Die fünf
+      `geometrie.form_b.*` stehen auf `massskizze_b` und `onlineprinters` —
+      zwei Ansichten **derselben** Zeichnung, eine Gruppe (Befund vom
+      27.08.2026). Sie stehen deshalb in `regeln.stufe_traegt_nicht()`, dem
+      offenen Rest von #16. Form A ist die einzige der sechs Formregeln, die
+      die Definition erfüllt.
 
   # ── Geometrie, formunabhängig ────────────────────────────────────────────
   - id: geometrie.seitenformat

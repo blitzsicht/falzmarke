@@ -1,4 +1,4 @@
-# Offene Quellenprüfungen — 27 ungeprüfte Quelle-Regel-Paare
+# Offene Quellenprüfungen — 26 ungeprüfte Quelle-Regel-Paare
 
 <!-- Erzeugt von scripts/offene_paare.py — nicht von Hand ändern.
      Reihenfolge und Erledigt-Abschnitt stehen als REIHENFOLGE bzw. ERLEDIGT dort. -->
@@ -26,7 +26,7 @@ Dass das Risiko nicht theoretisch ist, zeigt der bisherige Verlauf. Bei `onlinep
 am 27.08.2026 zehn Paare nachgelesen, alle zehn schwiegen, und drei Regeln fielen von Fehler auf
 Warnung ([Befund](quellenpruefung-onlineprinters-2026-08-27.md)).
 
-Derzeit hängen **10 Regeln mit Wirkung `fehler`** an mindestens einem ungeprüften
+Derzeit hängen **11 Regeln mit Wirkung `fehler`** an mindestens einem ungeprüften
 Paar; schwiegen alle ungeprüften Quellen, verlören **10 Regeln** ihre Stufe. Das ist der
 ungünstigste Fall, nicht der erwartete — dass eine bemaßte Zeichnung zum Seitenformat schweigt,
 ist unwahrscheinlich. Die Zahl sagt, wie viel auf ungeprüftem Grund steht, und sie ist mit
@@ -47,9 +47,8 @@ ungeprüften Quellen dieser Regel schweigen, nicht nur die der Portion.
 | # | Quelle | Paare | trägt Gruppe? | Fehler-Regeln | Warum hier |
 |---|---|---|---|---|---|
 | 1 | `onlineprinters` | 10 | ja | 8 | Gleiche Gruppe wie die bereits geprüfte `massskizze_b`, bestätigt also keine zweite. Zehn Paare derselben Quelle schwiegen schon — hier ist mit Schweigen zu rechnen, und genau das ist der Grund, es zu wissen. |
-| 2 | `letter_pro` | 15 | **nein** | 10 | `zaehlt: einzeln` — hebt keine Regel auf „mehrfach bestätigt“. Hält aber mehrere Warnungen allein am Leben und ist lokal vendort unter `skill/falzmarke/typst/vendor/`, also die billigste Arbeit der Liste. |
-| 3 | `koma_script` | 1 | **nein** | 0 | Siehe oben — dieselbe Regel, derselbe Durchgang. |
-| 3 | `massskizze_a` | 1 | ja | 0 | Zusammen mit `koma_script` ein Durchgang: beide betreffen nur `geometrie.form_a.masse`, die schwächste Stelle der Quellenlage. |
+| 2 | `letter_pro` | 15 | **nein** | 11 | `zaehlt: einzeln` — hebt keine Regel auf „mehrfach bestätigt“. Hält aber mehrere Warnungen allein am Leben und ist lokal vendort unter `skill/falzmarke/typst/vendor/`, also die billigste Arbeit der Liste. |
+| 3 | `koma_script` | 1 | **nein** | 1 | Betrifft nur `geometrie.form_a.masse`. Die Regel steht seit dem 24.09.2026 auf `mehrfach_bestaetigt` (#180), getragen von `massskizze_a` und `federwerk` — `koma_script` zählt `einzeln` und kann an der Stufe nichts mehr bewegen. |
 
 ## 1. `onlineprinters` — 10 Paare
 
@@ -83,6 +82,7 @@ Zählstufe `einzeln`, Gruppe `letter_pro`.
 | Regel | Wirkung heute | Titel | Folge, wenn alle ungeprüften Quellen der Regel schweigen |
 |---|---|---|---|
 | `geometrie.betreffabstand` | **Fehler** | Betreff zwei Leerzeilen (8,46 mm) unter dem tieferen von Feld und Block | **fällt auf Warnung** |
+| `geometrie.form_a.masse` | **Fehler** | Form A — Briefkopf 27 mm, Anschriftfeld ab 27 mm, Falzmarken 87 / 192 mm | bleibt |
 | `geometrie.form_b.anschriftfeld` | **Fehler** | Anschriftfeld 85 × 45 mm, linke Kante 20 mm, Text ab 25 mm | **fällt auf Warnung** |
 | `geometrie.form_b.briefkopf` | **Fehler** | Briefkopfhöhe Form B, 45 mm | **fällt auf Warnung** |
 | `geometrie.form_b.falzmarken` | **Fehler** | Falzmarken bei 105 und 210 mm | **fällt auf Warnung** |
@@ -92,7 +92,6 @@ Zählstufe `einzeln`, Gruppe `letter_pro`.
 | `geometrie.lochmarke` | **Fehler** | Lochmarke bei 148,5 mm | **fällt auf Warnung** |
 | `geometrie.seitenformat` | **Fehler** | A4, 210 × 297 mm | bleibt |
 | `geometrie.seitenraender` | **Fehler** | Rand links 25 mm, rechts 20 mm, Textbreite 165 mm | bleibt |
-| `geometrie.form_a.masse` | Warnung | Form A — Briefkopf 27 mm, Anschriftfeld ab 27 mm, Falzmarken 87 / 192 mm | bleibt |
 | `schreibweise.abkuerzungen` | Warnung | Abkürzungen mit geschütztem Leerzeichen: z. B., u. a. | bleibt |
 | `schreibweise.datum` | Warnung | Datum als „25. August 2026“ oder „2026-08-25“ | bleibt |
 | `text.anrede_komma` | Warnung | Anrede endet mit Komma, der Text darunter beginnt klein | unberührt |
@@ -110,17 +109,7 @@ Zählstufe `einzeln`, Gruppe `koma_script`.
 
 | Regel | Wirkung heute | Titel | Folge, wenn alle ungeprüften Quellen der Regel schweigen |
 |---|---|---|---|
-| `geometrie.form_a.masse` | Warnung | Form A — Briefkopf 27 mm, Anschriftfeld ab 27 mm, Falzmarken 87 / 192 mm | bleibt |
-
-## 3. `massskizze_a` — 1 Paar
-
-Maßzeichnung Form A im Onlineprinters-Magazin
-`https://www.onlineprinters.de/magazin/aufbau-geschaeftsbrief-nach-din-5008/`
-Zählstufe `voll`, Gruppe `onlineprinters_magazin`.
-
-| Regel | Wirkung heute | Titel | Folge, wenn alle ungeprüften Quellen der Regel schweigen |
-|---|---|---|---|
-| `geometrie.form_a.masse` | Warnung | Form A — Briefkopf 27 mm, Anschriftfeld ab 27 mm, Falzmarken 87 / 192 mm | bleibt |
+| `geometrie.form_a.masse` | **Fehler** | Form A — Briefkopf 27 mm, Anschriftfeld ab 27 mm, Falzmarken 87 / 192 mm | bleibt |
 
 ## Wie eine Prüfung abläuft
 
