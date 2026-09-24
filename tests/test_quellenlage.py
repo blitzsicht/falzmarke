@@ -339,9 +339,21 @@ def test_offene_regel_wird_gar_nicht_gemeldet(monkeypatch):
 
 
 def test_die_meldung_nennt_die_quellenlage(monkeypatch):
+    """Die Regel ist `datum` und nicht mehr `gruss` (#350).
+
+    `text.gruss_ohne_komma` nennt genau eine Quelle, und die schweigt zur Regel
+    — deshalb führt sie `werkzeug`. Der Test übersteuerte die Herkunft auf
+    `einzeln_belegt` und baute damit eine Lage nach, die `_pruefe_beleglage`
+    beim Laden abweisen würde: belegt, aber von niemandem. Seit die Meldung
+    schweigende Quellen überspringt, hat sie dort nichts mehr zu nennen — zu
+    Recht. Gemessen wird jetzt an `schreibweise.datum`, die wirklich einzeln
+    belegt ist und deren Quelle wirklich spricht.
+    """
+    assert regeln.herkunft_von_lint("datum") == regeln.EINZELN, (
+        "`schreibweise.datum` ist nicht mehr einzeln belegt — der Test misst nichts mehr")
     monkeypatch.setattr(regeln, "herkunft_von_lint", lambda _: regeln.EINZELN)
     bericht = lint.Bericht()
-    bericht.fehler(1, "gruss", "Die Grußformel steht ohne Komma")
+    bericht.fehler(1, "datum", "Das Datum steht in keiner der beiden Formen")
     assert "einzeln belegt" in bericht.befunde[0].meldung
 
 
@@ -843,14 +855,6 @@ def test_was_eine_quelle_woertlich_traegt_ist_keine_werkzeugpruefung():
         assert "#344" in (regel.get("bemerkung") or ""), (
             f"{kennung}: Der Aufstieg gehört in den Regeltext (`bemerkung:`), mit "
             "Verweis auf #344 — sonst steht in der Datei kein Grund dafür.")
-
-        # Die Meldung nennt den sprechenden Beleg, nicht den schweigenden:
-        # `quellenhinweis()` nimmt `quellen[0]`, und die Reihenfolge ist deshalb
-        # keine Kosmetik.
-        erster = regel["quellen"][0]
-        assert erster in sprechend, (
-            f"{kennung}: `quellen[0]` ist {erster!r}, und die Quelle schweigt hier — "
-            "die Meldung würde sie trotzdem als Beleg nennen.")
 
 
 def test_die_drei_mit_sprechender_quelle_fallen_auf_warnung():
@@ -1399,11 +1403,19 @@ def test_gegenprobe_die_regel_mit_quelle_nennt_sie_die_umgewidmete_nicht_mehr(tm
     vermerke = regeln.fuer_lint("vermerke")
     assert vermerke["herkunft"] == regeln.EINZELN, (
         "`text.vermerke_max_3` ist nicht mehr einzeln belegt — Probe A misst nichts mehr")
-    titel = regeln.quellen()[vermerke["quellen"][0]]["titel"]
+    # Der erste SPRECHENDE Titel, nicht `quellen[0]` (#350): dort steht hier die
+    # Maßzeichnung, und die schweigt zur Zeilenzahl. Bis zum 23.09.2026 nannte
+    # die Meldung sie trotzdem, und dieser Test hielt genau das fest.
+    titel = _erster_sprechender_titel(vermerke)
+    geschwiegen = regeln.quellen()[vermerke["quellen"][0]]["titel"]
+    assert titel != geschwiegen, (
+        "`quellen[0]` spricht jetzt selbst — Probe A misst den Unterschied nicht mehr")
     zu_viele = _BRIEFKOPF + "vermerke: [Einschreiben, Persönlich, Eilt, Vertraulich]\n"
     mit_quelle = _befund(tmp_path, zu_viele, "vermerke", "Zeilen")
     assert "einzeln belegt" in mit_quelle.meldung and titel in mit_quelle.meldung, (
         f"die Regel mit Quelle nennt sie nicht mehr: {mit_quelle.meldung!r}")
+    assert geschwiegen not in mit_quelle.meldung, (
+        f"die Meldung nennt die schweigende Quelle als Beleg: {mit_quelle.meldung!r}")
 
     # Probe A′
     assert regeln.fuer_lint("infoblock.telefon") is None, (
@@ -1440,3 +1452,124 @@ def test_gegenprobe_die_regel_mit_quelle_nennt_sie_die_umgewidmete_nicht_mehr(tm
     assert not umgestellt, (
         f"Diese Fälle sind nicht umgestellt (Quelle genannt, Norm berufen oder kein "
         f"Werkzeug-Ton): {umgestellt}")
+
+
+# ── #350: Die Meldung nennt keine Quelle, die zur Regel schweigt ────────────
+#
+# `quellenhinweis()` baute den Zusatz bis zum 23.09.2026 aus `quellen[0]` und
+# las `belegt_durch` dabei nie. Bei `text.vermerke_max_3` stand dort die
+# Maßzeichnung, die in der Regeldatei ausdrücklich `SCHWEIGT` — die Meldung
+# nannte als Beleg, was keiner ist. Die Stufe war davon nie betroffen; falsch
+# war nur, was der Nutzer las.
+#
+# Die Proben unten rechnen die Lage aus den ROHEN Daten nach, nicht über
+# `regeln._schweigt`. Ein Sollwert, der sich beim Prüfling bedient, prüft nichts.
+
+def _schweigt_laut_datei(regel: dict, quelle: str) -> bool:
+    fundstelle = (regel.get("belegt_durch") or {}).get(quelle)
+    return str(fundstelle or "").lstrip().startswith("SCHWEIGT")
+
+
+def _erster_sprechender_titel(regel: dict) -> str:
+    for name in regel["quellen"]:
+        if not _schweigt_laut_datei(regel, name):
+            return regeln.quellen()[name]["titel"]
+    raise AssertionError(f"{regel['id']}: keine einzige sprechende Quelle")
+
+
+def _mit_verstummter_quelle(lintname: str, *verstummt: str) -> dict:
+    """Die echte Regel, an genau den genannten Quellen sabotiert.
+
+    Über `fuer_lint` und nicht über `_regeldatei()`/`_laden()`: Die leeren nur
+    `laden.cache_clear()`, nicht den `lru_cache` von `_nach_lint()`, über den
+    `quellenhinweis()` geht. Eine Sabotage auf jenem Weg käme bei der Meldung
+    nie an — die Probe könnte dann gar nicht rot werden.
+    """
+    kaputt = copy.deepcopy(regeln.fuer_lint(lintname))
+    belege = kaputt.setdefault("belegt_durch", {})
+    for quelle in verstummt:
+        assert quelle in kaputt["quellen"], (
+            f"{kaputt['id']}: {quelle!r} steht gar nicht unter `quellen` — "
+            "die Sabotage liefe ins Leere")
+        belege[quelle] = "SCHWEIGT — Sabotage dieses Tests, kein Befund."
+    return kaputt
+
+
+def test_die_meldung_ueberspringt_schweigende_quellen():
+    """AC 4: zwei Proben, verschiedenes Ergebnis — sonst bleibt offen, ob der
+    Fix überhaupt greift.
+
+    Probe A: `schreibweise.datum` — `quellen[0]` spricht, die Meldung nennt sie,
+    nichts ändert sich. Probe B: `text.vermerke_max_3` — `quellen[0]` schweigt,
+    die Meldung überspringt sie und nennt die erste sprechende.
+
+    Beiden voran der Ankercheck auf die Lage, die sie messen. Ohne ihn misst
+    der Test stillschweigend nichts mehr, sobald jemand die Reihenfolge unter
+    `quellen:` ändert — und die zu ändern ist seit #350 erlaubt.
+    """
+    # Probe A — unverändert
+    datum = regeln.fuer_lint("datum")
+    erste_a = datum["quellen"][0]
+    assert not _schweigt_laut_datei(datum, erste_a), (
+        f"`schreibweise.datum`: {erste_a!r} schweigt jetzt auch — Probe A misst "
+        "nicht mehr den unveränderten Fall")
+    assert regeln.quellen()[erste_a]["titel"] in regeln.quellenhinweis("datum")
+
+    # Probe B — ändert sich
+    vermerke = regeln.fuer_lint("vermerke")
+    erste_b = vermerke["quellen"][0]
+    assert _schweigt_laut_datei(vermerke, erste_b), (
+        f"`text.vermerke_max_3`: {erste_b!r} schweigt nicht mehr — Probe B hat "
+        "keinen Fall mehr, an dem sich etwas ändern könnte")
+    hinweis = regeln.quellenhinweis("vermerke")
+    assert regeln.quellen()[erste_b]["titel"] not in hinweis, (
+        f"die Meldung nennt die schweigende Quelle als Beleg: {hinweis!r}")
+    assert _erster_sprechender_titel(vermerke) in hinweis, (
+        f"die Meldung nennt die erste sprechende Quelle nicht: {hinweis!r}")
+
+
+def test_gegenprobe_verstummt_die_tragende_quelle_wandert_die_meldung_weiter(monkeypatch):
+    """AC 5, Sabotage an genau einer Stelle, mit vorher benanntem Melder.
+
+    `belegt_durch.wikipedia` von `text.vermerke_max_3` wird auf `SCHWEIGT`
+    gesetzt. Dann bleibt unter `quellen:` nur `letter_pro` übrig — die einzige,
+    zu der niemand `SCHWEIGT` notiert hat —, und die Meldung muss **sie**
+    nennen. Erwartet wird also nicht „irgendetwas ändert sich", sondern ein
+    namentlicher Wert.
+
+    `letter_pro` zählt `einzeln` und trägt die Beleglage damit weiter; die
+    Regeldatei bräche bei dieser Sabotage nicht schon beim Laden ab, der
+    Unterschied entsteht wirklich in `quellenhinweis()`.
+    """
+    vermerke = regeln.fuer_lint("vermerke")
+    vorher = regeln.quellenhinweis("vermerke")
+    assert regeln.quellen()["wikipedia"]["titel"] in vorher, (
+        f"Ankerwert veraltet: die Meldung trägt Wikipedia gar nicht: {vorher!r}")
+    assert regeln.quellen()["letter_pro"]["zaehlt"] != regeln.ZAEHLT_NIE, (
+        "`letter_pro` zählt nicht mehr — die Sabotage nähme der Regel ihre Stufe "
+        "und mäße etwas anderes als die Meldung")
+
+    kaputt = _mit_verstummter_quelle("vermerke", "wikipedia")
+    monkeypatch.setattr(regeln, "fuer_lint",
+                        lambda name: kaputt if name == "vermerke" else None)
+    nachher = regeln.quellenhinweis("vermerke")
+    assert nachher == (f"Quelle: sekundär, einzeln belegt — "
+                       f"{regeln.quellen()['letter_pro']['titel']}"), nachher
+    assert nachher != vorher, "die Sabotage ändert nichts — die Prüfung kann nicht rot werden"
+    assert vermerke["belegt_durch"]["wikipedia"].startswith("Nennt die Zahl"), (
+        "die Sabotage hat den echten Bestand angefasst")
+
+
+def test_schweigen_alle_quellen_nennt_die_meldung_keine(monkeypatch):
+    """AC 2: kein Rückfall auf `quellen[0]`.
+
+    Eine Regel, zu der jede genannte Quelle schweigt, dürfte gar nicht
+    `einzeln_belegt` heißen — `test_einzeln_belegt_braucht_wenigstens_einen_beleg`
+    weist sie beim Laden ab. Die Meldung verlässt sich darauf nicht: Sie nennt
+    dann keine, statt die erstbeste zu nehmen.
+    """
+    kaputt = _mit_verstummter_quelle("vermerke", *regeln.fuer_lint("vermerke")["quellen"])
+    monkeypatch.setattr(regeln, "fuer_lint",
+                        lambda name: kaputt if name == "vermerke" else None)
+    assert regeln.quellenhinweis("vermerke") == "", (
+        "die Meldung nennt eine Quelle, obwohl jede von ihnen schweigt")

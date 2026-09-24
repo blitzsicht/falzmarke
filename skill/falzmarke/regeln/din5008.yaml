@@ -320,9 +320,6 @@ regeln:
     titel: Anschriftzone bis 6 Zeilen, keine Leerzeilen
     lint: empfaenger
     herkunft: einzeln_belegt
-    # Wikipedia zuerst: `quellenhinweis()` nennt in der Meldung `quellen[0]`,
-    # und `onlineprinters` schweigt hier — die Meldung sähe sonst eine Quelle
-    # als Beleg vor, die zur Sache nichts sagt.
     quellen: [wikipedia, onlineprinters]
     belegt_durch:
       wikipedia: >-

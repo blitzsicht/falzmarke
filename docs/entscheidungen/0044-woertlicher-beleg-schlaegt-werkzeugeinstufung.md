@@ -74,6 +74,15 @@ eingetragen werden sie trotzdem nicht: Eine Subtraktion ist keine Nennung, und b
   Meldung `quellen[0]`. Steht dort eine Quelle, die zur Regel schweigt, nennt die Meldung sie
   trotzdem als Beleg. Deshalb steht `wikipedia` vorn, und `tests/test_quellenlage.py` hält das
   in `test_was_eine_quelle_woertlich_traegt_ist_keine_werkzeugpruefung` fest.
+
+  **Nachtrag 23.09.2026 ([#350](https://github.com/blitzsicht/falzmarke/issues/350)): Dieser
+  Punkt gilt nicht mehr.** Er war die Umgehung, nicht die Behebung — und er beschrieb einen
+  Zustand, den es schon damals an einer zweiten Stelle gab: Bei `text.vermerke_max_3` stand die
+  schweigende Maßzeichnung vorn, und die Meldung nannte sie. `quellenhinweis()` überspringt
+  seither die Quellen, zu denen `belegt_durch` `SCHWEIGT` sagt, und nimmt die erste sprechende;
+  schweigen alle, nennt die Meldung keine. Die Reihenfolge unter `quellen:` ist damit wieder
+  Lesbarkeit, und die Zusicherung im Test ist mit ihrem Grund entfallen. `wikipedia` steht hier
+  weiter vorn — das hängt jetzt an nichts mehr.
 - Die Meldung sagt wieder „die Norm sieht im Anschriftfeld keine Leerzeilen vor", mit dem
   Zusatz „Quelle: sekundär, einzeln belegt". Gesperrt bleiben „normgerecht", „DIN-konform",
   „normkonform" und „zertifiziert" — daran ändert sich nichts.
