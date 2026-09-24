@@ -444,6 +444,13 @@ def quellenhinweis(regelname: str) -> str:
     ADR 0035 verlangt, dass die Meldung sie nennt; bei den Briefregeln bleibt
     es die Quellenlage. Wo eine Regel keine Ebene trägt, ändert sich nichts an
     dem, was bisher dastand.
+
+    Genannt wird die erste Quelle, die zur Regel **etwas sagt**. Bis #350 war es
+    schlicht `quellen[0]`, und bei `text.vermerke_max_3` stand dort die
+    Maßzeichnung, die in der Regeldatei ausdrücklich `SCHWEIGT` — die Meldung
+    nannte als Beleg, was keiner ist. Die Stufe war davon nie betroffen,
+    `unabhaengige_belege()` rechnet Schweiger seit #31 heraus; falsch war nur,
+    was der Nutzer las.
     """
     regel = fuer_lint(regelname)
     if not regel:
@@ -457,8 +464,16 @@ def quellenhinweis(regelname: str) -> str:
     # austauschte, prüfte nur, dass `gruss` gerade `einzeln_belegt` war.
     if herkunft_von_lint(regelname) != EINZELN:
         return ""
-    namen = regel.get("quellen") or []
+    # Dieselbe Erkennung wie in `_pruefe_beleglage` und `unabhaengige_belege()`:
+    # `_schweigt` ist die eine Zugriffsstelle für „diese Quelle sagt zur Regel
+    # nichts". Eine zweite Lesart des Wortes `SCHWEIGT` wäre eine zweite
+    # Wahrheit, die still auseinanderlaufen könnte.
+    namen = [n for n in _quellennamen(regel) if not _schweigt(regel, n)]
     if not namen:
+        # Schweigen alle, wird keine genannt — kein Rückfall auf `quellen[0]`.
+        # Eine Regel in dieser Lage dürfte ohnehin nicht `einzeln_belegt` sein
+        # (`_pruefe_beleglage` weist sie beim Laden ab); die Meldung verlässt
+        # sich darauf nicht.
         return ""
     titel = quellen()[namen[0]]["titel"]
     return f"Quelle: sekundär, einzeln belegt — {titel}"
