@@ -40,7 +40,11 @@ MARKE_ENDE = "<!-- changelog:ende -->"
 # Absolut, nicht relativ: Die README wird auch auf PyPI gerendert, und dort
 # zeigt ein relativer Verweis ins Leere. tests/test_readme_auf_pypi.py haelt
 # das fest — diese Zeile ist einmal dagegen gelaufen.
-CHANGELOG_URL = "https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md"
+BASIS_URL = "https://github.com/blitzsicht/falzmarke"
+CHANGELOG_URL = f"{BASIS_URL}/blob/main/CHANGELOG.md"
+
+#: Endungen, die als Bild eingebunden werden — sie brauchen `raw` statt `blob`.
+BILDENDUNGEN = (".png", ".gif", ".jpg", ".jpeg", ".svg", ".webp")
 
 # Zwei Versionen. Mehr macht aus der Produktseite ein Archiv; weniger zeigt
 # keine Bewegung. Wer alles will, folgt dem Link auf CHANGELOG.md.
@@ -227,6 +231,32 @@ def _tiefer(rumpf: str) -> str:
     return re.sub(r"^(#{1,5}) ", r"#\1 ", rumpf, flags=re.MULTILINE)
 
 
+#: `](ziel)` ohne Protokoll, Anker oder mailto — dieselbe Form, die
+#: tests/test_readme_auf_pypi.py im fertigen README verbietet.
+RELATIV = re.compile(r"\]\((?!https?:|#|mailto:)([^)]+)\)")
+
+
+def _absolut(rumpf: str) -> str:
+    """Relative Verweise auf GitHub umschreiben.
+
+    Im CHANGELOG sind sie richtig: Dort liest sie GitHub, und `docs/…` löst auf.
+    Im Auszug sind sie **tot** — die README ist zugleich die Projektseite auf
+    PyPI, und dort gibt es kein umgebendes Repository. Am 25.09.2026 wäre das
+    Release v0.9.9 genau daran gescheitert: Drei Fragmente verwiesen relativ auf
+    ADRs, `scripts/paket_pruefen.sh` hat es vor dem Tag gemeldet.
+
+    Die Umschreibung steht hier und nicht in der Hand der Fragment-Schreiber:
+    Wer ein Fragment verfasst, denkt an den Changelog, nicht an PyPI — und die
+    Projektseite einer veröffentlichten Version lässt sich nicht mehr ändern.
+    """
+    def ersetzen(treffer: re.Match) -> str:
+        ziel = treffer.group(1)
+        art = "raw" if ziel.lower().endswith(BILDENDUNGEN) else "blob"
+        return f"]({BASIS_URL}/{art}/main/{ziel})"
+
+    return RELATIV.sub(ersetzen, rumpf)
+
+
 def abschnitt() -> str:
     alle = versionen(QUELLE.read_text(encoding="utf-8"))
     gezeigt = alle[:VERSIONEN]
@@ -241,7 +271,7 @@ def abschnitt() -> str:
         "",
     ]
     for kopf, rumpf in gezeigt:
-        zeilen += [f"### {kopf}", "", _tiefer(rumpf), ""]
+        zeilen += [f"### {kopf}", "", _absolut(_tiefer(rumpf)), ""]
     aeltere = len(alle) - len(gezeigt)
     if aeltere:
         zeilen += [

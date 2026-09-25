@@ -168,6 +168,41 @@ erzeugt (`python3 scripts/changelog.py`, oder `make changelog`) — ihn nie von 
 ihn stehen lässt, zeigt auf der Produktseite einen Stand, den es nicht mehr gibt, und
 `tests/test_changelog.py` schlägt fehl.
 
+**Die Rechnungs-Goldens tragen die Versionsnummer und müssen nach dem Bump neu erzeugt werden:**
+
+```bash
+python3 scripts/golden_rechnung.py
+```
+
+Ein Rechnungs-PDF führt die Fassung zweimal in seinen Metadaten (`Producer` und
+`/falzmarke_Version`). Nach jedem Versionswechsel werden die Byte-Goldens dadurch rot — bei
+v0.9.9 waren es sechs Tests. Das ist keine inhaltliche Abweichung, und genau das gehört
+nachgesehen: Der Diff darf **nur** die beiden Versionsbytes je Datei enthalten. Die
+eingebetteten XML-Goldens bleiben unberührt; meldet das Skript dort „erneuert", ist etwas
+anderes passiert.
+
+**Vor dem Tag einmal von Hand:**
+
+```bash
+bash scripts/paket_pruefen.sh
+```
+
+Sie prüft alles am Paket, was ohne Tag und ohne Upload prüfbar ist — und sie ist es, die seit
+[ADR 0036](docs/entscheidungen/0036-pypi-wartezeit-statt-freigabe.md) an der Stelle der früheren
+Freigabe von Hand steht. Bei v0.9.9 fing sie vier relative Verweise in der README ab, die auf
+PyPI ins Leere gezeigt hätten; die Projektseite einer veröffentlichten Version lässt sich nicht
+mehr ändern.
+
+### Warum das Paket nur auf PyPI liegt
+
+GitHub blendet im Repository „Publish your first package" ein. Für dieses Projekt führt der
+Hinweis ins Leere: GitHub Packages führt npm, Container-Images, Maven, NuGet und RubyGems —
+**kein PyPI-Format**. Ein Python-Paket gehört auf PyPI, und dort liegt falzmarke seit v0.7.3.
+
+Ein zweiter Ort wäre nicht nur überflüssig, sondern schädlich: Er schüfe eine Bezugsquelle, die
+niemand pflegt, und die Frage, welche der beiden die gültige ist. Die Antwort steht hier, damit
+sie nicht alle paar Monate neu gestellt wird.
+
 ## Die vendorte Datei
 
 `skill/falzmarke/typst/vendor/letter-pro-v3.0.0.typ` ist Fremdcode (MIT) und bleibt
