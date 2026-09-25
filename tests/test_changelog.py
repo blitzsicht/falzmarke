@@ -147,3 +147,55 @@ def test_eine_leere_quelle_bricht_ab_statt_zu_leeren(tmp_path, monkeypatch):
     with pytest.raises(SystemExit) as fehler:
         changelog.abschnitt()
     assert "v1.2.3" in str(fehler.value)
+
+
+# ── Der Auszug muss auf PyPI tragen (v0.9.9) ──────────────────────────────
+
+
+def test_relative_verweise_werden_absolut(tmp_path, monkeypatch):
+    """Ein relativer Verweis im Changelog darf nicht als solcher in die README.
+
+    Anlass: Beim Bündeln von v0.9.9 trugen drei Fragmente `](docs/entscheidungen/…)`.
+    Auf PyPI löst das nicht auf, und die Projektseite einer veröffentlichten
+    Version lässt sich nicht mehr ändern — siehe tests/test_readme_auf_pypi.py.
+    """
+    quelle = tmp_path / "CHANGELOG.md"
+    quelle.write_text(
+        "# Änderungen\n\n## v9.9.9 — 01.01.2099\n\n### Neu\n\n"
+        "- Siehe [ADR 0047](docs/entscheidungen/0047-geometrie-regeln-tragen-ihre-stufe.md)\n"
+        "- Ein Bild: ![Marke](docs/marke/logo.png)\n"
+        "- Ein Anker: [oben](#kopf) und eine Adresse: [Post](mailto:wer@example.org)\n"
+        "- Schon absolut: [Vorgang](https://github.com/blitzsicht/falzmarke/issues/355)\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(changelog, "QUELLE", quelle)
+    auszug = changelog.abschnitt()
+
+    assert "](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/" in auszug
+    assert "](https://github.com/blitzsicht/falzmarke/raw/main/docs/marke/logo.png)" in auszug, (
+        "Ein Bild braucht `raw`, nicht `blob` — sonst zeigt PyPI die HTML-Seite statt der Datei."
+    )
+    assert "](#kopf)" in auszug and "](mailto:wer@example.org)" in auszug, (
+        "Anker und mailto sind keine Pfade und dürfen nicht umgeschrieben werden."
+    )
+    assert auszug.count("blob/main/https") == 0, "Ein absoluter Verweis wurde ein zweites Mal umgeschrieben."
+
+
+def test_die_umschreibung_wuerde_einen_relativen_verweis_bemerken(tmp_path, monkeypatch):
+    """Gegenprobe: ohne die Umschreibung steht der relative Verweis im Auszug.
+
+    Ohne sie wäre der Test darüber erfüllt, sobald irgendein absoluter Verweis
+    im Text steht — auch wenn `_absolut` gar nichts tut.
+    """
+    quelle = tmp_path / "CHANGELOG.md"
+    quelle.write_text(
+        "# Änderungen\n\n## v9.9.9 — 01.01.2099\n\n### Neu\n\n"
+        "- Siehe [ADR 0047](docs/entscheidungen/0047-geometrie-regeln-tragen-ihre-stufe.md)\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(changelog, "QUELLE", quelle)
+    monkeypatch.setattr(changelog, "_absolut", lambda rumpf: rumpf)
+    auszug = changelog.abschnitt()
+    assert "](docs/entscheidungen/0047-geometrie-regeln-tragen-ihre-stufe.md)" in auszug, (
+        "Ohne _absolut() bleibt der Verweis relativ — genau das muss der Test darüber verhindern."
+    )
