@@ -50,7 +50,8 @@ Datei unbrauchbar.
 | `geometrie.grundzeilenhoehe` | 4,23 mm (12 pt) | | | |
 | `geometrie.betreffabstand` | 2 Leerzeilen = 8,46 mm | | | |
 | `geometrie.infoblock_mindesthoehe` | mindestens 40 mm | | | |
-| `geometrie.markenlaenge` | 2,5–5 mm, Heftrand bis 20 mm | | | |
+| `geometrie.marken_heftrand` | Heftrand bis 20 mm von links | | | |
+| `geometrie.markenlaenge` | 2,5–5 mm — Setzung des Werkzeugs, keine Normaussage | | | |
 | `geometrie.schriftgroessen` | Text ≥ 10 pt, Anschrift/Block ≥ 8 pt | | | |
 
 **Form A ist der schwächste Punkt.** Für Form B gibt es eine bemaßte Zeichnung; für Form A stützt

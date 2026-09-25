@@ -230,24 +230,81 @@ regeln:
 
   - id: geometrie.infoblock_mindesthoehe
     titel: Informationsblock mindestens 40 mm hoch
-    herkunft: einzeln_belegt
-    quellen: [onlineprinters]
-    wirkung: warnung
-    bemerkung: In der Maßzeichnung ist die Höhe nicht bemaßt.
+    herkunft: mehrfach_bestaetigt
+    quellen: [onlineprinters, natusch, weka_sekretaria]
+    belegt_durch:
+      onlineprinters: >-
+        SCHWEIGT — die Zeichnung bemaßt den Informationsblock nur in der Breite
+        (75 mm) und im Abstand zur rechten Blattkante (10 mm) und beschriftet
+        ihn als „variabel gestaltbarer Informationsblock“. Eine Höhe nennt sie
+        nicht. Am 25.09.2026 am gerenderten Bild nachgelesen.
+      natusch: >-
+        „Höhe ist variable, mind. 40 mm, max. Breite: 75 mm“ — Zeile
+        „Informationsblock“ der Abmessungstabelle.
+      weka_sekretaria: >-
+        „Die Höhe des Informationsblocks liegt bei mindestens 40 mm.“
+    wirkung: fehler
+    bemerkung: >-
+      Bis zum 25.09.2026 einzeln belegt und als Warnung geführt — die einzige
+      genannte Quelle bemaßt die Höhe gar nicht. Gestiegen mit zwei Quellen aus
+      zwei Gruppen, nicht durch Nachlesen der alten (#355, ADR 0047).
+
+  - id: geometrie.marken_heftrand
+    titel: Falz- und Lochmarken liegen im Heftrand, bis 20 mm von der linken Blattkante
+    herkunft: mehrfach_bestaetigt
+    quellen: [onlineprinters, natusch, weka_sekretaria]
+    belegt_durch:
+      onlineprinters: >-
+        SCHWEIGT — die Zeichnung zeigt die Marken am linken Blattrand, bemaßt
+        aber weder ihre Länge noch die Grenze des Heftrands. Die 20 mm darin
+        gehören zur linken Kante des Anschriftfelds. Am 25.09.2026 am
+        gerenderten Bild nachgelesen.
+      natusch: >-
+        „keine Vorgaben, die Falzmarken sollen aber im sogenannten Heftrand
+        liegen, das sind die ersten 20 mm von der linken Blattkante aus“ —
+        in der Abmessungstabelle, Spalte „Abstand von linker Blattkante“.
+      weka_sekretaria: >-
+        „Die einzige Vorgabe, die in der DIN noch genannt wird, ist, dass die
+        Marken im sogenannten Heftrand des Briefbogens untergebracht sein
+        sollen, der die ersten 20 mm von der linken Blattkante aus umfasst.“
+    wirkung: fehler
+    bemerkung: >-
+      Am 25.09.2026 aus `geometrie.markenlaenge` herausgelöst: Diese Hälfte ist
+      belegt, die andere nicht. Das ist auch die Hälfte, die am fertigen PDF
+      gemessen wird — `geometrie.py` prüft je Marke „x-Ende ≤ 20 mm“
+      (ADR 0047, #355).
 
   - id: geometrie.markenlaenge
-    titel: Marken 2,5 bis 5 mm lang, im Heftrand bis 20 mm von links
-    herkunft: einzeln_belegt
-    quellen: [onlineprinters]
-    wirkung: warnung
+    titel: Marken 2,5 bis 5 mm lang
+    herkunft: werkzeug
+    quellen: [onlineprinters, natusch, weka_sekretaria]
+    belegt_durch:
+      onlineprinters: >-
+        SCHWEIGT — die Zeichnung bemaßt die Länge der Marken nicht.
+        Am 25.09.2026 am gerenderten Bild nachgelesen.
+      natusch: >-
+        SCHWEIGT — zur Gestalt der Marken ausdrücklich „keine Vorgaben“.
+      weka_sekretaria: >-
+        SCHWEIGT — ausdrücklich: „Wie die Marken konkret auszusehen haben, dazu
+        macht die DIN 5008 keine Angaben. Meist handelt es sich dabei um kurze,
+        schmale Striche — oft auch in einem Grauton.“
+    wirkung: keine
     bemerkung: >-
-      letter-pro zeichnet die Marken, legt aber keine Länge als Sollwert fest.
-      Die Zeichnung bemaßt sie nicht.
+      Keine Aussage der Norm, sondern eine Setzgewohnheit: Zwei Quellen sagen
+      ausdrücklich, dass die DIN zur Gestalt der Marken nichts vorgibt. Die
+      Spanne beschreibt, was falzmarke zeichnet — die vendorte Layoutbasis legt
+      Falzmarken mit 2,5 mm und die Lochmarke mit 4 mm an
+      (`typst/vendor/letter-pro-v3.0.0.typ`).
+
+      `wirkung: keine`, weil nichts sie prüft: Die Nachmessung am PDF erkennt
+      Marken an ihrer Lage im Heftrand und misst ihre Länge nirgends
+      (`geometrie._marken`). Bis zum 25.09.2026 stand hier `warnung` und dazu
+      die Heftrandgrenze im selben Titel (ADR 0047, #355).
 
   - id: geometrie.schriftgroessen
     titel: Fließtext mindestens 10 pt, Anschrift und Informationsblock mindestens 8 pt
-    herkunft: einzeln_belegt
-    quellen: [wikipedia]
+    herkunft: mehrfach_bestaetigt
+    quellen: [wikipedia, onlineprinters, manager_institut]
     belegt_durch:
       wikipedia: >-
         Trägt die 8 Punkt: „die Postanschrift des Absenders (sogenannte
@@ -255,8 +312,25 @@ regeln:
         die Rücksendeangabe, nicht für Anschriftfeld und Informationsblock
         insgesamt. Zur Mindestgröße des Fließtexts (10 pt) schweigt der
         Artikel; „Schriftgröße“ steht dort nur als Mittel der Hervorhebung.
-    wirkung: warnung
-    bemerkung: Wikipedia nennt 8 pt für die Rücksendeangabe (seit 2011 zulässig).
+      onlineprinters: >-
+        Der Textteil der Zeichnung ist mit „Schriftgröße 10 - 12 pt“
+        beschriftet — die Untergrenze 10 pt für den Fließtext, ausgeschrieben.
+        Zu den 8 pt schweigt sie: Die Rücksendeangabe steht dort als
+        „einzeilige Rücksendeangabe“ ohne Größenangabe. Am 25.09.2026 am
+        gerenderten Bild nachgelesen.
+      manager_institut: >-
+        Beide Grenzen wörtlich: „Im Fließtext sollte die Schrift nicht kleiner
+        als 10 Punkt sein; 11 oder 12 Punkt sind üblich“ und „Im Anschriftfeld
+        sind 8 Punkt die absolute Untergrenze“.
+    wirkung: fehler
+    bemerkung: >-
+      Wikipedia nennt 8 pt für die Rücksendeangabe (seit 2011 zulässig).
+      Seit dem 25.09.2026 mehrfach bestätigt: 10 pt aus zwei weiteren Gruppen,
+      8 pt zusätzlich aus `manager_institut` (ADR 0047, #355).
+
+      **Was keine Quelle trägt:** die 8 pt für den Informationsblock. Der Titel
+      nennt sie, belegt ist der Wert nur für Anschriftfeld und Rücksendeangabe.
+      Die Nachmessung am PDF prüft ihn nicht.
 
   # ── Aufbau des Textteils ─────────────────────────────────────────────────
   - id: text.anrede_komma

@@ -1,4 +1,4 @@
-# Offene Quellenprüfungen — 26 ungeprüfte Quelle-Regel-Paare
+# Offene Quellenprüfungen — 24 ungeprüfte Quelle-Regel-Paare
 
 <!-- Erzeugt von scripts/offene_paare.py — nicht von Hand ändern.
      Reihenfolge und Erledigt-Abschnitt stehen als REIHENFOLGE bzw. ERLEDIGT dort. -->
@@ -27,12 +27,14 @@ am 27.08.2026 zehn Paare nachgelesen, alle zehn schwiegen, und drei Regeln fiele
 Warnung ([Befund](quellenpruefung-onlineprinters-2026-08-27.md)).
 
 Derzeit hängen **11 Regeln mit Wirkung `fehler`** an mindestens einem ungeprüften
-Paar; schwiegen alle ungeprüften Quellen, verlören **10 Regeln** ihre Stufe. Das ist der
+Paar; schwiegen alle ungeprüften Quellen, verlören **8 Regeln** ihre Stufe. Das ist der
 ungünstigste Fall, nicht der erwartete — dass eine bemaßte Zeichnung zum Seitenformat schweigt,
 ist unwahrscheinlich. Die Zahl sagt, wie viel auf ungeprüftem Grund steht, und sie ist mit
 ADR 0042 bewusst in Kauf genommen.
 
 ## Erledigt
+
+**`onlineprinters` — zwei Paare, am 25.09.2026.** Nicht die Portion, sondern ein Anlass: Für #355 mussten die beiden Regeln geprüft werden, die allein auf dieser Quelle standen. Das Bild wurde geholt und abgelesen. Beide Paare schweigen — die Zeichnung bemaßt weder die Höhe des Informationsblocks noch die Marken; ihr „20“ gehört zur linken Kante des Anschriftfelds. Gekostet hat es keine Stufe: Zwei neue Quellen tragen die 40 mm und die Heftrandgrenze, die Länge der Marken ist seither `werkzeug` (ADR 0047). Nebenbefund aus demselben Bild: Der Textteil trägt „Schriftgröße 10 - 12 pt“ und belegt damit `geometrie.schriftgroessen` mit, was vorher niemand ausgewertet hatte.
 
 **`massskizze_b` — alle zwölf Paare, am 22.09.2026.** Die Zeichnung wurde gerendert und abgelesen; sie führt keine Textelemente, nur Pfade. Elf Paare tragen, eines schweigt: `text.vermerke_max_3` — die Zone ist mit 17,7 mm bemaßt, eine Zeilenzahl nennt sie nicht. Zwei Belege tragen mit benannter Lücke: `geometrie.form_b.zonen` (die Zeichnung zeigt 17,7 mm als **eine** Zone, die Aufteilung 5 + 12,7 nicht) und `text.folgeseiten` (Seitenzahl ausdrücklich, zur empfohlenen Kopfzeile nichts).
 
@@ -46,11 +48,11 @@ ungeprüften Quellen dieser Regel schweigen, nicht nur die der Portion.
 
 | # | Quelle | Paare | trägt Gruppe? | Fehler-Regeln | Warum hier |
 |---|---|---|---|---|---|
-| 1 | `onlineprinters` | 10 | ja | 8 | Gleiche Gruppe wie die bereits geprüfte `massskizze_b`, bestätigt also keine zweite. Zehn Paare derselben Quelle schwiegen schon — hier ist mit Schweigen zu rechnen, und genau das ist der Grund, es zu wissen. |
+| 1 | `onlineprinters` | 8 | ja | 8 | Gleiche Gruppe wie die bereits geprüfte `massskizze_b`, bestätigt also keine zweite. Zwölf Paare derselben Quelle schwiegen schon — hier ist mit Schweigen zu rechnen, und genau das ist der Grund, es zu wissen. |
 | 2 | `letter_pro` | 15 | **nein** | 11 | `zaehlt: einzeln` — hebt keine Regel auf „mehrfach bestätigt“. Hält aber mehrere Warnungen allein am Leben und ist lokal vendort unter `skill/falzmarke/typst/vendor/`, also die billigste Arbeit der Liste. |
 | 3 | `koma_script` | 1 | **nein** | 1 | Betrifft nur `geometrie.form_a.masse`. Die Regel steht seit dem 24.09.2026 auf `mehrfach_bestaetigt` (#180), getragen von `massskizze_a` und `federwerk` — `koma_script` zählt `einzeln` und kann an der Stufe nichts mehr bewegen. |
 
-## 1. `onlineprinters` — 10 Paare
+## 1. `onlineprinters` — 8 Paare
 
 Maßzeichnung Form B im Onlineprinters-Magazin
 `https://www.onlineprinters.de/magazin/aufbau-geschaeftsbrief-nach-din-5008/`
@@ -66,8 +68,6 @@ Zählstufe `voll`, Gruppe `formb_zeichnung_2013`.
 | `geometrie.form_b.zonen` | **Fehler** | Rücksendeangabe 5 mm, Zusatz-/Vermerkzone 12,7 mm, Anschriftzone 27,3 mm | **fällt auf Warnung** |
 | `geometrie.grundzeilenhoehe` | **Fehler** | Grundzeilenhöhe 4,23 mm (12 pt) | **fällt auf Warnung** |
 | `geometrie.lochmarke` | **Fehler** | Lochmarke bei 148,5 mm | **fällt auf Warnung** |
-| `geometrie.infoblock_mindesthoehe` | Warnung | Informationsblock mindestens 40 mm hoch | **verliert jeden Beleg** |
-| `geometrie.markenlaenge` | Warnung | Marken 2,5 bis 5 mm lang, im Heftrand bis 20 mm von links | **verliert jeden Beleg** |
 
 ## 2. `letter_pro` — 15 Paare
 

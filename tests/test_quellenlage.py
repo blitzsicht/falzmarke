@@ -598,11 +598,17 @@ def test_mehrfach_ohne_zwei_volle_quellen_wird_abgewiesen(tmp_path):
         return sum(1 for n in regel.get("quellen") or []
                    if quellen[n].get("zaehlt") == regeln_modul.ZAEHLT_VOLL)
 
+    # Regeln mit eigenem `deckel:` bleiben außen vor — dieselbe Sorte Falle wie
+    # 2026-08-29, nur eine Ebene weiter: Sie scheitern beim Kippen schon an der
+    # Deckelprüfung, und die Beleglage käme nie zur Sprache. Am 25.09.2026 rückte
+    # `text.anrede_komma` an die erste Stelle, weil die Geometrie-Regeln davor
+    # Quellen dazubekommen haben (#355).
     kandidaten = [r["id"] for r in regeln_modul.alle()
-                  if (r.get("quellen") or []) and volle(r) < 2]
+                  if (r.get("quellen") or []) and volle(r) < 2 and "deckel" not in r]
     assert kandidaten, (
-        "Keine Regel mehr mit weniger als zwei voll zählenden Quellen — dann "
-        "kann dieser Test nichts mehr sabotieren und belegt nichts.")
+        "Keine Regel mehr mit weniger als zwei voll zählenden Quellen und ohne "
+        "eigenen Deckel — dann kann dieser Test nichts mehr sabotieren und "
+        "belegt nichts.")
     ziel = kandidaten[0]
 
     def kippen(daten):
@@ -760,6 +766,18 @@ def test_die_messung_wuerde_eine_verschiebung_bemerken():
 # sagt weiter, warum sie schweigt; `schweigende_quellen()` liest es von dort.
 
 SCHWEIGENDE_QUELLEN = [
+    # Seit 25.09.2026 (#355): Die Onlineprinters-Zeichnung wurde für die drei
+    # Geometrie-Regeln nachgelesen, die auf ihr allein standen. Sie bemaßt
+    # weder die Höhe des Informationsblocks noch die Marken. Anders als 2026-08
+    # kostet das hier keine Stufe: Zwei neue Quellen tragen sie (ADR 0047).
+    ("geometrie.infoblock_mindesthoehe", "onlineprinters"),
+    ("geometrie.marken_heftrand", "onlineprinters"),
+    # `geometrie.markenlaenge` ist der umgekehrte Fall: Hier schweigen ALLE drei,
+    # und zwei davon ausdrücklich („keine Vorgaben“). Die Regel ist deshalb
+    # keine Normaussage mehr, sondern `werkzeug`.
+    ("geometrie.markenlaenge", "natusch"),
+    ("geometrie.markenlaenge", "onlineprinters"),
+    ("geometrie.markenlaenge", "weka_sekretaria"),
     ("schreibweise.abkuerzungen", "onlineprinters"),
     ("schreibweise.datum", "onlineprinters"),
     ("schreibweise.einheiten", "onlineprinters"),
@@ -778,10 +796,10 @@ SCHWEIGENDE_QUELLEN = [
 #: Wie viele Quelle-Regel-Paare noch niemand nachgelesen hat. Die Zahl soll
 #: fallen. Steigt sie, ist eine Quelle eingetragen worden, ohne zu sagen, wo
 #: sie die Regel hergibt — genau der Vorgang, den #31 beenden will.
-UNGEPRUEFTE_PAARE = 26   # 27 bis zum 24.09.2026 — `massskizze_a` bei `geometrie.form_a.masse`
-                         # hat seine Fundstelle bekommen, weil die Stufe der Regel auf
-                         # ihr steht (#180). Nachgelesen wurde nichts: Der Beleg stand
-                         # im Quellen-Register und ist an die Regel umgetragen worden.
+UNGEPRUEFTE_PAARE = 24   # 26 bis zum 25.09.2026 — die beiden offenen `onlineprinters`-Paare
+                         # bei `geometrie.infoblock_mindesthoehe` und `geometrie.markenlaenge`
+                         # sind nachgelesen; beide schweigen (#355). Die sechs Paare der drei
+                         # neuen Quellen zählen nicht mit: Sie kamen mit ihrer Fundstelle.
 
 
 def test_die_schweigenden_quellen_sind_genau_diese():
@@ -962,12 +980,51 @@ def test_die_drei_mit_sprechender_quelle_fallen_auf_warnung():
             "mit Verweis auf #31 — sonst fällt sie als Nebenwirkung niemandem auf.")
 
 
-def test_kein_fehler_aus_den_zehn_schweigenden_regeln():
-    """AC 2 und 3 zusammen, von der anderen Seite: Von den zehn Regeln, bei denen
-    `onlineprinters` schweigt, darf keine mehr als warnen."""
+#: Regeln, die trotz einer schweigenden Quelle mehr als warnen dürfen — und warum.
+#:
+#: Bis zum 25.09.2026 galt hier ausnahmslos: Wo eine Quelle schweigt, darf die
+#: Regel nur noch warnen. Das war richtig, solange jede betroffene Regel auf
+#: genau dieser einen Quelle stand (#31). Mit #355 stimmt es nicht mehr: Eine
+#: schweigende Quelle zählt nicht mit — sie widerlegt aber auch nichts, was
+#: andere Quellen tragen.
+#:
+#: Wer hier etwas einträgt, sagt daneben, woraus die Stufe dann kommt.
+TROTZ_SCHWEIGENS_HART = {
+    # Zwei neue Gruppen tragen die 40 mm: `natusch` und `weka_sekretaria`.
+    "geometrie.infoblock_mindesthoehe",
+    # Dieselben zwei tragen die Heftrandgrenze wörtlich.
+    "geometrie.marken_heftrand",
+    # `werkzeug`: Beide sagen ausdrücklich, die Norm gebe zur Gestalt der Marken
+    # nichts vor. Die Länge ist damit Setzung des Werkzeugs — und `wirkung: keine`,
+    # weil sie am fertigen PDF gar nicht gemessen wird.
+    "geometrie.markenlaenge",
+}
+
+
+def test_kein_fehler_aus_einem_schweigen_allein():
+    """AC 2 und 3 zusammen, von der anderen Seite: Wo eine Quelle schweigt, darf
+    die Regel nur noch warnen — es sei denn, sie steht ausdrücklich in
+    `TROTZ_SCHWEIGENS_HART` und trägt ihre Stufe aus anderen Quellen."""
     zu_scharf = sorted(k for k, _ in regeln.schweigende_quellen()
-                       if regeln.deckel(_regel(k)) != regeln.DECKEL_WARNUNG)
+                       if k not in TROTZ_SCHWEIGENS_HART
+                       and regeln.deckel(_regel(k)) != regeln.DECKEL_WARNUNG)
     assert not zu_scharf, f"Darf nach `deckel()` mehr als warnen: {zu_scharf}"
+
+
+def test_die_ausnahmen_stehen_nicht_auf_einer_schweigenden_quelle():
+    """Gegenprobe zur Ausnahmeliste: Jede dort genannte Regel muss ihre Stufe
+    ohne die schweigende Quelle tragen — sonst wäre die Liste ein Freibrief.
+
+    Für `werkzeug` gilt das nicht: Diese Stufe beruft sich auf gar keine Quelle.
+    """
+    for kennung in sorted(TROTZ_SCHWEIGENS_HART):
+        regel = _regel(kennung)
+        if regel["herkunft"] == regeln.WERKZEUG:
+            continue
+        gruppen = regeln.unabhaengige_belege(regel)
+        assert len(gruppen) >= 2, (
+            f"{kennung}: nur {len(gruppen)} tragende Gruppe(n) — {sorted(gruppen)}. "
+            "Dann darf die Regel trotz des Schweigens nicht mehr als warnen.")
 
 
 def test_nicht_geprueft_ist_kein_schweigen():
@@ -1699,3 +1756,69 @@ def test_schweigen_alle_quellen_nennt_die_meldung_keine(monkeypatch):
                         lambda name: kaputt if name == "vermerke" else None)
     assert regeln.quellenhinweis("vermerke") == "", (
         "die Meldung nennt eine Quelle, obwohl jede von ihnen schweigt")
+
+
+# ── Die Nachmessung am PDF kennt den Katalog nicht (#355) ──────────────────
+#
+# `geometrie.py` lädt den Regelkatalog nicht und leitet aus keiner Stufe eine
+# Wirkung ab: Jede Abweichung, die es findet, ist ein Fehler. Solange das so
+# ist, muss jede dort gemessene Regel eine Stufe tragen, die einen Fehler
+# überhaupt zulässt — sonst behauptet docs/recht.md eine Wirkung, die es nicht
+# gibt. Bis zum 25.09.2026 war genau das der Fall (#355).
+
+
+def _geometrie_unter_ihrer_wirkung(alle: list[dict]) -> list[str]:
+    """Geometrie-Regeln, die nach `deckel()` keinen Fehler tragen dürften."""
+    return sorted(r["id"] for r in alle
+                  if r["id"].startswith("geometrie.")
+                  and regeln.deckel(r) != regeln.DECKEL_FEHLER)
+
+
+def test_jede_geometrie_regel_darf_fehler_sein():
+    """Der Wächter aus #355. Fällt eine Geometrie-Regel auf `einzeln_belegt`,
+    wirkt sie am PDF weiter als Fehler — und die Tabelle in docs/recht.md
+    stimmt wieder nicht. Dann ist zu entscheiden, nicht weiterzulaufen.
+    """
+    geometrie = [r for r in regeln.alle() if r["id"].startswith("geometrie.")]
+    assert len(geometrie) >= 10, f"nur {len(geometrie)} Geometrie-Regeln — misst dieser Test noch?"
+    zu_schwach = _geometrie_unter_ihrer_wirkung(regeln.alle())
+    assert not zu_schwach, (
+        f"Diese Regeln dürften nur warnen, wirken am PDF aber als Fehler: {zu_schwach}.\n"
+        "Entweder sie steigen (zwei Quellen aus zwei Gruppen), oder sie werden als "
+        "Werkzeugprüfung geführt, oder die Nachmessung lernt die Stufe zu lesen — "
+        "siehe #355 und ADR 0047.")
+
+
+def test_die_pruefung_wuerde_eine_zurueckgefallene_geometrie_regel_bemerken():
+    """Gegenprobe: eine Regel auf `einzeln_belegt` zurückkippen — die Prüfung
+    muss genau sie nennen."""
+    ziel = "geometrie.infoblock_mindesthoehe"
+    gekippt = [dict(r, herkunft=regeln.EINZELN, wirkung="warnung") if r["id"] == ziel else r
+               for r in regeln.alle()]
+    assert _geometrie_unter_ihrer_wirkung(gekippt) == [ziel]
+
+
+def test_die_nachmessung_laedt_den_regelkatalog_nicht():
+    """Die Begründung oben hängt daran, und docs/recht.md sagt es so.
+
+    Geprüft am Syntaxbaum, nicht am Text: Ein Kommentar, der den Katalog nur
+    erwähnt, ist kein Import — und ein Import in einem Docstring wäre keiner.
+    """
+    import ast
+
+    from conftest import REPO
+
+    baum = ast.parse((REPO / "skill" / "falzmarke" / "geometrie.py").read_text(encoding="utf-8"))
+    geholt = set()
+    for knoten in ast.walk(baum):
+        if isinstance(knoten, ast.Import):
+            geholt.update(a.name for a in knoten.names)
+        elif isinstance(knoten, ast.ImportFrom):
+            geholt.add(knoten.module or "")
+            geholt.update(f"{knoten.module or ''}.{a.name}" for a in knoten.names)
+    assert geholt, "keine Importe gefunden — dann liest dieser Test die falsche Datei"
+    katalog = sorted(n for n in geholt if "regeln" in n)
+    assert not katalog, (
+        f"geometrie.py holt jetzt {katalog}. Das ist erlaubt — dann gehört aber der "
+        "Abschnitt „Was daraus folgt“ in docs/recht.md neu geschrieben: Er begründet "
+        "damit, dass die Nachmessung den Katalog NICHT kennt (#355, ADR 0047).")
