@@ -35,7 +35,7 @@ ZIEL = REPO / "docs" / "offene-quellenpruefungen.md"
 REIHENFOLGE: dict[str, tuple[str, str]] = {
     "onlineprinters": ("1",
         "Gleiche Gruppe wie die bereits geprüfte `massskizze_b`, bestätigt also keine "
-        "zweite. Zehn Paare derselben Quelle schwiegen schon — hier ist mit Schweigen "
+        "zweite. Zwölf Paare derselben Quelle schwiegen schon — hier ist mit Schweigen "
         "zu rechnen, und genau das ist der Grund, es zu wissen."),
     "letter_pro": ("2",
         "`zaehlt: einzeln` — hebt keine Regel auf „mehrfach bestätigt“. Hält aber "
@@ -51,6 +51,15 @@ REIHENFOLGE: dict[str, tuple[str, str]] = {
 #: Was abgearbeitet ist, in der Reihenfolge der Erledigung. Prosa, weil der
 #: Befund einer Quelle sich nicht aus Zahlen ergibt.
 ERLEDIGT = [
+    ("`onlineprinters` — zwei Paare, am 25.09.2026",
+     "Nicht die Portion, sondern ein Anlass: Für #355 mussten die beiden Regeln geprüft "
+     "werden, die allein auf dieser Quelle standen. Das Bild wurde geholt und abgelesen. "
+     "Beide Paare schweigen — die Zeichnung bemaßt weder die Höhe des Informationsblocks "
+     "noch die Marken; ihr „20“ gehört zur linken Kante des Anschriftfelds. Gekostet hat "
+     "es keine Stufe: Zwei neue Quellen tragen die 40 mm und die Heftrandgrenze, die "
+     "Länge der Marken ist seither `werkzeug` (ADR 0047). Nebenbefund aus demselben "
+     "Bild: Der Textteil trägt „Schriftgröße 10 - 12 pt“ und belegt damit "
+     "`geometrie.schriftgroessen` mit, was vorher niemand ausgewertet hatte."),
     ("`massskizze_b` — alle zwölf Paare, am 22.09.2026",
      "Die Zeichnung wurde gerendert und abgelesen; sie führt keine Textelemente, nur "
      "Pfade. Elf Paare tragen, eines schweigt: `text.vermerke_max_3` — die Zone ist mit "

@@ -33,16 +33,22 @@ wissen nicht mit letzter Sicherheit, ob jede Regel dem Normtext entspricht.**
 | offen — Annahme ohne Beleg | wird nicht geprüft |
 | Werkzeugprüfung — keine Aussage der Norm | Fehler oder Warnung, je nach Sache |
 
-**Für die Briefmaße gilt diese Tabelle nicht.** Sie beschreibt, was der Linter, der
-Typografie-Pass und die Prüfung der fertigen `.eml` aus einer Stufe machen — die drei schlagen
-jede Regel im Katalog nach. Die Nachmessung am fertigen PDF tut das nicht:
-[`skill/falzmarke/geometrie.py`](../skill/falzmarke/geometrie.py) kennt den Regelkatalog nicht
-und lädt ihn auch nicht; jede Abweichung dort ist ein Fehler, gleich auf welcher Stufe die Regel
-steht. Nachgemessen am 24.09.2026 an einem Form-A-Brief: Die Prüfung „Rücksendeangabe,
-Schriftgröße 7–8 pt" gehört zu `geometrie.schriftgroessen` — einzeln belegt —, steht im Bericht
-aber unter den 34 Maßen und nicht unter den Warnungen, deren Zahl 0 war. Bei den Geometrie-Regeln
-sagt die Stufe deshalb etwas über die Beleglage und nichts über die Wirkung. Ob das so bleiben
-soll, ist nicht entschieden; festgehalten ist hier, dass es so ist.
+**Die Nachmessung am PDF liest diese Tabelle nicht — sie muss es auch nicht.** Der Linter, der
+Typografie-Pass und die Prüfung der fertigen `.eml` schlagen jede Regel im Katalog nach und
+leiten die Stufe daraus ab. [`skill/falzmarke/geometrie.py`](../skill/falzmarke/geometrie.py)
+tut das nicht: Es kennt den Regelkatalog nicht und lädt ihn auch nicht; jede Abweichung dort ist
+ein Fehler, gleich was die Regel für eine Stufe trägt.
+
+Bis zum 25.09.2026 klaffte damit eine Lücke: Drei Geometrie-Regeln standen auf „einzeln belegt"
+und hätten nur warnen dürfen, wirkten am PDF aber als Fehler ([#355]). Aufgelöst ist das nicht,
+indem die Nachmessung die Stufe liest, sondern indem jede Regel, die dort gemessen wird, ihre
+Stufe auch trägt: Die Mindesthöhe des Informationsblocks und die Heftrandgrenze der Marken sind
+seither mehrfach bestätigt, und die Länge der Marken ist als das ausgewiesen, was sie ist — eine
+Setzung des Werkzeugs, für die es keine Normaussage gibt ([ADR 0047](entscheidungen/0047-geometrie-regeln-tragen-ihre-stufe.md)).
+
+Bewacht wird das von `tests/test_quellenlage.py`: Fällt eine am PDF gemessene Geometrie-Regel
+wieder unter die Stufe, die einen Fehler tragen darf, wird der Test rot. Dann ist erneut zu
+entscheiden — die Lücke kommt nicht still zurück.
 
 **Nicht jede genannte Quelle zählt zur Bestätigung.** Zwei zählen bewusst nicht:
 
@@ -71,7 +77,8 @@ sähe anders aus, als er geschrieben wurde, und niemand erführe warum.
 ## Was die Stufen derzeit wert sind
 
 Die Tabelle oben sagt, was eine Stufe **bedeutet**. Hier steht, was die Regeln tatsächlich
-tragen. **Stand: 24.09.2026**, gemessen gegen `main` nach der Anhebung von `geometrie.form_a.masse` ([#180](https://github.com/blitzsicht/falzmarke/issues/180)). Die Zahlen kommen aus
+tragen. **Stand: 25.09.2026**, gemessen gegen `main` nach dem Aufstieg der Geometrie-Regeln
+([#355](https://github.com/blitzsicht/falzmarke/issues/355)). Die Zahlen kommen aus
 der Regeldatei; `tests/test_textkanon.py` zählt sie bei jedem Lauf nach und wird rot, sobald
 dieser Abschnitt ihnen nicht mehr folgt.
 
@@ -81,24 +88,30 @@ Regel **nachweislich schweigen**: Sie zählen nicht mehr mit.
 
 | | |
 |---|---|
-| 122 | Regeln insgesamt |
-| 11 | Quelle-Regel-Paare, bei denen die Quelle **nachweislich schweigt** — zehn davon `onlineprinters` ([Befund](quellenpruefung-onlineprinters-2026-08-27.md)), seit dem 22.09.2026 dazu die Zeichnung `massskizze_b` bei `text.vermerke_max_3` |
-| 6 | der betroffenen Regeln führen jetzt `herkunft: werkzeug` — eine Setzgewohnheit des Werkzeugs, keine Aussage der Norm |
+| 123 | Regeln insgesamt |
+| 16 | Quelle-Regel-Paare, bei denen die Quelle **nachweislich schweigt** — zehn davon `onlineprinters` ([Befund](quellenpruefung-onlineprinters-2026-08-27.md)), seit dem 22.09.2026 dazu die Zeichnung `massskizze_b` bei `text.vermerke_max_3`, seit dem 25.09.2026 fünf weitere aus der Nachlese zu den Marken und zur Höhe des Informationsblocks |
+| 7 | der betroffenen Regeln führen jetzt `herkunft: werkzeug` — eine Setzgewohnheit des Werkzeugs, keine Aussage der Norm |
 | 4 | stehen auf `einzeln belegt`. Drei fielen dorthin von Fehler herab: `schreibweise.datum`, `schreibweise.abkuerzungen`, `text.vermerke_max_3` — ihre zweite volle Quelle schwieg, es bleibt eine. Der Typografie-Pass meldet Datum und Abkürzungen seither nur noch, er ersetzt sie nicht mehr. Die vierte, `text.anschrift_ohne_leerzeilen`, ist umgekehrt **gestiegen** — von `werkzeug`, am 22.09.2026 mit [#344](https://github.com/blitzsicht/falzmarke/issues/344) |
 
-Die sechs Werkzeugprüfungen waren schon vorher Warnungen; bei ihnen ändert sich nur die
-Herkunft, die Wirkung bleibt Warnung. Auch der Aufstieg von `text.anschrift_ohne_leerzeilen`
+Die sieben Werkzeugprüfungen waren schon vorher Warnungen oder werden gar nicht geprüft; bei
+ihnen ändert sich nur die Herkunft. Auch der Aufstieg von `text.anschrift_ohne_leerzeilen`
 ändert an der Wirkung nichts: Eine Quelle allein darf keinen Lauf scheitern lassen, es bleibt
 bei der Warnung. Was sich ändert, ist die Begründung — die Meldung nennt jetzt wieder eine
 Quelle statt des Werkzeugs ([ADR 0044](entscheidungen/0044-woertlicher-beleg-schlaegt-werkzeugeinstufung.md)).
+
+**Schweigen kostet nicht mehr automatisch die Stufe.** Zwei der betroffenen Regeln stehen seit
+dem 25.09.2026 auf „mehrfach bestätigt": `geometrie.infoblock_mindesthoehe` und
+`geometrie.marken_heftrand`. Bei beiden schweigt die Onlineprinters-Zeichnung — sie zählt nicht
+mit, widerlegt aber auch nichts, was zwei andere Quellen tragen. Bis dahin galt die Umkehrung
+ausnahmslos, weil jede betroffene Regel auf genau dieser einen Quelle stand.
 
 **Offener Rest 1 — Regeln, die strenger sind, als ihr Beleg trägt.**
 
 | | |
 |---|---|
-| 11 | Regeln stehen auf „mehrfach bestätigt" und dürfen einen Lauf scheitern lassen |
+| 14 | Regeln stehen auf „mehrfach bestätigt" und dürfen einen Lauf scheitern lassen |
 | 8 | davon stützen sich auf zwei Quellen, die **dieselbe Zeichnung** sind ([Befund](quellenunabhaengigkeit-2026-08-27.md)) |
-| 3 | davon Quellen verschiedener Träger, Unabhängigkeit **ungeprüft**: `geometrie.seitenformat` und `geometrie.seitenraender` (Zeichnung und Artikel, beide unter der Wikimedia Foundation), seit dem 24.09.2026 dazu `geometrie.form_a.masse` (Zeichnung im Onlineprinters-Magazin gegen Fließtext bei Federwerk) |
+| 6 | davon Quellen verschiedener Träger, Unabhängigkeit **ungeprüft**: `geometrie.seitenformat` und `geometrie.seitenraender` (Zeichnung und Artikel, beide unter der Wikimedia Foundation), seit dem 24.09.2026 `geometrie.form_a.masse` (Zeichnung im Onlineprinters-Magazin gegen Fließtext bei Federwerk), seit dem 25.09.2026 `geometrie.infoblock_mindesthoehe`, `geometrie.marken_heftrand` und `geometrie.schriftgroessen` |
 
 `geometrie.form_a.masse` ist am 24.09.2026 hinzugekommen — nicht, weil sie schwächer geworden
 wäre, sondern weil sie gestiegen ist ([ADR 0046](entscheidungen/0046-form-a-steigt-auf-mehrfach-bestaetigt.md)).
@@ -116,7 +129,7 @@ oben für eine Zusage hält, die sie im Einzelfall nicht einlöst: Der Normabgle
 
 | | |
 |---|---|
-| 26 | Quelle-Regel-Paare sind ungeprüft: Bei ihnen steht nicht fest, ob die Quelle die Regel trägt oder zu ihr schweigt |
+| 24 | Quelle-Regel-Paare sind ungeprüft: Bei ihnen steht nicht fest, ob die Quelle die Regel trägt oder zu ihr schweigt |
 
 Das ist nicht „kein Beleg", sondern „nicht nachgesehen", und diese beiden Zustände werden nicht
 verwechselt. Die Paare betreffen überwiegend Maßzeichnungen und Quelltexte. Bei einer Zeichnung
@@ -137,9 +150,18 @@ Am 24.09.2026 ist eines der 27 herausgefallen: `massskizze_a` bei `geometrie.for
 seine Fundstelle bekommen, weil die Stufe der Regel auf ihr steht
 ([#180](https://github.com/blitzsicht/falzmarke/issues/180)). Nachgelesen wurde dafür nichts —
 der Beleg stand seit dem 26.08.2026 im Quellen-Register und ist nur an die Regel umgetragen
-worden. Seither sind es **26**, und 16 + 10 geht wieder auf; mit den 27 tat es das nicht.
-Die 26 sind kein Rückstand, sondern ein bewusst getragenes Risiko — welches, steht in
-[Offene Quellenprüfungen](offene-quellenpruefungen.md).
+worden. Seither waren es 26, und 16 + 10 ging wieder auf; mit den 27 tat es das nicht.
+
+Am 25.09.2026 sind zwei weitere herausgefallen, diesmal durch Nachlesen: Die
+Onlineprinters-Zeichnung wurde für `geometrie.infoblock_mindesthoehe` und
+`geometrie.markenlaenge` angesehen — sie bemaßt weder die Höhe des Informationsblocks noch die
+Marken und schweigt damit zu beiden ([#355](https://github.com/blitzsicht/falzmarke/issues/355)).
+Das ist die Wiederaufnahme, die ADR 0042 für einen konkreten Anlass vorsieht, und kein
+Wiederaufrollen der Liste. Die drei neuen Quellen brachten **keine** ungeprüften Paare mit: Sie
+kamen mit ihrer Fundstelle.
+
+Seither sind es **24**. Sie sind kein Rückstand, sondern ein bewusst getragenes Risiko —
+welches, steht in [Offene Quellenprüfungen](offene-quellenpruefungen.md).
 
 Die Sollwerte selbst sind davon unberührt: Sie sind an gerenderten PDFs gemessen und stimmen mit
 den Zeichnungen überein. Zur Debatte steht nicht, ob sie richtig sind, sondern wie stark sie

@@ -198,6 +198,89 @@ quellen:
       Artikel die Zeichnung einbinden könnte, ist NICHT geprüft — zwei
       Regeln (geometrie.seitenformat, geometrie.seitenraender) stützen ihre
       Stufe auf genau dieses Paar. Siehe docs/quellenunabhaengigkeit-2026-08-27.md.
+  natusch:
+    titel: "Der Briefbogen: Abmessungen laut DIN 5008, Version 2020 (arbeiten-im-sekretariat.de)"
+    url: https://www.arbeiten-im-sekretariat.de/blog/2016/08/09/din-5008-briefbogen-abmessungen/
+    art: sekundaerquelle
+    gruppe: natusch
+    zaehlt: voll
+    abgerufen: 2026-09-25
+    bemerkung: >-
+      Vollständig gelesen am 25.09.2026 (Rohtext aus dem HTML). Eine Tabelle
+      „Element / Abstand von oben / Abstand von linker Blattkante / Abstand von
+      rechter Blattkante", ausdrücklich zur Fassung März 2020: „Wie genau sieht
+      nun ein DIN-gerechter Briefbogen laut aktueller Version der DIN 5008
+      (März 2020) aus?"
+
+      Trägt zwei Werte, die sonst keine Quelle hergibt. Informationsblock:
+      „Höhe ist variable, mind. 40 mm, max. Breite: 75 mm". Zu den Marken:
+      „keine Vorgaben, die Falzmarken sollen aber im sogenannten Heftrand
+      liegen, das sind die ersten 20 mm von der linken Blattkante aus" — also
+      ein Beleg für die Heftrandgrenze und zugleich die ausdrückliche Aussage,
+      dass die Norm zur Gestalt der Marken nichts vorgibt.
+
+      Betreiberin laut Impressum: Cordula Natusch, Redaktion Natusch,
+      Wolfenbüttel. Eigene Gruppe, weil es ein eigenes Werk ist; ob die Werte
+      von einer der übrigen Quellen stammen, ist NICHT geprüft. Dafür spricht
+      die eigenwillige Darstellung: Falzmarke 2 der Form A steht dort als
+      „105 mm von der unteren Blattkante" statt als 192 mm von oben — dasselbe
+      Maß, anders gerechnet.
+
+      **Was sie nicht ist:** eine bemaßte Zeichnung. Zu Schriftgrößen sagt sie
+      nichts.
+  weka_sekretaria:
+    titel: "Die Briefvorlage nach DIN 5008 — mit Musterbrief zum Herunterladen (sekretaria.de)"
+    url: https://www.sekretaria.de/bueroorganisation/korrespondenz/din-5008/briefvorlage-din-5008-musterbrief/
+    art: sekundaerquelle
+    gruppe: weka_sekretaria
+    zaehlt: voll
+    abgerufen: 2026-09-25
+    bemerkung: >-
+      Vollständig gelesen am 25.09.2026. Fließtext mit Maßangaben, betrieben von
+      der WEKA-Gruppe (Impressum von sekretaria.de führt auf WEKA).
+
+      Trägt die Höhe des Informationsblocks wörtlich: „Die Höhe des
+      Informationsblocks liegt bei mindestens 40 mm." Zur Zusatz- und
+      Vermerkzone: „Geforderte Schriftgröße ist mindestens 8 pt."
+
+      Zu den Marken sagt sie dasselbe wie `natusch`, nur ausführlicher: „Wie die
+      Marken konkret auszusehen haben, dazu macht die DIN 5008 keine Angaben.
+      Meist handelt es sich dabei um kurze, schmale Striche … Die einzige
+      Vorgabe, die in der DIN noch genannt wird, ist, dass die Marken im
+      sogenannten Heftrand des Briefbogens untergebracht sein sollen, der die
+      ersten 20 mm von der linken Blattkante aus umfasst."
+
+      Eigene Gruppe: anderer Träger als `natusch`, andere Darstellungsform
+      (Fließtext gegen Tabelle) und andere Schwerpunkte. Unabhängigkeit der
+      beiden ist damit plausibel, aber NICHT geprüft — wie bei
+      `geometrie.seitenformat` und `geometrie.form_a.masse`.
+  manager_institut:
+    titel: "DIN 5008 für Geschäftsbriefe: 45 mal 85 Millimeter, die über den Fensterumschlag entscheiden"
+    url: https://www.manager-institut.de/din-5008-fuer-geschaeftsbriefe-45-mal-85-millimeter-die-ueber-den-fensterumschlag-entscheiden/
+    art: sekundaerquelle
+    gruppe: manager_institut
+    zaehlt: voll
+    abgerufen: 2026-09-25
+    bemerkung: >-
+      Vollständig gelesen am 25.09.2026. Blogbeitrag von Oliver Haberger vom
+      08.09.2026; Herausgeberin ist die MANAGER INSTITUT Bildung für die
+      Wirtschaft GmbH, München (Impressum). Beruft sich ausdrücklich auf die
+      geltende Fassung: „Die aktuelle Fassung heißt DIN 5008:2020-03."
+
+      Trägt die Schriftgrößen in beiden Richtungen: „Im Fließtext sollte die
+      Schrift nicht kleiner als 10 Punkt sein; 11 oder 12 Punkt sind üblich."
+      und „Im Anschriftfeld sind 8 Punkt die absolute Untergrenze."
+
+      Der Beitrag kennt Unterschiede zwischen den Ausgaben — er nennt den
+      Wechsel von „Faltmarken" zu „Falzmarken" und den von „sollten" zu
+      „können" — und spricht damit nicht bloß eine ältere Fassung nach.
+
+      **Grenzen:** jung (08.09.2026) und ohne Quellenangaben; woher die Werte
+      stammen, steht nicht dabei. Zur Höhe des Informationsblocks sagt er
+      nichts. Die Zeilenzahl des Anschriftfelds gibt er mit elf an (5 + 6), die
+      Wikipedia mit neun (3 + 6) — dieselbe Abweichung zeigt die
+      Onlineprinters-Zeichnung, die oben fünf Zeilen führt. Eigene Gruppe;
+      Unabhängigkeit NICHT geprüft.
   letter_pro:
     titel: "typst-letter-pro v3.0.0"
     url: https://github.com/Sematre/typst-letter-pro
