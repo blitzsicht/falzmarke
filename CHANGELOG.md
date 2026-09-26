@@ -2,6 +2,12 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.9.11 — 26.09.2026
+
+### Behoben
+
+- **falzmarke lässt sich wieder ins MCP-Registry eintragen.** Das Registry lehnte den Eintrag bei v0.9.9 und v0.9.10 ab, weil die Beschreibung in `server.json` 139 Zeichen hatte und das Schema höchstens 100 zulässt. Die neue Beschreibung ist kürzer, und ein Test hält die Grenze vor jedem Release fest, statt dass es erst im Release-Lauf nach dem PyPI-Upload auffällt. (#365)
+
 ## v0.9.10 — 26.09.2026
 
 ### Behoben
