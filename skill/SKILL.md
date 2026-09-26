@@ -37,8 +37,12 @@ Dasselbe gilt für die E-Mail-Fassung: **keine Nachricht ohne grünen `verify --
    ```bash
    python3 scripts/bootstrap.py
    ```
-   Schlägt das fehl, fehlt der Netzwerkzugriff für `pip`. Dann abbrechen und das sagen. Es gibt
-   bewusst keinen Ersatz-Renderer: ein zweiter würde ein anderes Layout erzeugen.
+   Schlägt das fehl, erreicht `pip` hier kein PyPI. Dann nicht weiterrendern, sondern das Paket
+   mit mitgeliefertem Typst-Compiler verwenden: `falzmarke-offline.skill` von
+   https://github.com/blitzsicht/falzmarke/releases/latest/download/falzmarke-offline.skill —
+   selbst laden, falls diese Umgebung Dateien aus dem Netz holen darf, sonst dem Nutzer diese
+   Adresse nennen und ihn bitten, die Datei hochzuladen. Es gibt bewusst keinen
+   Ersatz-Renderer: ein zweiter würde ein anderes Layout erzeugen.
 
 2. **Profil wählen**:
    ```bash

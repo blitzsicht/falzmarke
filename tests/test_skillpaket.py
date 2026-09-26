@@ -303,3 +303,23 @@ def test_der_vorrat_kommt_vor_dem_netz():
     ohne_netz = quelle.index("aus_dem_paket(offen)")
     mit_netz = quelle.index("versuche PyPI")
     assert ohne_netz < mit_netz, "PyPI wird vor dem mitgelieferten Vorrat gefragt"
+
+
+def test_ohne_pypi_nennt_die_meldung_das_offline_paket(monkeypatch, capsys):
+    """Eine Sandbox ohne PyPI (ChatGPT, September 2026) endete hier mit Exit 1 und
+    „abbrechen". Der Ausweg lag im selben Release — die Meldung muss ihn nennen."""
+    b = _bootstrap()
+    monkeypatch.setattr(b, "fehlende", lambda: {"typst": "typst>=0.15,<0.16"})
+    monkeypatch.setattr(b, "wheels", lambda: [])
+    monkeypatch.setattr(b, "_pip", lambda reqs, extra: (False, "ERROR: No matching distribution"))
+    assert b.main() == 1
+    fehler = capsys.readouterr().err
+    assert "falzmarke-offline.skill" in fehler, fehler
+    assert b.OFFLINE_PAKET.startswith("https://github.com/blitzsicht/falzmarke/releases/")
+
+
+def test_skill_md_schickt_ohne_pypi_zum_offline_paket():
+    """Die Anweisung an das Modell, nicht nur die Meldung: sonst bricht es trotzdem ab."""
+    text = (REPO / "skill" / "SKILL.md").read_text(encoding="utf-8")
+    assert "releases/latest/download/falzmarke-offline.skill" in text
+    assert "Dann abbrechen" not in text

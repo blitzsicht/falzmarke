@@ -5,7 +5,7 @@ Zwei Wege, in dieser Reihenfolge:
 
 1. **Aus dem Paket, ohne Netz.** Liegt neben diesem Skript ein `vendor/` mit
    Wheels, wird zuerst daraus installiert (`--no-index`). Das Skill-Paket bringt
-   das `typst`-Wheel mit — von den fünf Abhängigkeiten die einzige mit nativem
+   das `typst`-Wheel mit — von den sechs Abhängigkeiten die einzige mit nativem
    Binärkern und deshalb die, die in einer Sandbox als Erste fehlt.
 2. **Von PyPI**, falls danach noch etwas offen ist und Netzzugriff besteht.
 
@@ -37,6 +37,11 @@ DEPS = {
     "markdown_it": "markdown-it-py>=4,<5",
     "PIL": "pillow>=10",
 }
+
+#: Das Skill-Paket mit dem typst-Wheel. Die Fehlermeldung nennt es, damit eine
+#: Sandbox ohne PyPI nicht an dieser Stelle endet (#360).
+OFFLINE_PAKET = ("https://github.com/blitzsicht/falzmarke/releases/latest/download/"
+                 "falzmarke-offline.skill")
 
 #: Wheels, die mit dem Skill-Paket ausgeliefert werden. Im Quellbaum ist das
 #: Verzeichnis leer — siehe `vendor/README.md`; gefüllt wird es beim Packen.
@@ -100,7 +105,9 @@ def main() -> int:
             "        und PyPI war nicht erreichbar.\n"
             "        Ohne sie gibt es bewusst keinen Ersatz-Renderer — ein zweiter Renderer "
             "würde\n"
-            "        ein anderes Layout erzeugen, und die Nachmessung wäre wertlos.",
+            "        ein anderes Layout erzeugen, und die Nachmessung wäre wertlos.\n"
+            "        Ausweg ohne PyPI: das Paket mit mitgeliefertem Typst-Compiler,\n"
+            f"        {OFFLINE_PAKET}",
             file=sys.stderr,
         )
         if fehler:
