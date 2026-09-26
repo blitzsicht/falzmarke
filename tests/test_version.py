@@ -156,3 +156,20 @@ def test_das_readme_weist_den_servernamen_nach():
     assert treffer, "keine `mcp-name:`-Zeile in README.md"
     assert treffer.group(1) == name, (
         f"README.md nennt `{treffer.group(1)}`, server.json `{name}`")
+
+
+#: Obergrenze aus dem Registry-Schema, auf das `server.json` in `$schema` zeigt
+#: (server.schema.json vom 2025-12-11: `description.maxLength: 100`).
+BESCHREIBUNG_MAX = 100
+
+
+def test_server_json_beschreibung_passt_ins_registry():
+    """Das Registry lehnte v0.9.9 und v0.9.10 mit 422 ab: 139 Zeichen (#365).
+
+    Der Fehler fiel erst im Release-Lauf auf — nach dem PyPI-Upload und auf dem
+    Stand des Tags, also ohne Möglichkeit, ihn für diese Fassung zu beheben.
+    """
+    beschreibung = _server()["description"]
+    assert 1 <= len(beschreibung) <= BESCHREIBUNG_MAX, (
+        f"server.json/description hat {len(beschreibung)} Zeichen, das Registry "
+        f"nimmt höchstens {BESCHREIBUNG_MAX}")
