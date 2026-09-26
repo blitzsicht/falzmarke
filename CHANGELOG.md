@@ -2,6 +2,14 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.9.10 — 26.09.2026
+
+### Behoben
+
+- **Ohne PyPI verweist der Skill auf das Offline-Paket, statt abzubrechen.** In einer Sandbox ohne Zugang zu PyPI, zum Beispiel in ChatGPT, endete die Einrichtung mit „abbrechen“. Dabei lag der Ausweg im selben Release: `falzmarke-offline.skill` bringt den Typst-Compiler mit. `SKILL.md` und die Fehlermeldung von `bootstrap.py` nennen jetzt dieses Paket samt Adresse. (#360)
+
+- **Die Einrichtung holt von PyPI, was zu bekommen ist, auch wenn ein Paket fehlt.** `bootstrap.py` installierte alle fehlenden Pakete in einem einzigen pip-Aufruf. Fehlte eines davon im Paketspiegel, brach pip ab und installierte auch alle anderen nicht. In ChatGPT fehlten so zwei Pakete, obwohl nur typst dort nicht zu bekommen war. Jetzt wird jedes Paket einzeln installiert, wie schon beim mitgelieferten Vorrat, und die Meldung nennt nur noch, was tatsächlich fehlt, samt der pip-Zeile dazu. (#361)
+
 ## v0.9.9 — 25.09.2026
 
 ### Neu
