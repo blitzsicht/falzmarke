@@ -9,10 +9,12 @@ Zwei Wege, in dieser Reihenfolge:
    Binärkern und deshalb die, die in einer Sandbox als Erste fehlt.
 2. **Von PyPI**, falls danach noch etwas offen ist und Netzzugriff besteht.
 
-Warum je Requirement einzeln aus `vendor/`: `pip install --no-index` bricht
-komplett ab, sobald für **ein** genanntes Paket kein Wheel danebenliegt — es
-installiert dann auch die anderen nicht. Ein Paket, das nur `typst` mitbringt,
-hätte damit gar nichts ausgerichtet.
+Warum je Requirement einzeln, auf **beiden** Wegen: pip bricht komplett ab,
+sobald **ein** genanntes Paket nicht zu bekommen ist — es installiert dann auch
+die anderen nicht. Aus `vendor/` hätte ein Paket, das nur `typst` mitbringt,
+damit gar nichts ausgerichtet. Und von PyPI gilt dasselbe: In ChatGPT (26.09.2026)
+fehlten typst und ein zweites Paket; der Paketspiegel dort hatte das zweite, aber
+nicht typst — gebündelt scheiterten beide (#361).
 
 Exit 0: alles vorhanden (oder erfolgreich installiert)
 Exit 1: Installation nicht möglich — die Meldung nennt den Grund
@@ -76,6 +78,17 @@ def aus_dem_paket(offen: dict[str, str]) -> None:
         _pip([req], ["--no-index", "--find-links", str(VENDOR)])
 
 
+def aus_dem_netz(offen: dict[str, str]) -> dict[str, str]:
+    """Von PyPI, je Paket einzeln. Gibt je Modul die letzte pip-Zeile zurück,
+    für die Pakete, die danach noch fehlen."""
+    fehler = {}
+    for modul, req in offen.items():
+        erfolg, meldung = _pip([req], [])
+        if not erfolg:
+            fehler[modul] = meldung.splitlines()[-1] if meldung else "ohne Meldung"
+    return fehler
+
+
 def main() -> int:
     offen = fehlende()
     if not offen:
@@ -90,11 +103,11 @@ def main() -> int:
         aus_dem_paket(offen)
         offen = fehlende()
 
-    fehler = ""
+    fehler: dict[str, str] = {}
     if offen:
         if vorrat:
             print(f"    noch offen: {', '.join(offen)} — versuche PyPI")
-        erfolg, fehler = _pip(list(offen.values()), [])
+        fehler = aus_dem_netz(offen)
         offen = fehlende()
 
     if offen:
@@ -102,7 +115,7 @@ def main() -> int:
             f"FEHLER  Diese Pakete fehlen weiterhin: {', '.join(offen)}\n"
             f"        Im Paket lagen {len(vorrat)} Wheel(s); für die oben genannten war keines "
             "dabei,\n"
-            "        und PyPI war nicht erreichbar.\n"
+            "        und von PyPI waren sie nicht zu bekommen.\n"
             "        Ohne sie gibt es bewusst keinen Ersatz-Renderer — ein zweiter Renderer "
             "würde\n"
             "        ein anderes Layout erzeugen, und die Nachmessung wäre wertlos.\n"
@@ -110,8 +123,9 @@ def main() -> int:
             f"        {OFFLINE_PAKET}",
             file=sys.stderr,
         )
-        if fehler:
-            print(f"        pip meldete: {fehler.splitlines()[-1]}", file=sys.stderr)
+        for modul in offen:
+            if modul in fehler:
+                print(f"        pip zu {modul}: {fehler[modul]}", file=sys.stderr)
         return 1
 
     print("OK  Abhängigkeiten installiert.")

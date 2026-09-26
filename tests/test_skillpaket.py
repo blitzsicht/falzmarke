@@ -288,6 +288,30 @@ def test_bootstrap_fragt_je_paket_einzeln_ohne_index(tmp_path, monkeypatch):
         assert len([t for t in cmd if ">=" in t]) == 1, cmd
 
 
+def test_pypi_holt_was_geht_auch_wenn_typst_fehlt(monkeypatch):
+    """In ChatGPT (26.09.2026) fehlten typst und ein zweites Paket. Der Spiegel dort
+    hatte das zweite, typst nicht — ein gebündelter pip-Aufruf riss beide mit (#361).
+    Je Paket einzeln bleibt nur typst offen, und genau das nennt die Meldung."""
+    b = _bootstrap()
+    installiert = set()
+    aufrufe = []
+
+    def pip(reqs, extra):
+        aufrufe.append(list(reqs))
+        if any(r.startswith("typst") for r in reqs):
+            return False, "ERROR: No matching distribution found for typst"
+        installiert.update(reqs)
+        return True, ""
+
+    offen = {"typst": "typst>=0.15,<0.16", "yaml": "pyyaml>=6"}
+    monkeypatch.setattr(b, "_pip", pip)
+    fehler = b.aus_dem_netz(offen)
+
+    assert "pyyaml>=6" in installiert, "pyyaml wurde von typst mitgerissen"
+    assert list(fehler) == ["typst"], fehler
+    assert all(len(a) == 1 for a in aufrufe), f"gebündelter Aufruf: {aufrufe}"
+
+
 def test_bootstrap_meldet_was_fehlt_statt_am_renderer_zu_scheitern(monkeypatch):
     """Der dritte Zustand: nicht installierbar ist nicht dasselbe wie fertig."""
     b = _bootstrap()
