@@ -181,6 +181,13 @@ nachgesehen: Der Diff darf **nur** die beiden Versionsbytes je Datei enthalten. 
 eingebetteten XML-Goldens bleiben unberührt; meldet das Skript dort „erneuert", ist etwas
 anderes passiert.
 
+Das gilt nur, solange die Versionsnummer gleich lang bleibt. Bei v0.9.10 wurde sie ein Zeichen
+länger, und damit verschieben sich alle Byte-Offsets dahinter: `cmp` meldete je Datei über
+1500 abweichende Bytes. Dann wird inhaltlich verglichen, alt gegen neu mit `pypdf`: Die
+Inhaltsströme der Seiten und die Anhänge sind byte-gleich, das XMP ist gleich bis auf die
+Versionsnummer, und in den Metadaten unterscheiden sich nur `/falzmarke_Version` und
+`/Producer`.
+
 **Vor dem Tag einmal von Hand:**
 
 ```bash
