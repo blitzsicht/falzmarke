@@ -191,10 +191,16 @@ Versionsnummer, und in den Metadaten unterscheiden sich nur `/falzmarke_Version`
 **Vor dem Tag einmal von Hand:**
 
 ```bash
-bash scripts/paket_pruefen.sh
+bash scripts/vor_dem_tag.sh
 ```
 
-Sie prüft alles am Paket, was ohne Tag und ohne Upload prüfbar ist — und sie ist es, die seit
+Das fährt `scripts/paket_pruefen.sh` und danach den Drift-Wächter (`scripts/repo_pruefung.py`)
+mit deinen `gh`-Rechten: Homepage, Themen, Rulesets, Pflicht-Checks, MCP-Registry und die
+Schutzregeln des Environments `pypi`. Der Wächter braucht Admin-Leserechte, die in der CI
+fehlen, und ein Token dafür gehört nicht in ein öffentliches Repository (#211). Deshalb läuft
+er hier, einmal je Release.
+
+`paket_pruefen.sh` prüft alles am Paket, was ohne Tag und ohne Upload prüfbar ist — und es ist das, was seit
 [ADR 0036](docs/entscheidungen/0036-pypi-wartezeit-statt-freigabe.md) an der Stelle der früheren
 Freigabe von Hand steht. Bei v0.9.9 fing sie vier relative Verweise in der README ab, die auf
 PyPI ins Leere gezeigt hätten; die Projektseite einer veröffentlichten Version lässt sich nicht

@@ -21,6 +21,7 @@ gelebten Zustand:
     Ruleset-`enforcement` je Ruleset  scripts/durchsetzung.py (soll())
     Pflicht-Check-Liste (Ruleset main) scripts/pflicht_checks.py
     Eintrag im MCP-Registry          server.json (name — #237)
+    Schutzregeln Environment pypi    PYPI_SOLL hier (ADR 0036 — #359)
 
 Der letzte Wert ist der einzige, der nicht bei GitHub liegt, und **er steht
 absichtlich auf Abweichung, solange kein Release mit `mcp-name` im README
@@ -70,6 +71,14 @@ RULESET_NAMEN = ("main", "release-tags")
 #: Die Quelle des Servernamens — dieselbe Datei, die der Release-Lauf
 #: veroeffentlicht (#237).
 SERVER_JSON = Path(__file__).resolve().parent.parent / "server.json"
+
+
+#: Die Schutzregeln des Environments `pypi`, wie ADR 0036 sie festlegt: 15
+#: Minuten Wartezeit, nur Tags `v*` — und KEINE Freigabe von Hand. Am 25.09.2026
+#: stand dort wieder `required_reviewers`, ohne dass es jemand bemerkte, bis ein
+#: Release 30 Minuten hing (#359). Die Einstellung lebt bei GitHub, ein Diff
+#: entsteht dabei nicht — deshalb gehört sie hierher.
+PYPI_SOLL = sorted(["branch_policy", "tag:v*", "wait_timer:15"])
 
 
 @dataclass(frozen=True)
@@ -172,6 +181,35 @@ def _pruefe_mcp_registry(suche: Callable[[str], list[str]],
                         _fehlertext(fehler))
     return Abgleich(f"Eintrag im MCP-Registry ({name})", "gelistet",
                     "gelistet" if name in gefunden else "nicht gelistet")
+
+
+def _pruefe_pypi_umgebung(repo: str, api: Callable[[str], Any]) -> Abgleich:
+    """Stimmen die Schutzregeln des Environments `pypi` mit ADR 0036 überein?
+
+    Verglichen wird die ganze Liste, nicht die Schnittmenge: Eine zusätzliche
+    Regel ist hier genau der Fall, der gefangen werden soll — eine
+    wiedereingeschaltete Freigabe von Hand (#359).
+    """
+    name = "Schutzregeln Environment pypi"
+    try:
+        umgebung = api(f"repos/{repo}/environments/pypi")
+        zweige = api(f"repos/{repo}/environments/pypi/deployment-branch-policies")
+    except Exception as fehler:                                   # noqa: BLE001
+        return Abgleich(name, PYPI_SOLL, None, _fehlertext(fehler))
+    ist = []
+    for regel in umgebung.get("protection_rules", []):
+        typ = regel.get("type")
+        if typ == "wait_timer":
+            ist.append(f"wait_timer:{regel.get('wait_timer')}")
+        elif typ == "required_reviewers":
+            wer = ",".join(sorted(p.get("reviewer", {}).get("login", "?")
+                                  for p in regel.get("reviewers", [])))
+            ist.append(f"required_reviewers:{wer}")
+        else:
+            ist.append(str(typ))
+    for politik in zweige.get("branch_policies", []):
+        ist.append(f"{politik.get('type', 'branch')}:{politik.get('name')}")
+    return Abgleich(name, PYPI_SOLL, sorted(ist))
 
 
 def _pruefe_homepage(repo: str, api: Callable[[str], Any],
@@ -306,6 +344,7 @@ def pruefe(
             name, rulesets, rulesets_fehler, durchsetzung.soll(name, umgebung)))
     ergebnisse.append(_pruefe_pflicht_checks(repo, rulesets, rulesets_fehler, api, workflow))
     ergebnisse.append(_pruefe_mcp_registry(registry_suche or registry_namen, server_json))
+    ergebnisse.append(_pruefe_pypi_umgebung(repo, api))
     return ergebnisse
 
 
