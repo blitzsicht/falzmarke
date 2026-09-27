@@ -282,9 +282,10 @@ denselben Brief wiedergeben. Dann **sagt** der Bericht das, statt die Prüfung s
 
 ## Beispiele
 
-Acht Stück unter [`examples/email/`](../examples/email/): ein Angebot, eine Mahnung mit Anlage,
+Neun Stück unter [`examples/email/`](../examples/email/): ein Angebot, eine Mahnung mit Anlage,
 eine Antwort mit `antwort_auf`, eine Abrechnung mit Tabelle, eine Nachricht mit Links, eine mit
-Logo in der Signatur, eine mit mitgebrachter Signatur und eine mit Listen. Sie laufen in der CI mit; ihre `.eml` liegt byteweise als Golden in
+Logo in der Signatur, eine mit mitgebrachter Signatur, eine mit Listen und eine Stellungnahme
+mit Zwischenüberschriften, Zitat und wortgetreuem Auszug. Sie laufen in der CI mit; ihre `.eml` liegt byteweise als Golden in
 `tests/golden/email/` und fällt auf, wenn sich an der Ausgabe etwas ändert, das niemand angesagt
 hat.
 
@@ -300,6 +301,14 @@ Listenpunkte im Klartextteil **feste Zeilen** bleiben (`format=flowed`; ihre Ein
 der Bedeutung). Aufgefallen ist es in #289, wo die Breitenprüfung erst nachträglich auf Listen
 ausgeweitet werden musste. Das Beispiel trägt alle vier Formen, die der Dialekt kennt:
 ungeordnet, nummeriert, nummeriert mit `start != 1` und eine verschachtelte Unterliste.
+
+Die Stellungnahme (Issue #109) trägt `dialekt: "1.1"` und damit alles, was diese Fassung über
+Listen und Tabellen hinaus kennt: Überschriften auf zwei Ebenen, ein Zitat mit einem Zitat darin,
+einen Auszug im Satz und einen abgesetzten. Im HTML-Teil stehen Überschriften als fette Absätze
+(ab Ebene 3 zusätzlich kursiv, wie im Brief), das Zitat mit einer Linie am linken Rand und der
+Auszug in Festbreite, der nach dem Lesefenster umbricht statt waagerecht zu scrollen. Im
+Klartextteil ist die Überschrift unterstrichen, das Zitat trägt `>` als Zitattiefe nach RFC 3676,
+und der Auszug steht eingerückt in festen Zeilen — gefaltet wird er nie.
 
 Die Zahl oben hält `tests/test_email_beispiele.py` fest. Sie stand von August bis September
 2026 auf „Vier", während längst fünf Dateien dort lagen; eine Zahl in Prosa altert still.

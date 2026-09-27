@@ -58,6 +58,15 @@ def _brieftext(pfad: Path) -> str:
     return pfad.read_text(encoding="utf-8").split("---", 2)[2]
 
 
+def _dialekt(pfad: Path):
+    """Die Fassung aus dem Frontmatter — wie `falzmarke email` sie liest.
+
+    Ohne sie misst ein Test die Fassung 1.0, auch wenn das Beispiel 1.1 trägt:
+    eine Mail, die so nie entsteht (#109).
+    """
+    return falzmarke.lies_brief(pfad)[0].get("dialekt")
+
+
 def _kopie(beispiel: Path, tmp_path: Path, alt: str, neu: str) -> Path:
     """Das Beispiel verändert im tmp_path — die Vorlage bleibt unberührt.
 
@@ -236,7 +245,7 @@ def test_der_parser_bekommt_alle_teile_zurueck(beispiel, tmp_path):
 def test_die_faltung_ist_umkehrbar(beispiel, delsp):
     # `ziel="email"`: Ohne das gilt die Vorgabe `brief`, und dort ist ein
     # Link ein Fehler (#103). Dieser Test misst die Mail-Fassung.
-    bloecke = md.lies(_brieftext(beispiel), ziel="email")
+    bloecke = md.lies(_brieftext(beispiel), dialekt=_dialekt(beispiel), ziel="email")
     gefaltet = text.falte(bloecke, delsp=delsp)
     assert text.entfalte(gefaltet, delsp=delsp) == text.setze(bloecke)
 
@@ -246,7 +255,7 @@ def test_die_faltung_misst_ueberhaupt_etwas():
     marken = sum(
         zeile.endswith(" ")
         for beispiel in EMAIL_BEISPIELE
-        for zeile in text.falte(md.lies(_brieftext(beispiel), ziel="email")).split("\n")
+        for zeile in text.falte(md.lies(_brieftext(beispiel), dialekt=_dialekt(beispiel), ziel="email")).split("\n")
     )
     assert marken > 0, "kein einziger weicher Umbruch — der Rundlauf belegt nichts"
 

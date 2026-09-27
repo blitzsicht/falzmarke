@@ -15,13 +15,10 @@ Apple Mail gleich aussieht.
 selbst, obwohl ein Container das könnte. Mehrere Clients hängen den Rumpf in
 ihre eigene Umgebung, und dabei geht die Vererbung verloren.
 
-Was der Dialekt nicht kennt, kommt hier auch nicht vor: Es gibt keine Links
-(`link` steht nicht in `markdown.ERLAUBT`), keine Überschriften, keine Zitate,
-keinen Code. Seit Dialekt 1.1 setzt der Briefsatz Überschriften; hierher kommen
-sie trotzdem nicht — `markdown.py` lehnt sie bei `ziel="email"` ab, bevor der
-Knoten entsteht, und `baum.NUR_BRIEF` hält fest, dass das kein Versehen ist.
-Zitate und Code kommen mit den nächsten Teilvorgängen von #26 — dann
-hier ergänzt, nicht vorher auf Vorrat.
+Was der Dialekt nicht kennt, kommt hier auch nicht vor. Seit #109 setzt dieser
+Emitter, was `dialekt: 1.1` zulässt, wie der Brief: Überschriften als fette
+Absätze, Zitate mit einer Linie am linken Rand, Auszüge in Festbreite mit
+Umbruch. Ohne das Feld lehnt `markdown.py` sie weiterhin ab.
 
 Die Grenzen aus ADR 0034 gelten: keine Spalten, keine Buttons, keine Zählpixel,
 keine Hintergrundbilder, keine Skripte, keine externen Stylesheets.
@@ -284,6 +281,109 @@ def tabelle(zeilen: list[list[str]], ausrichtungen: list[str | None]) -> str:
     return "".join(teile)
 
 
+# ── Überschrift, Zitat, Auszug (#109) ───────────────────────────────────────
+
+#: Festbreitenschrift, ebenfalls aus dem System. `Menlo` (macOS), `Consolas`
+#: (Windows, auch klassisches Outlook), dann der allgemeine Rückfall.
+FESTBREITE = "Menlo, Consolas, 'Courier New', monospace"
+
+ABSTAND_UEBERSCHRIFT_OBEN = "20px"
+
+
+def ueberschrift(ebene: int, inhalt: str) -> str:
+    """Ein fetter Absatz, keine `<h1>`–`<h6>`.
+
+    Die Vorgaben aus #109: höchstens zwei Ebenen tief, als fette Absätze. In
+    einer Mail trägt keine tiefere Gliederung, und die `<h…>`-Elemente bringen
+    in jedem Client eigene Größen und Ränder mit, gegen die man anstilen müsste.
+
+    Zwei sichtbare Formen wie im Brief (`references/markdown.md`): alle Ebenen in
+    derselben Größe, fett — ab Ebene 3 zusätzlich kursiv. `role="heading"` und
+    `aria-level` sagen einem Vorleseprogramm trotzdem, dass hier eine
+    Überschrift steht; wo das Attribut nicht ankommt, bleibt ein fetter Absatz.
+    """
+    kursiv = " font-style: italic;" if ebene >= 3 else ""
+    return (f'<p class="{KLASSE_TEXT}" role="heading" aria-level="{ebene}" '
+            f'style="margin: {ABSTAND_UEBERSCHRIFT_OBEN} 0 6px; {TEXTSTIL} '
+            f'font-weight: 700;{kursiv}">{inhalt}</p>')
+
+
+#: Die Zelle, die ein Zitat trägt. Als Konstante, weil `pruefung_eml` sie
+#: wiederfinden muss: Im Textteil steht ein Zitat mit `>` am Zeilenanfang, und
+#: die Prüfung lässt solche Zeilen nur durch, wenn ihr Wortlaut hier steht.
+ZITAT_ZELLE = (f'<td class="{KLASSE_LINIE}" style="border-left: 3px solid {RAHMEN}; '
+               f'padding: 0 0 0 12px;">')
+
+
+def zitat(inhalt: str) -> str:
+    """Eine Linie am linken Rand — als Tabellenzelle, nicht als `<blockquote>`.
+
+    Das klassische Outlook setzt mit der Word-Engine, und die kennt einen
+    linken Rahmen an einem `<blockquote>` nicht zuverlässig (? ungeprüft an
+    Windows, #108). Eine Zelle mit `border-left` trägt er — dasselbe Gerüst wie
+    der Umschlag (#104). `role="presentation"`, weil es kein Datensatz ist.
+    """
+    return (f'<table role="presentation" cellpadding="0" cellspacing="0" '
+            f'style="border-collapse: collapse; margin: 0 0 {ABSTAND_UNTEN};">'
+            f'<tr>{ZITAT_ZELLE}{inhalt}</td></tr></table>')
+
+
+def zitattexte(html: str) -> list[str]:
+    """Der Inhalt jeder Zitatzelle — geschachtelte Zitate eingeschlossen.
+
+    Gezählt wird die Tiefe der `<td>`, nicht das nächste `</td>`: Ein Zitat im
+    Zitat bringt seine eigene Zelle mit, und deren Ende ist nicht das Ende der
+    äußeren. Ohne die Zählung fehlte der Text hinter dem inneren Zitat.
+    """
+    texte = []
+    start = html.find(ZITAT_ZELLE)
+    while start != -1:
+        anfang = start + len(ZITAT_ZELLE)
+        tiefe, stelle = 1, anfang
+        for treffer in re.finditer(r"<td\b|</td\s*>", html[anfang:], re.IGNORECASE):
+            tiefe += 1 if treffer.group(0).lower().startswith("<td") else -1
+            if tiefe == 0:
+                stelle = anfang + treffer.start()
+                break
+        texte.append(html[anfang:stelle])
+        start = html.find(ZITAT_ZELLE, anfang)
+    return texte
+
+
+def _festbreite_text(inhalt: str) -> str:
+    """Wortlaut für HTML: escapt, Zeilen als `<br>`, Leerzeichen erhalten.
+
+    Kein `<pre>`: Dort bricht keine Zeile um, und eine lange Protokollzeile
+    ließe die ganze Nachricht waagerecht scrollen. Stattdessen bleibt jede
+    Zeile eine Zeile (`<br>`), und Leerzeichen, die HTML sonst zusammenzöge,
+    werden zu geschützten — als Zeichen U+00A0, nicht als `&nbsp;`: Der
+    Wortlautvergleich in `pruefung_eml` normalisiert das Zeichen, die Entity
+    nicht.
+
+    Nie durch die Typografie: Ein Auszug gibt wieder, was dastand.
+    """
+    zeilen = []
+    for zeile in inhalt.split("\n"):
+        text = html_modul.escape(zeile, quote=True)
+        # Führende Leerzeichen und jedes zweite in einer Folge schützen: So
+        # bleibt die Breite erhalten, und zwischen Wörtern kann trotzdem
+        # umbrochen werden.
+        text = re.sub(r"^ +", lambda m: "\u00a0" * len(m.group(0)), text)
+        text = re.sub(r"  ", " \u00a0", text)
+        zeilen.append(text)
+    return "<br>".join(zeilen)
+
+
+def wortlaut(inhalt: str, block: bool) -> str:
+    """Ein Auszug in Festbreite — im Satz oder abgesetzt."""
+    if not block:
+        return (f'<code style="font-family: {FESTBREITE}; font-size: 15px;">'
+                f'{html_modul.escape(inhalt, quote=True)}</code>')
+    rumpf = _festbreite_text(inhalt.rstrip("\n"))
+    return (f'<p class="{KLASSE_TEXT}" style="margin: 0 0 {ABSTAND_UNTEN}; {TEXTSTIL} '
+            f'font-family: {FESTBREITE}; font-size: 15px;">{rumpf}</p>')
+
+
 # ── Der Weg über den Baum ───────────────────────────────────────────────────
 
 
@@ -318,6 +418,8 @@ def _inline(knoten) -> str:
         return stark(_inline(knoten.kinder))
     if isinstance(knoten, baum_modul.Betont):
         return betont(_inline(knoten.kinder))
+    if isinstance(knoten, baum_modul.Wortlaut) and not knoten.block:
+        return wortlaut(knoten.inhalt, block=False)
     return _block(knoten)
 
 
@@ -335,6 +437,12 @@ def _block(knoten) -> str:
             [[_inline(z) for z in zeile] for zeile in knoten.zeilen],
             list(knoten.ausrichtungen),
         )
+    if isinstance(knoten, baum_modul.Ueberschrift):
+        return ueberschrift(knoten.ebene, _inline(knoten.kinder))
+    if isinstance(knoten, baum_modul.Zitat):
+        return zitat("".join(_block(k) for k in knoten.kinder))
+    if isinstance(knoten, baum_modul.Wortlaut):
+        return wortlaut(knoten.inhalt, block=knoten.block)
     # Kein stilles Uebergehen — derselbe Grund wie im Typst-Emitter: ein leerer
     # Absatz in einer Mail, die jemand abschickt, faellt niemandem auf.
     raise TypeError(

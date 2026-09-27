@@ -126,6 +126,9 @@ def test_emitter_kennt_jeden_knoten():
         baum.Absatz: baum.Absatz((baum.Text("x"),)),
         baum.Liste: baum.Liste(((baum.Text("a"),), (baum.Text("b"),))),
         baum.Tabelle: baum.Tabelle((((baum.Text("a"),),),), (None,)),
+        baum.Ueberschrift: baum.Ueberschrift(1, (baum.Text("x"),)),
+        baum.Zitat: baum.Zitat((baum.Absatz((baum.Text("x"),)),)),
+        baum.Wortlaut: baum.Wortlaut("x", block=True),
     }
     fehlend = [k.__name__ for k in baum.KNOTEN
                if k not in beispiele and k not in baum.NUR_BRIEF]

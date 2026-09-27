@@ -545,7 +545,8 @@ def linte(brief_pfad: Path, profil_verzeichnis: Path | None = None) -> lint_modu
     kopf_roh = brief_pfad.read_text(encoding="utf-8").split("\n---", 2)[0][3:]
 
     lint_modul.pruefe_frontmatter(kopf, kopf_roh, bericht)
-    lint_modul.pruefe_body(body_md, versatz, bericht, kopf.get("dialekt"))
+    lint_modul.pruefe_body(body_md, versatz, bericht, kopf.get("dialekt"),
+                           str(kopf.get("typ") or "brief"))
     if str(kopf.get("typ") or "brief") == "email":
         lint_modul.pruefe_email_anlagen(kopf, body_md, kopf_roh, bericht)
         # Dieselbe Auflösung wie in `eml._haenge_an`: relativ zum Brief, nicht

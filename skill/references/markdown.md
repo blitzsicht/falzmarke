@@ -195,11 +195,20 @@ Mailprogramme, die Adressen selbst erkennen, ziehen es in den Verweis.
 und aus `...` kein Auslassungszeichen — sonst kopiert der Empfänger eine Adresse, die es nicht
 gibt.
 
-### In E-Mails noch nicht
+### In E-Mails
 
-`typ: email` lehnt diese Elemente ab, auch mit `dialekt: "1.1"`. Brief, HTML-Teil und Textteil
-entstehen aus derselben geprüften Quelle, und der HTML-Teil setzt sie noch nicht. Die Meldung
-sagt das mit Zeile und Grund; es entsteht keine halb gesetzte Mail.
+Mit `dialekt: "1.1"` setzt auch `typ: email` diese Elemente, seit Issue #109. Ohne das Feld bleibt
+es wie im Brief ein Fehler.
+
+| Element | HTML-Teil | Klartextteil |
+|---|---|---|
+| Überschrift | fetter Absatz, ab Ebene 3 zusätzlich kursiv | Text, darunter `=` (Ebene 1) oder `-` |
+| Zitat | Linie am linken Rand | `>` vor jeder Zeile, geschachtelt `>>` |
+| Auszug im Satz | Festbreite | unverändert |
+| abgesetzter Auszug | Festbreite, bricht nach dem Lesefenster um | eingerückt, feste Zeilen |
+
+Die Warnung zur Zeilenlänge eines Auszugs gilt nur im Brief: Sie spricht vom Satzspiegel, und
+den hat eine E-Mail nicht.
 
 ## Wie es im PDF ankommt
 

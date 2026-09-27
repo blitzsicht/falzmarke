@@ -128,7 +128,7 @@ ZUSAETZLICH = {
 #
 # Kein Eintrag für `heading`: Seit Fassung 1.1 gibt es Überschriften, und die
 # alte Begründung („in einem Brief nicht vorgesehen") wäre falsch. Elemente aus
-# `ZUSAETZLICH` melden über `_meldung_fassung` bzw. `_meldung_email` — die
+# `ZUSAETZLICH` melden über `_meldung_fassung` — die
 # sagen, WO es geht, statt zu behaupten, es ginge nirgends.
 ABLEHNUNG = {
     "blockquote": "Blockzitate werden nicht gesetzt — den Text als eigenen Absatz schreiben",
@@ -191,19 +191,6 @@ def _meldung_fassung(typ: str) -> str:
             "Fassung 1.0, und die kennt sie nicht")
 
 
-def _meldung_email(typ: str) -> str:
-    """Dasselbe Element in einer E-Mail.
-
-    Brief, HTML-Teil und Textteil entstehen aus DEMSELBEN geprüften Baum; ein
-    Knoten, den nur der Briefsatz kennt, ließe die beiden anderen abstürzen
-    statt melden. Deshalb wird hier abgelehnt, bevor der Knoten überhaupt
-    entsteht — nicht erst im Emitter.
-    """
-    was = BENENNUNG.get(typ, "dieses Element")
-    return (f"{was} setzt der HTML-Teil einer E-Mail noch nicht — "
-            "im Brief gehen sie mit `dialekt: 1.1`")
-
-
 def _zeile(knoten, lage: Lage) -> int:
     if knoten.map:
         return knoten.map[0] + 1 + lage.zeilenversatz
@@ -219,13 +206,13 @@ def _lehne_ab(knoten, lage: Lage) -> None:
     """Ein Knotentyp, den diese Fassung nicht setzt.
 
     Die Meldung sagt zusätzlich, WARUM er hier nicht geht: weil die Fassung
-    älter ist, oder weil das Ziel eine E-Mail ist. Eine Meldung, die beide
-    Fälle verschweigt, schickt den Schreibenden auf die falsche Fährte.
+    älter ist. Seit #109 gilt das für Brief und E-Mail gleich — beide setzen,
+    was `dialekt: 1.1` zulässt, und eine Meldung, die für die E-Mail etwas
+    anderes behauptet, schickte den Schreibenden auf die falsche Fährte.
     """
     typ = knoten.type
     if typ in ZUSAETZLICH["1.1"]:
-        meldung = (_meldung_email(typ) if lage.ziel == "email"
-                   else _meldung_fassung(typ))
+        meldung = _meldung_fassung(typ)
     else:
         meldung = ABLEHNUNG.get(typ, f"'{typ}' wird in einem Brief nicht gesetzt")
     raise MarkdownFehler(_zeile(knoten, lage), meldung)
@@ -235,8 +222,9 @@ def _gesetzt(typ: str, lage: Lage) -> bool:
     """Setzt diese Fassung diesen Knotentyp — an diesem Ziel?"""
     if typ in ERLAUBT:
         return True
-    if lage.ziel == "email":
-        return False
+    # Das Ziel spielt keine Rolle mehr (#109): Der HTML- und der Textteil
+    # setzen Überschriften, Zitate und Auszüge wie der Brief. Bis dahin stand
+    # hier ein pauschales Nein für `ziel="email"`.
     return typ in ZUSAETZLICH.get(lage.dialekt, frozenset())
 
 

@@ -1757,7 +1757,7 @@ def pruefe_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
 # ── Body ────────────────────────────────────────────────────────────────────
 
 def pruefe_body(body: str, versatz: int, bericht: Bericht,
-                dialekt: object = None) -> None:
+                dialekt: object = None, typ: str = "brief") -> None:
     """Der Brieftext, Zeile für Zeile — vor dem Rendern.
 
     Warum die Länge eines Auszugs hier gemessen wird und nicht am PDF
@@ -1787,6 +1787,11 @@ def pruefe_body(body: str, versatz: int, bericht: Bericht,
     # Auszüge gibt es erst ab Dialekt 1.1. Ohne ihn sind Backticks
     # gewöhnlicher Text, und den darf der Satz umbrechen.
     auszuege = str(dialekt or markdown_modul.STANDARDFASSUNG) != "1.0"
+    # Der Satzspiegel ist eine Grenze des Papiers (#109). Eine E-Mail hat
+    # keinen: Der Textteil lässt Auszugszeilen ungefaltet stehen, der HTML-Teil
+    # bricht sie nach dem Lesefenster um. Die Warnung spräche dort von einem
+    # Rand, den es nicht gibt.
+    auszuege = auszuege and typ != "email"
 
     #: Das Zaunzeichen des offenen Auszugs, sonst leer.
     zaun = ""

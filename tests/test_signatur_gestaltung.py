@@ -38,7 +38,7 @@ def _seite(beispiel=None) -> str:
     pfad = profilpfad(beispiel, kopf["profil"])
     profil = yaml.safe_load(pfad.read_text(encoding="utf-8"))
     logo = eml.logo_quelle(profil, pfad)
-    return eml.htmlteil(kopf, profil, markdown.lies(body, versatz, ziel="email"), logo=logo)
+    return eml.htmlteil(kopf, profil, markdown.lies(body, versatz, dialekt=kopf.get("dialekt"), ziel="email"), logo=logo)
 
 
 # ── Der Dunkelblock, und warum er die einzige Ausnahme ist ──────────────────
@@ -158,7 +158,7 @@ def test_ein_hintergrund_faellt_immer_auf():
 def test_auch_die_begleitseite_schaltet_um():
     kopf, body, versatz = falzmarke.lies_brief(EMAIL_BEISPIELE[0])
     profil = yaml.safe_load((PROFILE / f"{kopf['profil']}.yaml").read_text(encoding="utf-8"))
-    seite = eml.begleit_html(kopf, profil, markdown.lies(body, versatz, ziel="email"))
+    seite = eml.begleit_html(kopf, profil, markdown.lies(body, versatz, dialekt=kopf.get("dialekt"), ziel="email"))
     assert html.nicht_umschaltbar(seite) == []
     assert html.verstoesse(seite) == []
 
@@ -190,7 +190,7 @@ KOPF_LOGO = {"anrede": "Sehr geehrte Frau Muster,", "unterzeichner": "Erika Must
 def _nachricht(profil, profil_pfad):
     beispiel = EMAIL_BEISPIELE[0]
     kopf, body, versatz = falzmarke.lies_brief(beispiel)
-    return eml.baue(kopf, profil, body, markdown.lies(body, versatz, ziel="email"),
+    return eml.baue(kopf, profil, body, markdown.lies(body, versatz, dialekt=kopf.get("dialekt"), ziel="email"),
                     brief_pfad=beispiel, profil_pfad=profil_pfad)
 
 
@@ -283,7 +283,7 @@ def _seite_mit_logo(profil_mit_logo) -> str:
     beispiel = EMAIL_BEISPIELE[0]
     kopf, body, versatz = falzmarke.lies_brief(beispiel)
     logo = eml.logo_quelle(profil, pfad)
-    return eml.htmlteil(kopf, profil, markdown.lies(body, versatz, ziel="email"), logo=logo)
+    return eml.htmlteil(kopf, profil, markdown.lies(body, versatz, dialekt=kopf.get("dialekt"), ziel="email"), logo=logo)
 
 
 def _signaturtabelle(seite: str) -> str:

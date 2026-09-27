@@ -137,15 +137,12 @@ class Tabelle:
 KNOTEN = (Text, Umbruch, Stark, Betont, Absatz, Ueberschrift, Liste, Zitat,
           Wortlaut, Tabelle)
 
-#: Knoten, die **nur** der Briefsatz setzt. Die E-Mail-Emitter kennen sie
-#: nicht — und sollen sie auch nicht stillschweigend übergehen.
+#: Knoten, die **nur** der Briefsatz setzt. Seit #109 keiner mehr: Die
+#: E-Mail-Emitter setzen Überschrift, Zitat und Wortlaut selbst.
 #:
-#: Das ist keine Lücke, sondern eine Grenze mit Wache davor: `markdown.py`
-#: lehnt diese Elemente bei `ziel="email"` ab, bevor der Knoten überhaupt
-#: entsteht. Ein Eintrag hier ist deshalb nur zulässig, solange genau das
-#: geprüft ist — `tests/test_emit_html.py` und `tests/test_emit_text.py`
-#: verlangen den Nachweis in beide Richtungen: Der Emitter muss abbrechen,
-#: UND der Weg dorthin muss versperrt sein.
-#:
-#: Ein Knoten verlässt die Liste, sobald der HTML-Teil ihn setzt.
-NUR_BRIEF = (Ueberschrift, Zitat, Wortlaut)
+#: Die Liste bleibt als Ort stehen, falls ein künftiger Knoten wieder zuerst nur
+#: im Brief ankommt. Ein Eintrag hier ist nur zulässig, solange die Grenze
+#: bewacht ist: `markdown.py` muss ihn bei `ziel="email"` ablehnen, bevor der
+#: Knoten entsteht, und `tests/test_dialekt.py` verlangt den Nachweis in beide
+#: Richtungen.
+NUR_BRIEF: tuple = ()

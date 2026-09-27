@@ -164,63 +164,53 @@ def test_zeilenversatz_gilt_auch_fuer_hinweise():
     assert hinweise[0].zeile == 19
 
 
-# ── Die Grenze zur E-Mail ───────────────────────────────────────────────────
+# ── Brief und E-Mail setzen dasselbe (#109) ─────────────────────────────────
 #
-# `baum.NUR_BRIEF` nimmt Knoten von der Vollständigkeitsprüfung der
-# E-Mail-Emitter aus. Das ist nur zulässig, solange die Grenze bewacht ist —
-# hier steht der Nachweis, und zwar in beide Richtungen: Der Emitter muss
-# abbrechen, UND der Weg dorthin muss versperrt sein. Fehlt eine der beiden
-# Richtungen, ist die Ausnahme genau die Lücke, gegen die der Wächter gebaut
-# wurde: ein Absatz, der aus einer E-Mail verschwindet, ohne dass etwas rot wird.
+# Bis #109 standen Überschrift, Zitat und Wortlaut in `baum.NUR_BRIEF`, und
+# `markdown.py` lehnte sie bei `ziel="email"` ab. Seitdem setzen beide
+# E-Mail-Emitter sie selbst, und für beide Ziele gilt dieselbe Regel: Die Fassung
+# entscheidet, nicht das Erzeugnis.
 
 from falzmarke import baum, emit_html, emit_text  # noqa: E402
 
-#: Je Knoten aus `baum.NUR_BRIEF` die Markdown-Syntax, die ihn erzeugt.
-NUR_BRIEF_PROBEN = {
-    baum.Ueberschrift: ("# Ein Abschnitt\n", baum.Ueberschrift(1, (baum.Text("x"),))),
-    baum.Zitat: ("> Ein Zitat.\n", baum.Zitat((baum.Absatz((baum.Text("x"),)),))),
-    baum.Wortlaut: ("```\nein Auszug\n```\n", baum.Wortlaut("x", block=True)),
+#: Je Knoten der Fassung 1.1 die Markdown-Syntax, die ihn erzeugt.
+PROBEN_11 = {
+    baum.Ueberschrift: "# Ein Abschnitt\n",
+    baum.Zitat: "> Ein Zitat.\n",
+    baum.Wortlaut: "```\nein Auszug\n```\n",
 }
 
 
-def test_jeder_nur_brief_knoten_hat_eine_probe():
-    """Sonst liefe der Nachweis unten über die leere Menge."""
-    fehlend = [k.__name__ for k in baum.NUR_BRIEF if k not in NUR_BRIEF_PROBEN]
-    assert not fehlend, f"ohne Probe in dieser Datei: {fehlend}"
-    assert baum.NUR_BRIEF, "NUR_BRIEF ist leer — dann gehört diese Prüfung weg"
+def test_kein_knoten_ist_mehr_nur_im_brief():
+    """Kommt einer dazu, braucht er wieder die Wache aus markdown.py — und Tests."""
+    assert baum.NUR_BRIEF == ()
 
 
-@pytest.mark.parametrize("klasse", list(NUR_BRIEF_PROBEN),
-                         ids=[k.__name__ for k in NUR_BRIEF_PROBEN])
-def test_die_email_emitter_uebergehen_den_knoten_nicht_still(klasse):
-    """Richtung 1: Käme er doch an, bräche es — er verschwindet nicht."""
-    _, knoten = NUR_BRIEF_PROBEN[klasse]
-    for modul, name in ((emit_html, "HTML-Emitter"), (emit_text, "Text-Emitter")):
-        with pytest.raises(TypeError, match=name):
-            modul._block(knoten)
-
-
-@pytest.mark.parametrize("klasse", list(NUR_BRIEF_PROBEN),
-                         ids=[k.__name__ for k in NUR_BRIEF_PROBEN])
-def test_der_weg_in_die_email_ist_versperrt(klasse):
-    """Richtung 2: Er kommt gar nicht erst an — mit Zeile, Grund und Ausweg.
-
-    Ohne diese Hälfte wäre die Ausnahme nur die Zusage, dass der Absturz
-    ordentlich aussieht. Der Punkt ist, dass es keinen Absturz gibt.
-    """
-    quelle, _ = NUR_BRIEF_PROBEN[klasse]
-    for fassung in markdown_modul.FASSUNGEN:
-        with pytest.raises(MarkdownFehler) as fehler:
-            lies(quelle, dialekt=fassung, ziel="email")
-        assert "E-Mail" in str(fehler.value)
-        assert fehler.value.zeile == 1
-
-
-@pytest.mark.parametrize("klasse", list(NUR_BRIEF_PROBEN),
-                         ids=[k.__name__ for k in NUR_BRIEF_PROBEN])
-def test_im_brief_kommt_derselbe_knoten_durch(klasse):
-    """Die Gegenrichtung zur Sperre: Sie darf nicht überall greifen."""
-    quelle, _ = NUR_BRIEF_PROBEN[klasse]
-    bloecke = lies(quelle, dialekt="1.1", ziel="brief")
+@pytest.mark.parametrize("klasse", list(PROBEN_11), ids=[k.__name__ for k in PROBEN_11])
+@pytest.mark.parametrize("ziel", ["brief", "email"])
+def test_mit_dialekt_11_kommt_der_knoten_an(klasse, ziel):
+    bloecke = lies(PROBEN_11[klasse], dialekt="1.1", ziel=ziel)
     assert any(isinstance(b, klasse) for b in bloecke), \
-        f"{klasse.__name__} fehlt im Brief-Baum: {bloecke}"
+        f"{klasse.__name__} fehlt im Baum für {ziel}: {bloecke}"
+
+
+@pytest.mark.parametrize("klasse", list(PROBEN_11), ids=[k.__name__ for k in PROBEN_11])
+@pytest.mark.parametrize("ziel", ["brief", "email"])
+def test_ohne_dialekt_11_bleibt_es_ein_fehler(klasse, ziel):
+    """Die Gegenrichtung: Die Öffnung gilt der Fassung, nicht jeder Mail.
+
+    Die Meldung nennt das Feld, das hilft — in der E-Mail dieselbe wie im Brief.
+    Bis #109 sagte sie dort „setzt der HTML-Teil noch nicht", und das stimmt
+    nicht mehr.
+    """
+    with pytest.raises(MarkdownFehler) as fehler:
+        lies(PROBEN_11[klasse], dialekt="1.0", ziel=ziel)
+    assert "dialekt: 1.1" in str(fehler.value)
+    assert "noch nicht" not in str(fehler.value)
+
+
+@pytest.mark.parametrize("klasse", list(PROBEN_11), ids=[k.__name__ for k in PROBEN_11])
+def test_beide_email_emitter_setzen_den_knoten(klasse):
+    bloecke = lies(PROBEN_11[klasse], dialekt="1.1", ziel="email")
+    assert emit_html.setze(bloecke).strip()
+    assert emit_text.setze(bloecke).strip()
