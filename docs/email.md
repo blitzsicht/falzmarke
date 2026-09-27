@@ -85,6 +85,31 @@ Wer aus der Datei eine ausgehende Mail machen will, hat zwei Wege:
 Das vollständige Protokoll mit Matrix und Gegenprobe:
 [`docs/mailprogramme-2026-08-27.md`](mailprogramme-2026-08-27.md).
 
+### Aus der Vorschau ins Mailprogramm: der Link
+
+Die `.html`-Vorschau trägt unter An und Betreff einen Link **„Im Mailprogramm öffnen“**, seit
+#108. Er ist für die Programme gedacht, die keine `.eml` öffnen: Gmail und Outlook im Browser,
+die `--oeffnen` nicht erreicht. Ein Klick legt dort eine neue Nachricht an, mit Empfänger,
+Kopie, Betreff und Text vorbelegt.
+
+Was der Link nicht trägt, und warum:
+
+| Nicht im Link | Grund |
+|---|---|
+| Anhänge | Ein `mailto:` kann keine tragen. |
+| Formatierung | nur Klartext, wie im Textteil der Mail |
+| die Signatur | Das Mailprogramm setzt seine eigene darunter; sie käme sonst doppelt an. |
+| die Blindkopie | Die Vorschau ist zum Herauskopieren da, und ein Link nähme sie mit. Der Befehl nennt sie beim Erzeugen. |
+
+**Die Länge ist begrenzt.** Keine Norm nennt eine Zahl, aber Firefox unter Windows kürzt einen
+`mailto:`-Link bei rund 2 KB mit Absicht (Mozilla-Bug 253311), und für das klassische Outlook
+gibt es eine Messung bei 2046 Zeichen. Über 2000 Zeichen nach der Kodierung baut die Vorschau
+deshalb keinen Link, sondern sagt, dass die Nachricht zu lang ist — ein halb übernommener Text
+wäre schlimmer als keiner. Die neun Beispiele liegen zwischen 516 und 1752 Zeichen.
+
+Gesehen hat den Link in Gmail und Outlook im Browser bisher niemand; das Protokoll dazu steht
+aus (#371).
+
 ### Den Entwurf bekommen: `--oeffnen`
 
 ```bash
