@@ -42,6 +42,12 @@ CI = REPO / ".github" / "workflows" / "ci.yml"
 #: dieser Datei hatte genau diesen Fehler.
 ECHTE_REGISTRY_SUCHE = repo_pruefung.registry_namen
 
+#: Die Schutzregeln, wie ADR 0036 sie vorsieht und wie die API sie liefert.
+PYPI_REGELN_SOLL = [{"type": "branch_policy"}, {"type": "wait_timer", "wait_timer": 15}]
+#: Der Zustand vom 25.09.2026 (#359): dieselben plus eine Freigabe von Hand.
+PYPI_REGELN_MIT_FREIGABE = PYPI_REGELN_SOLL + [
+    {"type": "required_reviewers", "reviewers": [{"reviewer": {"login": "siluri"}}]}]
+
 SOLL_CHECKS = sorted(repo_pruefung.pflicht_checks.pflicht_checks(CI))
 EIN_CHECK_ZU_WENIG = SOLL_CHECKS[1:]
 
@@ -98,6 +104,7 @@ def _vollstaendige_antworten(
     checks: list[str] | None = None,
     themen: list[str] | None = None,
     repo_fehler: Exception | None = None,
+    pypi_regeln: list[dict] | Exception | None = None,
 ) -> dict[str, object]:
     """Ein Satz Antworten, in dem jeder Wert exakt dem Soll entspricht —
     Basis für die Gegenproben, die dann genau einen Wert verstellen."""
@@ -119,6 +126,12 @@ def _vollstaendige_antworten(
             _ruleset("release-tags", 2, tags_enforcement),
         ],
         f"repos/{REPO_NAME}/rulesets/1": _ruleset_detail(checks),
+        f"repos/{REPO_NAME}/environments/pypi": (
+            pypi_regeln if isinstance(pypi_regeln, Exception)
+            else {"protection_rules": pypi_regeln if pypi_regeln is not None
+                  else PYPI_REGELN_SOLL}),
+        f"repos/{REPO_NAME}/environments/pypi/deployment-branch-policies": {
+            "branch_policies": [{"name": "v*", "type": "tag"}]},
     }
 
 
@@ -676,3 +689,57 @@ def test_die_echte_abfrage_trifft_ueberhaupt_etwas():
     except Exception as fehler:                                   # noqa: BLE001
         pytest.skip(f"Registry nicht erreichbar: {fehler}")
     assert treffer, "die Suche liefert nichts — dann prüft der Wächter ins Leere"
+
+
+# ── Schutzregeln des Environments pypi (#359) ───────────────────────────────
+
+
+def test_die_pypi_regeln_nach_adr_0036_sind_gruen():
+    abgleich = _finde(_pruefen(), "Environment pypi")
+    assert abgleich.stimmt, abgleich
+
+
+def test_eine_wieder_eingeschaltete_freigabe_wird_erkannt():
+    """Genau der Zustand vom 25.09.2026: v0.9.9 hing 30 Minuten, v0.9.11 neun
+    Stunden, und kein Werkzeug hatte die zusätzliche Regel gemeldet."""
+    ergebnisse = _pruefen(pypi_regeln=PYPI_REGELN_MIT_FREIGABE)
+    abgleich = _finde(ergebnisse, "Environment pypi")
+    assert not abgleich.stimmt
+    assert "required_reviewers:siluri" in abgleich.ist
+    assert repo_pruefung.austrittscode(ergebnisse) == 1
+
+
+def test_eine_fehlende_wartezeit_wird_erkannt():
+    ergebnisse = _pruefen(pypi_regeln=[{"type": "branch_policy"}])
+    assert not _finde(ergebnisse, "Environment pypi").stimmt
+
+
+def test_nicht_abfragbare_pypi_regeln_sind_unbekannt_nicht_gruen():
+    ergebnisse = _pruefen(pypi_regeln=RuntimeError("HTTP 403"))
+    abgleich = _finde(ergebnisse, "Environment pypi")
+    assert abgleich.unbekannt
+    assert repo_pruefung.austrittscode(ergebnisse) == 2
+
+
+# ── Wo der Wächter läuft: vor jedem Tag (#211) ──────────────────────────────
+
+VOR_DEM_TAG = REPO / "scripts" / "vor_dem_tag.sh"
+
+
+def test_vor_dem_tag_faehrt_paket_und_waechter():
+    text = VOR_DEM_TAG.read_text(encoding="utf-8")
+    assert "scripts/paket_pruefen.sh" in text, "das Paket wird nicht mehr geprüft"
+    assert "scripts/repo_pruefung.py" in text, "der Drift-Wächter läuft nicht mit"
+
+
+def test_vor_dem_tag_laesst_nicht_geprueft_nicht_durch():
+    """Exit 2 heißt: ein Wert war nicht abfragbar. Ginge das als grün durch,
+    wäre der Wächter an genau der Stelle stumm, an der er gebraucht wird."""
+    text = VOR_DEM_TAG.read_text(encoding="utf-8")
+    zweig = text[text.index("2)"):].split(";;")[0]
+    assert "exit 2" in zweig, zweig
+
+
+def test_contributing_nennt_den_schritt_vor_dem_tag():
+    text = (REPO / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    assert "bash scripts/vor_dem_tag.sh" in text
