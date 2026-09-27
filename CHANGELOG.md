@@ -2,6 +2,16 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.9.12 — 27.09.2026
+
+### Neu
+
+- **E-Mails setzen Überschriften, Zitate und wortgetreue Auszüge.** Mit `dialekt: "1.1"` gilt für `typ: email` jetzt dasselbe wie im Brief. Bisher brach die E-Mail mit „setzt der HTML-Teil einer E-Mail noch nicht“ ab. Im HTML-Teil stehen Überschriften als fette Absätze (ab Ebene 3 zusätzlich kursiv), Zitate mit einer Linie am linken Rand und Auszüge in Festbreite; ein langer Auszug bricht nach dem Lesefenster um, statt die Nachricht waagerecht scrollen zu lassen. Im Klartextteil ist die Überschrift unterstrichen, das Zitat trägt `>` als Zitattiefe nach RFC 3676, und der Auszug bleibt eingerückt in festen Zeilen. `verify --email` lässt eine Zeile mit `>` nur dann durch, wenn ihr Wortlaut im HTML-Teil in einem Zitat steht; eine versehentlich ungestopfte Zeile bleibt ein Befund. Die Warnung zur Zeilenlänge eines Auszugs gilt nur noch im Brief, denn eine E-Mail hat keinen Satzspiegel. Neues Beispiel: `examples/email/email-stellungnahme.md`. (#109)
+
+### Infrastruktur
+
+- **Der Drift-Wächter läuft vor jedem Release und kennt die PyPI-Einstellung.** `scripts/vor_dem_tag.sh` fährt die Paketprüfung und danach `repo_pruefung.py` mit den `gh`-Rechten des Maintainers. Ein Token mit Admin-Leserecht in einem öffentlichen Repository kam nicht infrage. Neu geprüft werden die Schutzregeln des Environments `pypi` nach ADR 0036: Eine wieder eingeschaltete Freigabe von Hand, die v0.9.11 neun Stunden festhielt, fällt jetzt vor dem Tag auf (#359). Ist ein Wert nicht abfragbar, bricht das Skript ab, statt grün zu melden. (#211)
+
 ## v0.9.11 — 26.09.2026
 
 ### Behoben
