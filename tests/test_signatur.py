@@ -114,7 +114,7 @@ def test_die_signatur_kommt_genau_einmal_vor(beispiel):
     kopf, body, versatz = falzmarke.lies_brief(beispiel)
     profil = _profil(kopf["profil"], beispiel)
     # Siehe test_email_beispiele: Mail-Fassung, also `ziel="email"`.
-    bloecke = markdown.lies(body, versatz, ziel="email")
+    bloecke = markdown.lies(body, versatz, dialekt=kopf.get("dialekt"), ziel="email")
     # Nicht am Namen messen: „Erika Muster" steht auch in
     # „Geschäftsführerin: Erika Muster" aus der Fußzeile. Zwei Rollen, kein
     # Duplikat — die Adresse dagegen kommt in der Signatur genau einmal vor.
@@ -147,7 +147,7 @@ def test_der_textteil_trennt_die_bloecke_durch_leerzeilen():
     beispiel = EMAIL_BEISPIELE[0]
     kopf, body, versatz = falzmarke.lies_brief(beispiel)
     profil = _profil(kopf["profil"], beispiel)
-    text = eml.textteil(kopf, profil, markdown.lies(body, versatz, ziel="email"))
+    text = eml.textteil(kopf, profil, markdown.lies(body, versatz, dialekt=kopf.get("dialekt"), ziel="email"))
     signatur = text[text.index(eml.SIGNATUR_TRENNER):]
     assert signatur.count("\n\n") == 2, "zwei Leerzeilen für drei Blöcke erwartet"
 
@@ -156,7 +156,7 @@ def test_der_htmlteil_setzt_drei_absaetze():
     beispiel = EMAIL_BEISPIELE[0]
     kopf, body, versatz = falzmarke.lies_brief(beispiel)
     profil = _profil(kopf["profil"], beispiel)
-    html = eml.htmlteil(kopf, profil, markdown.lies(body, versatz, ziel="email"))
+    html = eml.htmlteil(kopf, profil, markdown.lies(body, versatz, dialekt=kopf.get("dialekt"), ziel="email"))
     # Die Trennlinie gehört an den ersten Block, nicht an jeden.
     assert html.count("border-top") == 1, "die Trennlinie steht mehrfach"
 

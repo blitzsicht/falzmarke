@@ -128,6 +128,68 @@ def tabelle(zeilen: list[list[str]], ausrichtungen: list[str | None]) -> str:
     return "\n".join(ausgabe)
 
 
+# ── Überschrift, Zitat, Auszug (#109) ───────────────────────────────────────
+
+#: Einzug eines abgesetzten Auszugs — vier Leerzeichen, wie ihn Markdown und
+#: die meisten Mailprogramme im Klartext erkennen.
+AUSZUG_EINZUG = "    "
+
+
+def ueberschrift(ebene: int, inhalt: str) -> str:
+    """Text, darunter eine Linie — im Klartext gibt es keinen Fettdruck.
+
+    Zwei Formen wie im HTML-Teil: `=` unter Ebene 1, `-` darunter. Die Linie ist
+    so lang wie die Überschrift; sie ist kein Wortlaut, und der Vergleich der
+    Fassungen zählt sie nicht mit (nur Wörter mit Buchstabe oder Ziffer).
+    """
+    zeichen = "=" if ebene == 1 else "-"
+    breite = max(len(z) for z in inhalt.split("\n"))
+    return f"{inhalt}\n{zeichen * breite}"
+
+
+def wortlaut(inhalt: str, block: bool) -> str:
+    """Ein Auszug: im Satz unverändert, abgesetzt eingerückt.
+
+    Nie durch die Typografie und nie gefaltet (`teile()` markiert den Block als
+    fest): Eine umbrochene Protokollzeile ist ein anderer Eintrag.
+    """
+    if not block:
+        return inhalt
+    return "\n".join(AUSZUG_EINZUG + z if z else z
+                     for z in inhalt.rstrip("\n").split("\n"))
+
+
+def _hart_falten(zeile: str, breite: int) -> list[str]:
+    """Wie `_falte_zeile`, aber ohne Faltmarke: feste Zeilen.
+
+    Gebraucht im Zitat. Dort steht vor jeder Zeile das Zitatzeichen, und eine
+    weiche Faltung müsste es nach RFC 3676 §4.5 auf jeder Folgezeile
+    wiederholen und beim Entfalten wieder abnehmen. Feste Zeilen sind hier die
+    einfachere und ebenso gültige Form.
+    """
+    return [s.rstrip(" ") for s in _falte_zeile(zeile, breite, delsp=False)]
+
+
+def zitat(inhalt: str, breite: int = BREITE) -> str:
+    """`> ` vor jeder Zeile, geschachtelt als `>> `.
+
+    In `format=flowed` ist `>` am Zeilenanfang die Zitattiefe (RFC 3676 §4.5) —
+    genau das, was ein Zitat ist. Deshalb darf `falte()` diese Zeilen nicht
+    stopfen; `teile()` meldet sie als eigene Art.
+    """
+    zeilen = []
+    for zeile in inhalt.split("\n"):
+        if zeile.startswith(">"):
+            zeilen.append(">" + zeile)
+            continue
+        if not zeile:
+            zeilen.append(">")
+            continue
+        for stueck in _hart_falten(zeile, breite - 2):
+            zeilen.append("> " + stueck)
+    return "\n".join(zeilen)
+
+
 # ── Der Weg über den Baum ───────────────────────────────────────────────────
 
 
@@ -182,6 +244,8 @@ def _inline(knoten) -> str:
         return betont(_inline(knoten.kinder))
     if isinstance(knoten, baum_modul.Link):
         return link(knoten.ziel, _inline(knoten.kinder))
+    if isinstance(knoten, baum_modul.Wortlaut) and not knoten.block:
+        return wortlaut(knoten.inhalt, block=False)
     return _block(knoten)
 
 
@@ -204,6 +268,12 @@ def _block(knoten, tiefe: int = 0) -> str:
             [[_inline(z) for z in zeile] for zeile in knoten.zeilen],
             list(knoten.ausrichtungen),
         )
+    if isinstance(knoten, baum_modul.Ueberschrift):
+        return ueberschrift(knoten.ebene, _inline(knoten.kinder))
+    if isinstance(knoten, baum_modul.Wortlaut):
+        return wortlaut(knoten.inhalt, block=knoten.block)
+    if isinstance(knoten, baum_modul.Zitat):
+        return zitat("\n\n".join(t for t in (_block(k) for k in knoten.kinder) if t.strip()))
     # Kein stilles Uebergehen — derselbe Grund wie im Typst-Emitter.
     raise TypeError(
         f"Der Text-Emitter kennt {type(knoten).__name__} nicht. "
@@ -211,8 +281,17 @@ def _block(knoten, tiefe: int = 0) -> str:
     )
 
 
-def teile(bloecke) -> list[tuple[str, bool]]:
-    """Geprüfter Baum -> je Block sein Text und ob er fest bleiben muss.
+#: Die Art eines Blocks für `falte()`: Fließtext wird gefaltet, feste Zeilen
+#: bleiben, wie sie sind, und Zitatzeilen bleiben fest UND ungestopft (#109).
+FLIESS, FEST, ZITAT = "fliess", "fest", "zitat"
+
+#: Blöcke, deren Zeilen nicht gefaltet werden dürfen.
+FESTE_BLOECKE = (baum_modul.Liste, baum_modul.Tabelle, baum_modul.Ueberschrift,
+                 baum_modul.Wortlaut)
+
+
+def teile(bloecke) -> list[tuple[str, str]]:
+    """Geprüfter Baum -> je Block sein Text und seine Art (`FLIESS`, `FEST`, `ZITAT`).
 
     „Fest" heißt: nicht weich umbrechbar. Listen und Tabellen tragen ihre
     Bedeutung in der Form — eine gefaltete Einrückung landet beim Entfalten
@@ -227,8 +306,15 @@ def teile(bloecke) -> list[tuple[str, bool]]:
     ergebnis = []
     for b in bloecke:
         text = _block(b)
-        if text.strip():
-            ergebnis.append((text, isinstance(b, (baum_modul.Liste, baum_modul.Tabelle))))
+        if not text.strip():
+            continue
+        if isinstance(b, baum_modul.Zitat):
+            art = ZITAT
+        elif isinstance(b, FESTE_BLOECKE):
+            art = FEST
+        else:
+            art = FLIESS
+        ergebnis.append((text, art))
     return ergebnis
 
 
@@ -280,16 +366,17 @@ def falte(bloecke, breite: int = BREITE, delsp: bool = True) -> str:
     """
     ausgabe: list[str] = []
     bloecke_gesetzt = teile(bloecke)
-    for nummer, (text, fest) in enumerate(bloecke_gesetzt):
+    for nummer, (text, art) in enumerate(bloecke_gesetzt):
         if nummer:
             ausgabe.append("")            # Leerzeile zwischen den Blöcken
         for zeile in text.split("\n"):
-            stuecke = [zeile] if (fest or len(zeile) <= breite) \
+            stuecke = [zeile] if (art != FLIESS or len(zeile) <= breite) \
                 else _falte_zeile(zeile, breite, delsp)
             for s in stuecke:
                 # Space-Stuffing: was mit Leerzeichen, '>' oder 'From ' beginnt,
-                # sähe sonst wie ein Zitat oder eine mbox-Trennzeile aus.
-                if s.startswith((" ", ">")) or s.startswith("From "):
+                # sähe sonst wie ein Zitat oder eine mbox-Trennzeile aus. Im
+                # Zitat IST das `>` die Zitattiefe und bleibt deshalb stehen.
+                if art != ZITAT and (s.startswith((" ", ">")) or s.startswith("From ")):
                     s = " " + s
                 ausgabe.append(s)
     return "\n".join(ausgabe) + "\n"

@@ -321,7 +321,7 @@ def _pruefe_aufbau(nachricht, bericht: Bericht) -> None:
                      "lesbares Datum", str(datum))
 
 
-def _pruefe_textteil(teil, bericht: Bericht) -> None:
+def _pruefe_textteil(teil, bericht: Bericht, html_teil=None) -> None:
     if teil is None:
         return
     _wahr(bericht, "charset_text", "Zeichensatz des Textteils", (teil.get_content_charset() or "") == "utf-8",
@@ -348,8 +348,26 @@ def _pruefe_textteil(teil, bericht: Bericht) -> None:
                 laengste <= ZEILE_HART)
 
     # Space-Stuffing: Eine Zeile, die mit '>' beginnt, läse der Empfänger als
-    # Zitat. Sie muss ein vorangestelltes Leerzeichen tragen.
-    ungestufft = [z for z in zeilen if z.startswith(">")]
+    # Zitat. Sie muss ein vorangestelltes Leerzeichen tragen — AUSSER sie IST
+    # ein Zitat (#109). Dann ist das `>` die Zitattiefe nach RFC 3676 §4.5.
+    #
+    # Woran das zu erkennen ist, ohne die Prüfung aufzuweichen: am Wortlaut.
+    # Eine Zitatzeile darf nur Wörter tragen, die im HTML-Teil in einer
+    # Zitatzelle stehen. Eine versehentlich ungestopfte Zeile aus dem Fließtext
+    # hat Wörter, die dort nicht stehen, und bleibt ein Befund.
+    zitiert: set[str] = set()
+    if html_teil is not None:
+        for stueck in emit_html.zitattexte(html_teil.get_content()):
+            zitiert |= _woerter(stueck)
+    def _ist_zitatzeile(zeile: str) -> bool:
+        if not zitiert:
+            return False
+        woerter = _woerter(zeile.lstrip(">"))
+        # Eine Zeile nur aus `>` trennt Absätze im Zitat; sie gilt nur, wenn
+        # die Nachricht überhaupt ein Zitat trägt.
+        return woerter <= zitiert
+
+    ungestufft = [z for z in zeilen if z.startswith(">") and not _ist_zitatzeile(z)]
     _wahr(bericht, "space_stuffing", "Space-Stuffing", not ungestufft, "keine Zeile beginnt mit >",
                  f"{len(ungestufft)} Zeile(n)" if ungestufft else "keine")
 
@@ -540,7 +558,7 @@ def pruefe(pfad: Path) -> Bericht:
     text_teil = _teil(nachricht, "text/plain")
     html_teil = _teil(nachricht, "text/html")
     _pruefe_blindkopie(nachricht, text_teil, html_teil, bericht)
-    _pruefe_textteil(text_teil, bericht)
+    _pruefe_textteil(text_teil, bericht, html_teil)
     _pruefe_htmlteil(html_teil, bericht)
     _pruefe_gleichlaut(text_teil, html_teil, bericht)
     _pruefe_quellteil(nachricht, text_teil, html_teil, bericht)
