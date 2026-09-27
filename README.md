@@ -527,21 +527,23 @@ Maße gemessen wurden, steht in [`docs/normmasse.md`](https://github.com/blitzsi
 
 Die letzten zwei Versionen im Wortlaut. **Erzeugt aus [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md) — dort ändern, dann `python3 scripts/changelog.py`.**
 
+### v0.9.12 — 27.09.2026
+
+#### Neu
+
+- **E-Mails setzen Überschriften, Zitate und wortgetreue Auszüge.** Mit `dialekt: "1.1"` gilt für `typ: email` jetzt dasselbe wie im Brief. Bisher brach die E-Mail mit „setzt der HTML-Teil einer E-Mail noch nicht“ ab. Im HTML-Teil stehen Überschriften als fette Absätze (ab Ebene 3 zusätzlich kursiv), Zitate mit einer Linie am linken Rand und Auszüge in Festbreite; ein langer Auszug bricht nach dem Lesefenster um, statt die Nachricht waagerecht scrollen zu lassen. Im Klartextteil ist die Überschrift unterstrichen, das Zitat trägt `>` als Zitattiefe nach RFC 3676, und der Auszug bleibt eingerückt in festen Zeilen. `verify --email` lässt eine Zeile mit `>` nur dann durch, wenn ihr Wortlaut im HTML-Teil in einem Zitat steht; eine versehentlich ungestopfte Zeile bleibt ein Befund. Die Warnung zur Zeilenlänge eines Auszugs gilt nur noch im Brief, denn eine E-Mail hat keinen Satzspiegel. Neues Beispiel: `examples/email/email-stellungnahme.md`. (#109)
+
+#### Infrastruktur
+
+- **Der Drift-Wächter läuft vor jedem Release und kennt die PyPI-Einstellung.** `scripts/vor_dem_tag.sh` fährt die Paketprüfung und danach `repo_pruefung.py` mit den `gh`-Rechten des Maintainers. Ein Token mit Admin-Leserecht in einem öffentlichen Repository kam nicht infrage. Neu geprüft werden die Schutzregeln des Environments `pypi` nach ADR 0036: Eine wieder eingeschaltete Freigabe von Hand, die v0.9.11 neun Stunden festhielt, fällt jetzt vor dem Tag auf (#359). Ist ein Wert nicht abfragbar, bricht das Skript ab, statt grün zu melden. (#211)
+
 ### v0.9.11 — 26.09.2026
 
 #### Behoben
 
 - **falzmarke lässt sich wieder ins MCP-Registry eintragen.** Das Registry lehnte den Eintrag bei v0.9.9 und v0.9.10 ab, weil die Beschreibung in `server.json` 139 Zeichen hatte und das Schema höchstens 100 zulässt. Die neue Beschreibung ist kürzer, und ein Test hält die Grenze vor jedem Release fest, statt dass es erst im Release-Lauf nach dem PyPI-Upload auffällt. (#365)
 
-### v0.9.10 — 26.09.2026
-
-#### Behoben
-
-- **Ohne PyPI verweist der Skill auf das Offline-Paket, statt abzubrechen.** In einer Sandbox ohne Zugang zu PyPI, zum Beispiel in ChatGPT, endete die Einrichtung mit „abbrechen“. Dabei lag der Ausweg im selben Release: `falzmarke-offline.skill` bringt den Typst-Compiler mit. `SKILL.md` und die Fehlermeldung von `bootstrap.py` nennen jetzt dieses Paket samt Adresse. (#360)
-
-- **Die Einrichtung holt von PyPI, was zu bekommen ist, auch wenn ein Paket fehlt.** `bootstrap.py` installierte alle fehlenden Pakete in einem einzigen pip-Aufruf. Fehlte eines davon im Paketspiegel, brach pip ab und installierte auch alle anderen nicht. In ChatGPT fehlten so zwei Pakete, obwohl nur typst dort nicht zu bekommen war. Jetzt wird jedes Paket einzeln installiert, wie schon beim mitgelieferten Vorrat, und die Meldung nennt nur noch, was tatsächlich fehlt, samt der pip-Zeile dazu. (#361)
-
-Davor liegen 29 weitere Versionen — der vollständige Verlauf steht in [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md).
+Davor liegen 30 weitere Versionen — der vollständige Verlauf steht in [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md).
 
 <!-- changelog:ende -->
 
