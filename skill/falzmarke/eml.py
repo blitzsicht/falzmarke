@@ -41,9 +41,10 @@ import re
 import tempfile
 from email.headerregistry import Address
 from email.message import EmailMessage
-from email.utils import formatdate, parseaddr
+from email.utils import formatdate, getaddresses, parseaddr
 from pathlib import Path
 from typing import NamedTuple
+from urllib.parse import quote
 
 from falzmarke import baum, emit_html, emit_text
 
@@ -748,6 +749,69 @@ def htmlteil(kopf: dict, profil: dict, bloecke, sprache: str = "de",
     return emit_html.dokument("\n".join(stuecke) + "\n", sprache=sprache, vorspann=vorspann)
 
 
+# ── Die Brücke ins Mailprogramm (#108) ───────────────────────────────────────
+
+#: Obergrenze der ganzen `mailto:`-Adresse NACH der Kodierung.
+#:
+#: Keine Norm und kein Hersteller nennt eine Zahl — RFC 6068 schweigt dazu.
+#: Gemessen haben andere: Firefox unter Windows kürzt mailto bei rund 2 KB mit
+#: Absicht (Mozilla-Bug 253311, offen), und für das klassische Outlook gibt es
+#: eine Einzelmessung bei 2046 Zeichen. Ebene „Praxis" nach ADR 0035, deshalb
+#: kein Fehler: Darüber entsteht nur kein Link, und die Vorschau sagt, warum.
+MAILTO_GRENZE = 2000
+
+
+def _nackte_adressen(wert) -> str:
+    """`Name <a@b>` -> `a@b`, durch Komma getrennt. Namen tragen in einer
+    mailto-Adresse nichts bei und kosten Länge."""
+    return ",".join(adresse for _, adresse in getaddresses(_als_liste(wert)) if adresse)
+
+
+def mailto_adresse(kopf: dict, profil: dict, bloecke) -> str:
+    """Die Nachricht als `mailto:` — An, Kopie, Betreff und der Text.
+
+    Für die Mailprogramme, die keine `.eml` öffnen: Gmail und Outlook im
+    Browser. `--oeffnen` erreicht sie nicht, ein Link schon (#108).
+
+    Was bewusst fehlt:
+
+    * **Die Blindkopie.** Die Vorschau ist zum Herauskopieren da und zeigt sie
+      deshalb nirgends (siehe `baue`). Ein Link, der sie im Attribut trägt,
+      nähme sie beim Kopieren mit. Wo sie gesetzt ist, sagt es der Befehl beim
+      Erzeugen (`blindkopie_hinweis`).
+    * **Die Signatur.** Das Mailprogramm setzt seine eigene darunter; stünde
+      diese mit im Text, käme sie doppelt an.
+    * **Formatierung und Anhänge** — ein `mailto:` trägt nur Klartext.
+
+    Zeilenumbrüche im Text als `%0D%0A`, wie RFC 6068 es verlangt.
+    """
+    email_teil = profil.get("email") or {}
+    gruss = kopf.get("gruss") or email_teil.get("gruss") or profil.get("gruss")
+    text = emit_text.setze(_mit_rahmen(kopf, gruss, bloecke)).rstrip("\n")
+    felder = []
+    if kopf.get("cc"):
+        felder.append("cc=" + quote(_nackte_adressen(kopf["cc"]), safe="@,"))
+    felder.append("subject=" + quote(str(kopf.get("betreff") or ""), safe=""))
+    felder.append("body=" + quote(text.replace("\r\n", "\n").replace("\n", "\r\n"), safe=""))
+    return ("mailto:" + quote(_nackte_adressen(kopf.get("an")), safe="@,")
+            + "?" + "&".join(felder))
+
+
+def _bruecke(kopf: dict, profil: dict, bloecke, stil: str) -> str:
+    """Die Zeile unter dem Vorschaukopf: der Link, oder warum es keinen gibt."""
+    adresse = mailto_adresse(kopf, profil, bloecke)
+    if len(adresse) > MAILTO_GRENZE:
+        return (f'<p class="{emit_html.KLASSE_LEISE}" style="{stil}">'
+                f"Zu lang für einen Link ins Mailprogramm ({len(adresse)} Zeichen, "
+                f"Grenze {MAILTO_GRENZE}). Die .eml weiterleiten oder den Text "
+                "herauskopieren.</p>")
+    return (f'<p class="{emit_html.KLASSE_LEISE}" style="{stil}">'
+            f'<a href="{emit_html.as_text(adresse, typografie_anwenden=False)}" '
+            f'class="{emit_html.KLASSE_TEXT}" style="color: inherit; '
+            f'text-decoration: underline;">Im Mailprogramm öffnen</a> — '
+            "als Klartext, ohne Anhänge; die Signatur fügt dein Mailprogramm selbst an.</p>")
+
+
 def begleit_html(kopf: dict, profil: dict, bloecke, sprache: str = "de",
                  signatur: MitgebrachteSignatur | None = None) -> str:
     """Die `.html` zum Öffnen im Browser — mit An und Betreff als Vorschau.
@@ -765,6 +829,7 @@ def begleit_html(kopf: dict, profil: dict, bloecke, sprache: str = "de",
         f"<strong>{emit_html.as_text(name)}:</strong> {emit_html.as_text(wert)}</p>"
         for name, wert in zeilen if wert
     )
+    kopfzeilen += _bruecke(kopf, profil, bloecke, stil)
     vorschau = (f'<div class="{emit_html.KLASSE_LINIE}" '
                 f'style="border-bottom: 1px solid {emit_html.RAHMEN}; '
                 f'margin-bottom: 16px; padding-bottom: 10px;">{kopfzeilen}</div>')

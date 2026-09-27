@@ -493,3 +493,65 @@ def test_ohne_profilfeld_traegt_die_datei_keine_blindkopie(tmp_path, profil):
     quelle = "kurz.\n"
     nachricht = eml.baue(KOPF, profil, quelle, md.lies(quelle))
     assert nachricht["Bcc"] is None
+
+
+# ── Die Brücke ins Mailprogramm (#108) ───────────────────────────────────────
+#
+# Für die Programme, die keine `.eml` öffnen — Gmail und Outlook im Browser.
+
+from urllib.parse import parse_qs, unquote, urlsplit  # noqa: E402
+
+
+def _zerlegt(adresse: str) -> tuple[str, dict[str, str]]:
+    teile = urlsplit(adresse)
+    assert teile.scheme == "mailto"
+    felder = {k: v[0] for k, v in parse_qs(teile.query, keep_blank_values=True).items()}
+    return unquote(teile.path), felder
+
+
+def test_der_link_traegt_an_kopie_betreff_und_text(profil, bloecke):
+    an, felder = _zerlegt(eml.mailto_adresse(KOPF, profil, bloecke))
+    assert an == "erika.muster@example.de,post@example.de", "Namen gehören nicht in die Adresse"
+    assert felder["cc"] == "zweiter@example.de"
+    assert felder["subject"] == KOPF["betreff"]
+    assert felder["body"].startswith("Sehr geehrte Frau Muster,\r\n")
+    assert "Punkt zwei" in felder["body"]
+
+
+def test_zeilenumbrueche_als_crlf_wie_rfc_6068_es_verlangt(profil, bloecke):
+    adresse = eml.mailto_adresse(KOPF, profil, bloecke)
+    assert "%0D%0A" in adresse
+    assert "%0A" not in adresse.replace("%0D%0A", ""), "ein nacktes LF im Text"
+
+
+def test_der_link_traegt_weder_blindkopie_noch_signatur(profil, bloecke):
+    """Die Blindkopie ginge beim Herauskopieren mit; die Signatur setzt das
+    Mailprogramm selbst, sie käme sonst doppelt an."""
+    adresse = eml.mailto_adresse({**KOPF, "bcc": [BCC]}, profil, bloecke)
+    assert "archiv" not in adresse and "bcc" not in adresse.lower()
+    _, felder = _zerlegt(adresse)
+    absender = profil["email"]["absender"]
+    assert absender not in felder["body"], "die Signatur steht im Text"
+    assert "-- " not in felder["body"]
+
+
+def test_die_vorschau_zeigt_den_link(profil, bloecke):
+    seite = eml.begleit_html(KOPF, profil, bloecke)
+    assert 'href="mailto:' in seite and "Im Mailprogramm öffnen" in seite
+    assert "Im Mailprogramm öffnen" not in eml.htmlteil(KOPF, profil, bloecke), \
+        "der Link gehört in die Vorschau, nicht in die Nachricht"
+
+
+def test_zu_lang_heisst_kein_link_sondern_ein_hinweis(profil):
+    """Über der Grenze kürzten Firefox unter Windows und das klassische Outlook
+    still — ein halber Text im Entwurf wäre schlimmer als gar keiner."""
+    lang = md.lies(" ".join(["Wortlaut"] * 400) + "\n")
+    assert len(eml.mailto_adresse(KOPF, profil, lang)) > eml.MAILTO_GRENZE
+    seite = eml.begleit_html(KOPF, profil, lang)
+    assert 'href="mailto:' not in seite
+    assert "Zu lang für einen Link" in seite
+
+
+def test_die_vorschau_mit_link_bleibt_ohne_verstoss(profil, bloecke):
+    seite = eml.begleit_html(KOPF, profil, bloecke)
+    assert eml.emit_html.nicht_umschaltbar(seite) == []
