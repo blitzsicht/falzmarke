@@ -1,0 +1,4 @@
+# Nur, was der Referenzdienst braucht — kein typst, kein pdfplumber, kein pillow.
+# Er setzt keine Briefe; das tut der Skill in der Sandbox des Nutzers.
+mcp>=2,<3
+pyyaml>=6
