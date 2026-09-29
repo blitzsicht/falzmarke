@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Baut die beiden Skill-Pakete, die das Release als Anhang traegt.
+# Baut die drei Pakete, die das Release als Anhang traegt.
 #
 # ── Warum zwei ────────────────────────────────────────────────────────────
 #
 # falzmarke.skill          ~1 MB   ueberall hochladbar, erster Lauf braucht Netz
 # falzmarke-offline.skill  ~34 MB  typst reist mit, laeuft ohne PyPI
+# falzmarke-chatgpt-plugin.zip     derselbe Ordner als Plugin fuer ChatGPT,
+#                                  siehe scripts/plugin_packen.py
 #
 # Anlass (Issue #122, nachgemessen am 28.08.2026): Das Paket enthielt nur
 # Quelltext und kam in einer Sandbox ohne PyPI-Zugriff nie zum Rendern.
@@ -45,7 +47,7 @@ PYTHON_FASSUNG="3.8"
 # hier wiederholt. Zwei Stellen laufen auseinander, eine nicht.
 TYPST_REQ="$(grep -E '^typst' skill/requirements.txt)"
 
-rm -rf paket falzmarke.skill falzmarke-offline.skill
+rm -rf paket falzmarke.skill falzmarke-offline.skill falzmarke-chatgpt-plugin.zip
 mkdir -p paket
 
 # claude.ai erwartet den Skill-Ordner mit SKILL.md an der Wurzel des Zips.
@@ -95,7 +97,14 @@ ls -lh paket/falzmarke/vendor/*.whl | awk '{print "   Wheel:", $5}'
 ls -lh falzmarke-offline.skill | awk '{print "   ", $5}'
 
 echo
+echo "── 3. falzmarke-chatgpt-plugin.zip — Plugin fuer ChatGPT ─────────────"
+# Derselbe Ordner wie im Offline-Paket, samt Wheel. Die Grenzen von OpenAI
+# prueft das Python-Skript; es bricht ab, bevor ein Paket entsteht, das die
+# Einreichung zurueckweisen wuerde.
+python3 scripts/plugin_packen.py paket/falzmarke falzmarke-chatgpt-plugin.zip
+
+echo
 echo "── Ergebnis ──────────────────────────────────────────────────────────"
-for f in falzmarke.skill falzmarke-offline.skill; do
+for f in falzmarke.skill falzmarke-offline.skill falzmarke-chatgpt-plugin.zip; do
   printf "   %-26s %s\n" "$f" "$(du -h "$f" | cut -f1)"
 done

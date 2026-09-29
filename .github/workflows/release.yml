@@ -81,8 +81,10 @@ jobs:
         run: |
           sha256sum falzmarke.skill | tee falzmarke.skill.sha256
           sha256sum falzmarke-offline.skill | tee falzmarke-offline.skill.sha256
+          sha256sum falzmarke-chatgpt-plugin.zip | tee falzmarke-chatgpt-plugin.zip.sha256
           echo "sha256=$(cut -d' ' -f1 falzmarke.skill.sha256)" >> "$GITHUB_OUTPUT"
           echo "sha256_offline=$(cut -d' ' -f1 falzmarke-offline.skill.sha256)" >> "$GITHUB_OUTPUT"
+          echo "sha256_plugin=$(cut -d' ' -f1 falzmarke-chatgpt-plugin.zip.sha256)" >> "$GITHUB_OUTPUT"
 
       # Belegt Herkunft und Bauweg der Datei — nicht ihre Fehlerfreiheit.
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
@@ -90,6 +92,7 @@ jobs:
           subject-path: |
             falzmarke.skill
             falzmarke-offline.skill
+            falzmarke-chatgpt-plugin.zip
 
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64  # v3.0.3
         with:
@@ -98,6 +101,8 @@ jobs:
             falzmarke.skill.sha256
             falzmarke-offline.skill
             falzmarke-offline.skill.sha256
+            falzmarke-chatgpt-plugin.zip
+            falzmarke-chatgpt-plugin.zip.sha256
           tag_name: ${{ inputs.tag || github.ref_name }}
           generate_release_notes: true
           append_body: true
@@ -110,6 +115,10 @@ jobs:
             Ueber 30 MB und damit **zu gross fuer den Upload-Dialog von claude.ai**; gedacht
             fuer Umgebungen, die Dateien anders beziehen.
             `SHA-256: ${{ steps.hash.outputs.sha256_offline }}`
+
+            **falzmarke-chatgpt-plugin.zip** — derselbe Skill samt Typst-Compiler als Plugin
+            fuer ChatGPT („Skills only"). Zum Einreichen bei OpenAI, nicht zum Hochladen im Chat.
+            `SHA-256: ${{ steps.hash.outputs.sha256_plugin }}`
 
             Herkunft pruefen — belegt, aus welchem Lauf und welchem Commit die Datei stammt:
 
