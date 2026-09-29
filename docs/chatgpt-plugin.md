@@ -41,8 +41,14 @@ Einreichung offen.
 2. Unter platform.openai.com/plugins ein neues Plugin anlegen, Typ **Skills only**, und
    `falzmarke-chatgpt-plugin.zip` aus dem Release hochladen.
 3. Die Testfälle unten eintragen, dazu Länder und Release Notes.
+   Pflicht ist außerdem eine **Demo-Aufnahme** (URL auf ein Video), die die Hauptfälle zeigt; sie
+   wird nicht veröffentlicht.
 4. Nach der Freigabe selbst veröffentlichen. Die Adresse des Eintrags im Verzeichnis kommt aus dem
    Portal; sie gehört danach in die Anleitung auf falzmarke.com.
+
+Beobachtet am 29.09.2026 in der Organisation Blitzsicht: „Create plugin“ bot nur **With MCP** an,
+nicht „Skills only“, obwohl die Doku beide nennt. Die Identität war zu dem Zeitpunkt noch nicht
+geprüft; ob das die Ursache ist, ist offen.
 
 Jede neue Version muss erneut geprüft werden, und die `version` in `plugin.json` muss sich ändern.
 Deshalb geht nicht jedes Patch-Release zu OpenAI, sondern nur eines, das am Skill etwas ändert.
