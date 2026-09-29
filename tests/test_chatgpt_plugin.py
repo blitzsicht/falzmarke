@@ -31,6 +31,10 @@ PACKER = REPO / "scripts" / "plugin_packen.py"
 SKRIPT = REPO / "scripts" / "skill_packen.sh"
 RELEASE = REPO / ".github" / "workflows" / "release.yml"
 PLUGIN = "falzmarke-chatgpt-plugin.zip"
+#: Der Packer meldet auf Deutsch, mit „ß“. Unter Windows schreibt ein
+#: Unterprozess sonst in cp1252, und das Lesen als UTF-8 scheitert — gemessen
+#: am 29.09.2026 in der CI (0xdf in „groß“, stderr kam als None an).
+UTF8 = {"PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
 
 #: Wörter, bei denen der Skill auslösen muss. ChatGPT wie Claude lesen vor dem
 #: Laden nur die description — was dort fehlt, löst nicht aus.
@@ -155,7 +159,7 @@ def test_zu_grosses_plugin_wird_nicht_gebaut(tmp_path):
     ziel = tmp_path / PLUGIN
     lauf = subprocess.run([sys.executable, str(PACKER), str(skill), str(ziel)],
                           capture_output=True, text=True, encoding="utf-8", check=False,
-                          env={**os.environ, "FALZMARKE_PLUGIN_MAX_BYTES": "1000"})
+                          env={**os.environ, "FALZMARKE_PLUGIN_MAX_BYTES": "1000", **UTF8})
     assert lauf.returncode == 1, lauf.stdout + lauf.stderr
     assert "erlaubt sind 1000" in lauf.stderr, lauf.stderr
     assert not ziel.exists(), "Das zu große Paket blieb liegen."
@@ -165,7 +169,7 @@ def test_unter_der_grenze_baut_derselbe_aufruf(tmp_path):
     """Gegenprobe zum Test darüber: ohne abgesenkte Grenze Code 0 und ein Paket."""
     skill = _skill(tmp_path)
     ziel = tmp_path / PLUGIN
-    umgebung = {k: v for k, v in os.environ.items() if k != "FALZMARKE_PLUGIN_MAX_BYTES"}
+    umgebung = {**{k: v for k, v in os.environ.items() if k != "FALZMARKE_PLUGIN_MAX_BYTES"}, **UTF8}
     lauf = subprocess.run([sys.executable, str(PACKER), str(skill), str(ziel)],
                           capture_output=True, text=True, encoding="utf-8", check=False, env=umgebung)
     assert lauf.returncode == 0, lauf.stderr
