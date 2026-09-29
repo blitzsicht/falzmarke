@@ -47,8 +47,9 @@ Einreichung offen.
    Portal; sie gehört danach in die Anleitung auf falzmarke.com.
 
 Beobachtet am 29.09.2026 in der Organisation Blitzsicht: „Create plugin“ bot nur **With MCP** an,
-nicht „Skills only“, obwohl die Doku beide nennt. Die Identität war zu dem Zeitpunkt noch nicht
-geprüft; ob das die Ursache ist, ist offen.
+nicht „Skills only“, obwohl die Doku beide nennt. An der Identität lag es nicht: Die Organisation
+war zu dem Zeitpunkt schon verifiziert. Der OpenAI-Support hat die Anfrage am selben Tag an einen
+Menschen übergeben. Der Ausweg über „With MCP“ ist #377.
 
 Jede neue Version muss erneut geprüft werden, und die `version` in `plugin.json` muss sich ändern.
 Deshalb geht nicht jedes Patch-Release zu OpenAI, sondern nur eines, das am Skill etwas ändert.
