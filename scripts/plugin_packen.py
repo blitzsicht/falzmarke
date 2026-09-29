@@ -48,6 +48,17 @@ MAX_PFADSEGMENTE = 20
 MAX_DESCRIPTION = 1024
 #: `plugin-name:skill-name` höchstens 64 Zeichen.
 MAX_QUALIFIZIERT = 64
+#: Listing, „Final directory submission": Anzeigename und Kurzbeschreibung je
+#: höchstens 30 Zeichen, lange Beschreibung höchstens 4000, höchstens drei
+#: Startprompts zu je höchstens 128 Zeichen. Diese Regeln greifen erst bei der
+#: Einreichung, nicht beim Hochladen — ein Paket kann den Upload bestehen und
+#: dort scheitern. Die erste Fassung dieses Skripts hätte es: 99 Zeichen
+#: Kurzbeschreibung, rund 230 Zeichen Startprompt.
+MAX_ANZEIGENAME = 30
+MAX_KURZBESCHREIBUNG = 30
+MAX_LANGBESCHREIBUNG = 4000
+MAX_STARTPROMPTS = 3
+MAX_STARTPROMPT = 128
 
 SCHEMA = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 #: Muster für `name` aus dem Schema oben (gelesen am 29.09.2026).
@@ -56,13 +67,25 @@ NAME_MUSTER = re.compile(r"^(?!.*(?:--|\.\.))[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$")
 WEBSITE = "https://falzmarke.com"
 DATENSCHUTZ = "https://falzmarke.com/datenschutz/"
 REPOSITORY = "https://github.com/blitzsicht/falzmarke"
-#: Derselbe erste Brief wie in der Anleitung für ChatGPT.
-STARTPROMPT = (
-    "Schreib mir mit falzmarke einen Brief an die Muster GmbH, Musterstraße 1, "
-    "12345 Musterstadt: Ich kündige meine Mitgliedschaft Nr. 2024-1187 zum "
-    "nächstmöglichen Termin und bitte um schriftliche Bestätigung. Nutze das "
-    "Beispielprofil."
+KURZBESCHREIBUNG = "DIN-5008-Briefe und E-Mails"
+LANGBESCHREIBUNG = (
+    "falzmarke setzt Geschäftsbriefe und E-Mails nach DIN 5008: Briefe als PDF mit "
+    "Falz- und Lochmarken und einem Anschriftfeld, das ins Fenster des Umschlags "
+    "passt, E-Mails als .eml mit Signatur. Danach misst es das fertige PDF nach und "
+    "zeigt den Messbericht. Den Text schreibst du mit ChatGPT, die Form übernimmt "
+    "falzmarke. Alles läuft in der Sandbox von ChatGPT; es gibt keinen Server und "
+    "kein Konto bei uns.\n\n"
+    "Die Sollwerte stammen aus Sekundärquellen; der Abgleich mit dem Originaltext "
+    "der DIN 5008:2020-03 einschließlich Berichtigung 1:2020-07 steht aus, und "
+    "Regeln aus einzelnen Quellen wirken nur als Warnung. Open Source, MIT-Lizenz."
 )
+#: Beide mit Beispielprofil: Sie laufen ohne eigenes Absenderprofil durch.
+STARTPROMPTS = [
+    ("Schreib mit falzmarke eine Kündigung an die Muster GmbH, Musterstraße 1, "
+     "12345 Musterstadt. Nutze das Beispielprofil."),
+    ("Schreib eine E-Mail an kunde@example.de: Der Termin am 3. Oktober verschiebt "
+     "sich auf 14 Uhr. Nutze das Beispielprofil."),
+]
 
 
 class Abbruch(Exception):
@@ -90,20 +113,45 @@ def manifest(proj: dict) -> dict:
         "homepage": WEBSITE,
         "repository": REPOSITORY,
         "license": "MIT",
+        # author.name und developerName müssen gleich sein, sonst ersetzt das
+        # Portal beide durch die geprüfte Identität (developer_name_defaulted).
+        "author": {"name": proj["authors"][0]["name"]},
         "extensions": {
             "com.openai": {
                 "interface": {
                     "displayName": "falzmarke",
-                    "shortDescription": proj["description"],
+                    "shortDescription": KURZBESCHREIBUNG,
+                    "longDescription": LANGBESCHREIBUNG,
                     "developerName": proj["authors"][0]["name"],
                     "category": "Productivity",
                     "websiteURL": WEBSITE,
                     "privacyPolicyURL": DATENSCHUTZ,
-                    "defaultPrompt": [STARTPROMPT],
+                    "defaultPrompt": STARTPROMPTS,
                 }
             }
         },
     }
+
+
+def listing_fehler(oberflaeche: dict) -> list[str]:
+    """Die Regeln der Einreichung für die Angaben im Verzeichnis."""
+    fehler = []
+    for feld, grenze in (("displayName", MAX_ANZEIGENAME),
+                         ("shortDescription", MAX_KURZBESCHREIBUNG),
+                         ("longDescription", MAX_LANGBESCHREIBUNG)):
+        wert = oberflaeche.get(feld) or ""
+        if not wert:
+            fehler.append(f"{feld} fehlt, ist aber Pflicht.")
+        elif len(wert) > grenze:
+            fehler.append(f"{feld} hat {len(wert)} Zeichen, erlaubt sind {grenze}.")
+    prompts = oberflaeche.get("defaultPrompt") or []
+    if len(prompts) > MAX_STARTPROMPTS:
+        fehler.append(f"{len(prompts)} Startprompts, erlaubt sind {MAX_STARTPROMPTS}.")
+    for prompt in prompts:
+        if len(prompt) > MAX_STARTPROMPT or "\n" in prompt:
+            fehler.append(f"Startprompt mit {len(prompt)} Zeichen, erlaubt ist eine "
+                          f"Zeile bis {MAX_STARTPROMPT}: {prompt[:40]!r} …")
+    return fehler
 
 
 def pruefe_vorher(skill: Path, mani: dict) -> None:
@@ -111,6 +159,7 @@ def pruefe_vorher(skill: Path, mani: dict) -> None:
     fehler = []
     if not NAME_MUSTER.match(mani["name"]) or len(mani["name"]) > 64:
         fehler.append(f"Plugin-Name {mani['name']!r} passt nicht zum Schema.")
+    fehler += listing_fehler(mani["extensions"]["com.openai"]["interface"])
     kopf = skill_kopf(skill)
     beschreibung = kopf.get("description") or ""
     if len(beschreibung) > MAX_DESCRIPTION:

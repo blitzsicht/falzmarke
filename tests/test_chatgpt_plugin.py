@@ -205,3 +205,48 @@ def test_gitignore_haelt_die_pakete_draussen():
     text = (REPO / ".gitignore").read_text(encoding="utf-8")
     for datei in ("falzmarke-offline.skill", PLUGIN):
         assert re.search(rf"^{re.escape(datei)}$", text, re.MULTILINE), f"{datei} fehlt in .gitignore"
+
+
+# ── Angaben im Verzeichnis ─────────────────────────────────────────────────
+# Diese Regeln greifen erst bei der Einreichung, nicht beim Hochladen. Die erste
+# Fassung des Packers hätte sie verletzt (99 Zeichen Kurzbeschreibung, rund 230
+# Zeichen Startprompt) — gesehen erst am Formular, 29.09.2026.
+
+def _oberflaeche() -> dict:
+    packer = _packer()
+    return packer.manifest(packer.projekt())["extensions"]["com.openai"]["interface"]
+
+
+def test_die_angaben_im_verzeichnis_halten_die_grenzen():
+    assert _packer().listing_fehler(_oberflaeche()) == []
+
+
+@pytest.mark.parametrize(("feld", "wert", "meldung"), [
+    ("shortDescription", "x" * 31, "shortDescription hat 31 Zeichen"),
+    ("displayName", "x" * 31, "displayName hat 31 Zeichen"),
+    ("longDescription", "x" * 4001, "longDescription hat 4001 Zeichen"),
+    ("longDescription", "", "longDescription fehlt"),
+    ("defaultPrompt", ["x" * 129], "Startprompt mit 129 Zeichen"),
+    ("defaultPrompt", ["a", "b", "c", "d"], "4 Startprompts"),
+])
+def test_jede_grenze_im_verzeichnis_schlaegt_an(feld, wert, meldung):
+    """Gegenprobe je Feld: ein Zeichen über der Grenze, und genau diese Meldung kommt."""
+    oberflaeche = {**_oberflaeche(), feld: wert}
+    fehler = _packer().listing_fehler(oberflaeche)
+    assert any(meldung in f for f in fehler), fehler
+
+
+def test_zu_lange_kurzbeschreibung_verhindert_das_paket(tmp_path):
+    """Die Prüfung hängt am Packen, nicht nur an einer Funktion daneben."""
+    packer = _packer()
+    mani = packer.manifest(packer.projekt())
+    mani["extensions"]["com.openai"]["interface"]["shortDescription"] = "x" * 31
+    with pytest.raises(packer.Abbruch, match="shortDescription"):
+        packer.pruefe_vorher(_skill(tmp_path), mani)
+
+
+def test_autor_und_entwickler_stimmen_ueberein():
+    """Sonst ersetzt das Portal beide durch die geprüfte Identität."""
+    packer = _packer()
+    mani = packer.manifest(packer.projekt())
+    assert mani["author"]["name"] == mani["extensions"]["com.openai"]["interface"]["developerName"]
