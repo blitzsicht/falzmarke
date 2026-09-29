@@ -49,8 +49,9 @@ MUSS_ENTHALTEN = {
     "README.en.md": [QUELLENLAGE_EN, WARNSTUFE_EN],
     "docs/recht.md": [QUELLENLAGE, WARNSTUFE],
     # Der Skill ist der Ort, an dem die Quellenlage am ehesten ankommt: Wer ihn
-    # über einen Prompt auslöst, sieht nie ein README. Voller Satz, weil die
-    # Beschreibung keine harte Längengrenze hat (Issue #40).
+    # über einen Prompt auslöst, sieht nie ein README. Voller Satz — er passt
+    # auch in die 1024 Zeichen, die OpenAI für die Beschreibung zulässt
+    # (Issue #40, Grenze seit #375; gemessen in tests/test_chatgpt_plugin.py).
     "skill/SKILL.md": [QUELLENLAGE, WARNSTUFE],
 }
 
@@ -132,7 +133,7 @@ def test_der_satz_zur_quellenlage_steht_da(datei, saetze):
 
 @pytest.mark.parametrize("datei", ["README.md", "docs/recht.md", "skill/SKILL.md",
                                    "skill/references/frontmatter.md", "docs/cli.md",
-                                   "docs/rechnung.md"])
+                                   "docs/rechnung.md", "docs/chatgpt-plugin.md"])
 def test_keine_ungedeckte_konformitaetsbehauptung(datei):
     """„normgerecht“ ohne den Satz zur Quellenlage wäre eine Behauptung, die
     niemand geprüft hat. Verneinungen bleiben erlaubt."""

@@ -1,19 +1,15 @@
 ---
 name: falzmarke
 description: >
-  Erzeugt Geschäftspost nach DIN 5008:2020 — als Brief und als E-Mail. Briefe (Form A und B)
-  als PDF mit Falz- und Lochmarken, Anschriftfeld für Fensterumschläge, Informationsblock,
-  Briefkopf und Fußzeile aus Absender-Profilen, standardmäßig als PDF/A-2b; dieselbe Quelle
-  auch als E-Mail — eine .eml mit Textteil, HTML-Teil, Anhängen, Signatur samt Logo und
-  nachgemessenem Umschlag.
+  Erzeugt Geschäftspost nach DIN 5008:2020: Briefe (Form A und B) als PDF mit Falz- und
+  Lochmarken, Anschriftfeld für Fensterumschläge und Briefkopf aus Absender-Profilen, und
+  E-Mails als .eml mit Text, HTML, Anhängen und Signatur.
   Immer verwenden, wenn ein Brief, Anschreiben, Schreiben, Kündigung, Mahnung, Angebot,
   Mieterschreiben, Behördenschreiben, Widerspruch, Bestätigung oder "etwas zum Ausdrucken oder
-  Verschicken" gewünscht ist — und ebenso bei jeder E-Mail, Mail oder Nachricht, die
-  verschickt werden soll ("schreib eine E-Mail an …", "Mail an den Kunden", "Antwort an das
-  Amt"), auch wenn DIN 5008 nicht genannt wird. Nie einen Brief als .docx oder frei gesetztes
-  PDF bauen und nie eine E-Mail als frei getippten Text oder selbstgebautes HTML, wenn dieser
-  Skill verfügbar ist. Ebenso zuständig für einen Serienbrief aus einer Datenquelle und für
-  das Zurücklesen eines bestehenden PDF als Markdown-Gerüst (einlesen).
+  Verschicken" gewünscht ist, ebenso bei jeder E-Mail, Mail oder Nachricht, die verschickt
+  werden soll ("Mail an den Kunden", "Antwort an das Amt"), auch wenn DIN 5008 nicht genannt
+  wird. Nie einen Brief als .docx oder frei gesetztes PDF bauen und nie eine E-Mail als
+  selbstgebautes HTML. Auch für Serienbriefe und zum Zurücklesen eines PDF als Markdown (einlesen).
   Die Sollwerte stammen aus Sekundärquellen; der Abgleich mit dem Originaltext der DIN 5008:2020-03 einschließlich Berichtigung 1:2020-07 steht aus, und Regeln aus einzelnen Quellen wirken nur als Warnung.
 ---
 
