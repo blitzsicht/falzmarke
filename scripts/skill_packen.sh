@@ -101,6 +101,13 @@ echo "── 3. falzmarke-chatgpt-plugin.zip — Plugin fuer ChatGPT ───�
 # Derselbe Ordner wie im Offline-Paket, samt Wheel. Die Grenzen von OpenAI
 # prueft das Python-Skript; es bricht ab, bevor ein Paket entsteht, das die
 # Einreichung zurueckweisen wuerde.
+#
+# Der Packer liest den Kopf von SKILL.md mit PyYAML. Die Jobs `skill-paket` in
+# ci.yml und release.yml installieren nichts — ohne diese Zeile brach der
+# Schritt dort mit „No module named 'yaml'" ab (CI, 29.09.2026). Die Fassung
+# kommt aus skill/requirements.txt, wie beim typst-Wheel oben.
+PYYAML_REQ="$(grep -E '^pyyaml' skill/requirements.txt)"
+python3 -c "import yaml" 2>/dev/null || python3 -m pip install --quiet "$PYYAML_REQ"
 python3 scripts/plugin_packen.py paket/falzmarke falzmarke-chatgpt-plugin.zip
 
 echo

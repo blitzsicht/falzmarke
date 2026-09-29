@@ -183,6 +183,18 @@ def test_das_packskript_baut_das_plugin():
     assert "python3 scripts/plugin_packen.py paket/falzmarke " + PLUGIN in text
 
 
+def test_das_packskript_sorgt_vor_dem_plugin_fuer_pyyaml():
+    """Die Jobs skill-paket in CI und Release installieren nichts. Ohne diesen
+    Schritt brach der Packer dort am fehlenden yaml ab (29.09.2026)."""
+    text = SKRIPT.read_text(encoding="utf-8")
+    sicherung = text.find("python3 -m pip install --quiet \"$PYYAML_REQ\"")
+    aufruf = text.find("python3 scripts/plugin_packen.py")
+    assert sicherung != -1, "skill_packen.sh installiert pyyaml nicht"
+    assert sicherung < aufruf, "pyyaml kommt erst nach dem Aufruf des Packers"
+    assert "grep -E '^pyyaml' skill/requirements.txt" in text, (
+        "die Fassung steht nicht aus skill/requirements.txt")
+
+
 def _schritt(uses_praefix: str) -> dict:
     jobs = yaml.safe_load(RELEASE.read_text(encoding="utf-8"))["jobs"]
     schritte = [s for s in jobs["skill-paket"]["steps"]
