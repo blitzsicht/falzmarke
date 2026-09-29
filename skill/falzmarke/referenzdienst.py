@@ -151,9 +151,16 @@ BEGRUENDUNG = {
 # ── Server ──────────────────────────────────────────────────────────────────
 
 def baue_server():
-    from falzmarke.dienst import _mcp_modul
-
-    MCPServer = _mcp_modul()
+    # Bewusst nicht `dienst._mcp_modul()`: Der Import von `dienst` zieht `cli`,
+    # `lint`, `markdown` und `emit` in den Prozess — gemessen am 29.09.2026.
+    # Der Dienst nutzte keines davon, aber „lädt nichts, was Briefe verarbeitet“
+    # wäre damit nicht mehr wahr. tests/test_referenzdienst.py misst das in
+    # einem frischen Interpreter.
+    try:
+        from mcp.server.mcpserver import MCPServer
+    except ImportError:
+        raise RuntimeError(
+            "Das MCP-SDK fehlt oder ist zu alt: pip install 'mcp>=2,<3'") from None
     from mcp.server.mcpserver.exceptions import ToolError
     from mcp.types import ToolAnnotations
 

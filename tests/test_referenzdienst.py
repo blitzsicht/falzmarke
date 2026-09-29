@@ -246,3 +246,64 @@ def test_der_einstieg_fuer_vercel_findet_den_dienst():
     modul = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(modul)
     assert callable(modul.app)
+
+
+# ── Was wirklich geladen wird, und was nach Vercel geht ─────────────────────
+# Der ast-Test oben sieht nur direkte Importe. Am 29.09.2026 importierte der
+# Dienst `_mcp_modul` aus `dienst` — und zog damit cli, lint, markdown und emit
+# in den Prozess, ohne dass der ast-Test anschlug. Gemessen wird deshalb auch
+# zur Laufzeit, in einem frischen Interpreter.
+
+ERLAUBT = {"falzmarke", "falzmarke.geometrie", "falzmarke.regeln", "falzmarke.referenzdienst"}
+PACKER = REPO / "mcp-dienst" / "packen.sh"
+
+_PROBE = """
+import sys, json
+sys.path.insert(0, sys.argv[1])
+vorher = set(sys.modules)
+import falzmarke
+from falzmarke import referenzdienst as rd
+rd.sollwerte("B"); rd.regeln_auflisten(); rd.regel_erklaeren("geometrie.form_b.briefkopf")
+try:
+    import mcp  # noqa: F401
+    rd.asgi_app()
+    mit_mcp = True
+except ImportError:
+    mit_mcp = False
+print(json.dumps({"datei": falzmarke.__file__, "mit_mcp": mit_mcp,
+                  "geladen": sorted(m for m in set(sys.modules) - vorher
+                                    if m.split(".")[0] == "falzmarke")}))
+"""
+
+
+def _probe(pfad: Path) -> dict:
+    import subprocess
+    import sys
+
+    lauf = subprocess.run([sys.executable, "-c", _PROBE, str(pfad)], capture_output=True,
+                          text=True, encoding="utf-8", check=False)
+    assert lauf.returncode == 0, lauf.stderr[-1500:]
+    return json.loads(lauf.stdout.strip().splitlines()[-1])
+
+
+def test_zur_laufzeit_laedt_der_dienst_nur_seine_vier_module():
+    ergebnis = _probe(REPO / "skill")
+    zu_viel = set(ergebnis["geladen"]) - ERLAUBT
+    assert not zu_viel, f"Der Dienst lädt zusätzlich {sorted(zu_viel)}"
+
+
+def test_der_gepackte_stand_laeuft_fuer_sich_allein(tmp_path):
+    """Genau das, was nach Vercel geht, in einem frischen Interpreter — ohne
+    Quellbaum daneben. Fehlt beim Packen eine Datei, bricht es hier."""
+    import subprocess
+    import sys
+
+    if sys.platform.startswith("win"):
+        pytest.skip("bash — der Nachweis läuft auf den anderen beiden Plattformen")
+    ziel = tmp_path / "_skill"
+    lauf = subprocess.run(["bash", str(PACKER), str(ziel)], capture_output=True, text=True,
+                          encoding="utf-8", check=False)
+    assert lauf.returncode == 0, lauf.stderr
+    ergebnis = _probe(ziel)
+    assert Path(ergebnis["datei"]).resolve().is_relative_to(ziel.resolve()), (
+        f"geladen wurde {ergebnis['datei']}, nicht der gepackte Stand")
