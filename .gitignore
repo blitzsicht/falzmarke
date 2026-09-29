@@ -76,3 +76,6 @@ paket/
 falzmarke.skill
 falzmarke.skill.sha256
 .gstack/
+# Gepackter Stand für Vercel, entsteht mit mcp-dienst/packen.sh
+mcp-dienst/_skill/
+mcp-dienst/.vercel/
