@@ -2,6 +2,20 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.9.13 — 30.09.2026
+
+### Neu
+
+- **Die Vorschau führt ins Mailprogramm, auch in Gmail und Outlook im Browser.** Die `.html`-Vorschau einer E-Mail trägt jetzt einen Link „Im Mailprogramm öffnen“, der eine neue Nachricht mit Empfänger, Kopie, Betreff und Text anlegt. Er ist für die Programme gedacht, die keine `.eml` öffnen und die `--oeffnen` deshalb nicht erreicht. Anhänge, Formatierung, Signatur und Blindkopie trägt er nicht. Über 2000 Zeichen baut die Vorschau keinen Link, weil Firefox unter Windows und das klassische Outlook dort kürzen; sie nennt stattdessen den Grund. (#108)
+
+- **Plugin für ChatGPT.** Das Release trägt jetzt zusätzlich `falzmarke-chatgpt-plugin.zip`: derselbe Skill samt Typst-Compiler, verpackt als Plugin „Skills only“ zum Einreichen bei OpenAI. Anlass: Im Browser und auf dem Handy mit privatem Tarif nimmt ChatGPT eigene Skills nicht an, nur Plugins aus dem Verzeichnis. Der Packer prüft die Grenzen der Einreichung vorher und baut nichts, was OpenAI zurückweisen würde. Die Beschreibung des Skills ist dafür von 1281 auf 977 Zeichen gekürzt; alle Auslöser sind geblieben. (#375)
+
+- **MCP-Referenzdienst über HTTPS.** `falzmarke.referenzdienst` stellt Maße von Form A und B, die geprüften Regeln und ihre Quellen als MCP-Werkzeuge über Streamable HTTP bereit, zustandslos und nur lesend. Er setzt keine Briefe und nimmt keinen Text des Nutzers an; das hält ein Test am Quelltext fest. Gedacht als MCP-Teil eines Plugins für ChatGPT, falls OpenAI den Weg „Skills only“ nicht freischaltet. Der Einstieg für Vercel liegt unter `mcp-dienst/`, veröffentlicht ist noch nichts. (#377)
+
+### Behoben
+
+- **Vorinstallierte Pakete werden auf ihre Version geprüft.** `scripts/bootstrap.py` hat bisher jedes importierbare Paket übernommen. Eine Sandbox, die zum Beispiel pdfplumber 0.10 mitbringt, wäre deshalb still durchgegangen. Jetzt gilt eine Version, die nicht zur Grenze in `requirements.txt` passt oder sich nicht feststellen lässt, als fehlend und wird nachinstalliert. Die Meldung nennt die gefundene und die verlangte Version. (#374)
+
 ## v0.9.12 — 27.09.2026
 
 ### Neu
