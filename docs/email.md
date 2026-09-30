@@ -107,8 +107,9 @@ gibt es eine Messung bei 2046 Zeichen. Über 2000 Zeichen nach der Kodierung bau
 deshalb keinen Link, sondern sagt, dass die Nachricht zu lang ist — ein halb übernommener Text
 wäre schlimmer als keiner. Die neun Beispiele liegen zwischen 516 und 1752 Zeichen.
 
-Gesehen hat den Link in Gmail und Outlook im Browser bisher niemand; das Protokoll dazu steht
-aus (#371).
+In Gmail im Browser ist der Link gemessen (28.09.2026, Beispiel `email-antwort`, 676 Zeichen):
+Empfänger, Betreff mit „—“ und „ö“ sowie alle Absätze kamen unverändert an, die Signatur nicht
+doppelt. Outlook im Browser und das klassische Outlook für Windows stehen noch aus (#371).
 
 ### Den Entwurf bekommen: `--oeffnen`
 
