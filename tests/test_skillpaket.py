@@ -288,6 +288,67 @@ def test_bootstrap_fragt_je_paket_einzeln_ohne_index(tmp_path, monkeypatch):
         assert len([t for t in cmd if ">=" in t]) == 1, cmd
 
 
+# ── bootstrap.py prüft die Version, nicht nur das Dasein (#374) ────────────
+
+def _vorhanden_in_version(b, monkeypatch, versionen: dict[str, str]):
+    """Alle Module gelten als importierbar; `importlib.metadata.version` liefert
+    je Paketname die vorgegebene Version, sonst eine passende."""
+    passend = {"typst": "0.15.0", "pyyaml": "6.0.2", "pdfplumber": "0.11.4",
+               "pypdf": "5.1.0", "markdown-it-py": "4.0.0", "pillow": "11.0.0"}
+    passend.update(versionen)
+    monkeypatch.setattr(b.importlib.util, "find_spec", lambda m: object())
+    monkeypatch.setattr(b.importlib.metadata, "version", lambda name: passend[name])
+
+
+def test_zu_alte_vorinstallierte_version_gilt_als_fehlend(monkeypatch):
+    """Gegenprobe zu #374: In ChatGPT brachte die Sandbox fünf der sechs Pakete
+    selbst mit, in unbekannter Version. Eine zu alte darf nicht still durchgehen."""
+    b = _bootstrap()
+    _vorhanden_in_version(b, monkeypatch, {"pdfplumber": "0.10.0"})
+    assert list(b.fehlende()) == ["pdfplumber"]
+    meldung = b.grund("pdfplumber")
+    assert "0.10.0" in meldung and ">=0.11" in meldung, meldung
+
+
+def test_passende_versionen_gelten_als_vorhanden(monkeypatch):
+    """Ohne diesen Fall bliebe die Gegenprobe grün, wenn `fehlende()` einfach
+    alles meldet."""
+    b = _bootstrap()
+    _vorhanden_in_version(b, monkeypatch, {})
+    assert b.fehlende() == {}
+
+
+def test_obere_grenze_greift_auch(monkeypatch):
+    b = _bootstrap()
+    _vorhanden_in_version(b, monkeypatch, {"markdown-it-py": "5.0.0"})
+    assert list(b.fehlende()) == ["markdown_it"]
+
+
+def test_version_ohne_packaging(monkeypatch):
+    """Die Sandbox muss `packaging` nicht mitbringen. Dann trägt der Ersatz."""
+    b = _bootstrap()
+    _vorhanden_in_version(b, monkeypatch, {"typst": "0.16.1", "pillow": "9.5.0"})
+    monkeypatch.setitem(sys.modules, "packaging", None)
+    monkeypatch.setitem(sys.modules, "packaging.specifiers", None)
+    monkeypatch.setitem(sys.modules, "packaging.version", None)
+    assert list(b.fehlende()) == ["typst", "PIL"]
+    assert b._erfuellt_ohne_packaging("0.15.2", ">=0.15,<0.16")
+    assert not b._erfuellt_ohne_packaging("0.15.2", "~=0.15"), \
+        "unbekannter Operator darf nicht als erfüllt gelten"
+
+
+def test_ohne_versionsangabe_wird_nachinstalliert(monkeypatch):
+    b = _bootstrap()
+    monkeypatch.setattr(b.importlib.util, "find_spec", lambda m: object())
+
+    def version(name):
+        raise b.importlib.metadata.PackageNotFoundError(name)
+
+    monkeypatch.setattr(b.importlib.metadata, "version", version)
+    assert set(b.fehlende()) == set(b.DEPS)
+    assert "nicht feststellbar" in b.grund("yaml")
+
+
 def test_pypi_holt_was_geht_auch_wenn_typst_fehlt(monkeypatch):
     """In ChatGPT (26.09.2026) fehlten typst und ein zweites Paket. Der Spiegel dort
     hatte das zweite, typst nicht — ein gebündelter pip-Aufruf riss beide mit (#361).
