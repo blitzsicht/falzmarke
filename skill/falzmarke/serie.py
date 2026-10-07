@@ -218,7 +218,7 @@ def _fuelle_knoten(knoten, satz: dict):
         if hasattr(knoten, feld):
             gefuellt = tuple(_flach(_fuelle_knoten(k, satz) for k in getattr(knoten, feld)))
             knoten = _ersetze_feld(knoten, feld, gefuellt)
-    if isinstance(knoten, baum_modul.Tabelle):
+    if isinstance(knoten, (baum_modul.Tabelle, baum_modul.Angaben)):
         knoten = _ersetze_feld(knoten, "zeilen", tuple(
             tuple(tuple(_flach(_fuelle_knoten(z, satz) for z in zelle)) for zelle in zeile)
             for zeile in knoten.zeilen))

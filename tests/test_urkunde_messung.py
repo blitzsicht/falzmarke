@@ -21,6 +21,7 @@ import pypdf
 import pytest
 
 from falzmarke import cli, geometrie
+from falzmarke.markdown import lies as md_lies
 from conftest import REPO, SKILL, URKUNDE_BEISPIELE
 
 CLI = SKILL / "scripts" / "falzmarke.py"
@@ -520,3 +521,38 @@ def test_die_urkunde_laesst_sich_als_pdfua_setzen(tmp_path):
     """Typst bricht bei `ua-1` ab, wenn die erste Überschrift nicht Ebene 1 ist."""
     pdf, _ = cli.rendere(URKUNDE_BEISPIELE[0], tmp_path / "ua.pdf", pdfua=True)
     assert geometrie.pruefe(pdf, "").ok
+
+
+# ── Nachgezogen aus der Review von #381 ─────────────────────────────────────
+
+def test_ort_datum_ohne_unterschrift_wird_gesetzt(tmp_path):
+    """Vorher verschwand die Zeile still, wenn niemand unterschrieb."""
+    pdf = setze(tmp_path, zusatz='ort_datum: "Musterstadt, den 12.10.2026"\nunterschriften: []\n')
+    with pdfplumber.open(str(pdf)) as dokument:
+        assert "Musterstadt, den 12.10.2026" in dokument.pages[0].extract_text()
+    assert gescheitert(pdf) == set()
+
+
+def test_serie_bricht_fuer_eine_urkunde_einmal_ab(urkunde_datei, tmp_path):
+    daten = tmp_path / "daten.csv"
+    daten.write_text("name\nA\nB\nC\n", encoding="utf-8")
+    lauf = rufe("serie", urkunde_datei, "--daten", daten, "--ziel", tmp_path / "aus")
+    assert lauf.returncode == 1
+    assert lauf.stderr.count("typ: urkunde") == 1, lauf.stderr
+
+
+def test_serie_fuellt_platzhalter_in_der_angabentabelle():
+    from falzmarke import serie
+
+    bloecke = md_lies("|   |   |\n|---|---|\n| Kunde | {{name}} |\n", dialekt="1.2")
+    gefuellt = serie.fuelle_bloecke(bloecke, {"name": "Muster GmbH"})
+    zelle = gefuellt[0].zeilen[0][1]
+    assert "".join(k.inhalt for k in zelle) == "Muster GmbH"
+
+
+def test_der_dienst_nennt_fuer_eine_urkunde_keine_form(tmp_path):
+    from falzmarke import dienst
+
+    ergebnis = dienst.brief_rendern(KOPF.format(zusatz="", text="Ein Absatz."),
+                                    ziel=str(tmp_path / "f.pdf"))
+    assert ergebnis["typ"] == "urkunde" and ergebnis["form"] == ""

@@ -193,14 +193,17 @@ def brief_rendern(brief: str, profil=None, form: str | None = None,
             tempfile.mkdtemp(prefix="falzmarke-")) / "brief.pdf"
         pdf, gesetzte_form = rendere(quelle, ausgabe, profil_verzeichnis=verzeichnis)
         bericht = geometrie.pruefe(pdf, gesetzte_form)
+        typ = geometrie.typ_aus_metadaten(pdf)
 
         ergebnis = {
             # `brief` oder `urkunde` — gelesen aus dem fertigen PDF, nicht aus
             # der Eingabe: Der Aufrufer soll wissen, nach welcher Liste
             # gemessen wurde. Eine Urkunde hat keine Form; das Feld darunter
             # nennt dann nur die des Profils.
-            "typ": geometrie.typ_aus_metadaten(pdf),
-            "form": gesetzte_form,
+            "typ": typ,
+            # Eine Urkunde hat keine Form; das Feld bleibt leer, statt die des
+            # Profils zu nennen und eine Faltung zu versprechen, die es nicht gibt.
+            "form": "" if typ == geometrie.TYP_URKUNDE else gesetzte_form,
             "bestanden": bericht.ok,
             "bericht": bericht.als_dict(),
             "zusammenfassung": bericht.als_text(),

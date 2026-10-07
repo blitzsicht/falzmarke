@@ -1714,6 +1714,9 @@ def pruefe_urkunde_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> N
         if not isinstance(titel, str):
             bericht.fehler(ort, "urkunde.titel", "`titel:` ist kein Text",
                            "eine Zeile schreiben, bei einem Doppelpunkt darin in Anführungszeichen")
+        elif not titel.strip():
+            bericht.fehler(ort, "urkunde.titel", "`titel:` ist leer",
+                           "der Titel steht über dem Text und in der Kopfzeile jeder Folgeseite")
         elif len(titel.strip()) > TITEL_MAX_ZEICHEN:
             bericht.fehler(ort, "urkunde.titel", f"{len(titel.strip())} Zeichen",
                            f"höchstens {TITEL_MAX_ZEICHEN} — der Titel steht auch in der "
@@ -1795,6 +1798,14 @@ def pruefe_urkunde_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> N
             # Ein Unterstrich, der zu keinem Feld gehört, stünde als Zeichen im
             # Blatt: `____,__` ergäbe ein Feld, ein Komma und zwei Striche.
             uebrig = "_" in markdown_modul.FELD.sub("", ort_datum)
+            zu_lang = [len(t) for t in markdown_modul.FELD.findall(ort_datum)
+                       if len(t) > markdown_modul.FELD_MAX]
+            if zu_lang:
+                bericht.fehler(
+                    ort, "urkunde.ort_datum",
+                    f"Ausfüllfeld aus {zu_lang[0]} Unterstrichen",
+                    f"mehr als {markdown_modul.FELD_MAX} passen nicht in eine Zeile "
+                    "(2 mm je Unterstrich, 165 mm Satzbreite)")
             if ketten != felder or uebrig:
                 bericht.fehler(
                     ort, "urkunde.ort_datum",
@@ -1823,7 +1834,7 @@ def pruefe_urkunde_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> N
 
 #: Eine Überschrift erster Ebene in ATX-Schreibweise. Die Setext-Form
 #: (`Titel` über `====`) fängt `pruefe_urkunde_body` an der Unterstreichung.
-UEBERSCHRIFT_1 = re.compile(r"^ {0,3}#(?:\s|$)")
+UEBERSCHRIFT_1 = re.compile(r"^ {0,3}(?:> ?)*#(?:\s|$)")
 SETEXT_1 = re.compile(r"^ {0,3}=+\s*$")
 ZAUN = re.compile(r"^ {0,3}(`{3,}|~{3,})")
 

@@ -30,8 +30,12 @@ nebeneinandergelegt aus wie aus einer Hand.
 | Kopfhöhe | nach der Form: 27 mm (A) oder 45 mm (B) | nach dem Briefkopf: 27 mm, wenn er hineinpasst, sonst 45 mm |
 | Falz- und Lochmarken | ja | nein — es gibt kein Fenster, auf das zu falten wäre |
 | Unter dem Text | Gruß, Unterschriftsraum, Name | Zeile für Ort und Datum, ein oder zwei Unterschriftslinien |
-| Gliederung | Betreff, dann Überschriften ab `#` | der Titel ist die erste Ebene, Abschnitte ab `##` |
+| Gliederung | Betreff, dann Überschriften ab `#` (mit `dialekt: "1.1"`) | der Titel ist die erste Ebene, Abschnitte ab `##` (mit `dialekt: "1.2"`) |
 | Seitenzahl | so viele, wie der Text braucht | auf Wunsch begrenzt: `seiten_max:` |
+
+**`dialekt: "1.2"` gehört in jede Urkunde.** Ohne das Feld gilt auch hier Fassung 1.0, und die
+kennt weder Abschnittsüberschriften noch Ausfüllfelder. `falzmarke init --typ urkunde` schreibt
+das Feld in die Vorlage.
 
 ## Ausfüllfelder und Angaben
 

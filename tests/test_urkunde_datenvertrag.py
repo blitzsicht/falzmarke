@@ -256,6 +256,24 @@ def test_titel_mit_doppelpunkt_ohne_anfuehrungszeichen_ist_kein_text():
     assert _regeln(text) == ["urkunde.titel"]
 
 
+@pytest.mark.parametrize("wert", ['"   "', '""'])
+def test_titel_nur_aus_leerzeichen(wert):
+    text = GUELTIG.replace("titel: Vereinbarung über eine Leihe", f"titel: {wert}")
+    assert set(_regeln(text)) <= {"urkunde.titel", "titel"} and _regeln(text)
+
+
+def test_ort_datum_mit_ueberlangem_feld():
+    text = GUELTIG.replace("Regensburg, den ______________", "Ort " + "_" * 83)
+    assert _regeln(text) == ["urkunde.ort_datum"]
+    assert _regeln(GUELTIG.replace("Regensburg, den ______________", "Ort " + "_" * 82)) == []
+
+
+def test_ueberschrift_erster_ebene_im_zitat():
+    """Der Render schaut ins Zitat — der Linter muss es auch, sonst sagt er grün und der Render rot."""
+    assert _body("> # Im Zitat\n") == [(11, "urkunde.ueberschrift")]
+    assert _body("> ## Zweite Ebene im Zitat\n") == []
+
+
 def test_ueberlanger_titel():
     text = GUELTIG.replace("titel: Vereinbarung über eine Leihe",
                            "titel: " + "Vereinbarung " * 20)
@@ -330,8 +348,19 @@ def test_jede_urkundenregel_ist_werkzeugregel_und_darf_fehler_sein():
 def test_die_doku_nennt_jedes_feld():
     """`references/frontmatter.md` ist der Vertrag, den ein Agent liest."""
     text = (REPO / "skill" / "references" / "frontmatter.md").read_text(encoding="utf-8")
-    abschnitt = text.split("## Urkunde", 1)
-    assert len(abschnitt) == 2, "Abschnitt „## Urkunde“ fehlt in frontmatter.md"
+    teile = text.split("\n## Urkunde\n", 1)
+    assert len(teile) == 2, "Abschnitt „## Urkunde“ fehlt in frontmatter.md"
+    # Nur bis zur nächsten Überschrift zweiter Ebene: Sonst fände der Test ein
+    # Feld wie `name` irgendwo später in der Datei und könnte nie rot werden.
+    abschnitt = teile[1].split("\n## ", 1)[0]
     for feld in sorted(lint.URKUNDE_FRONTMATTER_FELDER | lint.PARTEI_FELDER
                        | lint.UNTERSCHRIFT_FELDER):
-        assert f"`{feld}`" in abschnitt[1] or f"{feld}:" in abschnitt[1], feld
+        assert f"`{feld}`" in abschnitt or f"{feld}:" in abschnitt, feld
+
+
+def test_der_doku_test_wird_rot_wenn_ein_feld_fehlt():
+    """Gegenprobe zum Test darüber: Fehlt `seiten_max` im Abschnitt, muss er es merken."""
+    text = (REPO / "skill" / "references" / "frontmatter.md").read_text(encoding="utf-8")
+    abschnitt = text.split("\n## Urkunde\n", 1)[1].split("\n## ", 1)[0]
+    ohne = abschnitt.replace("seiten_max", "XXX")
+    assert "seiten_max" in abschnitt and "`seiten_max`" not in ohne and "seiten_max:" not in ohne

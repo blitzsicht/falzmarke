@@ -518,6 +518,11 @@
   // Ort, Datum und Unterschriften bleiben zusammen: Eine Unterschrift allein
   // auf der letzten Seite ist ein Blatt, das zu nichts gehört.
   let unterschriften = daten.at("unterschriften", default: ())
+  // Ohne Unterschrift steht die Ort-Datum-Zeile für sich — sie still
+  // wegzulassen hieße, ein Feld der Quelle zu verwerfen (Review von #381).
+  if unterschriften.len() == 0 and daten.at("ort_datum", default: none) != none {
+    block(above: leer(1), below: 0pt, _teile(daten.ort_datum))
+  }
   if unterschriften.len() > 0 {
     block(breakable: false, above: leer(1), below: 0pt, {
       let ort-datum = daten.at("ort_datum", default: none)

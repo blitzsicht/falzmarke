@@ -1928,6 +1928,12 @@ def befehl_serie(args) -> int:
 
     try:
         kopf, body_md, _versatz = lies_brief(vorlage)
+        if str(kopf.get("typ") or "brief") == "urkunde":
+            # Einmal, vor dem ersten Datensatz: Sonst stünde dieselbe Meldung
+            # so oft da, wie die Datenquelle Zeilen hat (Review von #381).
+            raise Eingabefehler(
+                f"{vorlage.name} trägt `typ: urkunde` — einen Serienlauf gibt es dafür nicht.\n"
+                "Eine Urkunde hat kein Anschriftfeld, das je Empfänger wechseln könnte.")
         saetze = serie.lies_daten(Path(args.daten))
     except (Eingabefehler, serie.Seriefehler) as fehler:
         print(str(fehler), file=sys.stderr)

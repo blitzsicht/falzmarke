@@ -150,6 +150,9 @@ FELD_ROH = re.compile(r"(?:\\?_){3,}")
 #: Codespannen im Rohtext — was darin steht, ist Wortlaut und kein Feld.
 CODESPANNE = re.compile(r"(`+).*?\1", re.S)
 
+#: Das Ziel eines Links im Rohtext (`](…)`) — eine Adresse, kein Feld.
+LINKZIEL = re.compile(r"\]\([^)]*\)")
+
 #: Wie lang ein Feld höchstens wird: Der Satzspiegel misst 165 mm, ein
 #: Unterstrich steht für 2 mm (`feld-einheit` in falzmarke.typ).
 FELD_MAX = 82
@@ -484,9 +487,31 @@ def _pruefe_felder(roh: str, teile, lage: Lage, zeile: int) -> None:
     """
     if lage.dialekt not in FELDER_AB:
         return
-    erwartet = len(FELD_ROH.findall(CODESPANNE.sub("", roh)))
+    # Was im Rohtext kein Text ist, zählt nicht: Codespannen (Wortlaut),
+    # Linkziele (eine Adresse) und geschützte Backticks, die keine Spanne
+    # öffnen. Ersetzt durch Leerzeichen gleicher Länge, damit die Stelle
+    # einer Kette ihre Zeile behält.
+    bereinigt = roh.replace("\\`", "  ")
+    bereinigt = CODESPANNE.sub(lambda t: " " * len(t.group(0)), bereinigt)
+    bereinigt = LINKZIEL.sub(lambda t: " " * len(t.group(0)), bereinigt)
+    ketten = list(FELD_ROH.finditer(bereinigt))
     gefunden = _zaehle_felder(teile)
-    if erwartet != gefunden:
+    if len(ketten) != gefunden:
+        # Gemeldet wird die Zeile der ersten Kette, die nicht frei steht —
+        # nicht die des Absatzanfangs (Review von #381).
+        def lehnt(kette) -> bool:
+            vor = bereinigt[kette.start() - 1] if kette.start() else " "
+            nach = bereinigt[kette.end()] if kette.end() < len(bereinigt) else " "
+            return not (vor.isspace() and nach.isspace())
+        def am_wort(kette) -> bool:
+            vor = bereinigt[kette.start() - 1] if kette.start() else " "
+            nach = bereinigt[kette.end()] if kette.end() < len(bereinigt) else " "
+            return vor.isalnum() or nach.isalnum()
+        schief = next((k for k in ketten if am_wort(k)),
+                      next((k for k in ketten if lehnt(k)), ketten[0] if ketten else None))
+        if schief is not None:
+            zeile += bereinigt[:schief.start()].count("\n")
+        erwartet = len(ketten)
         raise MarkdownFehler(
             zeile,
             f"{erwartet} Unterstrichkette(n) in der Quelle, aber {gefunden} Ausfüllfeld(er) — "

@@ -214,3 +214,30 @@ def test_html_feld_im_text_sind_die_unterstriche():
 def test_die_angabentabelle_wird_im_klartext_nicht_gefaltet():
     """Eine umbrochene Zeile wäre eine andere Zuordnung von Bezeichnung und Wert."""
     assert baum.Angaben in emit_text.FESTE_BLOECKE
+
+
+# ── Nachgezogen aus der Review von #381 ─────────────────────────────────────
+
+def test_die_meldung_nennt_die_zeile_der_kette_im_mehrzeiligen_absatz():
+    quelle = "Erste Zeile.\nZweite Zeile.\nDritte Zeile.\nBetrag: ____,__ EUR\nFünfte Zeile.\n"
+    with pytest.raises(MarkdownFehler) as fehler:
+        lies(quelle, zeilenversatz=10, dialekt="1.2")
+    assert fehler.value.zeile == 14
+
+
+def test_die_meldung_nennt_die_zeile_der_tabellenzelle():
+    quelle = "Text.\n\n|   |   |\n|---|---|\n| a | b |\n| Betrag | ____,__ |\n"
+    with pytest.raises(MarkdownFehler) as fehler:
+        lies(quelle, zeilenversatz=10, dialekt="1.2")
+    assert fehler.value.zeile == 16
+
+
+def test_unterstriche_im_linkziel_sind_kein_feld():
+    absatz, = lies("Siehe [die Seite](https://example.de/a___b) und ____ hier.",
+                   dialekt="1.2", ziel="email")
+    assert sum(isinstance(k, baum.Ausfuellfeld) for k in absatz.kinder) == 1
+
+
+def test_geschuetzte_backticks_oeffnen_keine_spanne():
+    absatz, = lies(r"Ein \` und ____ hier \` dort.", dialekt="1.2")
+    assert sum(isinstance(k, baum.Ausfuellfeld) for k in absatz.kinder) == 1
