@@ -440,6 +440,28 @@ ohne sie zu bilden — es vergibt keine Rechnungsnummern, bucht nicht, mahnt nic
 nichts. Was das im Einzelnen heißt und was ausdrücklich nicht behauptet wird:
 [Rechnungen mit falzmarke](https://github.com/blitzsicht/falzmarke/blob/main/docs/rechnung.md).
 
+## Urkunden: ein Schriftstück ohne Anschriftfeld
+
+Eine Vereinbarung, eine Erklärung, ein Nachweis: Ein Schreiben mit `typ: urkunde` trägt einen
+Titel statt eines Betreffs, kein Anschriftfeld und Linien zum Unterschreiben von Hand.
+Briefkopf, Fußzeile, Schrift und Raster kommen aus demselben Profil wie beim Brief.
+
+```bash
+falzmarke render vereinbarung.md   # setzt und misst nach — auch die Unterschriftslinien
+```
+
+Im Text gibt es dafür zwei Elemente mehr (`dialekt: "1.2"`): das Ausfüllfeld, eine Kette aus
+Unterstrichen, die zu einer Linie fester Länge wird, und die Angabentabelle ohne Kopfzeile. Mit
+`seiten_max: 1` wird der Lauf rot, wenn das Schriftstück nicht auf eine Seite passt.
+
+**Die Maße einer Urkunde sind Setzungen des Werkzeugs, keine der DIN 5008** — die Norm sagt zu
+einem Blatt ohne Anschriftfeld nichts, und die Zahl der Maße, die oben für den Brief steht, gilt
+hier nicht. Über Form oder Wirksamkeit eines Schriftstücks sagt falzmarke nichts; es kennt auch
+keine Klauseln. Was das im Einzelnen heißt:
+[Urkunden mit falzmarke](https://github.com/blitzsicht/falzmarke/blob/main/docs/urkunde.md).
+Zwei Beispiele liegen unter
+[`examples/urkunde/`](https://github.com/blitzsicht/falzmarke/tree/main/examples/urkunde/).
+
 ## Beispiele
 
 | Standardbrief | Einschreiben | Mehrseitig |

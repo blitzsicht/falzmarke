@@ -100,6 +100,17 @@ def liste(punkte: list[str], nummeriert: bool = False, start: int = 1) -> str:
     return f"#list({zellen})"
 
 
+def feld(laenge: int) -> str:
+    """Ein Ausfüllfeld. Wie lang ein Unterstrich ist, entscheidet `falzmarke.typ`."""
+    return f"#feld({int(laenge)})"
+
+
+def angaben(zeilen: list[list[str]]) -> str:
+    """Bezeichnung und Wert ohne Kopfzeile. Das Aussehen steht in `falzmarke.typ`."""
+    zellen = ", ".join(f"[{z}]" for zeile in zeilen for z in zeile)
+    return f"#angaben({zellen})"
+
+
 AUSRICHTUNG = {"left": "left", "right": "right", "center": "center", None: "left", "": "left"}
 
 
@@ -152,6 +163,8 @@ def _inline(knoten) -> str:
         return betont(_inline(knoten.kinder))
     if isinstance(knoten, baum_modul.Wortlaut):
         return wortlaut(knoten.inhalt, knoten.block)
+    if isinstance(knoten, baum_modul.Ausfuellfeld):
+        return feld(knoten.laenge)
     return _block(knoten)
 
 
@@ -175,6 +188,8 @@ def _block(knoten) -> str:
             [[_inline(z) for z in zeile] for zeile in knoten.zeilen],
             list(knoten.ausrichtungen),
         )
+    if isinstance(knoten, baum_modul.Angaben):
+        return angaben([[_inline(z) for z in zeile] for zeile in knoten.zeilen])
     if isinstance(knoten, baum_modul.Link):
         # Ein Link kann hier nicht ankommen: `markdown.lies` lehnt ihn ab,
         # sobald das Ziel ein Brief ist. Steht er trotzdem hier, hat jemand die

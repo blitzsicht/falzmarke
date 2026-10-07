@@ -60,12 +60,12 @@ Lauf der CLI und wird rot, sobald das Bild etwas zeigt, was das Programm nicht m
 ```bash
 python3 skill/scripts/bootstrap.py
 python3 -m pytest -q
-for f in examples/*.md; do
+for f in examples/*.md examples/urkunde/*.md; do
   python3 skill/scripts/falzmarke.py render "$f" -o "/tmp/$(basename "$f" .md).pdf"
 done
 ```
 
-Alle Tests grün, alle acht Beispiele ohne `FEHL`-Zeile.
+Alle Tests grün, alle Beispiele ohne `FEHL`-Zeile.
 
 Dazu der Changelog-Eintrag — eine Datei in `changelog.d/`, siehe „Den Changelog ändern" weiter
 unten. Er ist Pflicht, nicht Kür: Ohne ihn ist der Vorgang nicht mergebar.

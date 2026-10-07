@@ -107,13 +107,16 @@ def test_jeder_knoten_aus_baum_wird_vom_emitter_gesetzt():
         baum.Wortlaut: baum.Wortlaut("x", block=True),
         baum.Liste: baum.Liste(((baum.Text("a"),), (baum.Text("b"),))),
         baum.Tabelle: baum.Tabelle((((baum.Text("a"),),),), (None,)),
+        baum.Ausfuellfeld: baum.Ausfuellfeld(8),
+        baum.Angaben: baum.Angaben((((baum.Text("a"),), (baum.Text("b"),)),)),
     }
     fehlend = [k.__name__ for k in baum.KNOTEN if k not in beispiele]
     assert not fehlend, f"Diese Prüfung kennt {fehlend} nicht — baum.KNOTEN ist gewachsen"
 
     for klasse, knoten in beispiele.items():
         gesetzt = emit._inline(knoten) if klasse in (
-            baum.Text, baum.Umbruch, baum.Stark, baum.Betont) else emit._block(knoten)
+            baum.Text, baum.Umbruch, baum.Stark, baum.Betont,
+            baum.Ausfuellfeld) else emit._block(knoten)
         assert gesetzt.strip(), f"{klasse.__name__} ergibt nichts"
 
 

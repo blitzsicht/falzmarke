@@ -88,6 +88,24 @@ built. On macOS `--oeffnen` hands the message to the mail client as a **draft**,
 human to read and send. falzmarke never sends anything; there is no send command and no option
 that sends.
 
+## Documents without an address field
+
+```bash
+falzmarke render agreement.md
+```
+
+With `typ: urkunde` in the front matter the same source becomes a document that is addressed
+to no one and signed by hand: an agreement between two parties, a declaration, a record. It
+carries a title instead of a subject line, optional parties, and one or two signature lines —
+on the same letterhead, footer, type and 12 pt grid as a letter from the same profile. Two more
+elements exist in the body for it (`dialekt: "1.2"`): a fill-in field, written as a run of
+underscores, and a two-column table without a header row. `seiten_max: 1` makes the run fail
+if the document does not fit on one page.
+
+**These measurements are falzmarke's own, not DIN 5008's** — the standard describes business
+letters and says nothing about a sheet without an address field. falzmarke makes no statement
+about legal form or validity, and it knows no clauses.
+
 ## As an MCP server
 
 falzmarke speaks the Model Context Protocol over stdio, so clients that know nothing about

@@ -281,6 +281,41 @@ def tabelle(zeilen: list[list[str]], ausrichtungen: list[str | None]) -> str:
     return "".join(teile)
 
 
+def feld(laenge: int) -> str:
+    """Ein Ausfüllfeld — in einer Mail die Unterstriche selbst.
+
+    Kein Kasten mit Unterkante: Outlook setzt an einem Inline-Element weder
+    Breite noch Rahmen verlässlich, und eine Linie, die beim Empfänger fehlt,
+    ist schlimmer als eine aus Zeichen. Eine Mail füllt ohnehin niemand von
+    Hand aus; das Feld zeigt hier nur, wo im Papier eines steht.
+    """
+    return "_" * int(laenge)
+
+
+def angaben(zeilen: list[list[str]]) -> str:
+    """Bezeichnung und Wert ohne Kopfzeile und ohne Rahmen.
+
+    Die erste Spalte ist die Zeilenüberschrift (`<th scope="row">`): Was im
+    Brief nur das Auge zuordnet, sagt hier das Markup — ein Vorleseprogramm
+    nennt zu jedem Wert seine Bezeichnung.
+    """
+    if not zeilen:
+        return ""
+    stil_tabelle = f"border-collapse: collapse; margin: 0 0 {ABSTAND_UNTEN}; {TEXTSTIL}"
+    stil = f"padding: 0 16px 2px 0; text-align: left; vertical-align: top; {TEXTSTIL}"
+    teile = [f'<table class="{KLASSE_TEXT}" style="{stil_tabelle}" '
+             f'cellpadding="0" cellspacing="0">']
+    for zeile in zeilen:
+        bezeichnung = zeile[0] if zeile else ""
+        wert = zeile[1] if len(zeile) > 1 else ""
+        teile.append(
+            f'<tr><th scope="row" class="{KLASSE_TEXT}" style="{stil} font-weight: 400; '
+            f'white-space: nowrap;">{bezeichnung}</th>'
+            f'<td class="{KLASSE_TEXT}" style="{stil}">{wert}</td></tr>')
+    teile.append("</table>")
+    return "".join(teile)
+
+
 # ── Überschrift, Zitat, Auszug (#109) ───────────────────────────────────────
 
 #: Festbreitenschrift, ebenfalls aus dem System. `Menlo` (macOS), `Consolas`
@@ -420,6 +455,8 @@ def _inline(knoten) -> str:
         return betont(_inline(knoten.kinder))
     if isinstance(knoten, baum_modul.Wortlaut) and not knoten.block:
         return wortlaut(knoten.inhalt, block=False)
+    if isinstance(knoten, baum_modul.Ausfuellfeld):
+        return feld(knoten.laenge)
     return _block(knoten)
 
 
@@ -437,6 +474,8 @@ def _block(knoten) -> str:
             [[_inline(z) for z in zeile] for zeile in knoten.zeilen],
             list(knoten.ausrichtungen),
         )
+    if isinstance(knoten, baum_modul.Angaben):
+        return angaben([[_inline(z) for z in zeile] for zeile in knoten.zeilen])
     if isinstance(knoten, baum_modul.Ueberschrift):
         return ueberschrift(knoten.ebene, _inline(knoten.kinder))
     if isinstance(knoten, baum_modul.Zitat):

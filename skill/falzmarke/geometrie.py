@@ -122,6 +122,46 @@ FUSS_MINDESTRAND = 8.0       # mm zwischen unterstem Text und Blattkante
 LEERZEILEN_VOR_BETREFF = 2 * ZEILE   # 8,46 mm
 INFOBLOCK_MINDESTHOEHE = 40.0
 
+# ── Urkunde: das Schriftstück ohne Anschriftfeld (ADR 0048) ─────────────────
+#
+# Keiner dieser Werte stammt aus der DIN 5008. Die Norm beschreibt den
+# Geschäftsbrief; zu einem Blatt ohne Anschriftfeld sagt keine der geführten
+# Quellen etwas. Was hier steht, sind Setzungen des Werkzeugs — dieselben
+# Zahlen stehen in `falzmarke.typ`, und `tests/test_urkunde_messung.py` hält
+# beide zusammen.
+
+#: Der Typ, wie er im Herkunftsvermerk des PDF steht (`/falzmarke_Typ`).
+TYP_URKUNDE = "urkunde"
+
+#: Die zwei Kopfhöhen einer Urkunde, in mm. Dieselben wie beim Brief (Form A
+#: und B), aber gewählt nach dem Briefkopf des Profils: Ohne Anschriftfeld gibt
+#: es kein Fenster, dessen Lage 45 mm erzwänge. Der Vermerk im PDF nennt, welche
+#: von beiden gilt — er darf wählen, das Soll liefert er nicht.
+URKUNDE_KOPFHOEHEN = (27.0, 45.0)
+
+#: Der Titel steht zwei Leerzeilen unter dem Kopf: `leer(2)` in `falzmarke.typ`,
+#: also zwei Rasterzeilen plus 1 pt Durchschuss.
+URKUNDE_TITEL_UNTER_KOPF = 2 * ZEILE + 0.3528
+
+#: Länge einer Unterschriftslinie. Ungerade, weil ein Ausfüllfeld immer ein
+#: Vielfaches von `FELD_EINHEIT` misst — so ist am fertigen Blatt entscheidbar,
+#: welche Linie eine Unterschrift erwartet.
+UNTERSCHRIFT_LINIE = 65.0
+
+#: Wie viel Raum über der Linie frei bleibt: drei Rasterzeilen, abzüglich des
+#: Millimeters, um den die Linie über der Namenszeile steht.
+UNTERSCHRIFT_RAUM = 3 * ZEILE - 1.0
+
+#: Wie weit zwei Unterschriftslinien mindestens auseinanderstehen. Der Satz
+#: lässt 22,5 mm; darunter sind es zwei Linien, die wie eine aussehen.
+UNTERSCHRIFT_ABSTAND_MIN = 10.0
+
+#: Wie weit der Name unter der Linie beginnt, höchstens. Gemessen 0,98 mm.
+UNTERSCHRIFT_NAME_MAX = 2.0
+
+#: Ein Unterstrich der Quelle ergibt 2 mm Ausfüllfeld (`feld-einheit`).
+FELD_EINHEIT = 2.0
+
 
 #: Die Stufen einer Prüfung. `FEHLER` ist die Vorgabe — ein neuer Aufruf wirkt
 #: damit wie jeder bisherige, und die Briefmaße bleiben unberührt.
@@ -673,8 +713,216 @@ def _briefseiten_aus_metadaten(pdf_pfad: Path) -> int | None:
     return zahl if zahl > 0 else None
 
 
-def pruefe(pdf_pfad: Path, form: str, briefseiten: int | None = None) -> Bericht:
+def _vermerke(pdf_pfad: Path) -> dict[str, str]:
+    """Was falzmarke über das Dokument in die Datei geschrieben hat.
+
+    Nur die eigenen Schlüssel (`/falzmarke_…`), als Text. Ein unlesbares oder
+    fremdes PDF ergibt ein leeres Wörterbuch — das ist kein Fehler, sondern der
+    Zustand jedes Dokuments, das nicht von hier stammt.
+    """
+    from pypdf import PdfReader
+
+    try:
+        angaben = PdfReader(str(pdf_pfad)).metadata or {}
+        return {str(k): str(v) for k, v in angaben.items()
+                if str(k).startswith("/falzmarke_")}
+    except Exception:                                             # noqa: BLE001
+        return {}
+
+
+def typ_aus_metadaten(pdf_pfad: Path) -> str:
+    """`urkunde`, wenn das PDF sich so ausweist — sonst `brief`.
+
+    Der Vermerk ist eine **Behauptung der Datei**, kein Befund. Er entscheidet,
+    nach welcher Liste gemessen wird, und genau deshalb darf er nicht das
+    letzte Wort haben: Die Urkundenliste prüft, dass keine Falz- und Lochmarken
+    im Heftrand stehen. Ein Brief, der sich als Urkunde ausgibt, fällt dort
+    auf, statt allen Briefprüfungen zu entgehen.
+
+    Briefe tragen den Vermerk nicht. Das ist Absicht: Ein neuer Schlüssel in
+    jedem Brief hätte die Bytes aller bestehenden Briefe geändert.
+    """
+    typ = _vermerke(pdf_pfad).get("/falzmarke_Typ", "")
+    return TYP_URKUNDE if typ == TYP_URKUNDE else "brief"
+
+
+def _ganzzahl(vermerk: dict, schluessel: str) -> int | None:
+    try:
+        return int(vermerk[schluessel])
+    except (KeyError, ValueError):
+        return None
+
+
+def _waagerechte(seite) -> list[tuple[float, float, float, bool]]:
+    """Alle waagerechten Striche einer Seite als (y, x_start, x_ende, ist_linie).
+
+    Linien und flache Rechtecke: Eine Unterschriftslinie steht im PDF als
+    Linie, ein Ausfüllfeld als Kastenrand und damit als Rechteck von 0,5 pt
+    Höhe. `ist_linie` trägt den Unterschied weiter — an ihm und an der Länge
+    hängt, was eine Unterschrift erwartet und was einen Eintrag.
+    """
+    treffer = []
+    for element, ist_linie in ([(l, True) for l in seite.lines]
+                               + [(r, False) for r in seite.rects]):
+        if abs(element["bottom"] - element["top"]) > 0.7:     # nicht waagerecht
+            continue
+        treffer.append((mm(element["top"]), mm(element["x0"]), mm(element["x1"]), ist_linie))
+    return sorted(treffer)
+
+
+def _pruefe_urkunde(pdf_pfad: Path, briefseiten: int | None = None) -> Bericht:
+    """Misst eine Urkunde — das Schriftstück ohne Anschriftfeld (ADR 0048).
+
+    Eine eigene Liste und keine Briefliste mit Ausnahmen. Die Briefprüfungen
+    verlangen Anschrift, Rücksendeangabe, Betreff und Marken unbedingt, und
+    das soll so bleiben: Ein Brief ohne Anschrift ist rot, ohne Wenn. Was die
+    Urkunde mit dem Brief teilt — Seitengröße, Satzspiegel, Zeilenraster,
+    eingebettete Schriften —, messen dieselben Funktionen.
+
+    Jede Prüfung hier ist eine Setzung des Werkzeugs und keine Normaussage.
+    """
+    bericht = Bericht()
+    dokument = _oeffne(pdf_pfad)
+    vermerk = _vermerke(pdf_pfad)
+    if briefseiten is None:
+        briefseiten = _briefseiten_aus_metadaten(pdf_pfad)
+    if not dokument.pages:
+        dokument.close()
+        raise PdfUnlesbar(f"{pdf_pfad.name} enthält keine Seite.")
+    seiten = dokument.pages[:briefseiten]
+    erste = seiten[0]
+
+    bericht.wert("Seitenbreite", mm(erste.width), SEITE_BREITE, 0.1)
+    bericht.wert("Seitenhöhe", mm(erste.height), SEITE_HOEHE, 0.1)
+
+    _satzspiegel(dokument, bericht, briefseiten)
+    _raster(dokument, bericht, briefseiten)
+
+    # Keine Marken. Gesucht wird unterhalb des Kopfes: Ein eigener Briefkopf
+    # darf im Heftrand zeichnen, was er will — Falz- und Lochmarken stehen bei
+    # 87 mm und tiefer.
+    marken = [m for m in _marken(erste) if m[0] > max(URKUNDE_KOPFHOEHEN)]
+    bericht.wahr(
+        "Keine Marken im Heftrand", not marken, "keine",
+        "keine" if not marken else
+        f"{len(marken)} gefunden, die erste bei {marken[0][0]:.2f} mm — das Blatt ist ein Brief")
+
+    # Seitenzahl. Die Zeile steht immer da: Fehlt die Grenze in der Quelle,
+    # soll das im Bericht zu lesen sein und nicht wie eine bestandene Prüfung
+    # aussehen, die es nie gab.
+    seitenzahl = len(seiten)
+    grenze = _ganzzahl(vermerk, "/falzmarke_Seiten_max")
+    if grenze is None:
+        bericht.add("Seitenzahl", "keine Grenze gesetzt", str(seitenzahl), "—", True)
+    else:
+        bericht.add(
+            "Seitenzahl", f"≤ {grenze}", str(seitenzahl), "—", seitenzahl <= grenze,
+            ursache="" if seitenzahl <= grenze else (
+                f"Ursache: `seiten_max: {grenze}` im Frontmatter, das Schriftstück hat "
+                f"{seitenzahl} Seiten — den Text kürzen oder die Grenze anheben"))
+
+    # Titel: fett, zwei Leerzeilen unter dem Kopf.
+    kopf = _ganzzahl(vermerk, "/falzmarke_Kopf_mm")
+    kopf_gilt = kopf is not None and float(kopf) in URKUNDE_KOPFHOEHEN
+    bericht.wahr(
+        "Kopfhöhe laut Vermerk", kopf_gilt,
+        " oder ".join(f"{h:.0f}" for h in URKUNDE_KOPFHOEHEN) + " mm",
+        f"{kopf} mm" if kopf is not None else "fehlt")
+    koerper = [s for s in _spans(erste) if abs(s.groesse - KOERPER_PT) < 0.3]
+    if kopf_gilt:
+        unter_kopf = [s for s in koerper if s.y0 >= float(kopf)]
+        zeilen = _zeilen_gruppieren(unter_kopf)
+        if zeilen:
+            titel = zeilen[0]
+            bericht.wert("Titel, y-Oberkante", titel[0].y0,
+                         float(kopf) + URKUNDE_TITEL_UNTER_KOPF, 0.3)
+            bericht.wert("Titel, x-links", titel[0].x0, RAND_LINKS, 0.3)
+            bericht.wahr("Titel, fett", all(s.fett for s in titel), "fett",
+                         "fett" if all(s.fett for s in titel)
+                         else f"„{_kurz(' '.join(s.text for s in titel))}“ ist nicht fett")
+        else:
+            bericht.wahr("Titel vorhanden", False, "eine Zeile unter dem Kopf", "nicht gefunden")
+
+    # Linien im Satzspiegel, je Seite. Auf der ersten Seite erst unterhalb des
+    # Kopfes: Ein Logo darf Striche tragen, die niemand misst.
+    for nummer, seite in enumerate(seiten, start=1):
+        oben = float(kopf) if (nummer == 1 and kopf_gilt) else 0.0
+        striche = [w for w in _waagerechte(seite) if w[0] >= oben]
+        if not striche:
+            continue
+        links = min(striche, key=lambda w: w[1])
+        rechts = max(striche, key=lambda w: w[2])
+        haelt = links[1] >= RAND_LINKS - 0.3 and rechts[2] <= RAND_RECHTS + 0.3
+        bericht.add(
+            f"Seite {nummer}, Linien im Satzspiegel", f"{RAND_LINKS}–{RAND_RECHTS}",
+            f"{links[1]:.2f}–{rechts[2]:.2f} ({len(striche)} Linie{'n' if len(striche) != 1 else ''})", "±0,3", haelt,
+            ursache="" if haelt else (
+                f"Ursache: eine Linie bei {rechts[0] if rechts[2] > RAND_RECHTS + 0.3 else links[0]:.2f} mm "
+                "reicht aus dem Satzspiegel — ein Ausfüllfeld kürzen oder in eine eigene Zeile setzen"))
+
+    # Unterschriftslinien: auf der letzten Seite, nebeneinander, Raum darüber.
+    erwartet = _ganzzahl(vermerk, "/falzmarke_Unterschriften")
+    letzte = seiten[-1]
+    linien = [w for w in _waagerechte(letzte)
+              if w[3] and abs((w[2] - w[1]) - UNTERSCHRIFT_LINIE) <= 0.3]
+    woanders = sum(
+        1 for seite in seiten[:-1] for w in _waagerechte(seite)
+        if w[3] and abs((w[2] - w[1]) - UNTERSCHRIFT_LINIE) <= 0.3)
+    if erwartet is None:
+        bericht.wahr("Unterschriftslinien, Anzahl", False, "laut Vermerk", "Vermerk fehlt")
+    else:
+        bericht.wahr(
+            "Unterschriftslinien, Anzahl", len(linien) == erwartet and not woanders,
+            f"{erwartet} auf der letzten Seite, je {UNTERSCHRIFT_LINIE:.0f} mm",
+            f"{len(linien)} auf der letzten Seite"
+            + (f", {woanders} auf einer früheren" if woanders else ""))
+    if linien:
+        innen = all(l[1] >= RAND_LINKS - 0.3 and l[2] <= RAND_RECHTS + 0.3 for l in linien)
+        bericht.add(
+            "Unterschriftslinien, im Satzspiegel", f"{RAND_LINKS}–{RAND_RECHTS}",
+            f"{min(l[1] for l in linien):.2f}–{max(l[2] for l in linien):.2f}", "±0,3", innen)
+        alle_spans = _spans(letzte)
+        im_raum = [
+            s for l in linien for s in alle_spans
+            if s.x1 > l[1] and s.x0 < l[2] and s.y1 > l[0] - UNTERSCHRIFT_RAUM + 0.3 and s.y0 < l[0]]
+        bericht.wahr(
+            "Unterschriftslinien, Raum darüber", not im_raum,
+            f"{UNTERSCHRIFT_RAUM:.2f} mm frei",
+            "frei" if not im_raum else f"„{_kurz(im_raum[0].text)}“ steht im Raum")
+        namen = []
+        for l in linien:
+            darunter = [s for s in alle_spans
+                        if abs(s.x0 - l[1]) <= 0.5 and 0 < s.y0 - l[0] <= UNTERSCHRIFT_NAME_MAX]
+            namen.append(bool(darunter))
+        bericht.wahr(
+            "Unterschriftslinien, Name darunter", all(namen),
+            f"je Linie ein Name, höchstens {UNTERSCHRIFT_NAME_MAX:.1f} mm darunter",
+            "vorhanden" if all(namen) else f"fehlt unter {namen.count(False)} Linie(n)")
+    if len(linien) == 2:
+        a, b = sorted(linien, key=lambda l: l[1])
+        bericht.wert("Unterschriftslinien, gleiche Höhe", b[0], a[0], 0.3)
+        bericht.add(
+            "Unterschriftslinien, Abstand", f"≥ {UNTERSCHRIFT_ABSTAND_MIN}",
+            f"{b[1] - a[2]:.2f}", "—", b[1] - a[2] >= UNTERSCHRIFT_ABSTAND_MIN)
+
+    nicht_eingebettet = _nicht_eingebettete_schriften(pdf_pfad, briefseiten)
+    bericht.wahr(
+        "Schriften eingebettet", not nicht_eingebettet, "alle eingebettet",
+        "fehlend: " + ", ".join(nicht_eingebettet) if nicht_eingebettet else "alle",
+    )
+
+    dokument.close()
+    return bericht
+
+
+def pruefe(pdf_pfad: Path, form: str, briefseiten: int | None = None,
+           typ: str | None = None) -> Bericht:
     """Misst den Brief. `briefseiten` begrenzt die Messung auf die ersten n Seiten.
+
+    `typ`: Ohne Angabe entscheidet der Vermerk im PDF (`typ_aus_metadaten`).
+    Eine Urkunde hat kein Anschriftfeld und wird nach ihrer eigenen Liste
+    gemessen; `form` spielt dort keine Rolle. `typ="brief"` erzwingt die
+    Briefliste — für ein fremdes PDF, dessen Vermerk man nicht traut.
 
     Nötig, seit `anlagen_dateien` fremde PDFs hinten anhängen kann: Eine Anlage
     trägt keine Kopfzeile mit Betreff, keine Seitenzählung und womöglich keine
@@ -686,6 +934,10 @@ def pruefe(pdf_pfad: Path, form: str, briefseiten: int | None = None) -> Bericht
     fertigen Datei, wo der Brief endet. Steht dort nichts, gilt das ganze
     Dokument als Brief; das ist der Zustand aller Briefe ohne Anlagen.
     """
+    if typ is None:
+        typ = typ_aus_metadaten(pdf_pfad)
+    if typ == TYP_URKUNDE:
+        return _pruefe_urkunde(pdf_pfad, briefseiten)
     soll = FORM[form]
     bericht = Bericht()
     dokument = _oeffne(pdf_pfad)

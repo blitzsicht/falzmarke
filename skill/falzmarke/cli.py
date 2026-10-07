@@ -226,6 +226,123 @@ def lade_profil(
 
 # ── Daten für den Typst-Wrapper ─────────────────────────────────────────────
 
+def urkunde_kopf_mm(profil: dict) -> int:
+    """Wie hoch der Kopf einer Urkunde ist: 27 mm, wenn der Briefkopf hineinpasst.
+
+    Beim Brief folgt die Kopfhöhe der Form, und die Form folgt dem Fenster des
+    Umschlags. Eine Urkunde hat kein Anschriftfeld; 45 mm Kopf über einem
+    14 mm hohen Logo wären 18 mm, die dem Text fehlen — bei einem Blatt, das
+    auf eine Seite passen soll, ist das oft der Unterschied.
+
+    Entschieden wird hier und nicht im Satz, weil die Zahl in den Vermerk des
+    PDF gehört: `verify` misst die Titelposition gegen sie. Gerechnet wird mit
+    dem, was `briefkopf()` in `falzmarke.typ` setzt: 8 mm Abstand oben, dann
+    das Logo in seiner Höhe oder der Name in 16 pt, rechts daneben die Zeilen
+    in 8,5 pt. Ein eigener Kopf (`briefkopf_typ`) ist nicht berechenbar und
+    bekommt die 45 mm.
+    """
+    if profil.get("briefkopf_typ"):
+        return 45
+    kopf = profil.get("briefkopf") or {}
+    links = float(kopf.get("logo_hoehe_mm", 42)) if kopf.get("logo") else 6.0
+    rechts = len(kopf.get("zeilen") or []) * 4.4
+    return 27 if 8.0 + max(links, rechts) <= 27.0 else 45
+
+
+def _urkunde_teile(text: str) -> list[dict]:
+    """Die Ort-Datum-Zeile, an ihren Ausfüllfeldern geteilt — für den Satz.
+
+    Ohne Typografie-Pass, wie Betreff und Anschrift des Briefes: Was im
+    Frontmatter steht, wird gesetzt, wie es dasteht.
+    """
+    from falzmarke import markdown as markdown_modul
+
+    teile, stelle = [], 0
+    for treffer in markdown_modul.FELD.finditer(text):
+        if treffer.start() > stelle:
+            teile.append({"text": text[stelle:treffer.start()]})
+        teile.append({"feld": len(treffer.group(0))})
+        stelle = treffer.end()
+    if stelle < len(text):
+        teile.append({"text": text[stelle:]})
+    return teile
+
+
+def baue_daten_urkunde(kopf: dict, profil: dict) -> dict:
+    """Die Kopfdaten einer Urkunde für `urkunde()` in `falzmarke.typ` (ADR 0048).
+
+    Geprüft wird hier noch einmal, obwohl `lint` es schon tut: Der MCP-Dienst
+    ruft `rendere` ohne `linte`. Ohne diese Zeilen setzte er eine Urkunde mit
+    einem unbekannten Feld, ohne ein Wort darüber — genau das, wogegen das
+    Werkzeug antritt.
+    """
+    pruefung = lint_modul.Bericht()
+    lint_modul.pruefe_urkunde_frontmatter(kopf, "", pruefung)
+    if not pruefung.ok:
+        erster = next(b for b in pruefung.befunde if b.schwere == lint_modul.FEHLER)
+        raise Eingabefehler(
+            f"{erster.regel}: {erster.meldung}"
+            + (f"\n        {erster.korrektur}" if erster.korrektur else ""))
+
+    try:
+        sprache = sprachen.pruefe(
+            str(kopf.get("sprache", profil.get("sprache", sprachen.VORGABE))).lower())
+    except ValueError as fehler:
+        raise Eingabefehler(str(fehler)) from None
+
+    parteien = []
+    for partei in kopf.get("parteien") or []:
+        eintrag = {"name": str(partei["name"]).strip(),
+                   "anschrift": [str(z).strip() for z in als_liste(partei.get("anschrift"))]}
+        if partei.get("zusatz"):
+            eintrag["zusatz"] = str(partei["zusatz"]).strip()
+        parteien.append(eintrag)
+
+    # Fehlt `unterschriften:`, unterschreibt jede Partei. `unterschriften: []`
+    # heißt dagegen: keine — ein Aushang wird nicht unterschrieben.
+    if "unterschriften" in kopf and kopf["unterschriften"] is not None:
+        quelle = kopf["unterschriften"]
+    else:
+        quelle = [{"name": p["name"]} for p in parteien]
+    unterschriften = []
+    for unterschrift in quelle:
+        eintrag = {"name": str(unterschrift["name"]).strip()}
+        if unterschrift.get("rolle"):
+            eintrag["rolle"] = str(unterschrift["rolle"]).strip()
+        unterschriften.append(eintrag)
+
+    form = str(profil.get("form", "B")).upper()
+    daten = {
+        "typ": "urkunde",
+        # Eine Urkunde hat keine Form — das Feld steht hier, weil `rendere`
+        # (Pfad, Form) zurückgibt und der Herkunftsvermerk sie nennt.
+        "form": form if form in ("A", "B") else "B",
+        "sprache": sprache,
+        "gebiet": list(sprachen.GEBIET[sprache]),
+        "woerter": sprachen.WOERTER[sprache],
+        "titel": str(kopf["titel"]).strip(),
+        "kopf_mm": urkunde_kopf_mm(profil),
+        "parteien": parteien,
+        "unterschriften": unterschriften,
+        "anlagen": als_liste(kopf.get("anlagen")),
+        "seiten_max": kopf.get("seiten_max"),
+    }
+    if kopf.get("ort_datum"):
+        daten["ort_datum"] = _urkunde_teile(str(kopf["ort_datum"]).strip())
+    return daten
+
+
+def _hat_ueberschrift_erster_ebene(bloecke) -> bool:
+    from falzmarke import baum as baum_modul
+
+    for block in bloecke:
+        if isinstance(block, baum_modul.Ueberschrift) and block.ebene == 1:
+            return True
+        if isinstance(block, baum_modul.Zitat) and _hat_ueberschrift_erster_ebene(block.kinder):
+            return True
+    return False
+
+
 def baue_daten(kopf: dict, profil: dict, profil_pfad: Path, arbeitsverzeichnis: Path,
                brief_pfad: Path) -> dict:
     # Ohne diesen Abbruch meldet der Renderer „Pflichtfelder fehlen: empfaenger,
@@ -238,6 +355,8 @@ def baue_daten(kopf: dict, profil: dict, profil_pfad: Path, arbeitsverzeichnis: 
             "Die E-Mail-Fassung erzeugt Dateien, kein PDF — der Befehl dafür entsteht in #65.\n"
             "Bis dahin prüft `falzmarke lint` die Datei; für einen Brief `typ: email` entfernen."
         )
+    if str(kopf.get("typ") or "brief") == "urkunde":
+        return baue_daten_urkunde(kopf, profil)
     # Derselbe Abbruch für `typ: rechnung` (#115), aus einem schärferen Grund:
     # Ohne ihn fiele eine Rechnung in den Briefzweig und entstünde als PDF —
     # OHNE Positionen und Summen, die der Brief nicht kennt, und ohne ein Wort
@@ -547,6 +666,8 @@ def linte(brief_pfad: Path, profil_verzeichnis: Path | None = None) -> lint_modu
     lint_modul.pruefe_frontmatter(kopf, kopf_roh, bericht)
     lint_modul.pruefe_body(body_md, versatz, bericht, kopf.get("dialekt"),
                            str(kopf.get("typ") or "brief"))
+    if str(kopf.get("typ") or "brief") == "urkunde":
+        lint_modul.pruefe_urkunde_body(body_md, versatz, bericht)
     if str(kopf.get("typ") or "brief") == "email":
         lint_modul.pruefe_email_anlagen(kopf, body_md, kopf_roh, bericht)
         # Dieselbe Auflösung wie in `eml._haenge_an`: relativ zum Brief, nicht
@@ -912,6 +1033,11 @@ def rendere(
     # Das Merkmal steht hier, weil es zweimal gebraucht wird: im Arbeitsblock für
     # die XML und danach für das XMP-Schema.
     ist_rechnung = str(kopf.get("typ") or "brief") == "rechnung" and format_name == "pdf"
+    ist_urkunde = str(kopf.get("typ") or "brief") == "urkunde"
+    if ist_urkunde and ersetzungen is not None:
+        raise Eingabefehler(
+            f"{brief_pfad.name} trägt `typ: urkunde` — einen Serienlauf gibt es dafür nicht.\n"
+            "Eine Urkunde hat kein Anschriftfeld, das je Empfänger wechseln könnte.")
 
     with tempfile.TemporaryDirectory(prefix="falzmarke-") as tmp:
         arbeit = Path(tmp)
@@ -920,7 +1046,17 @@ def rendere(
         profil_daten = baue_profil_daten(profil, profil_pfad, arbeit)
 
         try:
-            if ersetzungen is None:
+            if ist_urkunde:
+                # Über den Baum statt über `konvertiere`: Hier ist die einzige
+                # Stelle, an der auch ein Aufrufer ohne `lint` erfährt, dass die
+                # erste Überschriftebene der Titel ist (der MCP-Dienst lintet nicht).
+                bloecke = lies(body_md, versatz, dialekt=kopf.get("dialekt"))
+                if _hat_ueberschrift_erster_ebene(bloecke):
+                    raise Eingabefehler(
+                        f"{brief_pfad.name}: Überschrift erster Ebene im Text. Die erste "
+                        "Ebene ist der `titel:` — Abschnitte beginnen mit `##`.")
+                body_typst = emit_modul.setze(bloecke)
+            elif ersetzungen is None:
                 body_typst = konvertiere(body_md, versatz, dialekt=kopf.get("dialekt"))
             else:
                 # Der Serienbrief (#3). Zwischen Lesen und Setzen greift hier
@@ -996,13 +1132,15 @@ def rendere(
 
         haupt = arbeit / "main.typ"
         haupt.write_text(
-            # `zitat` und `codeblock` gehoeren zum Dialekt 1.1: Der Brieftext
-            # ruft sie auf, also muessen sie hier im Namensraum stehen.
-            '#import "falzmarke.typ": brief, zitat, codeblock\n'
+            # `zitat` und `codeblock` gehoeren zum Dialekt 1.1, `feld` und
+            # `angaben` zum Dialekt 1.2: Der Brieftext ruft sie auf, also
+            # muessen sie hier im Namensraum stehen.
+            '#import "falzmarke.typ": brief, urkunde, zitat, codeblock, feld, angaben\n'
             + kopf_import
             + "#let profil = json(bytes(sys.inputs.profil))\n"
             "#let daten = json(bytes(sys.inputs.daten))\n"
-            f"#show: brief.with(profil: profil, daten: daten{kopf_argument})\n\n"
+            f"#show: {'urkunde' if ist_urkunde else 'brief'}"
+            f".with(profil: profil, daten: daten{kopf_argument})\n\n"
             + attach_zeilen
             + body_typst,
             encoding="utf-8",
@@ -1069,6 +1207,15 @@ def rendere(
         except Exception as fehler:                       # noqa: BLE001
             meldung = str(fehler)
             if "unknown" in meldung and "pdf_standards" in meldung:
+                if ist_urkunde:
+                    # Der Rückfall unten kehrt ohne Herkunftsvermerk zurück. Ein
+                    # Brief ist dann immer noch als Brief messbar; eine Urkunde
+                    # ohne Vermerk würde als Brief gemessen und fiele durch.
+                    raise Eingabefehler(
+                        "Diese Typst-Fassung kennt `pdf_standards` nicht — eine Urkunde "
+                        "lässt sich damit nicht setzen.\n"
+                        "  python3 scripts/bootstrap.py   installiert die passende Fassung."
+                    ) from None
                 argumente.pop("pdf_standards", None)
                 typst.compile(**argumente)
                 return ausgabe, daten["form"]
@@ -1090,7 +1237,20 @@ def rendere(
     if format_name == "pdf":
         # Der Herkunftsvermerk gehört hierher und nicht in den CLI-Befehl:
         # sonst trägt ihn nur, wer über die Kommandozeile rendert.
-        schreibe_herkunft(ausgabe, brief_pfad, str(kopf.get("profil", "")), daten["form"])
+        zusatz = None
+        if ist_urkunde:
+            # Was `verify` an der fertigen Datei wissen muss und nirgends sonst
+            # erfährt: dass sie eine Urkunde ist, wie hoch ihr Kopf steht, wie
+            # viele Unterschriften sie trägt und wie viele Seiten sie haben darf.
+            zusatz = {
+                "/falzmarke_Typ": "urkunde",
+                "/falzmarke_Kopf_mm": str(daten["kopf_mm"]),
+                "/falzmarke_Unterschriften": str(len(daten["unterschriften"])),
+            }
+            if daten.get("seiten_max"):
+                zusatz["/falzmarke_Seiten_max"] = str(daten["seiten_max"])
+        schreibe_herkunft(ausgabe, brief_pfad, str(kopf.get("profil", "")), daten["form"],
+                          zusatz=zusatz)
 
         # Nach dem Herkunftsvermerk und nicht davor: Der schreibt das PDF über
         # pypdf neu, und ein vorher eingetragenes Schema wäre zwar erhalten, die
@@ -1129,7 +1289,8 @@ def rendere(
 VERSION = VERSION_PAKET
 
 
-def schreibe_herkunft(pdf: Path, quelle: Path, profil: str, form: str) -> None:
+def schreibe_herkunft(pdf: Path, quelle: Path, profil: str, form: str,
+                      zusatz: dict | None = None) -> None:
     """Vermerkt im PDF, womit es gesetzt wurde.
 
     Beantwortet zwei Fragen, die sonst niemand mehr beantworten kann: Mit
@@ -1147,6 +1308,9 @@ def schreibe_herkunft(pdf: Path, quelle: Path, profil: str, form: str) -> None:
         "/falzmarke_Profil": profil,
         "/falzmarke_Form": form,
         "/falzmarke_Quelle": f"sha256:{hash_quelle}",
+        # Nur wo es etwas zu sagen gibt (ADR 0048). Ein Brief bekommt keinen
+        # weiteren Schlüssel — jeder zusätzliche änderte seine Bytes.
+        **(zusatz or {}),
     })
     ziel = pdf.with_suffix(".herkunft.pdf")
     with ziel.open("wb") as datei:
@@ -1344,7 +1508,15 @@ def befehl_render(args) -> int:
                      gelesen_text)
     print(bericht.als_text(ausfuehrlich=args.verbose))
     if not bericht.ok:
-        print("\nFEHLGESCHLAGEN — das PDF hält die Maße aus DIN 5008 nicht ein.", file=sys.stderr)
+        if str(kopf_cli.get("typ") or "brief") == "urkunde":
+            # Nicht „aus DIN 5008": Die Norm sagt zu einem Blatt ohne
+            # Anschriftfeld nichts. Was hier gemessen wurde, hat das Werkzeug
+            # selbst gesetzt (ADR 0048).
+            print("\nFEHLGESCHLAGEN — das PDF hält die Maße nicht ein, die falzmarke "
+                  "für eine Urkunde setzt.", file=sys.stderr)
+        else:
+            print("\nFEHLGESCHLAGEN — das PDF hält die Maße aus DIN 5008 nicht ein.",
+                  file=sys.stderr)
         return EXIT_GEOMETRIE
     return EXIT_OK
 
@@ -1395,6 +1567,11 @@ def setze_email(brief_pfad: Path, ausgabe: Path | None = None, *,
     from falzmarke import eml as eml_modul
 
     kopf, body_md, versatz = lies_brief(brief_pfad)
+    if str(kopf.get("typ") or "brief") == "urkunde":
+        raise Eingabefehler(
+            f"{brief_pfad.name} trägt `typ: urkunde`. Eine E-Mail-Fassung gibt es dafür "
+            "nicht: Eine Urkunde wird unterschrieben, nicht verschickt.\n"
+            "Für das PDF `falzmarke render` verwenden.")
     if str(kopf.get("typ") or "brief") != "email":
         raise Eingabefehler(
             f"{brief_pfad.name} trägt kein `typ: email` und ist damit ein Brief.\n"
@@ -1415,6 +1592,12 @@ def setze_email(brief_pfad: Path, ausgabe: Path | None = None, *,
             raise Eingabefehler(
                 f"{brief_pfad.name}: `brief:` zeigt auf {quelle.name}, und das trägt "
                 "selbst `typ: email`. Eine Nachricht kann keine Nachricht begleiten.")
+        if str(briefkopf.get("typ") or "brief") == "urkunde":
+            raise Eingabefehler(
+                f"{brief_pfad.name}: `brief:` zeigt auf {quelle.name}, und das trägt "
+                "`typ: urkunde`. Eine Begleitmail erbt Betreff und Anschrift ihres "
+                "Briefes — eine Urkunde hat beides nicht.\n"
+                "Die Urkunde mit `falzmarke render` setzen und über `anlagen_dateien:` anhängen.")
         # Erben, bevor irgendetwas davon gelesen wird.
         for feld in ERBT_VOM_BRIEF:
             if not kopf.get(feld) and briefkopf.get(feld):
@@ -1631,6 +1814,17 @@ def befehl_verify(args) -> int:
 
 def _verify(args, pdf: Path, geometrie) -> int:
     form = (args.form or "").upper()
+    # Eine Urkunde hat keine Falzmarken, an denen sich eine Form ablesen ließe
+    # — und braucht keine. Gefragt wird deshalb zuerst der Vermerk der Datei.
+    # `--form` übersteuert ihn: Wer die Form nennt, will die Briefliste, auch
+    # gegen das, was die Datei von sich behauptet.
+    if not form and geometrie.typ_aus_metadaten(pdf) == geometrie.TYP_URKUNDE:
+        bericht = geometrie.pruefe(pdf, "", typ=geometrie.TYP_URKUNDE)
+        if args.json:
+            print(json.dumps(bericht.als_dict(), ensure_ascii=False, indent=2))
+        else:
+            print(bericht.als_text(ausfuehrlich=args.verbose))
+        return EXIT_OK if bericht.ok else EXIT_GEOMETRIE
     if not form:
         # Die Form steht im Blatt: Form A faltet bei 87 und 192 mm, Form B bei
         # 105 und 210. Wer ein fremdes PDF prüft, muss sie nicht wissen.
@@ -1638,12 +1832,14 @@ def _verify(args, pdf: Path, geometrie) -> int:
         if not form:
             print(
                 "Die Form ließ sich nicht erkennen — es sind keine Falzmarken im "
-                "Heftrand.\n        Mit --form A oder --form B angeben.",
+                "Heftrand.\n        Mit --form A oder --form B angeben.\n"
+                "        Ist es eine Urkunde, fehlt ihr der Vermerk, an dem `verify` "
+                "sie erkennt — dann neu setzen.",
                 file=sys.stderr,
             )
             return EXIT_EINGABE
 
-    bericht = geometrie.pruefe(pdf, form)
+    bericht = geometrie.pruefe(pdf, form, typ="brief" if args.form else None)
     if args.json:
         print(json.dumps(bericht.als_dict(), ensure_ascii=False, indent=2))
     else:
@@ -1824,6 +2020,36 @@ anrede: Sehr geehrte Damen und Herren,
 """
 
 
+#: Dasselbe für `typ: urkunde` (ADR 0048). Parteien und Unterschriften stehen
+#: als Muster da: Wer nur eine Erklärung schreibt, löscht `parteien:` — das
+#: ist leichter, als die Form zweier Parteien aus dem Kopf zu tippen.
+VORLAGE_URKUNDE = """---
+profil: {profil}
+typ: urkunde
+dialekt: "1.2"
+titel: {titel}
+parteien:
+  - name: Erste Partei
+    anschrift:
+      - Musterstraße 1
+      - 12345 Musterstadt
+  - name: Zweite Partei
+    anschrift:
+      - Beispielweg 2
+      - 54321 Beispielstadt
+ort_datum: Musterstadt, den ______________
+unterschriften:
+  - name: Erste Partei
+  - name: Zweite Partei
+seiten_max: 1
+---
+
+## 1. Gegenstand
+
+den Text hier schreiben. Abschnitte beginnen mit `##`.
+"""
+
+
 def befehl_einlesen(args) -> int:
     """Ein bestehendes PDF als falzmarke-Markdown-Gerüst (#191).
 
@@ -1900,6 +2126,22 @@ def befehl_init(args) -> int:
     ziel = Path(args.ziel)
     if ziel.exists():
         print(f"{ziel} gibt es schon — nichts überschrieben.", file=sys.stderr)
+        return EXIT_EINGABE
+    if getattr(args, "typ", "brief") == "urkunde":
+        if args.empfaenger or args.betreff:
+            print("Eine Urkunde hat weder Empfänger noch Betreff — `--titel` statt `--betreff`, "
+                  "die Parteien stehen in der Vorlage.", file=sys.stderr)
+            return EXIT_EINGABE
+        ziel.parent.mkdir(parents=True, exist_ok=True)
+        # Als YAML-Zeichenkette: Ein Titel mit Doppelpunkt wäre sonst eine Abbildung.
+        titel = json.dumps(args.titel or "Titel hier eintragen", ensure_ascii=False)
+        ziel.write_text(VORLAGE_URKUNDE.format(profil=args.profil, titel=titel),
+                        encoding="utf-8")
+        print(f"OK  Vorlage geschrieben: {ziel}")
+        return EXIT_OK
+    if getattr(args, "titel", None):
+        print("`--titel` gehört zu `--typ urkunde`; ein Brief trägt einen `--betreff`.",
+              file=sys.stderr)
         return EXIT_EINGABE
     zeilen = args.empfaenger.split("|") if args.empfaenger else ["Muster GmbH", "Musterstraße 1", "12345 Musterstadt"]
     ziel.parent.mkdir(parents=True, exist_ok=True)
@@ -2120,6 +2362,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--form", default="B", choices=["A", "B"])
     p.add_argument("--empfaenger", help="Zeilen mit | getrennt")
     p.add_argument("--betreff")
+    p.add_argument("--typ", default="brief", choices=["brief", "urkunde"],
+                   help="urkunde: Schriftstück ohne Anschriftfeld, mit Titel und Unterschriften")
+    p.add_argument("--titel", help="nur mit --typ urkunde")
     p.set_defaults(funktion=befehl_init)
 
     p = unter.add_parser("pack", help="Skill-Zip mit eigenen Profilen für claude.ai")

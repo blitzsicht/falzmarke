@@ -5,11 +5,11 @@ darunter.
 
 ```yaml
 ---
-typ: brief                       # brief (Vorgabe) oder email — siehe „Die E-Mail-Fassung"
+typ: brief                       # brief (Vorgabe), email, rechnung oder urkunde — je ein Abschnitt unten
 profil: example                  # Pflicht. Dateiname (ohne .yaml) aus ~/.config/falzmarke/profiles/
 form: B                          # A oder B. Ohne Angabe gilt der Wert aus dem Profil
 norm: din5008                    # reserviert; derzeit nur din5008
-dialekt: "1.1"                   # 1.0 (Vorgabe, wenn das Feld fehlt) oder 1.1
+dialekt: "1.1"                   # 1.0 (Vorgabe, wenn das Feld fehlt), 1.1 oder 1.2
 sprache: de                      # de oder en. Beschriftung und Datum, nicht die Maße
 empfaenger:                      # Pflicht. 1 bis 6 Zeilen, keine Leerzeilen
   - Muster GmbH                  # Reihenfolge: Firma, Person, Straße, PLZ Ort, [LAND]
@@ -635,3 +635,112 @@ Eine Anlage trägt keine Kopfzeile mit Betreff, keine Seitenzählung und womögl
 eingebettete Schrift. `verify` misst deshalb nur die Seiten des Briefes; wo er endet,
 vermerkt falzmarke beim Anhängen als `/falzmarke_Briefseiten` im PDF. Auch ein späteres
 `verify` auf der fertigen Datei liest das und beurteilt die Anlage nicht.
+
+## Urkunde
+
+Ein Schriftstück **ohne Anschriftfeld**: eine Vereinbarung zwischen zwei Parteien, eine
+einseitige Erklärung, ein Nachweis, eine Vollmacht. Es trägt einen Titel statt eines Betreffs,
+wird nicht gegrüßt und nicht gefaltet, und unterschrieben wird es von Hand.
+
+Der Name beschreibt die Form, nicht die Wirkung: Ob ein Papier damit eine Schriftform wahrt
+oder etwas beweist, entscheidet nicht falzmarke. Die Unterschriftslinie ist Erscheinungsbild,
+kein Nachweis ([ADR 0048](../../docs/entscheidungen/0048-urkunde-ein-schriftstueck-ohne-anschriftfeld.md)).
+
+Die Urkunde steht nicht unter „Brief" oben, weil sie kein Brief mit weniger Feldern ist. Der
+Block dort bleibt der Datenvertrag des Briefes; dieser hier ist ein eigener.
+
+```yaml
+---
+typ: urkunde
+profil: example                 # Pflicht. Briefkopf, Fußzeile, Schrift wie beim Brief
+dialekt: "1.2"                  # nötig für Abschnitte, Ausfüllfelder und Angabentabellen
+titel: Vereinbarung über die Leihe eines Lastenfahrrads   # Pflicht
+parteien:                       # optional, 1 oder 2 Einträge
+  - name: Beispiel GmbH
+    anschrift:                  # eine Zeile oder eine Zeilenliste, wie `empfaenger`
+      - Musterweg 12
+      - 93055 Regensburg
+    zusatz: (im Folgenden „Verleiherin“)    # optional, wird WÖRTLICH gesetzt
+  - name: Max Muster
+    anschrift: Beispielgasse 3, 93047 Regensburg
+ort_datum: Regensburg, den 12. Oktober 2026  # optional, fertiger Text
+unterschriften:                 # optional, 1 oder 2 Einträge
+  - name: Erika Muster
+    rolle: Beispiel GmbH        # optional, eine Zeile unter dem Namen
+  - name: Max Muster
+anlagen:                        # optional, der Vermerk unter den Unterschriften
+  - Übergabeprotokoll
+seiten_max: 1                   # optional. Mehr Seiten → `verify` ist rot
+sprache: de                     # de oder en, wie beim Brief
+---
+```
+
+Darunter der Text, mit Abschnitten ab der zweiten Ebene:
+
+```markdown
+## 1. Gegenstand
+
+Die Verleiherin überlässt dem Entleiher …
+```
+
+### Was jedes Feld tut
+
+| Feld | Wirkung | Ohne das Feld |
+|---|---|---|
+| `titel` | steht fett über dem Text und in der Kopfzeile jeder Folgeseite | Fehler |
+| `parteien` | zwei Parteien stehen nebeneinander unter „zwischen" und „und"; eine einzelne steht ohne diese Wörter | kein Parteienblock |
+| `name`, `anschrift`, `zusatz` | je Partei: Name fett, Anschrift zeilenweise, Zusatz wörtlich darunter | `name` ist Pflicht |
+| `ort_datum` | die Zeile über den Unterschriften, wie sie dasteht | eine leere Linie mit „Ort, Datum" darunter |
+| `unterschriften` | je Eintrag eine Linie von 65 mm mit drei Zeilen Raum darüber, darunter `name` und `rolle` | jede Partei unterschreibt; ohne Parteien gibt es keinen Unterschriftsblock |
+| `anlagen` | Vermerk unter den Unterschriften | kein Vermerk |
+| `seiten_max` | das Schriftstück darf höchstens so viele Seiten haben | keine Grenze; der Bericht nennt die Seitenzahl |
+
+**`zusatz` und `rolle` sind zweierlei.** Der Zusatz einer Partei wird gesetzt, wie er
+geschrieben ist — mit Klammern und Anführungszeichen. Das Werkzeug schreibt keine Formel
+hinein: Es kennt keine Vertragsinhalte. Die Rolle unter einer Unterschrift ist ein bloßes Wort.
+
+**`ort_datum` ist Text, kein Datum.** `ort_datum: 2026-10-12` liest YAML als Datum, und das ist
+ein Fehler. Die Zeile wird nicht umformatiert; ein Ausfüllfeld darin ist erlaubt:
+`ort_datum: Regensburg, den ______________`.
+
+**`unterschriften: []`** heißt: keine. Fehlt das Feld ganz, unterschreibt jede Partei.
+
+### Felder des Briefes, die es hier nicht gibt
+
+| Im Brief | In der Urkunde |
+|---|---|
+| `betreff` | `titel` |
+| `empfaenger` | `parteien` |
+| `unterzeichner` | `unterschriften` |
+| `datum` | `ort_datum` |
+| `anrede`, `gruss`, `signatur`, `form`, `vermerke`, `infoblock`, `betreff_kurz`, `verteiler`, `anlagen_dateien`, `eingebettet` | entfällt — `lint` meldet das Feld |
+
+Ein unbekanntes Feld bricht ab, wie überall.
+
+### Der Text
+
+Abschnitte beginnen mit `##`: Die erste Ebene ist der Titel, eine `#`-Überschrift im Text ist
+ein Fehler. Die Nummer eines Abschnitts schreibst du selbst (`## 1. Gegenstand`) — es wird
+nichts automatisch nummeriert. Ausfüllfelder und die Angabentabelle ohne Kopfzeile stehen in
+[markdown.md](markdown.md#was-nur-fassung-12-setzt).
+
+### Grenzen
+
+- Höchstens **zwei Parteien** und **zwei Unterschriften**, nebeneinander.
+- **Kein Signaturbild.** Eine Urkunde wird von Hand unterschrieben.
+- **Keine E-Mail-Fassung, kein Serienlauf.** `email` und `serie` brechen mit einer Meldung ab.
+- **Keine Falz- und Lochmarken.** Ohne Anschriftfeld gibt es kein Fenster, auf das zu falten wäre.
+- **Die Kopfhöhe folgt dem Briefkopf, nicht der Form:** 27 mm, wenn der Briefkopf des Profils
+  hineinpasst, sonst 45 mm.
+
+### Was gemessen wird
+
+`render` misst die fertige Urkunde nach, `verify` kann es später an der Datei wiederholen: Dass
+sie eine Urkunde ist, steht als Vermerk im PDF. Gemessen werden Seitengröße, Satzspiegel und
+Zeilenraster wie beim Brief, dazu die Seitenzahl gegen `seiten_max`, die Lage des Titels, dass
+keine Linie aus dem Satzspiegel reicht, und die Unterschriftslinien (Anzahl, Länge, Abstand,
+freier Raum darüber, Name darunter).
+
+**Keines dieser Maße stammt aus der DIN 5008.** Die Norm beschreibt den Geschäftsbrief; zu
+einem Blatt ohne Anschriftfeld sagt keine der geführten Quellen etwas. Es sind Setzungen des
+Werkzeugs, und so stehen sie auch im Regelkatalog.

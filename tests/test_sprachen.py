@@ -87,7 +87,9 @@ def test_jede_sprache_kennt_jedes_leitwort(sprache):
 @pytest.mark.parametrize("sprache", sprachen.erlaubt())
 def test_jede_sprache_hat_zwoelf_monate_und_alle_woerter(sprache):
     assert len(sprachen.MONATE[sprache]) == 12
-    assert set(sprachen.WOERTER[sprache]) == {"anlage", "anlagen", "verteiler", "seite"}
+    # `zwischen`, `und`, `ort_datum`: die festen Wörter der Urkunde (ADR 0048).
+    assert set(sprachen.WOERTER[sprache]) == {"anlage", "anlagen", "verteiler", "seite",
+                                              "zwischen", "und", "ort_datum"}
     assert "{n}" in sprachen.WOERTER[sprache]["seite"]
     assert "{m}" in sprachen.WOERTER[sprache]["seite"]
 

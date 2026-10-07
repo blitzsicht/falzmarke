@@ -201,7 +201,45 @@ STEUER_FELDER = frozenset({"satz", "betrag", "basis"})
 #: Rechenfehler in der Quelle, nicht eine Rundung.
 SUMMEN_TOLERANZ_CENT = 1
 
-TYPEN = ("brief", "email", "rechnung")
+# Dasselbe für `typ: urkunde` (ADR 0048): ein Schriftstück ohne Anschriftfeld —
+# Vereinbarung, Erklärung, Nachweis. Eine eigene Liste und keine Briefliste mit
+# Ausnahmen, aus demselben Grund wie bei der E-Mail: Der Brief verlangt seine
+# Anschrift unbedingt, und ein Feld, das sie abschaltet, machte aus jeder
+# Briefprüfung eine bedingte.
+URKUNDE_FRONTMATTER_FELDER = frozenset({
+    "profil", "typ", "dialekt", "sprache", "titel", "parteien", "ort_datum",
+    "unterschriften", "anlagen", "seiten_max",
+})
+
+#: Was eine Urkunde mindestens braucht. Kein Datum, kein Empfänger: Ob und wo
+#: ein Datum steht, entscheidet `ort_datum:`, und an wen sich das Papier
+#: richtet, steht — wenn überhaupt — unter `parteien:`.
+URKUNDE_PFLICHTFELDER = ("profil", "titel")
+
+#: Was ein Eintrag unter `parteien:` und unter `unterschriften:` tragen darf.
+#: `zusatz` und `rolle` heißen bewusst verschieden: Der Zusatz einer Partei
+#: wird wörtlich gesetzt, mit Klammern und Anführungszeichen, wie er dasteht;
+#: die Rolle unter einer Unterschrift ist ein bloßes Wort.
+PARTEI_FELDER = frozenset({"name", "anschrift", "zusatz"})
+UNTERSCHRIFT_FELDER = frozenset({"name", "rolle"})
+
+#: Zwei Parteien stehen nebeneinander, zwei Unterschriften ebenso. Eine dritte
+#: bräuchte einen anderen Satz — und den gibt es nicht (ADR 0048).
+URKUNDE_MAX_PARTEIEN = 2
+URKUNDE_MAX_UNTERSCHRIFTEN = 2
+PARTEI_MAX_ANSCHRIFTZEILEN = 4
+TITEL_MAX_ZEICHEN = 200
+
+TYPEN = ("brief", "email", "rechnung", "urkunde")
+
+#: Wörter, unter denen jemand den Typ `urkunde` sucht. Sie sind keine Typen —
+#: aber wer eines davon schreibt, soll erfahren, wie der Typ heißt, statt eine
+#: Liste zu lesen, in der sein Wort nicht vorkommt.
+GEMEINT_URKUNDE = frozenset({
+    "vertrag", "vereinbarung", "erklaerung", "erklärung", "nachweis",
+    "vollmacht", "schriftstueck", "schriftstück", "dokument", "bestaetigung",
+    "bestätigung", "protokoll",
+})
 
 #: Ein Feld des einen Erzeugnisses, das im anderen nichts bedeutet — mit dem
 #: Namen, der stattdessen gemeint ist. Ein Brief an eine Mailadresse und eine
@@ -217,7 +255,18 @@ STATTDESSEN = {"brief": {"an": "empfaenger", "cc": "verteiler", "antwort_auf": N
                # Eine Rechnung ist ein Schreiben auf Papier oder als PDF — die
                # Mailfelder bedeuten dort dasselbe wie im Brief: nichts (#115).
                "rechnung": {"an": "empfaenger", "cc": "verteiler", "antwort_auf": None,
-                            "bcc": None}}
+                            "bcc": None},
+               # Eine Urkunde hat kein Anschriftfeld und keinen Betreff, sie wird
+               # nicht gegrüßt und nicht gefaltet. Fast jedes Brieffeld bedeutet
+               # hier nichts; die mit Entsprechung nennen sie (ADR 0048).
+               "urkunde": {"betreff": "titel", "empfaenger": "parteien",
+                           "unterzeichner": "unterschriften", "datum": "ort_datum",
+                           "betreff_kurz": None, "anrede": None, "gruss": None,
+                           "signatur": None, "form": None, "norm": None,
+                           "vermerke": None, "infoblock": None, "verteiler": None,
+                           "anlagen_dateien": None, "eingebettet": None,
+                           "an": None, "cc": None, "bcc": None, "antwort_auf": None,
+                           "brief": None}}
 
 #: Betreffgrenze der Mail. RFC 5322 begrenzt die Kopfzeile auf 78 Zeichen; was
 #: darüber steht, wird gefaltet und in der Übersicht vieler Programme
@@ -659,10 +708,11 @@ def _pruefe_ausschluss(kopf: dict, typ: str, kopf_roh: str, bericht: Bericht) ->
         if kopf.get(feld) is None:
             continue
         womit = "Brief" if typ == "brief" else "E-Mail"
+        wo = "in einer Urkunde" if typ == "urkunde" else f"in einem {womit}"
         rat = f"`{feld}:` durch `{ersatz}:` ersetzen" if ersatz else f"`{feld}:` entfernen"
         bericht.fehler(
             _feldzeile(kopf_roh, feld), "typ",
-            f"`{feld}:` gibt es in einem {womit} nicht", rat)
+            f"`{feld}:` gibt es {wo} nicht", rat)
 
 
 def pruefe_begleitbrief(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
@@ -1628,13 +1678,196 @@ def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
             "falzmarke rechnet nicht nach und ersetzt nichts — die Quelle ist maßgeblich")
 
 
+def _ort_datum_felder(text: str) -> tuple[int, int]:
+    """Unterstrichketten im Rohtext und Felder, die daraus werden — zwei Zahlen.
+
+    Dieselbe Zählprobe wie im Brieftext (`markdown._pruefe_felder`), hier für
+    die eine Zeile, die nicht durch den Parser läuft.
+    """
+    from falzmarke import markdown as markdown_modul
+
+    return (len(markdown_modul.FELD_ROH.findall(text)),
+            len(markdown_modul.FELD.findall(text)))
+
+
+def pruefe_urkunde_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
+    """Der Datenvertrag der Urkunde (ADR 0048).
+
+    Nichts hiervon ist eine Aussage der DIN 5008 — die Norm beschreibt den
+    Geschäftsbrief. Was hier geprüft wird, ist der eigene Datenvertrag: ob das
+    Werkzeug mit der Eingabe das Blatt setzen kann, das es verspricht.
+    """
+    ausgeschlossen = STATTDESSEN["urkunde"]
+    _melde_unbekannte(
+        [f for f in kopf.keys() if f not in ausgeschlossen],
+        URKUNDE_FRONTMATTER_FELDER, "frontmatter", kopf_roh, bericht)
+    _pruefe_ausschluss(kopf, "urkunde", kopf_roh, bericht)
+    pruefe_dialekt(kopf, kopf_roh, bericht)
+
+    for feld in URKUNDE_PFLICHTFELDER:
+        if not kopf.get(feld):
+            bericht.fehler(1, feld, "Pflichtfeld fehlt", f"`{feld}:` im Frontmatter ergänzen")
+
+    titel = kopf.get("titel")
+    if titel is not None:
+        ort = _feldzeile(kopf_roh, "titel")
+        if not isinstance(titel, str):
+            bericht.fehler(ort, "urkunde.titel", "`titel:` ist kein Text",
+                           "eine Zeile schreiben, bei einem Doppelpunkt darin in Anführungszeichen")
+        elif len(titel.strip()) > TITEL_MAX_ZEICHEN:
+            bericht.fehler(ort, "urkunde.titel", f"{len(titel.strip())} Zeichen",
+                           f"höchstens {TITEL_MAX_ZEICHEN} — der Titel steht auch in der "
+                           "Kopfzeile jeder Folgeseite")
+
+    parteien = kopf.get("parteien")
+    if parteien is not None:
+        ort = _feldzeile(kopf_roh, "parteien")
+        if not isinstance(parteien, list) or not parteien or \
+                not all(isinstance(p, dict) for p in parteien):
+            bericht.fehler(ort, "urkunde.parteien", "`parteien:` ist keine Liste von Einträgen",
+                           "je Partei ein Eintrag mit `name:`, dazu `anschrift:` und `zusatz:`")
+        else:
+            if len(parteien) > URKUNDE_MAX_PARTEIEN:
+                bericht.fehler(
+                    ort, "urkunde.parteien", f"{len(parteien)} Parteien",
+                    f"gesetzt werden höchstens {URKUNDE_MAX_PARTEIEN}, nebeneinander — "
+                    "weitere im Text nennen")
+            for partei in parteien:
+                _melde_unbekannte(partei.keys(), PARTEI_FELDER, "urkunde.parteien",
+                                  kopf_roh, bericht, zeile=ort)
+                if not isinstance(partei.get("name"), str) or not partei["name"].strip():
+                    bericht.fehler(ort, "urkunde.parteien", "eine Partei ohne `name:`",
+                                   "jede Partei braucht einen Namen")
+                anschrift = partei.get("anschrift")
+                zeilen = [anschrift] if isinstance(anschrift, str) else anschrift
+                if anschrift is not None and (
+                        not isinstance(zeilen, list)
+                        or not all(isinstance(z, str) and z.strip() for z in zeilen)):
+                    bericht.fehler(
+                        ort, "urkunde.parteien", "`anschrift:` ist keine Zeile und keine Zeilenliste",
+                        "wie bei `empfaenger:` schreiben: eine Zeile oder eine Liste von Zeilen")
+                elif zeilen and len(zeilen) > PARTEI_MAX_ANSCHRIFTZEILEN:
+                    bericht.fehler(
+                        ort, "urkunde.parteien", f"{len(zeilen)} Anschriftzeilen",
+                        f"höchstens {PARTEI_MAX_ANSCHRIFTZEILEN} je Partei")
+                zusatz = partei.get("zusatz")
+                if zusatz is not None and not isinstance(zusatz, str):
+                    bericht.fehler(ort, "urkunde.parteien", "`zusatz:` ist kein Text",
+                                   "er wird wörtlich gesetzt, etwa `(im Folgenden „Mieter“)`")
+
+    unterschriften = kopf.get("unterschriften")
+    if unterschriften is not None:
+        ort = _feldzeile(kopf_roh, "unterschriften")
+        if not isinstance(unterschriften, list) or \
+                not all(isinstance(u, dict) for u in unterschriften):
+            bericht.fehler(
+                ort, "urkunde.unterschriften", "`unterschriften:` ist keine Liste von Einträgen",
+                "je Unterschrift ein Eintrag mit `name:`, dazu wahlweise `rolle:`")
+        else:
+            if len(unterschriften) > URKUNDE_MAX_UNTERSCHRIFTEN:
+                bericht.fehler(
+                    ort, "urkunde.unterschriften", f"{len(unterschriften)} Unterschriften",
+                    f"gesetzt werden höchstens {URKUNDE_MAX_UNTERSCHRIFTEN}, nebeneinander")
+            for unterschrift in unterschriften:
+                _melde_unbekannte(unterschrift.keys(), UNTERSCHRIFT_FELDER,
+                                  "urkunde.unterschriften", kopf_roh, bericht, zeile=ort)
+                name = unterschrift.get("name")
+                if not isinstance(name, str) or not name.strip():
+                    bericht.fehler(ort, "urkunde.unterschriften", "eine Unterschrift ohne `name:`",
+                                   "unter jeder Linie steht ein Name")
+                rolle = unterschrift.get("rolle")
+                if rolle is not None and not isinstance(rolle, str):
+                    bericht.fehler(ort, "urkunde.unterschriften", "`rolle:` ist kein Text",
+                                   "ein Wort unter dem Namen, etwa `Vermieter`")
+
+    ort_datum = kopf.get("ort_datum")
+    if ort_datum is not None:
+        ort = _feldzeile(kopf_roh, "ort_datum")
+        if not isinstance(ort_datum, str) or not ort_datum.strip():
+            bericht.fehler(
+                ort, "urkunde.ort_datum", "`ort_datum:` ist kein Text",
+                "die Zeile fertig schreiben, etwa `Musterstadt, den 12.10.2026` — ein "
+                "Datum allein liest YAML als Datum; fehlt das Feld, steht eine leere Linie")
+        else:
+            from falzmarke import markdown as markdown_modul
+
+            ketten, felder = _ort_datum_felder(ort_datum)
+            # Ein Unterstrich, der zu keinem Feld gehört, stünde als Zeichen im
+            # Blatt: `____,__` ergäbe ein Feld, ein Komma und zwei Striche.
+            uebrig = "_" in markdown_modul.FELD.sub("", ort_datum)
+            if ketten != felder or uebrig:
+                bericht.fehler(
+                    ort, "urkunde.ort_datum",
+                    f"{ketten} Unterstrichkette(n), aber {felder} Ausfüllfeld(er)"
+                    + (" — und Unterstriche, die zu keinem Feld gehören" if uebrig else ""),
+                    "ein Feld braucht mindestens drei Unterstriche und muss frei stehen: "
+                    "`Musterstadt, den ________`")
+
+    seiten_max = kopf.get("seiten_max")
+    if seiten_max is not None and (
+            isinstance(seiten_max, bool) or not isinstance(seiten_max, int) or seiten_max < 1):
+        bericht.fehler(
+            _feldzeile(kopf_roh, "seiten_max"), "urkunde.seiten_max",
+            f"`seiten_max: {seiten_max}` ist keine Seitenzahl",
+            "eine ganze Zahl ab 1 — so viele Seiten darf das Schriftstück höchstens haben")
+
+    anlagen = kopf.get("anlagen")
+    zeilen = [anlagen] if isinstance(anlagen, str) else anlagen
+    if anlagen is not None and (
+            not isinstance(zeilen, list) or not all(isinstance(z, str) and z.strip() for z in zeilen)):
+        bericht.fehler(
+            _feldzeile(kopf_roh, "anlagen"), "urkunde.anlagen",
+            "`anlagen:` ist keine Zeile und keine Zeilenliste",
+            "je Anlage eine Zeile — gesetzt wird der Vermerk, angehängt wird nichts")
+
+
+#: Eine Überschrift erster Ebene in ATX-Schreibweise. Die Setext-Form
+#: (`Titel` über `====`) fängt `pruefe_urkunde_body` an der Unterstreichung.
+UEBERSCHRIFT_1 = re.compile(r"^ {0,3}#(?:\s|$)")
+SETEXT_1 = re.compile(r"^ {0,3}=+\s*$")
+ZAUN = re.compile(r"^ {0,3}(`{3,}|~{3,})")
+
+
+def pruefe_urkunde_body(body: str, versatz: int, bericht: Bericht) -> None:
+    """Im Text einer Urkunde beginnt die Gliederung bei `##`.
+
+    Die erste Ebene ist vergeben: Der Titel aus dem Frontmatter wird als
+    Überschrift erster Ebene gesetzt. Eine zweite daneben ergäbe ein Dokument
+    mit zwei Titeln — für das Auge kaum zu sehen, für ein Vorleseprogramm ein
+    zweites Schriftstück im selben Blatt.
+    """
+    im_zaun = None
+    vorher_text = False
+    for nummer, zeile in enumerate(body.splitlines(), start=1 + versatz):
+        zaun = ZAUN.match(zeile)
+        if zaun:
+            zeichen = zaun.group(1)[0]
+            im_zaun = None if im_zaun == zeichen else (im_zaun or zeichen)
+            vorher_text = False
+            continue
+        if im_zaun:
+            continue
+        if UEBERSCHRIFT_1.match(zeile) or (vorher_text and SETEXT_1.match(zeile)):
+            bericht.fehler(
+                nummer, "urkunde.ueberschrift",
+                "Überschrift erster Ebene im Text",
+                "die erste Ebene ist der `titel:` — Abschnitte beginnen mit `##`")
+        vorher_text = bool(zeile.strip()) and not zeile.lstrip().startswith(("#", "|", ">"))
+
+
 def pruefe_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
     typ = str(kopf.get("typ") or "brief")
     if typ not in TYPEN:
+        gemeint = typ.strip().lower() in GEMEINT_URKUNDE
         bericht.fehler(
             _feldzeile(kopf_roh, "typ"), "typ", f"`typ: {typ}` ist unbekannt",
-            "möglich sind: " + ", ".join(TYPEN))
-        typ = "brief"
+            ("gemeint ist `typ: urkunde` — das Schriftstück ohne Anschriftfeld, mit "
+             "Titel und Unterschriften" if gemeint
+             else "möglich sind: " + ", ".join(TYPEN)))
+        typ = "urkunde" if gemeint else "brief"
+    if typ == "urkunde":
+        pruefe_urkunde_frontmatter(kopf, kopf_roh, bericht)
+        return
     if typ == "email":
         pruefe_email_frontmatter(kopf, kopf_roh, bericht)
         # Das Datum der Nachricht setzt falzmarke selbst (#236) — aus der Uhr,
@@ -1667,7 +1900,12 @@ def pruefe_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
 
     for feld in pflicht:
         if not kopf.get(feld):
-            bericht.fehler(1, feld, "Pflichtfeld fehlt", f"`{feld}:` im Frontmatter ergänzen")
+            rat = f"`{feld}:` im Frontmatter ergänzen"
+            if feld == "empfaenger" and not rechnung:
+                # Die Stelle, an der jemand den anderen Typ findet: Wer ein
+                # Papier ohne Empfänger setzen will, landet genau hier.
+                rat += " — kein Anschriftfeld gewollt? Dann `typ: urkunde`"
+            bericht.fehler(1, feld, "Pflichtfeld fehlt", rat)
 
     if kopf.get("datum") is not None:
         pruefe_datum(kopf["datum"], _feldzeile(kopf_roh, "datum"), bericht)

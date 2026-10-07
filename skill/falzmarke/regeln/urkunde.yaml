@@ -1,0 +1,170 @@
+# Die Regeln der Urkunde — des Schriftstücks ohne Anschriftfeld (ADR 0048).
+#
+# Jede Regel hier trägt `ebene: werkzeug` und `herkunft: werkzeug`, und das ist
+# keine Bequemlichkeit: Die DIN 5008 beschreibt den Geschäftsbrief. Zu einem
+# Blatt ohne Anschriftfeld, zu Unterschriftslinien, zu einer Zeile für Ort und
+# Datum und zu einer Obergrenze für die Seitenzahl sagt keine der geführten
+# Quellen etwas. Was hier steht, sind Setzungen des Werkzeugs: Maße, die es
+# selbst gewählt hat und deshalb selbst einhalten muss.
+#
+# Zwei Sätze der geführten Quellen klingen verwandt und sind es nicht: der
+# Unterschriftsraum von drei Leerzeilen und die Seitenzählung auf Folgeseiten.
+# Beide stehen dort für den Brief. Die Urkunde übernimmt die Werte, weil ein
+# Blatt desselben Absenders gleich aussehen soll — nicht, weil eine Quelle sie
+# für dieses Blatt verlangte (ADR 0044: Was eine Quelle sagt, ist keine
+# Werkzeugprüfung; hier sagt sie es nicht).
+#
+# Die Regeln der Messung heißen `geometrie.urkunde_*`: Der Wächter
+# `test_jede_geometrie_regel_darf_fehler_sein` greift am Präfix `geometrie.`,
+# und eine Messregel, die er nicht sieht, könnte still zur Warnung werden
+# (ADR 0047).
+
+regeln:
+
+  # ── Der Datenvertrag ─────────────────────────────────────────────────────
+
+  - id: urkunde.titel
+    titel: Eine Urkunde trägt einen Titel
+    lint: urkunde.titel
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Der Titel steht dort, wo der Brief seinen Betreff hat, und in der
+      Kopfzeile jeder Folgeseite. Gesetzt wird er als Überschrift erster Ebene:
+      PDF/UA verlangt, dass die erste Überschrift eines Dokuments Ebene 1 ist.
+
+  - id: urkunde.parteien
+    titel: Höchstens zwei Parteien, je mit Name
+    lint: urkunde.parteien
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Zwei Parteien stehen nebeneinander, eine steht allein. Für eine dritte
+      gibt es keinen Satz. `zusatz:` wird wörtlich gesetzt; das Werkzeug
+      schreibt keine Formel hinein — es kennt keine Vertragsinhalte.
+
+  - id: urkunde.unterschriften
+    titel: Höchstens zwei Unterschriften, je mit Name
+    lint: urkunde.unterschriften
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Gesetzt wird eine Linie zum Unterschreiben von Hand. Sie ist
+      Erscheinungsbild und kein Nachweis: Ob ein Schriftstück damit eine Form
+      wahrt, entscheidet nicht dieses Werkzeug.
+
+  - id: urkunde.ort_datum
+    titel: Die Zeile für Ort und Datum ist fertiger Text
+    lint: urkunde.ort_datum
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Kein Datumsfeld, das das Werkzeug ausschreibt: Die Zeile soll so auf dem
+      Blatt stehen, wie sie geschrieben wurde, und darf Ausfüllfelder tragen.
+      Geprüft wird nur, dass jede Unterstrichkette ein Feld geworden ist.
+
+  - id: urkunde.seiten_max
+    titel: seiten_max ist eine ganze Zahl ab 1
+    lint: urkunde.seiten_max
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Die Grenze selbst misst `geometrie.urkunde_seitenzahl` am fertigen PDF.
+
+  - id: urkunde.anlagen
+    titel: anlagen ist eine Zeile oder eine Zeilenliste
+    lint: urkunde.anlagen
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Gesetzt wird der Vermerk unter den Unterschriften. Angehängt oder
+      eingebettet wird nichts.
+
+  - id: urkunde.ueberschrift
+    titel: Im Text einer Urkunde beginnt die Gliederung bei der zweiten Ebene
+    lint: urkunde.ueberschrift
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Die erste Ebene ist der Titel. Eine zweite Überschrift erster Ebene im
+      Text ergäbe ein Dokument mit zwei Titeln.
+
+  # ── Die Messung am fertigen PDF ──────────────────────────────────────────
+
+  - id: geometrie.urkunde_keine_marken
+    titel: Eine Urkunde trägt keine Falz- und Lochmarken
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Ohne Anschriftfeld gibt es kein Fenster, auf das zu falten wäre. Die
+      Prüfung hat einen zweiten Zweck: Welchen Typ ein PDF hat, sagt ein
+      Vermerk in der Datei, und der ist eine Behauptung. Ein Brief, der sich
+      als Urkunde ausgibt, entginge sonst allen Briefprüfungen — an seinen
+      Marken fällt er hier auf.
+
+  - id: geometrie.urkunde_seitenzahl
+    titel: Die Urkunde hat höchstens so viele Seiten, wie seiten_max erlaubt
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Eine Forderung des einzelnen Schriftstücks, keine allgemeine: Ohne
+      `seiten_max:` gibt es keine Grenze, die Zeile nennt dann nur die
+      gemessene Zahl. Die Grenze steht als Vermerk im PDF, damit auch ein
+      späteres `verify` auf der fertigen Datei sie kennt.
+
+  - id: geometrie.urkunde_titel
+    titel: Der Titel steht zwei Leerzeilen unter dem Briefkopf, fett
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Die Kopfhöhe ist 27 mm, wenn der Briefkopf des Profils hineinpasst, sonst
+      45 mm — dieselben zwei Höhen wie beim Brief, aber gewählt nach dem
+      Briefkopf und nicht nach der Lage eines Fensters. Der Vermerk im PDF
+      wählt zwischen beiden; das Soll kommt aus `geometrie.py`, nicht aus der
+      Datei.
+
+  - id: geometrie.urkunde_linien
+    titel: Keine waagerechte Linie reicht aus dem Satzspiegel
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Die Satzspiegelprüfung des Briefes misst Wörter. Ausfüllfelder und
+      Unterschriftslinien tragen keine — eine Linie, die über den rechten Rand
+      läuft, bliebe ihr unsichtbar.
+
+  - id: geometrie.urkunde_unterschriften
+    titel: Unterschriftslinien, 65 mm lang, nebeneinander, mit freiem Raum darüber
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Gemessen werden Anzahl, Länge, Lage im Satzspiegel, gleiche Höhe und
+      Abstand zweier Linien, der freie Raum von drei Zeilen darüber und der
+      Name darunter. Der Raum von drei Leerzeilen ist derselbe Wert, den die
+      geführten Quellen für den Brief als üblich nennen; für die Urkunde ist er
+      eine Setzung. 65 mm, weil ein Ausfüllfeld immer ein Vielfaches von 2 mm
+      misst: So ist am fertigen Blatt entscheidbar, welche Linie eine
+      Unterschrift erwartet.

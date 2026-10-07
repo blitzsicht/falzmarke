@@ -45,12 +45,12 @@ def test_fehlendes_feld_ist_fassung_10():
     assert markdown_modul.pruefe_fassung("") == "1.0"
 
 
-@pytest.mark.parametrize("wert", ["1.0", "1.1", " 1.1 "])
+@pytest.mark.parametrize("wert", ["1.0", "1.1", " 1.1 ", "1.2"])
 def test_bekannte_fassungen_werden_angenommen(wert):
     assert markdown_modul.pruefe_fassung(wert) in markdown_modul.FASSUNGEN
 
 
-@pytest.mark.parametrize("wert", ["1.2", "2.0", "1", "elf", "1,1"])
+@pytest.mark.parametrize("wert", ["1.3", "2.0", "1", "elf", "1,1"])
 def test_unbekannte_fassung_bricht_ab_und_nennt_die_bekannten(wert):
     """Ein Tippfehler darf nicht still zur alten Fassung führen: Der Brief sähe
     anders aus als geschrieben, und die Meldung käme nie."""

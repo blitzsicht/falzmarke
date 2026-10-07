@@ -12,8 +12,9 @@ Fehler mit Zeile, Grund und Korrektur — nie ein stilles Durchreichen. Der
 Emitter erzeugt daraus Typst-Funktionsaufrufe mit Zeichenketten
 (siehe `emit.py`), sodass es im Ergebnis keine Sonderzeichen mehr gibt.
 
-Seit Dialekt 1.1 gibt es die Positivliste **zweimal**: Der Dialekt trägt eine
-Fassung. `1.0` ist der Standardbrief, `1.1` öffnet ihn für lange Schreiben.
+Seit Dialekt 1.1 gibt es die Positivliste **mehrfach**: Der Dialekt trägt eine
+Fassung. `1.0` ist der Standardbrief, `1.1` öffnet ihn für lange Schreiben,
+`1.2` bringt das Ausfüllfeld und die Angabentabelle ohne Kopfzeile.
 Welche das ist, entscheidet das Feld `dialekt:` im Frontmatter — **fehlt es,
 gilt 1.0.** Ein heute geschriebener Brief rendert damit unverändert weiter;
 das ist der Unterschied zwischen einer Erweiterung und einem Bruch.
@@ -30,7 +31,7 @@ from falzmarke import baum, emit, typografie
 
 #: Die Fassungen des Dialekts. Wer eine hinzufügt, trägt sie hier ein und
 #: erweitert die Tabellen darunter — sonst gilt sie stillschweigend als 1.0.
-FASSUNGEN = ("1.0", "1.1")
+FASSUNGEN = ("1.0", "1.1", "1.2")
 
 #: Was ohne Angabe gilt. Bewusst die alte Fassung: Ein Brief, der geschrieben
 #: wurde, bevor es das Feld gab, darf sein Aussehen nicht ändern.
@@ -39,20 +40,20 @@ STANDARDFASSUNG = "1.0"
 #: Wie viele Überschriftebenen eine Fassung kennt. Vier reichen für Abschnitt,
 #: Unterabschnitt, Punkt und Unterpunkt — die fünfte gliedert nicht mehr, sie
 #: versteckt. 1.0 kennt keine: dort ist jede Überschrift ein Fehler.
-MAX_UEBERSCHRIFT = {"1.0": 0, "1.1": 4}
+MAX_UEBERSCHRIFT = {"1.0": 0, "1.1": 4, "1.2": 4}
 
 #: Wie tief Zitate ineinander stehen dürfen. Zwei Ebenen decken den Fall ab,
 #: für den es sie gibt: ein Zitat, das seinerseits zitiert. Ab der dritten ist
 #: nicht mehr erkennbar, wer wen wiedergibt — und genau das ist beim Zitieren
 #: der ganze Punkt. 1.0 kennt keine.
-MAX_ZITATTIEFE = {"1.0": 0, "1.1": 2}
+MAX_ZITATTIEFE = {"1.0": 0, "1.1": 2, "1.2": 2}
 
 #: Wie tief Aufzählungen gehen dürfen, je Fassung.
 #: 1.0 blieb bei zwei Ebenen — mehr braucht ein Standardbrief nicht.
 #: In 1.1 sind 5 und 6 lesbar, aber selten gewollt: Sie erzeugen eine Warnung
 #: statt eines Verbots, ab 7 bricht es ab.
-MAX_LISTENTIEFE = {"1.0": 2, "1.1": 6}
-LISTENTIEFE_WARNUNG = {"1.0": 2, "1.1": 4}
+MAX_LISTENTIEFE = {"1.0": 2, "1.1": 6, "1.2": 6}
+LISTENTIEFE_WARNUNG = {"1.0": 2, "1.1": 4, "1.2": 4}
 
 
 class MarkdownFehler(ValueError):
@@ -123,6 +124,41 @@ ZUSAETZLICH = {
     "1.1": frozenset({"heading", "heading_open", "inline",
                       "blockquote", "code_inline", "code_block", "fence"}),
 }
+# 1.2 setzt dieselben Knotentypen wie 1.1. Was sie hinzubringt, sind keine
+# neuen Typen des Parsers, sondern zwei neue Lesarten: Eine Unterstrichkette im
+# Text wird zum Ausfüllfeld, eine Tabelle mit leerer Kopfzeile zur
+# Angabentabelle. Beides steht in `FELDER_AB` und `ANGABEN_AB`.
+ZUSAETZLICH["1.2"] = ZUSAETZLICH["1.1"]
+
+#: Ab welcher Fassung eine frei stehende Kette aus Unterstrichen ein
+#: Ausfüllfeld ist. Davor bleibt sie, was sie immer war: wörtlicher Text.
+FELDER_AB = ("1.2",)
+
+#: Ab welcher Fassung eine Tabelle mit leerer Kopfzeile ohne Kopf gesetzt wird.
+ANGABEN_AB = ("1.2",)
+
+#: Ein Ausfüllfeld: mindestens drei Unterstriche, die frei stehen — weder ein
+#: Buchstabe noch eine Ziffer davor oder danach. `Datum:____` und `(____)`
+#: sind Felder, `teil_____name` ist ein Bezeichner und bleibt es.
+FELD = re.compile(r"(?<![\w_])_{3,}(?![\w_])")
+
+#: Dieselbe Kette im Rohtext, mit oder ohne Schutzstrich. `\_\_\_` und `___`
+#: sind nach dem Parsen nicht mehr zu unterscheiden; ab 1.2 gilt beides als
+#: Feld (ADR 0048). Gebraucht für die Zählprobe in `_pruefe_felder`.
+FELD_ROH = re.compile(r"(?:\\?_){3,}")
+
+#: Codespannen im Rohtext — was darin steht, ist Wortlaut und kein Feld.
+CODESPANNE = re.compile(r"(`+).*?\1", re.S)
+
+#: Wie lang ein Feld höchstens wird: Der Satzspiegel misst 165 mm, ein
+#: Unterstrich steht für 2 mm (`feld-einheit` in falzmarke.typ).
+FELD_MAX = 82
+
+HR_UNTERSTRICHE = (
+    "Eine Zeile nur aus Unterstrichen ist eine Trennlinie und wird nicht gesetzt — "
+    "ein Ausfüllfeld braucht Text in derselben Zeile (`Ort: ________`), und "
+    "Unterschriftslinien setzt `unterschriften:` im Frontmatter"
+)
 
 # Was nicht gesetzt wird, und was der Schreibende stattdessen tun soll.
 #
@@ -215,6 +251,11 @@ def _lehne_ab(knoten, lage: Lage) -> None:
         meldung = _meldung_fassung(typ)
     else:
         meldung = ABLEHNUNG.get(typ, f"'{typ}' wird in einem Brief nicht gesetzt")
+    # `____` allein in der Zeile ist für CommonMark dieselbe Trennlinie wie
+    # `---`. Wer Unterstriche schreibt, meint aber fast immer eine Linie zum
+    # Ausfüllen — die allgemeine Meldung schickte ihn auf die falsche Fährte.
+    if typ == "hr" and str(getattr(knoten, "markup", "")).startswith("_"):
+        meldung = HR_UNTERSTRICHE
     raise MarkdownFehler(_zeile(knoten, lage), meldung)
 
 
@@ -400,6 +441,60 @@ def _melde_zurueckgehaltenes(text: str, zeile: int, lage: Lage) -> None:
                    KORREKTUR_TYPOGRAFIE)
 
 
+def _text_mit_feldern(inhalt: str, lage: Lage, zeile: int) -> list:
+    """Ein Textknoten, an seinen Ausfüllfeldern geteilt (ab Dialekt 1.2)."""
+    if lage.dialekt not in FELDER_AB:
+        return [baum.Text(inhalt)]
+    teile, stelle = [], 0
+    for treffer in FELD.finditer(inhalt):
+        if treffer.start() > stelle:
+            teile.append(baum.Text(inhalt[stelle:treffer.start()]))
+        laenge = len(treffer.group(0))
+        if laenge > FELD_MAX:
+            raise MarkdownFehler(
+                zeile,
+                f"Ausfüllfeld aus {laenge} Unterstrichen — mehr als {FELD_MAX} "
+                "passen nicht in eine Zeile (2 mm je Unterstrich, 165 mm Satzbreite)")
+        teile.append(baum.Ausfuellfeld(laenge))
+        stelle = treffer.end()
+    if stelle < len(inhalt):
+        teile.append(baum.Text(inhalt[stelle:]))
+    return teile
+
+
+def _zaehle_felder(knoten) -> int:
+    zahl = 0
+    for k in knoten:
+        if isinstance(k, baum.Ausfuellfeld):
+            zahl += 1
+        elif isinstance(k, (baum.Stark, baum.Betont, baum.Link)):
+            zahl += _zaehle_felder(k.kinder)
+    return zahl
+
+
+def _pruefe_felder(roh: str, teile, lage: Lage, zeile: int) -> None:
+    """Jede Unterstrichkette der Quelle ist ein Feld geworden — oder es fällt auf.
+
+    CommonMark liest Unterstriche als Auszeichnung, sobald sie an einem
+    Satzzeichen oder Buchstaben lehnen: Aus `Betrag: ____,__ EUR` wird ein
+    fettes Komma, aus `___b___` ein fett-kursives b. Beides sähe im fertigen
+    Blatt aus wie gewollt und wäre es nicht — gemessen am 07.10.2026 mit
+    markdown-it-py 4.2.0. Gezählt wird deshalb zweimal: die Ketten im Rohtext
+    und die Felder im Baum.
+    """
+    if lage.dialekt not in FELDER_AB:
+        return
+    erwartet = len(FELD_ROH.findall(CODESPANNE.sub("", roh)))
+    gefunden = _zaehle_felder(teile)
+    if erwartet != gefunden:
+        raise MarkdownFehler(
+            zeile,
+            f"{erwartet} Unterstrichkette(n) in der Quelle, aber {gefunden} Ausfüllfeld(er) — "
+            "ein Feld braucht mindestens drei Unterstriche und muss frei stehen: "
+            "ein Leerzeichen davor und danach, kein Buchstabe und keine Ziffer daran "
+            "(`Betrag: ________ EUR`)")
+
+
 def _inline(knoten, lage: Lage, lauf: list | None = None) -> tuple:
     """Inline-Inhalt eines Absatzes oder einer Zelle, als Baumknoten.
 
@@ -414,7 +509,7 @@ def _inline(knoten, lage: Lage, lauf: list | None = None) -> tuple:
     for kind in knoten.children or []:
         typ = kind.type
         if typ == "text":
-            teile.append(baum.Text(kind.content))
+            teile.extend(_text_mit_feldern(kind.content, lage, lauf[0]))
             _melde_zurueckgehaltenes(kind.content, lauf[0], lage)
         elif typ == "softbreak":
             # Ein weicher Umbruch ist ein Leerzeichen und sonst nichts — die
@@ -429,7 +524,9 @@ def _inline(knoten, lage: Lage, lauf: list | None = None) -> tuple:
         elif typ == "em":
             teile.append(baum.Betont(_inline(kind, lage, lauf)))
         elif typ == "inline":
-            teile.extend(_inline(kind, lage, lauf))
+            innen = _inline(kind, lage, lauf)
+            _pruefe_felder(kind.content or "", innen, lage, _zeile(kind, lage))
+            teile.extend(innen)
         elif typ == "link":
             # Nur in einer E-Mail. Im Brief bleibt es bei der Ablehnung aus
             # `ABLEHNUNG` — auf Papier gibt es nichts zum Anklicken.
@@ -571,7 +668,7 @@ def _wortlaut(knoten, lage: Lage) -> baum.Wortlaut:
     return baum.Wortlaut(knoten.content, block=True)
 
 
-def _tabelle(knoten, lage: Lage) -> baum.Tabelle:
+def _tabelle(knoten, lage: Lage):
     zeilen, ausrichtungen = [], []
     for teil in knoten.children:
         for tr in teil.children:
@@ -585,6 +682,26 @@ def _tabelle(knoten, lage: Lage) -> baum.Tabelle:
             zeilen.append(zellen)
     if not zeilen:
         raise MarkdownFehler(_zeile(knoten, lage), "leere Tabelle")
+
+    # Eine Kopfzeile ohne ein einziges Zeichen: Wer sie schreibt, will keine
+    # Kopfzeile — die Pipe-Syntax lässt nur nicht zu, sie wegzulassen.
+    kopf_leer = len(zeilen) > 1 and all(len(zelle) == 0 for zelle in zeilen[0])
+    if kopf_leer and lage.dialekt in ANGABEN_AB:
+        if len(zeilen[0]) != 2:
+            raise MarkdownFehler(
+                _zeile(knoten, lage),
+                f"Eine Tabelle ohne Kopfzeile hat genau zwei Spalten, Bezeichnung und "
+                f"Wert — diese hat {len(zeilen[0])}. Mit mehr Spalten braucht sie eine "
+                "Kopfzeile, sonst weiß niemand, was in welcher steht")
+        return baum.Angaben(tuple(tuple(z) for z in zeilen[1:]))
+    if kopf_leer:
+        # In 1.0 und 1.1 bleibt es, wie es war: eine leere, fett gerahmte
+        # Kopfzeile. Das ist selten gewollt, aber es zu ändern bräche die
+        # Zusage, dass ein bestehender Brief unverändert setzt.
+        lage.melde(
+            _zeile(knoten, lage),
+            "Tabelle mit leerer Kopfzeile — sie wird als leere Zeile mit Rahmen gesetzt",
+            korrektur="mit `dialekt: \"1.2\"` im Frontmatter entfällt die Kopfzeile ganz")
     return baum.Tabelle(
         tuple(tuple(z) for z in zeilen),
         tuple(ausrichtungen or [None] * len(zeilen[0])),

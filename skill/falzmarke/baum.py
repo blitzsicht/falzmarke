@@ -132,10 +132,34 @@ class Tabelle:
     ausrichtungen: tuple = ()
 
 
+@dataclass(frozen=True)
+class Ausfuellfeld:
+    """Eine leere Linie fester Länge, für Handeinträge. Ab Dialekt 1.2.
+
+    `laenge` ist die Zahl der Unterstriche in der Quelle; der Briefsatz macht
+    daraus 2 mm je Unterstrich. Ein Feld ist kein Text: Es trägt nichts, was
+    die Typografie anfassen oder ein Screenreader vorlesen könnte.
+    """
+
+    laenge: int = 3
+
+
+@dataclass(frozen=True)
+class Angaben:
+    """Bezeichnung und Wert, zeilenweise, ohne Kopfzeile. Ab Dialekt 1.2.
+
+    `zeilen` hat je Zeile genau zwei Zellen. Geschrieben wird sie als
+    Pipe-Tabelle mit leerer Kopfzeile; eine Kopfzeile, die nichts sagt, steht
+    im fertigen Blatt nur im Weg.
+    """
+
+    zeilen: tuple = ()
+
+
 #: Alles, was in einem Brieftext stehen darf. Ein Emitter, der einen Knoten
 #: nicht kennt, soll abbrechen statt ihn zu übergehen — deshalb die Liste.
 KNOTEN = (Text, Umbruch, Stark, Betont, Absatz, Ueberschrift, Liste, Zitat,
-          Wortlaut, Tabelle)
+          Wortlaut, Tabelle, Ausfuellfeld, Angaben)
 
 #: Knoten, die **nur** der Briefsatz setzt. Seit #109 keiner mehr: Die
 #: E-Mail-Emitter setzen Überschrift, Zitat und Wortlaut selbst.

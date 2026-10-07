@@ -128,6 +128,31 @@ def tabelle(zeilen: list[list[str]], ausrichtungen: list[str | None]) -> str:
     return "\n".join(ausgabe)
 
 
+def feld(laenge: int) -> str:
+    """Ein Ausfüllfeld im Klartext: die Unterstriche, wie sie in der Quelle stehen."""
+    return "_" * int(laenge)
+
+
+def angaben(zeilen: list[list[str]]) -> str:
+    """Bezeichnung und Wert nebeneinander, ohne Kopf und ohne Strichzeile.
+
+    Zwei Leerzeichen trennen die Spalten statt eines `|`: Eine Angabentabelle
+    hat keine Kopfzeile, an der man ein Gitter erklären könnte, und liest sich
+    im Klartext wie das, was sie ist — eine Liste von Bezeichnung und Wert.
+    """
+    if not zeilen:
+        return ""
+    breite = max((len(z[0]) for z in zeilen if z), default=0)
+    ausgabe = []
+    for zeile in zeilen:
+        bezeichnung = zeile[0] if zeile else ""
+        wert = zeile[1] if len(zeile) > 1 else ""
+        # rstrip aus demselben Grund wie in `tabelle`: Ein Leerzeichen am
+        # Zeilenende ist in format=flowed eine weiche Faltmarke.
+        ausgabe.append(f"{bezeichnung.ljust(breite)}  {wert}".rstrip())
+    return "\n".join(ausgabe)
+
+
 # ── Überschrift, Zitat, Auszug (#109) ───────────────────────────────────────
 
 #: Einzug eines abgesetzten Auszugs — vier Leerzeichen, wie ihn Markdown und
@@ -246,6 +271,8 @@ def _inline(knoten) -> str:
         return link(knoten.ziel, _inline(knoten.kinder))
     if isinstance(knoten, baum_modul.Wortlaut) and not knoten.block:
         return wortlaut(knoten.inhalt, block=False)
+    if isinstance(knoten, baum_modul.Ausfuellfeld):
+        return feld(knoten.laenge)
     return _block(knoten)
 
 
@@ -268,6 +295,8 @@ def _block(knoten, tiefe: int = 0) -> str:
             [[_inline(z) for z in zeile] for zeile in knoten.zeilen],
             list(knoten.ausrichtungen),
         )
+    if isinstance(knoten, baum_modul.Angaben):
+        return angaben([[_inline(z) for z in zeile] for zeile in knoten.zeilen])
     if isinstance(knoten, baum_modul.Ueberschrift):
         return ueberschrift(knoten.ebene, _inline(knoten.kinder))
     if isinstance(knoten, baum_modul.Wortlaut):
@@ -286,8 +315,8 @@ def _block(knoten, tiefe: int = 0) -> str:
 FLIESS, FEST, ZITAT = "fliess", "fest", "zitat"
 
 #: Blöcke, deren Zeilen nicht gefaltet werden dürfen.
-FESTE_BLOECKE = (baum_modul.Liste, baum_modul.Tabelle, baum_modul.Ueberschrift,
-                 baum_modul.Wortlaut)
+FESTE_BLOECKE = (baum_modul.Liste, baum_modul.Tabelle, baum_modul.Angaben,
+                 baum_modul.Ueberschrift, baum_modul.Wortlaut)
 
 
 def teile(bloecke) -> list[tuple[str, str]]:

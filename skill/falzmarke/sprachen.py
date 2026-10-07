@@ -66,11 +66,18 @@ MONATE = {
 
 # Wörter, die im Satz selbst stehen. „seite“ ist eine Vorlage mit zwei Stellen:
 # laufende Seite und Gesamtzahl.
+#
+# `zwischen`, `und` und `ort_datum` gehören zur Urkunde (ADR 0048): die zwei
+# Wörter über den Parteien und die Beschriftung der leeren Linie, wenn
+# `ort_datum:` fehlt. Mehr feste Wörter trägt das Werkzeug dort nicht — was
+# eine Partei heißt und als was sie handelt, schreibt der Verfasser.
 WOERTER = {
     "de": {"anlage": "Anlage", "anlagen": "Anlagen", "verteiler": "Verteiler",
-           "seite": "Seite {n} von {m}"},
+           "seite": "Seite {n} von {m}",
+           "zwischen": "zwischen", "und": "und", "ort_datum": "Ort, Datum"},
     "en": {"anlage": "Enclosure", "anlagen": "Enclosures", "verteiler": "Copies to",
-           "seite": "Page {n} of {m}"},
+           "seite": "Page {n} of {m}",
+           "zwischen": "between", "und": "and", "ort_datum": "Place, date"},
 }
 
 # Für Typst: Silbentrennung und Anführungszeichen hängen daran.
