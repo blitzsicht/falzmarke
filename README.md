@@ -549,6 +549,12 @@ Maße gemessen wurden, steht in [`docs/normmasse.md`](https://github.com/blitzsi
 
 Die letzten zwei Versionen im Wortlaut. **Erzeugt aus [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md) — dort ändern, dann `python3 scripts/changelog.py`.**
 
+### v0.9.14 — 07.10.2026
+
+#### Neu
+
+- **Urkunden: ein Schriftstück ohne Anschriftfeld.** Mit `typ: urkunde` setzt falzmarke eine Vereinbarung, eine Erklärung oder einen Nachweis — Titel statt Betreff, auf Wunsch zwei Parteien, eine Zeile für Ort und Datum und ein oder zwei Linien zum Unterschreiben von Hand, auf demselben Briefkopf und Raster wie die Briefe des Profils. `render` und `verify` messen das fertige Blatt nach einer eigenen Liste: Titel, Unterschriftslinien, dass keine Linie aus dem Satzspiegel reicht, und mit `seiten_max:` die Seitenzahl. Der Kopf folgt dem Vertrag zwischen Bund und DIN von 1975: Titel in 16 pt, Parteien in 12 pt, eine Linie darunter; auf Wunsch Blocksatz (`blocksatz: true`) und Felder für Paraphen auf jeder Seite außer der letzten (`paraphen: true`). Diese Maße setzt das Werkzeug selbst; die DIN 5008 sagt zu einem Blatt ohne Anschriftfeld nichts, und über Form oder Wirksamkeit eines Schriftstücks sagt falzmarke nichts (ADR 0048). Dazu Dialekt 1.2 für jeden Typ: das Ausfüllfeld, eine frei stehende Kette aus Unterstrichen, die zu einer Linie fester Länge wird, und die Angabentabelle ohne Kopfzeile. Schreiben in Dialekt 1.0 und 1.1 setzen unverändert. (#381)
+
 ### v0.9.13 — 30.09.2026
 
 #### Neu
@@ -563,17 +569,7 @@ Die letzten zwei Versionen im Wortlaut. **Erzeugt aus [`CHANGELOG.md`](https://g
 
 - **Vorinstallierte Pakete werden auf ihre Version geprüft.** `scripts/bootstrap.py` hat bisher jedes importierbare Paket übernommen. Eine Sandbox, die zum Beispiel pdfplumber 0.10 mitbringt, wäre deshalb still durchgegangen. Jetzt gilt eine Version, die nicht zur Grenze in `requirements.txt` passt oder sich nicht feststellen lässt, als fehlend und wird nachinstalliert. Die Meldung nennt die gefundene und die verlangte Version. (#374)
 
-### v0.9.12 — 27.09.2026
-
-#### Neu
-
-- **E-Mails setzen Überschriften, Zitate und wortgetreue Auszüge.** Mit `dialekt: "1.1"` gilt für `typ: email` jetzt dasselbe wie im Brief. Bisher brach die E-Mail mit „setzt der HTML-Teil einer E-Mail noch nicht“ ab. Im HTML-Teil stehen Überschriften als fette Absätze (ab Ebene 3 zusätzlich kursiv), Zitate mit einer Linie am linken Rand und Auszüge in Festbreite; ein langer Auszug bricht nach dem Lesefenster um, statt die Nachricht waagerecht scrollen zu lassen. Im Klartextteil ist die Überschrift unterstrichen, das Zitat trägt `>` als Zitattiefe nach RFC 3676, und der Auszug bleibt eingerückt in festen Zeilen. `verify --email` lässt eine Zeile mit `>` nur dann durch, wenn ihr Wortlaut im HTML-Teil in einem Zitat steht; eine versehentlich ungestopfte Zeile bleibt ein Befund. Die Warnung zur Zeilenlänge eines Auszugs gilt nur noch im Brief, denn eine E-Mail hat keinen Satzspiegel. Neues Beispiel: `examples/email/email-stellungnahme.md`. (#109)
-
-#### Infrastruktur
-
-- **Der Drift-Wächter läuft vor jedem Release und kennt die PyPI-Einstellung.** `scripts/vor_dem_tag.sh` fährt die Paketprüfung und danach `repo_pruefung.py` mit den `gh`-Rechten des Maintainers. Ein Token mit Admin-Leserecht in einem öffentlichen Repository kam nicht infrage. Neu geprüft werden die Schutzregeln des Environments `pypi` nach ADR 0036: Eine wieder eingeschaltete Freigabe von Hand, die v0.9.11 neun Stunden festhielt, fällt jetzt vor dem Tag auf (#359). Ist ein Wert nicht abfragbar, bricht das Skript ab, statt grün zu melden. (#211)
-
-Davor liegen 31 weitere Versionen — der vollständige Verlauf steht in [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md).
+Davor liegen 32 weitere Versionen — der vollständige Verlauf steht in [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md).
 
 <!-- changelog:ende -->
 
