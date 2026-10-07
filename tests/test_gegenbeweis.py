@@ -17,7 +17,7 @@ from falzmarke import geometrie
 from falzmarke import cli as falzmarke
 from falzmarke import lint as _lint
 from falzmarke import regeln as _regeln
-from conftest import REPO
+from conftest import PROFILE, REPO
 
 BEISPIEL = REPO / "examples" / "brief-form-b.md"
 
@@ -1457,3 +1457,35 @@ def test_urkunde_leere_ort_datum_linie_ausserhalb_des_rasters(tmp_path):
         "block(above: 0pt, below: durchschuss, feld(30))")
     rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie, quelle))
     assert rot == {"Seite 1, Zeilenraster"}, rot
+
+
+# ── „Rechnung“ ist kein Kürzel (#386) ───────────────────────────────────────
+
+RECHNUNG_APPLE = ("---\nprofil: example\nempfaenger: [Muster GmbH, Musterstraße 1, 12345 Musterstadt]\n"
+                  "datum: 2026-10-07\nbetreff: Ein Betreff\nanrede: Sehr geehrte Damen und Herren,\n"
+                  "---\nRechnung Apple\n")
+
+
+def _rechnung_als_kuerzel(tmp_path: Path) -> list[str]:
+    from falzmarke import typografie
+    pfad = tmp_path / "brief.md"
+    pfad.write_text(RECHNUNG_APPLE, encoding="utf-8")
+    bericht = falzmarke.linte(pfad, profil_verzeichnis=PROFILE)
+    regel = _regeln.fuer_typografie("_vor_angabe")["id"]
+    return [b.meldung.replace(typografie.NBSP, " ") for b in bericht.befunde
+            if b.regel == regel and "Rechnung" in b.meldung.replace(typografie.NBSP, " ")]
+
+
+def test_rechnung_apple_ist_unsabotiert_still(tmp_path):
+    assert _rechnung_als_kuerzel(tmp_path) == []
+
+
+def test_rechnung_zurueck_in_der_kuerzelliste_meldet_rechnung_apple(tmp_path, monkeypatch):
+    """Die Sabotage stellt den Stand vor #386 her. Die Probe, die
+    `tests/test_vor_angabe_regel.py` fährt, muss dann anschlagen — sonst
+    hielte sie den Fehlalarm nicht fest."""
+    from falzmarke import typografie
+    assert "Rechnung" not in typografie.VOR_ANGABE, "Vorbedingung: der Stand nach #386"
+    monkeypatch.setattr(typografie, "VOR_ANGABE", [*typografie.VOR_ANGABE, "Rechnung"])
+    meldungen = _rechnung_als_kuerzel(tmp_path)
+    assert len(meldungen) == 1 and "Rechnung Apple" in meldungen[0], meldungen

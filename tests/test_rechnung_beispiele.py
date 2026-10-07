@@ -254,7 +254,7 @@ def test_ein_uebereinstimmender_steuersatz_ist_kein_befund():
     Summe stimmen überein. Ohne sie belegte die Gegenprobe unten nur, dass der
     Linter IRGENDETWAS meldet."""
     bericht = falzmarke.linte(REPO / "examples" / "rechnung.md", profil_verzeichnis=PROFILE)
-    # Ohne die Hinweise des Typografie-Passes (#330): „unsere Rechnung für" trägt
+    # Ohne die Hinweise des Typografie-Passes (#330): „am 3. Oktober" trägt
     # einen — das Beispiel meint die Steuersätze, nicht die Schreibweise.
     befunde = ohne_typografiehinweise(bericht)
     assert not befunde, [b.als_zeile("rechnung.md") for b in befunde]

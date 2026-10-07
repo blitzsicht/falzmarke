@@ -520,8 +520,9 @@ regeln:
     bemerkung: >-
       Setzgewohnheit des Werkzeugs, keine Aussage, die eine der Quellen
       trägt; die Stufe steht bis zum Normabgleich (#31) unverändert. Die Liste
-      `VOR_ANGABE` in typografie.py enthält auch „Rechnung“, das kein Kürzel
-      ist — ob es dort bleibt, ist offen (#332).
+      `VOR_ANGABE` in typografie.py führt nur Kürzel. „Rechnung“ stand bis #386
+      darin und band jedes folgende Wort an sich („Rechnung für“); die
+      Rechnungsnummer hält `Nr.` zusammen.
 
   - id: schreibweise.zahlengliederung
     titel: "Zahlen in Dreiergruppen mit geschütztem Leerzeichen: 1 234 567,89"
