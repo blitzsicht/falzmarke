@@ -140,12 +140,14 @@ def test_emitter_kennt_jeden_knoten():
         baum.Ueberschrift: baum.Ueberschrift(1, (baum.Text("x"),)),
         baum.Zitat: baum.Zitat((baum.Absatz((baum.Text("x"),)),)),
         baum.Wortlaut: baum.Wortlaut("x", block=True),
+        baum.Ausfuellfeld: baum.Ausfuellfeld(8),
+        baum.Angaben: baum.Angaben((((baum.Text("a"),), (baum.Text("b"),)),)),
     }
     fehlend = [k.__name__ for k in baum.KNOTEN
                if k not in beispiele and k not in baum.NUR_BRIEF]
     assert not fehlend, f"Diese Prüfung kennt {fehlend} nicht — baum.KNOTEN ist gewachsen"
 
-    inline = (baum.Text, baum.Umbruch, baum.Stark, baum.Betont)
+    inline = (baum.Text, baum.Umbruch, baum.Stark, baum.Betont, baum.Ausfuellfeld)
     for klasse, knoten in beispiele.items():
         gesetzt = html._inline(knoten) if klasse in inline else html._block(knoten)
         assert gesetzt.strip(), f"{klasse.__name__} ergibt nichts"

@@ -10,7 +10,7 @@ aussieht als geschrieben, wäre der teuerste Ausgang.
 
 Die Felder über dem Text stehen im [Datenvertrag](frontmatter.md).
 
-## Zwei Fassungen
+## Drei Fassungen
 
 Der Dialekt trägt eine Fassung. Welche gilt, sagt das Feld `dialekt:` im Frontmatter:
 
@@ -18,10 +18,12 @@ Der Dialekt trägt eine Fassung. Welche gilt, sagt das Feld `dialekt:` im Frontm
 |---|---|
 | **1.0** | Der Standardbrief. **Gilt, wenn das Feld fehlt.** |
 | **1.1** | Lange Schreiben — Schriftsätze, Stellungnahmen, ausführliche Behördenpost |
+| **1.2** | Alles aus 1.1, dazu Ausfüllfelder und die Angabentabelle ohne Kopfzeile — für Urkunden und Rückmeldebögen |
 
 **Ein Brief ohne das Feld rendert unverändert weiter.** Das ist keine Nebenbemerkung, sondern
 die Zusage, unter der 1.1 überhaupt hinzukam: Wer heute einen Brief geschrieben hat, bekommt
-morgen dasselbe PDF. Was 1.1 zusätzlich setzt, steht unten in der Spalte „1.1".
+morgen dasselbe PDF. Was 1.1 und 1.2 zusätzlich setzen, steht unten in je einem Abschnitt.
+Dieselbe Zusage gilt zwischen 1.1 und 1.2: Ein Schreiben in 1.1 ändert sich nicht.
 
 `falzmarke init` schreibt `dialekt: "1.1"` in neue Briefe. Ein unbekannter Wert ist ein Fehler
 und nennt die bekannten Fassungen — er fällt nicht stillschweigend auf 1.0 zurück, sonst sähe
@@ -105,6 +107,60 @@ Anschriftfeld, Informationsblock und Betreffposition bleiben, wo sie sind. Nachg
 **Vorsicht bei langen Wörtern in Überschriften.** Steht ein Wort ohne Trennstelle am Anfang der
 Zeile, kann Typst es nicht umbrechen, und es läuft aus dem Satzspiegel. `render` fängt das und
 bricht mit Exit-Code 2 ab — der Bericht nennt Seite und Element.
+
+## Was nur Fassung 1.2 setzt
+
+Für Urkunden ([`typ: urkunde`](frontmatter.md#urkunde)) und für alles, was jemand von Hand
+ausfüllt. Fassung 1.2 setzt alles aus 1.1 und zwei Elemente mehr; beide brauchen
+`dialekt: "1.2"` im Frontmatter und gelten in jedem Typ.
+
+| Syntax | Ergebnis | Grenze |
+|---|---|---|
+| `Ort: ________` | Ausfüllfeld: eine leere Linie, 2 mm je Unterstrich | mindestens 3, höchstens 82 Unterstriche; die Kette muss frei stehen |
+| Tabelle mit leerer Kopfzeile | Angabentabelle: Bezeichnung und Wert, ohne Kopf und ohne Rahmen | genau zwei Spalten |
+
+### Ausfüllfelder
+
+Eine Kette aus mindestens drei Unterstrichen wird zu einer Linie fester Länge. Zwölf
+Unterstriche ergeben 24 mm — die Länge hängt nicht an der Schrift, und das Feld bricht nicht
+mitten durch um.
+
+**Die Kette muss frei stehen:** kein Buchstabe und keine Ziffer unmittelbar davor oder danach.
+`Datum: ________`, `(________)` und `bis ________.` sind Felder. `Betrag: ____,__ EUR` ist
+keines — CommonMark liest die Unterstriche am Komma als Fettdruck, und `lint` bricht ab, statt
+ein fettes Komma zu setzen. Schreib `Betrag: ________ EUR`.
+
+**Eine Zeile nur aus Unterstrichen ist kein Feld,** sondern für CommonMark eine Trennlinie, und
+die wird nicht gesetzt. Ein Feld braucht Text in derselben Zeile. Unterschriftslinien setzt
+das Frontmatter der Urkunde (`unterschriften:`), nicht der Text.
+
+**Geschützte Unterstriche sind ab 1.2 ebenfalls ein Feld:** `\_\_\_\_` und `____` lassen sich
+nach dem Lesen nicht unterscheiden. Wer Unterstriche als Zeichen braucht, setzt sie in einen
+wortgetreuen Auszug: `` `teil___name` ``.
+
+In 1.0 und 1.1 bleibt eine Unterstrichkette, was sie immer war: wörtlicher Text, dessen Länge
+von der Schrift abhängt und der umbrechen kann.
+
+### Die Angabentabelle
+
+    |   |   |
+    |---|---|
+    | Bezeichnung | Feuchtemessgerät Muster FM 200 |
+    | Gerätenummer | MUSTER-2026-0042 |
+    | Übergeben am | ______________ |
+
+Die Pipe-Syntax lässt eine Kopfzeile nicht weg — also bleibt sie leer, und ab 1.2 heißt eine
+leere Kopfzeile: keine. Die Bezeichnungsspalte ist so breit wie ihr längster Eintrag, der Wert
+bekommt den Rest der Satzbreite. Wie breit die Trennzeile getippt ist, spielt keine Rolle.
+
+Die Angabentabelle hat genau **zwei Spalten**. Mit mehr braucht eine Tabelle eine Kopfzeile,
+sonst weiß niemand, was in welcher steht.
+
+Anders als die gerahmte Tabelle **steht sie auf dem Zeilenraster**: Jede Zeile ist eine
+Rasterzeile, und die Rasterprüfung misst sie mit.
+
+In 1.0 und 1.1 wird eine leere Kopfzeile gesetzt, wie sie dasteht — als leere, gerahmte Zeile
+über der Tabelle. `lint` weist darauf hin und nennt die Fassung, in der sie entfällt.
 
 ### Zitate
 
@@ -226,9 +282,11 @@ Gemessen am 29.08.2026 mit pypdf, festgehalten in `tests/test_struktur.py`:
 | `> …` | `/BlockQuote` |
 | ` ``` ` und `` ` `` | `/Code` |
 | Tabelle | `/Table` mit `/THead`, `/TH`, `/TR`, `/TD` |
+| Angabentabelle (1.2) | `/Table` mit `/TR`, `/TD` — ohne Kopfzeile gibt es keine Kopfzellen |
+| Ausfüllfeld (1.2) | keine: Die Linie ist ein Artefakt, ein Vorleseprogramm übergeht sie |
 | `**…**` und `*…*` | `/Strong` und `/Em` |
 
-Das gilt **in beiden Fassungen** und unabhängig von `--pdfua`. Die Option ändert nur, ob sich
+Das gilt **in jeder Fassung, die das Element kennt,** und unabhängig von `--pdfua`. Die Option ändert nur, ob sich
 das PDF im XMP als PDF/UA-1 zu erkennen gibt; die Struktur, auf die sie sich beruft, ist ohnehin
 da. In CI hält veraPDF beide Fassungen gegen ihre Standards.
 
@@ -276,6 +334,10 @@ Werkzeug nicht.
 | Blockzitat `>` **in Fassung 1.0** | Dasselbe — mit `dialekt: "1.1"` möglich. |
 | HTML | Wird nie durchgereicht — weder gesetzt noch entfernt, sondern gemeldet. |
 | Trennlinie `---` allein | Wäre im Brief ein Fremdkörper und kollidiert mit dem Frontmatter-Trenner. |
+| Zeile nur aus Unterstrichen `____` | Für CommonMark dieselbe Trennlinie. Ein Ausfüllfeld braucht Text in derselben Zeile; Unterschriftslinien setzt `unterschriften:`. |
+| Unterstrichkette, die kein Feld wird, **in Fassung 1.2** | Sie lehnt an einem Buchstaben, einer Ziffer oder einem Satzzeichen, das CommonMark zur Auszeichnung macht. Frei stellen. |
+| Tabelle ohne Kopfzeile mit mehr oder weniger als zwei Spalten, **in Fassung 1.2** | Die Angabentabelle ist Bezeichnung und Wert. |
+| `#` im Text einer Urkunde | Die erste Ebene ist der `titel:`. Abschnitte beginnen mit `##`. |
 | `~~durchgestrichen~~`, `[^1]`, `- [ ]` | Nicht Teil der Teilmenge; die Meldung nennt die erkannte Syntax. |
 | Tabelle ohne Trennzeile | Sonst stünde die Kopfzeile als gewöhnlicher Text im Brief. |
 

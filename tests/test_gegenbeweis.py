@@ -1220,3 +1220,240 @@ def test_die_rasterpruefung_sieht_den_verstellten_innenabstand_nicht(tmp_path, m
     pdf, form = _tabellen_pdf(tmp_path, monkeypatch, "2.293mm")
     gescheitert = _gescheitert(pdf, form)
     assert not [n for n in gescheitert if "Zeilenraster" in n], gescheitert
+
+
+# ── Urkunde: das Schriftstück ohne Anschriftfeld (ADR 0048) ─────────────────
+#
+# Jede Prüfung der Urkundenliste bekommt hier ihre Sabotage: Der Satz wird an
+# genau einer Stelle verstellt, und erwartet wird NAMENTLICH, was daraufhin rot
+# wird — die ganze Menge, nicht „mindestens eine". Eine Sabotage, die mehr oder
+# anderes trifft als gedacht, hat etwas anderes verstellt.
+#
+# Jede steht in einem eigenen Test und läuft für sich: Gebündelt ginge eine
+# Prüfung, die nie rot wird, im Rot der anderen unter.
+
+URKUNDE_VEREINBARUNG = REPO / "examples" / "urkunde" / "urkunde-vereinbarung.md"
+URKUNDE_ERKLAERUNG = REPO / "examples" / "urkunde" / "urkunde-erklaerung.md"
+URKUNDE_ZWEI_SEITEN = REPO / "tests" / "fixtures" / "urkunde" / "zwei-seiten-bei-einer.md"
+
+
+def _rendere_urkunde(tmp_path: Path, typst_dir: Path, quelle: Path = URKUNDE_VEREINBARUNG) -> Path:
+    original = falzmarke.TYPST_DIR
+    falzmarke.TYPST_DIR = typst_dir
+    try:
+        return falzmarke.rendere(quelle, tmp_path / "urkunde.pdf",
+                                 profil_verzeichnis=typst_dir / "profiles")[0]
+    finally:
+        falzmarke.TYPST_DIR = original
+
+
+def _urkunde_gescheitert(pdf: Path) -> set[str]:
+    assert geometrie.typ_aus_metadaten(pdf) == "urkunde", "gemessen würde die Briefliste"
+    return {p.name for p in geometrie.pruefe(pdf, "").pruefungen if not p.bestanden}
+
+
+@pytest.mark.parametrize("quelle", [URKUNDE_VEREINBARUNG, URKUNDE_ERKLAERUNG],
+                         ids=lambda p: p.stem)
+def test_urkunde_unsabotiert_ist_gruen(tmp_path, quelle):
+    """Kontrollprobe: derselbe Weg über die Kopie, ohne wirksame Änderung."""
+    kopie = _sabotiere(tmp_path, "falzmarke.typ", "#let unterschrift-linie = 65mm",
+                       "#let unterschrift-linie = 65mm  // unverändert")
+    assert _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie, quelle)) == set()
+
+
+def test_urkunde_zweite_seite_bei_erlaubter_einer(tmp_path):
+    """Abnahme, Sabotage 1: Die Quelle verlangt eine Seite und füllt zwei."""
+    kopie = _sabotiere(tmp_path, "falzmarke.typ", "#let unterschrift-linie = 65mm",
+                       "#let unterschrift-linie = 65mm  // unverändert")
+    pdf = _rendere_urkunde(tmp_path, kopie, URKUNDE_ZWEI_SEITEN)
+    assert _urkunde_gescheitert(pdf) == {"Seitenzahl"}
+
+
+def test_urkunde_dieselben_zwei_seiten_sind_mit_grenze_zwei_gruen(tmp_path):
+    """Die Kontrollprobe dazu: Nicht die zweite Seite ist der Fehler, sondern die Grenze."""
+    quelle = tmp_path / "zwei.md"
+    text = URKUNDE_ZWEI_SEITEN.read_text(encoding="utf-8")
+    assert "seiten_max: 1" in text
+    quelle.write_text(text.replace("seiten_max: 1", "seiten_max: 2"), encoding="utf-8")
+    pdf, _ = falzmarke.rendere(quelle, tmp_path / "zwei.pdf")
+    assert _urkunde_gescheitert(pdf) == set()
+
+
+def test_urkunde_unterschriftsfeld_ausserhalb_des_satzspiegels(tmp_path):
+    """Abnahme, Sabotage 2: Der Unterschriftsblock rutscht über den rechten Rand.
+
+    Die rechte Linie endet dann bei 247,5 statt 177,5 mm. Die Wortmessung des
+    Briefes sähe davon nichts — eine Linie trägt keine Wörter.
+    """
+    kopie = _sabotiere(
+        tmp_path, "falzmarke.typ",
+        "pad(bottom: 1mm, line(length: unterschrift-linie, stroke: 0.5pt))",
+        "pad(bottom: 1mm, left: 70mm, line(length: unterschrift-linie, stroke: 0.5pt))")
+    rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie))
+    assert rot == {"Unterschriftslinien, im Satzspiegel", "Seite 1, Linien im Satzspiegel",
+                   "Unterschriftslinien, Name darunter"}, rot
+
+
+def test_urkunde_linie_anderer_laenge_ist_keine_unterschriftslinie(tmp_path):
+    kopie = _sabotiere(tmp_path, "falzmarke.typ", "#let unterschrift-linie = 65mm",
+                       "#let unterschrift-linie = 64mm")
+    rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie))
+    assert rot == {"Unterschriftslinien, Anzahl"}, rot
+
+
+def test_urkunde_zu_wenig_raum_ueber_der_linie(tmp_path):
+    """Eine Zeile statt dreier: Die Ort-Datum-Zeile steht im Raum der Unterschrift."""
+    kopie = _sabotiere(
+        tmp_path, "falzmarke.typ",
+        "rows: if mit-rolle { (3 * zeile, zeile, letzte) } else { (3 * zeile, letzte) },",
+        "rows: if mit-rolle { (1 * zeile, zeile, letzte) } else { (1 * zeile, letzte) },")
+    rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie))
+    assert rot == {"Unterschriftslinien, Raum darüber"}, rot
+
+
+def test_urkunde_linien_ohne_abstand(tmp_path):
+    """Der Befund, mit dem der Vorgang begann: zwei Linien, die wie eine aussehen."""
+    kopie = _sabotiere(
+        tmp_path, "falzmarke.typ",
+        "        columns: (1fr, 1fr),\n        column-gutter: 10mm,\n        rows: if mit-rolle",
+        "        columns: (65mm, 65mm),\n        column-gutter: 2mm,\n        rows: if mit-rolle")
+    rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie))
+    assert rot == {"Unterschriftslinien, Abstand"}, rot
+
+
+def test_urkunde_linien_auf_verschiedener_hoehe(tmp_path):
+    kopie = _sabotiere(
+        tmp_path, "falzmarke.typ",
+        "..range(2).map(i => if i < unterschriften.len() {\n"
+        "          grid.cell(align: bottom + left, pad(bottom: 1mm,",
+        "..range(2).map(i => if i < unterschriften.len() {\n"
+        "          grid.cell(align: bottom + left, pad(bottom: 1mm + i * 3mm,")
+    rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie))
+    assert rot == {"Unterschriftslinien, gleiche Höhe", "Unterschriftslinien, Name darunter"}, rot
+
+
+def test_urkunde_titel_an_falscher_stelle(tmp_path):
+    kopie = _sabotiere(tmp_path, "falzmarke.typ", "  heading(level: 1, daten.titel)",
+                       "  v(2 * zeile)\n  heading(level: 1, daten.titel)")
+    rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie))
+    assert rot == {"Titel, y-Oberkante"}, rot
+
+
+def test_urkunde_titel_in_textgroesse(tmp_path):
+    """Der Befund, mit dem die Rückmeldung zu #381 begann: ein Titel in 11 pt,
+    der sich von den Abschnitten nicht abhebt."""
+    kopie = _sabotiere(tmp_path, "falzmarke.typ", "#let urkunde-titel-pt = 16pt",
+                       "#let urkunde-titel-pt = 11pt")
+    rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie))
+    assert "Titel, Schriftgröße" in rot, rot
+    assert rot <= {"Titel, Schriftgröße", "Seite 1, Zeilenraster"}, rot
+
+
+def test_urkunde_ohne_trennlinie(tmp_path):
+    kopie = _sabotiere(tmp_path, "falzmarke.typ",
+                       "  block(above: zeile, below: 0pt, line(length: 100%, stroke: 0.5pt))",
+                       "  block(above: zeile, below: 0pt, [])")
+    rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie))
+    assert rot == {"Trennlinie unter dem Kopf"}, rot
+
+
+def test_urkunde_parteien_in_textgroesse(tmp_path):
+    kopie = _sabotiere(tmp_path, "falzmarke.typ", "#let urkunde-parteien-pt = 12pt",
+                       "#let urkunde-parteien-pt = 11pt")
+    rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie))
+    assert "Parteien, Schriftgröße" in rot, rot
+    assert rot <= {"Parteien, Schriftgröße", "Seite 1, Zeilenraster"}, rot
+
+
+URKUNDE_PARAPHEN = (
+    "---\nprofil: example\ntyp: urkunde\ndialekt: \"1.2\"\ntitel: Probe\n"
+    "parteien:\n  - name: Beispiel GmbH\n  - name: Max Muster\nparaphen: true\n---\n\n"
+    "## 1. Füllung\n\n" + "\n\n".join(
+        f"Absatz {i}: Dieser Text füllt die Seite, damit die Unterschriften auf die "
+        "zweite rutschen und die erste ihre Paraphen trägt." for i in range(1, 26)) + "\n")
+
+
+def test_urkunde_paraphe_fehlt_auf_der_ersten_seite(tmp_path):
+    quelle = tmp_path / "paraphen.md"
+    quelle.write_text(URKUNDE_PARAPHEN, encoding="utf-8")
+    pdf, _ = falzmarke.rendere(quelle, tmp_path / "gut.pdf")
+    assert _urkunde_gescheitert(pdf) == set()                    # Kontrollprobe
+    kopie = _sabotiere(tmp_path, "falzmarke.typ",
+                       '        let zahl = daten.at("unterschriften", default: ()).len()',
+                       '        let zahl = daten.at("unterschriften", default: ()).len() - 1')
+    rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie, quelle))
+    assert rot == {"Paraphen"}, rot
+
+
+def test_urkunde_blocksatz_ohne_randschutz(tmp_path):
+    """Ohne `overhang: false` hängt Typst Trennstriche in den Rand — gemessen 190,66 mm."""
+    kopie = _sabotiere(tmp_path, "falzmarke.typ", "    set text(overhang: false)\n", "")
+    rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie))
+    assert rot == {"Seite 1, rechter Rand"}, rot
+
+
+def test_urkunde_mit_falzmarken_ist_ein_brief(tmp_path):
+    """Die Urkunde bekommt die Marken des Briefes in den Seitenhintergrund."""
+    kopie = _sabotiere(
+        tmp_path, "falzmarke.typ",
+        "    // Folgeseiten: der Titel als Kopfzeile, wie beim Brief der Betreff.",
+        "    background: place(top + left, dx: 5mm, dy: 105mm, "
+        "line(length: 2.5mm, stroke: 0.25pt + black)),")
+    rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie))
+    assert rot == {"Keine Marken im Heftrand", "Seite 1, Linien im Satzspiegel"}, rot
+
+
+def test_urkunde_ausfuellfeld_laeuft_aus_dem_satzspiegel(tmp_path):
+    """Ein Feld von 20 Unterstrichen misst mit 9 mm je Strich 180 mm — breiter als der Satz.
+
+    Das Feld steht am Ende des Absatzes, damit kein Wort hinter ihm mitwandert:
+    Dann bleibt die Wortmessung stumm, und genau das ist der Grund, warum es
+    die Linienprüfung gibt. (Am Musterdokument schlägt zusätzlich `rechter
+    Rand` an — dort steht ein Punkt hinter dem Feld.)
+    """
+    quelle = tmp_path / "feld.md"
+    quelle.write_text(
+        "---\nprofil: example\ntyp: urkunde\ndialekt: \"1.2\"\ntitel: Probe\n---\n\n"
+        "Eintrag: ____________________\n", encoding="utf-8")
+    pdf, _ = falzmarke.rendere(quelle, tmp_path / "gut.pdf")
+    assert _urkunde_gescheitert(pdf) == set()                    # Kontrollprobe
+    kopie = _sabotiere(tmp_path, "falzmarke.typ", "#let feld-einheit = 2mm",
+                       "#let feld-einheit = 9mm")
+    rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie, quelle))
+    assert rot == {"Seite 1, Linien im Satzspiegel"}, rot
+
+
+def test_urkunde_rasterfehler_unter_dem_unterschriftsblock(tmp_path):
+    """Der Fehler, den die Rasterprüfung am ersten Musterdokument gefunden hat:
+    Die letzte Gitterzeile misst 12 statt 11 pt, und der Anlagenvermerk steht
+    2,08 statt 2,00 Zeilen tiefer."""
+    kopie = _sabotiere(tmp_path, "falzmarke.typ", "let letzte = zeile - durchschuss",
+                       "let letzte = zeile")
+    rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie))
+    assert rot == {"Seite 1, Zeilenraster"}, rot
+
+
+def test_urkunde_angabentabelle_ausserhalb_des_rasters(tmp_path):
+    """Ohne Rahmen erkennt die Messung die Angabentabelle nicht als Tabelle —
+    sie ist also nicht ausgenommen und muss das Raster selbst halten."""
+    kopie = _sabotiere(tmp_path, "falzmarke.typ", "    row-gutter: durchschuss,",
+                       "    row-gutter: 3pt,")
+    rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie, URKUNDE_ERKLAERUNG))
+    assert rot == {"Seite 1, Zeilenraster"}, rot
+
+
+def test_urkunde_leere_ort_datum_linie_ausserhalb_des_rasters(tmp_path):
+    """Der zweite Fehler, den die Rasterprüfung gefunden hat: 2,63 statt 3,00 Zeilen."""
+    quelle = tmp_path / "ohne.md"
+    quelle.write_text(
+        "---\nprofil: example\ntyp: urkunde\ndialekt: \"1.2\"\ntitel: Probe\n"
+        "unterschriften:\n  - name: Erika Muster\n---\n\nEin Absatz.\n", encoding="utf-8")
+    # Kontrollprobe im selben Test: Unverändert hält diese Quelle das Raster.
+    pdf, _ = falzmarke.rendere(quelle, tmp_path / "gut.pdf")
+    assert _urkunde_gescheitert(pdf) == set()
+    kopie = _sabotiere(
+        tmp_path, "falzmarke.typ",
+        "block(above: 0pt, below: 0pt, height: zeile, align(bottom + left, feld(30)))",
+        "block(above: 0pt, below: durchschuss, feld(30))")
+    rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie, quelle))
+    assert rot == {"Seite 1, Zeilenraster"}, rot

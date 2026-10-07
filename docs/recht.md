@@ -50,6 +50,12 @@ Bewacht wird das von `tests/test_quellenlage.py`: Fällt eine am PDF gemessene G
 wieder unter die Stufe, die einen Fehler tragen darf, wird der Test rot. Dann ist erneut zu
 entscheiden — die Lücke kommt nicht still zurück.
 
+**Bei einer Urkunde ist jede Prüfung eine Werkzeugprüfung.** Die Norm beschreibt den
+Geschäftsbrief; zu einem Schriftstück ohne Anschriftfeld sagt keine der geführten Quellen etwas.
+Was `render` und `verify` dort messen — Titel, Unterschriftslinien, Seitenzahl —, hat das
+Werkzeug selbst gesetzt, und so steht es im Katalog ([ADR 0048](entscheidungen/0048-urkunde-ein-schriftstueck-ohne-anschriftfeld.md)).
+Die Meldung nach einer gescheiterten Messung nennt die DIN 5008 dort deshalb nicht.
+
 **Nicht jede genannte Quelle zählt zur Bestätigung.** Zwei zählen bewusst nicht:
 
 - **Die eigene Messung am gerenderten PDF.** Sie belegt, dass das Werkzeug einhält, was es sich
@@ -78,7 +84,9 @@ sähe anders aus, als er geschrieben wurde, und niemand erführe warum.
 
 Die Tabelle oben sagt, was eine Stufe **bedeutet**. Hier steht, was die Regeln tatsächlich
 tragen. **Stand: 25.09.2026**, gemessen gegen `main` nach dem Aufstieg der Geometrie-Regeln
-([#355](https://github.com/blitzsicht/falzmarke/issues/355)). Die Zahlen kommen aus
+([#355](https://github.com/blitzsicht/falzmarke/issues/355)); die Gesamtzahl ist am 07.10.2026
+nachgezählt, als die Regeln der Urkunde dazukamen. Diese berühren keine der Zahlen darunter:
+Sie berufen sich auf keine Quelle, also kann auch keine zu ihnen schweigen. Die Zahlen kommen aus
 der Regeldatei; `tests/test_textkanon.py` zählt sie bei jedem Lauf nach und wird rot, sobald
 dieser Abschnitt ihnen nicht mehr folgt.
 
@@ -88,7 +96,7 @@ Regel **nachweislich schweigen**: Sie zählen nicht mehr mit.
 
 | | |
 |---|---|
-| 123 | Regeln insgesamt |
+| 139 | Regeln insgesamt — sechzehn davon seit dem 07.10.2026 für die Urkunde ([ADR 0048](entscheidungen/0048-urkunde-ein-schriftstueck-ohne-anschriftfeld.md)), alle `herkunft: werkzeug` |
 | 16 | Quelle-Regel-Paare, bei denen die Quelle **nachweislich schweigt** — zehn davon `onlineprinters` ([Befund](quellenpruefung-onlineprinters-2026-08-27.md)), seit dem 22.09.2026 dazu die Zeichnung `massskizze_b` bei `text.vermerke_max_3`, seit dem 25.09.2026 fünf weitere aus der Nachlese zu den Marken und zur Höhe des Informationsblocks |
 | 7 | der betroffenen Regeln führen jetzt `herkunft: werkzeug` — eine Setzgewohnheit des Werkzeugs, keine Aussage der Norm |
 | 4 | stehen auf `einzeln belegt`. Drei fielen dorthin von Fehler herab: `schreibweise.datum`, `schreibweise.abkuerzungen`, `text.vermerke_max_3` — ihre zweite volle Quelle schwieg, es bleibt eine. Der Typografie-Pass meldet Datum und Abkürzungen seither nur noch, er ersetzt sie nicht mehr. Die vierte, `text.anschrift_ohne_leerzeilen`, ist umgekehrt **gestiegen** — von `werkzeug`, am 22.09.2026 mit [#344](https://github.com/blitzsicht/falzmarke/issues/344) |
@@ -319,6 +327,9 @@ Bewertungen außerhalb des Werkzeugs.
 - **Kein „normgerecht", kein „DIN-konform"** ohne den Satz oben. „nach DIN 5008" bleibt als
   beschreibende Nennung dessen, woran sich das Werkzeug orientiert.
 - **Keine Rechtssicherheit.** Ob ein Brief formwirksam ist, entscheidet nicht die DIN 5008.
+  Dasselbe gilt für die Urkunde, und dort erst recht: `typ: urkunde` beschreibt, wie das Blatt
+  aussieht — Titel, Unterschriftslinie, kein Anschriftfeld. Ob es eine gesetzliche Form wahrt
+  oder etwas beweist, sagt das Werkzeug nicht.
 
 ## Wie sich das ändert
 

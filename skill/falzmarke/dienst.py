@@ -149,13 +149,20 @@ def _kopf_ergaenzen(text: str, profil: str, form: str | None) -> str:
 
 def brief_rendern(brief: str, profil=None, form: str | None = None,
                   als: str = "pfad", ziel: str | None = None) -> dict:
-    """Setzt einen Brief und misst ihn nach.
+    """Setzt einen Brief und misst ihn nach — oder eine Urkunde.
+
+    Trägt das Frontmatter `typ: urkunde`, entsteht ein Schriftstück ohne
+    Anschriftfeld: Titel, auf Wunsch zwei Parteien, Unterschriftslinien. Dafür
+    gelten eigene Felder (`titel`, `parteien`, `unterschriften`, `ort_datum`,
+    `seiten_max`) und eigene Maße — Setzungen des Werkzeugs, keine der DIN 5008.
+    Das Ergebnis nennt unter `typ`, nach welcher Liste gemessen wurde.
 
     brief   Markdown mit Frontmatter — der Text selbst, nicht ein Pfad. Ein
             KI-Client hat den Brief im Kontext, nicht auf einer Platte.
     profil  Name eines Profils auf dem Server oder ein ganzes Profil-Objekt.
             Fehlt beides, gilt das im Frontmatter genannte.
     form    "A" oder "B"; ohne Angabe entscheidet Frontmatter oder Profil.
+            Eine Urkunde hat keine Form — dort nicht angeben.
     als     "pfad" (Vorgabe) oder "base64".
     ziel    Wohin das PDF soll. Ohne Angabe in ein Temporärverzeichnis, das
             stehen bleibt — der zurückgegebene Pfad muss gültig sein.
@@ -186,9 +193,17 @@ def brief_rendern(brief: str, profil=None, form: str | None = None,
             tempfile.mkdtemp(prefix="falzmarke-")) / "brief.pdf"
         pdf, gesetzte_form = rendere(quelle, ausgabe, profil_verzeichnis=verzeichnis)
         bericht = geometrie.pruefe(pdf, gesetzte_form)
+        typ = geometrie.typ_aus_metadaten(pdf)
 
         ergebnis = {
-            "form": gesetzte_form,
+            # `brief` oder `urkunde` — gelesen aus dem fertigen PDF, nicht aus
+            # der Eingabe: Der Aufrufer soll wissen, nach welcher Liste
+            # gemessen wurde. Eine Urkunde hat keine Form; das Feld darunter
+            # nennt dann nur die des Profils.
+            "typ": typ,
+            # Eine Urkunde hat keine Form; das Feld bleibt leer, statt die des
+            # Profils zu nennen und eine Faltung zu versprechen, die es nicht gibt.
+            "form": "" if typ == geometrie.TYP_URKUNDE else gesetzte_form,
             "bestanden": bericht.ok,
             "bericht": bericht.als_dict(),
             "zusammenfassung": bericht.als_text(),
@@ -299,6 +314,10 @@ def brief_pruefen(pdf_pfad: str | None = None, pdf_base64: str | None = None,
 
     Entweder pdf_pfad oder pdf_base64. Ohne form wird sie aus den Falzmarken
     abgeleitet: Form A faltet bei 87 und 192 mm, Form B bei 105 und 210.
+
+    Eine Urkunde von falzmarke weist sich im PDF aus und wird ohne `form` nach
+    ihrer eigenen Liste gemessen. Mit `form` gilt die Liste des Briefes — auch
+    gegen das, was die Datei von sich behauptet.
     """
     from falzmarke import geometrie
 
@@ -314,14 +333,27 @@ def brief_pruefen(pdf_pfad: str | None = None, pdf_base64: str | None = None,
             if not pdf.is_file():
                 raise Eingabefehler(f"Datei nicht gefunden: {pdf}")
 
+        # Eine Urkunde trägt keine Falzmarken, an denen sich eine Form ablesen
+        # ließe. Gefragt wird deshalb zuerst der Vermerk der Datei; wer `form`
+        # nennt, bekommt die Briefliste — auch gegen den Vermerk.
+        if not form and geometrie.typ_aus_metadaten(pdf) == geometrie.TYP_URKUNDE:
+            bericht = geometrie.pruefe(pdf, "", typ=geometrie.TYP_URKUNDE)
+            return {
+                "typ": geometrie.TYP_URKUNDE,
+                "form": "",
+                "bestanden": bericht.ok,
+                "bericht": bericht.als_dict(),
+                "zusammenfassung": bericht.als_text(),
+            }
         gewaehlt = (form or "").upper() or geometrie.erkenne_form(pdf) or ""
         if not gewaehlt:
             raise Eingabefehler(
                 "Die Form ließ sich nicht erkennen — es sind keine Falzmarken im "
                 "Heftrand. Mit form=\"A\" oder form=\"B\" angeben."
             )
-        bericht = geometrie.pruefe(pdf, gewaehlt)
+        bericht = geometrie.pruefe(pdf, gewaehlt, typ="brief" if form else None)
         return {
+            "typ": "brief",
             "form": gewaehlt,
             "bestanden": bericht.ok,
             "bericht": bericht.als_dict(),

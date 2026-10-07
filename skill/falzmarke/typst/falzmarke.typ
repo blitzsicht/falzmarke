@@ -154,12 +154,14 @@
   })
 }
 
-// ── Hauptfunktion ───────────────────────────────────────────────────────────
-
-#let brief(profil: (:), daten: (:), briefkopf-eigen: none, body) = {
-  let form = daten.at("form", default: "B")
-  let kopf-h = kopfhoehe.at(form)
-
+// ── Satzregeln ──────────────────────────────────────────────────────────────
+//
+// Schrift, Zeilenraster, Ueberschriften, Zitat und Auszug — alles, was den
+// Text selbst betrifft und nicht das Blatt. Auf Modulebene, weil zwei
+// Hauptfunktionen sie teilen: `brief` und `urkunde`. Zweimal hingeschrieben
+// liefen sie auseinander, und das Raster ist genau die Stelle, an der man das
+// erst merkt, wenn zwei Blaetter nebeneinanderliegen.
+#let satzregeln(profil: (:), daten: (:), body) = {
   set text(
     font: profil.at("font", default: "Libertinus Serif"),
     size: 11pt,
@@ -233,6 +235,17 @@
   // `raw` bringt von sich aus eine eigene Schriftgroesse mit; die wuerde das
   // Raster brechen.
   show raw: set text(font: ("DejaVu Sans Mono", "Menlo", "Consolas"), size: 11pt)
+
+  body
+}
+
+// ── Hauptfunktion ───────────────────────────────────────────────────────────
+
+#let brief(profil: (:), daten: (:), briefkopf-eigen: none, body) = {
+  let form = daten.at("form", default: "B")
+  let kopf-h = kopfhoehe.at(form)
+
+  show: satzregeln.with(profil: profil, daten: daten)
 
   set document(
     title: daten.betreff,
@@ -367,4 +380,264 @@
       }
     },
   )
+}
+
+// ── Urkunde: ein Schriftstück ohne Anschriftfeld ───────────────────────────
+//
+// Vereinbarung, Erklärung, Nachweis: ein Titel statt eines Betreffs, kein
+// Empfänger, dafür Unterschriften. Nichts davon regelt die DIN 5008 — alle
+// Maße dieses Abschnitts sind Setzungen des Werkzeugs (ADR 0048). Geteilt
+// mit dem Brief wird, was das Profil ausmacht: Briefkopf, Fußzeile, Schrift,
+// Ränder und das 12-pt-Raster.
+
+// Ausfüllfeld: eine leere Linie fester Länge für Handeinträge, 2 mm je
+// Unterstrich der Quelle (Dialekt 1.2).
+//
+// Ein Kasten mit Unterkante und nicht `line()`: Die Messung hält drei gleich
+// lange *Linien* untereinander für einen Tabellenrahmen und nimmt den Bereich
+// vom Zeilenraster aus (`geometrie._tabellenbereiche`). Drei Felder
+// untereinander sind der Normalfall eines Formulars — sie würden jeden
+// Rasterfehler dazwischen verstecken. Ein Kastenrand steht im PDF als flaches
+// Rechteck und nicht als Linie; damit bleibt die Tabellenerkennung, was sie
+// ist, und das Feld trotzdem messbar.
+//
+// Die Höhe liegt unter dem Zeilenkasten (0,75 em), also ändert das Feld den
+// Zeilenabstand nicht.
+#let feld-einheit = 2mm
+#let feld(n) = box(
+  width: n * feld-einheit,
+  height: 0.6em,
+  baseline: 1.5pt,
+  stroke: (bottom: 0.5pt + black),
+)
+
+// Angabentabelle: Bezeichnung und Wert, ohne Kopfzeile und ohne Rahmen
+// (Dialekt 1.2). Die Bezeichnungsspalte ist so breit wie ihr längster
+// Eintrag, der Wert bekommt den Rest der Satzbreite.
+//
+// `table` und nicht `grid`: Nur so steht /Table, /TR, /TD im PDF. Ohne Rahmen
+// erkennt die Messung sie nicht als Tabelle — sie muss das Raster deshalb
+// selbst halten: Zellen ohne Innenabstand, eine Zeile je Rasterzeile.
+#let angaben(..zellen) = block(
+  above: leer(1), below: leer(1),
+  table(
+    columns: (auto, 1fr),
+    stroke: none,
+    column-gutter: 4mm,
+    // Der Durchschuss steht ZWISCHEN den Zeilen, nicht unter jeder: Als
+    // Innenabstand hinge er auch an der letzten und schöbe alles darunter um
+    // 1 pt aus dem Raster (gemessen: 2,08 statt 2,00 Zeilen).
+    row-gutter: durchschuss,
+    inset: 0pt,
+    ..zellen,
+  ),
+)
+
+// Länge der Unterschriftslinie. Ungerade, damit sie nie mit einem
+// Ausfüllfeld zusammenfällt (das misst immer ein Vielfaches von 2 mm).
+#let unterschrift-linie = 65mm
+
+// Der Kopf der Urkunde, gestaltet nach dem Vertrag zwischen Bund und DIN von
+// 1975 (als Abdruck auf din.de): ein großer Titel ohne Fett, darunter die
+// Parteien in etwas größerer Schrift als der Text, dann eine Linie über die
+// Satzbreite. Der Titel hebt sich damit von den Abschnitten ab, die in der
+// Textgröße fett stehen — als 11 pt fett war er von ihnen nicht zu
+// unterscheiden (Rückmeldung zu #381).
+//
+// Die Größen sind so gewählt, dass jede Zeile ganze Rasterzeilen belegt: Der
+// Titel 16 pt auf 24 pt Zeilenabstand (zwei Rasterzeilen), die Parteien 12 pt
+// auf 12 pt (eine). Keine Normaussage — eine Setzung des Werkzeugs.
+#let urkunde-titel-pt = 16pt
+#let urkunde-parteien-pt = 12pt
+
+// Länge einer Paraphenlinie: kurz genug für die Fußzone, und weder 65 mm wie
+// eine Unterschrift noch ein Vielfaches von 2 mm wie ein Ausfüllfeld.
+#let paraphe-linie = 25mm
+
+// Ort-Datum-Zeile aus den Kopfdaten: Text und Ausfüllfelder im Wechsel.
+#let _teile(teile) = teile.map(t => {
+  if "feld" in t { feld(t.feld) } else { t.text }
+}).join()
+
+#let urkunde(profil: (:), daten: (:), briefkopf-eigen: none, body) = {
+  show: satzregeln.with(profil: profil, daten: daten)
+
+  set document(title: daten.titel, author: profil.absender.name)
+
+  let woerter = daten.woerter
+  let rand-unten = profil.at("rand_unten_mm", default: 42) * 1mm
+  // Kein Anschriftfeld, also auch keine Form: Die Kopfhöhe richtet sich nach
+  // dem Briefkopf des Profils, nicht nach der Lage eines Fensters. cli.py
+  // wählt 27 oder 45 mm und vermerkt die Wahl im PDF.
+  let kopf-h = daten.kopf_mm * 1mm
+
+  set page(
+    paper: "a4",
+    margin: (left: 25mm, right: 20mm, top: 20mm, bottom: rand-unten),
+    // Folgeseiten: der Titel als Kopfzeile, wie beim Brief der Betreff.
+    header: context {
+      if here().page() > 1 {
+        set text(size: 8pt)
+        daten.titel
+        v(-0.5mm)
+        line(length: 100%, stroke: 0.4pt + gray)
+      }
+    },
+    // Fuß wie letter-pro ihn setzt (vendor-Datei, Zeile 162–194): Seitenzahl
+    // nur bei mehr als einer Seite, Fußzeile nur auf der ersten. Nachgebaut,
+    // weil letter-generic das Anschriftfeld immer reserviert.
+    footer-descent: 0%,
+    footer: context {
+      show: pad.with(top: 12pt, bottom: 12pt)
+      let n = here().page()
+      let m = counter(page).final().first()
+      // Paraphen: je Unterschrift ein Feld für die Initialen, auf jeder Seite
+      // außer der letzten — die trägt die Unterschriften selbst. Sie stehen
+      // links neben der Seitenzahl und zeigen, dass die Blätter zusammengehören.
+      let paraphen = if daten.at("paraphen", default: false) and m > 1 and n < m {
+        let zahl = daten.at("unterschriften", default: ()).len()
+        stack(dir: ltr, spacing: 5mm, ..range(zahl).map(_ => box(width: paraphe-linie, {
+          // Die Fußzeile richtet rechts aus; die Beschriftung gehört unter
+          // den Anfang ihrer Linie.
+          set align(left)
+          line(length: paraphe-linie, stroke: 0.5pt)
+          v(0.6mm)
+          text(size: 7pt, woerter.paraphe)
+        })))
+      }
+      grid(
+        columns: 1fr,
+        rows: (0.65em, 1fr),
+        row-gutter: 12pt,
+        if m > 1 {
+          let zahl-text = woerter.seite.replace("{n}", str(n)).replace("{m}", str(m))
+          if paraphen != none {
+            // Die Felder ragen aus der knappen Zeile nach oben, in den freien
+            // Raum über dem Fuß; die Seitenzahl bleibt, wo sie immer steht.
+            grid(columns: (1fr, auto), column-gutter: 8mm,
+                 align(right + bottom, place(right + bottom, paraphen)), align(right, zahl-text))
+          } else {
+            align(right, zahl-text)
+          }
+        },
+        if n == 1 { fusszeile(profil) },
+      )
+    },
+  )
+
+  pad(top: -20mm, left: -25mm, right: -20mm, block(
+    width: 100%, height: kopf-h,
+    if briefkopf-eigen != none { briefkopf-eigen(profil) } else { briefkopf(profil) },
+  ))
+
+  // Der Titel ist die Überschrift erster Ebene: PDF/UA verlangt, dass die
+  // erste Überschrift eines Dokuments Ebene 1 ist, und die Abschnitte im
+  // Text sind Ebene 2. Diese show-Regel gilt nur hier; die aus `satzregeln`
+  // setzt weiter die Abschnitte.
+  show heading.where(level: 1): it => block(above: leer(2), below: 0pt, {
+    set text(size: urkunde-titel-pt, weight: "regular")
+    set par(leading: 2 * zeile - urkunde-titel-pt)
+    it.body
+  })
+  heading(level: 1, daten.titel)
+
+  let parteien = daten.at("parteien", default: ())
+  let partei(p) = {
+    strong(p.name)
+    for z in p.at("anschrift", default: ()) { linebreak(); z }
+    if p.at("zusatz", default: none) != none { linebreak(); p.zusatz }
+  }
+  // 12 pt auf 12 pt: Der Zeilenkasten ist dann genau eine Rasterzeile hoch,
+  // ohne Durchschuss.
+  let parteien-block(inhalt) = block(above: leer(1), below: 0pt, {
+    set text(size: urkunde-parteien-pt)
+    set par(leading: 0pt)
+    inhalt
+  })
+  if parteien.len() == 1 {
+    parteien-block(partei(parteien.at(0)))
+  } else if parteien.len() == 2 {
+    parteien-block(grid(
+      columns: (1fr, 1fr),
+      column-gutter: 10mm,
+      { woerter.zwischen; linebreak(); partei(parteien.at(0)) },
+      { woerter.und; linebreak(); partei(parteien.at(1)) },
+    ))
+  }
+
+  // Die Linie, die den Kopf vom Text trennt — auch ohne Parteien.
+  block(above: zeile, below: 0pt, line(length: 100%, stroke: 0.5pt))
+
+  // Blocksatz nur auf Wunsch und nur für den Text: Titel, Parteien,
+  // Ort-Datum und Unterschriften bleiben linksbündig. Gestaltung, kein Schutz
+  // gegen Einfügungen — den gäbe es nur ohne Leerräume, und Ausfüllfelder sind
+  // genau das.
+  //
+  // `overhang: false`: Typst lässt im Blocksatz Trennstriche und Satzzeichen
+  // von sich aus ein Stück in den Rand hängen. Gemessen am Musterdokument:
+  // 190,66 statt höchstens 190 mm bei „Verlei-“. Der Satzspiegel gilt hier
+  // für jedes Zeichen.
+  block(above: leer(1), below: 0pt, {
+    set par(justify: daten.at("blocksatz", default: false))
+    set text(overhang: false)
+    body
+  })
+
+  // Ort, Datum und Unterschriften bleiben zusammen: Eine Unterschrift allein
+  // auf der letzten Seite ist ein Blatt, das zu nichts gehört.
+  let unterschriften = daten.at("unterschriften", default: ())
+  // Ohne Unterschrift steht die Ort-Datum-Zeile für sich — sie still
+  // wegzulassen hieße, ein Feld der Quelle zu verwerfen (Review von #381).
+  if unterschriften.len() == 0 and daten.at("ort_datum", default: none) != none {
+    block(above: leer(1), below: 0pt, _teile(daten.ort_datum))
+  }
+  if unterschriften.len() > 0 {
+    block(breakable: false, above: leer(1), below: 0pt, {
+      let ort-datum = daten.at("ort_datum", default: none)
+      if ort-datum != none {
+        block(above: 0pt, below: leer(1), _teile(ort-datum))
+      } else {
+        // Eine leere Linie zum Eintragen, darunter, was hingehört. Die Linie
+        // steht in einem Kasten von genau einer Rasterzeile: Eine Zeile, in
+        // der nur ein Feld steht, hat keinen Zeilenkasten, der sie auf 12 pt
+        // brächte — die Beschriftung stand sonst 2,63 statt 3,00 Zeilen unter
+        // dem Text (gemessen von der Rasterprüfung).
+        block(above: 0pt, below: 0pt, height: zeile, align(bottom + left, feld(30)))
+        block(above: 0pt, below: leer(1), woerter.ort_datum)
+      }
+      // Die Rollenzeile gibt es nur, wenn jemand eine Rolle trägt — sonst
+      // stünde unter den Namen eine leere Zeile, und der Anlagenvermerk
+      // rutschte um eine nach unten.
+      //
+      // Die letzte Zeile des Gitters misst 11 pt und nicht 12: Ein Gitter hat
+      // keinen Durchschuss, den der Block darunter mit `leer(1)` ausgleichen
+      // könnte. Mit 12 pt stand der Anlagenvermerk 2,08 statt 2,00 Zeilen
+      // tiefer — gemessen von der Rasterprüfung am ersten Musterdokument.
+      let mit-rolle = unterschriften.any(u => u.at("rolle", default: none) != none)
+      let letzte = zeile - durchschuss
+      grid(
+        columns: (1fr, 1fr),
+        column-gutter: 10mm,
+        rows: if mit-rolle { (3 * zeile, zeile, letzte) } else { (3 * zeile, letzte) },
+        ..range(2).map(i => if i < unterschriften.len() {
+          grid.cell(align: bottom + left, pad(bottom: 1mm, line(length: unterschrift-linie, stroke: 0.5pt)))
+        } else { [] }),
+        ..range(2).map(i => if i < unterschriften.len() { unterschriften.at(i).name } else { [] }),
+        ..if mit-rolle {
+          range(2).map(i => if i < unterschriften.len() {
+            unterschriften.at(i).at("rolle", default: none)
+          } else { [] })
+        } else { () },
+      )
+    })
+  }
+
+  let anlagen = daten.at("anlagen", default: ())
+  if anlagen.len() > 0 {
+    block(above: leer(1), below: 0pt, {
+      strong(if anlagen.len() == 1 { woerter.anlage } else { woerter.anlagen })
+      linebreak()
+      anlagen.map(a => [#a]).join(linebreak())
+    })
+  }
 }

@@ -96,11 +96,16 @@ jobs:
         run: |
           # Relativer Pfad statt /tmp — den gibt es auf Windows-Runnern nicht.
           mkdir -p docs/renders bau
-          for datei in examples/*.md; do
+          # Die Urkunden liegen eine Ebene tiefer (ADR 0048): Der Glob davor ist
+          # nicht rekursiv, und ohne den zweiten sähe dieser Schritt nie eine.
+          for datei in examples/*.md examples/urkunde/*.md; do
             name=$(basename "$datei" .md)
             python skill/scripts/falzmarke.py render "$datei" -o "bau/$name.pdf"
             python skill/scripts/falzmarke.py preview "$datei" -o "docs/renders/$name.png" --ppi 110
           done
+          # Zählwert statt bloßer Fehlerfreiheit: Ein leerer Glob bliebe als
+          # wörtliches Muster stehen und fiele auf — ein umbenannter Ordner nicht.
+          test "$(ls bau/urkunde-*.pdf | wc -l)" -ge 2
 
       - name: E-Mail-Beispiele setzen
         shell: bash
@@ -333,7 +338,7 @@ jobs:
       - name: Beispiele rendern
         run: |
           mkdir -p bau bau-ua
-          for datei in examples/*.md; do
+          for datei in examples/*.md examples/urkunde/*.md; do
             name=$(basename "$datei" .md)
             python skill/scripts/falzmarke.py render "$datei" -o "bau/$name.pdf"
             # Zusaetzlich die Barrierefreiheitsfassung (Issue #138). Sie ist
@@ -344,6 +349,7 @@ jobs:
             python skill/scripts/falzmarke.py render "$datei" -o "bau-ua/$name.pdf" --pdfua
           done
           echo "gerendert: $(ls bau/*.pdf | wc -l) Archiv, $(ls bau-ua/*.pdf | wc -l) barrierefrei"
+          test "$(ls bau-ua/urkunde-*.pdf | wc -l)" -ge 2
 
       - name: Konformität gegen ein fremdes Werkzeug halten
         run: |

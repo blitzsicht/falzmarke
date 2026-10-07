@@ -71,7 +71,9 @@ KURZBESCHREIBUNG = "DIN-5008-Briefe und E-Mails"
 LANGBESCHREIBUNG = (
     "falzmarke setzt Geschäftsbriefe und E-Mails nach DIN 5008: Briefe als PDF mit "
     "Falz- und Lochmarken und einem Anschriftfeld, das ins Fenster des Umschlags "
-    "passt, E-Mails als .eml mit Signatur. Danach misst es das fertige PDF nach und "
+    "passt, E-Mails als .eml mit Signatur. Dazu Urkunden: Vereinbarungen, Erklärungen "
+    "und Nachweise ohne Anschriftfeld, mit Linien zum Unterschreiben — deren Maße setzt "
+    "falzmarke selbst, die Norm regelt sie nicht. Danach misst es das fertige PDF nach und "
     "zeigt den Messbericht. Den Text schreibst du mit ChatGPT, die Form übernimmt "
     "falzmarke. Alles läuft in der Sandbox von ChatGPT; es gibt keinen Server und "
     "kein Konto bei uns.\n\n"
@@ -85,6 +87,8 @@ STARTPROMPTS = [
      "12345 Musterstadt. Nutze das Beispielprofil."),
     ("Schreib eine E-Mail an kunde@example.de: Der Termin am 3. Oktober verschiebt "
      "sich auf 14 Uhr. Nutze das Beispielprofil."),
+    ("Setz mit falzmarke eine Leihvereinbarung zwischen Erika Muster und Max Muster "
+     "als Urkunde, eine Seite. Nutze das Beispielprofil."),
 ]
 
 

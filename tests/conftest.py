@@ -29,6 +29,13 @@ BEISPIELE = sorted((REPO / "examples").glob("*.md"))
 EMAIL_BEISPIELE = sorted((REPO / "examples" / "email").glob("*.md"))
 
 
+# Dasselbe für die Urkunde (ADR 0048): Sie hat kein Anschriftfeld und fiele in
+# jeder Briefabnahme durch — zu Recht. Der Unterordner hält sie aus `BEISPIELE`
+# heraus; gemessen wird sie in `tests/test_urkunde_messung.py` nach ihrer
+# eigenen Liste.
+URKUNDE_BEISPIELE = sorted((REPO / "examples" / "urkunde").glob("*.md"))
+
+
 def _typ(pfad: Path) -> str:
     """`typ:` aus dem Frontmatter, ohne YAML zu laden — wie `_fassung()` unten."""
     for zeile in pfad.read_text(encoding="utf-8").split("\n---", 1)[0].splitlines():

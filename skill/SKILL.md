@@ -1,15 +1,16 @@
 ---
 name: falzmarke
 description: >
-  Erzeugt Geschäftspost nach DIN 5008:2020: Briefe (Form A und B) als PDF mit Falz- und
-  Lochmarken, Anschriftfeld für Fensterumschläge und Briefkopf aus Absender-Profilen, und
-  E-Mails als .eml mit Text, HTML, Anhängen und Signatur.
+  Erzeugt Geschäftspost nach DIN 5008:2020: Briefe als PDF mit Falz- und Lochmarken,
+  Anschriftfeld und Briefkopf aus Profilen, und E-Mails als .eml mit Signatur. Auch
+  Urkunden ohne Anschriftfeld mit Unterschriftslinien (eigene Maße, keine Norm).
   Immer verwenden, wenn ein Brief, Anschreiben, Schreiben, Kündigung, Mahnung, Angebot,
   Mieterschreiben, Behördenschreiben, Widerspruch, Bestätigung oder "etwas zum Ausdrucken oder
-  Verschicken" gewünscht ist, ebenso bei jeder E-Mail, Mail oder Nachricht, die verschickt
-  werden soll ("Mail an den Kunden", "Antwort an das Amt"), auch wenn DIN 5008 nicht genannt
-  wird. Nie einen Brief als .docx oder frei gesetztes PDF bauen und nie eine E-Mail als
-  selbstgebautes HTML. Auch für Serienbriefe und zum Zurücklesen eines PDF als Markdown (einlesen).
+  Verschicken" gewünscht ist, bei jeder E-Mail, Mail oder Nachricht, die verschickt werden
+  soll, und bei Vereinbarung, Vertrag, Erklärung, Vollmacht oder Nachweis zum Unterschreiben,
+  auch wenn DIN 5008 nicht genannt wird. Nie Brief oder Urkunde als .docx oder frei gesetztes
+  PDF bauen und nie eine E-Mail als selbstgebautes HTML. Auch für Serienbriefe und zum
+  Zurücklesen eines PDF (einlesen).
   Die Sollwerte stammen aus Sekundärquellen; der Abgleich mit dem Originaltext der DIN 5008:2020-03 einschließlich Berichtigung 1:2020-07 steht aus, und Regeln aus einzelnen Quellen wirken nur als Warnung.
 ---
 
@@ -152,6 +153,44 @@ steckt schon darin. Sie durchläuft dieselbe Prüfung wie eigener Satz; fällt s
 Befehl mit einer Meldung, die Datei und Grund nennt, statt eine halbe Signatur zu setzen. Die
 Textfassung dazu ist `email.signatur_text`.
 
+## Eine Urkunde statt eines Briefes
+
+Eine Vereinbarung, ein Vertrag, eine Erklärung, eine Vollmacht, ein Nachweis — ein Papier, das
+**an niemanden adressiert ist und unterschrieben wird** — ist kein Brief. Es bekommt
+`typ: urkunde`: einen `titel:` statt eines Betreffs, `parteien:` statt eines Empfängers und
+`unterschriften:` mit Linien zum Unterschreiben von Hand. Kein Anschriftfeld, keine Anrede,
+kein Gruß, keine Falzmarken. Briefkopf, Fußzeile und Schrift kommen aus demselben Profil wie
+beim Brief. Die Felder stehen in `references/frontmatter.md`, Abschnitt „Urkunde".
+
+```bash
+python3 scripts/falzmarke.py lint   urkunden/2026-10-12_leihe-lastenfahrrad.md
+python3 scripts/falzmarke.py render urkunden/2026-10-12_leihe-lastenfahrrad.md --png
+```
+
+Was anders ist als beim Brief:
+
+- **`dialekt: "1.2"` setzen.** Abschnitte beginnen mit `##` (die erste Ebene ist der Titel),
+  die Nummer schreibst du selbst: `## 1. Gegenstand`.
+- **Ausfüllfelder sind Unterstriche im Text:** `Übergeben am: ______________`. Mindestens drei,
+  frei stehend, 2 mm je Unterstrich. Eine Zeile nur aus Unterstrichen bricht ab —
+  Unterschriftslinien setzt `unterschriften:`, nicht der Text.
+- **Angaben als Tabelle mit leerer Kopfzeile** (`|   |   |`): Bezeichnung und Wert, ohne Rahmen.
+- **Soll es auf eine Seite passen, `seiten_max: 1` setzen.** Dann ist `render` rot, wenn es
+  zwei werden — und sagt es. Passt es nicht, wird das gemeldet und **nicht gekürzt**: Ein
+  gekürzter Vertrag ist ein anderer Vertrag (siehe „Was bei Exit 2 nicht geändert wird").
+- **`blocksatz: true`** und, bei mehr als einer Seite, **`paraphen: true`** (Felder für Initialen
+  auf jeder Seite außer der letzten) nur setzen, wenn der Nutzer es will.
+- **Nichts erfinden.** falzmarke kennt keine Klauseln und keine Muster. `zusatz:` einer Partei
+  wird wörtlich gesetzt; was darin steht, kommt vom Verfasser.
+
+**Was nicht behauptet wird:** Die Maße einer Urkunde sind Setzungen des Werkzeugs, keine der
+DIN 5008 — die Norm sagt zu einem Blatt ohne Anschriftfeld nichts. Und ob ein Papier damit
+eine Schriftform wahrt oder wirksam ist, entscheidet nicht falzmarke. Wer danach fragt,
+bekommt diese Auskunft.
+
+Für eine Urkunde gibt es keine E-Mail-Fassung und keinen Serienlauf; `email` und `serie`
+brechen mit einer Meldung ab.
+
 ## Weitere Befehle
 
 Sechs Befehle gehören nicht zu jedem Brief und stehen deshalb nicht im Ablauf oben. Zwei davon
@@ -223,7 +262,10 @@ Werkzeuge aufrufen kann statt über die Kommandozeile. Kein Befehl für den Brie
   **Ohne das Feld gilt Fassung 1.0** — ein bestehender Brief ändert sich nie.
 - **Anschrift**: höchstens 6 Zeilen, keine Leerzeilen.
 - **Vermerke** (Einschreiben, Persönlich): höchstens 3 Zeilen.
-- **Informationsblock**: je Wert höchstens 32 Zeichen.
+- **Informationsblock**: je Wert höchstens 21 Zeichen.
+- **Ausfüllfelder** (`________`) und die **Tabelle ohne Kopfzeile** brauchen `dialekt: "1.2"`.
+  Darunter bleiben Unterstriche wörtlicher Text.
+- **Urkunde**: höchstens zwei Parteien und zwei Unterschriften, kein Signaturbild.
 - **Keine Bilder im Fließtext.** Ein Logo gehört ins Profil, und eine erzeugte Nachricht
   trägt höchstens ein Bild.
 
@@ -238,11 +280,13 @@ Werkzeuge aufrufen kann statt über die Kommandozeile. Kein Befehl für den Brie
 
 ## Weiterführende Dateien
 
-- `references/frontmatter.md` — alle Felder mit Beispielen. Bei Unsicherheit über ein Feld lesen.
+- `references/frontmatter.md` — alle Felder mit Beispielen, je Typ ein Abschnitt (Brief,
+  E-Mail, Rechnung, Urkunde). Bei Unsicherheit über ein Feld lesen.
   Ein Feld, das dort nicht steht, lehnt `lint` ab — es gibt keine stillen Zusatzfelder.
 - `references/markdown.md` — **was im Brieftext erlaubt ist.** Vor dem ersten Brief lesen:
   Bilder und HTML brechen ab, Links gehen nur in E-Mails; Überschriften, Zitate und Code gehen mit
-  `dialekt: "1.1"` in Brief und E-Mail. Ein Auszug wird nie typografisch geändert, und das Werkzeug bricht ihn
+  `dialekt: "1.1"` in Brief und E-Mail, Ausfüllfelder und die Tabelle ohne Kopfzeile mit
+  `dialekt: "1.2"`. Ein Auszug wird nie typografisch geändert, und das Werkzeug bricht ihn
   nicht um; eine Zeile über 68 Zeichen bricht allerdings der Satz um oder sie läuft über —
   `lint` meldet sie deshalb vorher.
 

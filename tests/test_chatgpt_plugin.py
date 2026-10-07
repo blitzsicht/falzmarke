@@ -40,7 +40,9 @@ UTF8 = {"PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
 #: Laden nur die description — was dort fehlt, löst nicht aus.
 AUSLOESER = ["Brief", "Anschreiben", "Kündigung", "Mahnung", "Angebot", "Widerspruch",
              "Behördenschreiben", "Mieterschreiben", "E-Mail", "Mail", "Nachricht",
-             "Serienbrief", "einlesen"]
+             "Serienbrief", "einlesen",
+             # Die Urkunde (ADR 0048). `typ: urkunde` sucht niemand — gesagt wird eines davon.
+             "Urkunde", "Vereinbarung", "Vertrag", "Erklärung", "Vollmacht", "Nachweis"]
 
 
 def _packer():

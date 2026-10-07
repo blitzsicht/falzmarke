@@ -106,6 +106,19 @@ rechnung.md  (typ: rechnung)
    ↓ xml       nur die XML, ohne PDF — der Weg an öffentliche Auftraggeber
 ```
 
+```
+urkunde.md  (typ: urkunde)
+   ↓ lint      dieselbe Vorprüfung, eigene Felder
+   ↓ render    setzen — misst danach nach der Liste der Urkunde
+urkunde.pdf/a
+   ↓ verify    die fertige Datei nachmessen; der Typ steht als Vermerk im PDF
+```
+
+Eine Urkunde hat kein Anschriftfeld und keine Falzmarken, also auch keine Form. `verify`
+braucht für sie kein `--form`; wer es trotzdem angibt, bekommt die Prüfliste des Briefes — auch
+gegen den Vermerk der Datei. `email` und `serie` gibt es für eine Urkunde nicht. Einzelheiten in
+[Urkunden mit falzmarke](urkunde.md).
+
 `xml` prüft vorweg wie `render` und schreibt bei einem Fehler nichts. Typst läuft dabei nicht.
 Die Zeile nach dem Schreiben nennt Ausprägung und Guideline-ID, **gelesen aus der geschriebenen
 Datei**. Einzelheiten in [Die Rechnungsfassung](../skill/references/frontmatter.md).
@@ -198,6 +211,11 @@ Informationsblocks, die Betreffposition relativ zum tiefer reichenden der beiden
 Satzspiegel, die Zeilenabstände im 12-pt-Raster, eingebettete Schriften, die PDF/A-Kennzeichnung
 und die Folgeseiten.
 
+Bei einer Urkunde: Seitenformat, Satzspiegel, Zeilenraster und eingebettete Schriften wie beim
+Brief, dazu die Seitenzahl gegen `seiten_max`, die Lage des Titels, dass keine Linie aus dem
+Satzspiegel reicht und keine Marke im Heftrand steht, und die Unterschriftslinien. Diese Maße
+sind Setzungen des Werkzeugs, keine der Norm.
+
 Bei einer Nachricht: der MIME-Aufbau und die Reihenfolge der Alternativen, `format=flowed` samt
 Space-Stuffing, die Signaturtrennzeile, dass Text- und HTML-Teil dasselbe sagen, dass im HTML
 weder Skript noch externes Stylesheet noch Zählpixel steht, und die Grenzen für Zeilenlänge und
@@ -213,3 +231,4 @@ Woher die Sollwerte stammen und wie belastbar sie sind, steht in
 - [falzmarke-Markdown](../skill/references/markdown.md) — was im Brieftext erlaubt ist
 - [Absenderprofile](profiles.md)
 - [Die E-Mail-Fassung](email.md) — Aufbau der `.eml`, Teile, Grenzen
+- [Urkunden](urkunde.md) — das Schriftstück ohne Anschriftfeld

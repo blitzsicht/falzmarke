@@ -29,6 +29,9 @@ REGELDATEIEN = {
     # Der Datenvertrag `typ: rechnung` (#115). Wie `email.yaml` mit Ebenenpflicht:
     # Jede Regel sagt, wovon sie redet (ADR 0035).
     Path(__file__).parent / "rechnung.yaml": True,
+    # Die Urkunde (ADR 0048). Alles darin ist Ebene `werkzeug`: Die Norm sagt
+    # zu einem Blatt ohne Anschriftfeld nichts.
+    Path(__file__).parent / "urkunde.yaml": True,
 }
 
 #: Fuer Fehlermeldungen, die keine bestimmte Datei meinen.
