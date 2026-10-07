@@ -2,6 +2,12 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.9.15 — 07.10.2026
+
+### Behoben
+
+- **„Rechnung“ löst keine Kürzel-Warnung mehr aus.** `lint` hat bisher hinter jedem „Rechnung“ ein geschütztes Leerzeichen verlangt, also auch bei „unsere Rechnung für …“ oder „Rechnung Apple“, als wäre das Wort ein Kürzel wie `Nr.`. In den mitgelieferten Beispielen waren neun von elf solchen Warnungen Fehlalarme. Jetzt warnt die Regel `schreibweise.kuerzel_vor_angabe` nur noch hinter echten Kürzeln. Für „Rechnung Nr. 2026-0815“ kommt die Warnung weiterhin, ausgelöst von `Nr.` statt von „Rechnung“. (#386)
+
 ## v0.9.14 — 07.10.2026
 
 ### Neu
