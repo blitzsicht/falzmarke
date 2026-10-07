@@ -364,3 +364,30 @@ def test_der_doku_test_wird_rot_wenn_ein_feld_fehlt():
     abschnitt = text.split("\n## Urkunde\n", 1)[1].split("\n## ", 1)[0]
     ohne = abschnitt.replace("seiten_max", "XXX")
     assert "seiten_max" in abschnitt and "`seiten_max`" not in ohne and "seiten_max:" not in ohne
+
+
+# ── blocksatz und paraphen ──────────────────────────────────────────────────
+
+@pytest.mark.parametrize("feld", ["blocksatz", "paraphen"])
+@pytest.mark.parametrize("wert", ["ja", "1", "nein"])   # `on`/`off` liest YAML als Wahrheitswert
+def test_schalter_sind_wahrheitswerte(feld, wert):
+    assert _regeln(_mit(f"{feld}: {wert}")) == [f"urkunde.{feld}"]
+
+
+@pytest.mark.parametrize("feld", ["blocksatz", "paraphen"])
+def test_schalter_gueltig(feld):
+    assert _regeln(_mit(f"{feld}: true")) == []
+    assert _regeln(_mit(f"{feld}: false")) == []
+
+
+@pytest.mark.parametrize("kopf", [
+    "profil: example\ntyp: urkunde\ntitel: Probe\nparaphen: true\n",
+    "profil: example\ntyp: urkunde\ntitel: Probe\nparteien:\n  - name: A\n"
+    "unterschriften: []\nparaphen: true\n",
+])
+def test_paraphen_ohne_unterschriften(kopf):
+    assert _regeln(kopf) == ["urkunde.paraphen"]
+
+
+def test_paraphen_mit_unterschriften_aus_den_parteien():
+    assert _regeln(_ohne("unterschriften") + "paraphen: true\n") == []

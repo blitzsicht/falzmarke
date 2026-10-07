@@ -1339,11 +1339,57 @@ def test_urkunde_titel_an_falscher_stelle(tmp_path):
     assert rot == {"Titel, y-Oberkante"}, rot
 
 
-def test_urkunde_titel_nicht_fett(tmp_path):
-    kopie = _sabotiere(tmp_path, "falzmarke.typ", '"1": (weight: "bold", style: "normal", davor: 2),',
-                       '"1": (weight: "regular", style: "normal", davor: 2),')
+def test_urkunde_titel_in_textgroesse(tmp_path):
+    """Der Befund, mit dem die Rückmeldung zu #381 begann: ein Titel in 11 pt,
+    der sich von den Abschnitten nicht abhebt."""
+    kopie = _sabotiere(tmp_path, "falzmarke.typ", "#let urkunde-titel-pt = 16pt",
+                       "#let urkunde-titel-pt = 11pt")
     rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie))
-    assert rot == {"Titel, fett"}, rot
+    assert "Titel, Schriftgröße" in rot, rot
+    assert rot <= {"Titel, Schriftgröße", "Seite 1, Zeilenraster"}, rot
+
+
+def test_urkunde_ohne_trennlinie(tmp_path):
+    kopie = _sabotiere(tmp_path, "falzmarke.typ",
+                       "  block(above: zeile, below: 0pt, line(length: 100%, stroke: 0.5pt))",
+                       "  block(above: zeile, below: 0pt, [])")
+    rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie))
+    assert rot == {"Trennlinie unter dem Kopf"}, rot
+
+
+def test_urkunde_parteien_in_textgroesse(tmp_path):
+    kopie = _sabotiere(tmp_path, "falzmarke.typ", "#let urkunde-parteien-pt = 12pt",
+                       "#let urkunde-parteien-pt = 11pt")
+    rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie))
+    assert "Parteien, Schriftgröße" in rot, rot
+    assert rot <= {"Parteien, Schriftgröße", "Seite 1, Zeilenraster"}, rot
+
+
+URKUNDE_PARAPHEN = (
+    "---\nprofil: example\ntyp: urkunde\ndialekt: \"1.2\"\ntitel: Probe\n"
+    "parteien:\n  - name: Beispiel GmbH\n  - name: Max Muster\nparaphen: true\n---\n\n"
+    "## 1. Füllung\n\n" + "\n\n".join(
+        f"Absatz {i}: Dieser Text füllt die Seite, damit die Unterschriften auf die "
+        "zweite rutschen und die erste ihre Paraphen trägt." for i in range(1, 26)) + "\n")
+
+
+def test_urkunde_paraphe_fehlt_auf_der_ersten_seite(tmp_path):
+    quelle = tmp_path / "paraphen.md"
+    quelle.write_text(URKUNDE_PARAPHEN, encoding="utf-8")
+    pdf, _ = falzmarke.rendere(quelle, tmp_path / "gut.pdf")
+    assert _urkunde_gescheitert(pdf) == set()                    # Kontrollprobe
+    kopie = _sabotiere(tmp_path, "falzmarke.typ",
+                       '        let zahl = daten.at("unterschriften", default: ()).len()',
+                       '        let zahl = daten.at("unterschriften", default: ()).len() - 1')
+    rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie, quelle))
+    assert rot == {"Paraphen"}, rot
+
+
+def test_urkunde_blocksatz_ohne_randschutz(tmp_path):
+    """Ohne `overhang: false` hängt Typst Trennstriche in den Rand — gemessen 190,66 mm."""
+    kopie = _sabotiere(tmp_path, "falzmarke.typ", "    set text(overhang: false)\n", "")
+    rot = _urkunde_gescheitert(_rendere_urkunde(tmp_path, kopie))
+    assert rot == {"Seite 1, rechter Rand"}, rot
 
 
 def test_urkunde_mit_falzmarken_ist_ein_brief(tmp_path):

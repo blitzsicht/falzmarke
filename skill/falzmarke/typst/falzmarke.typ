@@ -437,6 +437,23 @@
 // Ausfüllfeld zusammenfällt (das misst immer ein Vielfaches von 2 mm).
 #let unterschrift-linie = 65mm
 
+// Der Kopf der Urkunde, gestaltet nach dem Vertrag zwischen Bund und DIN von
+// 1975 (als Abdruck auf din.de): ein großer Titel ohne Fett, darunter die
+// Parteien in etwas größerer Schrift als der Text, dann eine Linie über die
+// Satzbreite. Der Titel hebt sich damit von den Abschnitten ab, die in der
+// Textgröße fett stehen — als 11 pt fett war er von ihnen nicht zu
+// unterscheiden (Rückmeldung zu #381).
+//
+// Die Größen sind so gewählt, dass jede Zeile ganze Rasterzeilen belegt: Der
+// Titel 16 pt auf 24 pt Zeilenabstand (zwei Rasterzeilen), die Parteien 12 pt
+// auf 12 pt (eine). Keine Normaussage — eine Setzung des Werkzeugs.
+#let urkunde-titel-pt = 16pt
+#let urkunde-parteien-pt = 12pt
+
+// Länge einer Paraphenlinie: kurz genug für die Fußzone, und weder 65 mm wie
+// eine Unterschrift noch ein Vielfaches von 2 mm wie ein Ausfüllfeld.
+#let paraphe-linie = 25mm
+
 // Ort-Datum-Zeile aus den Kopfdaten: Text und Ausfüllfelder im Wechsel.
 #let _teile(teile) = teile.map(t => {
   if "feld" in t { feld(t.feld) } else { t.text }
@@ -474,12 +491,34 @@
       show: pad.with(top: 12pt, bottom: 12pt)
       let n = here().page()
       let m = counter(page).final().first()
+      // Paraphen: je Unterschrift ein Feld für die Initialen, auf jeder Seite
+      // außer der letzten — die trägt die Unterschriften selbst. Sie stehen
+      // links neben der Seitenzahl und zeigen, dass die Blätter zusammengehören.
+      let paraphen = if daten.at("paraphen", default: false) and m > 1 and n < m {
+        let zahl = daten.at("unterschriften", default: ()).len()
+        stack(dir: ltr, spacing: 5mm, ..range(zahl).map(_ => box(width: paraphe-linie, {
+          // Die Fußzeile richtet rechts aus; die Beschriftung gehört unter
+          // den Anfang ihrer Linie.
+          set align(left)
+          line(length: paraphe-linie, stroke: 0.5pt)
+          v(0.6mm)
+          text(size: 7pt, woerter.paraphe)
+        })))
+      }
       grid(
         columns: 1fr,
         rows: (0.65em, 1fr),
         row-gutter: 12pt,
         if m > 1 {
-          align(right, woerter.seite.replace("{n}", str(n)).replace("{m}", str(m)))
+          let zahl-text = woerter.seite.replace("{n}", str(n)).replace("{m}", str(m))
+          if paraphen != none {
+            // Die Felder ragen aus der knappen Zeile nach oben, in den freien
+            // Raum über dem Fuß; die Seitenzahl bleibt, wo sie immer steht.
+            grid(columns: (1fr, auto), column-gutter: 8mm,
+                 align(right + bottom, place(right + bottom, paraphen)), align(right, zahl-text))
+          } else {
+            align(right, zahl-text)
+          }
         },
         if n == 1 { fusszeile(profil) },
       )
@@ -493,7 +532,13 @@
 
   // Der Titel ist die Überschrift erster Ebene: PDF/UA verlangt, dass die
   // erste Überschrift eines Dokuments Ebene 1 ist, und die Abschnitte im
-  // Text sind Ebene 2.
+  // Text sind Ebene 2. Diese show-Regel gilt nur hier; die aus `satzregeln`
+  // setzt weiter die Abschnitte.
+  show heading.where(level: 1): it => block(above: leer(2), below: 0pt, {
+    set text(size: urkunde-titel-pt, weight: "regular")
+    set par(leading: 2 * zeile - urkunde-titel-pt)
+    it.body
+  })
   heading(level: 1, daten.titel)
 
   let parteien = daten.at("parteien", default: ())
@@ -502,10 +547,17 @@
     for z in p.at("anschrift", default: ()) { linebreak(); z }
     if p.at("zusatz", default: none) != none { linebreak(); p.zusatz }
   }
+  // 12 pt auf 12 pt: Der Zeilenkasten ist dann genau eine Rasterzeile hoch,
+  // ohne Durchschuss.
+  let parteien-block(inhalt) = block(above: leer(1), below: 0pt, {
+    set text(size: urkunde-parteien-pt)
+    set par(leading: 0pt)
+    inhalt
+  })
   if parteien.len() == 1 {
-    block(above: leer(1), below: 0pt, partei(parteien.at(0)))
+    parteien-block(partei(parteien.at(0)))
   } else if parteien.len() == 2 {
-    block(above: leer(1), below: 0pt, grid(
+    parteien-block(grid(
       columns: (1fr, 1fr),
       column-gutter: 10mm,
       { woerter.zwischen; linebreak(); partei(parteien.at(0)) },
@@ -513,7 +565,23 @@
     ))
   }
 
-  block(above: leer(1), below: 0pt, body)
+  // Die Linie, die den Kopf vom Text trennt — auch ohne Parteien.
+  block(above: zeile, below: 0pt, line(length: 100%, stroke: 0.5pt))
+
+  // Blocksatz nur auf Wunsch und nur für den Text: Titel, Parteien,
+  // Ort-Datum und Unterschriften bleiben linksbündig. Gestaltung, kein Schutz
+  // gegen Einfügungen — den gäbe es nur ohne Leerräume, und Ausfüllfelder sind
+  // genau das.
+  //
+  // `overhang: false`: Typst lässt im Blocksatz Trennstriche und Satzzeichen
+  // von sich aus ein Stück in den Rand hängen. Gemessen am Musterdokument:
+  // 190,66 statt höchstens 190 mm bei „Verlei-“. Der Satzspiegel gilt hier
+  // für jedes Zeichen.
+  block(above: leer(1), below: 0pt, {
+    set par(justify: daten.at("blocksatz", default: false))
+    set text(overhang: false)
+    body
+  })
 
   // Ort, Datum und Unterschriften bleiben zusammen: Eine Unterschrift allein
   // auf der letzten Seite ist ein Blatt, das zu nichts gehört.

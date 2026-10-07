@@ -26,7 +26,7 @@ nebeneinandergelegt aus wie aus einer Hand.
 
 | | Brief | Urkunde |
 |---|---|---|
-| Über dem Text | Anschriftfeld, Informationsblock, Betreff, Anrede | Titel, auf Wunsch die Parteien |
+| Über dem Text | Anschriftfeld, Informationsblock, Betreff, Anrede | Titel in 16 pt, auf Wunsch die Parteien in 12 pt, eine Linie über die Satzbreite |
 | Kopfhöhe | nach der Form: 27 mm (A) oder 45 mm (B) | nach dem Briefkopf: 27 mm, wenn er hineinpasst, sonst 45 mm |
 | Falz- und Lochmarken | ja | nein — es gibt kein Fenster, auf das zu falten wäre |
 | Unter dem Text | Gruß, Unterschriftsraum, Name | Zeile für Ort und Datum, ein oder zwei Unterschriftslinien |
@@ -36,6 +36,23 @@ nebeneinandergelegt aus wie aus einer Hand.
 **`dialekt: "1.2"` gehört in jede Urkunde.** Ohne das Feld gilt auch hier Fassung 1.0, und die
 kennt weder Abschnittsüberschriften noch Ausfüllfelder. `falzmarke init --typ urkunde` schreibt
 das Feld in die Vorlage.
+
+## Kopf, Blocksatz und Paraphen
+
+Der Kopf folgt dem Vertrag zwischen Bund und DIN von 1975, wie er als Abdruck auf din.de steht:
+ein großer Titel ohne Fett, die Parteien in etwas größerer Schrift als der Text, darunter eine
+Linie über die Satzbreite. Das Dokument ist ein Vorbild für die Gestaltung, keine Norm.
+
+Mit `blocksatz: true` steht der Text im Blocksatz. Das ist Gestaltung: Gegen nachträgliche
+Einfügungen schützt Blocksatz nicht, das täte nur ein Blatt ohne Leerräume.
+
+Mit `paraphen: true` steht bei mehr als einer Seite auf jeder Seite außer der letzten neben der
+Seitenzahl je Unterschrift ein Feld „Paraphe“. Die Initialen zeigen, dass die Blätter
+zusammengehören; was das rechtlich bewirkt, sagt falzmarke nicht.
+
+**Nicht übernommen** aus verbreiteten Layoutempfehlungen für Verträge: eine Pflicht zu
+serifenloser Schrift (die Schrift kommt aus dem Profil) und 1,15- oder 1,5-zeiliger Satz (er
+bräche das 12-pt-Raster, das Brief und Urkunde teilen).
 
 ## Ausfüllfelder und Angaben
 
@@ -61,7 +78,9 @@ Unterschriften und der erlaubten Seitenzahl.
 | Seitengröße, Satzspiegel, Zeilenraster, Schriften | wie beim Brief, mit denselben Funktionen |
 | Keine Marken im Heftrand | das Blatt ist kein Brief |
 | Seitenzahl | höchstens `seiten_max`; ohne das Feld nennt der Bericht nur die Zahl |
-| Titel | fett, am linken Rand, zwei Leerzeilen unter dem Kopf |
+| Titel | 16 pt, am linken Rand, zwei Leerzeilen unter dem Kopf |
+| Kopf | Parteien in 12 pt, darunter eine Linie über die Satzbreite |
+| Paraphen (mit `paraphen: true`) | je Unterschrift ein Feld auf jeder Seite außer der letzten |
 | Linien im Satzspiegel | keine waagerechte Linie reicht über die Ränder — auch kein Ausfüllfeld |
 | Unterschriftslinien | Anzahl, 65 mm Länge, auf der letzten Seite, gleiche Höhe, mindestens 10 mm Abstand, drei Zeilen Raum darüber, der Name darunter |
 
@@ -81,6 +100,8 @@ Briefes.
 - **Keine Inhalte.** falzmarke kennt keine Klauseln und keine Muster. Die festen Wörter des
   Werkzeugs sind „zwischen", „und" und „Ort, Datum"; alles andere schreibt der Verfasser. Die
   Beispiele zeigen die Form — sie sind keine Vorlage für einen Vertrag und keine Rechtsberatung.
+- **Keine Zertifikate.** „Urkunde“ meint hier ein unterschriebenes Schriftstück, keine
+  Ehren- oder Teilnahmeurkunde auf Karton oder in A3.
 - **Keine digitale Signatur.** Siehe [#14](https://github.com/blitzsicht/falzmarke/issues/14)
   (Digitale Signatur des PDF, PAdES).
 

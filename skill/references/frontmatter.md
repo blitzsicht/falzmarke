@@ -671,6 +671,8 @@ unterschriften:                 # optional, 1 oder 2 Einträge
 anlagen:                        # optional, der Vermerk unter den Unterschriften
   - Übergabeprotokoll
 seiten_max: 1                   # optional. Mehr Seiten → `verify` ist rot
+blocksatz: true                 # optional, Text im Blocksatz; Vorgabe: Flattersatz
+paraphen: true                  # optional, ab zwei Seiten Felder für Initialen
 sprache: de                     # de oder en, wie beim Brief
 ---
 ```
@@ -694,6 +696,8 @@ Die Verleiherin überlässt dem Entleiher …
 | `unterschriften` | je Eintrag eine Linie von 65 mm mit drei Zeilen Raum darüber, darunter `name` und `rolle` | jede Partei unterschreibt; ohne Parteien gibt es keinen Unterschriftsblock |
 | `anlagen` | Vermerk unter den Unterschriften | kein Vermerk |
 | `seiten_max` | das Schriftstück darf höchstens so viele Seiten haben | keine Grenze; der Bericht nennt die Seitenzahl |
+| `blocksatz` | `true` setzt den Text im Blocksatz; Kopf, Ort-Datum und Unterschriften bleiben linksbündig | Flattersatz |
+| `paraphen` | `true` setzt bei mehr als einer Seite auf jeder Seite außer der letzten je Unterschrift ein Feld „Paraphe“ neben die Seitenzahl | keine Paraphen |
 
 **`zusatz` und `rolle` sind zweierlei.** Der Zusatz einer Partei wird gesetzt, wie er
 geschrieben ist — mit Klammern und Anführungszeichen. Das Werkzeug schreibt keine Formel
@@ -716,6 +720,15 @@ ein Fehler. Die Zeile wird nicht umformatiert; ein Ausfüllfeld darin ist erlaub
 | `anrede`, `gruss`, `signatur`, `form`, `vermerke`, `infoblock`, `betreff_kurz`, `verteiler`, `anlagen_dateien`, `eingebettet` | entfällt — `lint` meldet das Feld |
 
 Ein unbekanntes Feld bricht ab, wie überall.
+
+**`blocksatz` ist Gestaltung, kein Schutz.** Gegen nachträgliche Einfügungen hilft er nicht —
+das täte nur ein Blatt ohne Leerräume, und Ausfüllfelder sind genau das.
+
+### Der Kopf
+
+Titel in 16 pt ohne Fett, darunter die Parteien in 12 pt, dann eine Linie über die
+Satzbreite — gestaltet nach dem Vertrag zwischen Bund und DIN von 1975. Die Linie steht auch
+ohne Parteien. Abschnittsüberschriften bleiben in Textgröße fett; so hebt sich der Titel ab.
 
 ### Der Text
 

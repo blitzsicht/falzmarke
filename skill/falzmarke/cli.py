@@ -326,6 +326,8 @@ def baue_daten_urkunde(kopf: dict, profil: dict) -> dict:
         "unterschriften": unterschriften,
         "anlagen": als_liste(kopf.get("anlagen")),
         "seiten_max": kopf.get("seiten_max"),
+        "blocksatz": kopf.get("blocksatz") is True,
+        "paraphen": kopf.get("paraphen") is True,
     }
     if kopf.get("ort_datum"):
         daten["ort_datum"] = _urkunde_teile(str(kopf["ort_datum"]).strip())
@@ -1246,6 +1248,8 @@ def rendere(
                 "/falzmarke_Typ": "urkunde",
                 "/falzmarke_Kopf_mm": str(daten["kopf_mm"]),
                 "/falzmarke_Unterschriften": str(len(daten["unterschriften"])),
+                "/falzmarke_Parteien": str(len(daten["parteien"])),
+                "/falzmarke_Paraphen": "1" if daten["paraphen"] else "0",
             }
             if daten.get("seiten_max"):
                 zusatz["/falzmarke_Seiten_max"] = str(daten["seiten_max"])

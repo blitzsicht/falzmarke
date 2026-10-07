@@ -162,6 +162,16 @@ UNTERSCHRIFT_NAME_MAX = 2.0
 #: Ein Unterstrich der Quelle ergibt 2 mm Ausfüllfeld (`feld-einheit`).
 FELD_EINHEIT = 2.0
 
+#: Der Kopf der Urkunde nach dem Vertrag zwischen Bund und DIN von 1975: der
+#: Titel in 16 pt ohne Fett, die Parteien in 12 pt, darunter eine Linie über
+#: die Satzbreite (`urkunde-titel-pt`, `urkunde-parteien-pt` in falzmarke.typ).
+URKUNDE_TITEL_PT = 16.0
+URKUNDE_PARTEIEN_PT = 12.0
+
+#: Länge eines Paraphenfeldes (`paraphe-linie`): weder 65 mm wie eine
+#: Unterschrift noch ein Vielfaches von 2 mm wie ein Ausfüllfeld.
+PARAPHE_LINIE = 25.0
+
 
 #: Die Stufen einer Prüfung. `FEHLER` ist die Vorgabe — ein neuer Aufruf wirkt
 #: damit wie jeder bisherige, und die Briefmaße bleiben unberührt.
@@ -828,20 +838,57 @@ def _pruefe_urkunde(pdf_pfad: Path, briefseiten: int | None = None) -> Bericht:
         "Kopfhöhe laut Vermerk", kopf_gilt,
         " oder ".join(f"{h:.0f}" for h in URKUNDE_KOPFHOEHEN) + " mm",
         f"{kopf} mm" if kopf is not None else "fehlt")
-    koerper = [s for s in _spans(erste) if abs(s.groesse - KOERPER_PT) < 0.3]
+    alle_erste = _spans(erste)
+    koerper = [s for s in alle_erste if abs(s.groesse - KOERPER_PT) < 0.3]
+    erste_textzeile = min((s.y0 for s in koerper), default=SEITE_HOEHE)
+    titel_unten = None
     if kopf_gilt:
-        unter_kopf = [s for s in koerper if s.y0 >= float(kopf)]
-        zeilen = _zeilen_gruppieren(unter_kopf)
+        # Der Titel ist die erste Zeile unter dem Kopf, gleich in welcher Größe:
+        # Nur so fällt ein Titel auf, der in der Textgröße steht.
+        zeilen = _zeilen_gruppieren(
+            sorted((s for s in alle_erste if s.y0 >= float(kopf)), key=lambda s: (round(s.y0, 1), s.x0)))
         if zeilen:
             titel = zeilen[0]
+            titel_unten = max(s.y1 for s in titel)
             bericht.wert("Titel, y-Oberkante", titel[0].y0,
                          float(kopf) + URKUNDE_TITEL_UNTER_KOPF, 0.3)
-            bericht.wert("Titel, x-links", titel[0].x0, RAND_LINKS, 0.3)
-            bericht.wahr("Titel, fett", all(s.fett for s in titel), "fett",
-                         "fett" if all(s.fett for s in titel)
-                         else f"„{_kurz(' '.join(s.text for s in titel))}“ ist nicht fett")
+            bericht.wert("Titel, x-links", min(s.x0 for s in titel), RAND_LINKS, 0.3)
+            groesse = max(s.groesse for s in titel)
+            bericht.add("Titel, Schriftgröße", f"{URKUNDE_TITEL_PT:.0f} pt", f"{groesse:.1f} pt",
+                        "±0,3", abs(groesse - URKUNDE_TITEL_PT) <= 0.3)
         else:
             bericht.wahr("Titel vorhanden", False, "eine Zeile unter dem Kopf", "nicht gefunden")
+
+    # Die Trennlinie zwischen Kopf und Text: die oberste Linie über die
+    # Satzbreite unter dem Titel — und unter ihr muss Text stehen, sonst ist es
+    # die Linie über der Fußzeile. Gesucht wird nicht „bis zur ersten
+    # Textzeile": Steht der Titel selbst in Textgröße, wäre er diese Zeile, und
+    # die Prüfung meldete eine fehlende Linie statt des falschen Titels
+    # (gefunden von der Gegenprobe zur Titelgröße).
+    if titel_unten is not None:
+        breite = sorted(w for w in _waagerechte(erste)
+                        if w[3] and w[0] > titel_unten
+                        and abs((w[2] - w[1]) - BREITE_SATZSPIEGEL) <= 0.3)
+        trenner = []
+        if breite:
+            bis = breite[1][0] if len(breite) > 1 else SEITE_HOEHE
+            if any(breite[0][0] < s.y0 < bis for s in koerper):
+                trenner = [breite[0]]
+        bericht.wahr("Trennlinie unter dem Kopf", len(trenner) == 1,
+                     f"eine Linie über {BREITE_SATZSPIEGEL:.0f} mm zwischen Titel und Text",
+                     f"{len(trenner)} gefunden")
+
+        # Die Parteien: was zwischen Titel und Linie steht, in 12 pt.
+        if (_ganzzahl(vermerk, "/falzmarke_Parteien") or 0) > 0:
+            unten = trenner[0][0] if trenner else erste_textzeile
+            kopftext = [s for s in alle_erste if titel_unten <= s.y0 < unten]
+            falsch = [s for s in kopftext if abs(s.groesse - URKUNDE_PARTEIEN_PT) > 0.3]
+            bericht.wahr(
+                "Parteien, Schriftgröße", bool(kopftext) and not falsch,
+                f"{URKUNDE_PARTEIEN_PT:.0f} pt",
+                "nicht gefunden" if not kopftext else
+                (f"{URKUNDE_PARTEIEN_PT:.0f} pt" if not falsch
+                 else f"„{_kurz(falsch[0].text)}“ in {falsch[0].groesse:.1f} pt"))
 
     # Linien im Satzspiegel, je Seite. Auf der ersten Seite erst unterhalb des
     # Kopfes: Ein Logo darf Striche tragen, die niemand misst.
@@ -904,6 +951,21 @@ def _pruefe_urkunde(pdf_pfad: Path, briefseiten: int | None = None) -> Bericht:
         bericht.add(
             "Unterschriftslinien, Abstand", f"≥ {UNTERSCHRIFT_ABSTAND_MIN}",
             f"{b[1] - a[2]:.2f}", "—", b[1] - a[2] >= UNTERSCHRIFT_ABSTAND_MIN)
+
+    # Paraphen: je Unterschrift ein 25-mm-Feld auf jeder Seite außer der
+    # letzten. Nur wenn die Quelle sie verlangt hat.
+    if vermerk.get("/falzmarke_Paraphen") == "1":
+        je_seite = [sum(1 for w in _waagerechte(seite)
+                        if w[3] and abs((w[2] - w[1]) - PARAPHE_LINIE) <= 0.3)
+                    for seite in seiten]
+        soll = erwartet or 0
+        if len(seiten) == 1:
+            bericht.add("Paraphen", "keine bei einer Seite", str(je_seite[0]), "—", je_seite[0] == 0)
+        else:
+            haelt = all(z == soll for z in je_seite[:-1]) and je_seite[-1] == 0
+            bericht.add(
+                "Paraphen", f"{soll} je Seite außer der letzten",
+                ", ".join(f"S. {i}: {z}" for i, z in enumerate(je_seite, start=1)), "—", haelt)
 
     nicht_eingebettet = _nicht_eingebettete_schriften(pdf_pfad, briefseiten)
     bericht.wahr(

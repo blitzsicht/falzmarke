@@ -208,7 +208,7 @@ SUMMEN_TOLERANZ_CENT = 1
 # Briefprüfung eine bedingte.
 URKUNDE_FRONTMATTER_FELDER = frozenset({
     "profil", "typ", "dialekt", "sprache", "titel", "parteien", "ort_datum",
-    "unterschriften", "anlagen", "seiten_max",
+    "unterschriften", "anlagen", "seiten_max", "blocksatz", "paraphen",
 })
 
 #: Was eine Urkunde mindestens braucht. Kein Datum, kein Empfänger: Ob und wo
@@ -1821,6 +1821,23 @@ def pruefe_urkunde_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> N
             _feldzeile(kopf_roh, "seiten_max"), "urkunde.seiten_max",
             f"`seiten_max: {seiten_max}` ist keine Seitenzahl",
             "eine ganze Zahl ab 1 — so viele Seiten darf das Schriftstück höchstens haben")
+
+    for feld in ("blocksatz", "paraphen"):
+        if feld in kopf and not isinstance(kopf[feld], bool):
+            bericht.fehler(
+                _feldzeile(kopf_roh, feld), f"urkunde.{feld}",
+                f"`{feld}: {kopf[feld]}` ist weder `true` noch `false`",
+                f"`{feld}: true` schaltet es ein; ohne das Feld ist es aus")
+    if kopf.get("paraphen") is True:
+        unterschriften_da = (bool(kopf.get("unterschriften")) if "unterschriften" in kopf
+                             and kopf["unterschriften"] is not None
+                             else bool(kopf.get("parteien")))
+        if not unterschriften_da:
+            bericht.fehler(
+                _feldzeile(kopf_roh, "paraphen"), "urkunde.paraphen",
+                "`paraphen: true` ohne Unterschriften",
+                "Paraphen sind die Initialen derer, die unterschreiben — ohne "
+                "`unterschriften:` oder `parteien:` gibt es niemanden, der sie setzt")
 
     anlagen = kopf.get("anlagen")
     zeilen = [anlagen] if isinstance(anlagen, str) else anlagen

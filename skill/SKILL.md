@@ -178,6 +178,8 @@ Was anders ist als beim Brief:
 - **Soll es auf eine Seite passen, `seiten_max: 1` setzen.** Dann ist `render` rot, wenn es
   zwei werden — und sagt es. Passt es nicht, wird das gemeldet und **nicht gekürzt**: Ein
   gekürzter Vertrag ist ein anderer Vertrag (siehe „Was bei Exit 2 nicht geändert wird").
+- **`blocksatz: true`** und, bei mehr als einer Seite, **`paraphen: true`** (Felder für Initialen
+  auf jeder Seite außer der letzten) nur setzen, wenn der Nutzer es will.
 - **Nichts erfinden.** falzmarke kennt keine Klauseln und keine Muster. `zusatz:` einer Partei
   wird wörtlich gesetzt; was darin steht, kommt vom Verfasser.
 

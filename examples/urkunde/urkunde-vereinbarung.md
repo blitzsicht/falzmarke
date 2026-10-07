@@ -23,6 +23,7 @@ unterschriften:
 anlagen:
   - Übergabeprotokoll
 seiten_max: 1
+blocksatz: true
 ---
 
 ## 1. Gegenstand

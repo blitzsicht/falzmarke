@@ -92,6 +92,30 @@ regeln:
       Gesetzt wird der Vermerk unter den Unterschriften. Angehängt oder
       eingebettet wird nichts.
 
+  - id: urkunde.blocksatz
+    titel: blocksatz ist true oder false
+    lint: urkunde.blocksatz
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Blocksatz ist Gestaltung. Er wird nicht als Schutz gegen nachträgliche
+      Einfügungen versprochen: Den gäbe es nur ohne Leerräume, und
+      Ausfüllfelder sind genau das. Rand und Raster misst die bestehende
+      Prüfung; dass Trennstriche nicht in den Rand hängen, hält der Satz fest.
+
+  - id: urkunde.paraphen
+    titel: paraphen ist true oder false und braucht Unterschriften
+    lint: urkunde.paraphen
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Paraphen sind die Initialen derer, die unterschreiben. Ohne
+      Unterschriften gibt es niemanden, der sie setzt.
+
   - id: urkunde.ueberschrift
     titel: Im Text einer Urkunde beginnt die Gliederung bei der zweiten Ebene
     lint: urkunde.ueberschrift
@@ -131,7 +155,7 @@ regeln:
       späteres `verify` auf der fertigen Datei sie kennt.
 
   - id: geometrie.urkunde_titel
-    titel: Der Titel steht zwei Leerzeilen unter dem Briefkopf, fett
+    titel: Der Titel steht zwei Leerzeilen unter dem Briefkopf, in 16 pt
     ebene: werkzeug
     herkunft: werkzeug
     quellen: []
@@ -141,7 +165,31 @@ regeln:
       45 mm — dieselben zwei Höhen wie beim Brief, aber gewählt nach dem
       Briefkopf und nicht nach der Lage eines Fensters. Der Vermerk im PDF
       wählt zwischen beiden; das Soll kommt aus `geometrie.py`, nicht aus der
-      Datei.
+      Datei. Die Gestaltung des Kopfes — Titel 16 pt ohne Fett, Parteien 12 pt,
+      Linie darunter — folgt dem Vertrag zwischen Bund und DIN von 1975 (als
+      Abdruck auf din.de). Das ist ein Vorbild, keine Quelle einer Regel.
+
+  - id: geometrie.urkunde_kopf
+    titel: Parteien in 12 pt, darunter eine Linie über die Satzbreite
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Die Linie trennt den Kopf vom Text und steht auch ohne Parteien. Gemessen
+      wird die oberste Linie über 165 mm unter dem Titel, unter der Text folgt;
+      die Linie über der Fußzeile zählt nicht.
+
+  - id: geometrie.urkunde_paraphen
+    titel: Paraphenfelder auf jeder Seite außer der letzten
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Nur mit `paraphen: true`. Je Unterschrift eine Linie von 25 mm in der
+      Fußzone, auf der letzten Seite keine — die trägt die Unterschriften
+      selbst. Ob Paraphen rechtlich etwas bewirken, sagt das Werkzeug nicht.
 
   - id: geometrie.urkunde_linien
     titel: Keine waagerechte Linie reicht aus dem Satzspiegel

@@ -148,3 +148,20 @@ bleibt ausgeschlossen: Das Werkzeug versendet nichts.
 - **Kein Signaturbild.** Eine Urkunde wird von Hand unterschrieben.
 - **Keine Zeilenköpfe in der Angabentabelle.** Die Satzmaschine kennt in der eingesetzten Fassung
   keine Kopfzelle je Zeile; im PDF stehen die Bezeichnungen als gewöhnliche Zellen.
+
+## Nachtrag 07.10.2026: der Kopf nach dem DIN-Vertrag
+
+Am ersten gesetzten Schriftstück zeigte sich: Ein Titel in 11 pt fett ist von den
+Abschnittsüberschriften nicht zu unterscheiden, die genauso stehen. Der Kopf folgt seither dem
+Vertrag zwischen Bund und DIN von 1975, wie er als Abdruck auf din.de steht: Titel in 16 pt ohne
+Fett, Parteien in 12 pt, darunter eine Linie über die Satzbreite. Das Dokument ist ein Vorbild
+für die Gestaltung, nicht die Quelle einer Regel. Die Maße bleiben Setzungen (Entscheidung 3).
+
+Dazu zwei Schalter: `blocksatz` (Gestaltung, kein Schutz gegen Einfügungen) und `paraphen`
+(Felder für Initialen auf jeder Seite außer der letzten). Nicht übernommen wurden aus
+verbreiteten Layoutempfehlungen für Verträge eine Pflicht zu serifenloser Schrift und 1,15- oder
+1,5-zeiliger Satz: Das eine regelt das Profil, das andere bräche das Raster.
+
+**Zum Wort.** „Urkunde“ meint im Alltag auch die Ehren- oder Teilnahmeurkunde, auf Karton und
+oft in A3. Die ist hier nicht gemeint und wird nicht gebaut.
+

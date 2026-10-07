@@ -556,3 +556,68 @@ def test_der_dienst_nennt_fuer_eine_urkunde_keine_form(tmp_path):
     ergebnis = dienst.brief_rendern(KOPF.format(zusatz="", text="Ein Absatz."),
                                     ziel=str(tmp_path / "f.pdf"))
     assert ergebnis["typ"] == "urkunde" and ergebnis["form"] == ""
+
+
+# ── Der Kopf nach dem DIN-Vertrag, Blocksatz, Paraphen ──────────────────────
+
+def _groesse(pdf: Path, wort: str) -> float:
+    with pdfplumber.open(str(pdf)) as dokument:
+        return next(s.groesse for s in geometrie._spans(dokument.pages[0]) if wort in s.text)
+
+
+def test_titel_16_pt_parteien_12_pt_text_11_pt(muster):
+    pdf = muster["urkunde-vereinbarung"]
+    assert _groesse(pdf, "Lastenfahrrads") == 16.0
+    assert _groesse(pdf, "Verleiherin") == 12.0
+    assert _groesse(pdf, "Gegenstand") == 11.0
+
+
+def test_die_trennlinie_steht_auch_ohne_parteien(muster):
+    namen = {p.name: p.bestanden for p in geometrie.pruefe(muster["urkunde-erklaerung"], "").pruefungen}
+    assert namen["Trennlinie unter dem Kopf"] is True
+    assert "Parteien, Schriftgröße" not in namen
+
+
+def test_blocksatz_haelt_rand_und_raster(muster):
+    assert "blocksatz: true" in (REPO / "examples" / "urkunde" / "urkunde-vereinbarung.md").read_text(
+        encoding="utf-8")
+    bericht = geometrie.pruefe(muster["urkunde-vereinbarung"], "")
+    assert bericht.ok, bericht.als_text()
+
+
+def _paraphen_quelle(seiten_text: str, zusatz: str = "paraphen: true\n") -> str:
+    return KOPF.format(zusatz=ZWEI_PARTEIEN + zusatz, text=seiten_text)
+
+
+def test_paraphen_auf_jeder_seite_ausser_der_letzten(tmp_path):
+    quelle = tmp_path / "p.md"
+    quelle.write_text(_paraphen_quelle(FUELLUNG), encoding="utf-8")
+    pdf, _ = cli.rendere(quelle, tmp_path / "p.pdf")
+    with pdfplumber.open(str(pdf)) as dokument:
+        je_seite = [sum(1 for w in geometrie._waagerechte(s) if w[3] and abs((w[2] - w[1]) - 25.0) <= 0.3)
+                    for s in dokument.pages]
+    assert je_seite == [2, 0]
+    zeile = next(p for p in geometrie.pruefe(pdf, "").pruefungen if p.name == "Paraphen")
+    assert zeile.bestanden and zeile.ist == "S. 1: 2, S. 2: 0"
+
+
+def test_paraphen_bei_einer_seite_entstehen_nicht(tmp_path):
+    quelle = tmp_path / "p1.md"
+    quelle.write_text(_paraphen_quelle("Ein Absatz."), encoding="utf-8")
+    pdf, _ = cli.rendere(quelle, tmp_path / "p1.pdf")
+    zeile = next(p for p in geometrie.pruefe(pdf, "").pruefungen if p.name == "Paraphen")
+    assert zeile.bestanden and zeile.soll == "keine bei einer Seite"
+
+
+def test_ohne_paraphen_keine_zeile_im_bericht(tmp_path):
+    pdf = setze(tmp_path, zusatz=ZWEI_PARTEIEN, text=FUELLUNG)
+    assert "Paraphen" not in {p.name for p in geometrie.pruefe(pdf, "").pruefungen}
+    assert vermerke(pdf)["/falzmarke_Paraphen"] == "0"
+
+
+def test_paraphen_heisst_auf_englisch_initials(tmp_path):
+    quelle = tmp_path / "en.md"
+    quelle.write_text(_paraphen_quelle(FUELLUNG, "paraphen: true\nsprache: en\n"), encoding="utf-8")
+    pdf, _ = cli.rendere(quelle, tmp_path / "en.pdf")
+    with pdfplumber.open(str(pdf)) as dokument:
+        assert "Initials" in dokument.pages[0].extract_text()

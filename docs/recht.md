@@ -96,7 +96,7 @@ Regel **nachweislich schweigen**: Sie zählen nicht mehr mit.
 
 | | |
 |---|---|
-| 135 | Regeln insgesamt — zwölf davon seit dem 07.10.2026 für die Urkunde ([ADR 0048](entscheidungen/0048-urkunde-ein-schriftstueck-ohne-anschriftfeld.md)), alle `herkunft: werkzeug` |
+| 139 | Regeln insgesamt — sechzehn davon seit dem 07.10.2026 für die Urkunde ([ADR 0048](entscheidungen/0048-urkunde-ein-schriftstueck-ohne-anschriftfeld.md)), alle `herkunft: werkzeug` |
 | 16 | Quelle-Regel-Paare, bei denen die Quelle **nachweislich schweigt** — zehn davon `onlineprinters` ([Befund](quellenpruefung-onlineprinters-2026-08-27.md)), seit dem 22.09.2026 dazu die Zeichnung `massskizze_b` bei `text.vermerke_max_3`, seit dem 25.09.2026 fünf weitere aus der Nachlese zu den Marken und zur Höhe des Informationsblocks |
 | 7 | der betroffenen Regeln führen jetzt `herkunft: werkzeug` — eine Setzgewohnheit des Werkzeugs, keine Aussage der Norm |
 | 4 | stehen auf `einzeln belegt`. Drei fielen dorthin von Fehler herab: `schreibweise.datum`, `schreibweise.abkuerzungen`, `text.vermerke_max_3` — ihre zweite volle Quelle schwieg, es bleibt eine. Der Typografie-Pass meldet Datum und Abkürzungen seither nur noch, er ersetzt sie nicht mehr. Die vierte, `text.anschrift_ohne_leerzeilen`, ist umgekehrt **gestiegen** — von `werkzeug`, am 22.09.2026 mit [#344](https://github.com/blitzsicht/falzmarke/issues/344) |
