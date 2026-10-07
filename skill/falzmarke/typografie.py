@@ -46,8 +46,10 @@ MONATE = [
     "Juli", "August", "September", "Oktober", "November", "Dezember",
 ]
 
-# Nach diesen Kürzeln folgt eine Angabe, die dazugehört.
-VOR_ANGABE = ["Nr.", "Tel.", "Str.", "Abs.", "Art.", "S.", "Rechnung", "Az."]
+# Nach diesen Kürzeln folgt eine Angabe, die dazugehört. Nur Kürzel: Ein
+# ganzes Wort wie „Rechnung“ band jedes folgende Wort an sich — „Rechnung für“,
+# „Rechnung Apple“ (#386). „Rechnung Nr. 4711“ hält `Nr.` zusammen.
+VOR_ANGABE = ["Nr.", "Tel.", "Str.", "Abs.", "Art.", "S.", "Az."]
 
 
 def _abkuerzungen(text: str) -> str:

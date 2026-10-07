@@ -161,8 +161,9 @@ def test_die_mahnung_meldet_die_neue_kennung_und_nicht_mehr_zahlengliederung():
     bericht = falzmarke.linte(REPO / "examples" / "brief-mahnung.md", profil_verzeichnis=PROFILE)
     text = bericht.als_text("brief-mahnung.md")
 
-    warnungen = [b for b in bericht.befunde if "Rechnung Nr. 2026-0815" in klartext(b)]
-    assert warnungen, "Vorbedingung: das Beispiel warnt vor „Rechnung Nr. 2026-0815“\n" + text
+    # Seit #386 meldet die Stelle „Nr. 2026-0815“: „Rechnung“ ist kein Kürzel mehr.
+    warnungen = [b for b in bericht.befunde if "Nr. 2026-0815" in klartext(b)]
+    assert warnungen, "Vorbedingung: das Beispiel warnt vor „Nr. 2026-0815“\n" + text
     assert all(b.schwere == "Warnung" for b in warnungen)
 
     assert [b.regel for b in warnungen] == [neue], (
@@ -214,6 +215,64 @@ def test_ein_satz_ohne_kuerzel_und_ohne_zahlengruppe_bleibt_still(tmp_path):
     bericht = linte(tmp_path, "Ein Satz ohne Anlass und ohne Zahl.\n")
     assert unter(bericht, neue) == [] and unter(bericht, ZAHLENGLIEDERUNG) == [], (
         bericht.als_text("brief.md"))
+
+
+# ── #386: „Rechnung“ ist kein Kürzel ────────────────────────────────────────
+
+URKUNDE = REPO / "examples" / "urkunde" / "urkunde-erklaerung.md"
+URKUNDE_ZEILE = "| Zustand bei Übergabe | neuwertig, ohne sichtbare Mängel |\n"
+
+
+@pytest.mark.parametrize("satz", [
+    "Rechnung Apple\n",
+    "Anbei unsere Rechnung für Mai.\n",
+    "Die Rechnung weist zwei Posten aus.\n",
+])
+def test_ein_wort_hinter_rechnung_warnt_nicht(tmp_path, satz):
+    """Der Fehlalarm aus #386: Hinter „Rechnung“ steht kein Wert, den ein
+    geschütztes Leerzeichen festhalten müsste."""
+    bericht = linte(tmp_path, satz)
+    assert unter(bericht, _eintrag_von_schritt()["id"]) == [], bericht.als_text("brief.md")
+
+
+def test_rechnung_apple_in_der_angabentabelle_einer_urkunde_warnt_nicht(tmp_path):
+    """Der Fall, an dem #386 auffiel: eine Tabellenzeile in einer Urkunde.
+
+    Die Kontrollprobe steht im selben Test: „Nr. ____“ im Beispiel warnt
+    weiterhin — der Schritt läuft also auf dieser Urkunde.
+    """
+    text = URKUNDE.read_text(encoding="utf-8")
+    assert URKUNDE_ZEILE in text, "Vorbedingung: die Ankerzeile steht im Beispiel"
+    pfad = tmp_path / "urkunde.md"
+    pfad.write_text(text.replace(URKUNDE_ZEILE, URKUNDE_ZEILE + "| Beleg | Rechnung Apple |\n"),
+                    encoding="utf-8")
+    bericht = falzmarke.linte(pfad, profil_verzeichnis=PROFILE)
+    meldungen = [klartext(b) for b in unter(bericht, _eintrag_von_schritt()["id"])]
+
+    assert any("Nr. ____" in m for m in meldungen), bericht.als_text("urkunde.md")
+    assert not any("Rechnung" in m for m in meldungen), bericht.als_text("urkunde.md")
+
+
+def test_die_rechnungsnummer_warnt_weiter_ueber_nr(tmp_path):
+    """Gegenprobe zu oben: Nicht die Regel ist aus, nur das Wort ist raus."""
+    bericht = linte(tmp_path, "Bezug: Rechnung Nr. 2026-0815\n")
+    treffer = unter(bericht, _eintrag_von_schritt()["id"])
+    assert len(treffer) == 1, bericht.als_text("brief.md")
+    assert "Nr. 2026-0815" in klartext(treffer[0])
+
+
+def test_kein_beispiel_meldet_rechnung_als_kuerzel():
+    """Vor #386 trugen neun Warnungen in den Beispielen den Fehlalarm
+    („Rechnung für“, „Rechnung weist“, „Rechnung als“)."""
+    neue = _eintrag_von_schritt()["id"]
+    beispiele = sorted((REPO / "examples").rglob("*.md"))
+    assert len(beispiele) > 10, "Vorbedingung: die Beispiele sind gefunden"
+
+    funde = []
+    for pfad in beispiele:
+        bericht = falzmarke.linte(pfad, profil_verzeichnis=PROFILE)
+        funde += [b.als_zeile(pfad.name) for b in unter(bericht, neue) if "Rechnung" in klartext(b)]
+    assert funde == [], "\n".join(funde)
 
 
 # ── AC 6: Die Normreferenz führt beide Regeln als eigene Zeilen ─────────────

@@ -87,9 +87,9 @@ def _regeln(bericht, schwere: str | None = None) -> list[str]:
 
 def test_eine_vollstaendige_rechnung_ist_sauber(tmp_path):
     bericht = _bericht(tmp_path)
-    # Ohne die Hinweise des Typografie-Passes (#330): Der Füllsatz „unsere
-    # Rechnung für …" trägt einen; hier geht es um den Datenvertrag.
-    befunde = ohne_typografiehinweise(bericht)
+    # Ungefiltert: Der Füllsatz „unsere Rechnung für …" trug bis #386 einen
+    # Typografie-Hinweis, obwohl er nichts zusammenzuhalten hat. Jetzt ist er still.
+    befunde = bericht.befunde
     assert not befunde, [b.als_zeile("rechnung.md") for b in befunde]
 
 
