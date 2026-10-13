@@ -154,6 +154,14 @@ die Datei (Thunderbird trennt die Anhänge am Komma); und die Anhänge bleiben i
 sie erst beim Senden oder Speichern. Läuft Thunderbird nicht, wird es mit dem Auftrag gestartet;
 das ist nicht gemessen, der Befehl meldet den Entwurf als ungewiss und schiebt keine Datei nach.
 
+Das **Logo der Signatur** fährt als `data:`-URI im Rumpf mit — `-compose` kennt die
+`cid:`-Teile der `.eml` nicht, und ohne die Umwandlung stand im Entwurf ein kaputtes Bild
+(gemessen 13.10.2026). Damit zählt das Logo zur Länge des Befehls: Über 900 000 Byte wird nicht
+aufgerufen (ARG_MAX auf macOS ist 1 MB), der Befehl nennt die Länge und übergibt die Datei. Die
+rot gepunkteten Linien um die Tabellen im Entwurf sind die Anzeige des Editors für rahmenlose
+Tabellen, nicht Teil der Mail (erwartet, ungemessen). Und weil falzmarke die Signatur liefert:
+die Signatur der Identität in Thunderbird leer lassen, sonst steht sie zweimal da.
+
 Alles Folgende zum Nachzählen, zum Konto und zur Warnzeile `ABSENDER PRÜFEN` gilt für den
 **Outlook-Weg** (`--programm outlook`).
 

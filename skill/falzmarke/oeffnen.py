@@ -20,6 +20,7 @@ startet fremde Programme, und sie heißt so wie diese hier.
 
 from __future__ import annotations
 
+import base64
 import os
 import re
 import shutil
@@ -351,6 +352,52 @@ THUNDERBIRD_MACOS = "/Applications/Thunderbird.app/Contents/MacOS/thunderbird"
 #: feste Liste, kein Durchreichen: Ein Schlüssel, der sendet, gibt es dort
 #: nicht — und käme es ihn, stünde er nicht hier (ADR 0034).
 COMPOSE_SCHLUESSEL = ("from", "to", "cc", "bcc", "subject", "format", "body", "attachment")
+
+#: Wie lang die `-compose`-Zeile sein darf, in Byte. `getconf ARG_MAX` meldet
+#: auf macOS 1 048 576 (gemessen 13.10.2026), und darin müssen Umgebung, Pfad
+#: und die übrigen Argumente mitfahren. Ein Logo wird als Data-URI Teil der
+#: Zeile (`eingebettet`); ein großes sprengt sie, und der Fehler des Systems
+#: hieße nur „Argument list too long“. Deshalb vorher zählen und sagen, wie
+#: viel es ist.
+COMPOSE_GRENZE_BYTE = 900_000
+
+
+def eingebettet(html: str, inline) -> str:
+    """Jedes `<img src="cid:…">` wird zur Data-URI aus dem zugehörigen Teil.
+
+    `-compose body=` übergibt nur den Rumpf; die `multipart/related`-Teile der
+    `.eml`, auf die `cid:` zeigt, gibt es auf diesem Weg nicht. Gemessen am
+    13.10.2026: Das Logo der Signatur erschien in Thunderbird als kaputtes Bild
+    mit Alt-Text. Thunderbird zeigt Data-URIs im Editor an und macht beim
+    Senden Anhänge daraus (erwartet; gemessen ist die Anzeige).
+
+    `inline` kommt aus `eml.entwurfsfelder`: `(kennung, mime, bytes)` je Teil —
+    die Bytes aus der geschriebenen Datei, nicht neu von Platte gelesen.
+    Ersetzt wird nur der Verweis selbst, und nur bis zum schließenden
+    Anführungszeichen: `cid:logo` darf `cid:logo2` nicht treffen.
+    """
+    for kennung, mime, daten in inline:
+        uri = f"data:{mime};base64,{base64.b64encode(daten).decode('ascii')}"
+        html = re.sub(rf"cid:{re.escape(kennung)}(?=[\"'])", lambda _: uri, html)
+    return html
+
+
+def _eingebettet_stimmt(html: str, inline) -> str | None:
+    """Ist kein `cid:` übrig, und trägt der Rumpf jedes Bild — mit seinem Typ?
+
+    Vor dem Aufruf, wie `_compose_stimmt`: Danach kommt nichts zurück, und ein
+    kaputtes Bild im Entwurf sieht ein Exit-Code nie.
+    """
+    fehlt = []
+    if "cid:" in html:
+        fehlt.append("ein cid:-Verweis bleibt im Rumpf")
+    for kennung, mime, daten in inline:
+        uri = f"data:{mime};base64,{base64.b64encode(daten).decode('ascii')}"
+        if uri not in html:
+            fehlt.append(f"Bild {kennung} fehlt als data:{mime}")
+    if not fehlt:
+        return None
+    return "der Rumpf trägt die Bilder nicht — " + ", ".join(fehlt)
 
 
 def anhang_paare(anhangpfade: list[str]) -> list[tuple[str, str]]:
@@ -829,6 +876,11 @@ def _thunderbird_laeuft(binaer: str, laufen) -> bool:
     return lauf.returncode == 0
 
 
+def _zahl(n: int) -> str:
+    """1234567 → „1.234.567“ — Tausenderpunkt, wie im Deutschen üblich."""
+    return f"{n:,}".replace(",", ".")
+
+
 def _nicht_gefunden(wahl: str | None) -> str:
     """Der Grund, wenn kein Programm da ist — und er nennt, was gesucht wurde.
 
@@ -862,10 +914,23 @@ def _entwurf_compose(programm: Entwurfsprogramm, felder: Mapping, *,
         return lage
 
     pfade = _anhaenge_ausschreiben(ordner, anhaenge, typografisch=True) if ordner else []
+    inline = felder.get("inline") or []
+    html = eingebettet(str(felder.get("html") or ""), inline)
+    schief = _eingebettet_stimmt(html, inline)
+    if schief:
+        return abgeraeumt(Entwurfslage(None, schief))
+    felder = {**felder, "html": html}
     try:
         argumente = compose_argumente(felder, pfade)
     except ValueError as fehler:
         return abgeraeumt(Entwurfslage(None, str(fehler)))
+    groesse = len(argumente[1].encode("utf-8"))
+    if groesse > COMPOSE_GRENZE_BYTE:
+        return abgeraeumt(Entwurfslage(
+            None, f"die -compose-Zeile ist {_zahl(groesse)} Byte lang, mehr als die "
+                  f"{_zahl(COMPOSE_GRENZE_BYTE)} Byte, die ein Befehl auf macOS tragen darf "
+                  "(ARG_MAX 1.048.576 abzüglich Umgebung) — das Logo im Profil verkleinern "
+                  "oder die Datei übergeben"))
     schief = _compose_stimmt(argumente[1], felder, pfade)
     if schief:
         return abgeraeumt(Entwurfslage(None, schief))

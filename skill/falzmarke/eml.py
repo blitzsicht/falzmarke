@@ -1050,12 +1050,22 @@ def entwurfsfelder(pfad) -> dict:
 
     html = ""
     anhaenge: list[tuple[str, bytes]] = []
+    # Die Inline-Teile, auf die der HTML-Rumpf mit `cid:` zeigt — das Logo der
+    # Signatur. Ein Entwurfsweg, der nur den Rumpf übergibt (Thunderbird,
+    # ADR 0049), hat diese Teile nicht; er braucht Kennung, Typ und Bytes, um
+    # den Verweis durch das Bild selbst zu ersetzen. Gemessen am 13.10.2026:
+    # ohne das erscheint im Entwurf ein kaputtes Bild mit dem Alt-Text.
+    inline: list[tuple[str, str, bytes]] = []
     for teil in nachricht.walk():
         if teil.get_content_maintype() == "multipart":
             continue
         if teil.get_content_disposition() == "attachment":
             name = teil.get_filename() or "Anlage"
             anhaenge.append((name, teil.get_payload(decode=True) or b""))
+        elif teil.get("Content-ID"):
+            kennung = str(teil["Content-ID"]).strip().strip("<>")
+            inline.append((kennung, teil.get_content_type(),
+                           teil.get_payload(decode=True) or b""))
         elif teil.get_content_type() == "text/html" and not html:
             html = teil.get_payload(decode=True).decode(
                 teil.get_content_charset() or "utf-8")
@@ -1081,4 +1091,5 @@ def entwurfsfelder(pfad) -> dict:
         "blindkopie": _adressen("Bcc"),
         "html": html,
         "anhaenge": anhaenge,
+        "inline": inline,
     }

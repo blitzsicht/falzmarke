@@ -132,7 +132,11 @@ Thunderbird 154.0 auf macOS:
 | `message=<eml>` | kein Import — der Rohtext landet im Textkörper |
 | Thunderbird läuft | das Binary reicht den Auftrag weiter, kehrt sofort mit Exit 0 zurück, das Fenster geht auf |
 | kein Konto eingerichtet | der Konto-Assistent öffnet sich |
+| Logo per `cid:` im Rumpf (13:15, echter Entwurf) | **kaputtes Bild mit Alt-Text** — die `related`-Teile der `.eml` gibt es auf diesem Weg nicht; falzmarke bettet das Bild seither als `data:`-URI ein |
+| Logo als `data:`-URI | wird im Editor angezeigt (gemessen); dass Thunderbird es beim Senden zum Anhang macht, ist erwartet, ungemessen |
+| rahmenlose Tabellen (Umschlag, Signatur) | rot gepunktete Hilfslinien im Editor — Anzeige des Editors, nicht Teil der gesendeten Mail: **erwartet, ungemessen** |
 
 **Nicht gemessen:** ein einfaches Anführungszeichen im Wert, ein Komma im Dateinamen eines
-Anhangs, mehr als ein Empfänger in `to=`, der Aufruf bei nicht laufendem Thunderbird, Linux.
+Anhangs, mehr als ein Empfänger in `to=`, der Aufruf bei nicht laufendem Thunderbird, Linux,
+und ob die Hilfslinien wirklich draußen bleiben.
 Was falzmarke daraus macht, steht in [ADR 0049](entscheidungen/0049-entwurf-in-thunderbird.md).

@@ -102,3 +102,35 @@ Punkte stehen.
 
 Der Outlook-Weg bleibt im Code, gemessen und auf Wahl erreichbar. Er wird nicht entfernt,
 solange er irgendwo trägt; was sich ändert, ist nur, dass niemand mehr ungefragt dort landet.
+
+---
+
+## Nachtrag 13.10.2026, 13:15 — zwei Befunde am echten Entwurf
+
+Gemessen mit echten Entwürfen in Thunderbird 154.
+
+**1. Das Logo der Signatur fehlte** — ein kaputtes Bild mit dem Alt-Text an seiner Stelle.
+Der Rumpf verweist mit `<img src="cid:…">` auf einen `multipart/related`-Teil der `.eml`, und
+`-compose body=` übergibt nur den Rumpf; diese Teile gibt es auf dem Weg nicht. Seither
+ersetzt `oeffnen.eingebettet` jeden `cid:`-Verweis durch eine `data:<mime>;base64,…`-URI aus
+den Bytes des Teils — `eml.entwurfsfelder` liefert sie aus der geschriebenen Datei, nichts
+wird neu von Platte gelesen. Thunderbird zeigt Data-URIs im Editor; dass es sie beim Senden in
+Anhänge wandelt, ist erwartet, nicht gemessen. Vor dem Aufruf prüft `_eingebettet_stimmt`,
+dass kein `cid:` übrig ist und jedes Bild mit seinem Typ im Rumpf steht;
+`tests/test_gegenbeweis.py` sabotiert die Umwandlung und den Typ.
+
+Die Grenze dazu ist die **Länge des Befehls**: `getconf ARG_MAX` meldet 1 048 576 Byte, und
+das Logo fährt jetzt in der Zeile mit. Über `COMPOSE_GRENZE_BYTE` (900 000) wird nicht
+aufgerufen; der Grund nennt die gemessene Länge und die Grenze, und der Befehl fällt auf die
+Datei zurück. Der Systemfehler hieße sonst nur „Argument list too long“.
+
+**2. Rot gepunktete Hilfslinien** um die rahmenlosen Tabellen — Umschlag und Signatur. Das ist
+die Anzeige des Editors für Tabellen ohne Rahmen, nicht Teil der gesendeten Nachricht:
+**erwartet, ungemessen** — wer es belegen will, sendet an sich selbst und sieht nach. Nichts zu
+bauen.
+
+**Kontosignaturen in Thunderbird leer lassen.** Der Hinweis des Befehls stimmt auch hier:
+Thunderbird hängt die Signatur der Identität an, und falzmarke liefert die Signatur aus dem
+Profil bereits mit. Wer beides stehen lässt, hat sie zweimal. Die Reparatur ist eine
+Einstellung in Thunderbird (Konten-Einstellungen → Identität → Signaturtext leer), einmal
+je Identität — nicht ein zweites Profil ohne Signaturblock.

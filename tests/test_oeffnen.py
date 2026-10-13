@@ -14,6 +14,7 @@ nur auf, wenn ihr Gegenstück im selben Blickfeld liegt.
 from __future__ import annotations
 
 import ast
+import base64
 import subprocess
 from pathlib import Path
 
@@ -1155,3 +1156,110 @@ def test_die_wahl_outlook_laeuft_wie_bisher_ueber_osascript():
                            laufen=antwort, wahl="outlook", binaer=_thunderbird_da)
     assert lage.programm == "Microsoft Outlook"
     assert all(a[0] == "osascript" for a in antwort.aufrufe)
+
+
+# ── Das Logo im Rumpf: cid: wird zur Data-URI (ADR 0049, Nachtrag) ──────────
+#
+# GEMESSEN (13.10.2026, 13:15, echter Entwurf in Thunderbird 154): Das Logo der
+# Signatur erschien als kaputtes Bild mit Alt-Text. Der Rumpf verweist mit
+# `cid:` auf einen Teil der .eml, und `-compose body=` kennt diese Teile nicht.
+
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 16
+HTML_MIT_LOGO = '<p>Text</p><img src="cid:falzmarke-logo" alt="Beispiel GmbH" width="40">'
+INLINE = [("falzmarke-logo", "image/png", PNG)]
+
+
+def _uri(mime: str, daten: bytes) -> str:
+    return f"data:{mime};base64,{base64.b64encode(daten).decode('ascii')}"
+
+
+def test_ein_cid_verweis_wird_zur_data_uri():
+    html = oeffnen.eingebettet(HTML_MIT_LOGO, INLINE)
+    assert "cid:" not in html
+    assert html.count(_uri("image/png", PNG)) == 1
+    assert 'src="data:image/png;base64,' in html
+
+
+def test_jedes_bild_bekommt_genau_eine_uri_mit_seinem_typ():
+    html = '<img src="cid:logo"><img src="cid:logo2">'
+    inline = [("logo", "image/png", b"a"), ("logo2", "image/jpeg", b"b")]
+    aus = oeffnen.eingebettet(html, inline)
+    assert "cid:" not in aus
+    assert aus.count(_uri("image/png", b"a")) == 1
+    assert aus.count(_uri("image/jpeg", b"b")) == 1
+
+
+def test_cid_logo_trifft_nicht_cid_logo2():
+    """Die Ersetzung endet am Anführungszeichen — sonst bekäme `logo2` den
+    Anfang von `logo` und einen Rest, der nirgends hingehört."""
+    aus = oeffnen.eingebettet('<img src="cid:logo2">', [("logo", "image/png", b"a")])
+    assert aus == '<img src="cid:logo2">'
+
+
+def test_der_typ_kommt_vom_teil_nicht_aus_einer_annahme():
+    aus = oeffnen.eingebettet('<img src="cid:x">', [("x", "image/jpeg", b"j")])
+    assert "data:image/jpeg;base64," in aus and "image/png" not in aus
+
+
+def test_ein_verweis_ohne_teil_bleibt_und_faellt_auf():
+    grund = oeffnen._eingebettet_stimmt('<img src="cid:x">', [])
+    assert grund and "cid:" in grund
+
+
+def test_ein_fehlendes_bild_faellt_auf():
+    grund = oeffnen._eingebettet_stimmt("<p>ohne Bild</p>", INLINE)
+    assert grund and "falzmarke-logo" in grund and "image/png" in grund
+
+
+def test_gegenprobe_der_eingebettete_rumpf_stimmt():
+    html = oeffnen.eingebettet(HTML_MIT_LOGO, INLINE)
+    assert oeffnen._eingebettet_stimmt(html, INLINE) is None
+
+
+def test_das_logo_geht_eingebettet_an_thunderbird():
+    felder = {**FELDER_TB, "html": HTML_MIT_LOGO, "inline": INLINE}
+    tb = Thunderbird()
+    lage = oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=tb, binaer=_thunderbird_da)
+    assert lage.programm == "Thunderbird", lage
+    rumpf = oeffnen.compose_zerlegen(tb.compose[0][2])["body"]
+    assert "cid:" not in rumpf
+    assert rumpf.count(_uri("image/png", PNG)) == 1
+
+
+def test_ohne_inline_teile_bleibt_der_rumpf_wie_er_ist():
+    tb = Thunderbird()
+    oeffnen.entwurf(FELDER_TB, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                    laufen=tb, binaer=_thunderbird_da)
+    assert oeffnen.compose_zerlegen(tb.compose[0][2])["body"] == "<p>Text</p>"
+
+
+# Die Größe der Zeile: ARG_MAX ist 1 048 576 Byte auf macOS (getconf, 13.10.2026).
+
+def test_die_grenze_liegt_unter_arg_max():
+    assert 0 < oeffnen.COMPOSE_GRENZE_BYTE < 1_048_576
+
+
+def test_eine_zu_lange_zeile_wird_nicht_uebergeben_und_nennt_die_zahl(monkeypatch):
+    monkeypatch.setattr(oeffnen, "COMPOSE_GRENZE_BYTE", 2000)
+    felder = {**FELDER_TB, "html": "<p>" + "ä" * 1500 + "</p>"}   # ä = 2 Byte
+    tb = Thunderbird()
+    lage = oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=tb, binaer=_thunderbird_da)
+    assert lage.programm is None and not lage.ungewiss
+    assert "Byte" in lage.grund and "2.000" in lage.grund, lage.grund
+    ist = len(oeffnen.compose_argumente(felder, [])[1].encode("utf-8"))
+    assert oeffnen._zahl(ist) in lage.grund, (ist, lage.grund)
+    assert tb.aufrufe == [], "die zu lange Zeile wurde trotzdem übergeben"
+
+
+def test_gegenprobe_knapp_darunter_geht_die_zeile_durch(monkeypatch):
+    monkeypatch.setattr(oeffnen, "COMPOSE_GRENZE_BYTE", 2000)
+    felder = {**FELDER_TB, "html": "<p>" + "ä" * 500 + "</p>"}
+    lage = oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=Thunderbird(), binaer=_thunderbird_da)
+    assert lage.programm == "Thunderbird"
+
+
+def test_die_zahl_traegt_tausenderpunkte():
+    assert oeffnen._zahl(1048576) == "1.048.576" and oeffnen._zahl(900) == "900"

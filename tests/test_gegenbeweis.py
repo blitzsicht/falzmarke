@@ -1541,3 +1541,50 @@ def test_die_sabotierte_zeile_erreicht_thunderbird_nicht(monkeypatch, tmp_path):
     assert lage.programm is None and "Anhänge: 1 statt 2" in lage.grund
     assert aufrufe == []
     assert not list(tmp_path.iterdir()), "der Anhangordner blieb liegen"
+
+
+# ── Thunderbird: das Logo reist als Data-URI mit (ADR 0049, Nachtrag) ──────
+#
+# Gemessen am 13.10.2026, 13:15: Im echten Entwurf stand statt des Logos ein
+# kaputtes Bild mit Alt-Text — `-compose body=` kennt die `cid:`-Teile nicht.
+# `eingebettet` ersetzt den Verweis durch das Bild; `_eingebettet_stimmt` hält
+# den Rumpf vor dem Aufruf dagegen. Zwei Sabotagen, je an einer Stelle: die
+# Umwandlung bleibt aus, und die Umwandlung nimmt den falschen Typ.
+
+import base64 as _base64
+
+_INLINE = [("falzmarke-logo", "image/png", b"\x89PNG\r\n\x1a\n" + b"\x00" * 8)]
+_FELDER_LOGO = {**_FELDER_TB, "anhaenge": [], "inline": _INLINE,
+                "html": '<p>T</p><img src="cid:falzmarke-logo" alt="Logo">'}
+
+
+def _nie(argv, **kwargs):
+    raise AssertionError(f"ein Rumpf, der das Logo nicht trägt, wurde übergeben: {argv[:2]}")
+
+
+def test_unsabotiert_traegt_der_rumpf_das_logo():
+    """Kontrollprobe: ohne Sabotage darf nichts anschlagen."""
+    html = _oeffnen.eingebettet(_FELDER_LOGO["html"], _INLINE)
+    assert _oeffnen._eingebettet_stimmt(html, _INLINE) is None
+    assert "cid:" not in html and html.count("data:image/png;base64,") == 1
+
+
+def test_ohne_umwandlung_bleibt_cid_und_faellt_auf(monkeypatch):
+    monkeypatch.setattr(_oeffnen, "eingebettet", lambda html, inline: html)
+    lage = _oeffnen.entwurf(_FELDER_LOGO, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                            laufen=_nie, binaer=lambda: "/x/thunderbird")
+    assert lage.programm is None and "cid:" in lage.grund, lage
+
+
+def test_ein_falscher_mime_typ_faellt_auf(monkeypatch):
+    def png_fuer_alles(html, inline):
+        for kennung, _mime, daten in inline:
+            html = html.replace(f"cid:{kennung}",
+                                "data:image/png;base64," + _base64.b64encode(daten).decode())
+        return html
+
+    monkeypatch.setattr(_oeffnen, "eingebettet", png_fuer_alles)
+    felder = {**_FELDER_LOGO, "inline": [("falzmarke-logo", "image/jpeg", b"j")]}
+    lage = _oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                            laufen=_nie, binaer=lambda: "/x/thunderbird")
+    assert lage.programm is None and "image/jpeg" in lage.grund, lage
