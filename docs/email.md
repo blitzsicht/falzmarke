@@ -120,11 +120,53 @@ falzmarke email nachricht.md --oeffnen
 ```
 OK  geschrieben: nachricht.eml
 OK  verify: 26/26 Prüfungen bestanden
-OK  Entwurf angelegt: Microsoft Outlook
+OK  Entwurf angelegt: Thunderbird
+HINWEIS  Thunderbird hat den Auftrag angenommen; nachgezählt ist nichts.
+         Empfänger, Anhänge und Absender im Fenster prüfen.
 ```
 
-Legt auf macOS einen **Entwurf** im Mailprogramm an — Empfänger, Kopie, **Blindkopie**, Betreff,
-den HTML-Rumpf und alle Anhänge. Mit Senden-Knopf; gedrückt wird er von einem Menschen (#263).
+Legt auf macOS einen **Entwurf** im Mailprogramm an — Absender, Empfänger, Kopie,
+**Blindkopie**, Betreff, den HTML-Rumpf und alle Anhänge. Mit Senden-Knopf; gedrückt wird er von
+einem Menschen (#263).
+
+**Welches Programm.** Seit dem 13.10.2026 ist es **Thunderbird**, wenn es installiert ist
+([ADR 0049](entscheidungen/0049-entwurf-in-thunderbird.md)). Der Entwurf entsteht über dessen
+Befehlszeile (`-compose`), und `from=` wählt dort die Identität — der Absender stimmt. Outlook
+für Mac kommt nur noch auf Wahl:
+
+```bash
+falzmarke email nachricht.md --programm outlook
+```
+
+`--programm` schließt `--oeffnen` ein. Der Grund für die Wahl statt einer Reihenfolge: Outlook
+ist oft installiert, aber ohne Lizenz, und das neue Outlook zeigt der Programmsteuerung kein
+Konto — „fehlt“ träfe nie zu, und jede Reihenfolge landete dort. Fehlt Thunderbird, wird die
+`.eml` übergeben, nicht Outlook gestartet.
+
+**Was Thunderbird nicht zurückmeldet.** Keine Kennung, keine Zählung: Exit 0 heißt
+„angenommen“, nicht „Fenster offen“. Geprüft wird deshalb vor dem Aufruf, dass die
+`-compose`-Zeile alles trägt — gelesen so, wie Thunderbird sie liest —, und danach sagt der
+Befehl, dass nichts nachgezählt ist. Drei Grenzen gehören dazu: Ein einfaches Anführungszeichen
+in Betreff, Rumpf oder Dateinamen wird zum Apostroph ’ (ob Thunderbird `'` im Wert übersteht,
+ist nicht gemessen); ein **Komma im Dateinamen** eines Anhangs ist ein Fehler mit Rückfall auf
+die Datei (Thunderbird trennt die Anhänge am Komma); und die Anhänge bleiben in einem Ordner
+`falzmarke-entwurf-…` im Temporärverzeichnis liegen, den der Befehl nennt — Thunderbird liest
+sie erst beim Senden oder Speichern. Läuft Thunderbird nicht, wird es mit dem Auftrag gestartet;
+das ist nicht gemessen, der Befehl meldet den Entwurf als ungewiss und schiebt keine Datei nach.
+
+Das **Logo der Signatur** fährt als `data:`-URI im Rumpf mit — `-compose` kennt die
+`cid:`-Teile der `.eml` nicht, und ohne die Umwandlung stand im Entwurf ein kaputtes Bild
+(gemessen 13.10.2026). Damit zählt das Logo zur Länge des Befehls: Über 900 000 Byte wird nicht
+aufgerufen (ARG_MAX auf macOS ist 1 MB), der Befehl nennt die Länge und übergibt die Datei. Die
+rot gepunkteten Linien um die Tabellen im Entwurf sind die Anzeige des Editors für rahmenlose
+Tabellen, nicht Teil der Mail (erwartet, ungemessen). Übergeben wird nur der Inhalt von
+`<body>`, auf einer Zeile: Thunderbird macht aus jedem Zeilenumbruch im Rumpf einen
+Zeilenumbruch im Entwurf — ein Tag über zwei Zeilen zerfiel zu sichtbarem Text, die Hülle der
+Datei zu zehn Leerzeilen (gemessen 13.10.2026). Und weil falzmarke die Signatur liefert:
+die Signatur der Identität in Thunderbird leer lassen, sonst steht sie zweimal da.
+
+Alles Folgende zum Nachzählen, zum Konto und zur Warnzeile `ABSENDER PRÜFEN` gilt für den
+**Outlook-Weg** (`--programm outlook`).
 
 **Warum nicht einfach die Datei?** Weil eine `.eml` kein Entwurf ist. Der Befund oben gilt
 unverändert: In Apple Mail, Thunderbird und Outlook für Mac erscheint sie als Lesefenster, und
@@ -158,16 +200,18 @@ Zeile, die nie da war, vermisst niemand.
 - **Apple Mail.** Der `content` einer ausgehenden Nachricht nimmt dort keinen HTML-Rumpf an.
   Statt eine Nachricht ohne ihre Auszeichnung anzulegen, wird die Datei übergeben.
 - **Was das Programm selbst hineinschreibt.** Outlook setzt die **Signatur des Kontos** in den
-  Entwurf. Trägt das Profil eine eigene, steht sie zweimal darin — der Befehl sagt das beim
-  Anlegen. Messen kann er es nicht: Es geschieht nach seinem letzten Handgriff.
+  Entwurf, Thunderbird die der Identität. Trägt das Profil eine eigene, steht sie zweimal darin
+  — der Befehl sagt das beim Anlegen. Messen kann er es nicht: Es geschieht nach seinem letzten
+  Handgriff.
 
 Vier Eigenschaften, die dazugehören:
 
 - **Nur auf Verlangen.** Ohne das Flag passiert nichts — sonst risse eine Serie von dreißig
   Nachrichten dreißig Fenster auf.
 - **Erst nach der Prüfung.** Was `verify --email` nicht besteht, wird in kein Fenster gelegt.
-- **Der Rückfall ist der alte Weg.** Kein passendes Programm, keine Automations-Berechtigung
-  (macOS fragt beim ersten Mal), fremde Plattform: Dann wird die `.eml` übergeben wie vorher.
+- **Der Rückfall ist der alte Weg.** Kein Thunderbird, keine Automations-Berechtigung für
+  Outlook (macOS fragt beim ersten Mal), fremde Plattform: Dann wird die `.eml` übergeben wie
+  vorher.
 - **Ein Fehlschlag ist kein Fehler des Befehls.** Er meldet sich auf der Fehlerausgabe, nennt den
   Pfad und lässt den Exit-Code bei 0.
 

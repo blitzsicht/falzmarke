@@ -22,7 +22,7 @@ import pytest
 import yaml
 
 from falzmarke import eml, emit_html, markdown as md
-from conftest import SKILL
+from conftest import SKILL, REPO
 
 PROFIL_DATEI = SKILL / "falzmarke" / "typst" / "profiles" / "example.yaml"
 QUELLE = "wie besprochen erhalten Sie das Angebot.\n\n- Punkt eins\n- Punkt zwei\n"
@@ -439,6 +439,32 @@ def test_die_adressen_kommen_ohne_anzeigenamen(tmp_path, profil):
     ziel = tmp_path / "komma.eml"
     ziel.write_bytes(nachricht.as_bytes(policy=nachricht.policy))
     assert eml.entwurfsfelder(ziel)["an"] == ["anna@example.com"]
+
+
+LOGO_PROFIL = REPO / "examples" / "email" / "profiles" / "email-logo.yaml"
+
+
+def test_entwurfsfelder_liefert_die_inline_bilder(tmp_path):
+    """ADR 0049: Thunderbird bekommt nur den Rumpf. Das Logo, auf das er mit
+    `cid:` zeigt, muss als Kennung, Typ und Bytes mitkommen — aus der
+    geschriebenen Datei, nicht neu von Platte."""
+    profil = yaml.safe_load(LOGO_PROFIL.read_text(encoding="utf-8"))
+    quelle = "kurz.\n"
+    nachricht = eml.baue(KOPF, profil, quelle, md.lies(quelle), profil_pfad=LOGO_PROFIL)
+    ziel = tmp_path / "logo.eml"
+    ziel.write_bytes(nachricht.as_bytes(policy=nachricht.policy))
+    felder = eml.entwurfsfelder(ziel)
+    ((kennung, mime, daten),) = felder["inline"]
+    assert kennung == eml.LOGO_CID and mime == "image/png"
+    assert daten == (LOGO_PROFIL.parent / "assets" / "mail-logo.png").read_bytes()
+    assert f'src="cid:{eml.LOGO_CID}"' in felder["html"]
+    assert felder["anhaenge"] == [], "das Logo ist kein Anhang"
+
+
+def test_ohne_logo_gibt_es_keine_inline_teile(tmp_path, profil):
+    """Gegenprobe: Die Anlage darf nicht als Inline-Teil durchgehen."""
+    felder = eml.entwurfsfelder(_mit_anlage(tmp_path, profil))
+    assert felder["inline"] == [] and len(felder["anhaenge"]) == 1
 
 
 def test_entwurfsfelder_startet_nichts(tmp_path, profil):

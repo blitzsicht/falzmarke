@@ -16,6 +16,7 @@ import pytest
 from falzmarke import geometrie
 from falzmarke import cli as falzmarke
 from falzmarke import lint as _lint
+from falzmarke import oeffnen as _oeffnen
 from falzmarke import regeln as _regeln
 from conftest import PROFILE, REPO
 
@@ -1489,3 +1490,171 @@ def test_rechnung_zurueck_in_der_kuerzelliste_meldet_rechnung_apple(tmp_path, mo
     monkeypatch.setattr(typografie, "VOR_ANGABE", [*typografie.VOR_ANGABE, "Rechnung"])
     meldungen = _rechnung_als_kuerzel(tmp_path)
     assert len(meldungen) == 1 and "Rechnung Apple" in meldungen[0], meldungen
+
+
+# ── Thunderbird: alle Anhänge in EINEM Wert (ADR 0049) ──────────────────────
+#
+# Gemessen am 13.10.2026, Thunderbird 154.0: `-compose` nimmt mehrere Anhänge
+# nur als einen Wert `attachment='a,b'` an; ein zweiter `attachment=`-Schlüssel
+# wird verworfen — stillschweigend, mit Exit 0. Ein Exit-Code sieht das nie.
+# Deshalb liest `_compose_stimmt` die Zeile vor dem Aufruf so zurück, wie
+# Thunderbird sie liest, und hält sie gegen die Vorgabe. Hier wird der Aufbau
+# an genau einer Stelle sabotiert — `anhang_paare` baut die naheliegende
+# Fassung, ein Schlüssel je Datei —, und die Prüfung muss anschlagen.
+
+_FELDER_TB = {"betreff": "Probe", "html": "<p>Text</p>", "an": ["a@example.org"],
+              "kopie": [], "blindkopie": [], "absender": "absender@example.org",
+              "anhaenge": [("a.pdf", b"a"), ("b.txt", b"b")]}
+_PFADE = ["/tmp/a.pdf", "/tmp/b.txt"]
+
+
+def test_unsabotiert_traegt_die_compose_zeile_beide_anhaenge():
+    """Kontrollprobe: ohne Sabotage darf nichts anschlagen."""
+    _, zeile = _oeffnen.compose_argumente(_FELDER_TB, _PFADE)
+    assert zeile.count("attachment=") == 1
+    assert _oeffnen._compose_stimmt(zeile, _FELDER_TB, _PFADE) is None
+
+
+def _ein_schluessel_je_datei(pfade):
+    return [("attachment", pfad) for pfad in pfade]
+
+
+def test_zwei_anhangschluessel_fallen_auf(monkeypatch):
+    monkeypatch.setattr(_oeffnen, "anhang_paare", _ein_schluessel_je_datei)
+    _, zeile = _oeffnen.compose_argumente(_FELDER_TB, _PFADE)
+    assert zeile.count("attachment=") == 2, "die Sabotage griff nicht"
+    grund = _oeffnen._compose_stimmt(zeile, _FELDER_TB, _PFADE)
+    assert grund and "Anhänge: 1 statt 2" in grund, grund
+
+
+def test_die_sabotierte_zeile_erreicht_thunderbird_nicht(monkeypatch, tmp_path):
+    """Der Weg bis zum Aufruf: Die Prüfung steht VOR dem Prozess, nicht danach."""
+    monkeypatch.setattr(_oeffnen, "anhang_paare", _ein_schluessel_je_datei)
+    aufrufe = []
+
+    def nie(argv, **kwargs):
+        aufrufe.append(argv)
+        raise AssertionError("die sabotierte Zeile wurde übergeben")
+
+    lage = _oeffnen.entwurf(_FELDER_TB, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                            laufen=nie, binaer=lambda: "/x/thunderbird", ablage=tmp_path)
+    assert lage.programm is None and "Anhänge: 1 statt 2" in lage.grund
+    assert aufrufe == []
+    assert not list(tmp_path.iterdir()), "der Anhangordner blieb liegen"
+
+
+# ── Thunderbird: das Logo reist als Data-URI mit (ADR 0049, Nachtrag) ──────
+#
+# Gemessen am 13.10.2026, 13:15: Im echten Entwurf stand statt des Logos ein
+# kaputtes Bild mit Alt-Text — `-compose body=` kennt die `cid:`-Teile nicht.
+# `eingebettet` ersetzt den Verweis durch das Bild; `_eingebettet_stimmt` hält
+# den Rumpf vor dem Aufruf dagegen. Zwei Sabotagen, je an einer Stelle: die
+# Umwandlung bleibt aus, und die Umwandlung nimmt den falschen Typ.
+
+import base64 as _base64
+
+_INLINE = [("falzmarke-logo", "image/png", b"\x89PNG\r\n\x1a\n" + b"\x00" * 8)]
+_FELDER_LOGO = {**_FELDER_TB, "anhaenge": [], "inline": _INLINE,
+                "html": '<p>T</p><img src="cid:falzmarke-logo" alt="Logo">'}
+
+
+def _nie(argv, **kwargs):
+    raise AssertionError(f"ein Rumpf, der das Logo nicht trägt, wurde übergeben: {argv[:2]}")
+
+
+def test_unsabotiert_traegt_der_rumpf_das_logo():
+    """Kontrollprobe: ohne Sabotage darf nichts anschlagen."""
+    html = _oeffnen.eingebettet(_FELDER_LOGO["html"], _INLINE)
+    assert _oeffnen._eingebettet_stimmt(html, _INLINE) is None
+    assert "cid:" not in html and html.count("data:image/png;base64,") == 1
+
+
+def test_ohne_umwandlung_bleibt_cid_und_faellt_auf(monkeypatch):
+    monkeypatch.setattr(_oeffnen, "eingebettet", lambda html, inline: html)
+    lage = _oeffnen.entwurf(_FELDER_LOGO, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                            laufen=_nie, binaer=lambda: "/x/thunderbird")
+    assert lage.programm is None and "cid:" in lage.grund, lage
+
+
+def test_ein_falscher_mime_typ_faellt_auf(monkeypatch):
+    def png_fuer_alles(html, inline):
+        for kennung, _mime, daten in inline:
+            html = html.replace(f"cid:{kennung}",
+                                "data:image/png;base64," + _base64.b64encode(daten).decode())
+        return html
+
+    monkeypatch.setattr(_oeffnen, "eingebettet", png_fuer_alles)
+    felder = {**_FELDER_LOGO, "inline": [("falzmarke-logo", "image/jpeg", b"j")]}
+    lage = _oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                            laufen=_nie, binaer=lambda: "/x/thunderbird")
+    assert lage.programm is None and "image/jpeg" in lage.grund, lage
+
+
+# ── Thunderbird: der Rumpf auf einer Zeile, ohne Hülle (ADR 0049, 2. Lauf) ──
+#
+# Gemessen am 13.10.2026 am echten Entwurf: Jeder Zeilenumbruch im `body=`-Wert
+# wird ein Zeilenumbruch im Entwurf. Ein Tag über zwei Zeilen zerfällt, die
+# Hülle wird Leerzeilen. Drei Sabotagen, je an einer Stelle: A und B fängt
+# `_rumpf_stimmt`, C fängt `_eingebettet_stimmt` (die Umbrüche werden vorher zu
+# Leerzeichen, und dann stimmt die URI nicht mehr mit den Bytes überein). Der
+# Nachbau der Thunderbird-Lesart muss den Fehler zeigen.
+
+_HUELLE = (
+    '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8">\n<style>\n.a{}\n</style>\n'
+    '</head>\n<body style="margin: 0;">\n<p>Grüße</p>\n'
+    '<table border="0"\n       style="border-collapse: collapse;">\n'
+    '<tr><td><img src="cid:falzmarke-logo" alt="Logo"></td></tr></table>\n</body>\n</html>\n'
+)
+_FELDER_HUELLE = {**_FELDER_LOGO, "html": _HUELLE}
+
+
+def _text_wie_thunderbird(rumpf: str) -> str:
+    z = _oeffnen._Tagzaehler()
+    z.feed(rumpf.replace("\n", "<br>"))
+    z.close()
+    return "".join(z.text)
+
+
+def test_unsabotiert_vertraegt_der_rumpf_thunderbird():
+    """Kontrollprobe: ohne Sabotage darf nichts anschlagen."""
+    rumpf = _oeffnen.rumpf_fuer_compose(_oeffnen.eingebettet(_HUELLE, _INLINE))
+    assert _oeffnen._rumpf_stimmt(rumpf) is None
+    assert 'style="border-collapse' not in _text_wie_thunderbird(rumpf)
+
+
+def test_sabotage_a_umbrueche_bleiben_das_tag_zerfaellt(monkeypatch):
+    """Fehler A: Die Aufbereitung lässt die Umbrüche stehen."""
+    monkeypatch.setattr(_oeffnen, "rumpf_fuer_compose", lambda html: html.strip())
+    rumpf = _oeffnen.rumpf_fuer_compose(_HUELLE)
+    assert 'style="border-collapse' in _text_wie_thunderbird(rumpf), "der Nachbau zeigt A nicht"
+    lage = _oeffnen.entwurf(_FELDER_HUELLE, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                            laufen=_nie, binaer=lambda: "/x/thunderbird")
+    assert lage.programm is None and "Zeilenumbruch" in lage.grund, lage
+
+
+def test_sabotage_b_die_huelle_bleibt(monkeypatch):
+    """Fehler B: Umbrüche weg, aber Hülle und Leerraum bleiben."""
+    import re as _re
+    monkeypatch.setattr(_oeffnen, "rumpf_fuer_compose",
+                        lambda html: _re.sub(r"\s*\n\s*", " ", html))
+    lage = _oeffnen.entwurf(_FELDER_HUELLE, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                            laufen=_nie, binaer=lambda: "/x/thunderbird")
+    assert lage.programm is None and "Hülle" in lage.grund, lage
+
+
+def test_sabotage_c_umbrueche_in_der_data_uri(monkeypatch):
+    """Base64 mit Umbruch alle 76 Zeichen — so steht es in der .eml, und so
+    darf es nicht in die Zeile."""
+    def mit_umbruechen(html, inline):
+        for kennung, mime, daten in inline:
+            html = html.replace(f"cid:{kennung}",
+                                f"data:{mime};base64," + _base64.encodebytes(daten).decode())
+        return html
+
+    monkeypatch.setattr(_oeffnen, "eingebettet", mit_umbruechen)
+    felder = {**_FELDER_HUELLE, "inline": [("falzmarke-logo", "image/png", b"\x89PNG" * 40)]}
+    roh = mit_umbruechen(_HUELLE, felder["inline"])
+    assert "\n" in roh.split("data:image/png;base64,")[1].split('"')[0], "die Sabotage griff nicht"
+    lage = _oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                            laufen=_nie, binaer=lambda: "/x/thunderbird")
+    assert lage.programm is None and "falzmarke-logo" in lage.grund, lage

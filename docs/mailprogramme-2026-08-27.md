@@ -110,3 +110,34 @@ es nach RFC 5322 lesbar ist.
 Nachricht mit dem neuen Stand tatsächlich aussieht. Erwartet wird das gesetzte Datum an der
 Stelle, an der `(null), (null)` stand — nachgesehen hat es noch niemand. Bis dahin ist das eine
 Erwartung, kein Messwert, und gehört nicht in die Tabelle oben.
+
+---
+
+## Nachtrag 13.10.2026 — Thunderbird nimmt einen Entwurf über `-compose` an
+
+Die Tabelle oben gilt für die **Datei**: Auch Thunderbird 154.0 zeigt eine `.eml` als
+Lesefenster. Ein Entwurf entsteht dort auf einem anderen Weg, gemessen am 13.10.2026 mit
+Thunderbird 154.0 auf macOS:
+
+```
+/Applications/Thunderbird.app/Contents/MacOS/thunderbird -compose "from=…,to=…,cc=…,bcc=…,subject='Betreff, mit Komma und äöüß',format=html,body='<p>…</p>',attachment='/pfad/a.pdf,/pfad/b.txt'"
+```
+
+| | Befund |
+|---|---|
+| `from=` | wählt die Identität — der Absender stimmt |
+| Komma im Wert | bleibt, wenn der Wert in einfachen Anführungszeichen steht |
+| `format=html` + `body=` | formatiert übernommen, Umlaute und € richtig |
+| mehrere Anhänge | nur als **ein** Wert `attachment='a,b'`; ein zweiter `attachment=` wird verworfen, mit Exit 0 |
+| `message=<eml>` | kein Import — der Rohtext landet im Textkörper |
+| Thunderbird läuft | das Binary reicht den Auftrag weiter, kehrt sofort mit Exit 0 zurück, das Fenster geht auf |
+| kein Konto eingerichtet | der Konto-Assistent öffnet sich |
+| Logo per `cid:` im Rumpf (13:15, echter Entwurf) | **kaputtes Bild mit Alt-Text** — die `related`-Teile der `.eml` gibt es auf diesem Weg nicht; falzmarke bettet das Bild seither als `data:`-URI ein |
+| Logo als `data:`-URI | wird im Editor angezeigt (gemessen); dass Thunderbird es beim Senden zum Anhang macht, ist erwartet, ungemessen |
+| rahmenlose Tabellen (Umschlag, Signatur) | rot gepunktete Hilfslinien im Editor — Anzeige des Editors, nicht Teil der gesendeten Mail: **erwartet, ungemessen** |
+| Zeilenumbruch im `body=`-Wert (2. Lauf) | **wird ein Zeilenumbruch im Entwurf.** Ein Tag über zwei Zeilen zerfällt — `style="…">` stand als Text in der Mail; die `<head>`-Hülle wurde zehn Leerzeilen. falzmarke übergibt seither nur den `<body>`-Inhalt auf einer Zeile |
+
+**Nicht gemessen:** ein einfaches Anführungszeichen im Wert, ein Komma im Dateinamen eines
+Anhangs, mehr als ein Empfänger in `to=`, der Aufruf bei nicht laufendem Thunderbird, Linux,
+und ob die Hilfslinien wirklich draußen bleiben.
+Was falzmarke daraus macht, steht in [ADR 0049](entscheidungen/0049-entwurf-in-thunderbird.md).

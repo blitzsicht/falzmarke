@@ -14,6 +14,8 @@ nur auf, wenn ihr Gegenstück im selben Blickfeld liegt.
 from __future__ import annotations
 
 import ast
+import base64
+import re
 import subprocess
 from pathlib import Path
 
@@ -325,13 +327,13 @@ def test_ausserhalb_von_macos_gibt_es_keinen_entwurfsweg(plattform):
     """Windows über COM und Linux sind ungemessen — und was ungemessen ist,
     wird nicht behauptet."""
     rekorder = Rekorder()
-    assert oeffnen.entwurfsweg(plattform, laufen=rekorder) is None
+    assert oeffnen.entwurfsweg(plattform, laufen=rekorder, wahl="outlook") is None
     assert rekorder.anzahl == 0, "es wurde gefragt, obwohl die Antwort feststand"
 
 
 def test_auf_macos_wird_das_system_gefragt_und_nichts_gestartet():
     antwort = Antwortet()
-    gewaehlt = oeffnen.entwurfsweg("darwin", laufen=antwort)
+    gewaehlt = oeffnen.entwurfsweg("darwin", laufen=antwort, wahl="outlook")
     assert gewaehlt is not None and gewaehlt[1] == "Microsoft Outlook"
     (aufruf,) = antwort.aufrufe
     assert aufruf[0] == "osascript" and "-e" in aufruf
@@ -345,7 +347,7 @@ def test_auf_macos_wird_das_system_gefragt_und_nichts_gestartet():
 
 def test_ohne_passendes_programm_bleibt_es_bei_der_datei():
     antwort = Antwortet(gefunden=False)
-    assert oeffnen.entwurfsweg("darwin", laufen=antwort) is None
+    assert oeffnen.entwurfsweg("darwin", laufen=antwort, wahl="outlook") is None
 
 
 def test_die_argumente_stehen_in_fester_reihenfolge():
@@ -406,7 +408,7 @@ def test_eine_antwort_ohne_zahlen_gilt_nicht_als_nachweis():
 def test_der_entwurf_meldet_das_programm(tmp_path):
     antwort = Antwortet(nachweis="97 1 0 0 0")
     name, grund, *_ = oeffnen.entwurf(FELDER, plattform="darwin",
-                                  umgebung={"DISPLAY": ":0"}, laufen=antwort)
+                                  umgebung={"DISPLAY": ":0"}, laufen=antwort, wahl="outlook")
     assert (name, grund) == ("Microsoft Outlook", "")
     (lauf,) = antwort.angelegt
     assert lauf[0] == "osascript" and lauf[1].endswith("entwurf.applescript")
@@ -419,7 +421,7 @@ def test_ein_verschluckter_anhang_faellt_auf():
     felder = {**FELDER, "anhaenge": [("rechnung.pdf", b"%PDF-1.7")]}
     antwort = Antwortet(nachweis="97 1 0 0 0")
     name, grund, *_ = oeffnen.entwurf(felder, plattform="darwin",
-                                  umgebung={"DISPLAY": ":0"}, laufen=antwort)
+                                  umgebung={"DISPLAY": ":0"}, laufen=antwort, wahl="outlook")
     assert name is None and "Anhänge" in grund
 
 
@@ -427,7 +429,7 @@ def test_die_anhaenge_liegen_da_waehrend_das_programm_sie_liest():
     felder = {**FELDER, "anhaenge": [("rechnung.pdf", b"%PDF-1.7")]}
     antwort = Antwortet(nachweis="97 1 0 0 1")
     name, *_ = oeffnen.entwurf(felder, plattform="darwin",
-                              umgebung={"DISPLAY": ":0"}, laufen=antwort)
+                              umgebung={"DISPLAY": ":0"}, laufen=antwort, wahl="outlook")
     assert name == "Microsoft Outlook"
     assert antwort.dateien_da == [True], "das Verzeichnis war beim Aufruf schon weg"
 
@@ -436,7 +438,7 @@ def test_ein_anhangname_zeigt_nie_aus_dem_ordner():
     felder = {**FELDER, "anhaenge": [("../../etc/passwd", b"x")]}
     antwort = Antwortet(nachweis="97 1 0 0 1")
     oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
-                    laufen=antwort)
+                    laufen=antwort, wahl="outlook")
     pfade = [a for a in antwort.aufrufe[-1] if "falzmarke-entwurf-" in str(a)]
     assert pfade and all(".." not in p for p in pfade), pfade
 
@@ -445,7 +447,7 @@ def test_der_schalter_haelt_den_entwurf_zu_ohne_die_datei_aufzugeben():
     antwort = Antwortet()
     name, grund, *_ = oeffnen.entwurf(FELDER, plattform="darwin",
                                   umgebung={"FALZMARKE_ENTWURF": "nie", "DISPLAY": ":0"},
-                                  laufen=antwort)
+                                  laufen=antwort, wahl="outlook")
     assert name is None and "FALZMARKE_ENTWURF" in grund
     assert antwort.aufrufe == [], "es wurde gestartet, obwohl abgeschaltet war"
 
@@ -454,14 +456,14 @@ def test_gegenprobe_ohne_den_schalter_laeuft_es():
     """Ohne sie belegte der Test darüber nur, dass irgendetwas None ergibt."""
     antwort = Antwortet(nachweis="97 1 0 0 0")
     name, *_ = oeffnen.entwurf(FELDER, plattform="darwin",
-                              umgebung={"DISPLAY": ":0"}, laufen=antwort)
+                              umgebung={"DISPLAY": ":0"}, laufen=antwort, wahl="outlook")
     assert name == "Microsoft Outlook"
 
 
 def test_auf_einem_baurechner_entsteht_kein_entwurf():
     antwort = Antwortet()
     name, grund, *_ = oeffnen.entwurf(FELDER, plattform="darwin",
-                                  umgebung={"CI": "true"}, laufen=antwort)
+                                  umgebung={"CI": "true"}, laufen=antwort, wahl="outlook")
     assert name is None and "Baurechner" in grund
     assert antwort.aufrufe == []
 
@@ -469,7 +471,7 @@ def test_auf_einem_baurechner_entsteht_kein_entwurf():
 def test_ein_fehler_des_skripts_wird_zum_satz_und_nicht_zur_ausnahme():
     antwort = Antwortet(code=1, stderr="execution error: Outlook ist nicht berechtigt (-1743)")
     name, grund, *_ = oeffnen.entwurf(FELDER, plattform="darwin",
-                                  umgebung={"DISPLAY": ":0"}, laufen=antwort)
+                                  umgebung={"DISPLAY": ":0"}, laufen=antwort, wahl="outlook")
     assert name is None and "-1743" in grund
 
 
@@ -480,7 +482,7 @@ def test_ein_haengendes_steuerskript_laeuft_in_die_frist():
         raise subprocess.TimeoutExpired(argv, oeffnen.FRIST_ENTWURF_S)
 
     name, grund, *_ = oeffnen.entwurf(FELDER, plattform="darwin",
-                                  umgebung={"DISPLAY": ":0"}, laufen=haengt)
+                                  umgebung={"DISPLAY": ":0"}, laufen=haengt, wahl="outlook")
     assert name is None and str(oeffnen.FRIST_ENTWURF_S) in grund
 
 
@@ -491,7 +493,7 @@ def test_eine_zaehe_programmsuche_ist_kein_traceback():
         raise subprocess.TimeoutExpired(argv, oeffnen.FRIST_S)
 
     lage = oeffnen.entwurf(FELDER, plattform="darwin",
-                           umgebung={"DISPLAY": ":0"}, laufen=zaeh)
+                           umgebung={"DISPLAY": ":0"}, laufen=zaeh, wahl="outlook")
     assert lage.programm is None and not lage.ungewiss
     assert str(oeffnen.FRIST_S) in lage.grund
 
@@ -506,7 +508,7 @@ def test_die_blindkopie_geht_in_den_entwurf():
     felder = {**FELDER, "blindkopie": ["archiv@example.de"]}
     antwort = Antwortet(nachweis="97 1 0 1 0")
     name, grund, *_ = oeffnen.entwurf(felder, plattform="darwin",
-                                  umgebung={"DISPLAY": ":0"}, laufen=antwort)
+                                  umgebung={"DISPLAY": ":0"}, laufen=antwort, wahl="outlook")
     assert (name, grund) == ("Microsoft Outlook", "")
     assert antwort.angelegt[-1][6] == "archiv@example.de", antwort.angelegt[-1]
     assert "make new bcc recipient" in oeffnen.SKRIPT_OUTLOOK
@@ -518,7 +520,7 @@ def test_eine_verschluckte_blindkopie_faellt_auf():
     felder = {**FELDER, "blindkopie": ["archiv@example.de"]}
     antwort = Antwortet(nachweis="97 1 0 0 0")
     name, grund, *_ = oeffnen.entwurf(felder, plattform="darwin",
-                                  umgebung={"DISPLAY": ":0"}, laufen=antwort)
+                                  umgebung={"DISPLAY": ":0"}, laufen=antwort, wahl="outlook")
     assert name is None
     assert "Blindkopien: 0 statt 1" in grund, grund
 
@@ -572,7 +574,7 @@ def test_eine_antwort_ohne_kennung_gilt_nicht():
 def test_stimmt_die_zaehlung_wird_genau_einmal_geoeffnet():
     antwort = Antwortet(nachweis="97 1 0 0 0")
     lage = oeffnen.entwurf(FELDER, plattform="darwin",
-                           umgebung={"DISPLAY": ":0"}, laufen=antwort)
+                           umgebung={"DISPLAY": ":0"}, laufen=antwort, wahl="outlook")
     assert lage.programm == "Microsoft Outlook" and not lage.ungewiss
     assert antwort.schrittarten == ["oeffnen"], antwort.schrittarten
     assert antwort.schritte[0][-1] == "97", "die Kennung wird nicht durchgereicht"
@@ -584,7 +586,7 @@ def test_stimmt_die_zaehlung_nicht_wird_verworfen_und_nichts_geoeffnet():
     felder = {**FELDER, "anhaenge": [("rechnung.pdf", b"%PDF-1.7")]}
     antwort = Antwortet(nachweis="97 1 0 0 0")          # der Anhang fehlt
     lage = oeffnen.entwurf(felder, plattform="darwin",
-                           umgebung={"DISPLAY": ":0"}, laufen=antwort)
+                           umgebung={"DISPLAY": ":0"}, laufen=antwort, wahl="outlook")
     assert lage.programm is None and "Anhänge" in lage.grund
     assert not lage.ungewiss, "hier ist der Zustand bekannt, nicht ungewiss"
     assert antwort.schrittarten == ["verwerfen"], (
@@ -602,7 +604,7 @@ def test_die_gerissene_frist_ist_ungewiss_und_kein_rueckfall():
         raise subprocess.TimeoutExpired(argv, oeffnen.FRIST_ENTWURF_S)
 
     lage = oeffnen.entwurf(FELDER, plattform="darwin",
-                           umgebung={"DISPLAY": ":0"}, laufen=haengt)
+                           umgebung={"DISPLAY": ":0"}, laufen=haengt, wahl="outlook")
     assert lage.programm is None
     assert lage.ungewiss, "ohne diesen Zustand schöbe der Aufrufer die .eml nach"
     assert str(oeffnen.FRIST_ENTWURF_S) in lage.grund
@@ -612,7 +614,7 @@ def test_gegenprobe_der_normalfall_ist_nicht_ungewiss():
     """Sonst wäre `ungewiss` immer wahr und der Aufrufer riefe nie mehr den
     Rückfall — die Prüfung darüber könnte nicht rot werden."""
     lage = oeffnen.entwurf(FELDER, plattform="darwin",
-                           umgebung={"DISPLAY": ":0"}, laufen=Antwortet())
+                           umgebung={"DISPLAY": ":0"}, laufen=Antwortet(), wahl="outlook")
     assert not lage.ungewiss
 
 
@@ -621,7 +623,7 @@ def test_laesst_sich_der_entwurf_nicht_zeigen_bleibt_er_nicht_liegen():
     öffnete zusätzlich die Datei."""
     antwort = Antwortet(nachweis="97 1 0 0 0", schrittcode=1)
     lage = oeffnen.entwurf(FELDER, plattform="darwin",
-                           umgebung={"DISPLAY": ":0"}, laufen=antwort)
+                           umgebung={"DISPLAY": ":0"}, laufen=antwort, wahl="outlook")
     assert lage.programm is None and "nicht zu öffnen" in lage.grund
     assert antwort.schrittarten == ["oeffnen", "verwerfen"], antwort.schrittarten
 
@@ -643,7 +645,7 @@ def test_der_absender_geht_ins_skript():
     felder = {**FELDER, "absender": "info@example.de"}
     antwort = Antwortet(nachweis="97 1 0 0 0\ninfo@example.de")
     lage = oeffnen.entwurf(felder, plattform="darwin",
-                           umgebung={"DISPLAY": ":0"}, laufen=antwort)
+                           umgebung={"DISPLAY": ":0"}, laufen=antwort, wahl="outlook")
     assert lage.programm == "Microsoft Outlook"
     assert antwort.angelegt[-1][7] == "info@example.de", antwort.angelegt[-1]
     assert lage.konto == "info@example.de"
@@ -718,7 +720,7 @@ def test_die_suche_reist_bis_in_die_entwurfslage():
     felder = {**FELDER, "absender": "privat@example.de"}
     antwort = Antwortet(nachweis="97 1 0 0 0\njoe@example.de\nfehlt")
     lage = oeffnen.entwurf(felder, plattform="darwin",
-                           umgebung={"DISPLAY": ":0"}, laufen=antwort)
+                           umgebung={"DISPLAY": ":0"}, laufen=antwort, wahl="outlook")
     assert (lage.konto, lage.suche) == ("joe@example.de", "fehlt")
 
 
@@ -745,3 +747,641 @@ def test_ein_vorhandenes_aber_nicht_gesetztes_konto_bleibt_beim_umstellen():
 def test_ohne_lesbare_konten_steht_nicht_geprueft_da():
     meldung = oeffnen.absender_warnung("info@example.de", None, None)
     assert "nicht geprüft" in meldung and "kein Konto" not in meldung
+
+
+# ── Der Entwurf in Thunderbird (ADR 0049) ───────────────────────────────────
+#
+# ANLASS (13.10.2026): Outlook ist zwar installiert, aber ohne Lizenz, und das
+# neue Outlook zeigt AppleScript kein Konto mehr — der Absender war seit #305
+# nie verlässlich. Thunderbird nimmt einen Entwurf über seine Befehlszeile an:
+# ein Aufruf, `-compose "from=…,to=…,subject='…',format=html,body='…',
+# attachment='a,b'"`. Gemessen am 13.10.2026 mit Thunderbird 154.0 auf macOS:
+# `from=` wählt die Identität, einfache Anführungszeichen schützen Kommas im
+# Wert, Umlaute und € kommen an, mehrere Anhänge nur als EIN Wert — ein zweiter
+# `attachment=`-Schlüssel wird verworfen.
+#
+# Kein Test hier startet ein Programm. Was `pgrep`, das Binary und `open`
+# täten, wird eingespeist; geprüft wird, WOMIT sie aufgerufen würden.
+
+THUNDERBIRD_PFAD = "/Applications/Thunderbird.app/Contents/MacOS/thunderbird"
+
+FELDER_TB = {**FELDER, "absender": "absender@example.org"}
+
+
+def _thunderbird_da() -> str:
+    return THUNDERBIRD_PFAD
+
+
+def _kein_thunderbird() -> None:
+    return None
+
+
+class Thunderbird:
+    """Ein Thunderbird, das nichts startet: beantwortet `pgrep` und nimmt den
+    `-compose`-Aufruf entgegen — ob über das Binary oder über `open`."""
+
+    def __init__(self, *, laeuft=True, code=0, stderr="", wirft=None):
+        self.aufrufe: list[tuple] = []
+        #: Ob die Anhänge beim Aufruf dalagen.
+        self.dateien_da: list[bool] = []
+        self._laeuft, self._code, self._stderr, self._wirft = laeuft, code, stderr, wirft
+
+    def __call__(self, argv, **kwargs):
+        self.aufrufe.append(tuple(argv))
+        if argv[0] == "pgrep":
+            return subprocess.CompletedProcess(argv, 0 if self._laeuft else 1,
+                                               stdout="4711\n" if self._laeuft else "",
+                                               stderr="")
+        if self._wirft is not None:
+            raise self._wirft
+        zeile = argv[argv.index("-compose") + 1] if "-compose" in argv else ""
+        anhaenge = oeffnen.compose_zerlegen(zeile).get("attachment", "")
+        self.dateien_da.append(all(Path(p).is_file() for p in anhaenge.split(",") if p))
+        return subprocess.CompletedProcess(argv, self._code, stdout="", stderr=self._stderr)
+
+    @property
+    def compose(self) -> list[tuple]:
+        """Nur die Aufrufe, die einen Entwurf übergeben — nicht die Frage, ob es läuft."""
+        return [a for a in self.aufrufe if "-compose" in a]
+
+
+def _zeile(felder, pfade) -> str:
+    argv = oeffnen.compose_argumente(felder, pfade)
+    assert argv[0] == "-compose" and len(argv) == 2, argv
+    return argv[1]
+
+
+# Der Argumentaufbau: rein, ohne Prozess.
+
+def test_die_felder_werden_genau_eine_compose_zeichenkette():
+    argv = oeffnen.compose_argumente(FELDER_TB, [])
+    assert argv.count("-compose") == 1
+    assert len(argv) == 2, "mehr als ein Argument hinter -compose"
+
+
+def test_zwei_anhaenge_sind_ein_wert():
+    zeile = _zeile(FELDER_TB, ["/tmp/a.pdf", "/tmp/b.txt"])
+    assert zeile.count("attachment=") == 1, zeile
+    assert "attachment='/tmp/a.pdf,/tmp/b.txt'" in zeile
+
+
+def test_ein_komma_im_betreff_bleibt_und_steht_in_anfuehrungszeichen():
+    felder = {**FELDER_TB, "betreff": "Betreff, mit Komma und äöüß"}
+    zeile = _zeile(felder, [])
+    assert "subject='Betreff, mit Komma und äöüß'" in zeile
+    # Und Thunderbird liest es als EINEN Wert zurück — das Komma trennt nichts.
+    assert oeffnen.compose_zerlegen(zeile)["subject"] == "Betreff, mit Komma und äöüß"
+
+
+def test_umlaute_und_euro_bleiben_unveraendert():
+    felder = {**FELDER_TB, "betreff": "Grüße", "html": "<p>Preis: 1.234,56 €, Köln</p>"}
+    gelesen = oeffnen.compose_zerlegen(_zeile(felder, []))
+    assert gelesen["subject"] == "Grüße"
+    assert gelesen["body"] == "<p>Preis: 1.234,56 €, Köln</p>"
+
+
+def test_html_heisst_format_html():
+    gelesen = oeffnen.compose_zerlegen(_zeile(FELDER_TB, []))
+    assert gelesen["format"] == "html" and gelesen["body"] == "<p>Text</p>"
+
+
+def test_ohne_html_heisst_es_format_text_und_kein_rumpf():
+    """Gegenprobe zu oben: `format` hängt am Rumpf, nicht an einer Konstante."""
+    gelesen = oeffnen.compose_zerlegen(_zeile({**FELDER_TB, "html": ""}, []))
+    assert gelesen["format"] == "text" and "body" not in gelesen
+
+
+def test_alle_felder_kommen_an():
+    felder = {**FELDER_TB, "an": ["a@example.org", "b@example.org"],
+              "kopie": ["c@example.org"], "blindkopie": ["archiv@example.org"]}
+    gelesen = oeffnen.compose_zerlegen(_zeile(felder, ["/tmp/x.pdf"]))
+    assert gelesen["from"] == "absender@example.org"
+    assert gelesen["to"] == "a@example.org,b@example.org"
+    assert gelesen["cc"] == "c@example.org"
+    assert gelesen["bcc"] == "archiv@example.org"
+    assert gelesen["attachment"] == "/tmp/x.pdf"
+
+
+def test_ein_apostroph_im_wert_wird_typografisch():
+    """Die Grenze: Ob Thunderbird ein `'` im Wert übersteht, ist nicht gemessen
+    (13.10.2026 offen). Statt zu raten, wird es zum Apostroph ’ — das ist in
+    deutschem Text ohnehin das richtige Zeichen."""
+    felder = {**FELDER_TB, "betreff": "Hans' Angebot, Teil 2",
+              "html": "<p>Wer's liest, 'Zitat', fertig</p>"}
+    zeile = _zeile(felder, [])
+    gelesen = oeffnen.compose_zerlegen(zeile)
+    # Genau zwei Anführungszeichen je Schlüssel — keins mehr im Wert.
+    assert zeile.count("'") == 2 * len(gelesen), zeile
+    assert gelesen["subject"] == "Hans’ Angebot, Teil 2"
+    assert gelesen["body"] == "<p>Wer’s liest, ’Zitat’, fertig</p>"
+
+
+def test_gegenprobe_ohne_ersetzung_zerfiele_der_wert():
+    """`'Zitat',` — ein Anführungszeichen vor einem Komma schlösse den Wert.
+    Sonst wäre die Ersetzung oben Vorsicht ohne Anlass."""
+    gelesen = oeffnen.compose_zerlegen("subject='a 'b', c',to='x@example.org'")
+    assert gelesen["subject"] != "a 'b', c"
+
+
+def test_das_compose_lesen_nimmt_den_ersten_schluessel():
+    """Gemessen am 13.10.2026: Ein zweiter `attachment=` wird verworfen."""
+    gelesen = oeffnen.compose_zerlegen("attachment='/a',attachment='/b',subject=x")
+    assert gelesen["attachment"] == "/a"
+    assert gelesen["subject"] == "x"
+
+
+def test_ein_unzitierter_wert_wird_wie_eine_url_dekodiert():
+    """Deshalb steht jeder Wert in Anführungszeichen: `100%ig` bliebe sonst
+    nicht, was es ist."""
+    assert oeffnen.compose_zerlegen("subject=100%20ig")["subject"] == "100 ig"
+    assert oeffnen.compose_zerlegen("subject='100%20ig'")["subject"] == "100%20ig"
+
+
+def test_jeder_wert_steht_in_anfuehrungszeichen():
+    felder = {**FELDER_TB, "betreff": "100%ig"}
+    zeile = _zeile(felder, ["/tmp/x.pdf"])
+    for schluessel in ("from", "to", "subject", "format", "body", "attachment"):
+        assert f"{schluessel}='" in zeile, (schluessel, zeile)
+
+
+def test_im_compose_steht_kein_versandschluessel():
+    """ADR 0034 gilt unverändert: Entwurf ja, Senden nie."""
+    zeile = _zeile(FELDER_TB, ["/tmp/x.pdf"])
+    assert set(oeffnen.compose_zerlegen(zeile)) <= set(oeffnen.COMPOSE_SCHLUESSEL)
+    assert not any("send" in s for s in oeffnen.COMPOSE_SCHLUESSEL)
+
+
+# Die Gegenbeweise: Fehler statt Aufruf.
+
+def test_ohne_absender_gibt_es_keinen_aufruf():
+    """`from=` wählt die Identität. Ohne sie nähme Thunderbird die Vorgabe —
+    genau der Fehler aus #305, nur in einem anderen Programm."""
+    tb = Thunderbird()
+    lage = oeffnen.entwurf({**FELDER_TB, "absender": ""}, plattform="darwin",
+                           umgebung={"DISPLAY": ":0"}, laufen=tb, binaer=_thunderbird_da)
+    assert lage.programm is None and "Absender" in lage.grund
+    assert tb.aufrufe == [], "es wurde aufgerufen, obwohl der Absender fehlte"
+
+
+def test_ein_anhangpfad_mit_komma_gibt_keinen_aufruf(tmp_path):
+    """Thunderbird trennt die Anhänge am Komma. Ein Pfad mit Komma würde zu zwei
+    Pfaden, die es nicht gibt — stillschweigend. Also Fehler, kein Aufruf."""
+    felder = {**FELDER_TB, "anhaenge": [("Angebot, Fassung 2.pdf", b"%PDF-1.7")]}
+    tb = Thunderbird()
+    lage = oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=tb, binaer=_thunderbird_da, ablage=tmp_path)
+    assert lage.programm is None and "Komma" in lage.grund
+    assert tb.aufrufe == []
+    assert not list(tmp_path.iterdir()), "der Anhangordner blieb liegen"
+
+
+def test_compose_argumente_lehnt_einen_pfad_mit_komma_ab():
+    with pytest.raises(ValueError, match="Komma"):
+        oeffnen.compose_argumente(FELDER_TB, ["/tmp/a,b.pdf"])
+
+
+def test_gegenprobe_ohne_komma_geht_derselbe_pfad_durch():
+    assert oeffnen.compose_argumente(FELDER_TB, ["/tmp/ab.pdf"])
+
+
+# Die Suche nach dem Programm.
+
+def test_das_binary_liegt_zuerst_unter_applications():
+    gefragt = []
+    pfad = oeffnen.thunderbird_binaer(existiert=lambda p: p == oeffnen.THUNDERBIRD_MACOS,
+                                      which=lambda n: gefragt.append(n) or None)
+    assert pfad == oeffnen.THUNDERBIRD_MACOS
+    assert gefragt == [], "PATH wurde befragt, obwohl die Antwort feststand"
+
+
+def test_sonst_entscheidet_der_pfad():
+    pfad = oeffnen.thunderbird_binaer(existiert=lambda p: False,
+                                      which=lambda n: "/opt/bin/thunderbird")
+    assert pfad == "/opt/bin/thunderbird"
+
+
+def test_ohne_beides_gibt_es_kein_binary():
+    assert oeffnen.thunderbird_binaer(existiert=lambda p: False, which=lambda n: None) is None
+
+
+def test_ohne_wahl_nimmt_der_entwurfsweg_thunderbird():
+    rekorder = Rekorder()
+    gewaehlt = oeffnen.entwurfsweg("darwin", laufen=rekorder, binaer=_thunderbird_da)
+    assert gewaehlt is not None and gewaehlt.name == "Thunderbird"
+    assert gewaehlt.pfad == THUNDERBIRD_PFAD
+    assert rekorder.anzahl == 0, "für Thunderbird wird kein Prozess gestartet"
+
+
+def test_ohne_thunderbird_bleibt_es_bei_der_datei_auch_wenn_outlook_da_ist():
+    """Outlook ist installiert, aber ohne Lizenz und im neuen Outlook ohne
+    Konto für AppleScript. „fehlt“ träfe nie zu — deshalb nur auf Wahl."""
+    antwort = Antwortet(gefunden=True)
+    assert oeffnen.entwurfsweg("darwin", laufen=antwort, binaer=_kein_thunderbird) is None
+    assert antwort.aufrufe == [], "Outlook wurde gesucht, ohne dass es jemand wählte"
+
+
+def test_outlook_kommt_nur_auf_wahl():
+    antwort = Antwortet(gefunden=True)
+    gewaehlt = oeffnen.entwurfsweg("darwin", laufen=antwort, wahl="outlook",
+                                   binaer=_thunderbird_da)
+    assert gewaehlt is not None and gewaehlt.name == "Microsoft Outlook"
+
+
+def test_die_wahl_thunderbird_fragt_outlook_nicht():
+    antwort = Antwortet(gefunden=True)
+    gewaehlt = oeffnen.entwurfsweg("darwin", laufen=antwort, wahl="thunderbird",
+                                   binaer=_kein_thunderbird)
+    assert gewaehlt is None and antwort.aufrufe == []
+
+
+def test_eine_unbekannte_wahl_ist_ein_programmierfehler():
+    with pytest.raises(ValueError, match="applemail"):
+        oeffnen.entwurfsweg("darwin", laufen=Rekorder(), wahl="applemail")
+
+
+@pytest.mark.parametrize("plattform", ["linux", "win32"])
+def test_auch_thunderbird_bleibt_auf_macos_begrenzt(plattform):
+    """Die Befehlszeile wäre dieselbe — gemessen ist sie nur auf macOS."""
+    assert oeffnen.entwurfsweg(plattform, laufen=Rekorder(), binaer=_thunderbird_da) is None
+
+
+# Der Lauf.
+
+def test_laeuft_thunderbird_geht_der_auftrag_ans_binary():
+    tb = Thunderbird(laeuft=True)
+    lage = oeffnen.entwurf(FELDER_TB, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=tb, binaer=_thunderbird_da)
+    assert (lage.programm, lage.grund, lage.ungewiss) == ("Thunderbird", "", False)
+    (aufruf,) = tb.compose
+    assert aufruf[0] == THUNDERBIRD_PFAD and aufruf[1] == "-compose"
+    assert len(aufruf) == 3, "mehr als eine -compose-Zeichenkette"
+    assert tb.aufrufe[0][0] == "pgrep", "ob es läuft, wurde nicht gefragt"
+
+
+def test_ein_angenommener_auftrag_ist_nicht_nachgezaehlt():
+    """Exit 0 heißt: Thunderbird hat den Auftrag angenommen. Ob das Fenster
+    alles trägt, zählt niemand nach — und das steht an der Lage."""
+    lage = oeffnen.entwurf(FELDER_TB, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=Thunderbird(), binaer=_thunderbird_da)
+    assert lage.nachgezaehlt is False
+    assert lage.konto is None and lage.suche is None
+
+
+def test_gegenprobe_der_outlook_entwurf_ist_nachgezaehlt():
+    lage = oeffnen.entwurf(FELDER, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=Antwortet(nachweis="97 1 0 0 0"), wahl="outlook")
+    assert lage.programm == "Microsoft Outlook" and lage.nachgezaehlt is True
+
+
+def test_die_anhaenge_liegen_da_und_bleiben_liegen(tmp_path):
+    """Thunderbird merkt sich den Pfad und liest die Datei erst beim Senden
+    oder Speichern — ein Ordner, der nach dem Aufruf verschwindet, wäre eine
+    leere Anlage."""
+    felder = {**FELDER_TB, "anhaenge": [("rechnung.pdf", b"%PDF-1.7")]}
+    tb = Thunderbird()
+    lage = oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=tb, binaer=_thunderbird_da, ablage=tmp_path)
+    assert lage.programm == "Thunderbird"
+    assert tb.dateien_da == [True]
+    assert lage.ablage and Path(lage.ablage).parent == tmp_path
+    assert (Path(lage.ablage) / "rechnung.pdf").read_bytes() == b"%PDF-1.7"
+
+
+def test_ohne_anhaenge_entsteht_kein_ordner(tmp_path):
+    lage = oeffnen.entwurf(FELDER_TB, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=Thunderbird(), binaer=_thunderbird_da, ablage=tmp_path)
+    assert lage.ablage is None and not list(tmp_path.iterdir())
+
+
+def test_ein_anhangname_zeigt_auch_hier_nie_aus_dem_ordner(tmp_path):
+    felder = {**FELDER_TB, "anhaenge": [("../../etc/passwd", b"x")]}
+    tb = Thunderbird()
+    lage = oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=tb, binaer=_thunderbird_da, ablage=tmp_path)
+    pfade = oeffnen.compose_zerlegen(tb.compose[0][2])["attachment"].split(",")
+    assert pfade and all(".." not in p and p.startswith(str(tmp_path)) for p in pfade), pfade
+    assert lage.programm == "Thunderbird"
+
+
+def test_ein_apostroph_im_dateinamen_wird_typografisch(tmp_path):
+    felder = {**FELDER_TB, "anhaenge": [("Hans' Rechnung.pdf", b"x")]}
+    tb = Thunderbird()
+    oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                    laufen=tb, binaer=_thunderbird_da, ablage=tmp_path)
+    pfad = oeffnen.compose_zerlegen(tb.compose[0][2])["attachment"]
+    assert pfad.endswith("Hans’ Rechnung.pdf") and Path(pfad).is_file()
+
+
+def test_ein_fehler_des_binarys_wird_zum_satz_und_raeumt_auf(tmp_path):
+    felder = {**FELDER_TB, "anhaenge": [("rechnung.pdf", b"x")]}
+    tb = Thunderbird(code=1, stderr="Error: profile is locked")
+    lage = oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=tb, binaer=_thunderbird_da, ablage=tmp_path)
+    assert lage.programm is None and "profile is locked" in lage.grund
+    assert not lage.ungewiss
+    assert not list(tmp_path.iterdir()), "der Anhangordner blieb nach dem Fehlschlag liegen"
+
+
+def test_ein_stummer_fehlschlag_nennt_den_code():
+    lage = oeffnen.entwurf(FELDER_TB, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=Thunderbird(code=3), binaer=_thunderbird_da)
+    assert lage.programm is None and "3" in lage.grund
+
+
+def test_eine_gerissene_frist_ist_ungewiss():
+    tb = Thunderbird(wirft=subprocess.TimeoutExpired("thunderbird", oeffnen.FRIST_ENTWURF_S))
+    lage = oeffnen.entwurf(FELDER_TB, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=tb, binaer=_thunderbird_da)
+    assert lage.programm is None and lage.ungewiss
+    assert str(oeffnen.FRIST_ENTWURF_S) in lage.grund
+
+
+def test_laeuft_thunderbird_nicht_wird_es_mit_dem_auftrag_gestartet():
+    """Das Binary selbst würde dann ZU Thunderbird — es käme nicht zurück, und
+    `subprocess.run` erschlüge es nach der Frist. `open --args` kehrt sofort
+    zurück. Ob das Fenster aufgeht, ist nicht gemessen: also ungewiss, und der
+    Aufrufer schiebt keine Datei nach."""
+    tb = Thunderbird(laeuft=False)
+    lage = oeffnen.entwurf(FELDER_TB, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=tb, binaer=_thunderbird_da)
+    (aufruf,) = tb.compose
+    assert aufruf[:4] == ("open", "-a", "/Applications/Thunderbird.app", "--args")
+    assert aufruf[4] == "-compose" and len(aufruf) == 6
+    assert lage.programm is None and lage.ungewiss, lage
+    assert "gestartet" in lage.grund
+
+
+def test_das_buendel_haengt_nicht_am_trennzeichen_des_hosts():
+    """Gemessen in der CI auf windows-latest (PR #390): `Path` des Hosts machte
+    aus dem Bündel `\\Applications\\Thunderbird.app`. Das Argument geht an ein
+    macOS-`open` und ist auf jedem Rechner derselbe POSIX-Pfad."""
+    assert oeffnen._app_buendel(THUNDERBIRD_PFAD) == "/Applications/Thunderbird.app"
+    assert "\\" not in oeffnen._app_buendel(THUNDERBIRD_PFAD)
+    assert oeffnen._app_buendel("/opt/bin/thunderbird") is None
+    assert oeffnen._app_buendel("/Applications/X.app/Contents/Resources/x") is None
+
+
+def test_gegenprobe_laeuft_es_wird_nicht_ueber_open_gegangen():
+    tb = Thunderbird(laeuft=True)
+    oeffnen.entwurf(FELDER_TB, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                    laufen=tb, binaer=_thunderbird_da)
+    assert not any(a[0] == "open" for a in tb.aufrufe)
+
+
+def test_laeuft_es_nicht_und_liegt_in_keinem_buendel_bleibt_es_bei_der_datei():
+    tb = Thunderbird(laeuft=False)
+    lage = oeffnen.entwurf(FELDER_TB, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=tb, binaer=lambda: "/opt/bin/thunderbird")
+    assert lage.programm is None and not lage.ungewiss
+    assert "läuft nicht" in lage.grund
+    assert tb.compose == []
+
+
+def test_die_anhaenge_bleiben_auch_im_ungewissen_fall_liegen(tmp_path):
+    """Wer nicht weiß, ob Thunderbird gleich liest, räumt nicht ab."""
+    felder = {**FELDER_TB, "anhaenge": [("rechnung.pdf", b"x")]}
+    lage = oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=Thunderbird(laeuft=False), binaer=_thunderbird_da,
+                           ablage=tmp_path)
+    assert lage.ungewiss and lage.ablage and Path(lage.ablage).is_dir()
+
+
+def test_ohne_thunderbird_nennt_der_grund_den_schalter_fuer_outlook():
+    lage = oeffnen.entwurf(FELDER_TB, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=Antwortet(gefunden=True), binaer=_kein_thunderbird)
+    assert lage.programm is None
+    assert "Thunderbird" in lage.grund and "--programm outlook" in lage.grund
+
+
+def test_der_schalter_haelt_auch_thunderbird_zu():
+    tb = Thunderbird()
+    lage = oeffnen.entwurf(FELDER_TB, plattform="darwin",
+                           umgebung={"FALZMARKE_ENTWURF": "nie", "DISPLAY": ":0"},
+                           laufen=tb, binaer=_thunderbird_da)
+    assert lage.programm is None and tb.aufrufe == []
+
+
+def test_die_wahl_outlook_laeuft_wie_bisher_ueber_osascript():
+    antwort = Antwortet(nachweis="97 1 0 0 0")
+    lage = oeffnen.entwurf(FELDER, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=antwort, wahl="outlook", binaer=_thunderbird_da)
+    assert lage.programm == "Microsoft Outlook"
+    assert all(a[0] == "osascript" for a in antwort.aufrufe)
+
+
+# ── Das Logo im Rumpf: cid: wird zur Data-URI (ADR 0049, Nachtrag) ──────────
+#
+# GEMESSEN (13.10.2026, 13:15, echter Entwurf in Thunderbird 154): Das Logo der
+# Signatur erschien als kaputtes Bild mit Alt-Text. Der Rumpf verweist mit
+# `cid:` auf einen Teil der .eml, und `-compose body=` kennt diese Teile nicht.
+
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 16
+HTML_MIT_LOGO = '<p>Text</p><img src="cid:falzmarke-logo" alt="Beispiel GmbH" width="40">'
+INLINE = [("falzmarke-logo", "image/png", PNG)]
+
+
+def _uri(mime: str, daten: bytes) -> str:
+    return f"data:{mime};base64,{base64.b64encode(daten).decode('ascii')}"
+
+
+def test_ein_cid_verweis_wird_zur_data_uri():
+    html = oeffnen.eingebettet(HTML_MIT_LOGO, INLINE)
+    assert "cid:" not in html
+    assert html.count(_uri("image/png", PNG)) == 1
+    assert 'src="data:image/png;base64,' in html
+
+
+def test_jedes_bild_bekommt_genau_eine_uri_mit_seinem_typ():
+    html = '<img src="cid:logo"><img src="cid:logo2">'
+    inline = [("logo", "image/png", b"a"), ("logo2", "image/jpeg", b"b")]
+    aus = oeffnen.eingebettet(html, inline)
+    assert "cid:" not in aus
+    assert aus.count(_uri("image/png", b"a")) == 1
+    assert aus.count(_uri("image/jpeg", b"b")) == 1
+
+
+def test_cid_logo_trifft_nicht_cid_logo2():
+    """Die Ersetzung endet am Anführungszeichen — sonst bekäme `logo2` den
+    Anfang von `logo` und einen Rest, der nirgends hingehört."""
+    aus = oeffnen.eingebettet('<img src="cid:logo2">', [("logo", "image/png", b"a")])
+    assert aus == '<img src="cid:logo2">'
+
+
+def test_der_typ_kommt_vom_teil_nicht_aus_einer_annahme():
+    aus = oeffnen.eingebettet('<img src="cid:x">', [("x", "image/jpeg", b"j")])
+    assert "data:image/jpeg;base64," in aus and "image/png" not in aus
+
+
+def test_ein_verweis_ohne_teil_bleibt_und_faellt_auf():
+    grund = oeffnen._eingebettet_stimmt('<img src="cid:x">', [])
+    assert grund and "cid:" in grund
+
+
+def test_ein_fehlendes_bild_faellt_auf():
+    grund = oeffnen._eingebettet_stimmt("<p>ohne Bild</p>", INLINE)
+    assert grund and "falzmarke-logo" in grund and "image/png" in grund
+
+
+def test_gegenprobe_der_eingebettete_rumpf_stimmt():
+    html = oeffnen.eingebettet(HTML_MIT_LOGO, INLINE)
+    assert oeffnen._eingebettet_stimmt(html, INLINE) is None
+
+
+def test_das_logo_geht_eingebettet_an_thunderbird():
+    felder = {**FELDER_TB, "html": HTML_MIT_LOGO, "inline": INLINE}
+    tb = Thunderbird()
+    lage = oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=tb, binaer=_thunderbird_da)
+    assert lage.programm == "Thunderbird", lage
+    rumpf = oeffnen.compose_zerlegen(tb.compose[0][2])["body"]
+    assert "cid:" not in rumpf
+    assert rumpf.count(_uri("image/png", PNG)) == 1
+
+
+def test_ohne_inline_teile_bleibt_der_rumpf_wie_er_ist():
+    tb = Thunderbird()
+    oeffnen.entwurf(FELDER_TB, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                    laufen=tb, binaer=_thunderbird_da)
+    assert oeffnen.compose_zerlegen(tb.compose[0][2])["body"] == "<p>Text</p>"
+
+
+# Die Größe der Zeile: ARG_MAX ist 1 048 576 Byte auf macOS (getconf, 13.10.2026).
+
+def test_die_grenze_liegt_unter_arg_max():
+    assert 0 < oeffnen.COMPOSE_GRENZE_BYTE < 1_048_576
+
+
+def test_eine_zu_lange_zeile_wird_nicht_uebergeben_und_nennt_die_zahl(monkeypatch):
+    monkeypatch.setattr(oeffnen, "COMPOSE_GRENZE_BYTE", 2000)
+    felder = {**FELDER_TB, "html": "<p>" + "ä" * 1500 + "</p>"}   # ä = 2 Byte
+    tb = Thunderbird()
+    lage = oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=tb, binaer=_thunderbird_da)
+    assert lage.programm is None and not lage.ungewiss
+    assert "Byte" in lage.grund and "2.000" in lage.grund, lage.grund
+    ist = len(oeffnen.compose_argumente(felder, [])[1].encode("utf-8"))
+    assert oeffnen._zahl(ist) in lage.grund, (ist, lage.grund)
+    assert tb.aufrufe == [], "die zu lange Zeile wurde trotzdem übergeben"
+
+
+def test_gegenprobe_knapp_darunter_geht_die_zeile_durch(monkeypatch):
+    monkeypatch.setattr(oeffnen, "COMPOSE_GRENZE_BYTE", 2000)
+    felder = {**FELDER_TB, "html": "<p>" + "ä" * 500 + "</p>"}
+    lage = oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=Thunderbird(), binaer=_thunderbird_da)
+    assert lage.programm == "Thunderbird"
+
+
+def test_die_zahl_traegt_tausenderpunkte():
+    assert oeffnen._zahl(1048576) == "1.048.576" and oeffnen._zahl(900) == "900"
+
+
+# ── Was Thunderbird aus Zeilenumbrüchen macht (ADR 0049, zweiter Lauf) ──────
+#
+# GEMESSEN (13.10.2026, echte Entwürfe, Stand 5e93f42): Zwischen Grußformel und
+# Signatur stand `style="border-collapse: collapse; …">` als Text — der Anfang
+# des `<table …`-Tags war weg. Und über dem ersten Absatz lagen rund zehn
+# Leerzeilen. Ursache für beides: Thunderbird macht aus jedem `\n` im
+# `body=`-Wert einen Zeilenumbruch. Das Tag der Signaturtabelle geht in der
+# Datei über zwei Zeilen; die Hülle (`<!DOCTYPE>`, `<head>`, `<style>`) ist
+# zehn Zeilen lang. Beides war nach dem Zurücklesen auf unserer Seite intakt —
+# der Fehler lag hinter der Grenze, und deshalb heißt die Prüfung hier: Was
+# Thunderbird daraus macht, nachgebaut (`\n` → `<br>`), und dann geparst.
+
+HUELLE = (
+    '<!DOCTYPE html>\n<html lang="de">\n<head>\n<meta charset="utf-8">\n'
+    '<style type="text/css">\n.fm-t { color: #111; }\n</style>\n</head>\n'
+    '<body class="fm-t" style="margin: 0; font-family: Arial, sans-serif;">\n'
+    '<p>Mit freundlichen Grüßen</p>\n'
+    '<div style="margin: 16px 0 0;"><table role="presentation" border="0"\n'
+    '       style="border-collapse: collapse; font-family: Arial, sans-serif;">\n'
+    '<tr><td>Erika Muster</td></tr>\n</table></div>\n</body>\n</html>\n'
+)
+
+
+def _wie_thunderbird_liest(rumpf: str) -> str:
+    """Der Text, den der Parser sieht, wenn jeder Umbruch ein `<br>` wird."""
+    zaehler = oeffnen._Tagzaehler()
+    zaehler.feed(rumpf.replace("\n", "<br>"))
+    zaehler.close()
+    return "".join(zaehler.text)
+
+
+def test_die_messung_nachgebaut_das_tag_zerfaellt_bei_umbruechen():
+    """Ohne diese Probe wüsste niemand, ob der Nachbau den Fehler überhaupt
+    zeigt — er muss ihn zeigen, sonst belegt der grüne Test darunter nichts."""
+    text = _wie_thunderbird_liest(HUELLE)
+    assert 'style="border-collapse' in text, "der Nachbau zeigt den gemessenen Fehler nicht"
+
+
+def test_der_rumpf_ist_nur_der_inhalt_von_body_ohne_umbrueche():
+    rumpf = oeffnen.rumpf_fuer_compose(HUELLE)
+    assert "\n" not in rumpf
+    assert not rumpf.lower().startswith(("<!doctype", "<html", "<head", "<body"))
+    assert "<style" not in rumpf and "</body>" not in rumpf and "<meta" not in rumpf
+    assert rumpf == rumpf.strip()
+    # Der Stil des <body> bleibt — auf einem umhüllenden <div>.
+    assert rumpf.startswith('<div style="margin: 0; font-family: Arial, sans-serif;">')
+    assert "<p>Mit freundlichen Grüßen</p>" in rumpf
+
+
+def test_ein_tag_ueber_zwei_zeilen_wird_eins():
+    rumpf = oeffnen.rumpf_fuer_compose(HUELLE)
+    assert ('<table role="presentation" border="0" '
+            'style="border-collapse: collapse; font-family: Arial, sans-serif;">') in rumpf
+    assert 'style="border-collapse' not in _wie_thunderbird_liest(rumpf)
+
+
+def test_ohne_body_bleibt_das_html_bis_auf_die_umbrueche():
+    assert oeffnen.rumpf_fuer_compose("<p>a</p>\n<p>b</p>\n") == "<p>a</p> <p>b</p>"
+
+
+def test_der_pruefer_sieht_die_huelle():
+    grund = oeffnen._rumpf_stimmt(HUELLE.strip())
+    assert grund and "Hülle" in grund and "Zeilenumbruch" in grund
+
+
+def test_der_pruefer_sieht_ein_attribut_als_text():
+    grund = oeffnen._rumpf_stimmt('<p>x</p> style="a: b;"> <p>y</p>')
+    assert grund and "Attribut" in grund
+
+
+def test_der_pruefer_sieht_ein_abgeschnittenes_tag():
+    grund = oeffnen._rumpf_stimmt('<p>x</p><table border="0" <p>y</p>')
+    assert grund and "Parser" in grund
+
+
+def test_gegenprobe_der_saubere_rumpf_stimmt():
+    assert oeffnen._rumpf_stimmt(oeffnen.rumpf_fuer_compose(HUELLE)) is None
+
+
+def test_zurueckgelesen_vertraegt_der_rumpf_thunderbird():
+    """Der Weg bis zur Grenze: Felder mit Hülle und Logo → Zeile → zurückgelesen
+    wie Thunderbird sie liest — kein Umbruch, keine Hülle, Tags ganz, keine
+    Umbrüche in der Data-URI."""
+    html = HUELLE.replace("<td>Erika Muster</td>",
+                          '<td><img src="cid:falzmarke-logo" alt="Logo"></td>')
+    felder = {**FELDER_TB, "html": html, "inline": INLINE}
+    tb = Thunderbird()
+    lage = oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=tb, binaer=_thunderbird_da)
+    assert lage.programm == "Thunderbird", lage
+    rumpf = oeffnen.compose_zerlegen(tb.compose[0][2])["body"]
+    assert "\n" not in rumpf and rumpf == rumpf.strip()
+    assert not rumpf.lower().startswith("<!doctype")
+    assert 'style="border-collapse' not in _wie_thunderbird_liest(rumpf)
+    assert oeffnen._rumpf_stimmt(rumpf) is None
+    uris = re.findall(r'data:[^"\']*', rumpf)
+    assert len(uris) == 1 and "\n" not in uris[0]
+    assert "cid:" not in rumpf
+
+
+def test_ein_rumpf_den_thunderbird_nicht_vertraegt_wird_nicht_uebergeben(monkeypatch):
+    """Die Prüfung steht vor dem Aufruf: Lässt die Aufbereitung die Umbrüche
+    stehen, geht nichts raus, und der Grund sagt warum."""
+    monkeypatch.setattr(oeffnen, "rumpf_fuer_compose", lambda html: html)
+    tb = Thunderbird()
+    lage = oeffnen.entwurf({**FELDER_TB, "html": HUELLE}, plattform="darwin",
+                           umgebung={"DISPLAY": ":0"}, laufen=tb, binaer=_thunderbird_da)
+    assert lage.programm is None and "Zeilenumbruch" in lage.grund
+    assert tb.compose == []

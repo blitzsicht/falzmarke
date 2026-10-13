@@ -740,3 +740,140 @@ def test_ohne_bezug_steht_die_warnung_nicht_da(tmp_path, monkeypatch, capsys):
                     "--oeffnen"])
     ausgabe = capsys.readouterr()
     assert "Bezug zur Vorgängernachricht" not in ausgabe.err
+
+
+# ── Die Wahl des Mailprogramms: --programm (ADR 0049) ───────────────────────
+#
+# Seit dem 13.10.2026 nimmt `--oeffnen` Thunderbird, wenn es installiert ist.
+# Outlook ist zwar da, aber ohne Lizenz und im neuen Outlook ohne ein Konto,
+# das AppleScript sähe — „fehlt“ träfe nie zu. Es kommt deshalb nur noch auf
+# ausdrückliche Wahl.
+
+def _entwurf_merkt_sich(monkeypatch, lage=None):
+    from falzmarke import oeffnen
+
+    gesehen = {}
+
+    def fake(felder, **kwargs):
+        gesehen.update(kwargs)
+        gesehen["felder"] = felder
+        return lage or oeffnen.Entwurfslage("Testprogramm", "")
+
+    monkeypatch.setattr(oeffnen, "entwurf", fake)
+    return gesehen
+
+
+def test_der_schalter_steht_in_der_hilfe():
+    hilfe = _cli("email", "--help").stdout
+    assert "--programm" in hilfe and "thunderbird" in hilfe and "outlook" in hilfe, hilfe
+
+
+def test_ohne_schalter_geht_keine_wahl_an_den_entwurf(tmp_path, monkeypatch):
+    gesehen = _entwurf_merkt_sich(monkeypatch)
+    falzmarke.main(["email", str(_schreibe(tmp_path)), "--profiles", str(PROFILE), "--oeffnen"])
+    assert "wahl" in gesehen and gesehen["wahl"] is None
+
+
+def test_outlook_wird_als_wahl_durchgereicht(tmp_path, monkeypatch):
+    gesehen = _entwurf_merkt_sich(monkeypatch)
+    falzmarke.main(["email", str(_schreibe(tmp_path)), "--profiles", str(PROFILE),
+                    "--oeffnen", "--programm", "outlook"])
+    assert gesehen["wahl"] == "outlook"
+
+
+def test_die_wahl_schliesst_oeffnen_ein(tmp_path, monkeypatch):
+    """Wer ein Programm nennt, will den Entwurf — ein stiller Schalter wäre der
+    schlechtere Fall: gesetzt, und nichts passiert."""
+    gesehen = _entwurf_merkt_sich(monkeypatch)
+    code = falzmarke.main(["email", str(_schreibe(tmp_path)), "--profiles", str(PROFILE),
+                           "--programm", "thunderbird"])
+    assert code == 0 and gesehen["wahl"] == "thunderbird"
+
+
+def test_gegenprobe_ohne_beides_wird_kein_entwurf_versucht(tmp_path, monkeypatch):
+    gesehen = _entwurf_merkt_sich(monkeypatch)
+    falzmarke.main(["email", str(_schreibe(tmp_path)), "--profiles", str(PROFILE)])
+    assert gesehen == {}
+
+
+def test_ein_unbekanntes_programm_wird_abgelehnt(tmp_path):
+    lauf = _cli("email", str(_schreibe(tmp_path)), "--profiles", str(PROFILE),
+                "--programm", "applemail")
+    assert lauf.returncode != 0 and "--programm" in lauf.stderr
+
+
+def test_ein_nicht_nachgezaehlter_entwurf_sagt_es(tmp_path, monkeypatch, capsys):
+    """Thunderbird nimmt den Auftrag an und meldet nichts zurück. Was niemand
+    nachgezählt hat, steht als „nicht nachgezählt“ da — und nicht als
+    Outlook-Warnung über Konten, die hier nie gesucht wurden."""
+    from falzmarke import oeffnen
+
+    _entwurf_merkt_sich(monkeypatch, oeffnen.Entwurfslage(
+        "Thunderbird", "", nachgezaehlt=False, ablage="/tmp/falzmarke-entwurf-probe"))
+    code = falzmarke.main(["email", str(_schreibe(tmp_path)), "--profiles", str(PROFILE),
+                           "--oeffnen"])
+    ausgabe = capsys.readouterr()
+    assert code == 0
+    assert "OK  Entwurf angelegt: Thunderbird" in ausgabe.out
+    assert "nachgezählt" in ausgabe.err
+    assert "/tmp/falzmarke-entwurf-probe" in ausgabe.err
+    assert "ABSENDER PRÜFEN" not in ausgabe.err
+
+
+def test_gegenprobe_ein_nachgezaehlter_entwurf_schweigt_dazu(tmp_path, monkeypatch, capsys):
+    """Dieselbe Mail, ein Programm, das nachzählt und das Konto zurückmeldet:
+    Keine der beiden Thunderbird-Zeilen darf erscheinen."""
+    from falzmarke import oeffnen
+
+    monkeypatch.setattr(oeffnen, "entwurf", lambda felder, **_k: oeffnen.Entwurfslage(
+        "Testprogramm", "", konto=felder["absender"], suche="gefunden"))
+    falzmarke.main(["email", str(_schreibe(tmp_path)), "--profiles", str(PROFILE), "--oeffnen"])
+    ausgabe = capsys.readouterr()
+    assert "OK  Entwurf angelegt: Testprogramm" in ausgabe.out
+    assert "nachgezählt" not in ausgabe.err
+    assert "Anhänge liegen" not in ausgabe.err
+
+
+# ── Die echte Kette bis zur Grenze: Beispiel → .eml → -compose → zurückgelesen ─
+#
+# Gemessen am 13.10.2026 (Stand 5e93f42, echte Entwürfe in Thunderbird 154):
+# `style="border-collapse: …">` als Text zwischen Grußformel und Signatur, und
+# zehn Leerzeilen über dem ersten Absatz. Die Prüfungen in test_oeffnen.py
+# messen das am Nachbau; hier läuft die wirkliche Kette mit den Beispielen,
+# die der Betreiber geöffnet hat.
+
+@pytest.mark.parametrize("name", ["email-signatur", "email-logo"])
+def test_die_compose_zeile_der_beispiele_vertraegt_thunderbird(tmp_path, monkeypatch, name):
+    from falzmarke import eml as eml_modul, oeffnen
+
+    beispiel = REPO / "examples" / "email" / f"{name}.md"
+    eml_pfad, _ = falzmarke.setze_email(beispiel, tmp_path / name)
+    felder = eml_modul.entwurfsfelder(eml_pfad)
+    assert "\n" in felder["html"] and "<head>" in felder["html"], "die Datei trägt die Hülle"
+
+    aufrufe = []
+
+    def nimmt_an(argv, **kwargs):
+        aufrufe.append(list(argv))
+        if argv[0] == "pgrep":
+            return subprocess.CompletedProcess(argv, 0, stdout="1\n", stderr="")
+        return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(oeffnen, "_lauf", lambda argv, frist, laufen=None: nimmt_an(argv))
+    lage = oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           binaer=lambda: oeffnen.THUNDERBIRD_MACOS)
+    assert lage.programm == "Thunderbird", lage
+    (compose,) = [a for a in aufrufe if "-compose" in a]
+    rumpf = oeffnen.compose_zerlegen(compose[-1])["body"]
+    assert "\n" not in rumpf and rumpf == rumpf.strip()
+    assert not rumpf.lower().startswith("<!doctype") and "<head>" not in rumpf
+    assert oeffnen._rumpf_stimmt(rumpf) is None
+    assert "Mit freundlichen Grüßen" in rumpf or "Grüßen" in rumpf
+    # Jedes `<table` kommt als Tag an — kein style="…" als Text.
+    zaehler = oeffnen._Tagzaehler()
+    zaehler.feed(rumpf.replace("\n", "<br>"))
+    zaehler.close()
+    assert 'style="' not in "".join(zaehler.text)
+    if name == "email-logo":
+        uris = re.findall(r'data:image/png;base64,[^"\']*', rumpf)
+        assert len(uris) == 1 and "\n" not in uris[0] and "cid:" not in rumpf
