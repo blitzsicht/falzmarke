@@ -29,7 +29,7 @@ import sys
 import tempfile
 from collections.abc import Mapping
 from html.parser import HTMLParser
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import NamedTuple
 
 # Der übliche Starter je System. Windows fehlt mit Absicht: Dort gibt es kein
@@ -933,8 +933,14 @@ def _anhaenge_ausschreiben(ordner, anhaenge, *, typografisch: bool = False) -> l
 
 
 def _app_buendel(binaer: str) -> str | None:
-    """Das `.app`, in dem ein Binary liegt — für `open -a`. Sonst None."""
-    pfad = Path(binaer)
+    """Das `.app`, in dem ein Binary liegt — für `open -a`. Sonst None.
+
+    `PurePosixPath`, nicht `Path`: Das ist ein macOS-Pfad, der als Argument an
+    `open` geht, und er wird auf jedem Rechner gleich gebaut. `Path` des Hosts
+    machte daraus auf Windows `\\Applications\\Thunderbird.app` — gemessen in der
+    CI auf windows-latest (PR #390).
+    """
+    pfad = PurePosixPath(binaer)
     if (len(pfad.parents) >= 3 and pfad.parent.name == "MacOS"
             and pfad.parents[1].name == "Contents" and pfad.parents[2].suffix == ".app"):
         return str(pfad.parents[2])

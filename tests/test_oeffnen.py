@@ -1111,6 +1111,16 @@ def test_laeuft_thunderbird_nicht_wird_es_mit_dem_auftrag_gestartet():
     assert "gestartet" in lage.grund
 
 
+def test_das_buendel_haengt_nicht_am_trennzeichen_des_hosts():
+    """Gemessen in der CI auf windows-latest (PR #390): `Path` des Hosts machte
+    aus dem Bündel `\\Applications\\Thunderbird.app`. Das Argument geht an ein
+    macOS-`open` und ist auf jedem Rechner derselbe POSIX-Pfad."""
+    assert oeffnen._app_buendel(THUNDERBIRD_PFAD) == "/Applications/Thunderbird.app"
+    assert "\\" not in oeffnen._app_buendel(THUNDERBIRD_PFAD)
+    assert oeffnen._app_buendel("/opt/bin/thunderbird") is None
+    assert oeffnen._app_buendel("/Applications/X.app/Contents/Resources/x") is None
+
+
 def test_gegenprobe_laeuft_es_wird_nicht_ueber_open_gegangen():
     tb = Thunderbird(laeuft=True)
     oeffnen.entwurf(FELDER_TB, plattform="darwin", umgebung={"DISPLAY": ":0"},
