@@ -398,9 +398,10 @@ OK  verify: 22/22 Prüfungen bestanden
 ```
 
 Die `.eml` öffnet das Mailprogramm, die `.html` der Browser. Mit `--oeffnen` legt falzmarke auf
-macOS gleich einen **Entwurf** an — Empfänger, Betreff, Rumpf und Anhänge, mit Senden-Knopf, und
-erst nach bestandener Prüfung. Wo dieser Weg nicht gemessen ist (Windows, Linux, Apple Mail),
-wird die Datei übergeben; sie erscheint dort als Lesefenster, nicht als Entwurf, und das ist eine
+macOS gleich einen **Entwurf** an — in Thunderbird, mit Absender, Empfängern, Betreff, Rumpf und
+Anhängen, mit Senden-Knopf, und erst nach bestandener Prüfung; Outlook für Mac nur mit
+`--programm outlook`. Wo dieser Weg nicht gemessen ist (Windows, Linux, Apple Mail), wird die
+Datei übergeben; sie erscheint dort als Lesefenster, nicht als Entwurf, und das ist eine
 Eigenschaft des Formats. Geprüft wird die **fertige Datei**:
 MIME-Aufbau, `format=flowed`, Space-Stuffing, die Signaturtrennzeile, und ob im HTML nichts
 steht, was dort nicht hingehört — kein Skript, kein externes Stylesheet, kein Zählpixel, keine

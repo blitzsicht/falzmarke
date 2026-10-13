@@ -98,16 +98,26 @@ Mail schreibt, die ein Mensch senden wird, setzt das Flag.
 
 Was dabei nicht fehlen darf, weil es gemessen ist:
 
-- Der Entwurfsweg ist für **Outlook für Mac** belegt. Auf Windows, unter Linux und in Apple Mail
-  wird stattdessen die `.eml` übergeben — und die erscheint dort als **Lesefenster, nicht als
-  Entwurf**; der nächste Handgriff heißt dann „Weiterleiten".
+- Der Entwurf entsteht in **Thunderbird**, wenn es installiert ist; `from=` wählt dort die
+  Identität, der Absender stimmt (ADR 0049). Thunderbird meldet nichts zurück — Exit 0 heißt
+  „angenommen", und der Befehl sagt, dass **nichts nachgezählt** ist: Empfänger, Anhänge und
+  Absender im Fenster prüfen. Läuft Thunderbird nicht, wird es mit dem Auftrag gestartet und
+  der Entwurf als ungewiss gemeldet; dann im Fenster nachsehen, nichts nachschieben.
+- **Outlook für Mac nur auf Wahl:** `--programm outlook` (schließt `--oeffnen` ein). Es ist
+  oft installiert, aber ohne Lizenz und im neuen Outlook ohne ein Konto, das die Steuerung
+  sähe — deshalb landet niemand mehr ungefragt dort. Auf Windows, unter Linux, in Apple Mail
+  und ohne Thunderbird wird die `.eml` übergeben — und die erscheint dort als **Lesefenster,
+  nicht als Entwurf**; der nächste Handgriff heißt dann „Weiterleiten".
+- Ein einfaches Anführungszeichen in Betreff, Rumpf oder Dateinamen wird im Thunderbird-Entwurf
+  zum Apostroph ’. Ein **Komma im Dateinamen** eines Anhangs ist dort ein Fehler mit Rückfall
+  auf die Datei — die Datei vorher umbenennen.
 - **Das Mailprogramm setzt seine eigene Konto-Signatur in den Entwurf.** Trägt das Profil eine
   Signatur, steht sie zweimal darin. Der Weg dagegen führt über das Mailprogramm, nicht über
   falzmarke: Wer die gestaltete Signatur aus dem Profil will, leert die Konto-Signatur in
   Outlook einmal — das wirkt dann auf jeden Entwurf. Ein zweites Profil ohne Signaturblock wäre
   die schlechtere Antwort, weil zwei Fassungen derselben Signatur auseinanderlaufen.
-- **Der Absender ist nur im klassischen Outlook sicher.** Dort legt falzmarke den Entwurf auf das
-  Konto aus `email.absender`. Im neuen Outlook geht das nicht; dann lautet die letzte Zeile
+- **Im Outlook-Weg ist der Absender nur im klassischen Outlook sicher.** Dort legt falzmarke den
+  Entwurf auf das Konto aus `email.absender`. Im neuen Outlook geht das nicht; dann lautet die letzte Zeile
   `ABSENDER PRÜFEN: …`, und diese Zeile gehört wörtlich in die Antwort an den Menschen — er muss
   „Von" von Hand umstellen. Gibt es in Outlook **gar kein Konto** mit der Adresse des Profils,
   sagt die Zeile das eigens: Umstellen geht dann nicht, und die Signatur nennt eine Adresse, von

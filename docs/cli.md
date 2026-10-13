@@ -8,7 +8,7 @@ falzmarke render      BRIEF.md [-o AUS.pdf] [--png] [--no-pdfa] [--pdfua] [--ver
 falzmarke xml         RECHNUNG.md [-o AUS.xml]
 falzmarke verify      AUS.pdf [--form A|B] [--json] [--verbose]
 falzmarke verify      NACHRICHT.eml --email [--json] [--verbose]
-falzmarke email       NACHRICHT.md [-o STAMM] [--html] [--txt] [--mit-quelle] [--oeffnen] [--verbose]
+falzmarke email       NACHRICHT.md [-o STAMM] [--html] [--txt] [--mit-quelle] [--oeffnen] [--programm thunderbird|outlook] [--verbose]
 falzmarke serie       VORLAGE.md --daten DATEN.csv --ziel ORDNER/ [--benennen SPALTE] [--sammel]
 falzmarke preview     BRIEF.md [-o AUS.png] [--ppi 120]
 falzmarke init        ZIEL.md --profil NAME [--empfaenger "Zeile|Zeile"] [--betreff "..."]
@@ -141,11 +141,13 @@ die Form an den Falzmarken.
 Textteil. **Versendet wird nichts** — es gibt keinen Versandbefehl und keine Option, die sendet
 (ADR 0034). Einzelheiten in [Die E-Mail-Fassung](email.md).
 
-`--oeffnen` legt auf macOS einen **Entwurf** im Mailprogramm an — Empfänger, Kopie, Betreff,
-HTML-Rumpf und alle Anhänge, mit Senden-Knopf, und im klassischen Outlook auf dem Konto aus
-`email.absender` (#305). Angelegt wird erst **nach** der Prüfung: Was
-`verify --email` nicht besteht, geht in kein Mailprogramm (ADR 0038). Belegt ist der Weg für
-Outlook für Mac; wo er nicht trägt — Windows, Linux, Apple Mail —, wird die `.eml` übergeben,
+`--oeffnen` legt auf macOS einen **Entwurf** im Mailprogramm an — Absender aus dem Profil,
+Empfänger, Kopie, Blindkopie, Betreff, HTML-Rumpf und alle Anhänge, mit Senden-Knopf. Angelegt
+wird erst **nach** der Prüfung: Was `verify --email` nicht besteht, geht in kein Mailprogramm
+(ADR 0038). Das Programm ist **Thunderbird**, wenn es installiert ist; Outlook für Mac kommt nur
+mit `--programm outlook` (ADR 0049 — es ist oft installiert, aber ohne Lizenz, und das neue
+Outlook zeigt der Programmsteuerung kein Konto). `--programm` schließt `--oeffnen` ein. Wo der
+Weg nicht trägt — Windows, Linux, Apple Mail, kein Thunderbird —, wird die `.eml` übergeben,
 und die erscheint dort als Lesefenster, nicht als Entwurf. Einzelheiten und die Grenzen der
 Zusage in [Die E-Mail-Fassung](email.md).
 

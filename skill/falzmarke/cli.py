@@ -1721,7 +1721,10 @@ def befehl_email(args) -> int:
     #
     # Spät importiert, damit `subprocess` nicht in jedem Prozess liegt, der
     # `falzmarke.cli` lädt — der MCP-Dienst tut das auf Modulebene.
-    if args.oeffnen:
+    # `--programm` schließt `--oeffnen` ein: Wer ein Programm nennt, will den
+    # Entwurf. Ein Schalter, der gesetzt ist und nichts bewirkt, wäre der
+    # schlechtere Fall.
+    if args.oeffnen or args.programm:
         from falzmarke import oeffnen as oeffnen_modul
 
         # Erst der Entwurf, dann die Datei (#263). Der Entwurf ist das, was
@@ -1730,9 +1733,22 @@ def befehl_email(args) -> int:
         # LESEFENSTER, ohne Senden-Knopf — gemessen, samt der Gegenprobe mit
         # `X-Unsent: 1`, die nichts änderte (`docs/mailprogramme-2026-08-27.md`).
         felder = eml_modul.entwurfsfelder(eml_pfad)
-        lage = oeffnen_modul.entwurf(felder)
+        lage = oeffnen_modul.entwurf(felder, wahl=args.programm)
         if lage.programm:
             print(f"OK  Entwurf angelegt: {lage.programm}")
+            if not lage.nachgezaehlt:
+                # Thunderbird meldet nichts zurück (ADR 0049): Exit 0 heißt
+                # „angenommen“, und was im Fenster steht, hat niemand gezählt.
+                # Das steht hier, damit es niemand für geprüft hält.
+                print(f"HINWEIS  {lage.programm} hat den Auftrag angenommen; nachgezählt "
+                      "ist nichts.\n"
+                      "         Empfänger, Anhänge und Absender im Fenster prüfen.",
+                      file=sys.stderr)
+            if lage.ablage:
+                print(f"HINWEIS  Die Anhänge liegen in {lage.ablage}\n"
+                      f"         {lage.programm} liest sie erst beim Senden oder "
+                      "Speichern — den Ordner so lange stehen lassen.",
+                      file=sys.stderr)
             # Was das Programm nach dem Anlegen selbst hineinschreibt, steht in
             # keiner Prüfung. Am 08.09.2026 gesehen: Outlook hängt die Signatur
             # des Kontos an — mit einer Signatur im Profil steht sie zweimal da.
@@ -1756,8 +1772,11 @@ def befehl_email(args) -> int:
             # Hinweisen steht, wird überlesen — genau der Fehler, den der
             # Betreiber gemeldet hat. `flush` vorher, sonst schiebt sich
             # gepufferte Standardausgabe noch dahinter.
-            warnung = oeffnen_modul.absender_warnung(felder.get("absender") or "", lage.konto,
-                                                    lage.suche)
+            # Nur, wo das Programm ein Konto zurückmeldet: Für Thunderbird gibt
+            # es nichts zu vergleichen, und die Zeile riete, in Outlook „Von“
+            # umzustellen — in einem Programm, das gar nicht offen ist.
+            warnung = oeffnen_modul.absender_warnung(
+                felder.get("absender") or "", lage.konto, lage.suche) if lage.nachgezaehlt else None
             if warnung:
                 sys.stdout.flush()
                 print(warnung, file=sys.stderr)
@@ -2337,6 +2356,9 @@ def main(argv: list[str] | None = None) -> int:
                    help="die Markdown-Quelle als text/markdown-Teil mitschicken")
     p.add_argument("--oeffnen", action="store_true",
                    help="einen Entwurf im Mailprogramm anlegen; sonst die .eml übergeben")
+    p.add_argument("--programm", choices=["thunderbird", "outlook"],
+                   help="Mailprogramm für den Entwurf (ohne Angabe Thunderbird; "
+                        "Outlook nur auf Wahl); schließt --oeffnen ein")
     p.add_argument("--profiles")
     p.add_argument("--verbose", action="store_true", help="alle Prüfungen zeigen")
     p.set_defaults(funktion=befehl_email)

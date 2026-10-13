@@ -16,6 +16,7 @@ import pytest
 from falzmarke import geometrie
 from falzmarke import cli as falzmarke
 from falzmarke import lint as _lint
+from falzmarke import oeffnen as _oeffnen
 from falzmarke import regeln as _regeln
 from conftest import PROFILE, REPO
 
@@ -1489,3 +1490,54 @@ def test_rechnung_zurueck_in_der_kuerzelliste_meldet_rechnung_apple(tmp_path, mo
     monkeypatch.setattr(typografie, "VOR_ANGABE", [*typografie.VOR_ANGABE, "Rechnung"])
     meldungen = _rechnung_als_kuerzel(tmp_path)
     assert len(meldungen) == 1 and "Rechnung Apple" in meldungen[0], meldungen
+
+
+# ── Thunderbird: alle Anhänge in EINEM Wert (ADR 0049) ──────────────────────
+#
+# Gemessen am 13.10.2026, Thunderbird 154.0: `-compose` nimmt mehrere Anhänge
+# nur als einen Wert `attachment='a,b'` an; ein zweiter `attachment=`-Schlüssel
+# wird verworfen — stillschweigend, mit Exit 0. Ein Exit-Code sieht das nie.
+# Deshalb liest `_compose_stimmt` die Zeile vor dem Aufruf so zurück, wie
+# Thunderbird sie liest, und hält sie gegen die Vorgabe. Hier wird der Aufbau
+# an genau einer Stelle sabotiert — `anhang_paare` baut die naheliegende
+# Fassung, ein Schlüssel je Datei —, und die Prüfung muss anschlagen.
+
+_FELDER_TB = {"betreff": "Probe", "html": "<p>Text</p>", "an": ["a@example.org"],
+              "kopie": [], "blindkopie": [], "absender": "absender@example.org",
+              "anhaenge": [("a.pdf", b"a"), ("b.txt", b"b")]}
+_PFADE = ["/tmp/a.pdf", "/tmp/b.txt"]
+
+
+def test_unsabotiert_traegt_die_compose_zeile_beide_anhaenge():
+    """Kontrollprobe: ohne Sabotage darf nichts anschlagen."""
+    _, zeile = _oeffnen.compose_argumente(_FELDER_TB, _PFADE)
+    assert zeile.count("attachment=") == 1
+    assert _oeffnen._compose_stimmt(zeile, _FELDER_TB, _PFADE) is None
+
+
+def _ein_schluessel_je_datei(pfade):
+    return [("attachment", pfad) for pfad in pfade]
+
+
+def test_zwei_anhangschluessel_fallen_auf(monkeypatch):
+    monkeypatch.setattr(_oeffnen, "anhang_paare", _ein_schluessel_je_datei)
+    _, zeile = _oeffnen.compose_argumente(_FELDER_TB, _PFADE)
+    assert zeile.count("attachment=") == 2, "die Sabotage griff nicht"
+    grund = _oeffnen._compose_stimmt(zeile, _FELDER_TB, _PFADE)
+    assert grund and "Anhänge: 1 statt 2" in grund, grund
+
+
+def test_die_sabotierte_zeile_erreicht_thunderbird_nicht(monkeypatch, tmp_path):
+    """Der Weg bis zum Aufruf: Die Prüfung steht VOR dem Prozess, nicht danach."""
+    monkeypatch.setattr(_oeffnen, "anhang_paare", _ein_schluessel_je_datei)
+    aufrufe = []
+
+    def nie(argv, **kwargs):
+        aufrufe.append(argv)
+        raise AssertionError("die sabotierte Zeile wurde übergeben")
+
+    lage = _oeffnen.entwurf(_FELDER_TB, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                            laufen=nie, binaer=lambda: "/x/thunderbird", ablage=tmp_path)
+    assert lage.programm is None and "Anhänge: 1 statt 2" in lage.grund
+    assert aufrufe == []
+    assert not list(tmp_path.iterdir()), "der Anhangordner blieb liegen"

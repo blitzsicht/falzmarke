@@ -21,6 +21,8 @@ startet fremde Programme, und sie heißt so wie diese hier.
 from __future__ import annotations
 
 import os
+import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -318,11 +320,206 @@ end run
 """
 
 
+# ── Thunderbird: ein Aufruf statt dreier Skripte (ADR 0049) ─────────────────
+#
+# Gemessen am 13.10.2026, Thunderbird 154.0 auf macOS:
+#
+#     thunderbird -compose "from=…,to=…,cc=…,bcc=…,subject='Betreff, mit Komma',
+#                           format=html,body='<p>…</p>',attachment='/a.pdf,/b.txt'"
+#
+# `from=` wählt die Identität — der Absender stimmt damit, was Outlook seit
+# #305 nur im klassischen Modus zusagen konnte. Einfache Anführungszeichen
+# schützen Kommas im Wert; Umlaute und € kommen an; `format=html` übernimmt den
+# Rumpf formatiert. Mehrere Anhänge gehen nur als EIN Wert — ein zweiter
+# `attachment=`-Schlüssel wird verworfen, stillschweigend, mit Exit 0.
+# `message=<eml>` ist kein Import: Der Rohtext landet im Textkörper.
+#
+# Läuft Thunderbird, reicht der Aufruf den Auftrag an die laufende Instanz
+# weiter und kehrt sofort mit Exit 0 zurück. **Exit 0 heißt „angenommen“, nicht
+# „Fenster offen“**: Thunderbird meldet nichts zurück, es gibt keine Kennung
+# und keine Zählung am fertigen Objekt. Was sich prüfen lässt, liegt auf dieser
+# Seite der Grenze — ob die Zeile alles trägt, was sie tragen soll
+# (`_compose_stimmt`), gelesen so, wie Thunderbird sie liest.
+
+#: Das Binary, wo macOS es hinlegt. Nicht über `NSWorkspace` wie bei Outlook:
+#: Gebraucht wird das Binary selbst, nicht das Bündel, und eine zweite
+#: `osascript`-Frage je Lauf wäre der Preis für Rechner, die ihre Programme
+#: woanders halten — die deckt `which` ab, wenn das Binary im PATH liegt.
+THUNDERBIRD_MACOS = "/Applications/Thunderbird.app/Contents/MacOS/thunderbird"
+
+#: Die Schlüssel, die `-compose` versteht und die hier gesetzt werden. Eine
+#: feste Liste, kein Durchreichen: Ein Schlüssel, der sendet, gibt es dort
+#: nicht — und käme es ihn, stünde er nicht hier (ADR 0034).
+COMPOSE_SCHLUESSEL = ("from", "to", "cc", "bcc", "subject", "format", "body", "attachment")
+
+
+def anhang_paare(anhangpfade: list[str]) -> list[tuple[str, str]]:
+    """Die Anhänge als Schlüssel-Wert-Paare: **genau eins**, alle Pfade darin.
+
+    Die naheliegende Fassung — ein `attachment=` je Datei — verliert ab dem
+    zweiten Anhang alles außer dem ersten, mit Exit 0 (gemessen 13.10.2026).
+    Eine eigene Funktion, damit die Gegenprobe in `tests/test_gegenbeweis.py`
+    genau diese eine Stelle gegen die naheliegende Fassung tauschen kann — und
+    `_compose_stimmt` dann anschlagen muss.
+    """
+    return [("attachment", ",".join(anhangpfade))] if anhangpfade else []
+
+
+def thunderbird_binaer(existiert=os.path.isfile, which=shutil.which) -> str | None:
+    """Wo Thunderbird liegt — oder None. Startet nichts, fragt nur das Dateisystem.
+
+    `existiert` und `which` sind Einstiegspunkte für die Prüfung: Ohne sie
+    hinge jeder Test davon ab, was auf dem Läufer gerade installiert ist.
+    """
+    if existiert(THUNDERBIRD_MACOS):
+        return THUNDERBIRD_MACOS
+    return which("thunderbird") or None
+
+
+def _compose_wert(wert: str) -> str:
+    """Ein Wert für die `-compose`-Zeile, in einfachen Anführungszeichen.
+
+    Jeder Wert wird zitiert, nicht nur der mit Komma: Einen unzitierten Wert
+    liest Thunderbird wie eine URL (`%20` wird ein Leerzeichen), einen
+    zitierten wörtlich. „100%ig“ bliebe sonst nicht, was es ist.
+
+    Ein einfaches Anführungszeichen **im** Wert wird zum Apostroph ’. Ob
+    Thunderbird ein `'` im Wert übersteht, ist nicht gemessen (am 13.10.2026
+    offen geblieben); sicher ist nur, dass `'` vor einem Komma den Wert
+    schließt. Statt zu raten, wird das Zeichen ersetzt — in deutschem Text ist
+    ’ ohnehin das richtige Zeichen, und falzmarkes eigener HTML-Emitter setzt
+    kein `'` (gemessen an `examples/email/email-mahnung.md`: 0 von 68
+    Anführungszeichen). Adressen laufen nicht hier durch: Dort wäre ein `'`
+    Teil der Adresse, und es kann nach RFC 5322 nie vor dem Komma stehen.
+    """
+    return "'" + wert.replace("'", "’") + "'"
+
+
+def compose_argumente(felder: Mapping, anhangpfade: list[str]) -> list[str]:
+    """`["-compose", "<zeile>"]` aus den Feldern — rein und ohne Seiteneffekt.
+
+    Wirft `ValueError`, wo die Zeile nicht tragen kann, was sie soll:
+
+    * **ohne Absender.** `from=` wählt die Identität; ohne sie nähme
+      Thunderbird seine Vorgabe — der Fehler aus #305 in einem anderen Programm.
+    * **Anhangpfad mit Komma.** Thunderbird trennt die Anhänge am Komma, und
+      Anführungszeichen helfen innerhalb des Werts nicht. Aus einem Pfad würden
+      zwei, die es nicht gibt, ohne Meldung.
+
+    Der Aufrufer macht aus der Ausnahme einen Grund; nach außen wird nichts
+    geworfen (ADR 0038, Punkt 4).
+    """
+    absender = str(felder.get("absender") or "").strip()
+    if not absender:
+        raise ValueError("ohne Absender kein Entwurf in Thunderbird — `from=` wählt dort "
+                         "die Identität, und ohne ihn nähme es die Vorgabe (#305)")
+    for pfad in anhangpfade:
+        if "," in pfad:
+            raise ValueError(f"Anhangpfad mit Komma: „{pfad}“ — Thunderbird trennt die "
+                             "Anhänge am Komma; die Datei ohne Komma benennen")
+    html = str(felder.get("html") or "")
+    paare = [
+        ("from", absender),
+        ("to", ",".join(felder.get("an") or [])),
+        ("cc", ",".join(felder.get("kopie") or [])),
+        ("bcc", ",".join(felder.get("blindkopie") or [])),
+        ("subject", str(felder.get("betreff") or "")),
+        ("format", "html" if html else "text"),
+        ("body", html),
+        *anhang_paare(anhangpfade),
+    ]
+    zeile = ",".join(f"{schluessel}={_compose_wert(wert)}"
+                     for schluessel, wert in paare if wert)
+    return ["-compose", zeile]
+
+
+def compose_zerlegen(zeile: str) -> dict[str, str]:
+    """Liest eine `-compose`-Zeile so, wie Thunderbird sie liest.
+
+    Nachgebaut aus dem, was am 13.10.2026 gemessen wurde — Anführungszeichen
+    schützen Kommas, der zweite gleiche Schlüssel wird verworfen — und aus der
+    Leseroutine `GetArgs` im Compose-Fenster von Thunderbird: Ein Wert ist
+    zitiert, wenn hinter dem `=` ein `'` oder `"` steht, und das Zitat endet
+    erst an demselben Zeichen vor einem Komma oder am Ende. Unzitierte Werte
+    werden wie eine URL dekodiert. Die Paare werden von hinten gelesen, der
+    erste gewinnt.
+
+    Ein Prüfmittel auf **dieser** Seite der Grenze: Es belegt, dass die Zeile
+    alles trägt — nicht, was Thunderbird daraus macht.
+    """
+    from urllib.parse import unquote
+
+    trenner = "\x01"
+    umgebaut: list[str] = []
+    zitat = ""
+    vorher = ""
+    for i, zeichen in enumerate(zeile):
+        naechstes = zeile[i + 1] if i + 1 < len(zeile) else ""
+        if zitat and zeichen == zitat and naechstes in (",", ""):
+            zitat = ""
+            umgebaut.append(zeichen)
+        elif zeichen in ("'", '"') and vorher == "=" and not zitat:
+            zitat = zeichen
+            umgebaut.append(zeichen)
+        elif zeichen == "," and not zitat:
+            umgebaut.append(trenner)
+        else:
+            umgebaut.append(zeichen)
+        vorher = zeichen
+    werte: dict[str, str] = {}
+    for paar in reversed("".join(umgebaut).split(trenner)):
+        if "=" not in paar:
+            continue
+        name, wert = paar.split("=", 1)
+        if len(wert) >= 2 and wert[0] == "'" and wert[-1] == "'":
+            wert = wert[1:-1]
+        else:
+            wert = unquote(wert)
+        werte[name] = wert
+    return werte
+
+
+def _compose_stimmt(zeile: str, felder: Mapping, anhangpfade: list[str]) -> str | None:
+    """Trägt die Zeile, gelesen wie Thunderbird sie liest, was sie tragen soll?
+
+    Das Gegenstück zu `_nachweis_stimmt` beim Outlook-Weg — nur dass hier vor
+    dem Aufruf gemessen wird, weil danach nichts zurückkommt. Ein verschluckter
+    Anhang fällt so auf, bevor ein Fenster aufgeht.
+    """
+    gelesen = compose_zerlegen(zeile)
+    fehlt = []
+    if gelesen.get("from", "") != str(felder.get("absender") or "").strip():
+        fehlt.append("Absender")
+    for schluessel, name, liste in (("to", "Empfänger", felder.get("an")),
+                                    ("cc", "Kopien", felder.get("kopie")),
+                                    ("bcc", "Blindkopien", felder.get("blindkopie"))):
+        ist = [a for a in gelesen.get(schluessel, "").split(",") if a]
+        if ist != list(liste or []):
+            fehlt.append(f"{name}: {len(ist)} statt {len(liste or [])}")
+    anhaenge = [a for a in gelesen.get("attachment", "").split(",") if a]
+    if len(anhaenge) != len(anhangpfade):
+        fehlt.append(f"Anhänge: {len(anhaenge)} statt {len(anhangpfade)}")
+    elif anhaenge != list(anhangpfade):
+        fehlt.append("Anhänge: nicht die vorgegebenen Pfade")
+    html = str(felder.get("html") or "")
+    if gelesen.get("format") != ("html" if html else "text"):
+        fehlt.append("Format")
+    if html and gelesen.get("body") != html.replace("'", "’"):
+        fehlt.append("Rumpf")
+    if not fehlt:
+        return None
+    return "die -compose-Zeile trägt nicht, was sie tragen soll — " + ", ".join(fehlt)
+
+
 class Entwurfsprogramm(NamedTuple):
-    """Ein Mailprogramm und die drei Skripte, die es versteht.
+    """Ein Mailprogramm und der Weg, auf dem es einen Entwurf annimmt.
 
     Ein NamedTuple und keine Dataclass: Der Zugriff über den Index bleibt
     erhalten, und die Felder haben trotzdem Namen.
+
+    Zwei Wege: `applescript` — drei Skripte, und der Entwurf wird am fertigen
+    Objekt nachgezählt — und `compose` — ein Aufruf des Binarys, Exit 0 heißt
+    „angenommen“. Beim zweiten Weg sind die Skriptfelder leer.
     """
 
     kennung: str
@@ -330,30 +527,54 @@ class Entwurfsprogramm(NamedTuple):
     anlegen: str
     oeffnen: str
     verwerfen: str
+    weg: str = "applescript"
+    #: Das Wort für `--programm`.
+    schluessel: str = ""
+    #: Ob das Programm ohne `--programm` in Frage kommt.
+    vorgabe: bool = False
+    #: Nur `compose`: das gefundene Binary, von `entwurfsweg()` eingesetzt.
+    pfad: str = ""
 
 
-#: Programme, die hier einen Entwurf annehmen.
+#: Programme, die hier einen Entwurf annehmen — in der Reihenfolge, in der sie
+#: ohne `--programm` befragt werden.
 #:
-#: Die Liste ist kurz und ehrlich: Für Outlook ist der Weg gemessen (08.09.2026,
-#: Outlook für Mac 16.112.1 — Betreff, ein Empfänger und ein Anhang aus dem
-#: erzeugten Objekt zurückgelesen). Für Apple Mail ist er es **nicht**: Dort
-#: nimmt `content` einer ausgehenden Nachricht keinen HTML-Rumpf an, und eine
-#: Nachricht, die ihre Auszeichnung unterwegs verliert, wäre schlechter als die
-#: Datei. Bis das jemand misst, bleibt es bei der Dateiübergabe.
+#: **Thunderbird ist die Vorgabe** (13.10.2026, Thunderbird 154.0: Absender,
+#: Betreff mit Komma, HTML-Rumpf mit Umlauten und zwei Anhänge im Fenster
+#: gesehen). **Outlook kommt nur auf Wahl.** Es ist auf dem Rechner des
+#: Betreibers installiert, aber ohne Lizenz — und das neue Outlook zeigt
+#: AppleScript kein Konto (#305). „fehlt“ träfe also nie zu, und ohne die Wahl
+#: landete jeder Entwurf dort, sobald Thunderbird fehlt. Der Weg selbst ist
+#: gemessen (08.09.2026, Outlook für Mac 16.112.1 — Betreff, ein Empfänger und
+#: ein Anhang aus dem erzeugten Objekt zurückgelesen) und bleibt, wie er ist.
+#:
+#: Für Apple Mail gibt es keinen: Dort nimmt `content` einer ausgehenden
+#: Nachricht keinen HTML-Rumpf an, und eine Nachricht, die ihre Auszeichnung
+#: unterwegs verliert, wäre schlechter als die Datei.
 ENTWURFSPROGRAMME = (
+    Entwurfsprogramm("thunderbird", "Thunderbird", "", "", "",
+                     weg="compose", schluessel="thunderbird", vorgabe=True),
     Entwurfsprogramm("com.microsoft.Outlook", "Microsoft Outlook",
                      SKRIPT_OUTLOOK, SKRIPT_OUTLOOK_OEFFNEN,
-                     SKRIPT_OUTLOOK_VERWERFEN),
+                     SKRIPT_OUTLOOK_VERWERFEN, schluessel="outlook"),
 )
 
 
-def entwurfsweg(plattform: str = sys.platform, *,
-                laufen=subprocess.run) -> Entwurfsprogramm | None:
+def entwurfsweg(plattform: str = sys.platform, *, laufen=subprocess.run,
+                wahl: str | None = None,
+                binaer=thunderbird_binaer) -> Entwurfsprogramm | None:
     """Welches Programm hier einen Entwurf annimmt — als Angabe, nicht als Tat.
 
-    Gefragt wird das System, nicht der Ordner: `NSWorkspace` löst eine Kennung
-    über die Datenbank auf, die auch der Finder benutzt, und **startet das
-    Programm nicht**.
+    `wahl` ist das Wort aus `--programm`. Ohne Wahl kommen nur die Programme
+    mit `vorgabe` in Frage — also Thunderbird; Outlook braucht die Wahl, aus
+    dem Grund, der bei `ENTWURFSPROGRAMME` steht. Ein Wort, das kein Programm
+    trägt, ist ein Programmierfehler, kein Grund: `argparse` lässt es nicht
+    bis hierher.
+
+    Für Thunderbird wird kein Prozess gestartet — `binaer` sieht nur ins
+    Dateisystem (`thunderbird_binaer`). Für Outlook wird das System gefragt,
+    nicht der Ordner: `NSWorkspace` löst eine Kennung über die Datenbank auf,
+    die auch der Finder benutzt, und **startet das Programm nicht**.
 
     Bis #305 stand hier `path to application id`. Am 13.09.2026 hing genau diese
     Frage über 120 Sekunden, während Outlook selbst nach 12 Sekunden antwortete —
@@ -365,9 +586,21 @@ def entwurfsweg(plattform: str = sys.platform, *,
     Nur macOS. Für Windows gibt es einen Weg über COM und für Linux keinen;
     beide sind ungemessen und werden deshalb nicht behauptet (#108).
     """
+    bekannt = {programm.schluessel for programm in ENTWURFSPROGRAMME}
+    if wahl is not None and wahl not in bekannt:
+        raise ValueError(f"kein Entwurfsprogramm „{wahl}“ — bekannt: "
+                         + ", ".join(sorted(bekannt)))
     if not plattform.startswith("darwin"):
         return None
     for programm in ENTWURFSPROGRAMME:
+        if (wahl is None and not programm.vorgabe) or (wahl is not None
+                                                       and programm.schluessel != wahl):
+            continue
+        if programm.weg == "compose":
+            pfad = binaer()
+            if pfad:
+                return programm._replace(pfad=pfad)
+            continue
         frage = ('ObjC.import("AppKit"); $.NSWorkspace.sharedWorkspace'
                  f'.URLForApplicationWithBundleIdentifier("{programm.kennung}").path.js')
         lauf = _lauf(["osascript", "-l", "JavaScript", "-e", frage], FRIST_S, laufen)
@@ -419,6 +652,15 @@ class Entwurfslage(NamedTuple):
     #: `"fehlt"` oder `None` — nicht geprüft, weil Outlook keine Konten zeigte
     #: oder das Skript die Zeile nicht liefert (#315).
     suche: str | None = None
+    #: Ob Empfänger, Kopien, Blindkopien und Anhänge am fertigen Objekt
+    #: nachgezählt wurden (Outlook) — oder das Programm den Auftrag nur
+    #: angenommen hat (Thunderbird, Exit 0; ADR 0049). `False` heißt: Was im
+    #: Fenster steht, hat niemand gemessen, und der Aufrufer sagt das.
+    nachgezaehlt: bool = True
+    #: Der Ordner mit den Anhängen, wenn das Programm sie erst später liest
+    #: (Thunderbird: beim Senden oder Speichern). `None`, wenn keiner angelegt
+    #: wurde oder er schon wieder weg ist.
+    ablage: str | None = None
 
 
 def _steuere(skript: str, kennung: str, *, laufen=subprocess.run) -> str | None:
@@ -543,9 +785,129 @@ def _nachweis_stimmt(ausgabe: str, felder: Mapping) -> str | None:
     return None
 
 
+def _anhaenge_ausschreiben(ordner, anhaenge, *, typografisch: bool = False) -> list[str]:
+    """Die Anhänge aus der `.eml` als Dateien — das Programm will Pfade.
+
+    Nur der Name, nie ein Pfad aus der Nachricht: Ein Anhang, der
+    „../../etc/x“ heißt, dürfte nicht aus dem Ordner zeigen. `typografisch`
+    macht aus `'` im Namen ein ’ — für den Weg, auf dem der Pfad in einer
+    zitierten Zeile landet (`_compose_wert`).
+    """
+    pfade = []
+    for dateiname, inhalt in anhaenge:
+        name = Path(str(dateiname)).name
+        if typografisch:
+            name = name.replace("'", "’")
+        ziel = Path(ordner) / name
+        ziel.write_bytes(inhalt)
+        pfade.append(str(ziel))
+    return pfade
+
+
+def _app_buendel(binaer: str) -> str | None:
+    """Das `.app`, in dem ein Binary liegt — für `open -a`. Sonst None."""
+    pfad = Path(binaer)
+    if (len(pfad.parents) >= 3 and pfad.parent.name == "MacOS"
+            and pfad.parents[1].name == "Contents" and pfad.parents[2].suffix == ".app"):
+        return str(pfad.parents[2])
+    return None
+
+
+def _thunderbird_laeuft(binaer: str, laufen) -> bool:
+    """Ob eine Instanz dieses Binarys läuft — per `pgrep`, ohne Berechtigung.
+
+    Die Frage entscheidet den Weg: Läuft Thunderbird, reicht das Binary den
+    Auftrag weiter und kehrt zurück. Läuft es nicht, **wird das Binary selbst
+    zu Thunderbird** — es käme erst beim Beenden zurück, und `subprocess.run`
+    erschlüge es nach der Frist samt Fenster. Im Zweifel gilt „läuft nicht“:
+    Der Irrtum in diese Richtung kostet ein Fenster, der andere das Programm.
+    """
+    try:
+        lauf = _lauf(["pgrep", "-f", re.escape(binaer)], FRIST_S, laufen)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+    return lauf.returncode == 0
+
+
+def _nicht_gefunden(wahl: str | None) -> str:
+    """Der Grund, wenn kein Programm da ist — und er nennt, was gesucht wurde.
+
+    „kein Mailprogramm gefunden“ wäre auf einem Rechner mit Outlook eine
+    Lüge: Es ist da, es wurde nur nicht gewählt.
+    """
+    if wahl == "outlook":
+        return "Microsoft Outlook ist auf diesem Rechner nicht zu finden"
+    grund = ("Thunderbird ist nicht installiert — weder unter "
+             f"{THUNDERBIRD_MACOS} noch als `thunderbird` im PATH")
+    if wahl is None:
+        grund += "; Outlook nur auf Wahl mit --programm outlook (ADR 0049)"
+    return grund
+
+
+def _entwurf_compose(programm: Entwurfsprogramm, felder: Mapping, *,
+                     laufen, ablage) -> "Entwurfslage":
+    """Der Thunderbird-Weg: eine Zeile prüfen, einmal aufrufen (ADR 0049).
+
+    Die Anhänge kommen in einen Ordner, der **liegen bleibt**: Thunderbird
+    merkt sich Pfade und liest die Datei erst beim Senden oder Speichern — ein
+    Verzeichnis, das nach dem Aufruf verschwindet, wäre eine leere Anlage.
+    Abgeräumt wird nur, wenn sicher nichts angenommen wurde.
+    """
+    anhaenge = felder.get("anhaenge") or []
+    ordner = tempfile.mkdtemp(prefix="falzmarke-entwurf-", dir=ablage) if anhaenge else None
+
+    def abgeraeumt(lage: Entwurfslage) -> Entwurfslage:
+        if ordner:
+            shutil.rmtree(ordner, ignore_errors=True)
+        return lage
+
+    pfade = _anhaenge_ausschreiben(ordner, anhaenge, typografisch=True) if ordner else []
+    try:
+        argumente = compose_argumente(felder, pfade)
+    except ValueError as fehler:
+        return abgeraeumt(Entwurfslage(None, str(fehler)))
+    schief = _compose_stimmt(argumente[1], felder, pfade)
+    if schief:
+        return abgeraeumt(Entwurfslage(None, schief))
+
+    laeuft = _thunderbird_laeuft(programm.pfad, laufen)
+    if laeuft:
+        argv, frist = [programm.pfad, *argumente], FRIST_ENTWURF_S
+    else:
+        buendel = _app_buendel(programm.pfad)
+        if buendel is None:
+            return abgeraeumt(Entwurfslage(
+                None, f"Thunderbird läuft nicht, und {programm.pfad} liegt in keinem "
+                      ".app-Bündel — Thunderbird starten und --oeffnen wiederholen"))
+        argv, frist = ["open", "-a", buendel, "--args", *argumente], FRIST_S
+    try:
+        lauf = _lauf(argv, frist, laufen)
+    except FileNotFoundError:
+        return abgeraeumt(Entwurfslage(None, f"{argv[0]} gibt es auf diesem System nicht"))
+    except subprocess.TimeoutExpired:
+        return Entwurfslage(None, f"{Path(argv[0]).name} kam in {frist} Sekunden nicht zurück",
+                            ungewiss=True, ablage=ordner)
+    if lauf.returncode != 0:
+        meldung = (lauf.stderr or "").strip().splitlines()
+        letzte = meldung[-1] if meldung else (
+            f"{Path(argv[0]).name} endete mit Code {lauf.returncode}")
+        return abgeraeumt(Entwurfslage(None, letzte[:200]))
+    if not laeuft:
+        # `open` hat Thunderbird mit dem Auftrag gestartet. Gemessen ist am
+        # 13.10.2026 nur die laufende Instanz; ob das Fenster nach dem Start
+        # aufgeht, weiß hier niemand — und „nicht geprüft“ ist nicht „nichts
+        # da“: Keine Datei nachschieben, sonst stehen womöglich zwei Fenster.
+        return Entwurfslage(
+            None, "Thunderbird lief nicht und wurde mit dem Auftrag gestartet; ob das "
+                  "Fenster aufgeht, ist nicht gemessen (13.10.2026 nur mit laufendem "
+                  "Thunderbird)", ungewiss=True, ablage=ordner)
+    return Entwurfslage(programm.name, "", nachgezaehlt=False, ablage=ordner)
+
+
 def entwurf(felder: Mapping, *, plattform: str = sys.platform,
             umgebung: Mapping[str, str] | None = None,
-            laufen=subprocess.run) -> tuple[str | None, str]:
+            laufen=subprocess.run, wahl: str | None = None,
+            binaer=thunderbird_binaer, ablage=None) -> "Entwurfslage":
     """Legt den Entwurf an — oder sagt in einem Satz, warum nicht.
 
     Rückgabe: `(Programmname, "")`, wenn er steht, sonst `(None, Grund)`. Der
@@ -557,10 +919,15 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
     `FALZMARKE_ENTWURF=nie` schaltet den Weg ab, ohne `--oeffnen` aufzugeben —
     für den, der die Datei will und nicht das Fenster.
 
-    Die Anhänge stehen in der `.eml` als Bytes; das Programm will Pfade. Sie
-    werden deshalb in ein eigenes Verzeichnis geschrieben, das erst nach dem
-    Lauf verschwindet: Ein Programm, das die Datei noch liest, während sie
-    gelöscht wird, hängt eine leere Anlage an.
+    `wahl` ist das Wort aus `--programm` (siehe `entwurfsweg`), `binaer` die
+    Suche nach Thunderbird und `ablage` das Verzeichnis, unter dem dessen
+    Anhangordner entsteht — ohne Angabe das Temporärverzeichnis des Systems.
+
+    Die Anhänge stehen in der `.eml` als Bytes; das Programm will Pfade. Für
+    Outlook werden sie in ein Verzeichnis geschrieben, das erst nach dem Lauf
+    verschwindet: Ein Programm, das die Datei noch liest, während sie gelöscht
+    wird, hängt eine leere Anlage an. Für Thunderbird bleibt der Ordner liegen
+    — siehe `_entwurf_compose`.
     """
     umgebung = os.environ if umgebung is None else umgebung
     if (umgebung.get("FALZMARKE_ENTWURF") or "").strip().lower() == "nie":
@@ -569,7 +936,7 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
     if grund:
         return Entwurfslage(None, grund)
     try:
-        programm = entwurfsweg(plattform, laufen=laufen)
+        programm = entwurfsweg(plattform, laufen=laufen, wahl=wahl, binaer=binaer)
     except FileNotFoundError:
         return Entwurfslage(None, "osascript gibt es auf diesem System nicht")
     except subprocess.TimeoutExpired:
@@ -580,17 +947,12 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
         return Entwurfslage(
             None, f"das Mailprogramm antwortete nicht in {FRIST_S} Sekunden")
     if programm is None:
-        return Entwurfslage(
-            None, "kein Mailprogramm gefunden, das hier einen Entwurf annimmt")
+        return Entwurfslage(None, _nicht_gefunden(wahl))
+    if programm.weg == "compose":
+        return _entwurf_compose(programm, felder, laufen=laufen, ablage=ablage)
 
     with tempfile.TemporaryDirectory(prefix="falzmarke-entwurf-") as ordner:
-        pfade = []
-        for dateiname, inhalt in felder.get("anhaenge") or []:
-            # Nur der Name, nie ein Pfad aus der Nachricht: Ein Anhang, der
-            # „../../etc/x" heißt, dürfte nicht aus dem Ordner zeigen.
-            ziel = Path(ordner) / Path(str(dateiname)).name
-            ziel.write_bytes(inhalt)
-            pfade.append(str(ziel))
+        pfade = _anhaenge_ausschreiben(ordner, felder.get("anhaenge") or [])
         skriptdatei = Path(ordner) / "entwurf.applescript"
         skriptdatei.write_text(programm.anlegen, encoding="utf-8")
         argv = ["osascript", str(skriptdatei), *entwurfsargumente(felder, pfade)]

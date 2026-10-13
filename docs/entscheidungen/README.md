@@ -36,3 +36,4 @@ gelesen wird und die niemand nachpflegt.
 | [0046](0046-form-a-steigt-auf-mehrfach-bestaetigt.md) | Form A steigt auf `mehrfach_bestaetigt` | 24.09.2026 |
 | [0047](0047-geometrie-regeln-tragen-ihre-stufe.md) | Die Geometrie-Regeln tragen die Stufe, mit der sie wirken | 25.09.2026 |
 | [0048](0048-urkunde-ein-schriftstueck-ohne-anschriftfeld.md) | Die Urkunde: ein Schriftstück ohne Anschriftfeld ist ein eigener Typ | 07.10.2026 |
+| [0049](0049-entwurf-in-thunderbird.md) | Der Entwurf entsteht in Thunderbird | 13.10.2026 |
