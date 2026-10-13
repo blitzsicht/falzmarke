@@ -135,6 +135,7 @@ Thunderbird 154.0 auf macOS:
 | Logo per `cid:` im Rumpf (13:15, echter Entwurf) | **kaputtes Bild mit Alt-Text** — die `related`-Teile der `.eml` gibt es auf diesem Weg nicht; falzmarke bettet das Bild seither als `data:`-URI ein |
 | Logo als `data:`-URI | wird im Editor angezeigt (gemessen); dass Thunderbird es beim Senden zum Anhang macht, ist erwartet, ungemessen |
 | rahmenlose Tabellen (Umschlag, Signatur) | rot gepunktete Hilfslinien im Editor — Anzeige des Editors, nicht Teil der gesendeten Mail: **erwartet, ungemessen** |
+| Zeilenumbruch im `body=`-Wert (2. Lauf) | **wird ein Zeilenumbruch im Entwurf.** Ein Tag über zwei Zeilen zerfällt — `style="…">` stand als Text in der Mail; die `<head>`-Hülle wurde zehn Leerzeilen. falzmarke übergibt seither nur den `<body>`-Inhalt auf einer Zeile |
 
 **Nicht gemessen:** ein einfaches Anführungszeichen im Wert, ein Komma im Dateinamen eines
 Anhangs, mehr als ein Empfänger in `to=`, der Aufruf bei nicht laufendem Thunderbird, Linux,

@@ -134,3 +134,36 @@ Thunderbird hängt die Signatur der Identität an, und falzmarke liefert die Sig
 Profil bereits mit. Wer beides stehen lässt, hat sie zweimal. Die Reparatur ist eine
 Einstellung in Thunderbird (Konten-Einstellungen → Identität → Signaturtext leer), einmal
 je Identität — nicht ein zweites Profil ohne Signaturblock.
+
+---
+
+## Nachtrag 13.10.2026, zweiter Lauf — Zeilenumbrüche im `body=`-Wert
+
+Gemessen mit echten Entwürfen am Stand `5e93f42` (`email-signatur.md`): Zwischen Grußformel und
+Signaturtabelle stand `style="border-collapse: collapse; …">` als sichtbarer Text, der Anfang
+des `<table …`-Tags war weg; und über dem ersten Absatz lagen rund zehn Leerzeilen.
+
+**Ursache, eine für beides:** Thunderbird macht aus jedem Zeilenumbruch im `body=`-Wert einen
+Zeilenumbruch im Entwurf. Auf unserer Seite war die Zeile intakt — `compose_zerlegen` gab den
+Rumpf byte-gleich zurück. Hinter der Grenze zerfiel er: Das Tag der Signaturtabelle geht in der
+Datei über zwei Zeilen und wurde an der ersten abgeschnitten, der Rest wurde Text. Die Hülle der
+Datei (`<!DOCTYPE>`, `<head>`, drei `<meta>`, `<style>`) ist zehn Zeilen lang und wurde zehn
+Leerzeilen. Vor dem Nachtrag zum Logo fiel das nicht auf, weil es zufällig nicht gemessen war.
+
+**Entscheidung:** `rumpf_fuer_compose` übergibt nur den Inhalt von `<body>`, getrimmt, und
+macht aus jedem Umbruch samt Einrückung ein Leerzeichen — HTML liest ihn ohnehin so, und der
+Emitter setzt kein `<pre>`, in dem ein Umbruch etwas hieße. Der `style` des `<body>` (Schrift,
+Größe, Farbe) wandert auf ein umhüllendes `<div>`. Das `<style>` der Hülle mit dem dunklen
+Farbschema fällt weg; das tat es im Entwurf vorher schon, nur unsichtbar.
+
+**Prüfmittel vor dem Aufruf:** `_rumpf_stimmt` — kein Leerraum vorn, keine Hülle, kein
+Zeilenumbruch (damit auch keine Data-URI mit Umbrüchen), jedes `<tag` kommt beim Parser als
+Tag an, kein `attribut="…"` steht als Text. Dazu der Nachbau der Thunderbird-Lesart in den
+Tests (`\n` → `<br>`, dann geparst): Er muss am alten Rumpf den gemessenen Fehler zeigen, sonst
+belegte der grüne Test nichts. `tests/test_befehl_email.py` fährt die echte Kette mit
+`email-signatur.md` und `email-logo.md` bis zur Zeile und liest sie zurück.
+
+**Live geprüft:** `examples/email/email-logo.md` (Profil `email-logo.yaml`, Logo
+`assets/mail-logo.png`) am Stand dieses Nachtrags mit `--oeffnen` in Thunderbird 154
+geöffnet — Ergebnis im Vorgang, nicht hier: Was dieses Dokument zusagt, ist, dass die Zeile
+die drei Prüfungen besteht.

@@ -1588,3 +1588,73 @@ def test_ein_falscher_mime_typ_faellt_auf(monkeypatch):
     lage = _oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
                             laufen=_nie, binaer=lambda: "/x/thunderbird")
     assert lage.programm is None and "image/jpeg" in lage.grund, lage
+
+
+# ── Thunderbird: der Rumpf auf einer Zeile, ohne Hülle (ADR 0049, 2. Lauf) ──
+#
+# Gemessen am 13.10.2026 am echten Entwurf: Jeder Zeilenumbruch im `body=`-Wert
+# wird ein Zeilenumbruch im Entwurf. Ein Tag über zwei Zeilen zerfällt, die
+# Hülle wird Leerzeilen. Drei Sabotagen, je an einer Stelle: A und B fängt
+# `_rumpf_stimmt`, C fängt `_eingebettet_stimmt` (die Umbrüche werden vorher zu
+# Leerzeichen, und dann stimmt die URI nicht mehr mit den Bytes überein). Der
+# Nachbau der Thunderbird-Lesart muss den Fehler zeigen.
+
+_HUELLE = (
+    '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8">\n<style>\n.a{}\n</style>\n'
+    '</head>\n<body style="margin: 0;">\n<p>Grüße</p>\n'
+    '<table border="0"\n       style="border-collapse: collapse;">\n'
+    '<tr><td><img src="cid:falzmarke-logo" alt="Logo"></td></tr></table>\n</body>\n</html>\n'
+)
+_FELDER_HUELLE = {**_FELDER_LOGO, "html": _HUELLE}
+
+
+def _text_wie_thunderbird(rumpf: str) -> str:
+    z = _oeffnen._Tagzaehler()
+    z.feed(rumpf.replace("\n", "<br>"))
+    z.close()
+    return "".join(z.text)
+
+
+def test_unsabotiert_vertraegt_der_rumpf_thunderbird():
+    """Kontrollprobe: ohne Sabotage darf nichts anschlagen."""
+    rumpf = _oeffnen.rumpf_fuer_compose(_oeffnen.eingebettet(_HUELLE, _INLINE))
+    assert _oeffnen._rumpf_stimmt(rumpf) is None
+    assert 'style="border-collapse' not in _text_wie_thunderbird(rumpf)
+
+
+def test_sabotage_a_umbrueche_bleiben_das_tag_zerfaellt(monkeypatch):
+    """Fehler A: Die Aufbereitung lässt die Umbrüche stehen."""
+    monkeypatch.setattr(_oeffnen, "rumpf_fuer_compose", lambda html: html.strip())
+    rumpf = _oeffnen.rumpf_fuer_compose(_HUELLE)
+    assert 'style="border-collapse' in _text_wie_thunderbird(rumpf), "der Nachbau zeigt A nicht"
+    lage = _oeffnen.entwurf(_FELDER_HUELLE, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                            laufen=_nie, binaer=lambda: "/x/thunderbird")
+    assert lage.programm is None and "Zeilenumbruch" in lage.grund, lage
+
+
+def test_sabotage_b_die_huelle_bleibt(monkeypatch):
+    """Fehler B: Umbrüche weg, aber Hülle und Leerraum bleiben."""
+    import re as _re
+    monkeypatch.setattr(_oeffnen, "rumpf_fuer_compose",
+                        lambda html: _re.sub(r"\s*\n\s*", " ", html))
+    lage = _oeffnen.entwurf(_FELDER_HUELLE, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                            laufen=_nie, binaer=lambda: "/x/thunderbird")
+    assert lage.programm is None and "Hülle" in lage.grund, lage
+
+
+def test_sabotage_c_umbrueche_in_der_data_uri(monkeypatch):
+    """Base64 mit Umbruch alle 76 Zeichen — so steht es in der .eml, und so
+    darf es nicht in die Zeile."""
+    def mit_umbruechen(html, inline):
+        for kennung, mime, daten in inline:
+            html = html.replace(f"cid:{kennung}",
+                                f"data:{mime};base64," + _base64.encodebytes(daten).decode())
+        return html
+
+    monkeypatch.setattr(_oeffnen, "eingebettet", mit_umbruechen)
+    felder = {**_FELDER_HUELLE, "inline": [("falzmarke-logo", "image/png", b"\x89PNG" * 40)]}
+    roh = mit_umbruechen(_HUELLE, felder["inline"])
+    assert "\n" in roh.split("data:image/png;base64,")[1].split('"')[0], "die Sabotage griff nicht"
+    lage = _oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                            laufen=_nie, binaer=lambda: "/x/thunderbird")
+    assert lage.programm is None and "falzmarke-logo" in lage.grund, lage

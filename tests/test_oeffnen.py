@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import ast
 import base64
+import re
 import subprocess
 from pathlib import Path
 
@@ -1263,3 +1264,114 @@ def test_gegenprobe_knapp_darunter_geht_die_zeile_durch(monkeypatch):
 
 def test_die_zahl_traegt_tausenderpunkte():
     assert oeffnen._zahl(1048576) == "1.048.576" and oeffnen._zahl(900) == "900"
+
+
+# ── Was Thunderbird aus Zeilenumbrüchen macht (ADR 0049, zweiter Lauf) ──────
+#
+# GEMESSEN (13.10.2026, echte Entwürfe, Stand 5e93f42): Zwischen Grußformel und
+# Signatur stand `style="border-collapse: collapse; …">` als Text — der Anfang
+# des `<table …`-Tags war weg. Und über dem ersten Absatz lagen rund zehn
+# Leerzeilen. Ursache für beides: Thunderbird macht aus jedem `\n` im
+# `body=`-Wert einen Zeilenumbruch. Das Tag der Signaturtabelle geht in der
+# Datei über zwei Zeilen; die Hülle (`<!DOCTYPE>`, `<head>`, `<style>`) ist
+# zehn Zeilen lang. Beides war nach dem Zurücklesen auf unserer Seite intakt —
+# der Fehler lag hinter der Grenze, und deshalb heißt die Prüfung hier: Was
+# Thunderbird daraus macht, nachgebaut (`\n` → `<br>`), und dann geparst.
+
+HUELLE = (
+    '<!DOCTYPE html>\n<html lang="de">\n<head>\n<meta charset="utf-8">\n'
+    '<style type="text/css">\n.fm-t { color: #111; }\n</style>\n</head>\n'
+    '<body class="fm-t" style="margin: 0; font-family: Arial, sans-serif;">\n'
+    '<p>Mit freundlichen Grüßen</p>\n'
+    '<div style="margin: 16px 0 0;"><table role="presentation" border="0"\n'
+    '       style="border-collapse: collapse; font-family: Arial, sans-serif;">\n'
+    '<tr><td>Erika Muster</td></tr>\n</table></div>\n</body>\n</html>\n'
+)
+
+
+def _wie_thunderbird_liest(rumpf: str) -> str:
+    """Der Text, den der Parser sieht, wenn jeder Umbruch ein `<br>` wird."""
+    zaehler = oeffnen._Tagzaehler()
+    zaehler.feed(rumpf.replace("\n", "<br>"))
+    zaehler.close()
+    return "".join(zaehler.text)
+
+
+def test_die_messung_nachgebaut_das_tag_zerfaellt_bei_umbruechen():
+    """Ohne diese Probe wüsste niemand, ob der Nachbau den Fehler überhaupt
+    zeigt — er muss ihn zeigen, sonst belegt der grüne Test darunter nichts."""
+    text = _wie_thunderbird_liest(HUELLE)
+    assert 'style="border-collapse' in text, "der Nachbau zeigt den gemessenen Fehler nicht"
+
+
+def test_der_rumpf_ist_nur_der_inhalt_von_body_ohne_umbrueche():
+    rumpf = oeffnen.rumpf_fuer_compose(HUELLE)
+    assert "\n" not in rumpf
+    assert not rumpf.lower().startswith(("<!doctype", "<html", "<head", "<body"))
+    assert "<style" not in rumpf and "</body>" not in rumpf and "<meta" not in rumpf
+    assert rumpf == rumpf.strip()
+    # Der Stil des <body> bleibt — auf einem umhüllenden <div>.
+    assert rumpf.startswith('<div style="margin: 0; font-family: Arial, sans-serif;">')
+    assert "<p>Mit freundlichen Grüßen</p>" in rumpf
+
+
+def test_ein_tag_ueber_zwei_zeilen_wird_eins():
+    rumpf = oeffnen.rumpf_fuer_compose(HUELLE)
+    assert ('<table role="presentation" border="0" '
+            'style="border-collapse: collapse; font-family: Arial, sans-serif;">') in rumpf
+    assert 'style="border-collapse' not in _wie_thunderbird_liest(rumpf)
+
+
+def test_ohne_body_bleibt_das_html_bis_auf_die_umbrueche():
+    assert oeffnen.rumpf_fuer_compose("<p>a</p>\n<p>b</p>\n") == "<p>a</p> <p>b</p>"
+
+
+def test_der_pruefer_sieht_die_huelle():
+    grund = oeffnen._rumpf_stimmt(HUELLE.strip())
+    assert grund and "Hülle" in grund and "Zeilenumbruch" in grund
+
+
+def test_der_pruefer_sieht_ein_attribut_als_text():
+    grund = oeffnen._rumpf_stimmt('<p>x</p> style="a: b;"> <p>y</p>')
+    assert grund and "Attribut" in grund
+
+
+def test_der_pruefer_sieht_ein_abgeschnittenes_tag():
+    grund = oeffnen._rumpf_stimmt('<p>x</p><table border="0" <p>y</p>')
+    assert grund and "Parser" in grund
+
+
+def test_gegenprobe_der_saubere_rumpf_stimmt():
+    assert oeffnen._rumpf_stimmt(oeffnen.rumpf_fuer_compose(HUELLE)) is None
+
+
+def test_zurueckgelesen_vertraegt_der_rumpf_thunderbird():
+    """Der Weg bis zur Grenze: Felder mit Hülle und Logo → Zeile → zurückgelesen
+    wie Thunderbird sie liest — kein Umbruch, keine Hülle, Tags ganz, keine
+    Umbrüche in der Data-URI."""
+    html = HUELLE.replace("<td>Erika Muster</td>",
+                          '<td><img src="cid:falzmarke-logo" alt="Logo"></td>')
+    felder = {**FELDER_TB, "html": html, "inline": INLINE}
+    tb = Thunderbird()
+    lage = oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=tb, binaer=_thunderbird_da)
+    assert lage.programm == "Thunderbird", lage
+    rumpf = oeffnen.compose_zerlegen(tb.compose[0][2])["body"]
+    assert "\n" not in rumpf and rumpf == rumpf.strip()
+    assert not rumpf.lower().startswith("<!doctype")
+    assert 'style="border-collapse' not in _wie_thunderbird_liest(rumpf)
+    assert oeffnen._rumpf_stimmt(rumpf) is None
+    uris = re.findall(r'data:[^"\']*', rumpf)
+    assert len(uris) == 1 and "\n" not in uris[0]
+    assert "cid:" not in rumpf
+
+
+def test_ein_rumpf_den_thunderbird_nicht_vertraegt_wird_nicht_uebergeben(monkeypatch):
+    """Die Prüfung steht vor dem Aufruf: Lässt die Aufbereitung die Umbrüche
+    stehen, geht nichts raus, und der Grund sagt warum."""
+    monkeypatch.setattr(oeffnen, "rumpf_fuer_compose", lambda html: html)
+    tb = Thunderbird()
+    lage = oeffnen.entwurf({**FELDER_TB, "html": HUELLE}, plattform="darwin",
+                           umgebung={"DISPLAY": ":0"}, laufen=tb, binaer=_thunderbird_da)
+    assert lage.programm is None and "Zeilenumbruch" in lage.grund
+    assert tb.compose == []

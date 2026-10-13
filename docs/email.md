@@ -159,7 +159,10 @@ Das **Logo der Signatur** fährt als `data:`-URI im Rumpf mit — `-compose` ken
 (gemessen 13.10.2026). Damit zählt das Logo zur Länge des Befehls: Über 900 000 Byte wird nicht
 aufgerufen (ARG_MAX auf macOS ist 1 MB), der Befehl nennt die Länge und übergibt die Datei. Die
 rot gepunkteten Linien um die Tabellen im Entwurf sind die Anzeige des Editors für rahmenlose
-Tabellen, nicht Teil der Mail (erwartet, ungemessen). Und weil falzmarke die Signatur liefert:
+Tabellen, nicht Teil der Mail (erwartet, ungemessen). Übergeben wird nur der Inhalt von
+`<body>`, auf einer Zeile: Thunderbird macht aus jedem Zeilenumbruch im Rumpf einen
+Zeilenumbruch im Entwurf — ein Tag über zwei Zeilen zerfiel zu sichtbarem Text, die Hülle der
+Datei zu zehn Leerzeilen (gemessen 13.10.2026). Und weil falzmarke die Signatur liefert:
 die Signatur der Identität in Thunderbird leer lassen, sonst steht sie zweimal da.
 
 Alles Folgende zum Nachzählen, zum Konto und zur Warnzeile `ABSENDER PRÜFEN` gilt für den

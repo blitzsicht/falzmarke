@@ -28,6 +28,7 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Mapping
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import NamedTuple
 
@@ -380,6 +381,86 @@ def eingebettet(html: str, inline) -> str:
         uri = f"data:{mime};base64,{base64.b64encode(daten).decode('ascii')}"
         html = re.sub(rf"cid:{re.escape(kennung)}(?=[\"'])", lambda _: uri, html)
     return html
+
+
+def rumpf_fuer_compose(html: str) -> str:
+    """Nur der Inhalt von `<body>`, auf einer Zeile — so, wie `body=` es verträgt.
+
+    Gemessen am 13.10.2026 (zweiter Lauf, echte Entwürfe in Thunderbird 154):
+    **Thunderbird macht aus jedem Zeilenumbruch im `body=`-Wert einen
+    Zeilenumbruch im Entwurf.** Zwei Folgen, beide gesehen: Ein Tag, das über
+    zwei Zeilen geht (`<table …\n style="…">`), wird an der ersten Zeile
+    abgeschnitten, und der Rest steht als sichtbarer Text im Entwurf —
+    `style="border-collapse: …">` zwischen Grußformel und Signatur. Und die
+    Hülle der Datei — `<!DOCTYPE>`, `<head>`, `<meta>`, `<style>` — wird zu rund
+    zehn Leerzeilen über dem ersten Absatz.
+
+    Deshalb: nur der Inhalt von `<body>`, und jeder Umbruch samt Einrückung
+    wird ein Leerzeichen. HTML liest ihn ohnehin so — zwischen Blöcken ohne
+    Bedeutung, im Tag der Abstand zwischen Attributen, im Text ein Wortabstand.
+    Der Emitter setzt kein `<pre>`, in dem ein Umbruch etwas hieße; das
+    `<style>` der Hülle ist das einzige, was Umbrüche im Text trägt, und es
+    fällt mit der Hülle weg. Der `style` des `<body>` (Schrift, Größe, Farbe)
+    wandert auf ein umhüllendes `<div>`, damit der Entwurf nicht die Schrift
+    der Datei verliert.
+    """
+    treffer = re.search(r"<body(?P<attribute>[^>]*)>(?P<inhalt>.*?)</body>", html,
+                        re.S | re.I)
+    if treffer:
+        inhalt = treffer.group("inhalt").strip()
+        stil = re.search(r'style="([^"]*)"', treffer.group("attribute"))
+        if stil:
+            inhalt = f'<div style="{stil.group(1)}">{inhalt}</div>'
+    else:
+        inhalt = html
+    return re.sub(r"[ \t]*\n[ \t]*", " ", inhalt).strip()
+
+
+class _Tagzaehler(HTMLParser):
+    """Zählt Start-Tags und sammelt den Text — für `_rumpf_stimmt`."""
+
+    def __init__(self):
+        super().__init__()
+        self.tags = 0
+        self.text: list[str] = []
+
+    def handle_starttag(self, tag, attrs):
+        self.tags += 1
+
+    def handle_startendtag(self, tag, attrs):
+        self.tags += 1
+
+    def handle_data(self, daten):
+        self.text.append(daten)
+
+
+def _rumpf_stimmt(rumpf: str) -> str | None:
+    """Verträgt `body=` diesen Rumpf? Sonst der Grund — vor dem Aufruf.
+
+    Drei Dinge, je eines pro gemessenem Fehler: keine Hülle und kein führender
+    Leerraum (die Leerzeilen), kein Zeilenumbruch (das abgeschnittene Tag; eine
+    Data-URI mit Umbrüchen fiele hier ebenfalls auf), und jedes `<tag` kommt
+    als Tag beim Parser an — kein `attribut="…"` steht als Text da.
+    """
+    fehlt = []
+    if rumpf != rumpf.strip():
+        fehlt.append("führender oder abschließender Leerraum")
+    if re.match(r"\s*<(!doctype|html|head|body)\b", rumpf, re.I):
+        fehlt.append("die Hülle der Datei steht noch im Rumpf")
+    if "\n" in rumpf:
+        fehlt.append("ein Zeilenumbruch — Thunderbird macht daraus eine Zeile")
+    zaehler = _Tagzaehler()
+    zaehler.feed(rumpf)
+    zaehler.close()
+    gemeint = len(re.findall(r"<[a-zA-Z]", rumpf))
+    if zaehler.tags != gemeint:
+        fehlt.append(f"{gemeint} Tags geschrieben, {zaehler.tags} beim Parser angekommen")
+    text = "".join(zaehler.text)
+    if re.search(r'[a-zA-Z-]+="', text):
+        fehlt.append("ein Attribut steht als Text im Rumpf")
+    if not fehlt:
+        return None
+    return "der Rumpf verträgt `body=` nicht — " + ", ".join(fehlt)
 
 
 def _eingebettet_stimmt(html: str, inline) -> str | None:
@@ -916,7 +997,9 @@ def _entwurf_compose(programm: Entwurfsprogramm, felder: Mapping, *,
     pfade = _anhaenge_ausschreiben(ordner, anhaenge, typografisch=True) if ordner else []
     inline = felder.get("inline") or []
     html = eingebettet(str(felder.get("html") or ""), inline)
-    schief = _eingebettet_stimmt(html, inline)
+    if html:
+        html = rumpf_fuer_compose(html)
+    schief = _eingebettet_stimmt(html, inline) or (html and _rumpf_stimmt(html))
     if schief:
         return abgeraeumt(Entwurfslage(None, schief))
     felder = {**felder, "html": html}

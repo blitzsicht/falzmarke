@@ -832,3 +832,48 @@ def test_gegenprobe_ein_nachgezaehlter_entwurf_schweigt_dazu(tmp_path, monkeypat
     assert "OK  Entwurf angelegt: Testprogramm" in ausgabe.out
     assert "nachgezählt" not in ausgabe.err
     assert "Anhänge liegen" not in ausgabe.err
+
+
+# ── Die echte Kette bis zur Grenze: Beispiel → .eml → -compose → zurückgelesen ─
+#
+# Gemessen am 13.10.2026 (Stand 5e93f42, echte Entwürfe in Thunderbird 154):
+# `style="border-collapse: …">` als Text zwischen Grußformel und Signatur, und
+# zehn Leerzeilen über dem ersten Absatz. Die Prüfungen in test_oeffnen.py
+# messen das am Nachbau; hier läuft die wirkliche Kette mit den Beispielen,
+# die der Betreiber geöffnet hat.
+
+@pytest.mark.parametrize("name", ["email-signatur", "email-logo"])
+def test_die_compose_zeile_der_beispiele_vertraegt_thunderbird(tmp_path, monkeypatch, name):
+    from falzmarke import eml as eml_modul, oeffnen
+
+    beispiel = REPO / "examples" / "email" / f"{name}.md"
+    eml_pfad, _ = falzmarke.setze_email(beispiel, tmp_path / name)
+    felder = eml_modul.entwurfsfelder(eml_pfad)
+    assert "\n" in felder["html"] and "<head>" in felder["html"], "die Datei trägt die Hülle"
+
+    aufrufe = []
+
+    def nimmt_an(argv, **kwargs):
+        aufrufe.append(list(argv))
+        if argv[0] == "pgrep":
+            return subprocess.CompletedProcess(argv, 0, stdout="1\n", stderr="")
+        return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(oeffnen, "_lauf", lambda argv, frist, laufen=None: nimmt_an(argv))
+    lage = oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           binaer=lambda: oeffnen.THUNDERBIRD_MACOS)
+    assert lage.programm == "Thunderbird", lage
+    (compose,) = [a for a in aufrufe if "-compose" in a]
+    rumpf = oeffnen.compose_zerlegen(compose[-1])["body"]
+    assert "\n" not in rumpf and rumpf == rumpf.strip()
+    assert not rumpf.lower().startswith("<!doctype") and "<head>" not in rumpf
+    assert oeffnen._rumpf_stimmt(rumpf) is None
+    assert "Mit freundlichen Grüßen" in rumpf or "Grüßen" in rumpf
+    # Jedes `<table` kommt als Tag an — kein style="…" als Text.
+    zaehler = oeffnen._Tagzaehler()
+    zaehler.feed(rumpf.replace("\n", "<br>"))
+    zaehler.close()
+    assert 'style="' not in "".join(zaehler.text)
+    if name == "email-logo":
+        uris = re.findall(r'data:image/png;base64,[^"\']*', rumpf)
+        assert len(uris) == 1 and "\n" not in uris[0] and "cid:" not in rumpf
