@@ -117,6 +117,21 @@ BEISPIELE_10 = [p for p in BEISPIELE if _fassung(p) == "1.0"]
 BEISPIELE_11 = [p for p in BEISPIELE if _fassung(p) != "1.0"]
 
 
+@pytest.fixture(autouse=True)
+def _kein_echtes_thunderbird_profil(monkeypatch, tmp_path_factory):
+    """Kein Test liest das Thunderbird-Profil des Rechners, auf dem er läuft (ADR 0050).
+
+    Der Entwurfsweg sieht dort nach, ob die Identität eine eigene Signatur
+    trägt. Ohne diese Umleitung hinge ein Test davon ab, welche Konten der
+    Entwickler eingerichtet hat — grün bei dem einen, rot bei dem anderen.
+    Wer ein Profil braucht, baut sich eine Attrappe und reicht sie durch.
+    """
+    from falzmarke import oeffnen
+
+    monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER",
+                        tmp_path_factory.getbasetemp() / "kein-thunderbird")
+
+
 @pytest.fixture(scope="session")
 def gerendert(tmp_path_factory) -> dict[str, tuple[Path, str]]:
     """Name des Beispiels -> (PDF-Pfad, Form)."""

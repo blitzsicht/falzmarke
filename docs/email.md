@@ -162,8 +162,16 @@ rot gepunkteten Linien um die Tabellen im Entwurf sind die Anzeige des Editors f
 Tabellen, nicht Teil der Mail (erwartet, ungemessen). Übergeben wird nur der Inhalt von
 `<body>`, auf einer Zeile: Thunderbird macht aus jedem Zeilenumbruch im Rumpf einen
 Zeilenumbruch im Entwurf — ein Tag über zwei Zeilen zerfiel zu sichtbarem Text, die Hülle der
-Datei zu zehn Leerzeilen (gemessen 13.10.2026). Und weil falzmarke die Signatur liefert:
-die Signatur der Identität in Thunderbird leer lassen, sonst steht sie zweimal da.
+Datei zu zehn Leerzeilen (gemessen 13.10.2026).
+
+**Die Signatur steht nur einmal im Entwurf** (ADR 0050). Thunderbird setzt die Signatur der
+Identität selbst unter den Rumpf. Trägt die Identität mit der Absenderadresse eine — eine
+angehängte Signaturdatei, die sich lesen lässt, oder einen Signaturtext —, lässt der Befehl die
+Signatur aus dem Profil aus dem Rumpf weg und sagt in einer Zeile, welche Identität und welche
+Datei sie liefert. Nachgesehen wird in `prefs.js` und `user.js` des Standardprofils unter
+`~/Library/Thunderbird` (`user.js` gewinnt, wie in Thunderbird); gelesen, nie geschrieben. Lässt
+sich die Identität nicht bestimmen, bleibt die Signatur im Rumpf, und der Hinweis von früher
+steht da, mit dem Grund. Die `.eml` und die `.html` tragen die Signatur immer.
 
 Alles Folgende zum Nachzählen, zum Konto und zur Warnzeile `ABSENDER PRÜFEN` gilt für den
 **Outlook-Weg** (`--programm outlook`).
@@ -200,9 +208,9 @@ Zeile, die nie da war, vermisst niemand.
 - **Apple Mail.** Der `content` einer ausgehenden Nachricht nimmt dort keinen HTML-Rumpf an.
   Statt eine Nachricht ohne ihre Auszeichnung anzulegen, wird die Datei übergeben.
 - **Was das Programm selbst hineinschreibt.** Outlook setzt die **Signatur des Kontos** in den
-  Entwurf, Thunderbird die der Identität. Trägt das Profil eine eigene, steht sie zweimal darin
-  — der Befehl sagt das beim Anlegen. Messen kann er es nicht: Es geschieht nach seinem letzten
-  Handgriff.
+  Entwurf. Trägt das Profil eine eigene, steht sie zweimal darin — der Befehl sagt das beim
+  Anlegen. Messen kann er es nicht: Es geschieht nach seinem letzten Handgriff. Für Thunderbird
+  sieht er seit ADR 0050 in den Einstellungen der Identität nach (siehe oben).
 
 Vier Eigenschaften, die dazugehören:
 
