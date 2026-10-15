@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<style>
+  /* Aufbau wie die Signaturen aus cw-core (Stand 15.10.2026), ohne echte Daten. */
+  @media (prefers-color-scheme: dark) {
+    .esig-name      { color: #ffffff !important; }
+    .esig-position  { color: #cbd5e1 !important; }
+    .esig-label     { color: #94a3b8 !important; }
+    .esig-link      { color: #93c5fd !important; }
+    .esig-company   { color: #f1f5f9 !important; }
+    .esig-compliance{ color: #94a3b8 !important; }
+  }
+  [data-ogsc] .esig-name      { color: #ffffff !important; }
+  [data-ogsc] .esig-position  { color: #cbd5e1 !important; }
+  [data-ogsc] .esig-label     { color: #94a3b8 !important; }
+  [data-ogsc] .esig-link      { color: #93c5fd !important; }
+  [data-ogsc] .esig-company   { color: #f1f5f9 !important; }
+  [data-ogsc] .esig-compliance{ color: #94a3b8 !important; }
+</style>
+</head>
+<body style="margin:0;padding:0;background:transparent;">
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#333333;max-width:580px;">
+  <tbody>
+    <tr>
+      <td valign="top" style="padding-right:20px;border-right:3px solid #1f2a37;width:140px;">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="https://example.de/email/logo-dark.png">
+          <img src="https://example.de/email/logo-light.png" alt="Beispiel GmbH" width="120" style="display:block;border:0;width:120px;height:auto;">
+        </picture>
+      </td>
+      <td valign="top" style="padding-left:20px;background:transparent;">
+        <p class="esig-name" style="margin:0 0 2px 0;font-size:16px;font-weight:bold;color:#1f2a37;">Erika Muster</p>
+        <p class="esig-position" style="margin:0 0 10px 0;font-size:13px;color:#666666;">Geschäftsführerin</p>
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 10px 0;"><tbody><tr>
+          <td style="width:200px;border-top:2px solid #8a6d3b;"></td>
+        </tr></tbody></table>
+        <p style="margin:0 0 3px 0;font-size:13px;">
+          <span class="esig-label" style="color:#888888;">E-Mail:</span>&nbsp;
+          <a class="esig-link" href="mailto:muster@example.de" style="color:#1f2a37 !important;text-decoration:none;">muster@example.de</a>
+        </p>
+        <p style='margin:0 0 10px 0;font-size:13px;'>
+          <span class="esig-label" style='color:#888888'>Web:</span>&nbsp;
+          <a class="esig-link" href="https://example.de/?a=1&b=2" style="color:#e63946;text-decoration:none;">example.de</a>
+        </p>
+        <p class="esig-company" style="margin:0 0 2px 0;font-size:12px;font-weight:bold;color:#333333;">Beispiel GmbH</p>
+        <p class="esig-compliance" style="margin:0;font-size:11px;color:#888888;line-height:1.6;">Musterweg 12 &middot; 93055 Regensburg<br>USt-IdNr.: DE123456789</p>
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding-top:12px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="150" align="center" bgcolor="#1a1a1a" style="width:150px;padding:7px 0;background:#1a1a1a;border-radius:3px;text-align:center;"><a href="https://example.de/termin?a=1&b=2" style="color:#ffffff;font-size:11px;font-weight:600;text-decoration:none;"><span style="vertical-align:middle;">Termin vereinbaren</span></a></td><td width="8" style="width:8px;">&nbsp;</td><td width="150" align="center" bgcolor="#e63946" style="width:150px;padding:7px 0;background-color:#e63946;border-radius:3px;text-align:center;"><a href="https://example.de/bewerten" style="color:#ffffff;font-size:11px;font-weight:600;text-decoration:none;"><span style="vertical-align:middle;">Bewerten</span></a></td></tr></table></td></tr></table>
+        <p style="margin:10px 0 0 0;font-size:11px;"><a href="https://example.de/muster.vcf" style="color:inherit;text-decoration:none;">Kontakt speichern (vCard)</a></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+</body>
+</html>

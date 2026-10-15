@@ -50,11 +50,6 @@ MIME-Version: 1.0
   .fm-r { border-color: #696969 !important; }
 }
 [data-ogsc] .fm-r { border-color: #696969 !important; }
-@media (prefers-color-scheme: dark) {
-  .sig-name { color: #f4f4f4 !important; }
-  .sig-leise { color: #a8a8a8 !important; }
-  .sig-linie { border-color: #4a4a4a !important; }
-}
 </style>
 </head>
 <body class=3D"fm-t" style=3D"margin: 0; padding: 16px; font-family: -apple-s=
@@ -84,34 +79,31 @@ eundlichen Gr=C3=BC=C3=9Fen</p>
 , Helvetica, Arial, sans-serif;">
   <tr>
     <td class=3D"sig-linie" style=3D"padding: 0 16px 0 0; border-right: 2px s=
-olid #c8c8c8; vertical-align: top;">
-      <span class=3D"sig-name" style=3D"font-size: 20px; font-weight: 700; co=
-lor: #1a1a1a;">EM</span>
+olid #7e7e7e; vertical-align: top;">
+      <span class=3D"sig-name" style=3D"font-size: 20px; font-weight: 700;">E=
+M</span>
     </td>
     <td style=3D"padding: 0 0 0 16px; vertical-align: top;">
       <p class=3D"sig-name" style=3D"margin: 0 0 2px; font-size: 17px; font-w=
-eight: 600; color: #1a1a1a;">Erika Muster</p>
-      <p class=3D"sig-leise" style=3D"margin: 0 0 8px; font-size: 14px; color=
-: #666;">Gesch=C3=A4ftsf=C3=BChrerin</p>
+eight: 600;">Erika Muster</p>
+      <p class=3D"sig-leise" style=3D"margin: 0 0 8px; font-size: 14px;">Gesc=
+h=C3=A4ftsf=C3=BChrerin</p>
       <p class=3D"sig-linie" style=3D"margin: 0 0 8px; border-top: 2px solid =
-#1a3a5c; width: 48px; font-size: 0; line-height: 0;">&nbsp;</p>
-      <p style=3D"margin: 0 0 2px; font-size: 14px; color: #1a1a1a;">Tel.: 09=
-41 620-9800</p>
-      <p style=3D"margin: 0 0 8px; font-size: 14px; color: #1a1a1a;">Web: <a =
-href=3D"https://example.de" style=3D"color: #1a3a5c; text-decoration: underli=
-ne;">example.de</a></p>
+#7e7e7e; width: 48px; font-size: 0; line-height: 0;">&nbsp;</p>
+      <p style=3D"margin: 0 0 2px; font-size: 14px;">Tel.: 0941 620-9800</p>
+      <p style=3D"margin: 0 0 8px; font-size: 14px;">Web: <a href=3D"https://=
+example.de" style=3D"text-decoration: underline;">example.de</a></p>
       <p class=3D"sig-name" style=3D"margin: 0 0 2px; font-size: 14px; font-w=
-eight: 600; color: #1a1a1a;">Beispiel GmbH</p>
-      <p class=3D"sig-leise" style=3D"margin: 0 0 8px; font-size: 13px; color=
-: #666;">Musterweg 12 =C2=B7 93055 Regensburg<br>USt-IdNr.: DE123456789</p>
+eight: 600;">Beispiel GmbH</p>
+      <p class=3D"sig-leise" style=3D"margin: 0 0 8px; font-size: 13px;">Must=
+erweg 12 =C2=B7 93055 Regensburg<br>USt-IdNr.: DE123456789</p>
       <table role=3D"presentation" cellpadding=3D"0" cellspacing=3D"0" border=
 =3D"0" style=3D"margin: 0;">
         <tr>
           <td class=3D"sig-linie" style=3D"padding: 6px 12px; border: 1px sol=
-id #1a3a5c;">
+id #7e7e7e;">
             <a href=3D"https://example.de/termin" style=3D"font-size: 13px; f=
-ont-weight: 600; color: #1a3a5c; text-decoration: none;">Termin vereinbaren</=
-a>
+ont-weight: 600; text-decoration: none;">Termin vereinbaren</a>
           </td>
         </tr>
       </table>

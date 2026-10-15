@@ -322,6 +322,28 @@ def test_eine_schriftfarbe_im_rumpf_faellt_auf(monkeypatch):
     assert any("color:" in b for b in befunde), befunde
 
 
+def test_eine_signatur_mit_ihren_farben_faellt_auf(monkeypatch, tmp_path):
+    """Seit dem 15.10.2026 erbt auch die mitgebrachte Signatur ihre Farben.
+    Sabotage: `fremdrumpf_ohne_farben` gibt den Rumpf unverändert zurück — die
+    Farbmessung muss die Farben der Signatur dann in der Nachricht finden."""
+    from farbmessung import farben_im_rumpf
+    from falzmarke import eml as _eml
+
+    muster = Path(__file__).parent / "fixtures" / "signatur" / "cw-core-muster.html"
+    (tmp_path / "sig.html").write_text(muster.read_text(encoding="utf-8"), encoding="utf-8")
+    daten = {"email": {"absender": "muster@example.de", "signatur_html": "sig.html"}}
+    kopf = {"typ": "email", "an": "post@example.de", "betreff": "Probe"}
+
+    def seite():
+        sig = _eml.mitgebrachte_signatur(daten, tmp_path / "profil.yaml")
+        return _eml.htmlteil(kopf, {}, _md.lies("Text.\n"), signatur=sig)
+
+    assert farben_im_rumpf(seite()) == [], "Kontrollprobe: ohne Sabotage meldet die Messung"
+    monkeypatch.setattr(_html, "fremdrumpf_ohne_farben", lambda rumpf: (rumpf, []))
+    befunde = farben_im_rumpf(seite())
+    assert any("#1f2a37" in b for b in befunde), befunde
+
+
 def test_ein_grund_am_umschlag_faellt_auf(monkeypatch):
     """Der Zwischenstand vom 15.10.2026, vom Betreiber verworfen: ein weißer
     Grund am Umschlag, als Attribut. `nicht_umschaltbar` muss ihn melden."""

@@ -161,7 +161,8 @@ wurde — Messen hieße Abrufen, und das tut falzmarke nicht.
 wird sie eingesetzt und ersetzt die gebaute — `email.logo` bleibt dann unbeachtet, das Logo
 steckt schon darin. Sie durchläuft dieselbe Prüfung wie eigener Satz; fällt sie durch, endet der
 Befehl mit einer Meldung, die Datei und Grund nennt, statt eine halbe Signatur zu setzen. Die
-Textfassung dazu ist `email.signatur_text`.
+Textfassung dazu ist `email.signatur_text`. Ihre Farben übernimmt falzmarke nicht: Schriftfarben
+und Flächen fallen beim Einsetzen weg, die Mail zeigt sie in den Farben des Mailprogramms.
 
 ## Eine Urkunde statt eines Briefes
 

@@ -31,6 +31,11 @@ GRUND_DUNKEL = (0x1E, 0x1E, 0x1E)
 #: WCAG 1.4.11 fuer grafische Elemente.
 SCHWELLE = 3.0
 
+#: WCAG 1.4.3 fuer Fliesstext. Auf hellem UND dunklem Grund zugleich erreicht
+#: das keine Farbe — das Beste ist ein mittleres Grau bei rund 4,1:1. Darum
+#: setzt eine erzeugte Mail keine Schriftfarbe (ADR 0034, Nachtrag 15.10.2026).
+SCHWELLE_SCHRIFT = 4.5
+
 #: Ab hier zaehlt ein Bildpunkt als sichtbar. Alles darunter ist Rand oder
 #: Weichzeichnung und gehoert nicht zur Flaeche, die das Logo ausmacht.
 DECKEND_AB = 128
@@ -50,6 +55,27 @@ def leuchtdichte(farbe: tuple[int, int, int]) -> float:
     werte = [x / 255 for x in farbe]
     werte = [x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4 for x in werte]
     return 0.2126 * werte[0] + 0.7152 * werte[1] + 0.0722 * werte[2]
+
+
+def aus_hex(wert: str) -> tuple[int, int, int] | None:
+    """`#rgb` oder `#rrggbb` als Zahlentripel — alles andere ist nicht messbar."""
+    ziffern = wert.strip().lstrip("#") if wert.strip().startswith("#") else ""
+    if len(ziffern) == 3:
+        ziffern = "".join(z * 2 for z in ziffern)
+    if len(ziffern) != 6 or any(z not in "0123456789abcdefABCDEF" for z in ziffern):
+        return None
+    return int(ziffern[0:2], 16), int(ziffern[2:4], 16), int(ziffern[4:6], 16)
+
+
+def traegt(wert: str, schwelle: float,
+           gruende: tuple[tuple[int, int, int], ...] = (GRUND_HELL, GRUND_DUNKEL)) -> bool:
+    """Erreicht diese Farbe die Schwelle auf jedem der Gründe?
+
+    Eine Farbe, die sich nicht messen laesst (ein Name, `rgb()`), traegt nicht:
+    Behauptet wird nur, was gemessen ist.
+    """
+    rgb = aus_hex(wert)
+    return rgb is not None and all(kontrast(rgb, grund) >= schwelle for grund in gruende)
 
 
 def kontrast(vordergrund: tuple[int, int, int],
