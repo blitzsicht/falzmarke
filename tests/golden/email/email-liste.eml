@@ -77,109 +77,99 @@ MIME-Version: 1.0
 <meta name=3D"color-scheme" content=3D"light dark">
 <style type=3D"text/css">
 @media (prefers-color-scheme: dark) {
-  .fm-t { color: #e8e8e8 !important; }
-  .fm-l { color: #a8a8a8 !important; }
-  .fm-r { border-color: #4a4a4a !important; }
-  .fm-bg { background-color: #1e1e1e !important; }
+  .fm-r { border-color: #696969 !important; }
 }
-[data-ogsc] .fm-t { color: #e8e8e8 !important; }
-[data-ogsc] .fm-l { color: #a8a8a8 !important; }
-[data-ogsc] .fm-r { border-color: #4a4a4a !important; }
-[data-ogsc] .fm-bg { background-color: #1e1e1e !important; }
+[data-ogsc] .fm-r { border-color: #696969 !important; }
 </style>
 </head>
-<body class=3D"fm-t fm-bg" bgcolor=3D"#ffffff" style=3D"margin: 0; padding: 1=
-6px; background-color: #ffffff; font-family: -apple-system, Roboto, Helvetica=
-, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a;">
-<table role=3D"presentation" class=3D"fm-bg" width=3D"100%" align=3D"left" bg=
-color=3D"#ffffff" cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"w=
-idth: 100%; border-collapse: collapse; background-color: #ffffff;">
-<tr><td class=3D"fm-bg" bgcolor=3D"#ffffff" style=3D"padding: 0; background-c=
-olor: #ffffff;">
+<body class=3D"fm-t" style=3D"margin: 0; padding: 16px; font-family: -apple-s=
+ystem, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.=
+45;">
+<table role=3D"presentation" width=3D"100%" align=3D"left" cellpadding=3D"0" =
+cellspacing=3D"0" border=3D"0" style=3D"width: 100%; border-collapse: collaps=
+e;">
+<tr><td style=3D"padding: 0;">
 <p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, Robo=
-to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: =
-#1a1a1a;">Sehr geehrte Frau Kern,</p>
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">Sehr g=
+eehrte Frau Kern,</p>
 <p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, Robo=
-to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: =
-#1a1a1a;">vielen Dank f=C3=BCr die Zusage. Damit am 3. Oktober alles bereitst=
-eht, hier der Ablauf und was wir noch von Ihnen brauchen.</p>
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">vielen=
+ Dank f=C3=BCr die Zusage. Damit am 3. Oktober alles bereitsteht, hier der Ab=
+lauf und was wir noch von Ihnen brauchen.</p>
 <p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, Robo=
-to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: =
-#1a1a1a;">Am Veranstaltungstag bringen wir mit:</p>
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">Am Ver=
+anstaltungstag bringen wir mit:</p>
 <ul class=3D"fm-t" style=3D"margin: 0 0 12px; padding-left: 22px; font-family=
 : -apple-system, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-=
-height: 1.45; color: #1a1a1a;"><li class=3D"fm-t" style=3D"margin: 0 0 4px; f=
-ont-family: -apple-system, Roboto, Helvetica, Arial, sans-serif; font-size: 1=
-6px; line-height: 1.45; color: #1a1a1a;">Tonanlage mit zwei Funkmikrofonen, e=
-inem Handsender f=C3=BCr die Begr=C3=BC=C3=9Fung und einem Ansteckmikrofon</l=
-i><li class=3D"fm-t" style=3D"margin: 0 0 4px; font-family: -apple-system, Ro=
-boto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color=
-: #1a1a1a;">120 St=C3=BChle, gestapelt auf zwei Rollwagen</li><li class=3D"fm=
--t" style=3D"margin: 0 0 4px; font-family: -apple-system, Roboto, Helvetica, =
-Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a;">Beleu=
-chtung f=C3=BCr die B=C3=BChne<ul class=3D"fm-t" style=3D"margin: 0 0 12px; p=
-adding-left: 22px; font-family: -apple-system, Roboto, Helvetica, Arial, sans=
--serif; font-size: 16px; line-height: 1.45; color: #1a1a1a;"><li class=3D"fm-=
-t" style=3D"margin: 0 0 4px; font-family: -apple-system, Roboto, Helvetica, A=
-rial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a;">zwei S=
-cheinwerfer auf Stativen, ausgerichtet auf das Rednerpult und die linke B=C3=
-=BChnenh=C3=A4lfte</li><li class=3D"fm-t" style=3D"margin: 0; font-family: -a=
-pple-system, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-heig=
-ht: 1.45; color: #1a1a1a;">ein Stellpult am Seiteneingang</li></ul></li><li c=
-lass=3D"fm-t" style=3D"margin: 0; font-family: -apple-system, Roboto, Helveti=
-ca, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a;">V=
-erl=C3=A4ngerungskabel und Mehrfachsteckdosen</li></ul>
+height: 1.45;"><li class=3D"fm-t" style=3D"margin: 0 0 4px; font-family: -app=
+le-system, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height=
+: 1.45;">Tonanlage mit zwei Funkmikrofonen, einem Handsender f=C3=BCr die Beg=
+r=C3=BC=C3=9Fung und einem Ansteckmikrofon</li><li class=3D"fm-t" style=3D"ma=
+rgin: 0 0 4px; font-family: -apple-system, Roboto, Helvetica, Arial, sans-ser=
+if; font-size: 16px; line-height: 1.45;">120 St=C3=BChle, gestapelt auf zwei =
+Rollwagen</li><li class=3D"fm-t" style=3D"margin: 0 0 4px; font-family: -appl=
+e-system, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height:=
+ 1.45;">Beleuchtung f=C3=BCr die B=C3=BChne<ul class=3D"fm-t" style=3D"margin=
+: 0 0 12px; padding-left: 22px; font-family: -apple-system, Roboto, Helvetica=
+, Arial, sans-serif; font-size: 16px; line-height: 1.45;"><li class=3D"fm-t" =
+style=3D"margin: 0 0 4px; font-family: -apple-system, Roboto, Helvetica, Aria=
+l, sans-serif; font-size: 16px; line-height: 1.45;">zwei Scheinwerfer auf Sta=
+tiven, ausgerichtet auf das Rednerpult und die linke B=C3=BChnenh=C3=A4lfte</=
+li><li class=3D"fm-t" style=3D"margin: 0; font-family: -apple-system, Roboto,=
+ Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">ein Stell=
+pult am Seiteneingang</li></ul></li><li class=3D"fm-t" style=3D"margin: 0; fo=
+nt-family: -apple-system, Roboto, Helvetica, Arial, sans-serif; font-size: 16=
+px; line-height: 1.45;">Verl=C3=A4ngerungskabel und Mehrfachsteckdosen</li></=
+ul>
 <p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, Robo=
-to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: =
-#1a1a1a;">So ist der Ablauf geplant:</p>
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">So ist=
+ der Ablauf geplant:</p>
 <ol class=3D"fm-t" style=3D"margin: 0 0 12px; padding-left: 22px; font-family=
 : -apple-system, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-=
-height: 1.45; color: #1a1a1a;"><li class=3D"fm-t" style=3D"margin: 0 0 4px; f=
-ont-family: -apple-system, Roboto, Helvetica, Arial, sans-serif; font-size: 1=
-6px; line-height: 1.45; color: #1a1a1a;">Aufbau ab 8:00 Uhr, etwa zwei Stunde=
-n</li><li class=3D"fm-t" style=3D"margin: 0 0 4px; font-family: -apple-system=
-, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; c=
-olor: #1a1a1a;">Tonprobe um 10:30 Uhr</li><li class=3D"fm-t" style=3D"margin:=
- 0; font-family: -apple-system, Roboto, Helvetica, Arial, sans-serif; font-si=
-ze: 16px; line-height: 1.45; color: #1a1a1a;">Einlass ab 11:30 Uhr</li></ol>
+height: 1.45;"><li class=3D"fm-t" style=3D"margin: 0 0 4px; font-family: -app=
+le-system, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height=
+: 1.45;">Aufbau ab 8:00 Uhr, etwa zwei Stunden</li><li class=3D"fm-t" style=
+=3D"margin: 0 0 4px; font-family: -apple-system, Roboto, Helvetica, Arial, sa=
+ns-serif; font-size: 16px; line-height: 1.45;">Tonprobe um 10:30 Uhr</li><li =
+class=3D"fm-t" style=3D"margin: 0; font-family: -apple-system, Roboto, Helvet=
+ica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">Einlass ab 11:30=
+ Uhr</li></ol>
 <p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, Robo=
-to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: =
-#1a1a1a;">Was wir bis zum 20. September noch von Ihnen ben=C3=B6tigen, setzt =
-die Nummerierung des Vertrags fort =E2=80=94 dort endet die Liste bei Punkt 2=
-:</p>
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">Was wi=
+r bis zum 20. September noch von Ihnen ben=C3=B6tigen, setzt die Nummerierung=
+ des Vertrags fort =E2=80=94 dort endet die Liste bei Punkt 2:</p>
 <ol class=3D"fm-t" start=3D"3" style=3D"margin: 0 0 12px; padding-left: 22px;=
  font-family: -apple-system, Roboto, Helvetica, Arial, sans-serif; font-size:=
- 16px; line-height: 1.45; color: #1a1a1a;"><li class=3D"fm-t" style=3D"margin=
-: 0 0 4px; font-family: -apple-system, Roboto, Helvetica, Arial, sans-serif; =
-font-size: 16px; line-height: 1.45; color: #1a1a1a;">die Namen der beiden Tec=
-hniker f=C3=BCr die Anmeldung bei der Hausverwaltung, bitte mit Geburtsdatum<=
-/li><li class=3D"fm-t" style=3D"margin: 0 0 4px; font-family: -apple-system, =
-Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; col=
-or: #1a1a1a;">eine Kopie des Bestuhlungsplans mit den Fluchtwegen</li><li cla=
-ss=3D"fm-t" style=3D"margin: 0; font-family: -apple-system, Roboto, Helvetica=
-, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a;">die=
- Durchwahl Ihres Hausmeisters f=C3=BCr den Aufbautag</li></ol>
+ 16px; line-height: 1.45;"><li class=3D"fm-t" style=3D"margin: 0 0 4px; font-=
+family: -apple-system, Roboto, Helvetica, Arial, sans-serif; font-size: 16px;=
+ line-height: 1.45;">die Namen der beiden Techniker f=C3=BCr die Anmeldung be=
+i der Hausverwaltung, bitte mit Geburtsdatum</li><li class=3D"fm-t" style=3D"=
+margin: 0 0 4px; font-family: -apple-system, Roboto, Helvetica, Arial, sans-s=
+erif; font-size: 16px; line-height: 1.45;">eine Kopie des Bestuhlungsplans mi=
+t den Fluchtwegen</li><li class=3D"fm-t" style=3D"margin: 0; font-family: -ap=
+ple-system, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-heigh=
+t: 1.45;">die Durchwahl Ihres Hausmeisters f=C3=BCr den Aufbautag</li></ol>
 <p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, Robo=
-to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: =
-#1a1a1a;">Bei R=C3=BCckfragen erreichen Sie uns jederzeit unter der unten gen=
-annten Nummer.</p>
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">Bei R=
+=C3=BCckfragen erreichen Sie uns jederzeit unter der unten genannten Nummer.<=
+/p>
 <p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, Robo=
-to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: =
-#1a1a1a;">Mit freundlichen Gr=C3=BC=C3=9Fen</p>
-<p class=3D"fm-t fm-r" style=3D"margin: 16px 0 0; border-top: 1px solid #c8c8=
-c8; padding-top: 8px; font-family: -apple-system, Roboto, Helvetica, Arial, s=
-ans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a;"><span style=
-=3D"font-size: 18px; font-weight: 600; letter-spacing: -0.01em;">Erika Muster=
-</span><br>Gesch=C3=A4ftsf=C3=BChrerin</p>
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">Mit fr=
+eundlichen Gr=C3=BC=C3=9Fen</p>
+<p class=3D"fm-t fm-r" style=3D"margin: 16px 0 0; border-top: 1px solid #7e7e=
+7e; padding-top: 8px; font-family: -apple-system, Roboto, Helvetica, Arial, s=
+ans-serif; font-size: 16px; line-height: 1.45;"><span style=3D"font-size: 18p=
+x; font-weight: 600; letter-spacing: -0.01em;">Erika Muster</span><br>Gesch=
+=C3=A4ftsf=C3=BChrerin</p>
 <p class=3D"fm-t" style=3D"margin: 10px 0 0; font-family: -apple-system, Robo=
-to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: =
-#1a1a1a;">Telefon 0941 620-9800<br>muster@example.de<br>www.example.de</p>
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">Telefo=
+n 0941 620-9800<br>muster@example.de<br>www.example.de</p>
 <p class=3D"fm-l" style=3D"margin: 10px 0 0; font-family: -apple-system, Robo=
-to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: =
-#1a1a1a; font-size: 13px; color: #666;">Beispiel GmbH<br>Musterweg 12<br>9305=
-5 Regensburg<br>Amtsgericht Regensburg HRB 12345<br>USt-IdNr. DE123456789<br>=
-Gesch=C3=A4ftsf=C3=BChrerin: Erika Muster<br>https://example.de/datenschutz<b=
-r>Diese E-Mail enth=C3=A4lt vertrauliche Informationen.</p>
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; font-si=
+ze: 13px;">Beispiel GmbH<br>Musterweg 12<br>93055 Regensburg<br>Amtsgericht R=
+egensburg HRB 12345<br>USt-IdNr. DE123456789<br>Gesch=C3=A4ftsf=C3=BChrerin: =
+Erika Muster<br>https://example.de/datenschutz<br>Diese E-Mail enth=C3=A4lt v=
+ertrauliche Informationen.</p>
 </td></tr>
 </table>
 </body>

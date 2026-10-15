@@ -289,11 +289,13 @@ Ein Beispiel liegt unter `examples/email/email-signatur.md`, die Signatur dazu i
   `role="presentation"`: Ohne die Marke liest ein Screenreader sie als Datensatz vor, und die
   Prüfung lehnt sie ab. Umgekehrt gilt dasselbe — eine Tabelle ohne `<th>` **und** ohne die Marke
   ist ein Befund, egal welche der beiden Absichten dahinterstand.
-- **Der Umschlag trägt seinen Grund.** Körper, Umschlagtabelle und ihre Zelle setzen Weiß, inline
-  und als `bgcolor`; der Dunkelblock schaltet es zusammen mit der Schrift auf `#1e1e1e`. Bis zum
-  15.10.2026 stand die Nachricht auf dem Grund des Programms, und wo der Block nicht ankam — im
-  Thunderbird-Entwurf, der nur den Inhalt von `<body>` bekommt —, stand dunkle Schrift auf dunklem
-  Grund. Seither kommen Schrift und Grund als Paar
+- **Der Rumpf erbt seine Farben.** Kein Block setzt eine Schriftfarbe, und weder Körper noch
+  Umschlag setzen einen Grund. Im dunklen Thunderbird steht die Mail hell auf dunkel, beim hellen
+  Empfänger dunkel auf hell, jeweils in den Farben des Programms. Nebentext ist nur kleiner, nicht
+  grauer: Keine Farbe erreicht 4,5:1 auf Weiß und auf `#1e1e1e` zugleich. Linien sind `#7e7e7e`,
+  das trägt auf beiden Gründen über 3:1. Bis zum 15.10.2026 trug jeder Block `#1a1a1a`, und wo der
+  Dunkelblock nicht ankam — im Thunderbird-Entwurf, der nur den Inhalt von `<body>` bekommt —, stand
+  dunkle Schrift auf dunklem Grund
   ([ADR 0034, Nachtrag vom 15.10.2026](entscheidungen/0034-email-ist-ausgabe.md)).
 - **Keine Breitengrenze** (Issue #289). Weder der Umschlag noch ein Absatz noch eine Liste
   deckelt die Breite; der Fließtext nimmt, was das Lesefenster hergibt. Bis dahin trugen Absätze

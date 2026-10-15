@@ -123,37 +123,40 @@ Klasse tragen, die sie umschaltet. Der Fehler, gegen den sie gebaut ist, heißt 
 umgeschaltet** — beim Bildzeichen der Marke stand die helle Grundregel einmal nach der
 Medienabfrage, und das Blatt schaltete um, die Kontur nicht.
 
-##### Nachtrag vom 15.10.2026: der Block schaltet auch den Grund
+##### Nachtrag vom 15.10.2026: der Rumpf erbt seine Farben
 
-Oben steht, der Block schalte Text, gedämpften Text und Rahmen. Die Nachricht selbst setzte
-keinen Hintergrund; sie stand auf dem Grund des Programms. Das trug, solange der Block ankam.
-
-Er kommt nicht überall an. `--oeffnen` übergibt Thunderbird nur den Inhalt von `<body>`
+Oben steht, der Block schalte Text, gedämpften Text und Rahmen um. Das setzte voraus, dass er
+ankommt. Er kommt nicht überall an: `--oeffnen` übergibt Thunderbird nur den Inhalt von `<body>`
 ([0049](0049-entwurf-in-thunderbird.md)), und manche Empfängerprogramme entfernen `<style>`.
-Beobachtet am 15.10.2026 im Thunderbird-Entwurf bei dunklem Thema: Die Inline-Farbe `#1a1a1a` blieb
-stehen, der Grund war das Dunkelgrau des Programms, und der ganze Rumpf war unlesbar. Sichtbar
-blieben nur die hellgrauen Adresszeilen der Signatur.
+Beobachtet am 15.10.2026 im Thunderbird-Entwurf bei dunklem Thema: Die Inline-Farbe `#1a1a1a`
+blieb stehen, der Grund war das Dunkelgrau des Programms, der ganze Rumpf war unlesbar.
 
-Die Regel seither: **Eine Textfarbe steht nie ohne eigenen Grund.** Körper, Umschlagtabelle und
-ihre Zelle tragen Weiß, inline und als `bgcolor`, mit der Klasse `fm-bg`; der Block schaltet diese
-Klasse in beiden Mechanismen auf `#1e1e1e`. Damit kommen Schrift und Grund in jedem Weg als Paar —
-ohne Stil beide hell, mit Stil im dunklen Schema beide dunkel. Der Grund hängt bei Outlook am
-selben Auslöser wie die Schrift (`[data-ogsc]`, nicht `[data-ogsb]`), sonst könnte genau das
-Halbpaar entstehen, gegen das er gebaut ist.
+Ein erster Umbau gab dem Umschlag einen weißen Grund, der im dunklen Schema mit umschaltete. Lesbar
+war das in jedem Weg, aber im dunklen Editor stand ein weißer Kasten. Der Betreiber hat ihn am
+selben Tag verworfen.
 
-Das bleibt innerhalb dessen, was oben steht: Der Block schaltet weiterhin **ausschließlich
-Farben**, und der eigene Teil ist weiterhin eine Konstante, Zeichen für Zeichen verglichen. Kein
-Hintergrundbild, keine Sichtbarkeit, keine Größe. `#ffffff` und `#1e1e1e` sind die beiden Gründe,
-gegen die `lint` schon das Logo misst (`farbe.GRUND_HELL`, `farbe.GRUND_DUNKEL`); der dunkle ist
-damit dort, wo der Block ankommt, keine Schätzung mehr.
+Die Regel seither: **Der Rumpf setzt keine Farbe, die auf einem der beiden Gründe unlesbar wäre.**
+Gemessen gegen `farbe.GRUND_HELL` (`#ffffff`) und `farbe.GRUND_DUNKEL` (`#1e1e1e`), dieselben
+Gründe, gegen die `lint` das Logo misst:
 
-`nicht_umschaltbar()` lässt einen Hintergrund seither mit genau einer Klasse durch, `fm-bg`, und
-prüft `bgcolor` wie `background-color:`. Ein Grund mit jeder anderen Klasse bliebe im Dunkeln weiß
-unter heller Schrift und ist weiterhin ein Befund.
+| Was | Schwelle auf beiden Gründen | Folge |
+|---|---|---|
+| Schrift, auch Nebentext | 4,5:1 (WCAG 1.4.3) | erreicht keine Farbe; das beste Grau liegt bei rund 4,1:1. Die Schrift erbt die Farbe des Mailprogramms, Nebentext unterscheidet sich nur durch die Größe |
+| Grund | — | keiner; Körper, Umschlag und Zelle setzen weder `bgcolor` noch `background-color` |
+| Linie | 3:1 (WCAG 1.4.11) | `#7e7e7e`, 4,06:1 auf Weiß und 4,11:1 auf `#1e1e1e` |
 
-Was das nicht löst: Eine mitgebrachte Signatur, die eine Inline-Farbe **ohne** eigene Dunkelregel
-setzt, bleibt im dunklen Schema dunkel. Sie steht jetzt auf `#1e1e1e` statt auf dem Grund des
-Programms, das ändert für sie nichts. Ihre Farben sind die Sache der Quelle (`cw-core`).
+Der Block bleibt, aber er schaltet nur noch die Linie: im dunklen Schema auf `#696969`, das
+dunkelste Grau mit 3:1 auf `#1e1e1e`. Kommt er nicht an, trägt der helle Wert auf beiden Gründen.
+Die Regeln für Text und gedämpften Text sind entfallen, es gibt dort keine Farbe mehr umzuschalten.
+Der eigene Teil ist weiterhin eine Konstante, Zeichen für Zeichen verglichen.
+
+`nicht_umschaltbar()` meldet seither jede inline gesetzte Schriftfarbe und jeden Hintergrund,
+`bgcolor` eingeschlossen, mit welcher Klasse auch immer. `color: inherit` am Link setzt keine
+Farbe und bleibt erlaubt.
+
+Was das nicht löst: Eine **mitgebrachte Signatur** wird nicht angefasst. Setzt sie Farben, die nur
+auf Weiß tragen, und kommt ihr Dunkelblock nicht an, bleiben sie im dunklen Entwurf unlesbar. Ihre
+Farben sind die Sache der Quelle (`cw-core`).
 
 #### Ergänzung vom 07.09.2026: drei Wege für das Logo, und eine Grenze dafür
 

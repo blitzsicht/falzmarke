@@ -57,11 +57,15 @@ def test_beide_umschaltmechanismen_sind_da():
 
 def test_jede_klasse_wird_in_beiden_mechanismen_behandelt():
     """Sonst schaltet Outlook nur die Hälfte um — und das fällt niemandem auf,
-    der kein Outlook hat."""
+    der kein Outlook hat.
+
+    Seit dem 15.10.2026 ist das nur noch die Linie: Text und Nebentext setzen
+    keine Farbe mehr, es gibt dort nichts umzuschalten
+    (`tests/test_email_farbe_geerbt.py`)."""
     block = html.DUNKELREGELN
     medien = block[block.index("@media"):block.index("[data-ogsc]")]
     ogsc = block[block.index("[data-ogsc]"):]
-    for klasse in (html.KLASSE_TEXT, html.KLASSE_LEISE, html.KLASSE_LINIE, html.KLASSE_GRUND):
+    for klasse in (html.KLASSE_LINIE,):
         assert f".{klasse}" in medien, f"{klasse} fehlt in der Medienabfrage"
         assert f".{klasse}" in ogsc, f"{klasse} fehlt bei [data-ogsc]"
 
@@ -73,13 +77,13 @@ def test_jede_regel_traegt_important():
     # Doppelpunkt und eine Klammer, ist aber keine Regel.
     regeln = [z for z in html.DUNKELREGELN.splitlines()
               if "{" in z and "}" in z and not z.lstrip().startswith("@")]
-    assert len(regeln) >= 6, regeln
+    assert len(regeln) >= 2, regeln
     assert all("!important" in z for z in regeln), regeln
 
 
 SABOTAGEN = [
     ("ein zweiter Block", lambda s: s.replace("</head>", "<style>p{color:red}</style>\n</head>")),
-    ("eine Farbe geändert", lambda s: s.replace(html.TINTE_DUNKEL, "#ff0000")),
+    ("eine Farbe geändert", lambda s: s.replace(html.RAHMEN_DUNKEL, "#ff0000")),
     # „eine Regel mehr" war bis #275 ein Verstoß: Der Block war eine Konstante
     # und sonst nichts. Seitdem darf HINTER dem eigenen Teil ein mitgebrachter
     # stehen — geprüft, nicht verglichen. Was rot bleiben muss, ist ein Zusatz,
@@ -120,7 +124,7 @@ def test_crlf_ist_kein_verstoss():
 
 def test_crlf_deckt_keine_aenderung_zu():
     """Die Gegenrichtung: Die Nachsicht gilt den Zeilenenden, nicht dem Inhalt."""
-    verbogen = _seite().replace("\n", "\r\n").replace(html.TINTE_DUNKEL, "#ff0000")
+    verbogen = _seite().replace("\n", "\r\n").replace(html.RAHMEN_DUNKEL, "#ff0000")
     assert html.verstoesse(verbogen)
 
 
@@ -132,18 +136,28 @@ def test_alles_schaltet_um(beispiel):
     assert html.nicht_umschaltbar(_seite(beispiel)) == []
 
 
-def test_die_pruefung_bemerkt_ein_vergessenes_element():
-    """Gegenprobe — sonst belegte der Test darüber nur, dass eine Liste leer ist."""
-    ohne = _seite().replace(f'<p class="{html.KLASSE_TEXT}" style=', "<p style=", 1)
-    assert html.nicht_umschaltbar(ohne)
+def test_die_pruefung_bemerkt_eine_gesetzte_schriftfarbe():
+    """Gegenprobe — sonst belegte der Test darüber nur, dass eine Liste leer ist.
+
+    Bis zum 15.10.2026 hieß die Sabotage „Klasse vergessen": Jeder Absatz trug
+    `#1a1a1a`, und ohne `KLASSE_TEXT` schaltete er nicht um. Seither trägt kein
+    Absatz eine Farbe; der Rückfall, gegen den die Prüfung steht, ist die
+    Farbe selbst — mit oder ohne Klasse."""
+    seite = _seite()
+    for klasse in (f' class="{html.KLASSE_TEXT}"', ""):
+        marke = f'<p class="{html.KLASSE_TEXT}" style="'
+        ersatz = f'<p{klasse} style="color: #1a1a1a; '
+        sabotiert = seite.replace(marke, ersatz, 1)
+        assert sabotiert != seite, "die Sabotage griff nicht"
+        assert any("color:" in b for b in html.nicht_umschaltbar(sabotiert)), ersatz
 
 
-def test_ein_hintergrund_ohne_grundklasse_faellt_auf():
-    """`background-color` schaltet nur mit `KLASSE_GRUND` um. Bis zum
-    15.10.2026 gab es keine taugliche Klasse, und jedes Vorkommen war ein
-    Befund; seit der Dunkelblock den Grund mitschaltet, ist es genau diese
-    eine. Mit jeder anderen Klasse bliebe der Grund im dunklen Client weiß —
-    unter heller Schrift.
+def test_ein_hintergrund_faellt_immer_auf():
+    """`background-color` schaltet KEINE Klasse um — `DUNKELREGELN` kennt nur
+    die Rahmenfarbe. Ein gesetzter Hintergrund bliebe im dunklen Client unter
+    allen Umständen hell, und darum ist jedes Vorkommen ein Befund, mit welcher
+    Klasse auch immer. Am 15.10.2026 lag er kurz am Umschlag (weißer Grund) und
+    wurde wieder verworfen — der Rumpf erbt den Grund vom Mailprogramm.
 
     Die Probe hält den Eintrag in `UMSCHALTPFLICHTIG` fest. Bis #243 fiel
     `background-color:` zufällig unter `color:` — die Prüfung suchte den Namen
@@ -156,19 +170,18 @@ def test_ein_hintergrund_ohne_grundklasse_faellt_auf():
         assert any("background-color:" in b for b in befunde), f"{marke} blieb unbemerkt"
 
 
-def test_ein_hintergrund_mit_grundklasse_schaltet_um():
-    """Kontrollprobe zur Probe darüber: Mit `KLASSE_GRUND` ist der Grund
-    umschaltbar und kein Befund — sonst meldete die Prüfung jeden Umschlag."""
-    marke = f'<td class="{html.KLASSE_GRUND}" style="background-color: #ffffff;">'
-    assert html.nicht_umschaltbar(marke) == []
+def test_bgcolor_faellt_immer_auf():
+    """`bgcolor` ist ein Hintergrund als Attribut, und die Word-Engine liest
+    es. Auch ohne `style` und mit jeder Klasse ein Befund."""
+    for klasse in ("", f' class="{html.KLASSE_TEXT}"', f' class="{html.KLASSE_LINIE}"'):
+        marke = f'<td{klasse} bgcolor="#ffffff">'
+        assert any("bgcolor" in b for b in html.nicht_umschaltbar(marke)), marke
 
 
-def test_bgcolor_ohne_grundklasse_faellt_auf():
-    """`bgcolor` ist ein Hintergrund als Attribut. Die Word-Engine liest es —
-    ohne `KLASSE_GRUND` bliebe es im Dunkeln weiß, auch ganz ohne `style`."""
-    assert html.nicht_umschaltbar('<td bgcolor="#ffffff">')
-    assert html.nicht_umschaltbar(f'<td class="{html.KLASSE_TEXT}" bgcolor="#ffffff">')
-    assert html.nicht_umschaltbar(f'<td class="{html.KLASSE_GRUND}" bgcolor="#ffffff">') == []
+def test_inherit_setzt_keine_farbe():
+    """Kontrollprobe: Der Link erbt seine Farbe (`color: inherit`). Das ist
+    keine gesetzte Farbe — sonst meldete die Prüfung jeden Link."""
+    assert html.nicht_umschaltbar('<a href="x" style="color: inherit;">x</a>') == []
 
 
 def test_auch_die_begleitseite_schaltet_um():

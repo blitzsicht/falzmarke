@@ -305,22 +305,31 @@ def test_style_block_faellt_auf(monkeypatch):
     assert any("Style-Block" in b or "Style-Blöcke" in b for b in befunde), befunde
 
 
-def test_ein_grund_ohne_grundklasse_faellt_auf(monkeypatch):
-    """Seit dem 15.10.2026 trägt der Umschlag einen hellen Grund, und der
-    Dunkelblock schaltet ihn über `KLASSE_GRUND` um. Verliert die Zelle die
-    Klasse und behält `bgcolor`, bliebe sie im dunklen Schema weiß — unter
-    Schrift, die dort hell wird. `nicht_umschaltbar` muss das melden, auch
-    wenn nur das Attribut den Grund setzt."""
+def test_eine_schriftfarbe_im_rumpf_faellt_auf(monkeypatch):
+    """Seit dem 15.10.2026 erbt der Rumpf Schrift- und Grundfarbe vom
+    Mailprogramm. Der naheliegende Rückfall ist die alte Tinte am Absatz —
+    `#1a1a1a`, die im Thunderbird-Entwurf dunkel auf dunkel stand.
+    `nicht_umschaltbar` muss sie melden, auch mit der alten Klasse daran."""
     quelle = BEISPIEL.read_text(encoding="utf-8").split("---", 2)[2]
     assert _html.nicht_umschaltbar(_html.dokument(_html.setze(_md.lies(quelle)))) == [], \
         "Kontrollprobe: ohne Sabotage meldet die Prüfung schon etwas"
+    seite = _seite_mit_sabotiertem_emitter(
+        monkeypatch, "absatz",
+        lambda inhalt: (f'<p class="{_html.KLASSE_TEXT}" style="{_html.TEXTSTIL} '
+                        f'color: #1a1a1a;">{inhalt}</p>'),
+    )
+    befunde = _html.nicht_umschaltbar(seite)
+    assert any("color:" in b for b in befunde), befunde
+
+
+def test_ein_grund_am_umschlag_faellt_auf(monkeypatch):
+    """Der Zwischenstand vom 15.10.2026, vom Betreiber verworfen: ein weißer
+    Grund am Umschlag, als Attribut. `nicht_umschaltbar` muss ihn melden."""
     echt = _html.dokument
-    zelle = f'<td class="{_html.KLASSE_GRUND}" bgcolor="{_html.GRUND}" style="padding: 0; ' \
-            f'background-color: {_html.GRUND};">'
     seite = _seite_mit_sabotiertem_emitter(
         monkeypatch, "dokument",
         lambda rumpf, **k: echt(rumpf, **k).replace(
-            zelle, f'<td bgcolor="{_html.GRUND}" style="padding: 0;">', 1),
+            '<tr><td style="padding: 0;">', '<tr><td bgcolor="#ffffff" style="padding: 0;">', 1),
     )
     befunde = _html.nicht_umschaltbar(seite)
     assert any("bgcolor" in b for b in befunde), befunde

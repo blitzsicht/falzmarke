@@ -59,114 +59,104 @@ MIME-Version: 1.0
 <meta name=3D"color-scheme" content=3D"light dark">
 <style type=3D"text/css">
 @media (prefers-color-scheme: dark) {
-  .fm-t { color: #e8e8e8 !important; }
-  .fm-l { color: #a8a8a8 !important; }
-  .fm-r { border-color: #4a4a4a !important; }
-  .fm-bg { background-color: #1e1e1e !important; }
+  .fm-r { border-color: #696969 !important; }
 }
-[data-ogsc] .fm-t { color: #e8e8e8 !important; }
-[data-ogsc] .fm-l { color: #a8a8a8 !important; }
-[data-ogsc] .fm-r { border-color: #4a4a4a !important; }
-[data-ogsc] .fm-bg { background-color: #1e1e1e !important; }
+[data-ogsc] .fm-r { border-color: #696969 !important; }
 </style>
 </head>
-<body class=3D"fm-t fm-bg" bgcolor=3D"#ffffff" style=3D"margin: 0; padding: 1=
-6px; background-color: #ffffff; font-family: -apple-system, Roboto, Helvetica=
-, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a;">
-<table role=3D"presentation" class=3D"fm-bg" width=3D"100%" align=3D"left" bg=
-color=3D"#ffffff" cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"w=
-idth: 100%; border-collapse: collapse; background-color: #ffffff;">
-<tr><td class=3D"fm-bg" bgcolor=3D"#ffffff" style=3D"padding: 0; background-c=
-olor: #ffffff;">
+<body class=3D"fm-t" style=3D"margin: 0; padding: 16px; font-family: -apple-s=
+ystem, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.=
+45;">
+<table role=3D"presentation" width=3D"100%" align=3D"left" cellpadding=3D"0" =
+cellspacing=3D"0" border=3D"0" style=3D"width: 100%; border-collapse: collaps=
+e;">
+<tr><td style=3D"padding: 0;">
 <p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, Robo=
-to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: =
-#1a1a1a;">Sehr geehrte Damen und Herren,</p>
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">Sehr g=
+eehrte Damen und Herren,</p>
 <p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, Robo=
-to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: =
-#1a1a1a;">wie besprochen erhalten Sie die Abrechnung der Veranstaltung. Die E=
-inzelbelege reichen wir auf Wunsch nach.</p>
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">wie be=
+sprochen erhalten Sie die Abrechnung der Veranstaltung. Die Einzelbelege reic=
+hen wir auf Wunsch nach.</p>
 <table class=3D"fm-t" style=3D"border-collapse: collapse; margin: 0 0 12px; f=
 ont-family: -apple-system, Roboto, Helvetica, Arial, sans-serif; font-size: 1=
-6px; line-height: 1.45; color: #1a1a1a;" cellpadding=3D"0" cellspacing=3D"0">=
-<tr><th class=3D"fm-t fm-r" style=3D"border: 1px solid #c8c8c8; padding: 5px =
-8px; text-align: left; word-break: normal; overflow-wrap: normal; font-family=
-: -apple-system, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-=
-height: 1.45; color: #1a1a1a; font-weight: 600;"><strong>Position</strong></t=
-h><th class=3D"fm-t fm-r" style=3D"border: 1px solid #c8c8c8; padding: 5px 8p=
-x; text-align: right; word-break: normal; overflow-wrap: normal; font-family:=
- -apple-system, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-h=
-eight: 1.45; color: #1a1a1a; white-space: nowrap; font-weight: 600;"><strong>=
-Menge</strong></th><th class=3D"fm-t fm-r" style=3D"border: 1px solid #c8c8c8=
-; padding: 5px 8px; text-align: right; word-break: normal; overflow-wrap: nor=
-mal; font-family: -apple-system, Roboto, Helvetica, Arial, sans-serif; font-s=
-ize: 16px; line-height: 1.45; color: #1a1a1a; white-space: nowrap; font-weigh=
-t: 600;"><strong>Betrag</strong></th></tr><tr><td class=3D"fm-t fm-r" style=
-=3D"border: 1px solid #c8c8c8; padding: 5px 8px; text-align: left; word-break=
-: normal; overflow-wrap: normal; font-family: -apple-system, Roboto, Helvetic=
-a, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a;">Te=
-chnik und Aufbau</td><td class=3D"fm-t fm-r" style=3D"border: 1px solid #c8c8=
-c8; padding: 5px 8px; text-align: right; word-break: normal; overflow-wrap: n=
-ormal; font-family: -apple-system, Roboto, Helvetica, Arial, sans-serif; font=
--size: 16px; line-height: 1.45; color: #1a1a1a; white-space: nowrap;">1</td><=
-td class=3D"fm-t fm-r" style=3D"border: 1px solid #c8c8c8; padding: 5px 8px; =
-text-align: right; word-break: normal; overflow-wrap: normal; font-family: -a=
-pple-system, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-heig=
-ht: 1.45; color: #1a1a1a; white-space: nowrap;">1.240,00 EUR</td></tr><tr><td=
- class=3D"fm-t fm-r" style=3D"border: 1px solid #c8c8c8; padding: 5px 8px; te=
-xt-align: left; word-break: normal; overflow-wrap: normal; font-family: -appl=
-e-system, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height:=
- 1.45; color: #1a1a1a;">Bestuhlung</td><td class=3D"fm-t fm-r" style=3D"borde=
-r: 1px solid #c8c8c8; padding: 5px 8px; text-align: right; word-break: normal=
-; overflow-wrap: normal; font-family: -apple-system, Roboto, Helvetica, Arial=
-, sans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a; white-space=
-: nowrap;">120</td><td class=3D"fm-t fm-r" style=3D"border: 1px solid #c8c8c8=
-; padding: 5px 8px; text-align: right; word-break: normal; overflow-wrap: nor=
-mal; font-family: -apple-system, Roboto, Helvetica, Arial, sans-serif; font-s=
-ize: 16px; line-height: 1.45; color: #1a1a1a; white-space: nowrap;">360,00 EU=
-R</td></tr><tr><td class=3D"fm-t fm-r" style=3D"border: 1px solid #c8c8c8; pa=
-dding: 5px 8px; text-align: left; word-break: normal; overflow-wrap: normal; =
-font-family: -apple-system, Roboto, Helvetica, Arial, sans-serif; font-size: =
-16px; line-height: 1.45; color: #1a1a1a;">Betreuung vor Ort</td><td class=3D"=
-fm-t fm-r" style=3D"border: 1px solid #c8c8c8; padding: 5px 8px; text-align: =
-right; word-break: normal; overflow-wrap: normal; font-family: -apple-system,=
- Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; co=
-lor: #1a1a1a; white-space: nowrap;">8</td><td class=3D"fm-t fm-r" style=3D"bo=
-rder: 1px solid #c8c8c8; padding: 5px 8px; text-align: right; word-break: nor=
-mal; overflow-wrap: normal; font-family: -apple-system, Roboto, Helvetica, Ar=
-ial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a; white-sp=
-ace: nowrap;">640,00 EUR</td></tr><tr><td class=3D"fm-t fm-r" style=3D"border=
-: 1px solid #c8c8c8; padding: 5px 8px; text-align: left; word-break: normal; =
+6px; line-height: 1.45;" cellpadding=3D"0" cellspacing=3D"0"><tr><th class=3D=
+"fm-t fm-r" style=3D"border: 1px solid #7e7e7e; padding: 5px 8px; text-align:=
+ left; word-break: normal; overflow-wrap: normal; font-family: -apple-system,=
+ Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; fo=
+nt-weight: 600;"><strong>Position</strong></th><th class=3D"fm-t fm-r" style=
+=3D"border: 1px solid #7e7e7e; padding: 5px 8px; text-align: right; word-brea=
+k: normal; overflow-wrap: normal; font-family: -apple-system, Roboto, Helveti=
+ca, Arial, sans-serif; font-size: 16px; line-height: 1.45; white-space: nowra=
+p; font-weight: 600;"><strong>Menge</strong></th><th class=3D"fm-t fm-r" styl=
+e=3D"border: 1px solid #7e7e7e; padding: 5px 8px; text-align: right; word-bre=
+ak: normal; overflow-wrap: normal; font-family: -apple-system, Roboto, Helvet=
+ica, Arial, sans-serif; font-size: 16px; line-height: 1.45; white-space: nowr=
+ap; font-weight: 600;"><strong>Betrag</strong></th></tr><tr><td class=3D"fm-t=
+ fm-r" style=3D"border: 1px solid #7e7e7e; padding: 5px 8px; text-align: left=
+; word-break: normal; overflow-wrap: normal; font-family: -apple-system, Robo=
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">Techni=
+k und Aufbau</td><td class=3D"fm-t fm-r" style=3D"border: 1px solid #7e7e7e; =
+padding: 5px 8px; text-align: right; word-break: normal; overflow-wrap: norma=
+l; font-family: -apple-system, Roboto, Helvetica, Arial, sans-serif; font-siz=
+e: 16px; line-height: 1.45; white-space: nowrap;">1</td><td class=3D"fm-t fm-=
+r" style=3D"border: 1px solid #7e7e7e; padding: 5px 8px; text-align: right; w=
+ord-break: normal; overflow-wrap: normal; font-family: -apple-system, Roboto,=
+ Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; white-spac=
+e: nowrap;">1.240,00 EUR</td></tr><tr><td class=3D"fm-t fm-r" style=3D"border=
+: 1px solid #7e7e7e; padding: 5px 8px; text-align: left; word-break: normal; =
 overflow-wrap: normal; font-family: -apple-system, Roboto, Helvetica, Arial, =
-sans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a;">Summe netto<=
-/td><td class=3D"fm-t fm-r" style=3D"border: 1px solid #c8c8c8; padding: 5px =
-8px; text-align: right; word-break: normal; overflow-wrap: normal; font-famil=
-y: -apple-system, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line=
--height: 1.45; color: #1a1a1a; white-space: nowrap;"></td><td class=3D"fm-t f=
-m-r" style=3D"border: 1px solid #c8c8c8; padding: 5px 8px; text-align: right;=
- word-break: normal; overflow-wrap: normal; font-family: -apple-system, Robot=
-o, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #=
-1a1a1a; white-space: nowrap;">2.240,00 EUR</td></tr></table>
+sans-serif; font-size: 16px; line-height: 1.45;">Bestuhlung</td><td class=3D"=
+fm-t fm-r" style=3D"border: 1px solid #7e7e7e; padding: 5px 8px; text-align: =
+right; word-break: normal; overflow-wrap: normal; font-family: -apple-system,=
+ Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; wh=
+ite-space: nowrap;">120</td><td class=3D"fm-t fm-r" style=3D"border: 1px soli=
+d #7e7e7e; padding: 5px 8px; text-align: right; word-break: normal; overflow-=
+wrap: normal; font-family: -apple-system, Roboto, Helvetica, Arial, sans-seri=
+f; font-size: 16px; line-height: 1.45; white-space: nowrap;">360,00 EUR</td><=
+/tr><tr><td class=3D"fm-t fm-r" style=3D"border: 1px solid #7e7e7e; padding: =
+5px 8px; text-align: left; word-break: normal; overflow-wrap: normal; font-fa=
+mily: -apple-system, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; l=
+ine-height: 1.45;">Betreuung vor Ort</td><td class=3D"fm-t fm-r" style=3D"bor=
+der: 1px solid #7e7e7e; padding: 5px 8px; text-align: right; word-break: norm=
+al; overflow-wrap: normal; font-family: -apple-system, Roboto, Helvetica, Ari=
+al, sans-serif; font-size: 16px; line-height: 1.45; white-space: nowrap;">8</=
+td><td class=3D"fm-t fm-r" style=3D"border: 1px solid #7e7e7e; padding: 5px 8=
+px; text-align: right; word-break: normal; overflow-wrap: normal; font-family=
+: -apple-system, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-=
+height: 1.45; white-space: nowrap;">640,00 EUR</td></tr><tr><td class=3D"fm-t=
+ fm-r" style=3D"border: 1px solid #7e7e7e; padding: 5px 8px; text-align: left=
+; word-break: normal; overflow-wrap: normal; font-family: -apple-system, Robo=
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">Summe =
+netto</td><td class=3D"fm-t fm-r" style=3D"border: 1px solid #7e7e7e; padding=
+: 5px 8px; text-align: right; word-break: normal; overflow-wrap: normal; font=
+-family: -apple-system, Roboto, Helvetica, Arial, sans-serif; font-size: 16px=
+; line-height: 1.45; white-space: nowrap;"></td><td class=3D"fm-t fm-r" style=
+=3D"border: 1px solid #7e7e7e; padding: 5px 8px; text-align: right; word-brea=
+k: normal; overflow-wrap: normal; font-family: -apple-system, Roboto, Helveti=
+ca, Arial, sans-serif; font-size: 16px; line-height: 1.45; white-space: nowra=
+p;">2.240,00 EUR</td></tr></table>
 <p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, Robo=
-to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: =
-#1a1a1a;">Bitte =C3=BCberweisen Sie den Betrag bis zum 15. November 2026 auf =
-das unten genannte Konto.</p>
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">Bitte =
+=C3=BCberweisen Sie den Betrag bis zum 15. November 2026 auf das unten genann=
+te Konto.</p>
 <p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, Robo=
-to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: =
-#1a1a1a;">Mit freundlichen Gr=C3=BC=C3=9Fen</p>
-<p class=3D"fm-t fm-r" style=3D"margin: 16px 0 0; border-top: 1px solid #c8c8=
-c8; padding-top: 8px; font-family: -apple-system, Roboto, Helvetica, Arial, s=
-ans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a;"><span style=
-=3D"font-size: 18px; font-weight: 600; letter-spacing: -0.01em;">Erika Muster=
-</span><br>Gesch=C3=A4ftsf=C3=BChrerin</p>
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">Mit fr=
+eundlichen Gr=C3=BC=C3=9Fen</p>
+<p class=3D"fm-t fm-r" style=3D"margin: 16px 0 0; border-top: 1px solid #7e7e=
+7e; padding-top: 8px; font-family: -apple-system, Roboto, Helvetica, Arial, s=
+ans-serif; font-size: 16px; line-height: 1.45;"><span style=3D"font-size: 18p=
+x; font-weight: 600; letter-spacing: -0.01em;">Erika Muster</span><br>Gesch=
+=C3=A4ftsf=C3=BChrerin</p>
 <p class=3D"fm-t" style=3D"margin: 10px 0 0; font-family: -apple-system, Robo=
-to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: =
-#1a1a1a;">Telefon 0941 620-9800<br>muster@example.de<br>www.example.de</p>
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">Telefo=
+n 0941 620-9800<br>muster@example.de<br>www.example.de</p>
 <p class=3D"fm-l" style=3D"margin: 10px 0 0; font-family: -apple-system, Robo=
-to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: =
-#1a1a1a; font-size: 13px; color: #666;">Beispiel GmbH<br>Musterweg 12<br>9305=
-5 Regensburg<br>Amtsgericht Regensburg HRB 12345<br>USt-IdNr. DE123456789<br>=
-Gesch=C3=A4ftsf=C3=BChrerin: Erika Muster<br>https://example.de/datenschutz<b=
-r>Diese E-Mail enth=C3=A4lt vertrauliche Informationen.</p>
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; font-si=
+ze: 13px;">Beispiel GmbH<br>Musterweg 12<br>93055 Regensburg<br>Amtsgericht R=
+egensburg HRB 12345<br>USt-IdNr. DE123456789<br>Gesch=C3=A4ftsf=C3=BChrerin: =
+Erika Muster<br>https://example.de/datenschutz<br>Diese E-Mail enth=C3=A4lt v=
+ertrauliche Informationen.</p>
 </td></tr>
 </table>
 </body>

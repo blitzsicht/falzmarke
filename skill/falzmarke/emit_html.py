@@ -11,9 +11,12 @@ nichts von außen, und was nicht ankommt, kann man nicht prüfen. Der Preis ist
 ein wortreiches HTML — er wird bezahlt, weil das Ergebnis in Outlook, Gmail und
 Apple Mail gleich aussieht.
 
-**Der Stil erbt nicht.** Jeder Block trägt Schrift, Größe, Zeilenhöhe und Farbe
+**Der Stil erbt nicht.** Jeder Block trägt Schrift, Größe und Zeilenhöhe
 selbst, obwohl ein Container das könnte. Mehrere Clients hängen den Rumpf in
 ihre eigene Umgebung, und dabei geht die Vererbung verloren.
+
+**Die Farbe erbt doch** — vom Mailprogramm, nicht von einem Container. Der Rumpf
+setzt weder Schrift- noch Grundfarbe (15.10.2026, Begründung bei `RAHMEN`).
 
 Was der Dialekt nicht kennt, kommt hier auch nicht vor. Seit #109 setzt dieser
 Emitter, was `dialekt: 1.1` zulässt, wie der Brief: Überschriften als fette
@@ -30,13 +33,35 @@ import html as html_modul
 import re
 
 from falzmarke import baum as baum_modul
-from falzmarke import farbe
 from falzmarke import typografie
 
 #: Systemschriften. Kein Webfont — der käme von außen und wird geblockt.
 SCHRIFTSTAPEL = "-apple-system, Roboto, Helvetica, Arial, sans-serif"
-TINTE = "#1a1a1a"
-RAHMEN = "#c8c8c8"
+
+# ── Farbe: der Rumpf erbt sie (15.10.2026) ──────────────────────────────────
+#
+# Bis zum 15.10.2026 trug jeder Block `color: #1a1a1a`, und ein `<style>`-Block
+# schaltete die Schrift im dunklen Schema hell. Der kommt nicht überall an:
+# `oeffnen.rumpf_fuer_compose` übergibt Thunderbird nur den Inhalt von
+# `<body>` (ADR 0049), und manche Programme entfernen `<style>`. Beobachtet im
+# Thunderbird-Entwurf bei dunklem Thema: der ganze Rumpf `#1a1a1a` auf
+# Dunkelgrau. Ein weißer Grund dagegen machte ihn lesbar, aber zum weißen
+# Kasten im dunklen Editor — vom Betreiber am selben Tag verworfen.
+#
+# Seither gilt: **Der Rumpf setzt keine Farbe, die auf einem der beiden Gründe
+# unlesbar wäre** — `farbe.GRUND_HELL` und `farbe.GRUND_DUNKEL`, gegen die
+# `lint` auch das Logo misst. Für Schrift (4,5:1, WCAG 1.4.3) schafft das keine
+# Farbe: Das Beste ist ein mittleres Grau bei rund 4,1:1 auf beiden. Also setzt
+# der Rumpf **gar keine** Schriftfarbe und keinen Grund; das Mailprogramm malt
+# beides in seinen eigenen Farben. Nebentext unterscheidet sich nur durch die
+# Größe.
+#
+# Linien brauchen 3:1 (WCAG 1.4.11), und das schafft ein Grau zwischen `#696969`
+# und `#949494`. `#7e7e7e` liegt in der Mitte: 4,06:1 auf Weiß, 4,11:1 auf
+# `#1e1e1e` — gemessen mit `farbe.kontrast`. Der Dunkelblock stellt die Linie
+# im dunklen Schema ruhiger (`RAHMEN_DUNKEL`), aber nicht unter 3:1; wo er nicht
+# ankommt, trägt der helle Wert auf beiden Gründen.
+RAHMEN = "#7e7e7e"
 # ── Keine Breitengrenze, und warum nicht (#289) ─────────────────────────────
 #
 # Hier stand bis #289 eine `LESEBREITE` von 640 px, die jeder Absatz und jede
@@ -64,7 +89,8 @@ RAHMEN = "#c8c8c8"
 # umbrechen.
 
 #: An jedem Block wiederholt, weil die Vererbung in Mail-Clients unzuverlässig ist.
-TEXTSTIL = f"font-family: {SCHRIFTSTAPEL}; font-size: 16px; line-height: 1.45; color: {TINTE};"
+#: Ohne `color`: Die Schrift nimmt die Farbe des Mailprogramms (siehe `RAHMEN`).
+TEXTSTIL = f"font-family: {SCHRIFTSTAPEL}; font-size: 16px; line-height: 1.45;"
 
 ABSTAND_UNTEN = "12px"
 
@@ -75,70 +101,47 @@ ABSTAND_UNTEN = "12px"
 # selten — und ein Profil, das seine eigenen Dunkelfarben mitbringt, muesste
 # jede davon gegen den dunklen Grund messen. Solange das niemand tut, sind
 # abgestimmte Festwerte ehrlicher als eine Einstellung, die schiefgehen kann.
-TINTE_DUNKEL = "#e8e8e8"
-RAHMEN_DUNKEL = "#4a4a4a"
-GEDAEMPFT_DUNKEL = "#a8a8a8"
-
-# ── Der Grund: Textfarbe nie ohne eigenen Hintergrund ──────────────────────
 #
-# Bis zum 15.10.2026 setzte die Nachricht keinen Hintergrund. Sie stand auf dem
-# Grund des Programms, und im dunklen Schema schaltete der Block unten nur die
-# Schrift hell. Das trägt, solange der Block ankommt — und er kommt nicht immer
-# an: `oeffnen.rumpf_fuer_compose` übergibt Thunderbird nur den Inhalt von
-# `<body>` (ADR 0049), und manche Programme entfernen `<style>`. Beobachtet am
-# 15.10.2026 im Thunderbird-Entwurf bei dunklem Thema: `#1a1a1a` auf
-# Dunkelgrau, der ganze Rumpf unlesbar.
-#
-# Deshalb kommen Schrift und Grund als **Paar**. Körper, Umschlagtabelle und
-# ihre Zelle tragen den hellen Grund inline und als `bgcolor` (das Attribut
-# liest die Word-Engine des klassischen Outlook, der Stil die übrigen; Gmail
-# wirft den `<body>` weg, dann trägt die Tabelle). Der Dunkelblock schaltet
-# den Grund zusammen mit der Schrift um. Ohne Stil gilt das helle Paar, mit
-# Stil im dunklen Schema das dunkle — nie eins von jedem.
-#
-# Die Werte sind die aus `farbe`: Gegen genau diese beiden Gründe misst `lint`
-# das Logo (`email.logo_kontrast`). Malt die Nachricht den dunklen Grund
-# selbst, ist er dort keine Schätzung mehr, sondern das, was der Leser sieht.
-GRUND = "#{:02x}{:02x}{:02x}".format(*farbe.GRUND_HELL)
-GRUND_DUNKEL = "#{:02x}{:02x}{:02x}".format(*farbe.GRUND_DUNKEL)
+# Seit dem 15.10.2026 bleibt nur die Linie: Schrift setzt der Rumpf nicht mehr,
+# also gibt es keine Schrift umzuschalten. `#696969` ist das dunkelste Grau mit
+# 3:1 auf `farbe.GRUND_DUNKEL` (3,04:1) — so ruhig wie möglich, ohne zu
+# verschwinden. Bis dahin stand hier `#4a4a4a`, und das lag bei 1,88:1.
+RAHMEN_DUNKEL = "#696969"
 
 #: Die Klassen, an denen die Umschaltung haengt. Inline-Stile haben hoehere
 #: Spezifitaet als Klassen — ohne `!important` gewinnt der helle Wert.
+#:
+#: `KLASSE_TEXT` und `KLASSE_LEISE` schalten seit dem 15.10.2026 nichts mehr —
+#: die Blöcke setzen keine Farbe. Sie bleiben als Marke: `pruefung_eml` erkennt
+#: an `KLASSE_TEXT`, welcher Fließtext vom Werkzeug stammt und welcher aus einer
+#: mitgebrachten Signatur.
 KLASSE_TEXT = "fm-t"
 KLASSE_LEISE = "fm-l"
 KLASSE_LINIE = "fm-r"
-KLASSE_GRUND = "fm-bg"
 
 #: Der EINZIGE `<style>`-Block, den eine erzeugte Nachricht tragen darf.
 #:
 #: ADR 0034 verbietet `<style>` sonst pauschal, und das bleibt so. Die Ausnahme
 #: gibt es, weil Inline-Stile keine Medienabfrage tragen koennen — das ist eine
-#: Eigenschaft der Sprache, keine Bequemlichkeit. Ohne sie erscheint jede
-#: Nachricht in dunklen Clients als weisser Kasten.
+#: Eigenschaft der Sprache, keine Bequemlichkeit.
+#:
+#: Seit dem 15.10.2026 schaltet er nur noch die Linien. Schrift und Grund setzt
+#: der Rumpf nicht, also muss er sie auch nicht umschalten. Der Block bleibt
+#: trotzdem: Eine mitgebrachte Signatur haengt ihre Dunkelregeln dahinter
+#: (`stilblock`), und die Linie wird im Dunkeln ruhiger.
 #:
 #: Zwei Mechanismen, nicht einer: `prefers-color-scheme` deckt Apple Mail und
 #: Thunderbird ab, `[data-ogsc]` setzt Outlook stattdessen. Mit nur einem
 #: bleibt genau ein Programm hell.
-#:
-#: Der Grund schaltet am **selben** Auslöser um wie die Schrift, auch bei
-#: Outlook: `[data-ogsc]`, nicht `[data-ogsb]`. Hinge er an einem eigenen
-#: Attribut, könnte Outlook das eine setzen und das andere nicht — und dann
-#: stünde genau das Halbpaar da, gegen das der Grund gebaut ist.
 #:
 #: Der Block ist eine **Konstante**. Nichts daran wird aus Eingabe oder Profil
 #: zusammengesetzt, und `verstoesse()` vergleicht ihn Zeichen fuer Zeichen —
 #: damit ist die Ausnahme nicht dehnbar.
 DUNKELREGELN = f"""\
 @media (prefers-color-scheme: dark) {{
-  .{KLASSE_TEXT} {{ color: {TINTE_DUNKEL} !important; }}
-  .{KLASSE_LEISE} {{ color: {GEDAEMPFT_DUNKEL} !important; }}
   .{KLASSE_LINIE} {{ border-color: {RAHMEN_DUNKEL} !important; }}
-  .{KLASSE_GRUND} {{ background-color: {GRUND_DUNKEL} !important; }}
 }}
-[data-ogsc] .{KLASSE_TEXT} {{ color: {TINTE_DUNKEL} !important; }}
-[data-ogsc] .{KLASSE_LEISE} {{ color: {GEDAEMPFT_DUNKEL} !important; }}
 [data-ogsc] .{KLASSE_LINIE} {{ border-color: {RAHMEN_DUNKEL} !important; }}
-[data-ogsc] .{KLASSE_GRUND} {{ background-color: {GRUND_DUNKEL} !important; }}
 """
 
 #: Genau das, was zwischen `<style>` und `</style>` steht. Erzeugung und
@@ -233,8 +236,7 @@ def liste(punkte: list[str], nummeriert: bool = False, start: int = 1) -> str:
     """`<ul>`/`<ol>`; verschachtelte Listen stecken schon in den Punkten.
 
     Die Hülle trägt `KLASSE_TEXT` wie jeder andere Block — bis #289 war sie der
-    einzige ohne. Für die Darstellung ändert das nichts (die Farbe steht an den
-    `<li>`), aber die Prüfung „Fließtext ohne Breitendeckel" erkennt an der
+    einzige ohne. Für die Darstellung ändert das nichts, aber die Prüfung „Fließtext ohne Breitendeckel" erkennt an der
     Klasse, was von hier stammt und was aus einer mitgebrachten Signatur. Ohne
     die Marke wäre die Liste die eine Stelle, an der ein Deckel unbemerkt
     zurückkommen könnte.
@@ -462,8 +464,8 @@ def link(ziel: str, inhalt: str) -> str:
     geschrieben hat. Das ist dieselbe Zusage wie beim Logo — eine erzeugte
     Nachricht laedt nichts von aussen und meldet nichts nach Hause (ADR 0034).
 
-    Die Farbe steht inline und schaltet mit `KLASSE_TEXT` um: Ein Link in
-    Systemblau steht auf dunklem Grund bei 2,3:1 und ist dort kaum zu lesen.
+    Die Farbe erbt er (`color: inherit`), wie der Text um ihn herum: Ein Link
+    in Systemblau steht auf dunklem Grund bei 2,3:1 und ist dort kaum zu lesen.
     `text-decoration: underline` bleibt, damit er auch ohne Farbe erkennbar
     ist — Farbe allein ist nach WCAG 1.4.1 kein Unterscheidungsmerkmal.
     """
@@ -538,6 +540,8 @@ def dokument(rumpf: str, sprache: str = "de", vorspann: str = "",
 
     `color-scheme` sagt dem Client, dass die Seite beide Modi verträgt — ohne
     die Angabe invertieren einige den Text und lassen den Hintergrund stehen.
+    Körper, Umschlag und Zelle setzen weder Grund noch Schriftfarbe; beides
+    kommt vom Mailprogramm (15.10.2026, Begründung bei `RAHMEN`).
 
     `vorspann` steht im Umschlag über dem Rumpf und ist nur für die
     `.html`-Vorschau gedacht (An, Kopie, Betreff). Er ist ein Parameter und
@@ -555,8 +559,7 @@ def dokument(rumpf: str, sprache: str = "de", vorspann: str = "",
         '<meta name="color-scheme" content="light dark">\n'
         f"{stilblock(zusatzstil)}\n"
         "</head>\n"
-        f'<body class="{KLASSE_TEXT} {KLASSE_GRUND}" bgcolor="{GRUND}" '
-        f'style="margin: 0; padding: 16px; background-color: {GRUND}; {TEXTSTIL}">\n'
+        f'<body class="{KLASSE_TEXT}" style="margin: 0; padding: 16px; {TEXTSTIL}">\n'
         # Umschlag als Tabelle, nicht als `div` (Issue #104): Das klassische
         # Outlook rechnet mit der Word-Engine und versteht von den beiden
         # Breitenangaben nur das Attribut. Beide sagen jetzt dasselbe — die
@@ -579,15 +582,10 @@ def dokument(rumpf: str, sprache: str = "de", vorspann: str = "",
         # `role="presentation"` ist Pflicht und nicht Zierde: Ohne die Marke
         # liest ein Screenreader den Umschlag als Datensatz vor, und die
         # Prüfung in `verstoesse` lehnt ihn ab.
-        #
-        # Grund an allen drei Stellen — Körper, Tabelle, Zelle (15.10.2026):
-        # Welche davon ein Programm behält, ist verschieden, und die Schrift
-        # darunter braucht nur eine, die ankommt. Begründung bei `GRUND`.
-        f'<table role="presentation" class="{KLASSE_GRUND}" width="100%" align="left" '
-        f'bgcolor="{GRUND}" cellpadding="0" cellspacing="0" border="0" '
-        f'style="width: 100%; border-collapse: collapse; background-color: {GRUND};">\n'
-        f'<tr><td class="{KLASSE_GRUND}" bgcolor="{GRUND}" '
-        f'style="padding: 0; background-color: {GRUND};">\n'
+        f'<table role="presentation" width="100%" align="left" '
+        f'cellpadding="0" cellspacing="0" border="0" '
+        f'style="width: 100%; border-collapse: collapse;">\n'
+        f'<tr><td style="padding: 0;">\n'
         f"{vorspann}{rumpf}"
         "</td></tr>\n</table>\n</body>\n</html>\n"
     )
@@ -667,8 +665,9 @@ def _stilbloecke_pruefen(html: str) -> list[str]:
     mit einer Deklaration mehr — alles bleibt ein Verstoß.
 
     Warum überhaupt eine Ausnahme: Inline-Stile können keine Medienabfrage
-    tragen. Ohne sie erscheint jede Nachricht in dunklen Clients als weisser
-    Kasten, und dunkle Clients sind der Normalfall. Der Grund für das Verbot
+    tragen. Seit dem 15.10.2026 schaltet der eigene Teil nur noch die Linien
+    (der Rumpf erbt Schrift und Grund vom Mailprogramm); dahinter stehen die
+    Dunkelregeln einer mitgebrachten Signatur. Der Grund für das Verbot
     war fremde Gestaltung, die den Text überlagert, und Regeln, die auf Inhalte
     greifen, die der Verfasser geschrieben hat — davon trifft ein Block, der
     ausschliesslich Farben umschaltet, nichts.
@@ -705,19 +704,21 @@ def _stilbloecke_pruefen(html: str) -> list[str]:
 #: Prüfung an genau der Stelle nie rot werden können, an der die neue Linie
 #: entsteht: `"border:" in stil` trifft `border-left:` nicht, weil dazwischen
 #: ein Bindestrich steht und kein Doppelpunkt.
-#: `background-color:` stand bis zum 15.10.2026 mit LEERER Klassenliste da:
-#: `DUNKELREGELN` kannte nur Text-, Dämpfungs- und Rahmenfarbe, ein gesetzter
-#: Hintergrund wäre im dunklen Client unter allen Umständen hell geblieben, und
-#: jedes Vorkommen war ein Befund. Seit der Block den Grund mitschaltet, gibt es
-#: genau eine taugliche Klasse, `KLASSE_GRUND`. Ein Hintergrund ohne sie bleibt
-#: ein Befund — er bliebe weiß unter heller Schrift.
+#: `background-color:` steht mit LEERER Klassenliste da: Es gibt keine, die ihn
+#: umschaltet. Ein gesetzter Hintergrund bliebe im dunklen Client also unter
+#: allen Umständen hell, und damit ist jedes Vorkommen ein Befund.
+#:
+#: `color:` ebenso, seit dem 15.10.2026: Der Rumpf setzt keine Schriftfarbe
+#: mehr, und keine Farbe trägt Schrift auf hellem UND dunklem Grund (Begründung
+#: bei `RAHMEN`). Eine inline gesetzte Schriftfarbe ist damit immer ein Befund;
+#: `color: inherit` am Link setzt keine (`OHNE_FARBE`).
 #:
 #: Bis #243 fiel er zufällig unter `color:` — die Prüfung suchte den Namen als
 #: Teilstring irgendwo im Stil, und `background-color:` enthält ihn. Seit die
 #: Suche an der Deklaration ankert, muss er eigens dastehen. Sonst hätte diese
 #: Änderung eine Prüfung stillgelegt, ohne dass jemand es beschlossen hätte.
-UMSCHALTPFLICHTIG = (("color:", (KLASSE_TEXT, KLASSE_LEISE)),
-                     ("background-color:", (KLASSE_GRUND,)),
+UMSCHALTPFLICHTIG = (("color:", ()),
+                     ("background-color:", ()),
                      ("border-top:", (KLASSE_LINIE,)),
                      ("border-left:", (KLASSE_LINIE,)),
                      ("border:", (KLASSE_LINIE,)))
@@ -730,7 +731,11 @@ UMSCHALTPFLICHTIG = (("color:", (KLASSE_TEXT, KLASSE_LEISE)),
 #: meldete die Prüfung jede Nachricht mit Logo, und der einzige Weg, sie
 #: stillzustellen, wäre eine Klasse gewesen, die nichts umschaltet — ein
 #: Etikett statt einer Wirkung.
-OHNE_FARBE = {"0", "0px", "none"}
+#:
+#: `inherit` und `currentcolor` gehören seit dem 15.10.2026 dazu: Sie setzen
+#: keine eigene Farbe, sondern nehmen die des Mailprogramms — genau das, was
+#: der Rumpf jetzt überall tut.
+OHNE_FARBE = {"0", "0px", "none", "inherit", "currentcolor", "transparent"}
 
 
 def nicht_umschaltbar(html: str) -> list[str]:
@@ -749,19 +754,18 @@ def nicht_umschaltbar(html: str) -> list[str]:
     offen = []
     for treffer in re.finditer(r"<(\w+)([^>]*)>", html):
         marke, attribute = treffer.group(0), treffer.group(2)
-        klassen = re.search(r'class="([^"]*)"', attribute)
-        vorhanden = set((klassen.group(1) if klassen else "").split())
-        # `bgcolor` ist ein Hintergrund wie `background-color:` — nur als
-        # Attribut. Die Word-Engine liest es, und ohne `KLASSE_GRUND` bliebe er
-        # im dunklen Schema weiß unter heller Schrift (15.10.2026).
+        # `bgcolor` ist ein Hintergrund wie `background-color:`, nur als
+        # Attribut — und die Word-Engine liest es. Es gibt keine Klasse, die ihn
+        # umschaltet; jedes Vorkommen ist ein Befund (15.10.2026).
         grund = re.search(r'\bbgcolor="([^"]*)"', attribute)
-        if (grund and grund.group(1).strip().lower() not in OHNE_FARBE
-                and KLASSE_GRUND not in vorhanden):
+        if grund and grund.group(1).strip().lower() not in OHNE_FARBE:
             offen.append(f"{marke[:56]} setzt `bgcolor` ohne umschaltbare Klasse")
             continue
         stil = re.search(r'style="([^"]*)"', attribute)
         if not stil:
             continue
+        klassen = re.search(r'class="([^"]*)"', attribute)
+        vorhanden = set((klassen.group(1) if klassen else "").split())
         for eigenschaft, taugliche in UMSCHALTPFLICHTIG:
             wert = re.search(rf"(?:^|;)\s*{re.escape(eigenschaft)}\s*([^;]*)", stil.group(1))
             if not wert or wert.group(1).strip().lower() in OHNE_FARBE:
