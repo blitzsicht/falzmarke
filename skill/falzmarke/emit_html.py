@@ -30,6 +30,7 @@ import html as html_modul
 import re
 
 from falzmarke import baum as baum_modul
+from falzmarke import farbe
 from falzmarke import typografie
 
 #: Systemschriften. Kein Webfont — der käme von außen und wird geblockt.
@@ -78,11 +79,35 @@ TINTE_DUNKEL = "#e8e8e8"
 RAHMEN_DUNKEL = "#4a4a4a"
 GEDAEMPFT_DUNKEL = "#a8a8a8"
 
+# ── Der Grund: Textfarbe nie ohne eigenen Hintergrund ──────────────────────
+#
+# Bis zum 15.10.2026 setzte die Nachricht keinen Hintergrund. Sie stand auf dem
+# Grund des Programms, und im dunklen Schema schaltete der Block unten nur die
+# Schrift hell. Das trägt, solange der Block ankommt — und er kommt nicht immer
+# an: `oeffnen.rumpf_fuer_compose` übergibt Thunderbird nur den Inhalt von
+# `<body>` (ADR 0049), und manche Programme entfernen `<style>`. Beobachtet am
+# 15.10.2026 im Thunderbird-Entwurf bei dunklem Thema: `#1a1a1a` auf
+# Dunkelgrau, der ganze Rumpf unlesbar.
+#
+# Deshalb kommen Schrift und Grund als **Paar**. Körper, Umschlagtabelle und
+# ihre Zelle tragen den hellen Grund inline und als `bgcolor` (das Attribut
+# liest die Word-Engine des klassischen Outlook, der Stil die übrigen; Gmail
+# wirft den `<body>` weg, dann trägt die Tabelle). Der Dunkelblock schaltet
+# den Grund zusammen mit der Schrift um. Ohne Stil gilt das helle Paar, mit
+# Stil im dunklen Schema das dunkle — nie eins von jedem.
+#
+# Die Werte sind die aus `farbe`: Gegen genau diese beiden Gründe misst `lint`
+# das Logo (`email.logo_kontrast`). Malt die Nachricht den dunklen Grund
+# selbst, ist er dort keine Schätzung mehr, sondern das, was der Leser sieht.
+GRUND = "#{:02x}{:02x}{:02x}".format(*farbe.GRUND_HELL)
+GRUND_DUNKEL = "#{:02x}{:02x}{:02x}".format(*farbe.GRUND_DUNKEL)
+
 #: Die Klassen, an denen die Umschaltung haengt. Inline-Stile haben hoehere
 #: Spezifitaet als Klassen — ohne `!important` gewinnt der helle Wert.
 KLASSE_TEXT = "fm-t"
 KLASSE_LEISE = "fm-l"
 KLASSE_LINIE = "fm-r"
+KLASSE_GRUND = "fm-bg"
 
 #: Der EINZIGE `<style>`-Block, den eine erzeugte Nachricht tragen darf.
 #:
@@ -95,6 +120,11 @@ KLASSE_LINIE = "fm-r"
 #: Thunderbird ab, `[data-ogsc]` setzt Outlook stattdessen. Mit nur einem
 #: bleibt genau ein Programm hell.
 #:
+#: Der Grund schaltet am **selben** Auslöser um wie die Schrift, auch bei
+#: Outlook: `[data-ogsc]`, nicht `[data-ogsb]`. Hinge er an einem eigenen
+#: Attribut, könnte Outlook das eine setzen und das andere nicht — und dann
+#: stünde genau das Halbpaar da, gegen das der Grund gebaut ist.
+#:
 #: Der Block ist eine **Konstante**. Nichts daran wird aus Eingabe oder Profil
 #: zusammengesetzt, und `verstoesse()` vergleicht ihn Zeichen fuer Zeichen —
 #: damit ist die Ausnahme nicht dehnbar.
@@ -103,10 +133,12 @@ DUNKELREGELN = f"""\
   .{KLASSE_TEXT} {{ color: {TINTE_DUNKEL} !important; }}
   .{KLASSE_LEISE} {{ color: {GEDAEMPFT_DUNKEL} !important; }}
   .{KLASSE_LINIE} {{ border-color: {RAHMEN_DUNKEL} !important; }}
+  .{KLASSE_GRUND} {{ background-color: {GRUND_DUNKEL} !important; }}
 }}
 [data-ogsc] .{KLASSE_TEXT} {{ color: {TINTE_DUNKEL} !important; }}
 [data-ogsc] .{KLASSE_LEISE} {{ color: {GEDAEMPFT_DUNKEL} !important; }}
 [data-ogsc] .{KLASSE_LINIE} {{ border-color: {RAHMEN_DUNKEL} !important; }}
+[data-ogsc] .{KLASSE_GRUND} {{ background-color: {GRUND_DUNKEL} !important; }}
 """
 
 #: Genau das, was zwischen `<style>` und `</style>` steht. Erzeugung und
@@ -523,7 +555,8 @@ def dokument(rumpf: str, sprache: str = "de", vorspann: str = "",
         '<meta name="color-scheme" content="light dark">\n'
         f"{stilblock(zusatzstil)}\n"
         "</head>\n"
-        f'<body class="{KLASSE_TEXT}" style="margin: 0; padding: 16px; {TEXTSTIL}">\n'
+        f'<body class="{KLASSE_TEXT} {KLASSE_GRUND}" bgcolor="{GRUND}" '
+        f'style="margin: 0; padding: 16px; background-color: {GRUND}; {TEXTSTIL}">\n'
         # Umschlag als Tabelle, nicht als `div` (Issue #104): Das klassische
         # Outlook rechnet mit der Word-Engine und versteht von den beiden
         # Breitenangaben nur das Attribut. Beide sagen jetzt dasselbe — die
@@ -546,10 +579,15 @@ def dokument(rumpf: str, sprache: str = "de", vorspann: str = "",
         # `role="presentation"` ist Pflicht und nicht Zierde: Ohne die Marke
         # liest ein Screenreader den Umschlag als Datensatz vor, und die
         # Prüfung in `verstoesse` lehnt ihn ab.
-        f'<table role="presentation" width="100%" align="left" '
-        f'cellpadding="0" cellspacing="0" border="0" '
-        f'style="width: 100%; border-collapse: collapse;">\n'
-        f'<tr><td style="padding: 0;">\n'
+        #
+        # Grund an allen drei Stellen — Körper, Tabelle, Zelle (15.10.2026):
+        # Welche davon ein Programm behält, ist verschieden, und die Schrift
+        # darunter braucht nur eine, die ankommt. Begründung bei `GRUND`.
+        f'<table role="presentation" class="{KLASSE_GRUND}" width="100%" align="left" '
+        f'bgcolor="{GRUND}" cellpadding="0" cellspacing="0" border="0" '
+        f'style="width: 100%; border-collapse: collapse; background-color: {GRUND};">\n'
+        f'<tr><td class="{KLASSE_GRUND}" bgcolor="{GRUND}" '
+        f'style="padding: 0; background-color: {GRUND};">\n'
         f"{vorspann}{rumpf}"
         "</td></tr>\n</table>\n</body>\n</html>\n"
     )
@@ -667,17 +705,19 @@ def _stilbloecke_pruefen(html: str) -> list[str]:
 #: Prüfung an genau der Stelle nie rot werden können, an der die neue Linie
 #: entsteht: `"border:" in stil` trifft `border-left:` nicht, weil dazwischen
 #: ein Bindestrich steht und kein Doppelpunkt.
-#: `background-color:` steht mit LEERER Klassenliste da: Es gibt keine, die ihn
-#: umschaltet — `DUNKELREGELN` kennt nur Text-, Dämpfungs- und Rahmenfarbe. Ein
-#: gesetzter Hintergrund bliebe im dunklen Client also unter allen Umständen
-#: hell, und damit ist jedes Vorkommen ein Befund.
+#: `background-color:` stand bis zum 15.10.2026 mit LEERER Klassenliste da:
+#: `DUNKELREGELN` kannte nur Text-, Dämpfungs- und Rahmenfarbe, ein gesetzter
+#: Hintergrund wäre im dunklen Client unter allen Umständen hell geblieben, und
+#: jedes Vorkommen war ein Befund. Seit der Block den Grund mitschaltet, gibt es
+#: genau eine taugliche Klasse, `KLASSE_GRUND`. Ein Hintergrund ohne sie bleibt
+#: ein Befund — er bliebe weiß unter heller Schrift.
 #:
 #: Bis #243 fiel er zufällig unter `color:` — die Prüfung suchte den Namen als
 #: Teilstring irgendwo im Stil, und `background-color:` enthält ihn. Seit die
 #: Suche an der Deklaration ankert, muss er eigens dastehen. Sonst hätte diese
 #: Änderung eine Prüfung stillgelegt, ohne dass jemand es beschlossen hätte.
 UMSCHALTPFLICHTIG = (("color:", (KLASSE_TEXT, KLASSE_LEISE)),
-                     ("background-color:", ()),
+                     ("background-color:", (KLASSE_GRUND,)),
                      ("border-top:", (KLASSE_LINIE,)),
                      ("border-left:", (KLASSE_LINIE,)),
                      ("border:", (KLASSE_LINIE,)))
@@ -709,11 +749,19 @@ def nicht_umschaltbar(html: str) -> list[str]:
     offen = []
     for treffer in re.finditer(r"<(\w+)([^>]*)>", html):
         marke, attribute = treffer.group(0), treffer.group(2)
+        klassen = re.search(r'class="([^"]*)"', attribute)
+        vorhanden = set((klassen.group(1) if klassen else "").split())
+        # `bgcolor` ist ein Hintergrund wie `background-color:` — nur als
+        # Attribut. Die Word-Engine liest es, und ohne `KLASSE_GRUND` bliebe er
+        # im dunklen Schema weiß unter heller Schrift (15.10.2026).
+        grund = re.search(r'\bbgcolor="([^"]*)"', attribute)
+        if (grund and grund.group(1).strip().lower() not in OHNE_FARBE
+                and KLASSE_GRUND not in vorhanden):
+            offen.append(f"{marke[:56]} setzt `bgcolor` ohne umschaltbare Klasse")
+            continue
         stil = re.search(r'style="([^"]*)"', attribute)
         if not stil:
             continue
-        klassen = re.search(r'class="([^"]*)"', attribute)
-        vorhanden = set((klassen.group(1) if klassen else "").split())
         for eigenschaft, taugliche in UMSCHALTPFLICHTIG:
             wert = re.search(rf"(?:^|;)\s*{re.escape(eigenschaft)}\s*([^;]*)", stil.group(1))
             if not wert or wert.group(1).strip().lower() in OHNE_FARBE:

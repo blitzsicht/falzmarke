@@ -305,6 +305,27 @@ def test_style_block_faellt_auf(monkeypatch):
     assert any("Style-Block" in b or "Style-Blöcke" in b for b in befunde), befunde
 
 
+def test_ein_grund_ohne_grundklasse_faellt_auf(monkeypatch):
+    """Seit dem 15.10.2026 trägt der Umschlag einen hellen Grund, und der
+    Dunkelblock schaltet ihn über `KLASSE_GRUND` um. Verliert die Zelle die
+    Klasse und behält `bgcolor`, bliebe sie im dunklen Schema weiß — unter
+    Schrift, die dort hell wird. `nicht_umschaltbar` muss das melden, auch
+    wenn nur das Attribut den Grund setzt."""
+    quelle = BEISPIEL.read_text(encoding="utf-8").split("---", 2)[2]
+    assert _html.nicht_umschaltbar(_html.dokument(_html.setze(_md.lies(quelle)))) == [], \
+        "Kontrollprobe: ohne Sabotage meldet die Prüfung schon etwas"
+    echt = _html.dokument
+    zelle = f'<td class="{_html.KLASSE_GRUND}" bgcolor="{_html.GRUND}" style="padding: 0; ' \
+            f'background-color: {_html.GRUND};">'
+    seite = _seite_mit_sabotiertem_emitter(
+        monkeypatch, "dokument",
+        lambda rumpf, **k: echt(rumpf, **k).replace(
+            zelle, f'<td bgcolor="{_html.GRUND}" style="padding: 0;">', 1),
+    )
+    befunde = _html.nicht_umschaltbar(seite)
+    assert any("bgcolor" in b for b in befunde), befunde
+
+
 # ── Dialekt 1.1: der wortgetreue Auszug ─────────────────────────────────────
 #
 # `tests/test_wortlaut.py` belegt, dass im PDF `#eval("6*7")` steht und nicht

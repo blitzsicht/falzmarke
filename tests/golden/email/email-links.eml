@@ -65,19 +65,22 @@ MIME-Version: 1.0
   .fm-t { color: #e8e8e8 !important; }
   .fm-l { color: #a8a8a8 !important; }
   .fm-r { border-color: #4a4a4a !important; }
+  .fm-bg { background-color: #1e1e1e !important; }
 }
 [data-ogsc] .fm-t { color: #e8e8e8 !important; }
 [data-ogsc] .fm-l { color: #a8a8a8 !important; }
 [data-ogsc] .fm-r { border-color: #4a4a4a !important; }
+[data-ogsc] .fm-bg { background-color: #1e1e1e !important; }
 </style>
 </head>
-<body class=3D"fm-t" style=3D"margin: 0; padding: 16px; font-family: -apple-s=
-ystem, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.=
-45; color: #1a1a1a;">
-<table role=3D"presentation" width=3D"100%" align=3D"left" cellpadding=3D"0" =
-cellspacing=3D"0" border=3D"0" style=3D"width: 100%; border-collapse: collaps=
-e;">
-<tr><td style=3D"padding: 0;">
+<body class=3D"fm-t fm-bg" bgcolor=3D"#ffffff" style=3D"margin: 0; padding: 1=
+6px; background-color: #ffffff; font-family: -apple-system, Roboto, Helvetica=
+, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: #1a1a1a;">
+<table role=3D"presentation" class=3D"fm-bg" width=3D"100%" align=3D"left" bg=
+color=3D"#ffffff" cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"w=
+idth: 100%; border-collapse: collapse; background-color: #ffffff;">
+<tr><td class=3D"fm-bg" bgcolor=3D"#ffffff" style=3D"padding: 0; background-c=
+olor: #ffffff;">
 <p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, Robo=
 to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: =
 #1a1a1a;">Sehr geehrter Herr Bergmann,</p>

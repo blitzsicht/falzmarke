@@ -204,7 +204,7 @@ Data-URI wird gemessen wie eine Datei — sie bringt ihre Bytes mit.
 ### Warum das Logo im dunklen Schema nicht umschaltet
 
 Text, gedämpfter Text und Trennlinie der Signatur wechseln ihre Farbe, sobald das
-Mailprogramm dunkel steht. **Das Logo tut das nicht** — es ist ein Rasterbild, und ein
+Mailprogramm dunkel steht, und mit ihnen der Grund der Nachricht. **Das Logo tut das nicht** — es ist ein Rasterbild, und ein
 Rasterbild trägt keine Medienabfrage. Ein SVG könnte es, wird von Outlook in Mails aber nicht
 dargestellt; ein Logo, das bei einem der drei großen Programme fehlt, ist schlechter als eines,
 das überall gleich aussieht.
@@ -222,7 +222,9 @@ dunklen Grund (`#1E1E1E`) und meldet `email.logo_kontrast`, wenn auf einem der b
 als die Hälfte der Fläche 3,0:1 erreicht — die Schwelle aus WCAG 1.4.11 für grafische Elemente.
 
 Eine **Warnung**, kein Fehler: Welchen Ton ein dunkles Schema genau setzt, nennt kein
-Mailprogramm im Datenmodell; `#1E1E1E` ist ein begründeter Schätzwert. Nach ADR 0035 gehört
+Mailprogramm im Datenmodell; `#1E1E1E` ist ein begründeter Schätzwert. Seit dem 15.10.2026
+malt die Nachricht diesen Grund selbst, wo ihr Dunkelblock ankommt (ADR 0034, Nachtrag); wo er
+nicht ankommt, steht das Logo auf ihrem weißen Grund. Nach ADR 0035 gehört
 eine Aussage über die Praxis nie auf die Fehlerebene.
 
 

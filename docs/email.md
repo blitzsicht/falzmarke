@@ -289,6 +289,12 @@ Ein Beispiel liegt unter `examples/email/email-signatur.md`, die Signatur dazu i
   `role="presentation"`: Ohne die Marke liest ein Screenreader sie als Datensatz vor, und die
   Prüfung lehnt sie ab. Umgekehrt gilt dasselbe — eine Tabelle ohne `<th>` **und** ohne die Marke
   ist ein Befund, egal welche der beiden Absichten dahinterstand.
+- **Der Umschlag trägt seinen Grund.** Körper, Umschlagtabelle und ihre Zelle setzen Weiß, inline
+  und als `bgcolor`; der Dunkelblock schaltet es zusammen mit der Schrift auf `#1e1e1e`. Bis zum
+  15.10.2026 stand die Nachricht auf dem Grund des Programms, und wo der Block nicht ankam — im
+  Thunderbird-Entwurf, der nur den Inhalt von `<body>` bekommt —, stand dunkle Schrift auf dunklem
+  Grund. Seither kommen Schrift und Grund als Paar
+  ([ADR 0034, Nachtrag vom 15.10.2026](entscheidungen/0034-email-ist-ausgabe.md)).
 - **Keine Breitengrenze** (Issue #289). Weder der Umschlag noch ein Absatz noch eine Liste
   deckelt die Breite; der Fließtext nimmt, was das Lesefenster hergibt. Bis dahin trugen Absätze
   und Listen `max-width: 640px`. Die Überlegung dahinter stimmt — 640 px bei 16 px sind rund

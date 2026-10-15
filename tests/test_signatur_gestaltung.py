@@ -61,7 +61,7 @@ def test_jede_klasse_wird_in_beiden_mechanismen_behandelt():
     block = html.DUNKELREGELN
     medien = block[block.index("@media"):block.index("[data-ogsc]")]
     ogsc = block[block.index("[data-ogsc]"):]
-    for klasse in (html.KLASSE_TEXT, html.KLASSE_LEISE, html.KLASSE_LINIE):
+    for klasse in (html.KLASSE_TEXT, html.KLASSE_LEISE, html.KLASSE_LINIE, html.KLASSE_GRUND):
         assert f".{klasse}" in medien, f"{klasse} fehlt in der Medienabfrage"
         assert f".{klasse}" in ogsc, f"{klasse} fehlt bei [data-ogsc]"
 
@@ -138,11 +138,12 @@ def test_die_pruefung_bemerkt_ein_vergessenes_element():
     assert html.nicht_umschaltbar(ohne)
 
 
-def test_ein_hintergrund_faellt_immer_auf():
-    """`background-color` schaltet KEINE Klasse um — `DUNKELREGELN` kennt nur
-    Text-, Dämpfungs- und Rahmenfarbe. Ein gesetzter Hintergrund bliebe im
-    dunklen Client unter allen Umständen hell, und darum ist jedes Vorkommen
-    ein Befund, mit welcher Klasse auch immer.
+def test_ein_hintergrund_ohne_grundklasse_faellt_auf():
+    """`background-color` schaltet nur mit `KLASSE_GRUND` um. Bis zum
+    15.10.2026 gab es keine taugliche Klasse, und jedes Vorkommen war ein
+    Befund; seit der Dunkelblock den Grund mitschaltet, ist es genau diese
+    eine. Mit jeder anderen Klasse bliebe der Grund im dunklen Client weiß —
+    unter heller Schrift.
 
     Die Probe hält den Eintrag in `UMSCHALTPFLICHTIG` fest. Bis #243 fiel
     `background-color:` zufällig unter `color:` — die Prüfung suchte den Namen
@@ -153,6 +154,21 @@ def test_ein_hintergrund_faellt_immer_auf():
         marke = f'<td{klasse} style="background-color: #ffffff;">'
         befunde = html.nicht_umschaltbar(marke)
         assert any("background-color:" in b for b in befunde), f"{marke} blieb unbemerkt"
+
+
+def test_ein_hintergrund_mit_grundklasse_schaltet_um():
+    """Kontrollprobe zur Probe darüber: Mit `KLASSE_GRUND` ist der Grund
+    umschaltbar und kein Befund — sonst meldete die Prüfung jeden Umschlag."""
+    marke = f'<td class="{html.KLASSE_GRUND}" style="background-color: #ffffff;">'
+    assert html.nicht_umschaltbar(marke) == []
+
+
+def test_bgcolor_ohne_grundklasse_faellt_auf():
+    """`bgcolor` ist ein Hintergrund als Attribut. Die Word-Engine liest es —
+    ohne `KLASSE_GRUND` bliebe es im Dunkeln weiß, auch ganz ohne `style`."""
+    assert html.nicht_umschaltbar('<td bgcolor="#ffffff">')
+    assert html.nicht_umschaltbar(f'<td class="{html.KLASSE_TEXT}" bgcolor="#ffffff">')
+    assert html.nicht_umschaltbar(f'<td class="{html.KLASSE_GRUND}" bgcolor="#ffffff">') == []
 
 
 def test_auch_die_begleitseite_schaltet_um():
