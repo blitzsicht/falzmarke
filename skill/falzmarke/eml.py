@@ -720,8 +720,12 @@ def htmlteil(kopf: dict, profil: dict, bloecke, sprache: str = "de",
                 f'letter-spacing: -0.01em;">{zeilen[0]}</span>'
             )
         inhalt = emit_html.umbruch().join(zeilen)
-        # Der Rechtsblock steht kleiner und leiser: Pflichtangaben und
-        # Vertraulichkeitshinweis sind Beiwerk, nicht die Botschaft.
+        # Der Rechtsblock steht kleiner: Pflichtangaben und
+        # Vertraulichkeitshinweis sind Beiwerk, nicht die Botschaft. Leiser
+        # nur über die Größe, nicht über ein Grau — bis zum 15.10.2026 stand
+        # hier `#666`, und das liegt auf dunklem Grund bei 2,9:1. Kein Grau
+        # erreicht 4,5:1 auf hellem und dunklem Grund zugleich
+        # (`emit_html.RAHMEN`).
         leise = nummer == 2
         klassen = [emit_html.KLASSE_LEISE if leise else emit_html.KLASSE_TEXT]
         # Die Trennlinie zur Nachricht gehört an den ersten Block — aber nur,
@@ -737,7 +741,7 @@ def htmlteil(kopf: dict, profil: dict, bloecke, sprache: str = "de",
             oben = "" if nummer == 0 else "10px"
         rand = f"margin: {oben} 0 0; " if oben else "margin: 0; "
         stil = (f"{rand}{rahmen}{emit_html.TEXTSTIL}"
-                + (" font-size: 13px; color: #666;" if leise else ""))
+                + (" font-size: 13px;" if leise else ""))
         absaetze.append(
             f'<p class="{" ".join(klassen)}" style="{stil}">{inhalt}</p>'
         )
@@ -823,7 +827,9 @@ def begleit_html(kopf: dict, profil: dict, bloecke, sprache: str = "de",
     zeilen = [("An", _adressliste(kopf.get("an"))),
               ("Kopie", _adressliste(kopf.get("cc"))),
               ("Betreff", str(kopf.get("betreff") or ""))]
-    stil = f"margin: 0 0 2px; {emit_html.TEXTSTIL} font-size: 14px; color: #555;"
+    # Ohne Farbe, wie der Rumpf (15.10.2026): `#555` läge auf dunklem Grund bei
+    # 2,2:1. Die kleinere Schrift setzt den Kopf ab.
+    stil = f"margin: 0 0 2px; {emit_html.TEXTSTIL} font-size: 14px;"
     kopfzeilen = "".join(
         f'<p class="{emit_html.KLASSE_LEISE}" style="{stil}">'
         f"<strong>{emit_html.as_text(name)}:</strong> {emit_html.as_text(wert)}</p>"

@@ -47,13 +47,9 @@ MIME-Version: 1.0
 <meta name=3D"color-scheme" content=3D"light dark">
 <style type=3D"text/css">
 @media (prefers-color-scheme: dark) {
-  .fm-t { color: #e8e8e8 !important; }
-  .fm-l { color: #a8a8a8 !important; }
-  .fm-r { border-color: #4a4a4a !important; }
+  .fm-r { border-color: #696969 !important; }
 }
-[data-ogsc] .fm-t { color: #e8e8e8 !important; }
-[data-ogsc] .fm-l { color: #a8a8a8 !important; }
-[data-ogsc] .fm-r { border-color: #4a4a4a !important; }
+[data-ogsc] .fm-r { border-color: #696969 !important; }
 @media (prefers-color-scheme: dark) {
   .sig-name { color: #f4f4f4 !important; }
   .sig-leise { color: #a8a8a8 !important; }
@@ -63,26 +59,25 @@ MIME-Version: 1.0
 </head>
 <body class=3D"fm-t" style=3D"margin: 0; padding: 16px; font-family: -apple-s=
 ystem, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.=
-45; color: #1a1a1a;">
+45;">
 <table role=3D"presentation" width=3D"100%" align=3D"left" cellpadding=3D"0" =
 cellspacing=3D"0" border=3D"0" style=3D"width: 100%; border-collapse: collaps=
 e;">
 <tr><td style=3D"padding: 0;">
 <p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, Robo=
-to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: =
-#1a1a1a;">Sehr geehrter Herr Berger,</p>
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">Sehr g=
+eehrter Herr Berger,</p>
 <p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, Robo=
-to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: =
-#1a1a1a;">wie besprochen schicke ich Ihnen die Unterlagen zum Termin. Bitte s=
-ehen Sie sich vorab die Aufstellung an; wenn etwas fehlt, sagen Sie mir bis F=
-reitag Bescheid.</p>
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">wie be=
+sprochen schicke ich Ihnen die Unterlagen zum Termin. Bitte sehen Sie sich vo=
+rab die Aufstellung an; wenn etwas fehlt, sagen Sie mir bis Freitag Bescheid.=
+</p>
 <p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, Robo=
-to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: =
-#1a1a1a;">F=C3=BCr R=C3=BCckfragen erreichen Sie mich unter der Nummer in der=
- Signatur.</p>
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">F=C3=
+=BCr R=C3=BCckfragen erreichen Sie mich unter der Nummer in der Signatur.</p>
 <p class=3D"fm-t" style=3D"margin: 0 0 12px; font-family: -apple-system, Robo=
-to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45; color: =
-#1a1a1a;">Mit freundlichen Gr=C3=BC=C3=9Fen</p>
+to, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.45;">Mit fr=
+eundlichen Gr=C3=BC=C3=9Fen</p>
 <div style=3D"margin: 16px 0 0;"><table role=3D"presentation" cellpadding=3D"=
 0" cellspacing=3D"0" border=3D"0"
        style=3D"border-collapse: collapse; font-family: -apple-system, Roboto=

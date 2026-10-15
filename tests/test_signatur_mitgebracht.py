@@ -165,7 +165,9 @@ def test_die_gebaute_signatur_steht_daneben_nicht_mehr_da(profil):
     assert 'class="fm-t fm-r"' not in html, "die gebaute Signatur steht auch da"
     assert html.count("<style") == 1, "zwei Stilblöcke — einer davon wäre wirkungslos"
     stil = re.search(r"<style[^>]*>(.*?)</style>", html, re.S).group(1)
-    assert stil.index("fm-t") < stil.index("sig-name"), "der eigene Teil muss vorn stehen"
+    # Der eigene Teil schaltet seit dem 15.10.2026 nur noch die Linie (`fm-r`) —
+    # an ihr wird gemessen, wer vorn steht.
+    assert stil.index("fm-r") < stil.index("sig-name"), "der eigene Teil muss vorn stehen"
 
 
 # ── Die eigene Breite einer Signatur ist kein Deckel (#279) ─────────────────

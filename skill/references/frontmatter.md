@@ -203,8 +203,8 @@ Data-URI wird gemessen wie eine Datei — sie bringt ihre Bytes mit.
 
 ### Warum das Logo im dunklen Schema nicht umschaltet
 
-Text, gedämpfter Text und Trennlinie der Signatur wechseln ihre Farbe, sobald das
-Mailprogramm dunkel steht. **Das Logo tut das nicht** — es ist ein Rasterbild, und ein
+Text und gedämpfter Text der Signatur setzen keine eigene Farbe, sie nehmen die des
+Mailprogramms; die Trennlinie wird im dunklen Schema ruhiger. **Das Logo tut das nicht** — es ist ein Rasterbild, und ein
 Rasterbild trägt keine Medienabfrage. Ein SVG könnte es, wird von Outlook in Mails aber nicht
 dargestellt; ein Logo, das bei einem der drei großen Programme fehlt, ist schlechter als eines,
 das überall gleich aussieht.

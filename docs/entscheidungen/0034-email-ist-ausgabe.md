@@ -123,6 +123,41 @@ Klasse tragen, die sie umschaltet. Der Fehler, gegen den sie gebaut ist, heißt 
 umgeschaltet** — beim Bildzeichen der Marke stand die helle Grundregel einmal nach der
 Medienabfrage, und das Blatt schaltete um, die Kontur nicht.
 
+##### Nachtrag vom 15.10.2026: der Rumpf erbt seine Farben
+
+Oben steht, der Block schalte Text, gedämpften Text und Rahmen um. Das setzte voraus, dass er
+ankommt. Er kommt nicht überall an: `--oeffnen` übergibt Thunderbird nur den Inhalt von `<body>`
+([0049](0049-entwurf-in-thunderbird.md)), und manche Empfängerprogramme entfernen `<style>`.
+Beobachtet am 15.10.2026 im Thunderbird-Entwurf bei dunklem Thema: Die Inline-Farbe `#1a1a1a`
+blieb stehen, der Grund war das Dunkelgrau des Programms, der ganze Rumpf war unlesbar.
+
+Ein erster Umbau gab dem Umschlag einen weißen Grund, der im dunklen Schema mit umschaltete. Lesbar
+war das in jedem Weg, aber im dunklen Editor stand ein weißer Kasten. Der Betreiber hat ihn am
+selben Tag verworfen.
+
+Die Regel seither: **Der Rumpf setzt keine Farbe, die auf einem der beiden Gründe unlesbar wäre.**
+Gemessen gegen `farbe.GRUND_HELL` (`#ffffff`) und `farbe.GRUND_DUNKEL` (`#1e1e1e`), dieselben
+Gründe, gegen die `lint` das Logo misst:
+
+| Was | Schwelle auf beiden Gründen | Folge |
+|---|---|---|
+| Schrift, auch Nebentext | 4,5:1 (WCAG 1.4.3) | erreicht keine Farbe; das beste Grau liegt bei rund 4,1:1. Die Schrift erbt die Farbe des Mailprogramms, Nebentext unterscheidet sich nur durch die Größe |
+| Grund | — | keiner; Körper, Umschlag und Zelle setzen weder `bgcolor` noch `background-color` |
+| Linie | 3:1 (WCAG 1.4.11) | `#7e7e7e`, 4,06:1 auf Weiß und 4,11:1 auf `#1e1e1e` |
+
+Der Block bleibt, aber er schaltet nur noch die Linie: im dunklen Schema auf `#696969`, das
+dunkelste Grau mit 3:1 auf `#1e1e1e`. Kommt er nicht an, trägt der helle Wert auf beiden Gründen.
+Die Regeln für Text und gedämpften Text sind entfallen, es gibt dort keine Farbe mehr umzuschalten.
+Der eigene Teil ist weiterhin eine Konstante, Zeichen für Zeichen verglichen.
+
+`nicht_umschaltbar()` meldet seither jede inline gesetzte Schriftfarbe und jeden Hintergrund,
+`bgcolor` eingeschlossen, mit welcher Klasse auch immer. `color: inherit` am Link setzt keine
+Farbe und bleibt erlaubt.
+
+Was das nicht löst: Eine **mitgebrachte Signatur** wird nicht angefasst. Setzt sie Farben, die nur
+auf Weiß tragen, und kommt ihr Dunkelblock nicht an, bleiben sie im dunklen Entwurf unlesbar. Ihre
+Farben sind die Sache der Quelle (`cw-core`).
+
 #### Ergänzung vom 07.09.2026: drei Wege für das Logo, und eine Grenze dafür
 
 Oben steht „keine Spalten" und „Bilder nur als eingebettete Ressource". Beides braucht einen

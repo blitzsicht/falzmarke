@@ -305,6 +305,36 @@ def test_style_block_faellt_auf(monkeypatch):
     assert any("Style-Block" in b or "Style-Blöcke" in b for b in befunde), befunde
 
 
+def test_eine_schriftfarbe_im_rumpf_faellt_auf(monkeypatch):
+    """Seit dem 15.10.2026 erbt der Rumpf Schrift- und Grundfarbe vom
+    Mailprogramm. Der naheliegende Rückfall ist die alte Tinte am Absatz —
+    `#1a1a1a`, die im Thunderbird-Entwurf dunkel auf dunkel stand.
+    `nicht_umschaltbar` muss sie melden, auch mit der alten Klasse daran."""
+    quelle = BEISPIEL.read_text(encoding="utf-8").split("---", 2)[2]
+    assert _html.nicht_umschaltbar(_html.dokument(_html.setze(_md.lies(quelle)))) == [], \
+        "Kontrollprobe: ohne Sabotage meldet die Prüfung schon etwas"
+    seite = _seite_mit_sabotiertem_emitter(
+        monkeypatch, "absatz",
+        lambda inhalt: (f'<p class="{_html.KLASSE_TEXT}" style="{_html.TEXTSTIL} '
+                        f'color: #1a1a1a;">{inhalt}</p>'),
+    )
+    befunde = _html.nicht_umschaltbar(seite)
+    assert any("color:" in b for b in befunde), befunde
+
+
+def test_ein_grund_am_umschlag_faellt_auf(monkeypatch):
+    """Der Zwischenstand vom 15.10.2026, vom Betreiber verworfen: ein weißer
+    Grund am Umschlag, als Attribut. `nicht_umschaltbar` muss ihn melden."""
+    echt = _html.dokument
+    seite = _seite_mit_sabotiertem_emitter(
+        monkeypatch, "dokument",
+        lambda rumpf, **k: echt(rumpf, **k).replace(
+            '<tr><td style="padding: 0;">', '<tr><td bgcolor="#ffffff" style="padding: 0;">', 1),
+    )
+    befunde = _html.nicht_umschaltbar(seite)
+    assert any("bgcolor" in b for b in befunde), befunde
+
+
 # ── Dialekt 1.1: der wortgetreue Auszug ─────────────────────────────────────
 #
 # `tests/test_wortlaut.py` belegt, dass im PDF `#eval("6*7")` steht und nicht
