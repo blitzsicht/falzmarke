@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from falzmarke import eml, markdown as md
+from falzmarke import emit_html, eml, markdown as md
 
 REPO = Path(__file__).resolve().parents[1]
 BEISPIEL = REPO / "examples" / "email" / "email-signatur.md"
@@ -31,11 +31,11 @@ KOPF = {"typ": "email", "an": "post@example.de", "betreff": "Probe",
 
 SAUBER = """<!DOCTYPE html>
 <html lang="de"><head><style>
-@media (prefers-color-scheme: dark) { .x { color: #fff !important; } }
+@media (prefers-color-scheme: dark) { .x { color: #fff !important; } .y { border-color: #8a8a8a !important; } }
 </style></head>
 <body>
 <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-<tr><td class="x" style="color: #1a1a1a;">Erika Muster</td></tr>
+<tr><td class="x y" style="color: #1a1a1a; border-top: 1px solid #8a8a8a;">Erika Muster</td></tr>
 </table>
 </body></html>
 """
@@ -70,6 +70,10 @@ def test_die_signatur_kommt_an(tmp_path):
     assert "Erika Muster" in sig.rumpf
     assert "prefers-color-scheme" in sig.stil
     assert sig.text == "Erika Muster"
+    # Die Farben erbt die Mail (15.10.2026): Die Schriftregel und die
+    # Inline-Farbe gehen, die Linie, die auf beiden Gründen trägt, bleibt.
+    assert "#fff" not in sig.stil and "#8a8a8a" in sig.stil
+    assert "#1a1a1a" not in sig.rumpf and "border-top: 1px solid #8a8a8a" in sig.rumpf
     # Der Rumpf ist der Rumpf: Kopf und Stilblock bleiben draußen.
     assert "<!DOCTYPE" not in sig.rumpf and "<style" not in sig.rumpf
 
@@ -82,9 +86,11 @@ def test_ohne_das_feld_bleibt_alles_wie_es_war(tmp_path):
 
 
 def test_ein_fragment_ohne_body_wird_ganz_genommen(tmp_path):
-    daten, pfad = _profil_mit(tmp_path, '<p style="color: #1a1a1a;">Nur ein Absatz</p>')
+    """Ganz — bis auf die Schriftfarbe, die die Mail seit dem 15.10.2026 vom
+    Mailprogramm erbt (`emit_html.fremdrumpf_ohne_farben`)."""
+    daten, pfad = _profil_mit(tmp_path, '<p style="margin: 0; color: #1a1a1a;">Nur ein Absatz</p>')
     sig = eml.mitgebrachte_signatur(daten, pfad)
-    assert sig.rumpf == '<p style="color: #1a1a1a;">Nur ein Absatz</p>'
+    assert sig.rumpf == '<p style="margin: 0;">Nur ein Absatz</p>'
 
 
 def test_ohne_textfassung_bleibt_der_textteil_aus_dem_profil(tmp_path, profil):
@@ -165,9 +171,21 @@ def test_die_gebaute_signatur_steht_daneben_nicht_mehr_da(profil):
     assert 'class="fm-t fm-r"' not in html, "die gebaute Signatur steht auch da"
     assert html.count("<style") == 1, "zwei Stilblöcke — einer davon wäre wirkungslos"
     stil = re.search(r"<style[^>]*>(.*?)</style>", html, re.S).group(1)
-    # Der eigene Teil schaltet seit dem 15.10.2026 nur noch die Linie (`fm-r`) —
-    # an ihr wird gemessen, wer vorn steht.
-    assert stil.index("fm-r") < stil.index("sig-name"), "der eigene Teil muss vorn stehen"
+    # Die Regeln des Beispiels schalten nur Farben, und die erbt die Mail seit
+    # dem 15.10.2026 vom Mailprogramm: Übrig bleibt der eigene Teil allein.
+    assert stil == emit_html.STIL_INHALT, stil
+
+
+def test_der_eigene_teil_steht_vorn(tmp_path, profil):
+    """Was von einem mitgebrachten Stil bleibt, steht HINTER dem eigenen Teil
+    (ADR 0034, Nachtrag vom 09.09.2026) — gemessen an einer Regel, die das
+    Bereinigen der Farben übersteht."""
+    daten, pfad = _profil_mit(tmp_path, SAUBER)
+    sig = eml.mitgebrachte_signatur(daten, pfad)
+    html = eml.htmlteil(KOPF, profil, md.lies(QUELLE), signatur=sig)
+    stil = re.search(r"<style[^>]*>(.*?)</style>", html, re.S).group(1)
+    assert stil.startswith(emit_html.STIL_INHALT), stil
+    assert stil.index("fm-r") < stil.index(".y"), "der eigene Teil muss vorn stehen"
 
 
 # ── Die eigene Breite einer Signatur ist kein Deckel (#279) ─────────────────

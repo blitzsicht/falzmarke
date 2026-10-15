@@ -251,6 +251,15 @@ steht **hinter** dem eigenen Dunkelblock im Kopf der Nachricht. Ein zweiter `<st
 Rumpf wäre in mehreren Programmen wirkungslos — Gmail entfernt ihn — und in der eigenen Prüfung
 ein Verstoß.
 
+**Die Farben erbt die Mail, auch in der Signatur.** Übernommen werden Aufbau und Inhalt, die
+Farben nicht. Schriftfarben und Gründe der Signatur fallen beim Einsetzen weg, Linien unter 3:1
+auf hellem oder dunklem Grund werden `#7e7e7e`. Die Dunkelregeln für Schrift entfallen mit. Ein
+Knopf mit eigener Fläche wird zum Link. Die Datei im Profilordner bleibt unverändert, und `cw-core`
+erzeugt aus derselben Vorlage weiter Signaturen für Outlook. Der Grund ist derselbe wie beim Rumpf:
+Der Thunderbird-Entwurf bekommt kein `<style>`, und die Signaturfarben aus `cw-core` standen dort
+dunkel auf dunkel
+([ADR 0034, Nachtrag „die Signatur erbt ihre Farben“](entscheidungen/0034-email-ist-ausgabe.md)).
+
 **Geprüft wird trotzdem.** Die Regeln oben gelten für eine fremde Signatur wie für eigenen Satz:
 kein Skript, kein externes Stylesheet, kein Zählpixel, keine Layouttabelle ohne
 `role="presentation"`, kein Verweis nach außen im Stil. Was durchfällt, wird **abgelehnt** — mit
