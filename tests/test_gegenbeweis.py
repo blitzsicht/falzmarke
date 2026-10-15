@@ -1710,3 +1710,57 @@ def test_sabotage_c_umbrueche_in_der_data_uri(monkeypatch):
     lage = _oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
                             laufen=_nie, binaer=lambda: "/x/thunderbird")
     assert lage.programm is None and "falzmarke-logo" in lage.grund, lage
+
+
+# ── Die Signatur aus dem Profil verlässt den Thunderbird-Entwurf (ADR 0050) ──
+#
+# Trägt die Identität in Thunderbird eine Signatur, nimmt `ohne_signatur` die
+# aus dem Profil aus dem HTML-Teil; `_ohne_signatur_stimmt` hält danach den
+# fertigen `body=`-Wert gegen den alten: Es darf genau die Signatur fehlen, und
+# sonst nichts. Sabotiert wird `ohne_signatur` — einmal schneidet es zu viel
+# (die Grußformel mit), einmal gar nichts. Beide Male muss die Prüfung
+# anschlagen, und der Entwurf behält die Signatur.
+
+def _signaturfall(tmp_path):
+    import test_thunderbird_signatur as tbs
+
+    datei = tmp_path / "sig.html"
+    datei.write_text("<p>Firma</p>", encoding="utf-8")
+    _, felder, unterschrift = tbs._beispiel(tmp_path, "email-mahnung")
+    ordner = tbs._attrappe(tmp_path, tbs._grundwerte(datei))
+    return tbs, felder, unterschrift, ordner
+
+
+def test_unsabotiert_fehlt_dem_entwurf_genau_die_signatur(tmp_path):
+    """Kontrollprobe: ohne Sabotage keine Meldung, und die Signatur ist draußen."""
+    tbs, felder, unterschrift, ordner = _signaturfall(tmp_path)
+    lage, tb = tbs._entwurf(felder, ordner)
+    assert lage.signatur.zustand == "thunderbird", lage.signatur
+    assert tbs._signatur_im_rumpf(unterschrift, felder) not in tb.rumpf
+
+
+def test_eine_zu_gierige_entnahme_faellt_auf(tmp_path, monkeypatch):
+    tbs, felder, unterschrift, ordner = _signaturfall(tmp_path)
+    echt = _oeffnen.ohne_signatur
+
+    def mit_gruss(html, stueck):
+        ohne = echt(html, stueck)
+        return re.sub(r"<p[^>]*>Mit freundlichen Grüßen</p>", "", ohne)
+
+    monkeypatch.setattr(_oeffnen, "ohne_signatur", mit_gruss)
+    assert "Mit freundlichen Grüßen" not in mit_gruss(felder["html"], unterschrift), \
+        "die Sabotage griff nicht"
+    lage, tb = tbs._entwurf(felder, ordner)
+    assert lage.signatur.zustand == "unbestimmt", lage.signatur
+    assert "mehr als die Signatur" in lage.signatur.grund
+    assert tbs._signatur_im_rumpf(unterschrift, felder) in tb.rumpf
+    assert "Mit freundlichen Grüßen" in tb.rumpf
+
+
+def test_eine_entnahme_ohne_wirkung_faellt_auf(tmp_path, monkeypatch):
+    tbs, felder, unterschrift, ordner = _signaturfall(tmp_path)
+    monkeypatch.setattr(_oeffnen, "ohne_signatur", lambda html, stueck: html)
+    lage, tb = tbs._entwurf(felder, ordner)
+    assert lage.signatur.zustand == "unbestimmt", lage.signatur
+    assert "noch im Rumpf" in lage.signatur.grund
+    assert tb.rumpf.count(tbs._signatur_im_rumpf(unterschrift, felder)) == 1

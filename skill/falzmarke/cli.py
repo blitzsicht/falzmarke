@@ -1568,6 +1568,23 @@ def setze_email(brief_pfad: Path, ausgabe: Path | None = None, *,
     `anlagen_dateien:`, das vorhandene Dateien nimmt: Hier kann kein veraltetes
     PDF mitreisen, weil es keines gibt, das älter wäre als dieser Aufruf.
     """
+    eml_pfad, dateien, _ = _setze_email(brief_pfad, ausgabe,
+                                        profil_verzeichnis=profil_verzeichnis,
+                                        mit_quelle=mit_quelle)
+    return eml_pfad, dateien
+
+
+def _setze_email(brief_pfad: Path, ausgabe: Path | None = None, *,
+                 profil_verzeichnis: Path | None = None,
+                 mit_quelle: bool = False) -> tuple[Path, list[Path], str]:
+    """`setze_email` — und dazu die Signatur als HTML-Stück (ADR 0050).
+
+    Das dritte Glied braucht nur der Entwurf in Thunderbird: Trägt die
+    Identität dort eine eigene Signatur, nimmt er die aus dem Profil aus dem
+    Rumpf. Die `.eml` selbst behält sie. Ein eigener Name statt eines dritten
+    Rückgabewerts an `setze_email`, weil dessen Form im MCP-Dienst und in den
+    Tests feststeht.
+    """
     from falzmarke import eml as eml_modul
 
     kopf, body_md, versatz = lies_brief(brief_pfad)
@@ -1649,7 +1666,12 @@ def setze_email(brief_pfad: Path, ausgabe: Path | None = None, *,
                                     signatur=mitgebracht),
         text=eml_modul.textteil(kopf, profil, bloecke, signatur=mitgebracht),
     )
-    return dateien[0], dateien
+    # Mit denselben Eingaben wie in `eml.baue` — und ob es wirklich dasselbe
+    # Stück ist, misst der Entwurf an der geschriebenen Datei: Steht es dort
+    # nicht genau einmal, bleibt die Signatur im Rumpf (`oeffnen.ohne_signatur`).
+    unterschrift = eml_modul.signatur_html(
+        kopf, profil, logo=eml_modul.logo_quelle(profil, profil_pfad), signatur=mitgebracht)
+    return dateien[0], dateien, unterschrift
 
 
 def befehl_email(args) -> int:
@@ -1667,7 +1689,7 @@ def befehl_email(args) -> int:
     for befund in vorpruefung.befunde:
         print(befund.als_zeile(brief.name), file=sys.stderr)
 
-    eml_pfad, dateien = setze_email(
+    eml_pfad, dateien, unterschrift = _setze_email(
         brief, Path(args.output) if args.output else None,
         profil_verzeichnis=profile, mit_quelle=args.mit_quelle)
 
@@ -1733,6 +1755,9 @@ def befehl_email(args) -> int:
         # LESEFENSTER, ohne Senden-Knopf — gemessen, samt der Gegenprobe mit
         # `X-Unsent: 1`, die nichts änderte (`docs/mailprogramme-2026-08-27.md`).
         felder = eml_modul.entwurfsfelder(eml_pfad)
+        # Nur für Thunderbird gebraucht (ADR 0050): Trägt die Identität dort
+        # eine eigene Signatur, kommt diese hier aus dem Rumpf des Entwurfs.
+        felder["signatur_html"] = unterschrift
         lage = oeffnen_modul.entwurf(felder, wahl=args.programm)
         if lage.programm:
             print(f"OK  Entwurf angelegt: {lage.programm}")
@@ -1752,10 +1777,23 @@ def befehl_email(args) -> int:
             # Was das Programm nach dem Anlegen selbst hineinschreibt, steht in
             # keiner Prüfung. Am 08.09.2026 gesehen: Outlook hängt die Signatur
             # des Kontos an — mit einer Signatur im Profil steht sie zweimal da.
-            print("HINWEIS  Das Mailprogramm setzt die Signatur des Kontos zusätzlich in "
-                  "den Entwurf.\n"
-                  "         Trägt das Profil eine eigene, steht sie zweimal darin.",
-                  file=sys.stderr)
+            # Für Thunderbird ist es seit ADR 0050 nachgesehen: Trägt die
+            # Identität eine, fehlt die aus dem Profil im Entwurf; trägt sie
+            # keine, gibt es nichts zu doppeln. Nur wo es offen bleibt, steht
+            # der Hinweis — mit dem Grund.
+            signatur = lage.signatur
+            if signatur is not None and signatur.zustand == "thunderbird":
+                print(f"OK  Signatur aus Thunderbird: Identität {signatur.identitaet} "
+                      f"({signatur.adresse}), {signatur.quelle} — die aus dem Profil steht "
+                      "nur in der Datei")
+            elif signatur is None or signatur.zustand == "unbestimmt":
+                print("HINWEIS  Das Mailprogramm setzt die Signatur des Kontos zusätzlich in "
+                      "den Entwurf.\n"
+                      "         Trägt das Profil eine eigene, steht sie zweimal darin.",
+                      file=sys.stderr)
+                if signatur is not None:
+                    print(f"         Signatur in Thunderbird nicht bestimmt: {signatur.grund}",
+                          file=sys.stderr)
             # Der Faden bleibt in der Datei, nicht im Entwurf (#286). Nur
             # melden, wenn es etwas zu melden gibt — stünde die Warnung unter
             # jeder Mail, läse sie niemand mehr.

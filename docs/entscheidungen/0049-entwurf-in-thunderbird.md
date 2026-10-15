@@ -129,6 +129,10 @@ die Anzeige des Editors für Tabellen ohne Rahmen, nicht Teil der gesendeten Nac
 **erwartet, ungemessen** — wer es belegen will, sendet an sich selbst und sieht nach. Nichts zu
 bauen.
 
+> **Überholt am 15.10.2026 durch [0050](0050-signatur-aus-thunderbird.md):** Trägt die Identität
+> eine Signatur, lässt der Entwurf die aus dem Profil weg. Der folgende Absatz bleibt als Stand
+> vom 13.10.2026 stehen.
+
 **Kontosignaturen in Thunderbird leer lassen.** Der Hinweis des Befehls stimmt auch hier:
 Thunderbird hängt die Signatur der Identität an, und falzmarke liefert die Signatur aus dem
 Profil bereits mit. Wer beides stehen lässt, hat sie zweimal. Die Reparatur ist eine

@@ -481,6 +481,232 @@ def _eingebettet_stimmt(html: str, inline) -> str | None:
     return "der Rumpf trägt die Bilder nicht — " + ", ".join(fehlt)
 
 
+# ── Die Signatur der Identität (ADR 0050) ────────────────────────────────────
+#
+# Thunderbird setzt beim Öffnen des Entwurfs die Signatur der Identität unter
+# den Rumpf, den `body=` mitbringt — und der trägt schon die aus dem Profil.
+# Bis ADR 0050 hieß die Reparatur „Kontosignatur in Thunderbird leer lassen“.
+# Wer seine Identitäten aber aus derselben Datei bestückt wie das Profil, will
+# sie dort stehen haben: Dann kommt die Signatur aus Thunderbird, und die aus
+# dem Profil bleibt aus dem Rumpf des Entwurfs. Die `.eml` behält sie.
+#
+# Gelesen wird nur, nie geschrieben, und gestartet wird nichts: `profiles.ini`,
+# `prefs.js` und `user.js` des Standardprofils.
+
+#: Wo Thunderbird auf macOS seine Profile hält. Eine Modulkonstante, damit die
+#: Tests sie auf ein Attrappenverzeichnis umlegen können — keine Prüfung soll
+#: davon abhängen, welches Thunderbird auf dem Läufer eingerichtet ist.
+THUNDERBIRD_ORDNER = Path.home() / "Library" / "Thunderbird"
+
+_PREF_ZEILE = re.compile(r'^\s*user_pref\(\s*("(?:[^"\\]|\\.)*")\s*,\s*(.+?)\s*\)\s*;\s*$')
+
+
+class Signaturlage(NamedTuple):
+    """Ob Thunderbird für die Absenderadresse selbst eine Signatur setzt.
+
+    `zustand` ist einer von drei Werten — und der dritte ist kein „nein“:
+
+    * `"thunderbird"` — die Identität trägt eine; `quelle` nennt Datei oder
+      Signaturtext.
+    * `"keine"` — die Identität ist gefunden und trägt keine.
+    * `"unbestimmt"` — kein Profil, keine oder mehrdeutige Identität, eine
+      Signaturdatei, die sich nicht lesen lässt; `grund` sagt, was.
+    """
+
+    zustand: str
+    identitaet: str = ""
+    adresse: str = ""
+    quelle: str = ""
+    grund: str = ""
+
+
+def _unbestimmt(grund: str) -> Signaturlage:
+    return Signaturlage("unbestimmt", grund=grund)
+
+
+def thunderbird_standardprofil(ordner: Path) -> Path | None:
+    """Das Profil, mit dem Thunderbird startet — aus `profiles.ini`, oder None.
+
+    `[Install…] Default=` geht vor `[Profile…] Default=1`: Seit Thunderbird 68
+    hat jede Installation ihr eigenes Standardprofil, und das `Default=1` am
+    Profil bleibt oft von früher stehen. Beim Betreiber zeigt es am 15.10.2026
+    auf ein anderes Profil als die Installation. Mehrere Installationen mit
+    verschiedenen Profilen sind nicht zu entscheiden — None.
+    """
+    import configparser
+
+    ini = configparser.ConfigParser(interpolation=None, strict=False)
+    try:
+        if not ini.read(Path(ordner) / "profiles.ini", encoding="utf-8"):
+            return None
+    except configparser.Error:
+        return None
+
+    def aufgeloest(pfad: str, relativ: bool = True) -> Path:
+        return Path(ordner) / pfad if relativ and not Path(pfad).is_absolute() else Path(pfad)
+
+    installiert = {ini[s]["default"] for s in ini.sections()
+                   if s.startswith("Install") and ini[s].get("default")}
+    if len(installiert) == 1:
+        return aufgeloest(installiert.pop())
+    if installiert:
+        return None
+    profile = [ini[s] for s in ini.sections() if s.startswith("Profile") and ini[s].get("path")]
+    gewaehlt = [p for p in profile if p.get("default") == "1"]
+    if len(gewaehlt) != 1:
+        gewaehlt = profile if len(profile) == 1 else []
+    if not gewaehlt:
+        return None
+    return aufgeloest(gewaehlt[0]["path"], gewaehlt[0].get("isrelative", "1") == "1")
+
+
+def thunderbird_einstellungen(profil: Path) -> dict:
+    """`prefs.js`, dann `user.js` — der zweite gewinnt, wie in Thunderbird.
+
+    Thunderbird liest `user.js` bei jedem Start nach `prefs.js` und übernimmt
+    dessen Werte. Wer seine Identitäten über `user.js` pflegt, steht deshalb
+    dort richtig, auch wenn `prefs.js` noch den alten Wert führt.
+
+    Jede Zeile `user_pref("name", wert);` für sich; Wert und Name sind
+    JSON-kompatibel geschrieben. Was sich nicht lesen lässt, fällt weg — eine
+    Zeile, die Thunderbird selbst nicht verstünde, ist kein Grund, die
+    übrigen zu verwerfen.
+    """
+    import json
+
+    werte: dict = {}
+    for name in ("prefs.js", "user.js"):
+        try:
+            text = (Path(profil) / name).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for zeile in text.splitlines():
+            treffer = _PREF_ZEILE.match(zeile)
+            if not treffer:
+                continue
+            try:
+                werte[json.loads(treffer.group(1))] = json.loads(treffer.group(2))
+            except ValueError:
+                continue
+    return werte
+
+
+def _identitaeten(werte: dict) -> list[str]:
+    """Die Identitäten der eingerichteten Konten, in deren Reihenfolge.
+
+    Über `mail.accountmanager.accounts`, nicht über jede `mail.identity.*`-Zeile:
+    Thunderbird wählt mit `from=` nur unter Identitäten, die zu einem Konto
+    gehören. Fehlt die Kontoliste, zählen alle, die eine Adresse tragen.
+    """
+    konten = [k.strip() for k in str(werte.get("mail.accountmanager.accounts") or "").split(",")
+              if k.strip()]
+    if not konten:
+        return sorted({n.split(".")[2] for n in werte
+                       if n.startswith("mail.identity.") and n.endswith(".useremail")})
+    ids: list[str] = []
+    for konto in konten:
+        for kennung in str(werte.get(f"mail.account.{konto}.identities") or "").split(","):
+            if kennung.strip() and kennung.strip() not in ids:
+                ids.append(kennung.strip())
+    return ids
+
+
+def _signatur_der_identitaet(werte: dict, kennung: str, adresse: str) -> Signaturlage:
+    """Was Thunderbird für diese eine Identität unter einen neuen Entwurf setzt."""
+    vorn = f"mail.identity.{kennung}."
+    if werte.get(vorn + "attach_signature") is True:
+        # Mit `attach_signature` nimmt Thunderbird die Datei und nicht den
+        # Signaturtext. Eine Datei, die sich nicht lesen lässt, ist nicht
+        # „keine Signatur“, sondern unbekannt — was Thunderbird dann einsetzt,
+        # ist nicht gemessen.
+        datei = str(werte.get(vorn + "sig_file") or "")
+        if not datei:
+            return _unbestimmt(f"{kennung} soll eine Signaturdatei anhängen, nennt aber keine")
+        try:
+            inhalt = Path(datei).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return _unbestimmt(f"die Signaturdatei von {kennung} ist nicht lesbar: {datei}")
+        if inhalt.strip():
+            return Signaturlage("thunderbird", kennung, adresse, datei)
+        return Signaturlage("keine", kennung, adresse)
+    if str(werte.get(vorn + "htmlSigText") or "").strip():
+        return Signaturlage("thunderbird", kennung, adresse, "Signaturtext der Identität")
+    return Signaturlage("keine", kennung, adresse)
+
+
+def kontosignatur(adresse: str, ordner: Path | None = None) -> Signaturlage:
+    """Setzt Thunderbird für diese Absenderadresse selbst eine Signatur?
+
+    Liest das Standardprofil unter `ordner` (Vorgabe `THUNDERBIRD_ORDNER`),
+    schreibt nichts und startet nichts. Mehrere Identitäten mit derselben
+    Adresse sind nur dann eindeutig, wenn sie dasselbe sagen — welche
+    Thunderbird mit `from=` nimmt, ist nicht gemessen.
+    """
+    adresse = (adresse or "").strip()
+    if not adresse:
+        return _unbestimmt("ohne Absenderadresse keine Identität")
+    ordner = THUNDERBIRD_ORDNER if ordner is None else Path(ordner)
+    profil = thunderbird_standardprofil(ordner)
+    if profil is None or not profil.is_dir():
+        return _unbestimmt(f"kein Standardprofil unter {ordner}")
+    werte = thunderbird_einstellungen(profil)
+    treffer = [k for k in _identitaeten(werte)
+               if str(werte.get(f"mail.identity.{k}.useremail") or "").strip().lower()
+               == adresse.lower()]
+    if not treffer:
+        return _unbestimmt(f"keine Identität mit {adresse} im Profil {profil.name}")
+    lagen = [_signatur_der_identitaet(werte, k, adresse) for k in treffer]
+    if len({(lage.zustand, lage.quelle) for lage in lagen}) > 1:
+        return _unbestimmt(f"{len(treffer)} Identitäten mit {adresse}, nicht mit derselben "
+                           "Signatur: " + ", ".join(treffer))
+    return lagen[0]
+
+
+def ohne_signatur(html: str, unterschrift: str) -> str | None:
+    """Der HTML-Teil ohne das Signaturstück — oder None, wenn es nicht genau einmal dasteht.
+
+    Gesucht wird das Stück, das `eml.signatur_html` geliefert hat, mit dem
+    Zeilenumbruch, mit dem `eml.htmlteil` es anfügt. Kein Muster: Steht es nicht
+    genau einmal da, wird nichts entfernt — lieber die Signatur zweimal im
+    Entwurf als ein Stück Nachricht zu wenig.
+    """
+    if not unterschrift:
+        return html
+    stueck = "\n" + unterschrift
+    if html.count(stueck) != 1:
+        return None
+    return html.replace(stueck, "", 1)
+
+
+def _leerraum(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _ohne_signatur_stimmt(rumpf_mit: str, rumpf_ohne: str, signatur_rumpf: str) -> str | None:
+    """Fehlt dem Rumpf genau die Signatur — und sonst nichts? Sonst der Grund.
+
+    Gemessen an den fertigen `body=`-Werten, nicht am HTML der Datei: der mit
+    Signatur, wie er vor ADR 0050 gesendet wurde, der ohne, wie er jetzt
+    gesendet wird, und die Signatur durch dieselbe Aufbereitung geschickt.
+    Schneidet `ohne_signatur` zu viel ab — die Grußformel, einen Absatz —, zu
+    wenig, oder an der falschen Stelle, fällt es hier auf, bevor ein Fenster
+    aufgeht.
+    """
+    fehlt = []
+    if not signatur_rumpf:
+        fehlt.append("die Signatur ist nach der Aufbereitung leer")
+    elif rumpf_mit.count(signatur_rumpf) != 1:
+        fehlt.append(f"die Signatur steht {rumpf_mit.count(signatur_rumpf)}-mal im Rumpf "
+                     "mit Signatur")
+    elif signatur_rumpf in rumpf_ohne:
+        fehlt.append("die Signatur steht noch im Rumpf")
+    elif _leerraum(rumpf_mit.replace(signatur_rumpf, " ", 1)) != _leerraum(rumpf_ohne):
+        fehlt.append("der Rumpf verliert mehr als die Signatur")
+    if not fehlt:
+        return None
+    return "die Signatur aus dem Profil ließ sich nicht sauber herausnehmen — " + ", ".join(fehlt)
+
+
 def anhang_paare(anhangpfade: list[str]) -> list[tuple[str, str]]:
     """Die Anhänge als Schlüssel-Wert-Paare: **genau eins**, alle Pfade darin.
 
@@ -789,6 +1015,9 @@ class Entwurfslage(NamedTuple):
     #: (Thunderbird: beim Senden oder Speichern). `None`, wenn keiner angelegt
     #: wurde oder er schon wieder weg ist.
     ablage: str | None = None
+    #: Nur Thunderbird: ob die Identität selbst eine Signatur setzt und welche
+    #: dann im Entwurf steht (ADR 0050). `None` auf jedem anderen Weg.
+    signatur: Signaturlage | None = None
 
 
 def _steuere(skript: str, kennung: str, *, laufen=subprocess.run) -> str | None:
@@ -983,8 +1212,45 @@ def _nicht_gefunden(wahl: str | None) -> str:
     return grund
 
 
+def _signatur_im_entwurf(roh: str, rumpf: str, felder: Mapping, inline,
+                         ordner: Path | None) -> tuple[Signaturlage, str, str]:
+    """Welche Signatur der Entwurf trägt — und der `body=`-Wert dazu (ADR 0050).
+
+    `roh` ist der HTML-Teil der Datei, `rumpf` derselbe, fertig für `body=`.
+    Nur wenn die Identität in Thunderbird selbst eine Signatur setzt, die aus
+    dem Profil bekannt ist und sich sauber herausnehmen lässt, kommt ein
+    anderer Rumpf zurück. In jedem anderen Fall bleibt er, wie er war — mit
+    der Signatur aus dem Profil, wie vor ADR 0050.
+
+    Zurück kommen Lage, `body=`-Wert und der HTML-Teil, aus dem er entstand —
+    den braucht `_eingebettet_stimmt`: Ein Logo, das nur in der Signatur
+    stand, fehlt dann zu Recht.
+    """
+    lage = kontosignatur(str(felder.get("absender") or ""), ordner)
+    if lage.zustand != "thunderbird":
+        return lage, rumpf, roh
+    unterschrift = felder.get("signatur_html")
+    if unterschrift is None:
+        return _unbestimmt("die Signatur aus dem Profil ist hier nicht bekannt, sie bleibt im "
+                           f"Rumpf — und {lage.identitaet} setzt ihre dazu"), rumpf, roh
+    if not unterschrift:
+        # Das Profil ergibt keine Signatur: nichts herauszunehmen, die aus
+        # Thunderbird ist die einzige.
+        return lage, rumpf, roh
+    ohne = ohne_signatur(roh, str(unterschrift))
+    if ohne is None:
+        return _unbestimmt("die Signatur aus dem Profil steht nicht genau einmal im HTML-Teil, "
+                           f"sie bleibt im Rumpf — und {lage.identitaet} setzt ihre dazu"), rumpf, roh
+    rumpf_ohne = rumpf_fuer_compose(eingebettet(ohne, inline))
+    schief = _ohne_signatur_stimmt(rumpf, rumpf_ohne,
+                                   rumpf_fuer_compose(eingebettet(str(unterschrift), inline)))
+    if schief:
+        return _unbestimmt(f"{schief}; sie bleibt im Rumpf"), rumpf, roh
+    return lage, rumpf_ohne, ohne
+
+
 def _entwurf_compose(programm: Entwurfsprogramm, felder: Mapping, *,
-                     laufen, ablage) -> "Entwurfslage":
+                     laufen, ablage, thunderbird_ordner=None) -> "Entwurfslage":
     """Der Thunderbird-Weg: eine Zeile prüfen, einmal aufrufen (ADR 0049).
 
     Die Anhänge kommen in einen Ordner, der **liegen bleibt**: Thunderbird
@@ -1002,9 +1268,16 @@ def _entwurf_compose(programm: Entwurfsprogramm, felder: Mapping, *,
 
     pfade = _anhaenge_ausschreiben(ordner, anhaenge, typografisch=True) if ordner else []
     inline = felder.get("inline") or []
-    html = eingebettet(str(felder.get("html") or ""), inline)
+    roh = str(felder.get("html") or "")
+    html = eingebettet(roh, inline)
+    signatur = None
     if html:
         html = rumpf_fuer_compose(html)
+        signatur, html, roh = _signatur_im_entwurf(roh, html, felder, inline,
+                                                   thunderbird_ordner)
+        # Ein Bild, auf das der verwendete HTML-Teil nicht mehr zeigt — das Logo
+        # einer herausgenommenen Signatur —, muss auch nicht im Rumpf stehen.
+        inline = [teil for teil in inline if f"cid:{teil[0]}" in roh]
     schief = _eingebettet_stimmt(html, inline) or (html and _rumpf_stimmt(html))
     if schief:
         return abgeraeumt(Entwurfslage(None, schief))
@@ -1040,7 +1313,7 @@ def _entwurf_compose(programm: Entwurfsprogramm, felder: Mapping, *,
         return abgeraeumt(Entwurfslage(None, f"{argv[0]} gibt es auf diesem System nicht"))
     except subprocess.TimeoutExpired:
         return Entwurfslage(None, f"{Path(argv[0]).name} kam in {frist} Sekunden nicht zurück",
-                            ungewiss=True, ablage=ordner)
+                            ungewiss=True, ablage=ordner, signatur=signatur)
     if lauf.returncode != 0:
         meldung = (lauf.stderr or "").strip().splitlines()
         letzte = meldung[-1] if meldung else (
@@ -1054,14 +1327,15 @@ def _entwurf_compose(programm: Entwurfsprogramm, felder: Mapping, *,
         return Entwurfslage(
             None, "Thunderbird lief nicht und wurde mit dem Auftrag gestartet; ob das "
                   "Fenster aufgeht, ist nicht gemessen (13.10.2026 nur mit laufendem "
-                  "Thunderbird)", ungewiss=True, ablage=ordner)
-    return Entwurfslage(programm.name, "", nachgezaehlt=False, ablage=ordner)
+                  "Thunderbird)", ungewiss=True, ablage=ordner, signatur=signatur)
+    return Entwurfslage(programm.name, "", nachgezaehlt=False, ablage=ordner, signatur=signatur)
 
 
 def entwurf(felder: Mapping, *, plattform: str = sys.platform,
             umgebung: Mapping[str, str] | None = None,
             laufen=subprocess.run, wahl: str | None = None,
-            binaer=thunderbird_binaer, ablage=None) -> "Entwurfslage":
+            binaer=thunderbird_binaer, ablage=None,
+            thunderbird_ordner: Path | None = None) -> "Entwurfslage":
     """Legt den Entwurf an — oder sagt in einem Satz, warum nicht.
 
     Rückgabe: `(Programmname, "")`, wenn er steht, sonst `(None, Grund)`. Der
@@ -1076,6 +1350,9 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
     `wahl` ist das Wort aus `--programm` (siehe `entwurfsweg`), `binaer` die
     Suche nach Thunderbird und `ablage` das Verzeichnis, unter dem dessen
     Anhangordner entsteht — ohne Angabe das Temporärverzeichnis des Systems.
+    `thunderbird_ordner` ist der Profilordner, in dem nachgesehen wird, ob die
+    Identität selbst eine Signatur setzt (ADR 0050) — ohne Angabe
+    `THUNDERBIRD_ORDNER`.
 
     Die Anhänge stehen in der `.eml` als Bytes; das Programm will Pfade. Für
     Outlook werden sie in ein Verzeichnis geschrieben, das erst nach dem Lauf
@@ -1103,7 +1380,8 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
     if programm is None:
         return Entwurfslage(None, _nicht_gefunden(wahl))
     if programm.weg == "compose":
-        return _entwurf_compose(programm, felder, laufen=laufen, ablage=ablage)
+        return _entwurf_compose(programm, felder, laufen=laufen, ablage=ablage,
+                                thunderbird_ordner=thunderbird_ordner)
 
     with tempfile.TemporaryDirectory(prefix="falzmarke-entwurf-") as ordner:
         pfade = _anhaenge_ausschreiben(ordner, felder.get("anhaenge") or [])

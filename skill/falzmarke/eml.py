@@ -693,17 +693,32 @@ def htmlteil(kopf: dict, profil: dict, bloecke, sprache: str = "de",
     gruss = kopf.get("gruss") or email_teil.get("gruss") or profil.get("gruss")
 
     stuecke = [emit_html.setze(_mit_rahmen(kopf, gruss, bloecke)).rstrip("\n")]
+    unterschrift = signatur_html(kopf, profil, logo=logo, signatur=signatur)
+    if unterschrift:
+        stuecke.append(unterschrift)
+    return emit_html.dokument("\n".join(stuecke) + "\n", sprache=sprache, vorspann=vorspann,
+                              zusatzstil=signatur.stil if signatur is not None else "")
 
+
+def signatur_html(kopf: dict, profil: dict, logo: Logo | None = None,
+                  signatur: MitgebrachteSignatur | None = None) -> str:
+    """Die Signatur als HTML-Stück — genau so, wie `htmlteil` sie unter die Nachricht setzt.
+
+    Eine eigene Funktion, weil der Entwurf in Thunderbird sie wiederfinden muss
+    (ADR 0050): Trägt die Identität dort selbst eine Signatur, kommt die aus dem
+    Profil aus dem Rumpf des Entwurfs heraus — und gesucht wird nach genau
+    diesem Stück, nicht nach einem Muster, das zufällig auch im Text stünde.
+    `htmlteil` setzt es mit einem Zeilenumbruch davor unter die Nachricht.
+
+    Leer, wenn das Profil keine Signatur ergibt.
+    """
     # Eine mitgebrachte Signatur ERSETZT die aus dem Profil gebaute (#275) —
     # sie tritt nicht daneben. Zwei Signaturen unter einer Nachricht sind der
     # Fehler, den dieser Weg abstellt, nicht sein Ergebnis. Aus demselben Grund
     # bleibt `email.logo` dabei unbeachtet: Das Logo steckt schon in der
     # mitgebrachten Fassung, ein zweites wäre ein Bild zu viel (`BILDER_MAX`).
     if signatur is not None:
-        stuecke.append(
-            f'<div style="margin: {SIGNATUR_ABSTAND} 0 0;">{signatur.rumpf}</div>')
-        return emit_html.dokument("\n".join(stuecke) + "\n", sprache=sprache,
-                                  vorspann=vorspann, zusatzstil=signatur.stil)
+        return f'<div style="margin: {SIGNATUR_ABSTAND} 0 0;">{signatur.rumpf}</div>'
 
     absaetze: list[str] = []
     for nummer, block in enumerate(signatur_bloecke(profil, kopf)):
@@ -756,10 +771,8 @@ def htmlteil(kopf: dict, profil: dict, bloecke, sprache: str = "de",
         )
 
     if absaetze and logo is not None:
-        stuecke.append(_signaturtabelle(profil, logo, "\n".join(absaetze)))
-    else:
-        stuecke.extend(absaetze)
-    return emit_html.dokument("\n".join(stuecke) + "\n", sprache=sprache, vorspann=vorspann)
+        return _signaturtabelle(profil, logo, "\n".join(absaetze))
+    return "\n".join(absaetze)
 
 
 # ── Die Brücke ins Mailprogramm (#108) ───────────────────────────────────────
