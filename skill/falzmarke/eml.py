@@ -555,6 +555,15 @@ def mitgebrachte_signatur(profil: dict,
             f"{pfad.name} hält die Regeln für eine erzeugte Nachricht nicht ein: "
             f"{'; '.join(verstoesse)}. Die Signatur wird nicht eingesetzt.")
 
+    # Übernommen werden Aufbau und Inhalt, die Farben erbt die Mail vom
+    # Mailprogramm — dieselbe Regel wie für den Rumpf (ADR 0034, Nachtrag vom
+    # 15.10.2026). Erst NACH der Prüfung: Abgelehnt wird, was die Quelle
+    # schreibt, nicht was nach dem Bereinigen übrig bleibt. Die Datei selbst
+    # bleibt unberührt; aus ihr entstehen in `cw-core` auch Signaturen für
+    # Outlook.
+    rumpf, _ = emit_html.fremdrumpf_ohne_farben(rumpf)
+    stil, _ = emit_html.fremdstil_ohne_farben(stil)
+
     text = ""
     text_angabe = email_teil.get("signatur_text")
     if text_angabe:

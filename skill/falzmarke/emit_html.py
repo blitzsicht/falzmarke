@@ -31,9 +31,10 @@ from __future__ import annotations
 
 import html as html_modul
 import re
+from html.parser import HTMLParser
 
 from falzmarke import baum as baum_modul
-from falzmarke import typografie
+from falzmarke import farbe, typografie
 
 #: Systemschriften. Kein Webfont — der käme von außen und wird geblockt.
 SCHRIFTSTAPEL = "-apple-system, Roboto, Helvetica, Arial, sans-serif"
@@ -201,6 +202,244 @@ def fremdstil_verstoesse(stil: str) -> list[str]:
         if re.search(muster, stil, re.IGNORECASE):
             gefunden.append(grund)
     return gefunden
+
+
+# ── Die mitgebrachte Signatur erbt ihre Farben (15.10.2026) ─────────────────
+#
+# Der Rumpf setzt seit #391 keine Farbe, die auf hellem oder dunklem Grund
+# unlesbar wäre (Begründung bei `RAHMEN`). Die Signatur aus `email.signatur_html`
+# brachte ihre Farben trotzdem mit — `#1f2a37`, `#333333`, `#888888` aus `cw-core`
+# —, und ihre Dunkelregeln stehen in ihrem eigenen `<style>`, das der
+# Thunderbird-Entwurf nicht bekommt (ADR 0049). Im dunklen Entwurf stand sie
+# dunkel auf dunkel.
+#
+# Die Vorlage in `cw-core` bleibt, wie sie ist: Aus ihr entstehen auch
+# Kundensignaturen für Outlook. Stattdessen gilt beim Einsetzen dieselbe Regel
+# wie für den Rumpf. Übernommen werden Aufbau und Inhalt; Schriftfarben und
+# Gründe fallen weg, eine Linie unter 3:1 wird zu `RAHMEN`. Sonst ändert sich
+# kein Byte — die Funktionen schneiden nur in Attributwerten, deren Stelle der
+# Parser bestimmt hat (ADR 0034, Nachtrag „Die Signatur erbt ihre Farben").
+
+#: Werte, die keine eigene Farbe setzen. Sie bleiben stehen.
+ERBT = {"inherit", "currentcolor", "transparent", "initial", "unset", "none"}
+
+#: Rahmen-Eigenschaften, deren Farbe gemessen wird.
+LINIENEIGENSCHAFTEN = {"border", "border-top", "border-right", "border-bottom", "border-left",
+                       "border-color", "border-top-color", "border-right-color",
+                       "border-bottom-color", "border-left-color"}
+
+#: Wörter in einer Rahmenangabe, die keine Farbe sind.
+LINIENWOERTER = {"none", "hidden", "dotted", "dashed", "solid", "double", "groove", "ridge",
+                 "inset", "outset", "thin", "medium", "thick"} | ERBT
+
+#: Ein Wort einer Rahmenangabe: Maß, Funktion, Hex-Wert oder Name.
+_LINIENTEIL = re.compile(r"[\d.]+[a-z%]*|(?:rgba?|hsla?)\([^)]*\)|#[0-9a-f]+|[a-z][a-z-]*",
+                         re.IGNORECASE)
+
+
+def _ohne_wichtig(wert: str) -> tuple[str, str]:
+    """`#fff !important` -> (`#fff`, ` !important`)."""
+    treffer = re.match(r"(.*?)(\s*!\s*important\s*)?$", wert, re.IGNORECASE | re.DOTALL)
+    return treffer.group(1), treffer.group(2) or ""
+
+
+def _deklaration_ohne_farbe(name: str, wert: str, linie_auf,
+                            linie_weg: bool = False) -> tuple[str | None, list[str]]:
+    """Eine Deklaration nach der Regel des Rumpfs: neuer Wert (None = weg) und Befund.
+
+    Schrift muss auf beiden Gründen 4,5:1 tragen (`farbe.SCHWELLE_SCHRIFT`) — das
+    schafft keine Farbe, also fällt jede gesetzte weg. Ein Grund fällt weg, außer
+    er ist durchsichtig. Eine Linie muss auf den Gründen in `linie_auf` 3:1
+    tragen, sonst wird ihre Farbe zu `RAHMEN` — oder sie fällt ganz weg
+    (`linie_weg`), wo sie nur eine Überschreibung im dunklen Schema ist: Dann
+    gilt die Linie, die inline steht und dort schon geprüft ist.
+    """
+    kern, wichtig = _ohne_wichtig(wert.strip())
+    eigenschaft = name.strip().lower()
+    if eigenschaft == "color":
+        if kern.lower() in ERBT or farbe.traegt(kern, farbe.SCHWELLE_SCHRIFT):
+            return wert, []
+        return None, [f"color: {kern}"]
+    if eigenschaft in ("background", "background-color"):
+        if kern.lower() in ERBT:
+            return wert, []
+        return None, [f"{eigenschaft}: {kern}"]
+    if eigenschaft in LINIENEIGENSCHAFTEN:
+        befund: list[str] = []
+
+        def tausche(teil: re.Match) -> str:
+            wort = teil.group(0)
+            if (wort[0].isdigit() or wort[0] == "." or wort.lower() in LINIENWOERTER
+                    or farbe.traegt(wort, farbe.SCHWELLE, linie_auf)):
+                return wort
+            befund.append(f"{eigenschaft}: {wort} → {RAHMEN}")
+            return RAHMEN
+
+        neu = _LINIENTEIL.sub(tausche, kern)
+        if befund and linie_weg:
+            return None, [f"{eigenschaft}: {kern}"]
+        return (wert if not befund else neu + wichtig), befund
+    return wert, []
+
+
+def _stil_ohne_farben(stil: str, linie_auf, linie_weg: bool = False) -> tuple[str, list[str]]:
+    """Deklarationen ohne Farbe — die übrigen Zeichen genau, wie sie dastanden."""
+    teile, befunde = [], []
+    for teil in stil.split(";"):
+        name, doppelpunkt, wert = teil.partition(":")
+        if not doppelpunkt:
+            teile.append(teil)
+            continue
+        neu, befund = _deklaration_ohne_farbe(name, wert, linie_auf, linie_weg)
+        befunde += befund
+        if neu is None:
+            continue
+        if neu != wert:
+            vorn = wert[:len(wert) - len(wert.lstrip())]
+            hinten = wert[len(wert.rstrip()):]
+            neu = vorn + neu.strip() + hinten
+        teile.append(name + doppelpunkt + neu)
+    ergebnis = ";".join(teile)
+    # Fiel die erste Deklaration weg, stünde der Abstand vor der zweiten vorn.
+    if befunde and stil[:1] not in (" ", "\t", "\n"):
+        ergebnis = ergebnis.lstrip()
+    return ergebnis, befunde
+
+
+#: Ein Attribut in einem Start-Tag: Name, dann wahlweise `=` und Wert.
+_ATTRIBUT = re.compile(r"""[\s/]*(?P<name>[^\s/>"'=]+)(?:\s*=\s*(?P<wert>"[^"]*"|'[^']*'|[^\s>]+))?""")
+
+
+class _Starttags(HTMLParser):
+    """Findet jedes Start-Tag samt Stelle im Text. Kommentare und Text übergeht er."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=False)
+        self.tags: list[tuple[tuple[int, int], str, str]] = []
+
+    def handle_starttag(self, tag, attrs):
+        self.tags.append((self.getpos(), tag, self.get_starttag_text()))
+
+    handle_startendtag = handle_starttag
+
+
+def _tag_ohne_farben(tag: str, roh: str) -> tuple[str, list[str]]:
+    """Ein Start-Tag, um Farben bereinigt — Attribute einzeln, von hinten nach vorn."""
+    kopf = re.match(r"<[^\s/>]+", roh).end()
+    befunde: list[str] = []
+    schnitte = []
+    for treffer in _ATTRIBUT.finditer(roh, kopf, len(roh) - 1):
+        name = treffer.group("name").lower()
+        if treffer.group("wert") is None or not treffer.group(0).strip():
+            continue
+        wert = treffer.group("wert")
+        rein = wert[1:-1] if wert[:1] in "\"'" else wert
+        if name == "bgcolor" and rein.strip().lower() not in ERBT:
+            befunde.append(f"bgcolor: {rein}")
+            schnitte.append((treffer.start(), treffer.end(), ""))
+        elif name == "color" and tag == "font":
+            if not farbe.traegt(rein, farbe.SCHWELLE_SCHRIFT):
+                befunde.append(f"color: {rein}")
+                schnitte.append((treffer.start(), treffer.end(), ""))
+        elif name == "style":
+            neu, befund = _stil_ohne_farben(rein, (farbe.GRUND_HELL, farbe.GRUND_DUNKEL))
+            if befund:
+                befunde += befund
+                if not neu.strip(" \t\n;"):
+                    schnitte.append((treffer.start(), treffer.end(), ""))
+                else:
+                    anfang = treffer.start("wert") + (1 if wert[:1] in "\"'" else 0)
+                    schnitte.append((anfang, anfang + len(rein), neu))
+    for anfang, ende, ersatz in reversed(schnitte):
+        roh = roh[:anfang] + ersatz + roh[ende:]
+    return roh, befunde
+
+
+def fremdrumpf_ohne_farben(rumpf: str) -> tuple[str, list[str]]:
+    """Der Rumpf einer mitgebrachten Signatur ohne Farben, die nicht tragen.
+
+    Entfernt Schriftfarben (`color`, auch mit `!important`, und `<font color>`)
+    und Gründe (`background`, `background-color`, `bgcolor`; `transparent`
+    bleibt). Linienfarben unter 3:1 auf einem der beiden Gründe werden zu
+    `RAHMEN`. Zurück kommt der Rumpf und die Liste dessen, was ging.
+
+    Kein Ersetzen über den ganzen Text: Der Parser bestimmt, wo ein Start-Tag
+    steht — Text und Kommentare, in denen `style="color:…"` als Wortlaut
+    vorkommt, bleiben unberührt —, und geändert wird nur innerhalb dieses Tags,
+    Attribut für Attribut. Text, Entitäten, Verweise und alle übrigen Attribute
+    bleiben Byte für Byte, wie sie waren.
+    """
+    finder = _Starttags()
+    finder.feed(rumpf)
+    finder.close()
+    zeilenanfang = [0]
+    for treffer in re.finditer("\n", rumpf):
+        zeilenanfang.append(treffer.end())
+    teile, befunde, stelle = [], [], 0
+    for (zeile, spalte), tag, roh in finder.tags:
+        anfang = zeilenanfang[zeile - 1] + spalte
+        if rumpf[anfang:anfang + len(roh)] != roh:
+            raise ValueError(f"Start-Tag <{tag}> nicht an der gemeldeten Stelle — "
+                             "die Signatur wird nicht umgeschrieben.")
+        neu, befund = _tag_ohne_farben(tag, roh)
+        if befund:
+            befunde += [f"<{tag}> {b}" for b in befund]
+            teile.append(rumpf[stelle:anfang] + neu)
+            stelle = anfang + len(roh)
+    teile.append(rumpf[stelle:])
+    return "".join(teile), befunde
+
+
+def _css_bloecke(css: str) -> list[tuple[str, str]]:
+    """`Kopf { Inhalt }` auf oberster Ebene — geschachtelte Klammern mitgezählt."""
+    bloecke, stelle = [], 0
+    while True:
+        auf = css.find("{", stelle)
+        if auf == -1:
+            return bloecke
+        tiefe, ende = 1, auf + 1
+        while ende < len(css) and tiefe:
+            tiefe += {"{": 1, "}": -1}.get(css[ende], 0)
+            ende += 1
+        bloecke.append((css[stelle:auf].strip(), css[auf + 1:ende - 1]))
+        stelle = ende
+
+
+def _css_ohne_farben(css: str, dunkel: bool, tiefe: int = 0) -> tuple[str, list[str]]:
+    zeilen, befunde = [], []
+    einzug = "  " * tiefe
+    for kopf, inhalt in _css_bloecke(css):
+        if kopf.startswith("@"):
+            innen_dunkel = dunkel or "prefers-color-scheme:dark" in re.sub(r"\s", "", kopf.lower())
+            innen, befund = _css_ohne_farben(inhalt, innen_dunkel, tiefe + 1)
+            befunde += befund
+            if innen:
+                zeilen.append(f"{einzug}{kopf} {{\n{innen}\n{einzug}}}")
+            continue
+        # `[data-ogsc]` setzt Outlook nur im dunklen Schema — dort zählt der dunkle Grund.
+        regel_dunkel = dunkel or "[data-ogsc]" in kopf or "[data-ogsb]" in kopf
+        gruende = ((farbe.GRUND_DUNKEL,) if regel_dunkel
+                   else (farbe.GRUND_HELL, farbe.GRUND_DUNKEL))
+        neu, befund = _stil_ohne_farben(inhalt, gruende, linie_weg=regel_dunkel)
+        befunde += [f"{kopf}: {b}" for b in befund]
+        if neu.strip(" \t\n;"):
+            zeilen.append(f"{einzug}{kopf} {{ {neu.strip()} }}")
+    return "\n".join(zeilen), befunde
+
+
+def fremdstil_ohne_farben(stil: str) -> tuple[str, list[str]]:
+    """Der Stil einer mitgebrachten Signatur, um die Farben bereinigt.
+
+    Schriftfarben fallen in jeder Regel weg — auch die hellen in der
+    Medienabfrage und unter `[data-ogsc]`: Die Klassen, die sie umschalteten,
+    setzen inline keine Farbe mehr (`fremdrumpf_ohne_farben`). Gründe fallen
+    weg, außer `transparent`. Eine Linienregel bleibt nur, wenn sie auf dem
+    Grund trägt, für den sie gilt — im dunklen Schema auf `GRUND_DUNKEL`.
+    Regeln ohne Inhalt und leere Medienabfragen fallen mit; alle anderen
+    Regeln bleiben. Kommentare fallen weg.
+    """
+    ohne_kommentar = re.sub(r"/\*.*?\*/", "", stil, flags=re.DOTALL)
+    return _css_ohne_farben(ohne_kommentar, dunkel=False)
 
 
 def as_text(text: str, typografie_anwenden: bool = True) -> str:

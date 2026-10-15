@@ -154,9 +154,38 @@ Der eigene Teil ist weiterhin eine Konstante, Zeichen für Zeichen verglichen.
 `bgcolor` eingeschlossen, mit welcher Klasse auch immer. `color: inherit` am Link setzt keine
 Farbe und bleibt erlaubt.
 
-Was das nicht löst: Eine **mitgebrachte Signatur** wird nicht angefasst. Setzt sie Farben, die nur
-auf Weiß tragen, und kommt ihr Dunkelblock nicht an, bleiben sie im dunklen Entwurf unlesbar. Ihre
-Farben sind die Sache der Quelle (`cw-core`).
+Was das zunächst nicht löste: Eine **mitgebrachte Signatur** blieb unangetastet. Ihre Farben trugen
+nur auf Weiß, und ihr Dunkelblock kam im Entwurf nicht an. Das holt der nächste Nachtrag nach.
+
+##### Nachtrag vom 15.10.2026: die Signatur erbt ihre Farben (#275)
+
+Mit dem Profil `gottl-gbr` blieben im dunklen Thunderbird-Entwurf Name und E-Mail-Link (`#1f2a37`,
+1,15:1 auf `#1e1e1e`), Firma (`#333333`, 1,32:1) und Labels (`#888888`, auf Weiß 3,54:1) dunkel auf
+dunkel. Die Dunkelregeln der Signatur stehen in ihrem eigenen `<style>`, und das bekommt der
+Entwurf nicht.
+
+Die Vorlage in `cw-core` wird **nicht** geändert: Aus ihr entstehen auch Kundensignaturen für
+Outlook. Stattdessen gilt beim Einsetzen dieselbe Regel wie für den Rumpf. **Übernommen werden
+Aufbau und Inhalt, die Farben erbt die Mail vom Mailprogramm.** #275 hatte festgelegt, dass der Rumpf
+übernommen und der Stil hinter den eigenen Block gesetzt wird. Das bleibt, jetzt eben ohne Farben:
+
+| Was | Beim Einsetzen |
+|---|---|
+| Schriftfarbe (`color`, auch `!important`; `<font color>`) | fällt weg; keine Farbe trägt Schrift auf beiden Gründen |
+| Grund (`background`, `background-color`, `bgcolor`) | fällt weg; `transparent` bleibt |
+| Linie unter 3:1 auf einem der beiden Gründe | wird `#7e7e7e`; eine Linie, die trägt, bleibt |
+| Stilregel für Schrift oder Grund, auch unter `[data-ogsc]` | fällt weg, die Klassen setzen keine Farbe mehr |
+| Dunkle Linienregel unter 3:1 auf `#1e1e1e` | fällt weg; im Dunkeln gilt die Linie, die inline steht |
+| alles andere — Tags, Text, Links, Logo, Schrift, Größen, Abstände, Rundungen | bleibt Byte für Byte |
+
+Ein Knopf mit eigener Fläche und weißer Schrift verliert damit Fläche und Schriftfarbe. Was bleibt,
+ist ein Link in Größe und Gewicht der Vorlage; der Platz des Knopfs bleibt.
+
+Die Datei im Profilordner bleibt unberührt. Geprüft wird weiterhin, **was die Quelle schreibt**:
+`verstoesse()` läuft vor dem Bereinigen, und eine unsaubere Signatur wird abgelehnt wie bisher.
+Bereinigt wird nur in Attributwerten, deren Stelle der HTML-Parser bestimmt hat
+(`emit_html.fremdrumpf_ohne_farben`, `fremdstil_ohne_farben`). Ein Ersetzen über den ganzen Text
+gibt es nicht; ein `style="color:…"`, das als Wortlaut im Text steht, bleibt stehen.
 
 #### Ergänzung vom 07.09.2026: drei Wege für das Logo, und eine Grenze dafür
 
