@@ -1,0 +1,1 @@
+- **`falzmarke serie` liest Semikolon-CSV.** Die Excel-Datei mit `;` als Trenner endete mit einem `TypeError`, weil die ganze Kopfzeile eine einzige Spalte war. Der Trenner `,` oder `;` wird jetzt an der Kopfzeile erkannt. Hat eine Datenzeile trotzdem mehr Felder als die Kopfzeile, meldet `serie` das mit dem gelesenen Trennzeichen, statt abzustürzen.

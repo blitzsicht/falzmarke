@@ -20,6 +20,7 @@ ihre Gegenprobe:
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 
@@ -252,6 +253,72 @@ def test_excel_schreibt_eine_byte_order_mark(tmp_path):
         "﻿irma,ort\nMuster GmbH,Musterstadt\n".encode("utf-8"))
     saetze = serie.lies_daten(tmp_path / "excel.csv")
     assert list(saetze[0])[0] == "irma", list(saetze[0])
+
+
+SEMIKOLON_CSV = "name;strasse;ort\nMüller, Hans;Hauptstr. 1;93047 Regensburg\n"
+
+
+def test_semikolon_csv_wird_richtig_gelesen_oder_beim_trenner_gemeldet(tmp_path):
+    """Excel schreibt in Deutschland `;`. Erwartet: drei Spalten — oder ein
+    `Seriefehler`, der das Trennzeichen nennt. Nie ein TypeError, nie eine
+    einzige Spalte namens `name;strasse;ort`."""
+    pfad = tmp_path / "excel.csv"
+    pfad.write_text(SEMIKOLON_CSV, encoding="utf-8")
+    try:
+        saetze = serie.lies_daten(pfad)
+    except serie.Seriefehler as fehler:
+        assert re.search(r"Trenn|Semikolon", str(fehler)), str(fehler)
+        return
+    assert len(saetze) == 1, saetze
+    assert list(saetze[0]) == ["name", "strasse", "ort"], saetze
+    assert saetze[0] == {"name": "Müller, Hans", "strasse": "Hauptstr. 1",
+                         "ort": "93047 Regensburg"}, saetze
+
+
+def test_semikolon_csv_endet_im_lauf_nie_im_typeerror(tmp_path):
+    """Der Weg des Issues: `serie` mit Semikolon-CSV und einem Komma in der
+    Datenzeile (der Rest landete unter dem Schlüssel `None`)."""
+    (tmp_path / "vorlage.md").write_text(VORLAGE, encoding="utf-8")
+    daten = tmp_path / "daten.csv"
+    daten.write_text(
+        ";".join(SPALTEN) + "\n"
+        + "Muster GmbH;Musterstraße 1;12345;Musterstadt;Frau;Kern, Anna;2026-0815\n",
+        encoding="utf-8")
+    ziel = tmp_path / "briefe"
+    try:
+        code = cli.main(["serie", str(tmp_path / "vorlage.md"), "--daten", str(daten),
+                         "--ziel", str(ziel), "--benennen", "nachname",
+                         "--profiles", str(PROFILE)])
+    except TypeError as fehler:  # genau der Fehler aus #394
+        pytest.fail(f"TypeError statt Meldung: {fehler}")
+    except serie.Seriefehler as fehler:
+        assert re.search(r"Trenn|Semikolon", str(fehler)), str(fehler)
+    else:
+        # entweder sauber gelesen (ein Brief je Datensatz) oder mit Fehlercode beendet
+        assert code != 0 or len(list(ziel.glob("*.pdf"))) == 1, code
+
+
+def test_semikolon_csv_ohne_komma_in_den_daten_wird_ebenso_erkannt(tmp_path):
+    """Ohne Komma in den Daten fiele die Kopfzeile nicht über `None` auf —
+    der Fehler wäre still: eine einzige Spalte `name;strasse;ort`."""
+    pfad = tmp_path / "excel.csv"
+    pfad.write_text("name;ort\nHans;Regensburg\n", encoding="utf-8")
+    try:
+        saetze = serie.lies_daten(pfad)
+    except serie.Seriefehler as fehler:
+        assert re.search(r"Trenn|Semikolon", str(fehler)), str(fehler)
+        return
+    assert saetze == [{"name": "Hans", "ort": "Regensburg"}], saetze
+
+
+def test_komma_csv_mit_komma_im_anfuehrungsfeld_bleibt_unveraendert(tmp_path):
+    """Gegenprobe: die Erkennung darf die gewöhnliche Komma-CSV nicht
+    verbiegen — auch nicht, wenn ein Feld ein Semikolon enthält."""
+    pfad = tmp_path / "komma.csv"
+    pfad.write_text('name,strasse,ort\n"Müller, Hans",Hauptstr. 1,"93047; Regensburg"\n',
+                    encoding="utf-8")
+    assert serie.lies_daten(pfad) == [
+        {"name": "Müller, Hans", "strasse": "Hauptstr. 1", "ort": "93047; Regensburg"}]
 
 
 # ── Das Sammel-PDF ──────────────────────────────────────────────────────────

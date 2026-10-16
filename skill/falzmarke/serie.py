@@ -105,6 +105,15 @@ class Bericht:
 
 # ── Die Datenquelle ─────────────────────────────────────────────────────────
 
+def _trenner(kopfzeile: str) -> str:
+    """`,` oder `;` — das Trennzeichen, das die Kopfzeile in mehr Spalten teilt.
+
+    Excel schreibt in Deutschland `;`. Bei Gleichstand gilt `,`, der Standard.
+    """
+    spalten = {t: len(next(csv.reader([kopfzeile], delimiter=t))) for t in (",", ";")}
+    return ";" if spalten[";"] > spalten[","] else ","
+
+
 def lies_daten(pfad: Path) -> list[dict]:
     """CSV oder JSON — erkannt an der Endung, nicht am Inhalt.
 
@@ -133,7 +142,9 @@ def lies_daten(pfad: Path) -> list[dict]:
 
     if endung == ".csv":
         with pfad.open(encoding="utf-8-sig", newline="") as offen:
-            leser = csv.DictReader(offen)
+            trenner = _trenner(offen.readline())
+            offen.seek(0)
+            leser = csv.DictReader(offen, delimiter=trenner)
             if not leser.fieldnames:
                 raise Seriefehler(f"{pfad.name}: keine Kopfzeile gefunden.")
             leer = [n for n in leser.fieldnames if not (n or "").strip()]
@@ -141,7 +152,15 @@ def lies_daten(pfad: Path) -> list[dict]:
                 raise Seriefehler(
                     f"{pfad.name}: die Kopfzeile hat eine Spalte ohne Namen — "
                     "ein Platzhalter könnte nicht darauf zeigen.")
-            return [{k: (v or "") for k, v in satz.items()} for satz in leser]
+            saetze = []
+            for satz in leser:
+                if None in satz:
+                    raise Seriefehler(
+                        f"{pfad.name}: Zeile {leser.line_num} hat mehr Felder als die "
+                        f"Kopfzeile. Gelesen wurde mit dem Trennzeichen `{trenner}` — "
+                        "stimmt es? Felder mit Trennzeichen gehören in Anführungszeichen.")
+                saetze.append({k: (v or "") for k, v in satz.items()})
+            return saetze
 
     raise Seriefehler(
         f"{pfad.name}: unbekannte Endung `{endung or '(keine)'}`. "
