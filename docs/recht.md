@@ -86,8 +86,9 @@ Die Tabelle oben sagt, was eine Stufe **bedeutet**. Hier steht, was die Regeln t
 tragen. **Stand: 25.09.2026**, gemessen gegen `main` nach dem Aufstieg der Geometrie-Regeln
 ([#355](https://github.com/blitzsicht/falzmarke/issues/355)); die Gesamtzahl ist am 07.10.2026
 nachgezählt, als die Regeln der Urkunde dazukamen, und am 17.10.2026 mit der Prüfung auf
-getrennte Mail-Adressen und URLs. Diese berühren keine der Zahlen darunter: Sie berufen sich auf
-keine Quelle, also kann auch keine zu ihnen schweigen. Die Zahlen kommen aus
+getrennte Mail-Adressen und URLs. Weder die Regeln der Urkunde noch diese Prüfung berühren eine
+der Zahlen darunter: Keine von ihnen beruft sich auf eine Quelle, also kann auch keine zu ihr
+schweigen. Die Zahlen kommen aus
 der Regeldatei; `tests/test_textkanon.py` zählt sie bei jedem Lauf nach und wird rot, sobald
 dieser Abschnitt ihnen nicht mehr folgt.
 

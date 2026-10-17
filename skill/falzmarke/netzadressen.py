@@ -9,7 +9,8 @@ Zeilenende und „vus@blitzsicht.com“ in der nächsten Zeile, aus
 das abtippt, schreibt an eine Adresse, die es nicht gibt. Dazu kommt ein
 zweiter Weg, auf dem eine Adresse zerfällt: Text, der mit `http://` oder
 `https://` beginnt, bricht Typst ohne Trennstrich nach Punkt und Schrägstrich
-um („https://blitzsicht.“ / „com/datenschutz.“).
+um („https://blitzsicht.“ / „com/datenschutz.“), bei Platznot auch mitten im
+Wort („…/handwerk“ / „sbetriebe/…“).
 
 Dieses Modul ist die eine Stelle, an der feststeht, was als Adresse gilt. Der
 Typst-Emitter (`emit.as_text`) setzt jedes Wort, das eine enthält, unteilbar;
@@ -44,20 +45,33 @@ NETZADRESSE = re.compile(
     rf"|{_DOMAIN}{_REST}"
 )
 
-#: Ab dieser Länge wird ein Wort mit Adresse nicht mehr unteilbar gesetzt.
+#: Bis zu dieser Länge wird ein Wort mit Adresse im Fließtext als Box gesetzt.
 #:
-#: Unteilbar heißt: Passt es nicht mehr in die Zeile, rückt es als Ganzes in
-#: die nächste. Ein Wort, das länger ist als eine ganze Zeile, ragte dann über
-#: den rechten Rand des Satzspiegels hinaus. Gemessen am 17.10.2026 mit
+#: Eine Box rückt als Ganzes in die nächste Zeile, wenn sie nicht mehr passt.
+#: Ist sie breiter als die ganze Zeile, ragt sie nicht etwa über den Rand:
+#: Typst bricht sie in sich um, und das Wort danach steht neben ihrer ersten
+#: Zeile statt hinter ihrer letzten. Gemessen am 17.10.2026 mit einer URL aus
+#: 103 Zeichen: „…foerderung-und- und“ / „zuschuesse“ / „danach weiter.“ Keine
+#: Maßprüfung schlägt an, und auch diese nicht — die Zeile endet auf „und“.
+#: Die Grenze muss deshalb sicher unter der Zeilenbreite bleiben. Gemessen mit
 #: Libertinus Serif in 11 pt (Satzbreite 165 mm): eine Filial-URL aus 61
 #: Zeichen 98,8 mm, eine aus 72 Zeichen 117,5 mm, eine Mail-Adresse aus 43
-#: Zeichen 68,7 mm. Erst ein Kunstwort aus lauter „mw“ braucht 2,86 mm je
-#: Zeichen und hätte bei 60 Zeichen keinen Platz mehr — eine solche Adresse
-#: fiele in `verify` am rechten Rand auf, nicht still. Über der Grenze setzt
-#: der Emitter nur die Silbentrennung aus: Typst darf dann an Punkt oder
-#: Schrägstrich umbrechen, aber ohne Trennstrich, der wie ein Teil der
-#: Adresse aussähe.
+#: Zeichen 68,7 mm. Erst ein Kunstwort aus lauter „mw“ (2,86 mm je Zeichen)
+#: bräuchte bei 60 Zeichen mehr als die Zeile.
+#:
+#: Über der Grenze setzt der Emitter nur die Silbentrennung aus: Typst darf
+#: dann an Punkt oder Schrägstrich umbrechen, eine URL auch mitten im Wort,
+#: aber ohne Trennstrich, der wie ein Teil der Adresse aussähe. Bricht die
+#: Adresse dabei, meldet `verify` es (`getrennt`, Fall 3).
 UNTEILBAR_BIS = 60
+
+#: Dieselbe Grenze im Blocksatz (Urkunde mit `blocksatz: true`).
+#:
+#: Rückt eine Box in die nächste Zeile, treibt der Blocksatz die Zeile davor
+#: auf volle Breite aus. Gemessen am 17.10.2026 an der Muster-Urkunde, größte
+#: Lücke zwischen zwei Wörtern der Zeile davor: bis 40 Zeichen 1,0 mm wie im
+#: übrigen Text, 47 Zeichen 2,0 mm, 52 Zeichen 5,7 mm, 59 Zeichen 10,9 mm.
+UNTEILBAR_BIS_BLOCKSATZ = 40
 
 # Was einem Satz folgt, ohne zur Adresse zu gehören.
 _SATZZEICHEN = ".,;:!?)]}»«“”‘’\"'"
@@ -115,18 +129,26 @@ class Trennung:
     anfang: str
     #: `trennstrich`: Die Zeile endet auf einem Trennstrich mitten in der
     #: Adresse. `umbruch`: Die Adresse bricht ohne Strich ab.
+    #: `ueberlang`: Sie ist zu lang für die Box und bricht irgendwo ab (Fall 3
+    #: in `getrennt`).
     art: str
 
     def __str__(self) -> str:
-        return f"„{self.ende} ⏎ {self.anfang}“"
+        # Ein weiches Trennzeichen (so liest pdfplumber den Trennstrich im
+        # fetten Betreff) wäre im Bericht unsichtbar: „ser ⏎ vus@…“.
+        return f"„{self.ende.replace(chr(0xAD), '-')} ⏎ {self.anfang}“"
 
 
-def getrennt(zeilen: list[str]) -> list[Trennung]:
+#: Womit das Wort am Zeilenanfang beginnen kann, wenn es eine URL fortsetzt.
+_PFADZEICHEN = "-._~%?#&=+"
+
+
+def getrennt(zeilen: list[str], unteilbar_bis: int = UNTEILBAR_BIS) -> list[Trennung]:
     """Jede Adresse, die über das Ende einer der Zeilen läuft.
 
     `zeilen` ist der Text, so wie er im fertigen Dokument Zeile für Zeile
     steht. Verglichen wird das letzte Wort einer Zeile mit dem ersten der
-    nächsten — zwei Fälle, beide ohne Rückgriff auf die Quelle:
+    nächsten — drei Fälle, alle ohne Rückgriff auf die Quelle:
 
     1. **Trennstrich.** Die Zeile endet auf Buchstabe oder Ziffer und einem
        Trennstrich, und zusammengesetzt (mit oder ohne den Strich) ergibt sich
@@ -134,13 +156,37 @@ def getrennt(zeilen: list[str]) -> list[Trennung]:
     2. **Umbruch ohne Strich.** Das Wort am Zeilenende trägt schon das
        Merkmal einer Adresse — `://`, `@` oder `www.` —, ist für sich aber
        noch keine ganze: „https://blitzsicht.“ / „com/datenschutz.“.
+    3. **Umbruch in einer langen Adresse.** Die Adresse am Zeilenende hat
+       ein Schema oder einen Pfad, das nächste Wort könnte sie fortsetzen (es
+       beginnt klein, mit einer Ziffer oder einem Zeichen aus einem Pfad;
+       groß beginnt ein neuer Satz oder ein Substantiv), und beide zusammen
+       sind länger als `unteilbar_bis`. Ohne Box
+       bricht Typst eine URL nicht nur nach „/“ um, sondern auch mitten im
+       Wort, ganz ohne Strich: „…/handwerksbetriebe/“ / „regensburg/…“,
+       „…/handwerk“ / „sbetriebe/…“, „https://www.blitzsicht.“ / „com/…“
+       (gemessen am 17.10.2026). Das Stück am Zeilenende sieht dann aus wie
+       eine ganze Adresse. Gedruckt ist das nicht zu unterscheiden von einer
+       ganzen Adresse, auf die ein neues Wort folgt („https://blitzsicht.com/“
+       / „finden Sie“). Fest steht es nur über die Länge: Ein Wort bis
+       `unteilbar_bis` Zeichen setzt der Emitter als Box, und eine Box bricht
+       nicht um — sind beide zusammen nicht länger, waren es zwei Wörter.
+       Sind sie länger, wird gemeldet, auch wenn es zwei Wörter waren: Eine
+       Adresse, die mit dem nächsten Wort über die Grenze reicht, ist lang
+       genug, um sie zu kürzen.
 
-    Was bewusst nicht gemeldet wird: Eine Domain ohne Schema, die nach einem
-    Schrägstrich ohne Strich umbricht („blitzsicht.com/“ / „datenschutz“). Im
-    gedruckten Text ist sie nicht von einer ganzen Adresse mit Schrägstrich am
-    Ende zu unterscheiden, auf die ein neues Wort folgt; das zu melden hieße,
-    richtige Briefe anzuhalten. Ebenso wenig eine Adresse, die über einen
-    Seitenwechsel läuft — gepaart werden nur Zeilen derselben Seite.
+    `unteilbar_bis` ist deshalb die Grenze, die der Emitter an dieser Stelle
+    benutzt hat: 60 im Fließtext, 40 im Blocksatz, 0 in einer Tabellenzelle.
+
+    Was nicht gemeldet wird:
+
+    - Eine Adresse, die über einen Seitenwechsel läuft — gepaart werden nur
+      Zeilen derselben Seite.
+    - Fall 3 in einem PDF, das nicht falzmarke gesetzt hat, oder an einer
+      Stelle, für die der Aufrufer eine größere Grenze angibt, als der
+      Emitter benutzt hat: Dort fehlt die Box, auf die sich die Längenprobe
+      verlässt. `verify` kennt eine Zelle nur, wenn sie gerahmt ist
+      (Markdown-Tabelle); in den Angaben ohne Rahmen gilt die Grenze des
+      Fließtexts.
     """
     treffer: list[Trennung] = []
     for nummer in range(len(zeilen) - 1):
@@ -170,4 +216,7 @@ def getrennt(zeilen: list[str]) -> list[Trennung]:
         merkmal = "://" in oben_teil or "@" in oben_teil or oben_teil.lower().startswith("www.")
         if merkmal and not _vollstaendig(oben_teil):
             treffer.append(Trennung(nummer, ende, anfang, "umbruch"))
+        elif ("/" in oben_teil and len(ende) + len(anfang) > unteilbar_bis
+              and (anfang[0].islower() or anfang[0].isdigit() or anfang[0] in _PFADZEICHEN)):
+            treffer.append(Trennung(nummer, ende, anfang, "ueberlang"))
     return treffer

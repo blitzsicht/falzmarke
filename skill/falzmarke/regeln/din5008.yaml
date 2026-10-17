@@ -827,9 +827,13 @@ regeln:
       Maße grün. Der Typst-Emitter setzt seither jedes Wort mit Adresse
       unteilbar (`netzadressen.zerlege`); `verify` hält im fertigen PDF nach,
       für Brief und Urkunde. Gemessen wird am gesetzten Text, Zeile gegen
-      Zeile derselben Seite, mit demselben Muster wie im Emitter. Was sie
-      nicht sieht: eine Domain ohne Schema, die ohne Strich nach einem
-      Schrägstrich umbricht, und einen Umbruch über den Seitenwechsel.
+      Zeile derselben Seite und derselben Spalte, mit demselben Muster wie
+      im Emitter. Ein Umbruch nach „/“ oder mitten im Wort sieht gedruckt
+      aus wie eine ganze Adresse vor einem neuen Wort; als Befund gilt er,
+      wenn beide zusammen länger sind als das, was der Emitter an dieser
+      Stelle unteilbar setzt (60 Zeichen, im Blocksatz 40, in der Zelle 0).
+      Was sie nicht sieht: einen Umbruch über den Seitenwechsel, und einen
+      nach „/“ in den Angaben ohne Rahmen oder in einem fremden PDF.
 
 
   - id: werkzeug.eingebettet

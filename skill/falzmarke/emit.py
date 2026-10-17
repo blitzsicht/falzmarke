@@ -29,21 +29,25 @@ def zeichenkette(text: str) -> str:
     return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def as_text(text: str, typografie_anwenden: bool = True) -> str:
+def as_text(text: str, typografie_anwenden: bool = True,
+            unteilbar_bis: int = netzadressen.UNTEILBAR_BIS) -> str:
     """Text als Typst-Zeichenkette; ein Wort mit Adresse unteilbar.
 
     Eine Mail-Adresse, Domain oder URL darf im Brief nicht getrennt werden:
     Wer „ser-“ / „vus@blitzsicht.com“ abtippt, schreibt ins Leere (gemessen an
     versendeten Briefen, siehe `netzadressen`). `#box` statt nur
     `hyphenate: false`, weil Typst eine URL mit Schema auch ohne Trennstrich
-    nach jedem Punkt und Schrägstrich umbricht — und eine Domain nach jedem
-    Bindestrich. In der Box gibt es keine Umbruchstelle mehr; umbrochen wird
-    am Leerraum davor, wie bei jedem anderen Wort.
+    nach jedem Punkt und Schrägstrich umbricht, bei Platznot sogar mitten im
+    Wort — und eine Domain nach jedem Bindestrich. In der Box gibt es keine
+    Umbruchstelle mehr; umbrochen wird am Leerraum davor, wie bei jedem
+    anderen Wort.
 
-    Ein Wort über `netzadressen.UNTEILBAR_BIS` Zeichen passte als Box in keine
-    Zeile und ragte aus dem Satzspiegel. Es bekommt nur `hyphenate: false`:
-    kein Trennstrich, der wie ein Teil der Adresse aussähe, aber ein Umbruch
-    an Punkt oder Schrägstrich bleibt möglich.
+    Eine Box gibt es nur bis `unteilbar_bis` Zeichen. Darüber bekommt das Wort
+    nur `hyphenate: false`: kein Trennstrich, der wie ein Teil der Adresse
+    aussähe, aber ein Umbruch an Punkt oder Schrägstrich bleibt möglich. Die
+    Grenze setzt der Aufrufer nach dem Ort im Satz (`setze`): 60 im
+    Fließtext, 40 im Blocksatz, 0 in einer Tabellenzelle — dort nie eine Box.
+    Warum, steht an `netzadressen.UNTEILBAR_BIS`.
 
     Die Typografie läuft vorher über den ganzen Text: Anführungszeichen um
     eine Adresse werden nur als Paar erkannt, und das Paar reicht über sie
@@ -55,7 +59,7 @@ def as_text(text: str, typografie_anwenden: bool = True) -> str:
     for stueck, ist_adresse in netzadressen.zerlege(text):
         if not ist_adresse:
             teile.append(f"#text({zeichenkette(stueck)})")
-        elif len(stueck) <= netzadressen.UNTEILBAR_BIS:
+        elif len(stueck) <= unteilbar_bis:
             teile.append(f"#box(text(hyphenate: false, {zeichenkette(stueck)}))")
         else:
             teile.append(f"#text(hyphenate: false, {zeichenkette(stueck)})")
@@ -177,47 +181,61 @@ def tabelle(zeilen: list[list[str]], ausrichtungen: list[str | None]) -> str:
 # verdoppeln: Der Baum kennt keine Zielsprache.
 
 
-def _inline(knoten) -> str:
-    """Ein Inline-Knoten oder eine Folge davon."""
+def _inline(knoten, unteilbar_bis: int = netzadressen.UNTEILBAR_BIS) -> str:
+    """Ein Inline-Knoten oder eine Folge davon.
+
+    `unteilbar_bis`: bis zu welcher Länge ein Wort mit Adresse als Box gesetzt
+    wird (`as_text`). Es hängt am Block, in dem der Text steht.
+    """
     if isinstance(knoten, tuple):
-        return "".join(_inline(k) for k in knoten)
+        return "".join(_inline(k, unteilbar_bis) for k in knoten)
     if isinstance(knoten, baum_modul.Text):
-        return as_text(knoten.inhalt, typografie_anwenden=knoten.typografie)
+        return as_text(knoten.inhalt, typografie_anwenden=knoten.typografie,
+                       unteilbar_bis=unteilbar_bis)
     if isinstance(knoten, baum_modul.Umbruch):
         return umbruch()
     if isinstance(knoten, baum_modul.Stark):
-        return stark(_inline(knoten.kinder))
+        return stark(_inline(knoten.kinder, unteilbar_bis))
     if isinstance(knoten, baum_modul.Betont):
-        return betont(_inline(knoten.kinder))
+        return betont(_inline(knoten.kinder, unteilbar_bis))
     if isinstance(knoten, baum_modul.Wortlaut):
         return wortlaut(knoten.inhalt, knoten.block)
     if isinstance(knoten, baum_modul.Ausfuellfeld):
         return feld(knoten.laenge)
-    return _block(knoten)
+    return _block(knoten, unteilbar_bis)
 
 
-def _block(knoten) -> str:
+#: In einer Zelle nie eine Box. Gemessen am 17.10.2026: Eine Spalte mit
+#: `auto`-Breite wird schmaler als die Box, die Box bricht in sich um, und der
+#: Text dahinter landet neben ihrer ersten Zeile statt nach ihrer letzten
+#: („…sanierungen- oder“ / „regensburg.de“ / „rufen Sie an.“) — bei grünem
+#: `verify`. Ohne Box bricht Typst die Adresse an Bindestrich, Punkt oder
+#: Schrägstrich um, und das meldet `verify` („Netzadressen ungetrennt“).
+_IN_DER_ZELLE = 0
+
+
+def _block(knoten, unteilbar_bis: int = netzadressen.UNTEILBAR_BIS) -> str:
     if isinstance(knoten, baum_modul.Absatz):
-        return absatz(_inline(knoten.kinder))
+        return absatz(_inline(knoten.kinder, unteilbar_bis))
     if isinstance(knoten, baum_modul.Wortlaut):
         return wortlaut(knoten.inhalt, knoten.block)
     if isinstance(knoten, baum_modul.Zitat):
-        return zitat("\n".join(_block(k) for k in knoten.kinder))
+        return zitat("\n".join(_block(k, unteilbar_bis) for k in knoten.kinder))
     if isinstance(knoten, baum_modul.Ueberschrift):
-        return ueberschrift(_inline(knoten.kinder), knoten.ebene)
+        return ueberschrift(_inline(knoten.kinder, unteilbar_bis), knoten.ebene)
     if isinstance(knoten, baum_modul.Liste):
         return liste(
-            [_inline(p) for p in knoten.punkte],
+            [_inline(p, unteilbar_bis) for p in knoten.punkte],
             nummeriert=knoten.nummeriert,
             start=knoten.start,
         )
     if isinstance(knoten, baum_modul.Tabelle):
         return tabelle(
-            [[_inline(z) for z in zeile] for zeile in knoten.zeilen],
+            [[_inline(z, _IN_DER_ZELLE) for z in zeile] for zeile in knoten.zeilen],
             list(knoten.ausrichtungen),
         )
     if isinstance(knoten, baum_modul.Angaben):
-        return angaben([[_inline(z) for z in zeile] for zeile in knoten.zeilen])
+        return angaben([[_inline(z, _IN_DER_ZELLE) for z in zeile] for zeile in knoten.zeilen])
     if isinstance(knoten, baum_modul.Link):
         # Ein Link kann hier nicht ankommen: `markdown.lies` lehnt ihn ab,
         # sobald das Ziel ein Brief ist. Steht er trotzdem hier, hat jemand die
@@ -237,7 +255,13 @@ def _block(knoten) -> str:
     )
 
 
-def setze(bloecke) -> str:
-    """Geprüfter Baum -> Typst."""
-    gesetzt = [_block(b) for b in bloecke]
+def setze(bloecke, *, blocksatz: bool = False) -> str:
+    """Geprüfter Baum -> Typst.
+
+    `blocksatz`: Der Text wird auf volle Breite ausgetrieben (die Urkunde mit
+    `blocksatz: true`). Dann gilt für die Box die kleinere Grenze
+    `netzadressen.UNTEILBAR_BIS_BLOCKSATZ`.
+    """
+    bis = netzadressen.UNTEILBAR_BIS_BLOCKSATZ if blocksatz else netzadressen.UNTEILBAR_BIS
+    gesetzt = [_block(b, bis) for b in bloecke]
     return "\n\n".join(b for b in gesetzt if b.strip()) + "\n"
