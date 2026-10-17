@@ -25,7 +25,7 @@ auf 105,0 mm, endet der Lauf mit einem Fehler statt mit einem Brief, der nur ung
 **[In 60 Sekunden ausprobieren](#in-60-sekunden)** ·
 **[Beispielbrief ansehen](https://github.com/blitzsicht/falzmarke/raw/main/docs/renders/brief-form-b.png)**
 
-`Linux · macOS · Windows`  ·  `34 Maße je Seite`  ·  `PDF/A-2b`  ·  `MIT`
+`Linux · macOS · Windows`  ·  `35 Maße je Seite`  ·  `PDF/A-2b`  ·  `MIT`
 
 [English overview](https://github.com/blitzsicht/falzmarke/blob/main/README.en.md)
 
@@ -57,15 +57,15 @@ OK    Betreff, y-Oberkante: soll 98.47 ist 97.91 (tol -1.75/+0.6)
 OK    Abstand Betreff → Anrede (2 Leerzeilen): soll 12.70 ist 12.70 (tol ±0.2)
 ```
 
-Das sind vier von 33 Zeilen des Geometrieberichts. Der Film zeigt, wie die übrigen
+Das sind vier von 34 Zeilen des Geometrieberichts. Der Film zeigt, wie die übrigen
 entstehen: Eine Linie fährt das Blatt ab und hält an jedem gemessenen Höhenmaß. Sie hält
 dort, wo die Messung es sagt — bei diesen Prüfungen ist der gemessene Wert zugleich die
 Stelle.
 
-![Ein Beispielbrief, daneben ein Textfeld. Eine grüne waagerechte Linie wandert von oben nach unten über das Blatt und hält nacheinander an acht Stellen: Rücksendeangabe bei 46,26 Millimetern, Infoblock bei 50,34, Anschrift erste Zeile bei 62,69 und letzte Zeile bei 77,86, Betreff bei 98,45, Falzmarke 1 bei 105,00, Lochmarke bei 148,50 und Falzmarke 2 bei 210,00. Bei jedem Halt stehen daneben der Name der Prüfung, Sollwert, gemessener Wert, Toleranz und das Wort eingehalten. Am Ende liegen alle acht Linien gleichzeitig auf dem Blatt und daneben steht: 33 von 33 Prüfungen eingehalten.](https://github.com/blitzsicht/falzmarke/raw/main/docs/assets/demo/messfilm.gif)
+![Ein Beispielbrief, daneben ein Textfeld. Eine grüne waagerechte Linie wandert von oben nach unten über das Blatt und hält nacheinander an acht Stellen: Rücksendeangabe bei 46,26 Millimetern, Infoblock bei 50,34, Anschrift erste Zeile bei 62,69 und letzte Zeile bei 77,86, Betreff bei 98,45, Falzmarke 1 bei 105,00, Lochmarke bei 148,50 und Falzmarke 2 bei 210,00. Bei jedem Halt stehen daneben der Name der Prüfung, Sollwert, gemessener Wert, Toleranz und das Wort eingehalten. Am Ende liegen alle acht Linien gleichzeitig auf dem Blatt und daneben steht: 34 von 34 Prüfungen eingehalten.](https://github.com/blitzsicht/falzmarke/raw/main/docs/assets/demo/messfilm.gif)
 
-Acht der 33 Geometrieprüfungen tragen eine Höhe auf dem Blatt; die übrigen messen Breiten,
-Abstände und Eigenschaften ohne Ort auf der Seite. Die Zahl 34 weiter oben zählt eine
+Acht der 34 Geometrieprüfungen tragen eine Höhe auf dem Blatt; die übrigen messen Breiten,
+Abstände und Eigenschaften ohne Ort auf der Seite. Die Zahl 35 weiter oben zählt eine
 mehr: Nach einem `render` sieht die CLI zusätzlich die PDF/A-Konformität nach, und die
 liegt auf keinem Millimeter. Beide Zahlen stimmen, sie zählen Verschiedenes.
 
@@ -108,7 +108,7 @@ gepflegten Vorlage lässt sich vieles davon erreichen.
 |---|---|---|---|
 | Quelle diffbar und versionierbar | teilweise | selten | ja — Markdown und YAML |
 | Layout reproduzierbar | hängt an Vorlage und Umgebung | nicht zugesichert | ja — derselbe Renderer, dieselbe Ausgabe |
-| Fertiges PDF wird nachgemessen | nein | nein | ja — 34 Maße, jede Seite, Abweichung ist ein Fehler |
+| Fertiges PDF wird nachgemessen | nein | nein | ja — 35 Maße, jede Seite, Abweichung ist ein Fehler |
 | Absenderprofile | von Hand gepflegt | uneinheitlich | ja — einmal anlegen, überall nutzen |
 | Prüfbericht maschinenlesbar | nein | nein | ja — `--json` und Exit-Codes |
 | PDF/A als Voreinstellung | nicht automatisch | nicht zugesichert | ja — ohne zusätzliches Flag |

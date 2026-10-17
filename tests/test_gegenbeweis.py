@@ -1764,3 +1764,30 @@ def test_eine_entnahme_ohne_wirkung_faellt_auf(tmp_path, monkeypatch):
     assert lage.signatur.zustand == "unbestimmt", lage.signatur
     assert "noch im Rumpf" in lage.signatur.grund
     assert tb.rumpf.count(tbs._signatur_im_rumpf(unterschrift, felder)) == 1
+
+
+# ── Eine Adresse läuft nicht über das Zeilenende (14.10./17.10.2026) ───────
+#
+# Der Emitter setzt jedes Wort mit Mail-Adresse, Domain oder URL unteilbar
+# (`netzadressen.zerlege`, `emit.as_text`); `verify` sucht im fertigen PDF nach
+# einer, die trotzdem getrennt ist. Sabotiert wird der Schutz: Gilt kein Wort
+# mehr als Adresse, setzt Typst die Probe wie vor dem Fix — und dann muss genau
+# diese eine Prüfung anschlagen, keine andere. Die Probe ist so gebaut, dass
+# ohne Schutz alle vier Adressen am Zeilenende stehen.
+
+from falzmarke import netzadressen as _netzadressen               # noqa: E402
+
+ADRESSPROBE = REPO / "tests" / "fixtures" / "trennung" / "adressen.md"
+
+
+def test_adressprobe_unsabotiert_ist_gruen(tmp_path):
+    """Kontrollprobe: Mit dem Schutz schlägt nichts an."""
+    pdf, form = falzmarke.rendere(ADRESSPROBE, tmp_path / "adressen.pdf")
+    assert _gescheitert(pdf, form) == set()
+
+
+def test_ohne_schutz_faellt_die_getrennte_adresse_auf(tmp_path, monkeypatch):
+    monkeypatch.setattr(_netzadressen, "zerlege", lambda text: [(text, False)])
+    assert "#box(" not in _emit.as_text("an servus@blitzsicht.com"), "die Sabotage griff nicht"
+    pdf, form = falzmarke.rendere(ADRESSPROBE, tmp_path / "adressen.pdf")
+    assert _gescheitert(pdf, form) == {"Netzadressen ungetrennt"}

@@ -210,13 +210,13 @@ Befund maschinenlesbar aus.
 
 Seitenformat, Falz- und Lochmarken, alle vier Zonen des Anschriftfelds, Position und Breite des
 Informationsblocks, die Betreffposition relativ zum tiefer reichenden der beiden Blöcke,
-Satzspiegel, die Zeilenabstände im 12-pt-Raster, eingebettete Schriften, die PDF/A-Kennzeichnung
-und die Folgeseiten.
+Satzspiegel, die Zeilenabstände im 12-pt-Raster, eingebettete Schriften, die PDF/A-Kennzeichnung,
+die Folgeseiten und dass keine Mail-Adresse, Domain oder URL über das Zeilenende läuft.
 
-Bei einer Urkunde: Seitenformat, Satzspiegel, Zeilenraster und eingebettete Schriften wie beim
-Brief, dazu die Seitenzahl gegen `seiten_max`, die Lage des Titels, dass keine Linie aus dem
-Satzspiegel reicht und keine Marke im Heftrand steht, und die Unterschriftslinien. Diese Maße
-sind Setzungen des Werkzeugs, keine der Norm.
+Bei einer Urkunde: Seitenformat, Satzspiegel, Zeilenraster, eingebettete Schriften und
+ungetrennte Adressen wie beim Brief, dazu die Seitenzahl gegen `seiten_max`, die Lage des Titels,
+dass keine Linie aus dem Satzspiegel reicht und keine Marke im Heftrand steht, und die
+Unterschriftslinien. Diese Maße sind Setzungen des Werkzeugs, keine der Norm.
 
 Bei einer Nachricht: der MIME-Aufbau und die Reihenfolge der Alternativen, `format=flowed` samt
 Space-Stuffing, die Signaturtrennzeile, dass Text- und HTML-Teil dasselbe sagen, dass im HTML

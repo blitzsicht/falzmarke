@@ -20,6 +20,7 @@ prüfbar.
 from __future__ import annotations
 
 from falzmarke import baum as baum_modul
+from falzmarke import netzadressen
 from falzmarke import typografie
 
 
@@ -29,9 +30,36 @@ def zeichenkette(text: str) -> str:
 
 
 def as_text(text: str, typografie_anwenden: bool = True) -> str:
+    """Text als Typst-Zeichenkette; ein Wort mit Adresse unteilbar.
+
+    Eine Mail-Adresse, Domain oder URL darf im Brief nicht getrennt werden:
+    Wer „ser-“ / „vus@blitzsicht.com“ abtippt, schreibt ins Leere (gemessen an
+    versendeten Briefen, siehe `netzadressen`). `#box` statt nur
+    `hyphenate: false`, weil Typst eine URL mit Schema auch ohne Trennstrich
+    nach jedem Punkt und Schrägstrich umbricht — und eine Domain nach jedem
+    Bindestrich. In der Box gibt es keine Umbruchstelle mehr; umbrochen wird
+    am Leerraum davor, wie bei jedem anderen Wort.
+
+    Ein Wort über `netzadressen.UNTEILBAR_BIS` Zeichen passte als Box in keine
+    Zeile und ragte aus dem Satzspiegel. Es bekommt nur `hyphenate: false`:
+    kein Trennstrich, der wie ein Teil der Adresse aussähe, aber ein Umbruch
+    an Punkt oder Schrägstrich bleibt möglich.
+
+    Die Typografie läuft vorher über den ganzen Text: Anführungszeichen um
+    eine Adresse werden nur als Paar erkannt, und das Paar reicht über sie
+    hinweg.
+    """
     if typografie_anwenden:
         text = typografie.anwenden(text)
-    return f"#text({zeichenkette(text)})"
+    teile = []
+    for stueck, ist_adresse in netzadressen.zerlege(text):
+        if not ist_adresse:
+            teile.append(f"#text({zeichenkette(stueck)})")
+        elif len(stueck) <= netzadressen.UNTEILBAR_BIS:
+            teile.append(f"#box(text(hyphenate: false, {zeichenkette(stueck)}))")
+        else:
+            teile.append(f"#text(hyphenate: false, {zeichenkette(stueck)})")
+    return "".join(teile)
 
 
 def stark(inhalt: str) -> str:

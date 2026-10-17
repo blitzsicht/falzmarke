@@ -413,6 +413,42 @@ def _satzspiegel(dokument, bericht: Bericht, briefseiten: int | None = None) -> 
         )
 
 
+def _netzadressen(dokument, bericht: Bericht, briefseiten: int | None = None) -> None:
+    """Keine Mail-Adresse, Domain oder URL über das Zeilenende getrennt.
+
+    Anlass waren versendete Briefe (14.10. und 17.10.2026): „ser-“ am
+    Zeilenende, „vus@blitzsicht.com“ in der nächsten Zeile. Alle Maße stimmten,
+    und `verify` meldete grün. Seitdem setzt der Emitter jedes Wort mit
+    Adresse unteilbar (`emit.as_text`); diese Prüfung hält am fertigen PDF
+    fest, dass es auch so ankommt — und findet die Fälle, die der Emitter nicht
+    erreicht: den Betreff, eine Adresse, die Auszeichnung zerteilt, ein fremdes
+    PDF.
+
+    Was als getrennt gilt, entscheidet `netzadressen.getrennt`; diese Funktion
+    liefert nur die Zeilen, Seite für Seite. Eine Prüfung für das ganze
+    Dokument, nicht eine je Seite: Die Zahl im Schlusssatz soll nicht mit der
+    Seitenzahl wachsen, und der Befund nennt die Seite selbst.
+    """
+    from falzmarke import netzadressen
+
+    befunde: list[str] = []
+    for nummer, seite in enumerate(dokument.pages[:briefseiten], start=1):
+        zeilen = [
+            " ".join(s.text for s in sorted(zeile, key=lambda s: s.x0))
+            for zeile in _zeilen_gruppieren(_spans(seite))
+        ]
+        befunde.extend(f"Seite {nummer}: {t}" for t in netzadressen.getrennt(zeilen))
+    ist = "keine" if not befunde else befunde[0] + (
+        f" (+{len(befunde) - 1} weitere)" if len(befunde) > 1 else "")
+    bericht.add(
+        "Netzadressen ungetrennt", "keine über das Zeilenende", ist, "—", not befunde,
+        ursache="" if not befunde else (
+            "Eine Mail-Adresse, Domain oder URL läuft über das Zeilenende; wer sie abtippt, "
+            "schreibt ins Leere. Im Brieftext kein ** oder * mitten in die Adresse setzen "
+            "und eine Adresse über 60 Zeichen kürzen; im Betreff umstellen."),
+    )
+
+
 #: Die Grundzeile des Satzes: 12 pt. Dieselbe Zahl steht in `falzmarke.typ`
 #: als `#let zeile`; `tests/test_raster.py` hält beide zusammen.
 GRUNDZEILE = 4.2333
@@ -807,6 +843,7 @@ def _pruefe_urkunde(pdf_pfad: Path, briefseiten: int | None = None) -> Bericht:
 
     _satzspiegel(dokument, bericht, briefseiten)
     _raster(dokument, bericht, briefseiten)
+    _netzadressen(dokument, bericht, briefseiten)
 
     # Keine Marken. Gesucht wird unterhalb des Kopfes: Ein eigener Briefkopf
     # darf im Heftrand zeichnen, was er will — Falz- und Lochmarken stehen bei
@@ -1016,6 +1053,7 @@ def pruefe(pdf_pfad: Path, form: str, briefseiten: int | None = None,
 
     _satzspiegel(dokument, bericht, briefseiten)
     _raster(dokument, bericht, briefseiten)
+    _netzadressen(dokument, bericht, briefseiten)
 
     # Falz- und Lochmarken. Gesucht wird die nächstgelegene Marke, nicht die an
     # der Sollposition: Eine Marke bei 84,0 statt 87,0 mm ist ein verschobenes

@@ -61,6 +61,14 @@ sagt. Dass die Tabelle „Quellenlage je Regel“ das `§` im Titel der Einheite
 | `§ 5` | Paragraphenzeichen bleibt am Wert |
 | `--` | – (Halbgeviertstrich) |
 | `"Wort"` | „Wort“ |
+| `servus@blitzsicht.com`, `blitzsicht.com/datenschutz` | Adresse ungetrennt in einer Zeile |
+
+Eine Mail-Adresse, Domain oder URL im Brieftext wird nicht getrennt. Passt das Wort nicht mehr in
+die Zeile, rückt es als Ganzes in die nächste, samt Komma oder Punkt daran. Der übrige Absatz wird
+weiter getrennt. Ein Wort über 60 Zeichen bekommt nur keinen Trennstrich; ganz zusammengehalten
+ragte es aus dem Satzspiegel. Nicht geschützt ist eine Adresse, die ein `**…**` oder `*…*`
+mittendrin zerteilt, und keine im Betreff, im Briefkopf oder in der Fußzeile. Getrennt fällt sie
+dort in `verify` auf.
 
 ## Was nur gemeldet wird
 
