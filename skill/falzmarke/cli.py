@@ -1057,7 +1057,7 @@ def rendere(
                     raise Eingabefehler(
                         f"{brief_pfad.name}: Überschrift erster Ebene im Text. Die erste "
                         "Ebene ist der `titel:` — Abschnitte beginnen mit `##`.")
-                body_typst = emit_modul.setze(bloecke)
+                body_typst = emit_modul.setze(bloecke, blocksatz=kopf.get("blocksatz") is True)
             elif ersetzungen is None:
                 body_typst = konvertiere(body_md, versatz, dialekt=kopf.get("dialekt"))
             else:

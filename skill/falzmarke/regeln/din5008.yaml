@@ -814,6 +814,27 @@ regeln:
       ihre absolute Lage: Ein Versatz soll einmal auffallen, nicht in jeder
       Zeile darunter noch einmal. Tabellen sind ausgenommen (Issue #151).
 
+  - id: werkzeug.netzadresse_ungetrennt
+    titel: Eine Mail-Adresse, Domain oder URL läuft nicht über das Zeilenende
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Keine Aussage der Norm, sondern eine über den Leser: Wer „ser-“ /
+      „vus@blitzsicht.com“ abtippt, schreibt an eine Adresse, die es nicht
+      gibt. Gemessen an versendeten Briefen vom 14.10. und 17.10.2026 —
+      Silbentrennung mitten in der Mail-Adresse und im Pfad einer URL, alle
+      Maße grün. Der Typst-Emitter setzt seither jedes Wort mit Adresse
+      unteilbar (`netzadressen.zerlege`); `verify` hält im fertigen PDF nach,
+      für Brief und Urkunde. Gemessen wird am gesetzten Text, Zeile gegen
+      Zeile derselben Seite und derselben Spalte, mit demselben Muster wie
+      im Emitter. Ein Umbruch nach „/“ oder mitten im Wort sieht gedruckt
+      aus wie eine ganze Adresse vor einem neuen Wort; als Befund gilt er,
+      wenn beide zusammen länger sind als das, was der Emitter an dieser
+      Stelle unteilbar setzt (60 Zeichen, im Blocksatz 40, in der Zelle 0).
+      Was sie nicht sieht: einen Umbruch über den Seitenwechsel, und einen
+      nach „/“ in den Angaben ohne Rahmen oder in einem fremden PDF.
+
 
   - id: werkzeug.eingebettet
     titel: Eine eingebettete Datei trägt Medientyp, Beschreibung und Beziehung
