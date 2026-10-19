@@ -1764,3 +1764,113 @@ def test_eine_entnahme_ohne_wirkung_faellt_auf(tmp_path, monkeypatch):
     assert lage.signatur.zustand == "unbestimmt", lage.signatur
     assert "noch im Rumpf" in lage.signatur.grund
     assert tb.rumpf.count(tbs._signatur_im_rumpf(unterschrift, felder)) == 1
+
+
+# ── Eine Adresse läuft nicht über das Zeilenende (14.10./17.10.2026) ───────
+#
+# Der Emitter setzt jedes Wort mit Mail-Adresse, Domain oder URL unteilbar
+# (`netzadressen.zerlege`, `emit.as_text`); `verify` sucht im fertigen PDF nach
+# einer, die trotzdem getrennt ist. Sabotiert wird der Schutz: Gilt kein Wort
+# mehr als Adresse, setzt Typst die Probe wie vor dem Fix — und dann muss genau
+# diese eine Prüfung anschlagen, keine andere. Die Probe ist so gebaut, dass
+# ohne Schutz alle vier Adressen am Zeilenende stehen.
+
+from falzmarke import netzadressen as _netzadressen               # noqa: E402
+
+ADRESSPROBE = REPO / "tests" / "fixtures" / "trennung" / "adressen.md"
+
+
+def test_adressprobe_unsabotiert_ist_gruen(tmp_path):
+    """Kontrollprobe: Mit dem Schutz schlägt nichts an."""
+    pdf, form = falzmarke.rendere(ADRESSPROBE, tmp_path / "adressen.pdf")
+    assert _gescheitert(pdf, form) == set()
+
+
+def test_ohne_schutz_faellt_die_getrennte_adresse_auf(tmp_path, monkeypatch):
+    monkeypatch.setattr(_netzadressen, "zerlege", lambda text: [(text, False)])
+    assert "#box(" not in _emit.as_text("an servus@blitzsicht.com"), "die Sabotage griff nicht"
+    pdf, form = falzmarke.rendere(ADRESSPROBE, tmp_path / "adressen.pdf")
+    assert _gescheitert(pdf, form) == {"Netzadressen ungetrennt"}
+
+
+# ── Review von #397: Spalten und lange Adressen ─────────────────────────────
+#
+# Zwei Schutzstellen in `verify`, je mit ihrer Sabotage. Die erste hält einen
+# Fehlalarm fern: Zeilen werden nur innerhalb ihrer Spalte gepaart. Die zweite
+# findet einen Umbruch, den die Prüfung bis dahin übersah: eine URL über der
+# Längengrenze, die ohne Strich nach „/“ oder mitten im Wort umbricht.
+
+SPALTENPROBE = REPO / "tests" / "fixtures" / "trennung" / "tabelle-spalten.md"
+LANGE_URL = REPO / "tests" / "fixtures" / "trennung" / "lange-url.md"
+
+
+def _ganze_zeilen(seite, unteilbar_bis):
+    """Die Paarung vor dem Review: eine Zeile ist alles auf derselben Höhe."""
+    return [([" ".join(s.text for s in sorted(zeile, key=lambda s: s.x0))
+              for zeile in geometrie._zeilen_gruppieren(geometrie._spans(seite))],
+             unteilbar_bis)]
+
+
+def test_spaltenprobe_unsabotiert_ist_gruen(tmp_path):
+    pdf, form = falzmarke.rendere(SPALTENPROBE, tmp_path / "spalten.pdf")
+    assert _gescheitert(pdf, form) == set()
+
+
+def test_ohne_spalten_paart_verify_ueber_die_zellen_hinweg(tmp_path, monkeypatch):
+    """Ende der rechten Zelle und Anfang der linken: „Leistungsbeschrei-“ / „servus@…“."""
+    pdf, form = falzmarke.rendere(SPALTENPROBE, tmp_path / "spalten.pdf")
+    monkeypatch.setattr(geometrie, "_textfluesse", _ganze_zeilen)
+    bericht = geometrie.pruefe(pdf, form)
+    assert {p.name for p in bericht.pruefungen if not p.bestanden} == {"Netzadressen ungetrennt"}
+    pruefung = next(p for p in bericht.pruefungen if p.name == "Netzadressen ungetrennt")
+    assert "Leistungsbeschrei- ⏎ servus@blitzsicht.com" in pruefung.ist
+
+
+def test_lange_url_unsabotiert_faellt_auf(tmp_path):
+    """Kontrollprobe andersherum: Die Probe ist ein Befund, und nur dieser."""
+    pdf, form = falzmarke.rendere(LANGE_URL, tmp_path / "lange-url.pdf")
+    assert _gescheitert(pdf, form) == {"Netzadressen ungetrennt"}
+
+
+def test_ohne_laengenprobe_bleibt_die_lange_url_unbemerkt(tmp_path, monkeypatch):
+    """Gilt jedes Wort als Box, war jeder Umbruch einer am Leerraum — und alles ist grün.
+
+    Gesetzt wird vor der Sabotage: Sie trifft nur `verify`, nicht den Satz.
+    """
+    pdf, form = falzmarke.rendere(LANGE_URL, tmp_path / "lange-url.pdf")
+    monkeypatch.setattr(_netzadressen, "UNTEILBAR_BIS", 10**6)
+    assert _gescheitert(pdf, form) == set()
+
+
+ZELLE_URL = REPO / "tests" / "fixtures" / "trennung" / "tabelle-url.md"
+BLOCKSATZ_URL = REPO / "tests" / "fixtures" / "trennung" / "urkunde-blocksatz-url.md"
+
+
+def test_ohne_zellen_gilt_die_grenze_des_fliesstexts(tmp_path, monkeypatch):
+    """Erkennt `verify` die gerahmte Zelle nicht, ist der Umbruch nach „/“ dort unsichtbar."""
+    import pdfplumber.page
+
+    pdf, form = falzmarke.rendere(ZELLE_URL, tmp_path / "zelle.pdf")
+    assert _gescheitert(pdf, form) == {"Netzadressen ungetrennt"}
+    monkeypatch.setattr(pdfplumber.page.Page, "find_tables", lambda self, *a, **k: [])
+    assert _gescheitert(pdf, form) == set()
+
+
+def test_urkunde_mit_der_grenze_des_fliesstexts_uebersieht_den_umbruch(tmp_path, monkeypatch):
+    pdf, form = falzmarke.rendere(BLOCKSATZ_URL, tmp_path / "urkunde.pdf")
+    assert _gescheitert(pdf, form) == {"Netzadressen ungetrennt"}
+    monkeypatch.setattr(_netzadressen, "UNTEILBAR_BIS_BLOCKSATZ", _netzadressen.UNTEILBAR_BIS)
+    assert _gescheitert(pdf, form) == set()
+
+
+def test_ohne_spalten_paart_verify_anschrift_und_informationsblock(monkeypatch):
+    """Sabotage der Zerlegung: Die ganze Höhe ist wieder eine Zeile."""
+    from test_netzadressen import ANSCHRIFT_UND_INFOBLOCK, _Seite
+
+    seite = _Seite(ANSCHRIFT_UND_INFOBLOCK)
+    def befunde():
+        return [str(t) for z, g in geometrie._textfluesse(seite, 60)
+                for t in _netzadressen.getrennt(z, g)]
+    assert befunde() == []
+    monkeypatch.setattr(geometrie, "_abschnitte", lambda zeile: [sorted(zeile, key=lambda s: s.x0)])
+    assert befunde() == ["„Leistungsbeschrei- ⏎ servus@blitzsicht.com“"]

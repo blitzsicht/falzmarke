@@ -413,6 +413,117 @@ def _satzspiegel(dokument, bericht: Bericht, briefseiten: int | None = None) -> 
         )
 
 
+#: Ab dieser Lücke zwischen zwei Wörtern einer Zeile beginnt eine neue Spalte
+#: (mm). Ein Wortzwischenraum misst bei 11 pt gut 1 mm; zwischen den Zellen
+#: der Angaben stehen 4 mm, zwischen Anschrift und Informationsblock mehr.
+_SPALTENLUECKE = 3.0
+
+
+def _abschnitte(zeile: list[Span]) -> list[list[Span]]:
+    """Eine Zeile, zerlegt an den Lücken zwischen Spalten.
+
+    Im Blocksatz sind alle Wortzwischenräume einer Zeile gleich weit und
+    können über 3 mm wachsen. Hat die Zeile genug davon, gilt deshalb erst
+    eine Lücke als Spaltengrenze, die doppelt so weit ist wie die übliche.
+    """
+    zeile = sorted(zeile, key=lambda s: s.x0)
+    luecken = [b.x0 - a.x1 for a, b in zip(zeile, zeile[1:])]
+    ueblich = sorted(luecken)[len(luecken) // 2] if len(luecken) >= 3 else 0.0
+    grenze = max(_SPALTENLUECKE, 2 * ueblich)
+    abschnitte = [[zeile[0]]]
+    for luecke, span in zip(luecken, zeile[1:]):
+        if luecke > grenze:
+            abschnitte.append([span])
+        else:
+            abschnitte[-1].append(span)
+    return abschnitte
+
+
+def _textfluesse(seite, unteilbar_bis: int) -> list[tuple[list[str], int]]:
+    """Die Zeilen einer Seite, Spalte für Spalte — je mit der Box-Grenze des Emitters.
+
+    Bis zum Review von #397 war eine Zeile alles, was auf derselben Höhe
+    steht. Dann hingen Anschrift und Informationsblock aneinander, und in einer
+    Tabelle wurde das Ende der rechten Zelle mit dem Anfang der linken gepaart:
+    „Leistungsbeschrei-“ / „muster-sanierungen.de“ war ein Befund, obwohl beide
+    Wörter in verschiedenen Zellen standen (gemessen am 17.10.2026).
+
+    Jetzt: Gerahmte Tabellen (`find_tables`) liefern je Zelle einen Fluss mit
+    der Grenze 0 — in einer Zelle setzt der Emitter keine Box. Alles übrige
+    wird an Spaltenlücken zerlegt (`_abschnitte`), und ein Abschnitt setzt den
+    Fluss der Zeile darüber fort, wenn er am selben linken Rand beginnt. Die
+    Toleranz nach rechts deckt die Folgezeile eines Listenpunkts ab, die hinter
+    dem Aufzählungszeichen beginnt.
+    """
+    spans = _spans(seite)
+    fluesse: list[tuple[list[str], int]] = []
+    for tabelle in seite.find_tables():
+        for zelle in tabelle.cells:
+            x0, y0, x1, y1 = (mm(wert) for wert in zelle)
+            drin = [s for s in spans
+                    if x0 <= (s.x0 + s.x1) / 2 <= x1 and y0 <= (s.y0 + s.y1) / 2 <= y1]
+            if drin:
+                fluesse.append(([
+                    " ".join(s.text for s in sorted(z, key=lambda s: s.x0))
+                    for z in _zeilen_gruppieren(drin)
+                ], 0))
+                spans = [s for s in spans if s not in drin]
+    offen: list[tuple[float, list[str]]] = []
+    for zeile in _zeilen_gruppieren(spans):
+        jetzt: list[tuple[float, list[str]]] = []
+        for abschnitt in _abschnitte(zeile):
+            x0 = abschnitt[0].x0
+            fluss = next((f for x, f in offen if x - 1.0 <= x0 <= x + 8.0), None)
+            if fluss is None:
+                fluss = []
+                fluesse.append((fluss, unteilbar_bis))
+            else:
+                offen = [(x, f) for x, f in offen if f is not fluss]
+            fluss.append(" ".join(s.text for s in abschnitt))
+            jetzt.append((x0, fluss))
+        offen = jetzt
+    return fluesse
+
+
+def _netzadressen(dokument, bericht: Bericht, briefseiten: int | None = None,
+                  unteilbar_bis: int | None = None) -> None:
+    """Keine Mail-Adresse, Domain oder URL über das Zeilenende getrennt.
+
+    Anlass waren versendete Briefe (14.10. und 17.10.2026): „ser-“ am
+    Zeilenende, „vus@blitzsicht.com“ in der nächsten Zeile. Alle Maße stimmten,
+    und `verify` meldete grün. Seitdem setzt der Emitter jedes Wort mit
+    Adresse unteilbar (`emit.as_text`); diese Prüfung hält am fertigen PDF
+    fest, dass es auch so ankommt — und findet die Fälle, die der Emitter nicht
+    erreicht: den Betreff, eine Adresse, die Auszeichnung zerteilt, eine
+    Adresse in einer Tabellenzelle oder über der Längengrenze, ein fremdes PDF.
+
+    Was als getrennt gilt, entscheidet `netzadressen.getrennt`; diese Funktion
+    liefert nur die Zeilen, Seite für Seite und Spalte für Spalte
+    (`_textfluesse`). `unteilbar_bis` ist die Box-Grenze des Fließtexts, die
+    Urkunde gibt die des Blocksatzes an. Eine Prüfung für das ganze Dokument,
+    nicht eine je Seite: Die Zahl im Schlusssatz soll nicht mit der Seitenzahl
+    wachsen, und der Befund nennt die Seite selbst.
+    """
+    from falzmarke import netzadressen
+
+    if unteilbar_bis is None:
+        unteilbar_bis = netzadressen.UNTEILBAR_BIS
+    befunde: list[str] = []
+    for nummer, seite in enumerate(dokument.pages[:briefseiten], start=1):
+        for zeilen, grenze in _textfluesse(seite, unteilbar_bis):
+            befunde.extend(f"Seite {nummer}: {t}" for t in netzadressen.getrennt(zeilen, grenze))
+    ist = "keine" if not befunde else befunde[0] + (
+        f" (+{len(befunde) - 1} weitere)" if len(befunde) > 1 else "")
+    bericht.add(
+        "Netzadressen ungetrennt", "keine über das Zeilenende", ist, "—", not befunde,
+        ursache="" if not befunde else (
+            "Eine Mail-Adresse, Domain oder URL läuft über das Zeilenende; wer sie abtippt, "
+            "schreibt ins Leere. Im Brieftext kein ** oder * mitten in die Adresse setzen, "
+            "eine lange Adresse kürzen und eine aus der Tabelle in den Text nehmen; "
+            "im Betreff umstellen."),
+    )
+
+
 #: Die Grundzeile des Satzes: 12 pt. Dieselbe Zahl steht in `falzmarke.typ`
 #: als `#let zeile`; `tests/test_raster.py` hält beide zusammen.
 GRUNDZEILE = 4.2333
@@ -807,6 +918,16 @@ def _pruefe_urkunde(pdf_pfad: Path, briefseiten: int | None = None) -> Bericht:
 
     _satzspiegel(dokument, bericht, briefseiten)
     _raster(dokument, bericht, briefseiten)
+    # Die kleinere Grenze des Blocksatzes. Ob die Urkunde im Blocksatz steht,
+    # trägt das PDF nicht; mit der Fließtext-Grenze bliebe ein Umbruch nach „/“
+    # oder mitten im Wort in einer URL aus 41 bis 60 Zeichen ungemeldet. Der
+    # Preis: Endet in einer Urkunde ohne Blocksatz eine ganze URL mit Pfad an
+    # der Zeile und kommt sie mit dem klein geschriebenen Wort danach über 40
+    # Zeichen, ist das ein Befund, der keiner ist.
+    from falzmarke import netzadressen
+
+    _netzadressen(dokument, bericht, briefseiten,
+                  unteilbar_bis=netzadressen.UNTEILBAR_BIS_BLOCKSATZ)
 
     # Keine Marken. Gesucht wird unterhalb des Kopfes: Ein eigener Briefkopf
     # darf im Heftrand zeichnen, was er will — Falz- und Lochmarken stehen bei
@@ -1016,6 +1137,7 @@ def pruefe(pdf_pfad: Path, form: str, briefseiten: int | None = None,
 
     _satzspiegel(dokument, bericht, briefseiten)
     _raster(dokument, bericht, briefseiten)
+    _netzadressen(dokument, bericht, briefseiten)
 
     # Falz- und Lochmarken. Gesucht wird die nächstgelegene Marke, nicht die an
     # der Sollposition: Eine Marke bei 84,0 statt 87,0 mm ist ein verschobenes
