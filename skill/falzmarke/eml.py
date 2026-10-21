@@ -53,6 +53,14 @@ from falzmarke import baum, emit_html, emit_text
 #: Textfeld — und die Pflichtangaben rutschen dann irgendwohin.
 SIGNATUR_TRENNER = "-- "
 
+#: Die Klasse, unter der Thunderbird die Signatur im HTML-Rumpf erkennt (ADR 0051,
+#: Nachtrag). Gemessen am 21.10.2026: Ohne sie fragte Thunderbird beim Senden
+#: jedes Mal „Haben Sie vergessen, einen Anhang anzufügen?“ — das Wort
+#: „Anhänge“ im Hinweis der Signatur löste die Erinnerung aus. Die nimmt vor
+#: ihrer Suche alles mit dieser Klasse heraus (`MsgComposeCommands.js`,
+#: Thunderbird 158.0). Im Textteil leistet dasselbe der Trenner `-- `.
+KLASSE_SIGNATUR = "moz-signature"
+
 
 def _als_liste(wert) -> list[str]:
     if wert is None:
@@ -718,7 +726,8 @@ def signatur_html(kopf: dict, profil: dict, logo: Logo | None = None,
     # bleibt `email.logo` dabei unbeachtet: Das Logo steckt schon in der
     # mitgebrachten Fassung, ein zweites wäre ein Bild zu viel (`BILDER_MAX`).
     if signatur is not None:
-        return f'<div style="margin: {SIGNATUR_ABSTAND} 0 0;">{signatur.rumpf}</div>'
+        return (f'<div class="{KLASSE_SIGNATUR}" style="margin: {SIGNATUR_ABSTAND} 0 0;">'
+                f'{signatur.rumpf}</div>')
 
     absaetze: list[str] = []
     for nummer, block in enumerate(signatur_bloecke(profil, kopf)):
@@ -770,9 +779,15 @@ def signatur_html(kopf: dict, profil: dict, logo: Logo | None = None,
             f'<p class="{" ".join(klassen)}" style="{stil}">{inhalt}</p>'
         )
 
-    if absaetze and logo is not None:
-        return _signaturtabelle(profil, logo, "\n".join(absaetze))
-    return "\n".join(absaetze)
+    if not absaetze:
+        return ""
+    if logo is not None:
+        inhalt = _signaturtabelle(profil, logo, "\n".join(absaetze))
+    else:
+        inhalt = "\n".join(absaetze)
+    # Eine Hülle um das Ganze, ohne eigenen Stil: Sie trägt nur die Klasse,
+    # an der Thunderbird die Signatur erkennt (`KLASSE_SIGNATUR`).
+    return f'<div class="{KLASSE_SIGNATUR}">\n{inhalt}\n</div>'
 
 
 # ── Die Brücke ins Mailprogramm (#108) ───────────────────────────────────────

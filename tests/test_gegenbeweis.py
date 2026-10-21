@@ -1940,3 +1940,22 @@ def test_ohne_doppelprobe_entsteht_ein_zweiter_entwurf(tmp_path, monkeypatch):
     monkeypatch.setattr(_oeffnen, "_gleicher_entwurf", lambda kopf, felder: False)
     lage, abgelegt = anlegen()
     assert not lage.schon_da and abgelegt == 1
+
+
+def test_ohne_signaturklasse_findet_die_pruefung_keine_signatur(tmp_path, monkeypatch):
+    """Sabotage: Die Hülle der Signatur trägt eine andere Klasse. Dann findet
+    die Prüfung aus `test_moz_signatur.py` kein Element mehr — und Thunderbirds
+    Anhang-Erinnerung läse den Hinweis der Signatur wieder mit."""
+    from conftest import EMAIL_BEISPIELE
+    from falzmarke import eml as _eml
+    from test_moz_signatur import _teile, signaturteile
+
+    quelle = next(q for q in EMAIL_BEISPIELE if q.stem == "email-angebot")
+
+    def elemente() -> int:
+        pfad, _ = falzmarke.setze_email(quelle, tmp_path / f"a-{_eml.KLASSE_SIGNATUR}")
+        return signaturteile(_teile(pfad)[1]).elemente
+
+    assert elemente() == 1
+    monkeypatch.setattr(_eml, "KLASSE_SIGNATUR", "fm-sabotage")
+    assert elemente() == 0
