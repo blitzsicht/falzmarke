@@ -8,6 +8,7 @@
   falzmarke.py init     ZIEL.md --profil NAME [--empfaenger "..."] [--betreff "..."]
 
 Exit-Codes: 0 ok · 1 Eingabefehler · 2 Geometrie-Check gescheitert · 3 Umgebung
+            · 4 schon gesendet (`email --oeffnen`, ADR 0051)
 """
 
 from __future__ import annotations
@@ -34,6 +35,10 @@ TYPST_DIR = PAKET / "typst"
 FONT_DIR = PAKET / "assets" / "fonts"
 
 EXIT_OK, EXIT_EINGABE, EXIT_GEOMETRIE, EXIT_UMGEBUNG = 0, 1, 2, 3
+#: `email --oeffnen`: Die Nachricht ging schon hinaus, kein Entwurf (ADR 0051).
+#: Ein eigener Code, damit eine Sitzung ihn nicht mit „Fenster ging nicht auf"
+#: verwechselt — dort bleibt es bei 0 (ADR 0038, Punkt 4).
+EXIT_SCHON_GESENDET = 4
 
 # Die Monatsnamen stehen je Sprache in sprachen.MONATE.
 
@@ -1747,7 +1752,31 @@ def befehl_email(args) -> int:
     # Entwurf. Ein Schalter, der gesetzt ist und nichts bewirkt, wäre der
     # schlechtere Fall.
     if args.oeffnen or args.programm:
+        from falzmarke import gesendet as gesendet_modul
         from falzmarke import oeffnen as oeffnen_modul
+
+        # Ging diese Nachricht schon hinaus? (ADR 0051) Am 21.10.2026 ging eine
+        # Antwort zweimal: Das Entwurfsfenster war zu, eine Sitzung sah nur in
+        # die Entwürfe und legte neu an. Deshalb fragt `--oeffnen` vorher den
+        # Gesendet-Ordner — und bricht mit eigenem Code ab, bewusst anders als
+        # ADR 0038 Punkt 4: Hier ist das ausbleibende Fenster der Zweck.
+        # Wo nichts aufgehen kann (`FALZMARKE_OEFFNEN=nie`, `CI`), entsteht auch
+        # kein Entwurf — dann gibt es nichts zu sperren und keinen Grund, ein
+        # Postfach zu fragen.
+        ohne_fenster = oeffnen_modul.kein_bildschirm()
+        befund = (gesendet_modul.Befund("aus", ohne_fenster) if ohne_fenster
+                  else gesendet_modul.pruefe_datei(eml_pfad))
+        if befund.sperrt and not args.trotz_gesendet:
+            sys.stdout.flush()
+            print(gesendet_modul.meldung(befund), file=sys.stderr)
+            print(f"         Die geprüfte Nachricht liegt hier: {eml_pfad}", file=sys.stderr)
+            return EXIT_SCHON_GESENDET
+        if befund.sperrt:
+            print("HINWEIS  " + gesendet_modul.meldung(befund).splitlines()[0]
+                  + "\n         Trotzdem weiter (--trotz-gesendet).", file=sys.stderr)
+        elif befund.zustand in ("frei", "aus"):
+            print(gesendet_modul.meldung(befund),
+                  file=sys.stdout if befund.zustand == "frei" else sys.stderr)
 
         # Erst der Entwurf, dann die Datei (#263). Der Entwurf ist das, was
         # gemeint ist, wenn jemand die Nachricht abschicken will: eine `.eml`
@@ -1758,8 +1787,35 @@ def befehl_email(args) -> int:
         # Nur für Thunderbird gebraucht (ADR 0050): Trägt die Identität dort
         # eine eigene Signatur, kommt diese hier aus dem Rumpf des Entwurfs.
         felder["signatur_html"] = unterschrift
-        lage = oeffnen_modul.entwurf(felder, wahl=args.programm)
-        if lage.programm:
+        lage = oeffnen_modul.entwurf(felder, wahl=args.programm,
+                                     noch_ein_entwurf=args.noch_ein_entwurf)
+        if lage.postfach is not None:
+            # Der Entwurf liegt im Postfach (ADR 0051): die Datei selbst, mit
+            # allen Kopfzeilen, am Server nachgezählt. Es geht kein Fenster
+            # auf — deshalb fehlen die Hinweise des `-compose`-Wegs darunter.
+            ablage = lage.postfach
+            print(f"OK  Entwurf liegt in „{ablage.ordner}“ von {ablage.adresse}: "
+                  f"{ablage.betreff}")
+            print(f"OK  nachgezählt im Postfach: {ablage.vorher} → {ablage.nachher} "
+                  "Entwürfe mit diesem Empfänger und Betreff")
+            if ablage.bezug is True:
+                print("OK  In-Reply-To steht im abgelegten Entwurf — die Antwort hängt "
+                      "im Verlauf")
+            elif ablage.bezug is False and felder.get("antwort_auf"):
+                print("HINWEIS  Im abgelegten Entwurf fehlt In-Reply-To — die Mail beginnt "
+                      "einen neuen Thread.", file=sys.stderr)
+            print(f"HINWEIS  Es geht kein Fenster auf: Der Entwurf steht in Thunderbird "
+                  f"unter „{ablage.ordner}“.\n"
+                  "         Die Signatur kommt aus dem Profil; dass Thunderbird beim "
+                  "Öffnen eines Entwurfs\n"
+                  "         keine eigene ergänzt, ist vermutlich so — angenommen, nicht "
+                  "gemessen.",
+                  file=sys.stderr)
+        elif lage.programm:
+            if lage.postfach_grund:
+                print(f"HINWEIS  kein Postfach-Entwurf: {lage.postfach_grund}\n"
+                      "         Der Entwurf geht deshalb als Fenster auf (-compose).",
+                      file=sys.stderr)
             print(f"OK  Entwurf angelegt: {lage.programm}")
             if not lage.nachgezaehlt:
                 # Thunderbird meldet nichts zurück (ADR 0049): Exit 0 heißt
@@ -1818,6 +1874,14 @@ def befehl_email(args) -> int:
             if warnung:
                 sys.stdout.flush()
                 print(warnung, file=sys.stderr)
+        elif lage.schon_da:
+            # Ein passender Entwurf liegt schon im Postfach (ADR 0051). Kein
+            # zweiter — und auch nicht die Datei nachschieben: Wer die Mail
+            # schicken will, findet sie dort.
+            sys.stdout.flush()
+            print(f"ENTWURF LIEGT SCHON  {lage.schon_da}\n"
+                  "         Keinen zweiten angelegt. Trotzdem noch einen: --noch-ein-entwurf",
+                  file=sys.stderr)
         elif lage.ungewiss:
             # Der dritte Zustand (#287). Ob ein Fenster offen ist, weiß hier
             # niemand — und „nicht geprüft" ist nicht „nichts da". Die `.eml`
@@ -1852,6 +1916,11 @@ def befehl_email(args) -> int:
                       "         Senden-Knopf. Der Weg zur ausgehenden Mail heißt dort "
                       "„Weiterleiten“.",
                       file=sys.stderr)
+        if befund.zustand == "nicht_geprueft":
+            # Als LETZTE Zeile, wie ABSENDER PRÜFEN (#305): Wer nur das Ende
+            # liest, soll wissen, dass die Sperre diesmal nicht gegriffen hat.
+            sys.stdout.flush()
+            print(gesendet_modul.meldung(befund), file=sys.stderr)
     return EXIT_OK
 
 
@@ -2397,6 +2466,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--programm", choices=["thunderbird", "outlook"],
                    help="Mailprogramm für den Entwurf (ohne Angabe Thunderbird; "
                         "Outlook nur auf Wahl); schließt --oeffnen ein")
+    p.add_argument("--trotz-gesendet", dest="trotz_gesendet", action="store_true",
+                   help="den Entwurf auch dann anlegen, wenn dieselbe Nachricht in den "
+                        "letzten 24 Stunden schon hinausging (sonst Exit 4)")
+    p.add_argument("--noch-ein-entwurf", dest="noch_ein_entwurf", action="store_true",
+                   help="einen weiteren Entwurf ablegen, obwohl einer mit diesem Empfänger "
+                        "und Betreff schon im Postfach liegt")
     p.add_argument("--profiles")
     p.add_argument("--verbose", action="store_true", help="alle Prüfungen zeigen")
     p.set_defaults(funktion=befehl_email)

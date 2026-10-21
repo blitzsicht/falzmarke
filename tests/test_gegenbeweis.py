@@ -1874,3 +1874,69 @@ def test_ohne_spalten_paart_verify_anschrift_und_informationsblock(monkeypatch):
     assert befunde() == []
     monkeypatch.setattr(geometrie, "_abschnitte", lambda zeile: [sorted(zeile, key=lambda s: s.x0)])
     assert befunde() == ["„Leistungsbeschrei- ⏎ servus@blitzsicht.com“"]
+
+
+# ── Gesendet-Sperre und Postfach-Entwurf (ADR 0051) ─────────────────────────
+
+def _eigene_mail(tmp_path: Path) -> Path:
+    from test_gesendet import MAIL
+
+    quelle = tmp_path / "antwort.md"
+    quelle.write_text(MAIL, encoding="utf-8")
+    pfad, _ = falzmarke.setze_email(quelle, tmp_path / "antwort", profil_verzeichnis=PROFILE)
+    return pfad
+
+
+def test_ohne_textvergleich_kommt_der_vorfall_durch(tmp_path, monkeypatch):
+    """Der Vorfall vom 21.10.2026: anderer Betreff, derselbe Text. Nur der
+    Textvergleich sieht ihn — fällt er aus, ist die Nachricht „frei“."""
+    from falzmarke import gesendet as _gesendet_modul
+    from test_gesendet import THUNDERBIRD_TEXT, ZITAT, _gesendet, _pruefe, _server
+
+    eml_pfad = _eigene_mail(tmp_path)
+    _server(monkeypatch, _gesendet(betreff="Re: Monitoring - Konzept und was wir brauchen",
+                                   text=THUNDERBIRD_TEXT + ZITAT))
+    assert _pruefe(eml_pfad).zustand == "gesendet"
+    monkeypatch.setattr(_gesendet_modul, "gleicher_text", lambda eigen, fremd: False)
+    assert _pruefe(eml_pfad).zustand == "frei"
+
+
+def test_ohne_fassungsvergleich_bleibt_ein_umgeschriebener_text_frei(tmp_path, monkeypatch):
+    """Trägt die gesendete Mail dieselbe Fassung, sperrt das auch bei anderem
+    Text und Betreff — ohne den Vergleich nicht."""
+    from falzmarke import eml as _eml
+    from falzmarke import gesendet as _gesendet_modul
+    from test_gesendet import ANDERER_TEXT, _gesendet, _pruefe, _server
+
+    eml_pfad = _eigene_mail(tmp_path)
+    fassung = str(_eml.entwurfsfelder(eml_pfad)["fassung"])
+    _server(monkeypatch, _gesendet(betreff="Termin", text=ANDERER_TEXT,
+                                   kopf={"X-Falzmarke-Fassung": fassung}))
+    assert _pruefe(eml_pfad).zustand == "gesendet"
+    echt = _gesendet_modul.vergleiche
+    monkeypatch.setattr(_gesendet_modul, "vergleiche",
+                        lambda eigen, fremd: echt(eigen._replace(fassung=""), fremd))
+    assert _pruefe(eml_pfad).zustand == "frei"
+
+
+def test_ohne_doppelprobe_entsteht_ein_zweiter_entwurf(tmp_path, monkeypatch):
+    from falzmarke import eml as _eml
+    from test_oeffnen import THUNDERBIRD_PFAD, Thunderbird
+    from test_postfach_entwurf import _server as _entwuerfe
+    from test_postfach_entwurf import _vorhanden
+
+    felder = _eml.entwurfsfelder(_eigene_mail(tmp_path))
+    felder["betreff"] = "AW: Monitoring – Budget"
+    felder["an"] = ["nico@example.org"]
+
+    def anlegen():
+        server = _entwuerfe(monkeypatch, [_vorhanden()])
+        lage = _oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                                laufen=Thunderbird(), binaer=lambda: THUNDERBIRD_PFAD)
+        return lage, len(server.befehle("APPEND"))
+
+    lage, abgelegt = anlegen()
+    assert lage.schon_da and abgelegt == 0
+    monkeypatch.setattr(_oeffnen, "_gleicher_entwurf", lambda kopf, felder: False)
+    lage, abgelegt = anlegen()
+    assert not lage.schon_da and abgelegt == 1

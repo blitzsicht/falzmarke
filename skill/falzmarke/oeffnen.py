@@ -662,6 +662,37 @@ def kontosignatur(adresse: str, ordner: Path | None = None) -> Signaturlage:
     return lagen[0]
 
 
+def thunderbird_ordner(adresse: str, art: str, ordner: Path | None = None) -> str | None:
+    """Der IMAP-Name des Entwürfe- oder Gesendet-Ordners dieser Identität — oder None.
+
+    `art` ist `draft_folder` oder `fcc_folder`. Gelesen wird dasselbe
+    Standardprofil wie für die Signatur (ADR 0050), nur lesend. None heißt
+    „Thunderbird sagt nichts Verwertbares“: kein Profil, keine oder
+    mehrdeutige Identität, kein Eintrag — oder ein Ordner in einem **anderen**
+    Konto. Dort ist die Sitzung nicht angemeldet; der Aufrufer fragt dann den
+    Server nach dem Kennzeichen (`\\Drafts`, `\\Sent`).
+    """
+    from falzmarke import postfach
+
+    adresse = (adresse or "").strip().lower()
+    if not adresse:
+        return None
+    ordner = THUNDERBIRD_ORDNER if ordner is None else Path(ordner)
+    profil = thunderbird_standardprofil(ordner)
+    if profil is None or not profil.is_dir():
+        return None
+    werte = thunderbird_einstellungen(profil)
+    gefunden = set()
+    for kennung in _identitaeten(werte):
+        if str(werte.get(f"mail.identity.{kennung}.useremail") or "").strip().lower() != adresse:
+            continue
+        gelesen = postfach.ordner_aus_url(str(werte.get(f"mail.identity.{kennung}.{art}") or ""))
+        if gelesen is None or gelesen[0].strip().lower() != adresse:
+            return None
+        gefunden.add(gelesen[1])
+    return gefunden.pop() if len(gefunden) == 1 else None
+
+
 def ohne_signatur(html: str, unterschrift: str) -> str | None:
     """Der HTML-Teil ohne das Signaturstück — oder None, wenn es nicht genau einmal dasteht.
 
@@ -1018,6 +1049,114 @@ class Entwurfslage(NamedTuple):
     #: Nur Thunderbird: ob die Identität selbst eine Signatur setzt und welche
     #: dann im Entwurf steht (ADR 0050). `None` auf jedem anderen Weg.
     signatur: Signaturlage | None = None
+    #: Der Entwurf liegt im Postfach statt in einem Fenster (ADR 0051) — wo,
+    #: und was dort nachgelesen wurde. `None` auf jedem anderen Weg.
+    postfach: "Postfachablage | None" = None
+    #: Warum es kein Postfach-Entwurf wurde, wenn es einer hätte werden können
+    #: (Proxy aus, Konto unbekannt, abgeschaltet). Leer, wenn es keiner sein sollte.
+    postfach_grund: str = ""
+    #: Ein Entwurf an dieselben Empfänger mit demselben Betreff liegt schon im
+    #: Postfach — Zeit und Betreff. Dann wurde nichts angelegt (ADR 0051).
+    schon_da: str = ""
+
+
+class Postfachablage(NamedTuple):
+    """Ein Entwurf, der per `APPEND` im Postfach liegt — und was nachgezählt ist."""
+
+    adresse: str
+    #: Der Ordner im Klartext („Entwürfe“), wie Thunderbird ihn zeigt.
+    ordner: str
+    betreff: str
+    #: Passende Entwürfe (Empfänger und Betreff) vor und nach dem Ablegen.
+    vorher: int
+    nachher: int
+    #: Ob der abgelegte Entwurf `In-Reply-To` trägt — `None`, wenn die Quelle
+    #: keine Antwort ist. Nachgelesen am Server, nicht angenommen.
+    bezug: bool | None
+    #: Ob er die Fassungs-Kopfzeile trägt.
+    fassung: bool | None
+
+
+#: Zeitlimit für den Postfach-Entwurf. Länger als die Gesendet-Prüfung: Eine
+#: Nachricht mit PDF im Anhang ist schnell ein paar Megabyte.
+FRIST_POSTFACH_S = 30
+
+
+def _gleicher_entwurf(kopf, felder: Mapping) -> bool:
+    """Liegt hier ein Entwurf an dieselben Empfänger mit demselben Betreff?"""
+    from falzmarke import gesendet
+
+    eigene = {a.lower() for a in (felder.get("an") or []) + (felder.get("kopie") or [])}
+    return (bool(eigene & set(kopf.an))
+            and gesendet.betreff_kern(kopf.betreff)
+            == gesendet.betreff_kern(str(felder.get("betreff") or "")))
+
+
+def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
+                      profilordner: Path | None, noch_ein_entwurf: bool,
+                      ) -> tuple["Entwurfslage | None", str]:
+    """Legt die `.eml` als Entwurf ins Postfach des Absenders (ADR 0051).
+
+    Rückgabe `(Lage, "")`, wenn der Weg zu Ende ging — abgelegt, schon da oder
+    ungewiss —, sonst `(None, Grund)`: Dann darf der Aufrufer `-compose`
+    nehmen, denn im Postfach ist nichts entstanden.
+
+    Die Reihenfolge ist die Zusage. Erst nachsehen, ob schon ein passender
+    Entwurf liegt (dann keinen zweiten); dann ablegen; dann nachzählen. Was
+    nach dem Absenden des `APPEND` schiefgeht, ist **ungewiss**, nicht
+    gescheitert: Der Entwurf kann angekommen sein, und ein `-compose` danach
+    wäre der zweite Entwurf aus #287.
+    """
+    from falzmarke import postfach
+
+    if (umgebung.get("FALZMARKE_POSTFACH") or "").strip().lower() == "nie":
+        return None, "FALZMARKE_POSTFACH=nie ist gesetzt"
+    roh = felder.get("roh")
+    adresse = str(felder.get("absender") or "")
+    if not roh or not adresse:
+        return None, ""
+    ordner = thunderbird_ordner(adresse, "draft_folder", profilordner)
+    try:
+        sitzung = postfach.verbinde(adresse, umgebung=umgebung, frist=FRIST_POSTFACH_S)
+    except postfach.PostfachFehler as fehler:
+        return None, str(fehler)
+    with sitzung:
+        try:
+            ordner = ordner or sitzung.sonderordner("\\Drafts")
+            if not ordner:
+                return None, f"im Postfach von {adresse} ist kein Entwürfe-Ordner gekennzeichnet"
+            vorher = [k for k in sitzung.koepfe(ordner) if _gleicher_entwurf(k, felder)]
+        except postfach.PostfachFehler as fehler:
+            return None, str(fehler)
+        anzeige = postfach.utf7_dekodieren(ordner)
+        if vorher and not noch_ein_entwurf:
+            juengster = max(vorher, key=lambda k: (k.datum is not None, k.datum, int(k.uid)))
+            zeit = (juengster.datum.astimezone().strftime("%d.%m.%Y %H:%M")
+                    if juengster.datum else "(ohne Datum)")
+            return Entwurfslage(None, "", schon_da=(
+                f"{zeit} „{juengster.betreff}“ in „{anzeige}“ von {adresse}"
+                + (f" ({len(vorher)} Stück)" if len(vorher) > 1 else ""))), ""
+        try:
+            sitzung.ablegen(ordner, bytes(roh))
+            nachher = [k for k in sitzung.koepfe(ordner) if _gleicher_entwurf(k, felder)]
+        except postfach.PostfachFehler as fehler:
+            return Entwurfslage(None, f"Ablegen im Postfach abgebrochen ({fehler}) — ob der "
+                                      f"Entwurf in „{anzeige}“ angekommen ist, ist offen",
+                                ungewiss=True), ""
+    if len(nachher) != len(vorher) + 1:
+        return Entwurfslage(None, f"der Server nahm den Entwurf an, aber in „{anzeige}“ "
+                                  f"liegen danach {len(nachher)} passende statt "
+                                  f"{len(vorher) + 1}", ungewiss=True), ""
+    alte = {k.uid for k in vorher}
+    neu = max((k for k in nachher if k.uid not in alte), key=lambda k: int(k.uid))
+    soll_bezug = str(felder.get("antwort_auf") or "").strip()
+    soll_fassung = str(felder.get("fassung") or "").strip()
+    return Entwurfslage(
+        "Thunderbird", "", konto=adresse, postfach=Postfachablage(
+            adresse=adresse, ordner=anzeige, betreff=str(felder.get("betreff") or ""),
+            vorher=len(vorher), nachher=len(nachher),
+            bezug=(neu.antwort_auf == soll_bezug) if soll_bezug else None,
+            fassung=(neu.fassung == soll_fassung) if soll_fassung else None)), ""
 
 
 def _steuere(skript: str, kennung: str, *, laufen=subprocess.run) -> str | None:
@@ -1335,7 +1474,8 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
             umgebung: Mapping[str, str] | None = None,
             laufen=subprocess.run, wahl: str | None = None,
             binaer=thunderbird_binaer, ablage=None,
-            thunderbird_ordner: Path | None = None) -> "Entwurfslage":
+            thunderbird_ordner: Path | None = None,
+            noch_ein_entwurf: bool = False) -> "Entwurfslage":
     """Legt den Entwurf an — oder sagt in einem Satz, warum nicht.
 
     Rückgabe: `(Programmname, "")`, wenn er steht, sonst `(None, Grund)`. Der
@@ -1353,6 +1493,12 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
     `thunderbird_ordner` ist der Profilordner, in dem nachgesehen wird, ob die
     Identität selbst eine Signatur setzt (ADR 0050) — ohne Angabe
     `THUNDERBIRD_ORDNER`.
+
+    Im Thunderbird-Weg kommt seit ADR 0051 zuerst der **Postfach-Entwurf**:
+    Ist der IMAP-Proxy erreichbar, liegt die `.eml` danach im Entwürfe-Ordner
+    des Absenders, und es geht **kein** `-compose`-Fenster auf. Nur wenn dort
+    nichts entstanden ist, folgt `-compose` wie bisher. `noch_ein_entwurf`
+    legt ab, obwohl ein passender Entwurf schon liegt.
 
     Die Anhänge stehen in der `.eml` als Bytes; das Programm will Pfade. Für
     Outlook werden sie in ein Verzeichnis geschrieben, das erst nach dem Lauf
@@ -1380,8 +1526,14 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
     if programm is None:
         return Entwurfslage(None, _nicht_gefunden(wahl))
     if programm.weg == "compose":
+        lage, grund = _entwurf_postfach(felder, umgebung=umgebung,
+                                        profilordner=thunderbird_ordner,
+                                        noch_ein_entwurf=noch_ein_entwurf)
+        if lage is not None:
+            return lage
         return _entwurf_compose(programm, felder, laufen=laufen, ablage=ablage,
-                                thunderbird_ordner=thunderbird_ordner)
+                                thunderbird_ordner=thunderbird_ordner)._replace(
+                                    postfach_grund=grund)
 
     with tempfile.TemporaryDirectory(prefix="falzmarke-entwurf-") as ordner:
         pfade = _anhaenge_ausschreiben(ordner, felder.get("anhaenge") or [])
