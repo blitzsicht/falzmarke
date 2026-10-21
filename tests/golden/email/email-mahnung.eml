@@ -2,6 +2,7 @@ From: Erika Muster <muster@example.de>
 To: post@example.de
 Subject: Zahlungserinnerung zu Rechnung Nr. 2026-0815
 Date: Mon, 31 Aug 2026 00:00:00 -0000
+X-Falzmarke-Fassung: 153769f97f75
 MIME-Version: 1.0
 Content-Type: multipart/mixed;
  boundary="==falzmarke-0-d9fb3f6c9cc9262a22750d16=="

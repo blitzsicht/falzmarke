@@ -2,6 +2,7 @@ From: Erika Muster <muster@example.de>
 To: post@example.de
 Subject: Abrechnung der Veranstaltung vom 3. Oktober 2026
 Date: Mon, 31 Aug 2026 00:00:00 -0000
+X-Falzmarke-Fassung: 112de6ede2af
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
  boundary="==falzmarke-0-923448ccbe42ba637e46f243=="

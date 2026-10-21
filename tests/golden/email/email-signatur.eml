@@ -2,6 +2,7 @@ From: Erika Muster <muster@example.de>
 To: Thomas Berger <thomas.berger@example.de>
 Subject: Die Unterlagen zum Termin am 15. Oktober
 Date: Mon, 31 Aug 2026 00:00:00 -0000
+X-Falzmarke-Fassung: 401c611a6f9f
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
  boundary="==falzmarke-0-872ff23ef8ad31ad220e38f8=="
