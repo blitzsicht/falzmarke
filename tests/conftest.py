@@ -8,6 +8,7 @@ Sache. Das Programm selbst schreibt seit v0.2.0 immer UTF-8.
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -130,6 +131,139 @@ def _kein_echtes_thunderbird_profil(monkeypatch, tmp_path_factory):
 
     monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER",
                         tmp_path_factory.getbasetemp() / "kein-thunderbird")
+
+
+class _KeinPostfach:
+    """Steht für `imaplib.IMAP4`, solange ein Test keine Attrappe einsetzt."""
+
+    def __init__(self, host, port=143, timeout=None):
+        raise ConnectionRefusedError(61, "Testlauf: keine echte IMAP-Verbindung")
+
+
+@pytest.fixture(autouse=True)
+def _kein_echtes_postfach(monkeypatch):
+    """Kein Test spricht mit einem echten Postfach (ADR 0051).
+
+    Auf dem Rechner des Betreibers läuft der IMAP-Proxy unter 127.0.0.1:1993 —
+    ein vergessener Patch wäre dort kein roter Test, sondern ein Blick in einen
+    echten Gesendet-Ordner oder ein Entwurf im echten Postfach. Deshalb zwei
+    Riegel: Die Gesendet-Prüfung ist abgeschaltet (`FALZMARKE_GESENDET=nie`),
+    und wer trotzdem verbindet, landet bei einer Verbindung, die abgelehnt
+    wird. Tests, die das Postfach brauchen, setzen ihre Attrappe ein und
+    nehmen die Variable zurück.
+    """
+    from falzmarke import postfach
+
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", _KeinPostfach)
+    monkeypatch.setenv("FALZMARKE_GESENDET", "nie")
+
+
+# ── Der Wächter: kein Test öffnet ein Fenster oder erreicht ein Postfach ──────
+#
+# ANLASS (21.10.2026, beim Bau von ADR 0051): Ein neuer Test lief über den
+# Datei-Rückfall bis zu `oeffne()`, und das echte `open` reichte die Test-`.eml`
+# an Thunderbird — auf dem Bildschirm des Betreibers ging ein Fenster mit
+# einer Test-Mail auf. Bis dahin hing das an einem Riegel je
+# Testdatei; wer ihn vergaß, merkte es nicht an einem roten Test, sondern an
+# einem Fenster. `CI` und `FALZMARKE_OEFFNEN=nie` greifen auf dem Rechner des
+# Entwicklers nicht, und viele Tests reichen ihre Umgebung ausdrücklich herein
+# (`umgebung={"DISPLAY": ":0"}`) — dort käme keine Variable an.
+#
+# Deshalb sitzt der Riegel eine Ebene tiefer und gilt für jeden Test: an
+# `subprocess.Popen`, über das jedes `subprocess.run` geht, auch das, was als
+# Vorgabewert `laufen=subprocess.run` schon beim Import gebunden wurde. Ein
+# Programm, das ein Fenster öffnet oder ein Mailprogramm steuert, startet
+# nicht; der Versuch wird vermerkt, und der Test wird beim Abbau rot, auch wenn
+# der Code den Fehler unterwegs geschluckt hat. Dasselbe für `imaplib` und
+# `smtplib` unterhalb von `postfach.IMAP_KLASSE`.
+
+#: Programme, die auf dem Rechner eines Menschen etwas aufgehen lassen oder ein
+#: Mailprogramm steuern. Verglichen wird der Name ohne Pfad und ohne `.exe`.
+FENSTER_PROGRAMME = frozenset({
+    "open", "xdg-open", "gio", "gnome-open", "kde-open", "kde-open5", "wslview",
+    "osascript", "thunderbird", "thunderbird-bin", "outlook", "explorer", "start",
+})
+
+#: Kindprozesse (etwa `python -m falzmarke`) erben den Riegel über die
+#: Umgebung — dort greift der Patch nicht, `kein_bildschirm` aber schon.
+KIND_UMGEBUNG = {"FALZMARKE_OEFFNEN": "nie", "FALZMARKE_GESENDET": "nie",
+                 "FALZMARKE_POSTFACH": "nie"}
+
+
+class WaechterFehler(AssertionError):
+    """Ein Test wollte wirklich ein Fenster öffnen oder ein Postfach erreichen."""
+
+
+#: Was der Wächter im laufenden Test abgefangen hat. Der Abbau verlangt, dass
+#: es leer ist. Wer den Wächter absichtlich auslöst, leert die Liste selbst.
+ABGEFANGEN: list[str] = []
+
+
+def fenster_programm(args) -> str | None:
+    """Der Grund, warum `args` nicht starten darf — oder None."""
+    if isinstance(args, (str, bytes)):
+        text = args.decode() if isinstance(args, bytes) else args
+        erstes = text.split()[:1]
+    else:
+        erstes = [str(a) for a in list(args)[:1]]
+    if not erstes:
+        return None
+    programm = erstes[0]
+    name = re.split(r"[\\/]", programm)[-1].lower().removesuffix(".exe")
+    if name in FENSTER_PROGRAMME:
+        return f"`{programm}` öffnet ein Fenster oder steuert ein Mailprogramm"
+    if ".app/" in programm:
+        return f"`{programm}` liegt in einem macOS-Programmpaket"
+    return None
+
+
+_ECHTES_POPEN = subprocess.Popen
+
+
+class _WaechterPopen(_ECHTES_POPEN):
+    def __init__(self, args, *a, **k):
+        import os
+
+        grund = fenster_programm(args)
+        if grund:
+            ABGEFANGEN.append(grund)
+            raise WaechterFehler(f"Testlauf: {grund} — nicht gestartet")
+        umgebung = dict(os.environ if k.get("env") is None else k["env"])
+        umgebung.update(KIND_UMGEBUNG)
+        k["env"] = umgebung
+        super().__init__(args, *a, **k)
+
+
+def _verboten(was: str):
+    def _nein(*_a, **_k):
+        ABGEFANGEN.append(was)
+        raise WaechterFehler(f"Testlauf: {was} ist gesperrt")
+    return _nein
+
+
+@pytest.fixture(autouse=True)
+def _waechter(monkeypatch):
+    """Hart für jeden Test: kein Fenster, kein Mailprogramm, kein Postfach."""
+    import imaplib
+    import os
+    import smtplib
+
+    ABGEFANGEN.clear()
+    monkeypatch.setattr(subprocess, "Popen", _WaechterPopen)
+    monkeypatch.setattr(os, "system", _verboten("os.system"))
+    if hasattr(os, "startfile"):  # pragma: no cover — nur unter Windows
+        monkeypatch.setattr(os, "startfile", _verboten("os.startfile"))
+    monkeypatch.setattr(imaplib.IMAP4, "__init__", _verboten("imaplib.IMAP4"))
+    monkeypatch.setattr(smtplib.SMTP, "__init__", _verboten("smtplib.SMTP"))
+    yield
+    pruefe_abgefangen()
+
+
+def pruefe_abgefangen() -> None:
+    """Rot, wenn im Test etwas abgefangen wurde — auch ein geschluckter Fehler."""
+    abgefangen = list(ABGEFANGEN)
+    ABGEFANGEN.clear()
+    assert not abgefangen, f"der Wächter hat abgefangen: {abgefangen}"
 
 
 @pytest.fixture(scope="session")

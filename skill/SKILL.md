@@ -98,8 +98,17 @@ Mail schreibt, die ein Mensch senden wird, setzt das Flag.
 
 Was dabei nicht fehlen darf, weil es gemessen ist:
 
-- Der Entwurf entsteht in **Thunderbird**, wenn es installiert ist; `from=` wählt dort die
-  Identität, der Absender stimmt (ADR 0049). Thunderbird meldet nichts zurück — Exit 0 heißt
+- **Liegt der IMAP-Proxy bereit (`127.0.0.1:1993`), liegt der Entwurf im Postfach** — die
+  fertige `.eml` mit allen Kopfzeilen im Ordner „Entwürfe" des Absenders, samt `In-Reply-To`
+  (ADR 0051). Es geht **kein Fenster** auf; die erste Zeile lautet
+  `OK  Entwurf liegt in „Entwürfe" von <adresse>: <Betreff>`. Diese Zeile gehört in die Antwort
+  an den Menschen: Er findet den Entwurf in Thunderbird unter „Entwürfe". Liegt dort schon einer
+  mit demselben Empfänger und Betreff, heißt es `ENTWURF LIEGT SCHON …` — dann **keinen zweiten**
+  anlegen, sondern den Menschen auf den vorhandenen verweisen; `--noch-ein-entwurf` nur, wenn er
+  ausdrücklich einen zweiten will. Ist der Proxy nicht da, geht es weiter wie im nächsten Punkt,
+  mit einer Zeile `kein Postfach-Entwurf: <Grund>`.
+- Sonst entsteht der Entwurf als Fenster in **Thunderbird** (`-compose`), wenn es installiert
+  ist; `from=` wählt dort die Identität, der Absender stimmt (ADR 0049). Thunderbird meldet nichts zurück — Exit 0 heißt
   „angenommen", und der Befehl sagt, dass **nichts nachgezählt** ist: Empfänger, Anhänge und
   Absender im Fenster prüfen. Läuft Thunderbird nicht, wird es mit dem Auftrag gestartet und
   der Entwurf als ungewiss gemeldet; dann im Fenster nachsehen, nichts nachschieben.
@@ -131,6 +140,29 @@ Was dabei nicht fehlen darf, weil es gemessen ist:
 - Geht gar nichts auf, ist die Datei trotzdem fertig; der Befehl endet mit 0 und nennt den Pfad.
   Kehrt das Mailprogramm gar nicht zurück, wird **nichts nachgeschoben**: Ob ein Fenster offen
   ist, weiß dann niemand, und ein zweites wäre genau der Fehler, den #287 behoben hat.
+
+### Schon gesendet? `--oeffnen` sieht vorher nach
+
+Bevor ein Entwurf entsteht, sieht `--oeffnen` im Gesendet-Ordner des Absenders nach: Ging in
+den letzten 24 Stunden eine Mail an denselben Empfänger mit demselben Betreff, demselben Text
+oder derselben Fassung (`X-Falzmarke-Fassung`) hinaus, entsteht **kein Entwurf**, und der
+Befehl endet mit **Exit 4**:
+
+```
+SCHON GESENDET  21.10.2026 18:33 an paula@example.org: „AW: …" (Ordner „Gesendete Elemente" von …)
+GEÄNDERTE FASSUNG  „AW: …" ging 21.10.2026 18:33 an … schon hinaus, mit anderem Text — als Nachtrag schicken?
+```
+
+**Dann nicht selbst `--trotz-gesendet` setzen.** Die Zeile wörtlich an den Menschen geben und
+fragen, ob die Mail wirklich noch einmal hinausgehen soll (bei `GEÄNDERTE FASSUNG`: ob ein
+Nachtrag gemeint ist). Erst auf sein Ja hin mit `--trotz-gesendet` erneut aufrufen. Anlass war
+der 21.10.2026: Das Entwurfsfenster war zu, eine Sitzung sah nur in die Entwürfe und legte neu
+an — die Antwort ging zweimal hinaus.
+
+Lässt sich nicht nachsehen (kein Proxy, keine Antwort in 5 s), sperrt nichts; die **letzte
+Zeile** lautet dann `GESENDET NICHT GEPRÜFT: <Grund>`. Das ist kein „nicht gesendet" — die Zeile
+gehört in die Antwort. Abschalten: `FALZMARKE_GESENDET=nie`; ein anderer Proxy:
+`FALZMARKE_GESENDET_IMAP=host:port`; ein anderes Fenster: `FALZMARKE_GESENDET_STUNDEN`.
 
 **falzmarke versendet nichts.** Es gibt keinen Versandbefehl und keine Option, die sendet — auch
 im Steuerskript des Entwurfs steht keiner. Die Nachricht wird im Mailprogramm geöffnet und dort
@@ -288,6 +320,7 @@ Werkzeuge aufrufen kann statt über die Kommandozeile. Kein Befehl für den Brie
 | 1 | Eingabefehler — die Meldung nennt Feld und Zeile |
 | 2 | Geometrieprüfung gescheitert; der Bericht nennt Soll, Ist und Toleranz |
 | 3 | Umgebung unvollständig, `scripts/bootstrap.py` ausführen |
+| 4 | `email --oeffnen`: dieselbe Nachricht ging schon hinaus, kein Entwurf (ADR 0051) |
 
 ## Weiterführende Dateien
 
@@ -337,7 +370,7 @@ sich also zusammen in einen Chat legen.
 | 1 | Eingabefehler. Die Meldung nennt Feld und Zeile — dort korrigieren und erneut `lint`. |
 | 2 | Verifikation. Den Bericht wörtlich weitergeben — er nennt bei einem Überlauf auch die `Ursache:` und was daran zu tun wäre. Diese eine Änderung an der **Eingabe** machen und erneut rendern. Sonst **aufhören**, nicht am Layout herumprobieren. |
 | 3 | Umgebung. `python3 scripts/bootstrap.py`, danach abbrechen, wenn es wieder scheitert. |
-| 4 | Renderer. Das ist ein Fehler im Werkzeug — als Issue melden, mit der `.md`. |
+| 4 | `SCHON GESENDET` oder `GEÄNDERTE FASSUNG` bei `email --oeffnen`. Die Zeile wörtlich an den Menschen geben und fragen; `--trotz-gesendet` nur auf sein Ja. |
 
 ### Was bei Exit 2 nicht geändert wird
 
