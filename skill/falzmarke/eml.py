@@ -53,6 +53,14 @@ from falzmarke import baum, emit_html, emit_text
 #: Textfeld — und die Pflichtangaben rutschen dann irgendwohin.
 SIGNATUR_TRENNER = "-- "
 
+#: Die Klasse, unter der Thunderbird die Signatur im HTML-Rumpf erkennt (ADR 0051,
+#: Nachtrag). Gemessen am 21.10.2026: Ohne sie fragte Thunderbird beim Senden
+#: jedes Mal „Haben Sie vergessen, einen Anhang anzufügen?“ — das Wort
+#: „Anhänge“ im Hinweis der Signatur löste die Erinnerung aus. Die nimmt vor
+#: ihrer Suche alles mit dieser Klasse heraus (`MsgComposeCommands.js`,
+#: Thunderbird 158.0). Im Textteil leistet dasselbe der Trenner `-- `.
+KLASSE_SIGNATUR = "moz-signature"
+
 
 def _als_liste(wert) -> list[str]:
     if wert is None:
@@ -718,7 +726,8 @@ def signatur_html(kopf: dict, profil: dict, logo: Logo | None = None,
     # bleibt `email.logo` dabei unbeachtet: Das Logo steckt schon in der
     # mitgebrachten Fassung, ein zweites wäre ein Bild zu viel (`BILDER_MAX`).
     if signatur is not None:
-        return f'<div style="margin: {SIGNATUR_ABSTAND} 0 0;">{signatur.rumpf}</div>'
+        return (f'<div class="{KLASSE_SIGNATUR}" style="margin: {SIGNATUR_ABSTAND} 0 0;">'
+                f'{signatur.rumpf}</div>')
 
     absaetze: list[str] = []
     for nummer, block in enumerate(signatur_bloecke(profil, kopf)):
@@ -770,9 +779,15 @@ def signatur_html(kopf: dict, profil: dict, logo: Logo | None = None,
             f'<p class="{" ".join(klassen)}" style="{stil}">{inhalt}</p>'
         )
 
-    if absaetze and logo is not None:
-        return _signaturtabelle(profil, logo, "\n".join(absaetze))
-    return "\n".join(absaetze)
+    if not absaetze:
+        return ""
+    if logo is not None:
+        inhalt = _signaturtabelle(profil, logo, "\n".join(absaetze))
+    else:
+        inhalt = "\n".join(absaetze)
+    # Eine Hülle um das Ganze, ohne eigenen Stil: Sie trägt nur die Klasse,
+    # an der Thunderbird die Signatur erkennt (`KLASSE_SIGNATUR`).
+    return f'<div class="{KLASSE_SIGNATUR}">\n{inhalt}\n</div>'
 
 
 # ── Die Brücke ins Mailprogramm (#108) ───────────────────────────────────────
@@ -892,6 +907,31 @@ def _quellenhash(quelle: str) -> str:
     return hashlib.sha256(quelle.encode("utf-8")).hexdigest()
 
 
+def fassung(quelle: str) -> str:
+    """Die ersten zwölf Hex-Zeichen des SHA-256 der Quelle — `X-Falzmarke-Fassung`.
+
+    Zeilenenden werden vorher vereinheitlicht: Dieselbe Quelle, unter Windows
+    mit CRLF ausgecheckt, ist dieselbe Fassung. Zwölf Zeichen sind 48 Bit —
+    genug, um die Fassungen einer Nachricht auseinanderzuhalten, und kurz
+    genug, um sie in einer Kopfzeile zu lesen.
+    """
+    return _quellenhash(quelle.replace("\r\n", "\n"))[:12]
+
+
+def _quelltext(brief_pfad: Path | None, quelle_md: str) -> str:
+    """Die ganze Quelldatei samt Frontmatter — sonst der Text, aus dem gesetzt wurde.
+
+    Mit Frontmatter, weil ein anderer Empfänger oder Betreff eine andere
+    Fassung ist, auch wenn der Text gleich bleibt.
+    """
+    if brief_pfad is not None:
+        try:
+            return Path(brief_pfad).read_bytes().decode("utf-8")
+        except (OSError, UnicodeDecodeError):
+            pass
+    return quelle_md
+
+
 def baue(kopf: dict, profil: dict, quelle_md: str, bloecke, *,
          brief_pfad: Path | None = None, mit_quelle: bool = False,
          profil_pfad: Path | None = None) -> EmailMessage:
@@ -937,6 +977,11 @@ def baue(kopf: dict, profil: dict, quelle_md: str, bloecke, *,
     epoch = os.environ.get("SOURCE_DATE_EPOCH")
     nachricht["Date"] = (formatdate(float(epoch), localtime=False) if epoch
                          else formatdate(localtime=True))
+
+    # Die Fassung (ADR 0051): ordnet eine gesendete Mail ihrer Quelle zu, auch
+    # wenn das Mailprogramm Betreff oder Text umbaut. Nur der Hash — Kopfzeilen
+    # gehen nach außen, ein Pfad oder Dateiname verriete Kunden und Ablage.
+    nachricht["X-Falzmarke-Fassung"] = fassung(_quelltext(brief_pfad, quelle_md))
 
     logo = logo_quelle(profil, profil_pfad)
     # Einmal laden, beiden Teilen geben: Zweimal gelesen könnten Text- und
@@ -1062,8 +1107,8 @@ def entwurfsfelder(pfad) -> dict:
     import email as email_modul
     from email import policy as policy_modul
 
-    nachricht = email_modul.message_from_bytes(Path(pfad).read_bytes(),
-                                               policy=policy_modul.default)
+    roh = Path(pfad).read_bytes()
+    nachricht = email_modul.message_from_bytes(roh, policy=policy_modul.default)
 
     def _adressen(feld: str) -> list[str]:
         wert = nachricht.get(feld)
@@ -1120,4 +1165,9 @@ def entwurfsfelder(pfad) -> dict:
         "html": html,
         "anhaenge": anhaenge,
         "inline": inline,
+        # Die Datei selbst, byte-gleich (ADR 0051): Der Postfach-Entwurf legt
+        # genau das ab, was `verify --email` gemessen hat — mit allen
+        # Kopfzeilen, auch `In-Reply-To`, das kein Programmweg annimmt.
+        "roh": roh,
+        "fassung": str(nachricht.get("X-Falzmarke-Fassung") or ""),
     }

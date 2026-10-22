@@ -38,3 +38,4 @@ gelesen wird und die niemand nachpflegt.
 | [0048](0048-urkunde-ein-schriftstueck-ohne-anschriftfeld.md) | Die Urkunde: ein Schriftstück ohne Anschriftfeld ist ein eigener Typ | 07.10.2026 |
 | [0049](0049-entwurf-in-thunderbird.md) | Der Entwurf entsteht in Thunderbird | 13.10.2026 |
 | [0050](0050-signatur-aus-thunderbird.md) | Trägt die Identität eine Signatur, kommt sie aus Thunderbird | 15.10.2026 |
+| [0051](0051-gesendet-sperre-und-postfach-entwurf.md) | Gesendet-Sperre, Entwurf im Postfach, Fassungs-Kopfzeile | 21.10.2026 |

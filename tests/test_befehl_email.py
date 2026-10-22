@@ -460,7 +460,10 @@ def test_der_mcp_dienst_laedt_das_oeffnen_nicht():
         "sys.path.insert(0, %r);"
         "from falzmarke import dienst;"
         "dienst.email_setzen(%r, profil='example');"
-        "print('oeffnen' if 'falzmarke.oeffnen' in sys.modules else 'sauber')"
+        # Seit ADR 0051 auch: kein Gesendet-Ordner, kein Postfach, kein imaplib.
+        "geladen = [m for m in ('falzmarke.oeffnen', 'falzmarke.gesendet',"
+        " 'falzmarke.postfach', 'imaplib') if m in sys.modules];"
+        "print(' '.join(geladen) or 'sauber')"
         % (str(SKILL), MAIL)
     )
     lauf = subprocess.run([sys.executable, "-c", programm],
