@@ -411,6 +411,26 @@ def _loese_aus(regel: str, tmp_path):
                         encoding="utf-8")
         return falzmarke.linte(pfad, profil_verzeichnis=_profil_mit(
             {"anrede": "sie"}, tmp_path))
+    if regel == "email.stil":
+        # Ein Wert, den `email.stil.person:` nicht kennt — eine Aussage über den
+        # Datenvertrag, deshalb Fehler und nicht Warnung (ADR 0053).
+        pfad = tmp_path / "nachricht.md"
+        pfad.write_text(f"---\n{MAIL}---\nText der Nachricht.\n", encoding="utf-8")
+        return falzmarke.linte(pfad, profil_verzeichnis=_profil_mit(
+            {"stil": {"person": "isch"}}, tmp_path))
+    if regel in ("email.stil_person", "email.stil_floskel"):
+        # Je Regel ein eigener Fall: Stünden beide in einem Text, prüfte jeder
+        # Durchgang beide, und ein Ausfall einer der zwei bliebe unsichtbar.
+        stil, body = {
+            "email.stil_person": ({"person": "ich"},
+                                  "Wir schicken das Angebot bis Freitag.\n"),
+            "email.stil_floskel": ({"floskeln": ["zeitnah"]},
+                                   "Ich melde mich zeitnah mit dem Angebot.\n"),
+        }[regel]
+        pfad = tmp_path / "nachricht.md"
+        pfad.write_text(f"---\n{MAIL}---\n{body}", encoding="utf-8")
+        return falzmarke.linte(pfad, profil_verzeichnis=_profil_mit(
+            {"stil": stil}, tmp_path))
     if regel == "email.logo_kontrast":
         # Ein Logo, das nur auf hellem Grund traegt: eine Flaeche in der Tinte
         # der Marke. Auf dunklem Grund sind das 1,01:1 — der Wert, mit dem

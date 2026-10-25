@@ -173,7 +173,37 @@ email:
   #                                    Rasterbild (PNG/JPG/GIF) — Outlook zeigt kein SVG.
   #                                    Es muss auf hellem UND dunklem Grund tragen; `lint`
   #                                    misst das und warnt (Issue #154).
+  stil:                                # optional, der eigene Schreibstil — siehe unten
+    person: ich
+    floskeln: [zeitnah, kurzfristig]
+    hinweise:
+      - Fristen immer als Datum, nie als Dauer
 ```
+
+### Der Abschnitt `email.stil:` — zwei Arten von Inhalt
+
+Hier steht, wie dieser Absender schreibt. Der Abschnitt ist geteilt, und die Grenze ist die
+Zusage des Werkzeugs:
+
+| Feld | Was es ist | Was `lint` damit tut |
+|---|---|---|
+| `person:` | `ich` oder `wir` | **prüft** den Text und warnt, wenn dort die andere Form steht |
+| `floskeln:` | eigene Wendungen, höchstens 20, je bis 60 Zeichen | **prüft** den Text und warnt bei einem Treffer |
+| `hinweise:` | Prosa, höchstens 10 Zeilen, je bis 200 Zeichen | **prüft nur die Form** — nie den Inhalt |
+
+`hinweise:` wirkt nicht, weil das Paket es versteht, sondern weil `SKILL.md` Schritt 4 sagt, dass
+der Abschnitt vor dem Formulieren gelesen wird. **falzmarke überträgt die Stilvorgabe, es erzwingt
+sie nicht** — es gibt Profildaten an kein Modell weiter und versteht keinen Satz. Eine Prüfung,
+die „Fristen immer als Datum" einzuhalten behauptete, wäre eine Zusage ohne Deckung
+([ADR 0053](../../docs/entscheidungen/0053-email-stil-im-profil.md)).
+
+Gesucht wird bei `floskeln:` als **ganzes Wort**, nicht als Ausdruck: `zeitnah` trifft
+„zeitnah", nicht „Zeitnahme". Ein Regex im Profil wäre eine Fläche, die niemand prüft.
+
+Was in einem wortgetreuen Auszug steht — Backticks oder ein Codeblock — zählt bei beiden
+Prüfungen nicht mit: Was ein Kunde geschrieben hat, ist nicht der Stil des Absenders.
+
+Geändert wird nie etwas. Wie jemand schreibt, entscheidet er selbst.
 
 ### Die drei Wege des Logos
 

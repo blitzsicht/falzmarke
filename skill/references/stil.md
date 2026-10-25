@@ -175,6 +175,16 @@ nichts; wie jemand schreibt, entscheidet er selbst.
 Die Grenze verläuft an der Frage, ob der Satz etwas trägt. „Vielen Dank für die Unterlagen"
 bleibt — der Dank gilt einer Sache. „Vielen Dank für Ihre Zeit" gilt nichts.
 
+**Der Absender kann eigene Vorgaben mitbringen.** Trägt das gewählte Profil einen Abschnitt
+`email.stil:`, gilt er zusätzlich zu dieser Datei und vor dem Schreiben gelesen: `person:` sagt,
+ob dieser Absender „ich" oder „wir" schreibt, `floskeln:` nennt Wendungen, die er nicht lesen
+will, `hinweise:` steht in Prosa da. Diese Datei sagt, wie eine Geschäftsmail aufgebaut ist; das
+Profil sagt, wie **dieser** Absender schreibt. Widersprechen sich die beiden in einer Stilfrage,
+gilt das Profil. `person:` und `floskeln:` meldet `lint` als Warnung — außerhalb wortgetreuer
+Auszüge, denn dort steht fremder Wortlaut. `hinweise:` prüft niemand; es wirkt nur, weil es
+gelesen wird
+([ADR 0053](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0053-email-stil-im-profil.md)).
+
 **Kein Fließtext in Bildern.** Ein Bild ist für ein Bildschirmleseprogramm nichts, es wird in
 Übersichten oft nicht geladen, und suchen lässt es sich auch nicht. Das einzige Bild, das eine
 erzeugte Nachricht trägt, ist das Logo aus dem Profil — und auch das nur, wenn `email.logo`

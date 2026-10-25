@@ -63,6 +63,17 @@ email:
   zusatz:
     - Diese E-Mail enthält vertrauliche Informationen.
   logo: false
+  # Der Schreibstil dieses Absenders (ADR 0053). Hier bewusst nur als
+  # Kommentar: Ein mitgeliefertes Profil, das bei jedem Lauf warnt, ist Lärm.
+  # `person:` und `floskeln:` prüft `lint` am Text und meldet als Warnung;
+  # `hinweise:` prüft es nur auf Form — den Inhalt liest das Modell, das
+  # formuliert (SKILL.md Schritt 4). falzmarke überträgt die Vorgabe, es
+  # erzwingt sie nicht.
+  # stil:
+  #   person: ich               # ich oder wir
+  #   floskeln: [zeitnah, kurzfristig]
+  #   hinweise:
+  #     - Fristen immer als Datum, nie als Dauer
 
 infoblock_defaults:
   ansprechpartner: Erika Muster

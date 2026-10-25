@@ -811,3 +811,65 @@ regeln:
       Die andere Haelfte, und die wichtigere: Steht die Adresse im Text, ist sie
       keine Blindkopie mehr. Das fiele sonst niemandem auf, weil die Nachricht
       in jeder anderen Hinsicht stimmt.
+
+  # ── Der eigene Schreibstil aus dem Profil (ADR 0053) ─────────────────────
+  - id: email.stil
+    titel: Die Form des Abschnitts `email.stil:`
+    lint: email.stil
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Keine Aussage über Norm, Recht oder Technik, sondern über die Eingabe:
+      `person:` kennt zwei Werte, `floskeln:` und `hinweise:` sind Listen von
+      Zeichenketten mit begrenzter Länge. Fehler und nicht Warnung, aus
+      demselben Grund wie bei `email.anrede` und `werkzeug.dialekt`: Ein
+      Tippfehler dürfte nicht stillschweigend die Prüfung abschalten. Wer
+      `person: isch` schreibt, soll es erfahren.
+
+      Der Inhalt von `hinweise:` wird NICHT geprüft, und das ist die
+      Entscheidung, nicht eine Lücke. falzmarke gibt Profildaten an kein Modell
+      weiter und versteht keinen Satz; eine Prüfung, die „Fristen immer als
+      Datum" einzuhalten behauptete, wäre eine Zusage ohne Deckung — genau was
+      ADR 0035 abstellt. Das Werkzeug überträgt die Vorgabe, es erzwingt sie
+      nicht (ADR 0039). Wer sie liest, steht in `SKILL.md` Schritt 4.
+
+  - id: email.stil_person
+    titel: Profil und Text sagen verschiedene Personen
+    lint: email.stil_person
+    ebene: praxis
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      Dieselbe Bauform wie `email.anrede_ton`: Das Profil sagt, in welcher
+      Person der Absender schreibt; die Prüfung meldet, wenn der Text die andere
+      benutzt. Geändert wird nichts.
+
+      Bewusst eng — nur die Subjektform „ich" beziehungsweise „wir". „unser
+      Angebot" schreibt auch ein Einzelunternehmer, „mein Eindruck" auch jemand,
+      der sonst „wir" sagt. Eine Warnung, die bei gültigem Text anschlägt,
+      kostet Vertrauen in alle anderen; das war die Lehre aus der
+      Telefonprüfung (#133).
+
+      Wortgetreue Auszüge zählen nicht mit: Was ein Kunde geschrieben hat, ist
+      nicht der Stil des Absenders.
+
+  - id: email.stil_floskel
+    titel: Eine Wendung aus der eigenen Liste im Profil
+    lint: email.stil_floskel
+    ebene: praxis
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      Die Ergänzung zur festen Liste in `lint.FLOSKELN`. Dort steht, was leer
+      ist; hier steht, was dieser Absender nicht lesen will — „zeitnah",
+      „kurzfristig", was auch immer. Über Geschmack urteilt das Werkzeug nicht,
+      es gibt nur wieder, was im Profil steht.
+
+      Gesucht wird als ganzes Wort, nicht als Ausdruck: Ein Regex aus dem Profil
+      wäre eine Fläche, die niemand prüft, und eine Zeichenkette mit einer
+      offenen Klammer brächte den Lauf zum Absturz statt zu einer Meldung.
+      Wortgetreue Auszüge zählen nicht mit, wie bei `email.stil_person`.
