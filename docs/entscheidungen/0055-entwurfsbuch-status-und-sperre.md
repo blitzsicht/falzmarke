@@ -89,11 +89,13 @@ um, und Kindprozesse bekommen `FALZMARKE_ENTWURFSBUCH=nie`.
 - Legt ein anderes Mailprogramm einen Entwurf nach dem Senden in den Papierkorb, heißt er
   `GELÖSCHT`. Ging er mit anderem Text hinaus, nennt die Zeile die gesendete Mail daneben.
 - Als der Entwurf selbst gilt im Papierkorb nur eine Mail mit seiner Fassung, die nicht älter ist
-  als sein Eintrag im Buch. Lag dieselbe Quelle zweimal als Entwurf, ging der frühere geändert
-  hinaus und landete der spätere im Papierkorb, heißen beide `GELÖSCHT`; welcher gesendet wurde,
-  steht nur im Tagebuch. Ob Thunderbird `X-Falzmarke-Fassung` beim erneuten Speichern eines
-  Entwurfs behält, ist nicht gemessen. Fehlt sie, gilt ein weggeworfener Entwurf wieder als
-  „gesendet, Text geändert“, sobald derselbe Betreff mit anderem Text hinausging.
+  als sein Eintrag im Buch (fünf Minuten Spiel, denn `Date` steht vor dem Eintrag). Lag dieselbe
+  Quelle zweimal als Entwurf, ging einer geändert hinaus und landete der andere im Papierkorb,
+  heißt der gesendete `GELÖSCHT`, wenn der weggeworfene der spätere war oder beide binnen fünf
+  Minuten entstanden; welcher gesendet wurde, steht dann nur im Tagebuch. Ob Thunderbird
+  `X-Falzmarke-Fassung` beim erneuten Speichern eines Entwurfs behält, ist nicht gemessen. Fehlt
+  sie, gilt ein weggeworfener Entwurf wieder als „gesendet, Text geändert“, sobald derselbe
+  Betreff mit anderem Text hinausging.
 - Die Tests von `background.js` laufen in node gegen eine Attrappe der MailExtension-API. Sie
   zeigen, dass die Regeln stimmen, nicht, dass Thunderbird die API so liefert. Die vier Stellen,
   die die Attrappe nur annimmt, hat die Probe vom 25.10. in Thunderbird bestätigt (Messung).
