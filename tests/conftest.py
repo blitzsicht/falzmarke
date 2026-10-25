@@ -158,6 +158,26 @@ def _kein_echtes_postfach(monkeypatch):
     monkeypatch.setenv("FALZMARKE_GESENDET", "nie")
 
 
+class _KeineBruecke:
+    """Steht für die Verbindung zur Entwurfsbrücke, solange ein Test keine einsetzt."""
+
+    def __new__(cls, *_a, **_k):
+        raise ConnectionRefusedError(61, "Testlauf: keine echte Entwurfsbrücke")
+
+
+@pytest.fixture(autouse=True)
+def _keine_echte_bruecke(monkeypatch):
+    """Kein Test ruft das Add-on im echten Thunderbird (ADR 0052).
+
+    Auf dem Rechner des Betreibers lauscht es unter 127.0.0.1:1994 — ein
+    vergessener Patch öffnete dort ein echtes Entwurfsfenster. Wer die Brücke
+    braucht, setzt `bruecke.VERBINDEN` auf eine Attrappe.
+    """
+    from falzmarke import bruecke
+
+    monkeypatch.setattr(bruecke, "VERBINDEN", _KeineBruecke)
+
+
 # ── Der Wächter: kein Test öffnet ein Fenster oder erreicht ein Postfach ──────
 #
 # ANLASS (21.10.2026, beim Bau von ADR 0051): Ein neuer Test lief über den
@@ -187,7 +207,7 @@ FENSTER_PROGRAMME = frozenset({
 #: Kindprozesse (etwa `python -m falzmarke`) erben den Riegel über die
 #: Umgebung — dort greift der Patch nicht, `kein_bildschirm` aber schon.
 KIND_UMGEBUNG = {"FALZMARKE_OEFFNEN": "nie", "FALZMARKE_GESENDET": "nie",
-                 "FALZMARKE_POSTFACH": "nie"}
+                 "FALZMARKE_POSTFACH": "nie", "FALZMARKE_BRUECKE": "nie"}
 
 
 class WaechterFehler(AssertionError):
@@ -234,6 +254,19 @@ class _WaechterPopen(_ECHTES_POPEN):
         super().__init__(args, *a, **k)
 
 
+_ECHTES_VERBINDEN = None
+
+
+def _waechter_verbinden(adresse, *a, **k):
+    """`socket.create_connection`, aber nie zur Entwurfsbrücke."""
+    from falzmarke import bruecke
+
+    if tuple(adresse)[1:2] == (bruecke.PORT,):
+        ABGEFANGEN.append("Entwurfsbrücke")
+        raise WaechterFehler("Testlauf: die Entwurfsbrücke ist gesperrt")
+    return _ECHTES_VERBINDEN(adresse, *a, **k)
+
+
 def _verboten(was: str):
     def _nein(*_a, **_k):
         ABGEFANGEN.append(was)
@@ -247,7 +280,10 @@ def _waechter(monkeypatch):
     import imaplib
     import os
     import smtplib
+    import socket
 
+    global _ECHTES_VERBINDEN
+    _ECHTES_VERBINDEN = _ECHTES_VERBINDEN or socket.create_connection
     ABGEFANGEN.clear()
     monkeypatch.setattr(subprocess, "Popen", _WaechterPopen)
     monkeypatch.setattr(os, "system", _verboten("os.system"))
@@ -255,6 +291,7 @@ def _waechter(monkeypatch):
         monkeypatch.setattr(os, "startfile", _verboten("os.startfile"))
     monkeypatch.setattr(imaplib.IMAP4, "__init__", _verboten("imaplib.IMAP4"))
     monkeypatch.setattr(smtplib.SMTP, "__init__", _verboten("smtplib.SMTP"))
+    monkeypatch.setattr(socket, "create_connection", _waechter_verbinden)
     yield
     pruefe_abgefangen()
 

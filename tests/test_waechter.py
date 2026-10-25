@@ -90,3 +90,24 @@ def test_ein_geschluckter_versuch_macht_den_test_trotzdem_rot():
 def test_der_waechter_ist_scharf_geschaltet():
     assert subprocess.Popen is conftest._WaechterPopen
     assert imaplib.IMAP4.__init__ is not conftest._ECHTES_POPEN.__init__
+
+
+def test_die_entwurfsbruecke_verbindet_nicht(monkeypatch):
+    """Gegenprobe für ADR 0052. Gezielt wird mit `ping`: Fiele der Wächter aus,
+    erreichte der Aufruf schlimmstenfalls das echte Add-on, und `ping` öffnet
+    kein Fenster — der Test würde rot, weil kein `WaechterFehler` kam."""
+    from falzmarke import bruecke
+
+    monkeypatch.setattr(bruecke, "VERBINDEN", None)  # der echte Weg
+    with pytest.raises(WaechterFehler):
+        bruecke.ping(umgebung={})
+    assert _abgefangen() == ["Entwurfsbrücke"]
+
+
+def test_ohne_attrappe_antwortet_keine_bruecke():
+    """Der weiche Riegel: Ohne Attrappe ist niemand da, und das ist ein Grund."""
+    from falzmarke import bruecke
+
+    lage = bruecke.entwurf_oeffnen("muster@example.de", 7, umgebung={})
+    assert lage.zustand == "fehler" and "antwortet nichts" in lage.grund
+    assert not ABGEFANGEN

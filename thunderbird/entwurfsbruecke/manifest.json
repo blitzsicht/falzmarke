@@ -1,0 +1,25 @@
+{
+  "manifest_version": 2,
+  "name": "falzmarke Entwurfsbrücke",
+  "description": "Öffnet einen Entwurf aus dem Entwurfsordner wie „Entwurf bearbeiten“, auf Zuruf von falzmarke über 127.0.0.1.",
+  "version": "0.1.1",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "entwurfsbruecke@falzmarke",
+      "strict_min_version": "128.0"
+    }
+  },
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "experiment_apis": {
+    "entwurfsbruecke": {
+      "schema": "schema.json",
+      "parent": {
+        "scopes": ["addon_parent"],
+        "paths": [["entwurfsbruecke"]],
+        "script": "implementation.js"
+      }
+    }
+  }
+}

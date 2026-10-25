@@ -234,6 +234,30 @@ Steuerskript. ADR 0034 gilt unverändert, und ein Test misst es am ganzen Paket.
 Die Begründung, wo die Grenze verläuft und warum sie sich am 08.09.2026 um ein Glied verschoben
 hat, steht in [ADR 0038](entscheidungen/0038-oeffnen-ist-kein-versand.md).
 
+### Der Entwurf im Postfach geht auf: die Entwurfsbrücke
+
+Liegt der Entwurf im Ordner „Entwürfe“ (ADR 0051), öffnet ihn das Thunderbird-Add-on unter
+`thunderbird/entwurfsbruecke/` so, wie „Entwurf bearbeiten“ es tut. Nach dem Senden räumt
+Thunderbird den Entwurf selbst weg; ein Fenster aus `-compose` ließe ihn liegen.
+
+```
+OK  Entwurf liegt in „Entwürfe“ von ich@example.de: Nachtrag
+OK  Entwurf offen in Thunderbird: Nachtrag
+```
+
+| Zeile | Was zu tun ist |
+|---|---|
+| `OK  Entwurf offen in Thunderbird` | nichts, das Fenster steht |
+| `HINWEIS  Es geht kein Fenster auf` + `Entwurfsbrücke: <Grund>` | den Entwurf unter „Entwürfe“ öffnen |
+| `HINWEIS  Fenster ungewiss` | in Thunderbird nachsehen, **nicht** noch einmal öffnen |
+
+Einen Entwurf, der schon liegt, öffnet `falzmarke entwurf-oeffnen --absender <adresse>
+--betreff <teil>` (oder `--uid`); ohne beides listet der Befehl die Entwürfe und nennt die
+Fassung des Add-ons. Geöffnet wird nur, wenn das Thunderbird-Profil für die Adresse genau einen
+Entwürfe-Ordner im eigenen Konto nennt, sonst steht `NICHT GEÖFFNET` da. Installieren:
+`thunderbird/entwurfsbruecke/README.md`. Warum ein Add-on und
+was es nicht kann: [ADR 0052](entscheidungen/0052-entwurfsbruecke-in-thunderbird.md).
+
 ### Eine fertige Signatur mitbringen
 
 Wer seine Signatur schon hat — gestaltet, in den Mailprogrammen im Einsatz —, muss sie nicht ein
