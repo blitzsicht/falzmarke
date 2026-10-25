@@ -1,0 +1,1 @@
+- **Die Entwurfsbrücke beantwortet wieder Anfragen.** 0.3.1 und 0.3.2 riefen beim Eintreffen einer Anfrage `clearTimeout` auf, ohne es zu importieren. Das Add-on brach deshalb jede Anfrage ohne Antwort ab, und falzmarke meldete „die Verbindung ging ohne vollständige Antwort zu“. Eine Probe prüft jetzt, dass jede Uhr-Funktion im Experiment importiert ist. Entwurfsbrücke 0.3.3.
