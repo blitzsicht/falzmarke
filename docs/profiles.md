@@ -52,6 +52,33 @@ Die Unterschrift lässt sich je Brief überschreiben: `signatur: keine` lässt d
 Raum zum Unterschreiben von Hand, eine Dateiangabe setzt ein anderes Bild. Die Datei liegt dann
 neben dem **Brief**, nicht neben dem Profil.
 
+## Der Schreibstil im Profil
+
+`email.stil:` hält fest, wie dieser Absender schreibt — in welcher Person, welche Wendungen er
+nicht lesen will, was sonst zu beachten ist. Damit trennen sich mehrere Absender eines Hauses
+sauber, ohne dass jemand die Stilreferenz ändert.
+
+```yaml
+email:
+  absender: muster@example.de
+  stil:
+    person: ich                # ich oder wir
+    floskeln: [zeitnah, kurzfristig]
+    hinweise:
+      - Fristen immer als Datum, nie als Dauer
+      - Preise ohne Begründung der eigenen Kalkulation
+```
+
+**Zwei Arten von Inhalt, und die Grenze ist die Zusage.** `person:` und `floskeln:` prüft `lint`
+am Text und meldet als Warnung; `hinweise:` prüft es nur auf Form. Der Inhalt wirkt, weil
+`SKILL.md` Schritt 4 den Abschnitt vor dem Formulieren lesen lässt — falzmarke überträgt die
+Vorgabe, es erzwingt sie nicht. Einzelheiten und Grenzen:
+[Datenvertrag](../skill/references/frontmatter.md), Abschnitt `email.stil:`;
+Begründung: [ADR 0053](entscheidungen/0053-email-stil-im-profil.md).
+
+Das mitgelieferte Beispielprofil trägt **kein** `stil:`. Ein Profil, das bei jedem Lauf warnt,
+ist Lärm; wer den Stil festhalten will, trägt ihn in sein eigenes Profil ein.
+
 ## Eigener Briefkopf
 
 Wer den Briefkopf frei gestalten will, setzt `briefkopf_typ: meinkopf.typ` und legt daneben

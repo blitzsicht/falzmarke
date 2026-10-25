@@ -61,6 +61,24 @@ formuliert · Anlagen auflisten.
 
 **Bestätigung** — was wann vereinbart wurde · was daraus folgt · bis wann Widerspruch möglich ist.
 
+**Angebot nachfassen** — Bezug auf das Angebot mit Nummer und Datum · ein Satz zum Stand ·
+eine Frage, die sich beantworten lässt. Kein zweiter Anlauf zur Leistungsbeschreibung: Wer das
+Angebot hat, kennt sie. Höchstens zweimal nachfassen, dann ist die Antwort ein Nein.
+
+**Reklamation beantworten** — zuerst, was gilt · dann, was geschieht · dann, bis wann. Das Bedauern
+steht nicht vor der Sachaussage und ersetzt sie nicht. Zugestandene Mängel werden benannt,
+bestrittene auch — beides in einem Satz, nicht in einem Absatz.
+
+**Preis oder Nachlass** — Zahl · Bezugsgröße · Gültigkeit: `1.234,56 EUR netto je 100 Stück, bis zum
+30. November 2026`. Die eigene Kalkulation wird nicht begründet. Ein Nachlass nennt seinen Grund
+(Menge, Laufzeit, Vorkasse), sonst wirkt der alte Preis erfunden.
+
+**Lieferant** — Bestellnummer zuerst · Sachstand in einem Satz · verlangte Handlung mit Datum.
+Derselbe Ton wie zum Kunden; wer bestellt, ist nicht im Recht, sondern im Vertrag.
+
+**Intern** — kürzer als alles andere: Anrede knapp oder keine · Entscheidung oder Frage im ersten
+Satz · Begründung darunter. Was niemand entscheiden muss, ist keine Nachricht.
+
 ## Schreibweisen
 
 Die Regeln zu Datum, Telefonnummern, Beträgen und Anschriften stehen in `din5008.md`. Sie gelten
@@ -68,6 +86,42 @@ auch im Fließtext: `am 1. September 2026`, `unter 0941 620-9800`, `1.234,56 EUR
 
 Fristen immer mit Datum, nie nur mit Dauer: „bis zum 15. September 2026", nicht „innerhalb von
 14 Tagen" — der Empfänger soll nicht rechnen müssen.
+
+**Kopierter Text wird nachgesehen.** Ein Absatz aus einem Browser, einem Chatfenster oder einem
+PDF bringt Zeichen mit, die niemand sieht: Zero-Width-Marken, weiche Trennstriche,
+Bidi-Steuerzeichen. `lint` meldet sie mit Zeile und Stelle (Regel `zeichen.unsichtbar`, ADR 0052)
+und hält den Lauf an — sie stünden sonst unbemerkt in der fertigen `.eml` und im PDF. Geändert
+wird nichts: Wer kopiert, löscht selbst. Geschützte Leerzeichen setzt der Satz an den Stellen, an
+denen sie hingehören (`z. B.`, `§ 7`, `12 kg`); sie von Hand einzufügen ist unnötig und wird als
+Warnung gemeldet.
+
+## Was gestrichen wird
+
+Diese Muster klingen nach Maschine, und zwar unabhängig von der Sprache. Neben jedem steht der
+Fall, der ihm ähnlich sieht und **bleibt** — die Grenze verläuft wie bei den Floskeln an der
+Frage, ob der Satz etwas trägt.
+
+| Gestrichen | Bleibt |
+|---|---|
+| „Nicht nur ein Angebot, sondern ein Versprechen" | „Das Angebot gilt bis zum 30. November 2026" |
+| Dreierfigur: „schnell, zuverlässig und partnerschaftlich" | „Lieferung in vier Werktagen" |
+| Anlauf: „In einer Zeit, in der Märkte sich wandeln …" | „Zu Ihrer Anfrage vom 14. August" |
+| Ankündigung: „Im Folgenden möchte ich erläutern …" | die Erläuterung selbst |
+| Gestapelt: „könnte unter Umständen möglicherweise" | „voraussichtlich am 1. September" |
+| Aufladung: „ein wichtiger Schritt", „maßgeblich" | „damit ist die Prüfung abgeschlossen" |
+| Werbesprache: „maßgeschneiderte, ganzheitliche Lösung" | „zwei Vorlagen, eine davon mit Logo" |
+| Nacherzählen: „Sie schreiben, die Lieferung fehlt." | „Die Lieferung geht am 3. September raus." |
+| Schlusszeile ohne Folge: „Bei Fragen gerne jederzeit" | „Bitte bestätigen Sie bis 1. September" |
+
+**Was hier ausdrücklich nicht steht.** Englischsprachige Anleitungen zum „Entmaschinisieren" von
+Text verlangen regelmäßig drei Dinge, die für deutsche Geschäftspost falsch sind: keine
+Gedankenstriche, gerade statt typografischer Anführungszeichen, keine Dreierfiguren überhaupt.
+Der Halbgeviertstrich und die Anführungszeichen „…" sind hier richtig gesetzt — `typografie.py`
+erzeugt sie absichtlich, und wer sie entfernt, verschlechtert den Satz. Auch englische
+Wortlisten (`delve`, `tapestry`, `pivotal`) gelten nicht: Sie beschreiben ein anderes Vokabular.
+
+Und was sich nie zum Muster macht: ein Fehler mit Absicht. Ein Tippfehler, ein schiefer Satz oder
+eine falsche Zahl machen einen Text nicht menschlicher, sondern schlechter.
 
 ## Was eine E-Mail vom Brief unterscheidet
 
@@ -120,6 +174,16 @@ nichts; wie jemand schreibt, entscheidet er selbst.
 
 Die Grenze verläuft an der Frage, ob der Satz etwas trägt. „Vielen Dank für die Unterlagen"
 bleibt — der Dank gilt einer Sache. „Vielen Dank für Ihre Zeit" gilt nichts.
+
+**Der Absender kann eigene Vorgaben mitbringen.** Trägt das gewählte Profil einen Abschnitt
+`email.stil:`, gilt er zusätzlich zu dieser Datei und vor dem Schreiben gelesen: `person:` sagt,
+ob dieser Absender „ich" oder „wir" schreibt, `floskeln:` nennt Wendungen, die er nicht lesen
+will, `hinweise:` steht in Prosa da. Diese Datei sagt, wie eine Geschäftsmail aufgebaut ist; das
+Profil sagt, wie **dieser** Absender schreibt. Widersprechen sich die beiden in einer Stilfrage,
+gilt das Profil. `person:` und `floskeln:` meldet `lint` als Warnung — außerhalb wortgetreuer
+Auszüge, denn dort steht fremder Wortlaut. `hinweise:` prüft niemand; es wirkt nur, weil es
+gelesen wird
+([ADR 0053](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0053-email-stil-im-profil.md)).
 
 **Kein Fließtext in Bildern.** Ein Bild ist für ein Bildschirmleseprogramm nichts, es wird in
 Übersichten oft nicht geladen, und suchen lässt es sich auch nicht. Das einzige Bild, das eine

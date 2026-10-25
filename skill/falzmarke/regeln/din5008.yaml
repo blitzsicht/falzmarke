@@ -854,3 +854,72 @@ regeln:
       stillschweigend umgestellt (ADR 0033). PDF/A-2 kennt keine beliebigen
       Dateien im Dokument; ohne die Stufe gibt es keine Einbettung und ohne
       Einbettung kein ZUGFeRD (Issue #114, Grundlage für #111).
+
+  # ── Zeichen, die niemand sieht (ADR 0052) ────────────────────────────────
+  - id: werkzeug.zeichen_unsichtbar
+    titel: Keine unsichtbaren Steuerzeichen im Entwurf
+    lint: zeichen.unsichtbar
+    herkunft: werkzeug
+    quellen: [unicode_noncharacters, unicode_tr44]
+    belegt_durch:
+      unicode_noncharacters: >-
+        Belegt die Liste der Nichtzeichen, nicht die Regel — 66 Codepunkte,
+        „formally immutable".
+      unicode_tr44: >-
+        Belegt die Kategorien `Cf`, `Cc`, `Co` und die Herleitung von
+        `Default_Ignorable_Code_Point`, nach der die Fehlerklasse geschnitten
+        ist. Zur Frage, was in einem Geschäftsbrief stehen darf, schweigt sie.
+    wirkung: fehler
+    bemerkung: >-
+      Steht hier und nicht nur in `email.yaml`: Dasselbe Zeichen wandert im
+      Brief ins PDF und in der E-Mail in die `.eml`. Eine Prüfung, zwei
+      Ausgaben, ein Eintrag.
+
+      Fehler und nicht Warnung, obwohl die Norm dazu nichts sagt. Das ist keine
+      Normaussage, sondern der eigene Datenvertrag — und nach ADR 0035 darf
+      `werkzeug` ein Fehler sein. Ein Zero-Width-Zeichen mitten in einem
+      deutschen Wort ist nachweislich ein Defekt und kein Ermessen: Es trennt
+      ein Wort, das kein Mensch getrennt sieht, und überlebt jede Vorschau.
+      Weder der Empfänger noch der Absender erfährt davon. Was legitim sein
+      KANN — ein geschütztes Leerzeichen, ein Variantenselektor hinter einem
+      Bildzeichen — fällt nicht unter diese Regel, sondern unter
+      `email.zeichen_geschuetzt` oder bleibt stumm.
+
+      Geändert wird nichts. Zeichen setzt `typografie.py`; `zeichen.py` meldet
+      nur. Ein Werkzeug, das ungefragt in einen Text schreibt, schreibt
+      irgendwann den falschen (`references/stil.md`).
+
+  - id: werkzeug.zeichen_geschuetzt
+    titel: Geschützte und exotische Leerzeichen an unerwarteter Stelle
+    lint: zeichen.geschuetzt
+    herkunft: werkzeug
+    deckel: warnung
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      Die zweite Hälfte der Zeichenprüfung (ADR 0052), getrennt eingetragen,
+      weil die Wirkung sich unterscheidet. Ein geschütztes Leerzeichen ist nicht
+      falsch — falzmarke setzt selbst eines bei „z. B.", „§ 7", „12 kg",
+      „25. August" und „Nr. 4711". Ob eines an einer anderen Stelle gewollt ist,
+      ist Ermessen, und darüber urteilt das Werkzeug nicht. Deshalb
+      `deckel: warnung`: Die Herkunft `werkzeug` dürfte Fehler sein, hier soll
+      sie es nicht.
+
+      Warum `deckel` und nicht `ebene: praxis` in `email.yaml`: `praxis` heißt
+      in diesem Repo „Darstellungsverhalten von Mailprogrammen" (ADR 0035), und
+      davon redet die Regel nicht. Sie redet über die Eingabe — jeder
+      Dokumentart, nicht nur der E-Mail. Mit `ebene: praxis` stünde unter jeder
+      Meldung „Erfahrung mit Mailprogrammen, kein Nachweis"; das wäre ein Grund,
+      den es nicht gibt.
+
+      Die Stellen, an denen ein geschütztes Leerzeichen richtig ist, liest
+      `zeichen.py` aus `typografie.py` — aus denselben Listen, die sie setzen,
+      nicht aus einer Kopie. Eine zweite Liste würde genau dann falsch, wenn es
+      darauf ankommt: Sie meldete die Ausgabe, die das Werkzeug gerade erzeugt
+      hat. Eine Warnung, die am eigenen Ergebnis anschlägt, kostet Vertrauen in
+      alle anderen.
+
+      Mitgemeldet werden Leerzeichen, die nicht wie eines aussehen (U+1680,
+      U+2000–200A, U+205F, U+3000). Sie sind kein Fehler, verhalten sich aber in
+      Suche, Sortierung und Serienbrief anders als das Leerzeichen, nach dem
+      jemand sucht.
