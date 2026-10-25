@@ -36,7 +36,9 @@ PORT = 1994
 VERBINDEN = None
 
 #: Länger ist keine Antwort des Add-ons; was darüber liegt, ist nicht von ihm.
-MAX_ANTWORT = 65536
+#: Seit 0.3.0 meldet `fenster` den Text jedes offenen Fensters mit, bis zu
+#: 20.000 Zeichen, als ASCII-Escape bis zu sechsmal so lang (ADR 0056).
+MAX_ANTWORT = 1024 * 1024
 
 FRIST_PING_S = 3
 #: Das Add-on lädt den Ordner bis zu 15 s nach, wartet bis zu 20 s auf das
@@ -152,7 +154,11 @@ def ping(*, umgebung: Mapping[str, str] | None = None) -> dict:
 
 
 def offene_entwuerfe(*, umgebung: Mapping[str, str] | None = None) -> list[dict]:
-    """Die offenen Verfassen-Fenster — Titel, Betreff, `draft_id` — oder `BrueckenFehler`.
+    """Die offenen Verfassen-Fenster — oder `BrueckenFehler`.
+
+    Je Fenster Titel, Betreff und `draft_id`, ab Add-on 0.3.0 dazu, was es jetzt
+    hinausschicken würde: `identitaet`, `an`, `kopie`, `blindkopie`, `anhaenge`,
+    `text` (ADR 0056). `live` ist falsch, wenn das Add-on das nicht lesen konnte.
 
     `draft_id` ist die Adresse der Nachricht im Entwürfe-Ordner, auf die das
     Fenster zeigt (`imap-message://…#<UID>`); `falzmarke status` erkennt daran,

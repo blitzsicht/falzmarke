@@ -49,9 +49,17 @@ globalThis.browser = {
       if (fall.fragen_wirft) { throw new Error("kein Fenster"); }
       return fall.trotzdem;
     },
+    fassungen: async () => {
+      if (fall.fassungen_wirft) { throw new Error("Tagebuch nicht lesbar"); }
+      return fall.fassungen || [];
+    },
   },
   compose: {
     getComposeDetails: async () => fall.details,
+    listAttachments: async () => {
+      if (fall.anhaenge_wirft) { throw new Error("keine Anhangliste"); }
+      return (fall.anhaenge || []).map((name, i) => ({ id: i + 1, name }));
+    },
     onBeforeSend: ereignis("vorSenden"),
     onAfterSend: ereignis("nachSenden"),
     onAfterSave: ereignis("nachSpeichern"),
@@ -115,9 +123,10 @@ def _voll(text, *, html=False, anhang=False):
 
 
 def _gesendet(*, text=TEXT, an=("erika@example.com",), betreff="Auftrag S1", vor=timedelta(days=2),
-              html=False, anhang=False):
+              html=False, anhang=False, message_id="m1@example.de"):
     return {"recipients": list(an), "ccList": [], "bccList": [], "subject": betreff,
-            "date": (JETZT - vor).isoformat(), "voll": _voll(text, html=html, anhang=anhang)}
+            "date": (JETZT - vor).isoformat(), "voll": _voll(text, html=html, anhang=anhang),
+            "headerMessageId": message_id}
 
 
 def _fall(*gesendet, typ="draft", text=TEXT, betreff="Auftrag S1", **mehr):
@@ -214,6 +223,33 @@ def test_gleicher_text_haelt_auch_bei_einer_antwort():
     assert aus["ergebnis"] == {"cancel": True}
 
 
+# ── Die Fassung aus dem Tagebuch (ADR 0056) ─────────────────────────────────
+
+GEAENDERT = "Hallo Erika,\n\nganz andere Sache, im Fenster umgeschrieben.\n"
+
+
+def test_fassung_aus_dem_tagebuch_erkennt_den_geaenderten_text():
+    # Die gesendete Mail trägt keine Kopfzeile (Thunderbird wirft sie weg), das
+    # Tagebuch kennt ihre Fassung noch, mit Klammern um die Message-ID.
+    aus = _lauf(_fall(_gesendet(text=GEAENDERT, vor=timedelta(days=3)),
+                      fassungen=[{"message_id": "<m1@example.de>", "fassung": "abc123def456"}]))
+    assert aus["ergebnis"] == {"cancel": True}
+    assert aus["tagebuch"][1]["grund"] == "gleicher_text"
+
+
+def test_gegenprobe_ohne_tagebuchtreffer_kein_gleicher_text():
+    for fassungen in ([], [{"message_id": "m2@example.de", "fassung": "abc123def456"}],
+                      [{"message_id": "m1@example.de", "fassung": "fremde000000"}]):
+        aus = _lauf(_fall(_gesendet(text=GEAENDERT, vor=timedelta(days=3)), fassungen=fassungen))
+        assert aus["ergebnis"] == {} and aus["fragen"] == []
+
+
+def test_ist_das_tagebuch_nicht_lesbar_prueft_die_sperre_ueber_den_text():
+    aus = _lauf(_fall(_gesendet(), fassungen_wirft=True))
+    assert aus["ergebnis"] == {"cancel": True}
+    assert "pruefung_fehlgeschlagen" not in _arten(aus)
+
+
 # ── Scheitert die Prüfung, wird gesendet ─────────────────────────────────────
 
 def test_ohne_gesendet_ordner_wird_gesendet_und_es_steht_im_tagebuch():
@@ -239,6 +275,40 @@ def test_ohne_senden_geschlossen():
 def test_gesendet_ohne_fund():
     aus = _lauf(_fall(nach_senden={"mode": "sendNow", "headerMessageId": "<y@example.de>"}))
     assert _arten(aus) == ["geoeffnet", "gesendet"]
+
+
+def _mit_empfaengern(**mehr):
+    fall = _fall(nach_senden={"mode": "sendNow", "headerMessageId": "y@example.de"},
+                 anhaenge=["Angebot.pdf"], **mehr)
+    fall["details"]["cc"] = ["Eva <EVA@example.org>"]
+    fall["details"]["bcc"] = ["dms@example.de"]
+    return fall
+
+
+def test_gesendet_nennt_absender_empfaenger_bcc_und_anhaenge():
+    aus = _lauf(_mit_empfaengern())
+    gesendet = aus["tagebuch"][-1]
+    assert gesendet["art"] == "gesendet" and gesendet["message_id"] == "y@example.de"
+    assert gesendet["identitaet"] == "order@example.de"
+    assert gesendet["an"] == ["erika@example.com"]
+    assert gesendet["kopie"] == ["eva@example.org"]
+    assert gesendet["blindkopie"] == ["dms@example.de"]
+    assert gesendet["anhaenge"] == ["Angebot.pdf"]
+
+
+def test_gegenprobe_ohne_bcc_steht_keines_im_eintrag():
+    fall = _mit_empfaengern()
+    fall["details"]["bcc"] = []
+    assert _lauf(fall)["tagebuch"][-1]["blindkopie"] == []
+
+
+def test_scheitert_die_anhangliste_wird_trotzdem_gesendet():
+    aus = _lauf(_mit_empfaengern(anhaenge_wirft=True))
+    assert aus["ergebnis"] == {}
+    gesendet = aus["tagebuch"][-1]
+    assert gesendet["art"] == "gesendet" and "anhaenge" not in gesendet
+    assert "keine Anhangliste" in gesendet["anhaenge_fehler"]
+    assert gesendet["blindkopie"] == ["dms@example.de"]
 
 
 def test_senden_scheitert():
@@ -273,6 +343,10 @@ def test_tagebuch_datei_hat_auf_beiden_seiten_denselben_namen():
      "const mitBetreff = true;",
      lambda: _fall(_gesendet(text="Hallo Erika,\n\nganz andere Sache.\n",
                              vor=timedelta(hours=2)), typ="reply")),
+    ('kopfwert(voll, "x-falzmarke-fassung") || bekannt.get(V.kennung(kopf.headerMessageId)) || ""',
+     'kopfwert(voll, "x-falzmarke-fassung")',
+     lambda: _fall(_gesendet(text=GEAENDERT, vor=timedelta(days=3)),
+                   fassungen=[{"message_id": "m1@example.de", "fassung": "abc123def456"}])),
 ])
 def test_gegenprobe(tmp_path, alt, neu, fall):
     quelltext = HINTERGRUND.read_text(encoding="utf-8")

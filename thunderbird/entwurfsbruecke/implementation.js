@@ -13,9 +13,11 @@
  * denn seine erste Zeile ist immer „GET …“ oder „POST …“.
  *
  * Senden kann die Brücke nicht. Über den Port gibt es nur „ping“,
- * „entwurf_oeffnen“, „fenster“ und „protokoll“. Dem Hintergrund (background.js)
- * gibt sie drei Dinge, die eine MailExtension allein nicht kann: einen Eintrag
- * ins Tagebuch im Profilordner schreiben, die UID eines Entwurfs nennen und
+ * „entwurf_oeffnen“, „fenster“ und „protokoll“. „fenster“ meldet je offenem
+ * Verfassen-Fenster, was es jetzt hinausschicken würde (ADR 0056). Dem
+ * Hintergrund (background.js) gibt sie vier Dinge, die eine MailExtension
+ * allein nicht kann: einen Eintrag ins Tagebuch im Profilordner schreiben, die
+ * Fassungen gesendeter Mails daraus lesen, die UID eines Entwurfs nennen und
  * vor dem Senden nachfragen (ADR 0055). Anhalten kann sie das Senden, auslösen nie.
  */
 "use strict";
@@ -29,9 +31,13 @@ var { MailServices } = ChromeUtils.importESModule(
 var { MailUtils } = ChromeUtils.importESModule(
   "resource:///modules/MailUtils.sys.mjs"
 );
+var { MsgUtils } = ChromeUtils.importESModule(
+  "resource:///modules/MimeMessageUtils.sys.mjs"
+);
 var { NetUtil } = ChromeUtils.importESModule(
   "resource://gre/modules/NetUtil.sys.mjs"
 );
+var parserUtils = Cc["@mozilla.org/parserutils;1"].getService(Ci.nsIParserUtils);
 var { setTimeout } = ChromeUtils.importESModule(
   "resource://gre/modules/Timer.sys.mjs"
 );
@@ -49,6 +55,11 @@ const FRIST_FENSTER_MS = 20000;
 // selbst schließt.
 const NACHLAUF_MS = 3000;
 const PROTOKOLL_MAX = 60;
+// So viel Text je Fenster meldet `fenster`. Eine Mail, die länger ist, wird
+// gekürzt gemeldet (`text_gekuerzt`), nicht gar nicht.
+const MAX_TEXT = 20000;
+// So weit zurück liest `fassungen` das Tagebuch, wie die Sperre zurücksieht.
+const FASSUNGEN_TAGE = 14;
 // Liegt im Profilordner, damit `falzmarke status` es auch bei geschlossenem
 // Thunderbird lesen kann. Eine Zeile JSON je Ereignis.
 const TAGEBUCH_DATEI = "entwurfsbruecke-tagebuch.jsonl";
@@ -139,6 +150,58 @@ function fensterStand(fenster) {
     draft_id: felder?.draftId || "",
     original: fenster.gMsgCompose?.originalMsgURI || "",
   };
+}
+
+function adressenAus(kopf) {
+  if (!kopf) {
+    return [];
+  }
+  return MailServices.headerParser
+    .parseDecodedHeader(kopf)
+    .map((a) => String(a.email || "").trim().toLowerCase())
+    .filter(Boolean);
+}
+
+// Der Klartext so, wie ihn `compose.getComposeDetails` als `plainTextBody`
+// liefert (Thunderbird 158, ext-compose.js, convertComposeDetails).
+function klartextVon(fenster) {
+  const editor = fenster.GetCurrentEditor();
+  const html = editor.outputToString("text/html", Ci.nsIDocumentEncoder.OutputRaw);
+  if (fenster.IsHTMLEditor()) {
+    return MsgUtils.convertToPlainText(html, true);
+  }
+  return parserUtils.convertToPlainText(html, Ci.nsIDocumentEncoder.OutputLFLineBreak, 0);
+}
+
+// Was das Fenster jetzt hinausschicken würde: Absender, Empfänger, Anhänge,
+// Text (#407). `GetComposeDetails` überträgt dafür den Fensterinhalt nach
+// `compFields`, dieselbe Funktion, die auch `compose.getComposeDetails`
+// aufruft. Am Fenster selbst ändert das nichts. Geht es nicht, bleibt es bei
+// dem, was `fensterStand` liest, mit `live: false`.
+function fensterInhalt(fenster) {
+  const stand = fensterStand(fenster);
+  if (typeof fenster.GetComposeDetails !== "function") {
+    return { ...stand, live: false, fehler: "GetComposeDetails fehlt" };
+  }
+  try {
+    const felder = fenster.GetComposeDetails();
+    const text = klartextVon(fenster);
+    return {
+      ...stand,
+      betreff: felder.subject || "",
+      live: true,
+      identitaet: adressenAus(felder.from)[0] || "",
+      an: adressenAus(felder.to),
+      kopie: adressenAus(felder.cc),
+      blindkopie: adressenAus(felder.bcc),
+      anhaenge: (felder.attachments || []).map((a) => String(a.name || "")),
+      text: text.slice(0, MAX_TEXT),
+      text_gekuerzt: text.length > MAX_TEXT,
+      ungespeichert: Boolean(fenster.gContentChanged || fenster.gMsgCompose?.bodyModified),
+    };
+  } catch (e) {
+    return { ...stand, live: false, fehler: String(e) };
+  }
 }
 
 function vorholen(fenster) {
@@ -283,7 +346,7 @@ async function beantworten(zeile) {
     case "entwurf_oeffnen":
       return entwurfOeffnen(anfrage);
     case "fenster":
-      return { ok: true, fenster: verfassenFenster().map(fensterStand) };
+      return { ok: true, fenster: verfassenFenster().map(fensterInhalt) };
     case "protokoll":
       return { ok: true, protokoll };
     default:
@@ -414,6 +477,39 @@ function insTagebuch(version, eintrag) {
   );
 }
 
+// Message-ID und Fassung jeder Mail, die laut Tagebuch in den letzten 14 Tagen
+// hinausging (#407). Thunderbird übernimmt `X-Falzmarke-Fassung` beim Senden
+// nicht in die gesendete Mail (gemessen 25.10.2026); das Tagebuch kennt sie
+// noch aus dem Entwurf. Fehlt das Tagebuch, ist die Liste leer.
+async function fassungen() {
+  const pfad = PathUtils.join(PathUtils.profileDir, TAGEBUCH_DATEI);
+  let inhalt = "";
+  try {
+    inhalt = await IOUtils.readUTF8(pfad);
+  } catch (e) {
+    return [];
+  }
+  const grenze = Date.now() - FASSUNGEN_TAGE * 24 * 60 * 60 * 1000;
+  const aus = [];
+  for (const zeile of inhalt.split("\n")) {
+    let eintrag;
+    try {
+      eintrag = JSON.parse(zeile);
+    } catch (e) {
+      continue; // eine halb geschriebene letzte Zeile
+    }
+    const fassung = eintrag?.ursprung?.fassung;
+    if (eintrag?.art !== "gesendet" || !eintrag.message_id || !fassung) {
+      continue;
+    }
+    if (!(Date.parse(eintrag.zeit) >= grenze)) {
+      continue;
+    }
+    aus.push({ message_id: String(eintrag.message_id), fassung: String(fassung) });
+  }
+  return aus;
+}
+
 // Die UID eines Entwurfs auf dem IMAP-Server: Bei IMAP-Ordnern ist der
 // messageKey die UID. Ohne Kopf gibt es keine.
 function kennung(context, nachrichtId) {
@@ -480,6 +576,9 @@ var entwurfsbruecke = class extends ExtensionCommon.ExtensionAPI {
         },
         async fragen(tabId, titel, text) {
           return fragen(context, tabId, titel, text);
+        },
+        async fassungen() {
+          return fassungen();
         },
       },
     };

@@ -130,7 +130,17 @@ def test_ein_postfach_entwurf_steht_danach_im_buch(monkeypatch, felder):
     assert eintrag.fassung == felder["fassung"] != ""
     assert eintrag.betreff == "Sommerfest – Programm"
     assert eintrag.an == ("paula@example.org",)
+    assert eintrag.blindkopie == tuple(a.lower() for a in felder["blindkopie"])
     assert "Lageplan" in eintrag.text
+
+
+def test_das_bcc_steht_im_buch_und_fehlt_bei_alten_eintraegen(monkeypatch, felder):
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", ImapAttrappe({ENTWUERFE: []}))
+    _entwurf(dict(felder, blindkopie=["Archiv@Example.de"]))
+    _buch(_eintrag(150))
+    neu, alt = entwurfsbuch.lesen({})
+    assert neu.blindkopie == ("archiv@example.de",)
+    assert alt.blindkopie is None, "ohne Feld ist das Bcc unbekannt, nicht leer"
 
 
 def test_ohne_postfach_entwurf_kein_eintrag(monkeypatch, felder):
@@ -559,3 +569,134 @@ class _Uhr(datetime):
 
 def test_tage_unter_eins_ist_ein_eingabefehler(capsys):
     assert falzmarke.main(["status", "--absender", VON, "--tage", "0"]) == falzmarke.EXIT_EINGABE
+
+
+# ── Fenster, Empfänger und Fassung (ADR 0056) ───────────────────────────────
+
+def _offen(monkeypatch, uid, **fenster) -> None:
+    eintrag = {"titel": "Verfassen: Auftrag S1", "betreff": "Auftrag S1", "live": True,
+               "draft_id": f"imap-message://order%40example.de@127.0.0.1/Entw&APw-rfe#{uid}",
+               "identitaet": VON, "an": [AN], "kopie": [], "blindkopie": ["dms@example.de"],
+               "anhaenge": ["Lageplan.pdf"], "text": TEXT, "ungespeichert": False, **fenster}
+    monkeypatch.setattr(bruecke, "VERBINDEN", BrueckenAttrappe({"ok": True, "fenster": [eintrag]}))
+
+
+def _fensterzeile(bericht) -> str:
+    (zeile,) = [z for z in entwurfsbuch.zeilen(bericht) if "Fenster:" in z]
+    return zeile
+
+
+def test_ein_offenes_fenster_nennt_absender_empfaenger_und_anhaenge(monkeypatch):
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    _offen(monkeypatch, server.ordner[ENTWUERFE][0].uid)
+    bericht = _stand()
+    zustand = _einziger(bericht)
+    assert (zustand.art, zustand.fenster_text_gleich) == ("offen", True)
+    zeile = _fensterzeile(bericht)
+    for teil in (f"von {VON}", f"An {AN}", "Bcc dms@example.de", "Anhänge Lageplan.pdf",
+                 "Text wie angelegt"):
+        assert teil in zeile
+    assert "ungespeichert" not in zeile
+
+
+def test_gegenprobe_ein_im_fenster_geaenderter_text_faellt_auf(monkeypatch):
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    _offen(monkeypatch, server.ordner[ENTWUERFE][0].uid,
+           text=TEXT.replace("in Gold anlegen", "in Silber anlegen"), ungespeichert=True)
+    bericht = _stand()
+    assert _einziger(bericht).fenster_text_gleich is False
+    zeile = _fensterzeile(bericht)
+    assert "Text geändert" in zeile and "ungespeichert" in zeile
+
+
+def test_die_konto_signatur_im_fenster_aendert_den_text_nicht(monkeypatch):
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    _offen(monkeypatch, server.ordner[ENTWUERFE][0].uid,
+           text=TEXT + "\n-- \nSiluri · Kremser Str. 35\n")
+    assert _einziger(_stand()).fenster_text_gleich is True
+
+
+def test_ein_fenster_von_vor_0_3_meldet_nur_dass_es_offen_ist(monkeypatch):
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    _offen(monkeypatch, server.ordner[ENTWUERFE][0].uid, live=False, text=None)
+    bericht = _stand()
+    zustand = _einziger(bericht)
+    assert (zustand.art, zustand.fenster_text_gleich) == ("offen", None)
+    assert not [z for z in entwurfsbuch.zeilen(bericht) if "Fenster:" in z]
+
+
+def _versand(*, an=(AN,), blindkopie=("dms@example.de",), message_id="test@example.org",
+             **mehr) -> dict:
+    return _tag("gesendet", 150, message_id=message_id, identitaet=VON,
+                an=list(an), kopie=[], blindkopie=list(blindkopie), anhaenge=[], **mehr)
+
+
+def _gesendet_mit(monkeypatch, tmp_path, versand, *, blindkopie=("dms@example.de",)):
+    _postfach(monkeypatch, gesendet=[_mail(zeit=JETZT - timedelta(hours=1))])
+    eintrag = _eintrag(150)
+    if blindkopie is not None:
+        eintrag["blindkopie"] = list(blindkopie)
+    _buch(eintrag)
+    return _stand(profilordner=_profil(tmp_path, [versand]))
+
+
+def test_gesendet_an_die_angelegten_empfaenger(monkeypatch, tmp_path):
+    bericht = _gesendet_mit(monkeypatch, tmp_path, _versand())
+    zustand = _einziger(bericht)
+    assert (zustand.empfaenger_plus, zustand.empfaenger_minus) == ((), ())
+    assert "Empfänger wie angelegt" in "\n".join(entwurfsbuch.zeilen(bericht))
+
+
+def test_gegenprobe_ein_fehlendes_bcc_wird_genannt(monkeypatch, tmp_path):
+    bericht = _gesendet_mit(monkeypatch, tmp_path, _versand(blindkopie=()))
+    zustand = _einziger(bericht)
+    assert (zustand.empfaenger_plus, zustand.empfaenger_minus) == ((), ("dms@example.de",))
+    text = "\n".join(entwurfsbuch.zeilen(bericht))
+    assert "ABWEICHEND vom Entwurf: −dms@example.de" in text
+    assert "Empfänger wie angelegt" not in text
+
+
+def test_ein_hinzugefuegter_empfaenger_wird_genannt(monkeypatch, tmp_path):
+    zustand = _einziger(_gesendet_mit(
+        monkeypatch, tmp_path, _versand(an=(AN, "chef@example.de"))))
+    assert zustand.empfaenger_plus == ("chef@example.de",)
+
+
+def test_ein_alter_bucheintrag_ohne_bcc_vergleicht_ohne_bcc(monkeypatch, tmp_path):
+    zustand = _einziger(_gesendet_mit(monkeypatch, tmp_path, _versand(), blindkopie=None))
+    assert (zustand.empfaenger_plus, zustand.empfaenger_minus) == ((), ())
+
+
+def test_ein_tagebuch_ohne_empfaenger_gibt_keine_empfaengerzeile(monkeypatch, tmp_path):
+    bericht = _gesendet_mit(monkeypatch, tmp_path, _tag("gesendet", 150))
+    assert _einziger(bericht).versand is None
+    assert not [z for z in entwurfsbuch.zeilen(bericht) if "Ging an" in z]
+
+
+def test_ohne_kopfzeile_findet_das_tagebuch_die_fassung(monkeypatch, tmp_path):
+    """Gemessen 25.10.2026: In der gesendeten Mail fehlt `X-Falzmarke-Fassung`.
+    Mit anderem Text erkennt sie dann nur die Message-ID im Tagebuch wieder."""
+    neu = "Hallo Erika,\n\nkurze Änderung: Wir nehmen Silber statt Gold.\n\nGruß\nPaul\n"
+    _postfach(monkeypatch, gesendet=[_mail(text=neu,
+                                           zeit=JETZT - timedelta(hours=1))])
+    _buch(_eintrag(150))
+    profil = _profil(tmp_path, [_versand()])
+    zustand = _einziger(_stand(profilordner=profil))
+    assert zustand.gesendet == (JETZT - timedelta(hours=1),) and zustand.anders == ()
+
+
+def test_gegenprobe_ohne_tagebuch_bleibt_die_fassung_unbekannt(monkeypatch, tmp_path):
+    neu = "Hallo Erika,\n\nkurze Änderung: Wir nehmen Silber statt Gold.\n\nGruß\nPaul\n"
+    _postfach(monkeypatch, gesendet=[_mail(text=neu,
+                                           zeit=JETZT - timedelta(hours=1))])
+    _buch(_eintrag(150))
+    profil = _profil(tmp_path, [_versand(message_id="andere@example.org")])
+    zustand = _einziger(_stand(profilordner=profil))
+    assert zustand.gesendet == () and zustand.anders == (JETZT - timedelta(hours=1),)
+
+
+def test_json_traegt_fenster_und_empfaenger(monkeypatch, tmp_path):
+    bericht = _gesendet_mit(monkeypatch, tmp_path, _versand(blindkopie=()))
+    (z,) = entwurfsbuch.als_json(bericht)["entwuerfe"]
+    assert z["empfaenger_minus"] == ["dms@example.de"] and z["versand"]["an"] == [AN]
+    assert z["fenster"] is None

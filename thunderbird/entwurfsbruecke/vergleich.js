@@ -229,8 +229,14 @@
     return "frei";
   }
 
+  // Eine Message-ID ohne spitze Klammern und Leerraum. Das Tagebuch schreibt
+  // sie ohne Klammern (`headerMessageId`), die Kopfzeile trägt sie mit.
+  function kennung(wert) {
+    return String(wert || "").trim().replace(/^<+|>+$/g, "").trim();
+  }
+
   const api = { KERN_MIN, ANFANG_MIN, nurZeichen, betreffKern, klartextAusHtml, schnitt, voll,
-    adressen, merkmale, gleicherText, vergleiche };
+    adressen, merkmale, gleicherText, vergleiche, kennung };
   if (typeof module !== "undefined" && module.exports) {
     module.exports = api;
   } else {

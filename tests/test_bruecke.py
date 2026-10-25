@@ -132,3 +132,16 @@ def test_ping_wirft_wenn_niemand_da_ist(monkeypatch):
     with pytest.raises(bruecke.BrueckenFehler) as fehler:
         bruecke.ping(umgebung={})
     assert not fehler.value.ungewiss
+
+
+def test_ein_fenster_mit_langem_text_kommt_ganz_an(monkeypatch):
+    """Seit 0.3.0 trägt `fenster` den Text, bis 20.000 Zeichen — mit Umlauten als
+    ASCII-Escape sechsmal so lang (ADR 0056). Das muss unter `MAX_ANTWORT` bleiben."""
+    text = "ä" * 20000
+    attrappe = _mit(monkeypatch, BrueckenAttrappe({"ok": True, "fenster": [
+        {"titel": "t", "betreff": "b", "draft_id": "", "live": True, "an": ["a@example.de"],
+         "blindkopie": ["dms@example.de"], "anhaenge": ["x.pdf"], "text": text}]}))
+    (fenster,) = bruecke.offene_entwuerfe(umgebung={})
+    assert fenster["text"] == text and fenster["blindkopie"] == ["dms@example.de"]
+    assert 100_000 < len(json.dumps({"fenster": [fenster]})) < bruecke.MAX_ANTWORT
+    assert attrappe.anfragen
