@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import email
 import functools
+import re
 from datetime import datetime, timezone
 from email import policy
 from pathlib import Path
@@ -404,12 +405,21 @@ def test_befehl_oeffnet_den_liegenden_entwurf(befehl, monkeypatch, capsys):
 
 # ── Der Befehl `entwurf-oeffnen` ────────────────────────────────────────────
 
+def _profil_mit_entwuerfen(monkeypatch, tmp_path, draft_folder):
+    from test_thunderbird_signatur import _attrappe, _grundwerte
+
+    monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER",
+                        _attrappe(tmp_path, _grundwerte(draft_folder=draft_folder)))
+
+
 @pytest.fixture
-def oeffne_befehl(monkeypatch):
+def oeffne_befehl(monkeypatch, tmp_path):
     monkeypatch.delenv("CI", raising=False)
     monkeypatch.delenv("FALZMARKE_OEFFNEN", raising=False)
     monkeypatch.delenv("FALZMARKE_BRUECKE", raising=False)
     monkeypatch.setenv("DISPLAY", ":0")
+    _profil_mit_entwuerfen(monkeypatch, tmp_path,
+                           "imap://muster%40example.de@outlook.office365.com/Entw&APw-rfe")
 
     def lauf(*argumente):
         return falzmarke.main(["entwurf-oeffnen", "--absender", ABSENDER, *argumente])
@@ -486,6 +496,42 @@ def test_entwurf_oeffnen_ohne_bildschirm_ruft_niemanden(oeffne_befehl, monkeypat
     tb_bruecke = _bruecke(monkeypatch)
     assert oeffne_befehl("--betreff", "wappen") == 3
     assert tb_bruecke.anfragen == []
+
+
+def test_entwurf_oeffnen_ohne_thunderbird_profil_oeffnet_nichts(oeffne_befehl, monkeypatch,
+                                                                 capsys, tmp_path):
+    """Ohne Profil kommt der Ordner vom Server. Ob Thunderbird dieselbe UID
+    im selben Ordner führt, weiß dann niemand."""
+    monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER", tmp_path / "kein-profil")
+    server = _zwei_entwuerfe(monkeypatch)
+    tb_bruecke = _bruecke(monkeypatch)
+    assert oeffne_befehl("--uid", str(server.ordner["Entw&APw-rfe"][0].uid)) == 3
+    assert "NICHT GEÖFFNET  Thunderbird nennt für" in capsys.readouterr().err
+    assert tb_bruecke.anfragen == []
+
+
+def test_entwurf_oeffnen_mit_entwuerfen_in_fremdem_konto_oeffnet_nichts(oeffne_befehl,
+                                                                         monkeypatch, capsys,
+                                                                         tmp_path):
+    """Die Brücke nähme den Ordner des anderen Kontos, die UID stammt aus diesem."""
+    _profil_mit_entwuerfen(monkeypatch, tmp_path / "fremd",
+                           "imap://jemand%40example.org@outlook.office365.com/Entw&APw-rfe")
+    server = _zwei_entwuerfe(monkeypatch)
+    tb_bruecke = _bruecke(monkeypatch)
+    assert oeffne_befehl("--uid", str(server.ordner["Entw&APw-rfe"][0].uid)) == 3
+    assert "NICHT GEÖFFNET" in capsys.readouterr().err
+    assert tb_bruecke.anfragen == []
+
+
+def test_der_aufrufer_wartet_laenger_als_das_add_on():
+    """Sonst meldet `entwurf-oeffnen` „ungewiss“, und das Fenster geht danach doch auf."""
+    quelle = (Path(__file__).parent.parent / "thunderbird" / "entwurfsbruecke"
+              / "implementation.js").read_text(encoding="utf-8")
+    frist = {name: int(wert) / 1000 for name, wert
+             in re.findall(r"^const (FRIST_\w+_MS) = (\d+);", quelle, re.M)}
+    # Ordner nachladen, dann zweimal warten: aufs Fenster und auf den Entwurf darin.
+    assert set(frist) == {"FRIST_ORDNER_MS", "FRIST_FENSTER_MS"}
+    assert bruecke.FRIST_OEFFNEN_S > frist["FRIST_ORDNER_MS"] + 2 * frist["FRIST_FENSTER_MS"]
 
 
 def test_entwurf_oeffnen_ohne_proxy_ist_exit_3(oeffne_befehl, monkeypatch, capsys):

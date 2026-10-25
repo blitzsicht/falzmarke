@@ -52,7 +52,12 @@ liegt, und sagt, ob das Fenster steht.
 5. **Liegt der Entwurf schon, wird er geöffnet.** Meldet ADR 0051 `ENTWURF LIEGT SCHON`, öffnet
    die Brücke den vorhandenen statt nichts zu tun.
 6. **`entwurf-oeffnen` für später.** Der Befehl listet die Entwürfe eines Absenders oder öffnet
-   einen nach `--betreff` oder `--uid`. Passen mehrere, öffnet er keinen.
+   einen nach `--betreff` oder `--uid`. Passen mehrere, öffnet er keinen. Die UID stammt aus dem
+   Ordner, den falzmarke auf dem Server liest; das Add-on öffnet aus dem Entwürfe-Ordner der
+   Identität. Beide sind nur dann sicher derselbe, wenn das Profil genau einen im eigenen Konto
+   nennt. Fällt falzmarke auf das Kennzeichen `\Drafts` des Servers zurück (kein Profil, ein
+   Ordner in einem anderen Konto, zwei Identitäten mit verschiedenen Ordnern), öffnet der Befehl
+   nichts.
 
 ### Was ADR 0038, Punkt 5 dazu sagt
 

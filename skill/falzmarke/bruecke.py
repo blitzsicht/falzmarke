@@ -39,9 +39,9 @@ VERBINDEN = None
 MAX_ANTWORT = 65536
 
 FRIST_PING_S = 3
-#: Das Add-on lädt den Ordner bis zu 15 s nach und wartet bis zu 20 s auf das
-#: Fenster; dazu kommt der Weg.
-FRIST_OEFFNEN_S = 45
+#: Das Add-on lädt den Ordner bis zu 15 s nach, wartet bis zu 20 s auf das
+#: Fenster und noch einmal bis zu 20 s auf den Entwurf darin; dazu kommt der Weg.
+FRIST_OEFFNEN_S = 65
 
 #: Was die Fehlerkennungen des Add-ons in einem Satz heißen.
 FEHLERTEXTE = {

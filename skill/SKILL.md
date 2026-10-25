@@ -253,7 +253,9 @@ python3 scripts/falzmarke.py entwurf-oeffnen --absender order@example.de --betre
 
 Für den Fall „ich finde den Entwurf nicht" oder „mach ihn mir auf". Braucht den IMAP-Proxy und
 das Add-on Entwurfsbrücke (ADR 0052). Passen mehrere Entwürfe zum Betreff, wird **keiner**
-geöffnet, und die Liste nennt die UIDs; dann mit `--uid` genau einen wählen. Exit 0 heißt: das
+geöffnet, und die Liste nennt die UIDs; dann mit `--uid` genau einen wählen. Nennt das
+Thunderbird-Profil keinen eindeutigen Entwürfe-Ordner im eigenen Konto, öffnet der Befehl nichts
+(`NICHT GEÖFFNET`, Exit 3): Die UID könnte dort eine andere Mail sein. Exit 0 heißt: das
 Fenster steht. Das Add-on kann nur öffnen — senden, löschen und verschieben kann es nicht.
 
 **`xml` — eine Rechnung als reine XML-Datei, ohne PDF.**
