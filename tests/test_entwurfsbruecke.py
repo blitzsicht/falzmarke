@@ -57,7 +57,7 @@ def test_das_add_on_kennt_nur_seine_vier_befehle():
 
 def test_das_add_on_ruft_nichts_auf_was_sendet_oder_loescht():
     assert {p.name for p in ADDON.glob("*.js")} == {
-        "implementation.js", "background.js", "vergleich.js"}
+        "implementation.js", "background.js", "vergleich.js", "zeichennamen.js"}
     assert verbotene_aufrufe(ALLE_JS) == []
 
 
@@ -144,8 +144,10 @@ def test_das_manifest():
     assert (ADDON / api["schema"]).is_file()
     assert (ADDON / api["parent"]["script"]).is_file()
     assert manifest["permissions"] == RECHTE
-    # Erst der Vergleich, dann der Hintergrund, der ihn braucht.
-    assert manifest["background"]["scripts"] == ["vergleich.js", "background.js"]
+    # Erst die Tabelle, dann der Vergleich, der sie braucht, dann der
+    # Hintergrund, der ihn braucht (ADR 0057).
+    assert manifest["background"]["scripts"] == [
+        "zeichennamen.js", "vergleich.js", "background.js"]
 
 
 @pytest.mark.parametrize("recht", ["compose.send", "compose.save", "messagesDelete",
@@ -181,3 +183,20 @@ def test_das_paket_ist_vollstaendig_und_reproduzierbar(tmp_path):
     with zipfile.ZipFile(erstes) as archiv:
         assert archiv.namelist() == list(packer.DATEIEN)
         assert archiv.read("implementation.js") == (ADDON / "implementation.js").read_bytes()
+
+
+def test_die_erzeugte_tabelle_wird_vor_dem_vergleich_geladen():
+    """`vergleich.js` holt sie über `require` oder aus `globalThis` — beides.
+
+    Im Add-on gibt es kein `require`; dort lädt das Manifest die Tabelle als
+    eigenes Hintergrundskript, und sie steht als `globalThis`-Eigenschaft da.
+    Im Testlauf lädt node sie über `require`. Fiele einer der beiden Wege weg,
+    liefe die Prüfung in genau der Umgebung ins Leere, in der sie nicht
+    gemessen wird (ADR 0057).
+    """
+    quelle = (ADDON / "vergleich.js").read_text(encoding="utf-8")
+    assert 'require("./zeichennamen.js")' in quelle
+    assert "globalThis.FalzmarkeZeichennamen" in quelle
+    tabelle = (ADDON / "zeichennamen.js").read_text(encoding="utf-8")
+    assert "wurzel.FalzmarkeZeichennamen = api;" in tabelle
+    assert "module.exports = api;" in tabelle

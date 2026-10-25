@@ -62,28 +62,57 @@
     "table", "ul", "ol", "blockquote", "pre", "hr"]);
   const STILL = new Set(["style", "script", "head", "title"]);
   const ROH = new Set(["style", "script"]);
-  const ZEICHENNAMEN = {
-    amp: "&", lt: "<", gt: ">", quot: "\"", apos: "'", nbsp: "\u00a0",
-    auml: "ä", ouml: "ö", uuml: "ü", Auml: "Ä", Ouml: "Ö", Uuml: "Ü", szlig: "ß",
-    eacute: "é", egrave: "è", agrave: "à", aacute: "á", ccedil: "ç", euro: "€",
-  };
+  // Die Zeichennamen, die Python kennt — alle 2231, erzeugt von
+  // `scripts/zeichennamen.py` (ADR 0057). Eine von Hand gepflegte Auswahl von
+  // zwanzig stand hier bis 0.3.0 und lief auseinander: `&ndash;` blieb als
+  // Wort „ndash“ im Textkern, während Python „–“ daraus machte und es damit
+  // aus dem Kern warf. Die Sperre schwieg dann, wo `status` „SCHON RAUS“ sagte.
+  const { NAMEN, UNGUELTIGE_KENNZIFFER, UNGUELTIGE_STELLE } =
+    typeof require === "function"
+      ? require("./zeichennamen.js")
+      : globalThis.FalzmarkeZeichennamen;
   const MARKE = new RegExp(
     "<!--[\\s\\S]*?(?:-->|$)|<![^>]*>|<\\?[^>]*>" +
     "|<(/?)([A-Za-z][A-Za-z0-9:-]*)((?:[^>\"']|\"[^\"]*\"|'[^']*')*?)(/?)>", "g");
 
-  function entschluesseln(text) {
-    return text.replace(/&(#x[0-9a-fA-F]+|#[0-9]+|[A-Za-z][A-Za-z0-9]*);/g, (ganz, name) => {
-      if (name[0] === "#") {
-        const zahl = name[1] === "x" || name[1] === "X"
-          ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10);
-        try {
-          return String.fromCodePoint(zahl);
-        } catch (_fehler) {
-          return "\ufffd";
-        }
+  // Wie Pythons `html.unescape`: dasselbe Muster, dieselben Ausnahmen für
+  // Zahlenverweise, dieselbe Längstübereinstimmung bei einem Namen ohne
+  // Semikolon („Tom&amp Jerry“ wird zu „Tom& Jerry“, „Tom&Jerry“ bleibt).
+  const VERWEIS = /&(#[0-9]+;?|#[xX][0-9a-fA-F]+;?|[^\t\n\f <&#;]{1,32};?)/gu;
+
+  function einVerweis(ganz, kern) {
+    if (kern[0] === "#") {
+      const roh = kern.slice(1).replace(/;$/, "");
+      const zahl = roh[0] === "x" || roh[0] === "X"
+        ? parseInt(roh.slice(1), 16)
+        : parseInt(roh, 10);
+      if (Object.hasOwn(UNGUELTIGE_KENNZIFFER, zahl)) {
+        return UNGUELTIGE_KENNZIFFER[zahl];
       }
-      return Object.hasOwn(ZEICHENNAMEN, name) ? ZEICHENNAMEN[name] : ganz;
-    });
+      if ((zahl >= 0xd800 && zahl <= 0xdfff) || zahl > 0x10ffff) {
+        return "\ufffd";
+      }
+      if (UNGUELTIGE_STELLE.has(zahl)) {
+        return "";
+      }
+      return String.fromCodePoint(zahl);
+    }
+    if (Object.hasOwn(NAMEN, kern)) {
+      return NAMEN[kern];
+    }
+    // Ohne Semikolon gilt der längste Name, der in der Tabelle steht; der Rest
+    // bleibt Text. Darunter bleibt nur, was gar kein Name ist: „&Jerry“.
+    for (let laenge = kern.length - 1; laenge > 1; laenge -= 1) {
+      const kurz = kern.slice(0, laenge);
+      if (Object.hasOwn(NAMEN, kurz)) {
+        return NAMEN[kurz] + kern.slice(laenge);
+      }
+    }
+    return ganz;
+  }
+
+  function entschluesseln(text) {
+    return text.replace(VERWEIS, einVerweis);
   }
 
   function klartextAusHtml(html) {

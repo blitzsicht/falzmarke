@@ -25,7 +25,8 @@ REPO = Path(__file__).resolve().parent.parent
 QUELLE = REPO / "thunderbird" / "entwurfsbruecke"
 
 #: Was in das Paket gehört. Die README bleibt draußen: Thunderbird liest sie nicht.
-DATEIEN = ("manifest.json", "schema.json", "vergleich.js", "background.js", "implementation.js")
+DATEIEN = ("manifest.json", "schema.json", "zeichennamen.js", "vergleich.js",
+           "background.js", "implementation.js")
 
 #: Fester Zeitstempel, damit das Paket reproduzierbar ist (Zip kennt nichts vor 1980).
 ZEIT = (1980, 1, 1, 0, 0, 0)
