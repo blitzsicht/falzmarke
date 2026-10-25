@@ -115,6 +115,10 @@ def test_gepackt_wird_vor_dem_release_und_ueber_die_skripte():
     lauf = schritte[packen]["run"]
     assert "python3 scripts/xpi_packen.py ." in lauf
     assert re.search(r'python3 scripts/xpi_updates\.py entwurfsbruecke-\*\.xpi "\$TAG"', lauf)
+    # Was angehängt wird, muss der Prüfsummen-Schritt auch so benennen.
+    summen = schritte[namen.index("Pruefsummen bilden")]["run"]
+    assert "xpi=$(ls entwurfsbruecke-*.xpi)" in summen
+    assert 'sha256sum "$xpi" | tee "$xpi.sha256"' in summen
     # Der Tag kommt aus der Umgebung, nie als Ausdruck in die Shell.
     assert "${{" not in lauf
     assert schritte[packen]["env"]["TAG"] == "${{ inputs.tag || github.ref_name }}"

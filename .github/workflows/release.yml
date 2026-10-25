@@ -80,6 +80,9 @@ jobs:
         # Jedes Release traegt updates.json: Das Manifest der Bruecke fragt
         # releases/latest/download/updates.json ab. Fehlt die Datei am juengsten
         # Release, findet keine installierte Bruecke mehr ein Update (ADR 0054).
+        # Vorsicht beim Nachfahren eines ALTEN Tags von Hand: Wird dessen Release
+        # zum juengsten, zeigt updates.json auf die alte Fassung, und bis zum
+        # naechsten Release kommt bei niemandem ein Update an.
         # Der Tag geht ueber die Umgebung, nie in die Shell interpoliert.
         env:
           TAG: ${{ inputs.tag || github.ref_name }}

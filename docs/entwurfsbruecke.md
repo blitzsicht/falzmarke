@@ -16,8 +16,8 @@ Status und Sperre: [ADR 0055](entscheidungen/0055-entwurfsbuch-status-und-sperre
    Senden), `messagesRead` und `accountsRead` (in „Gesendet“ nachsehen). Mehr verlangt das Add-on
    nicht. Thunderbird beschreibt `compose` weiter, als das Add-on es nutzt.
 
-Thunderbird ab 128 genügt. Die Datei ist nicht bei Mozilla signiert, Thunderbird installiert sie
-trotzdem.
+Thunderbird ab 128 genügt. Die Datei ist nicht bei Mozilla signiert. Thunderbird verlangt das
+nicht: `xpinstall.signatures.required` steht dort ab Werk auf `false`.
 
 ## Prüfen, ob es die Datei aus dem Release ist
 
