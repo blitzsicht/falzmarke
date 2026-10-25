@@ -176,14 +176,31 @@ def merkmale_aus(*, empfaenger, betreff: str, text: str, fassung: str = "") -> M
                     fassung=(fassung or "").strip())
 
 
-def merkmale(nachricht, *, mit_bcc: bool = False) -> Merkmale:
+def kennung(wert) -> str:
+    """Eine Message-ID ohne spitze Klammern und Leerraum, wie `kennung` in `vergleich.js`.
+
+    Das Tagebuch der Entwurfsbrücke schreibt sie ohne Klammern, die Kopfzeile trägt sie mit.
+    """
+    return re.sub(r"^<+|>+$", "", str(wert or "").strip()).strip()
+
+
+def merkmale(nachricht, *, mit_bcc: bool = False,
+             fassungen: Mapping[str, str] | None = None) -> Merkmale:
+    """Die Merkmale einer Nachricht.
+
+    `fassungen` ordnet Message-IDs eine Fassung zu (`entwurfsbuch.fassungen`, ADR 0056):
+    Thunderbird übernimmt `X-Falzmarke-Fassung` beim Senden nicht, das Tagebuch kennt sie.
+    """
     from email.utils import getaddresses
 
     felder = ("To", "Cc", "Bcc") if mit_bcc else ("To", "Cc")
     werte = [str(w) for f in felder for w in nachricht.get_all(f, [])]
+    fassung = str(nachricht.get("X-Falzmarke-Fassung") or "").strip()
+    if not fassung and fassungen:
+        fassung = fassungen.get(kennung(nachricht.get("Message-ID")), "")
     return merkmale_aus(empfaenger=[a for _, a in getaddresses(werte)],
                         betreff=str(nachricht.get("Subject") or ""), text=klartext(nachricht),
-                        fassung=str(nachricht.get("X-Falzmarke-Fassung") or ""))
+                        fassung=fassung)
 
 
 def gleicher_text(eigen: Merkmale, fremd: Merkmale) -> bool:
@@ -246,13 +263,14 @@ def _stunden(umgebung: Mapping[str, str]) -> float:
 
 def pruefe(eigen: Merkmale, absender: str, *, verbindung=None, ordner: str | None = None,
            jetzt: datetime | None = None, stunden: float = STUNDEN_VORGABE,
-           umgebung: Mapping[str, str] | None = None) -> Befund:
+           umgebung: Mapping[str, str] | None = None,
+           fassungen: Mapping[str, str] | None = None) -> Befund:
     """Sieht im Gesendet-Ordner nach. Wirft nichts — ein Fehlschlag ist ein Befund.
 
     `verbindung` ist eine offene `postfach.Postfach`-Sitzung; ohne sie wird
     eine aufgebaut und danach wieder abgemeldet. `ordner` ist der IMAP-Name
     des Gesendet-Ordners; ohne ihn das Kennzeichen `\\Sent`, sonst
-    „Gesendete Elemente“.
+    „Gesendete Elemente“. `fassungen` wie bei `merkmale`.
     """
     from falzmarke import postfach
 
@@ -276,7 +294,8 @@ def pruefe(eigen: Merkmale, absender: str, *, verbindung=None, ordner: str | Non
             if not eigen.empfaenger & set(kopf.an):
                 continue
             roh = verbindung.nachricht(ordner, kopf.uid)
-            fremd = merkmale(email.message_from_bytes(roh, policy=policy.default), mit_bcc=True)
+            fremd = merkmale(email.message_from_bytes(roh, policy=policy.default), mit_bcc=True,
+                             fassungen=fassungen)
             urteil = vergleiche(eigen, fremd)
             if urteil == "frei":
                 continue
@@ -305,7 +324,8 @@ def pruefe_datei(eml_pfad, *, umgebung: Mapping[str, str] | None = None, verbind
     `FALZMARKE_GESENDET=nie` schaltet ab, `FALZMARKE_GESENDET_STUNDEN` weitet
     oder verengt das Fenster (Vorgabe 24). Den Gesendet-Ordner nennt, wenn
     vorhanden, Thunderbird (`fcc_folder` der Identität, ADR 0050 liest
-    dieselben Dateien).
+    dieselben Dateien). Die Fassungen gesendeter Mails kommen aus dem
+    Tagebuch der Entwurfsbrücke im selben Thunderbird-Profil (ADR 0056).
     """
     umgebung = os.environ if umgebung is None else umgebung
     if (umgebung.get("FALZMARKE_GESENDET") or "").strip().lower() == "nie":
@@ -319,8 +339,12 @@ def pruefe_datei(eml_pfad, *, umgebung: Mapping[str, str] | None = None, verbind
         from falzmarke import oeffnen
 
         ordner = oeffnen.thunderbird_ordner(absender, "fcc_folder", thunderbird_ordner)
+    from falzmarke import entwurfsbuch
+
+    fassungen = entwurfsbuch.fassungen(entwurfsbuch.tagebuch(thunderbird_ordner)[0])
     return pruefe(merkmale(nachricht), absender, verbindung=verbindung, ordner=ordner,
-                  jetzt=jetzt, stunden=_stunden(umgebung), umgebung=umgebung)
+                  jetzt=jetzt, stunden=_stunden(umgebung), umgebung=umgebung,
+                  fassungen=fassungen)
 
 
 # ── Melden ──────────────────────────────────────────────────────────────────

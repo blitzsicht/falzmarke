@@ -41,7 +41,7 @@ falzmarke entwurf-oeffnen --absender ich@example.de      # braucht den IMAP-Prox
 OK  2 Entwürfe in „Entwürfe“ von ich@example.de
     UID 4711  25.10.2026 12:20  Nachtrag  → du@example.org
     …
-OK  Entwurfsbrücke 0.2.1 in Thunderbird 158.0.1
+OK  Entwurfsbrücke 0.3.0 in Thunderbird 158.0.1
 ```
 
 ## Das Tagebuch
@@ -50,8 +50,16 @@ OK  Entwurfsbrücke 0.2.1 in Thunderbird 158.0.1
 
 ```
 {"art": "gesendet", "ursprung": {"typ": "draft", "konto": "ich@example.de", "betreff": "Nachtrag",
- "uid": 4711, "fassung": "…"}, "modus": "sendNow", "message_id": "…", "zeit": "…", "version": "0.2.1"}
+ "uid": 4711, "fassung": "…"}, "identitaet": "ich@example.de", "an": ["paula@example.org"],
+ "kopie": [], "blindkopie": ["archiv@example.de"], "anhaenge": ["Lageplan.pdf"],
+ "modus": "sendNow", "message_id": "…", "zeit": "…", "version": "0.3.0"}
 ```
+
+Ab 0.3.0 stehen bei `gesendet` Absender, Empfänger samt Bcc und die Namen der Anhänge. Das
+Tagebuch enthält damit Adressen; es liegt nur lokal im Profil. Über `message_id` und
+`ursprung.fassung` erkennen falzmarke und die Sperre eine gesendete Mail als ihren Entwurf,
+auch wenn der Text geändert wurde: Thunderbird übernimmt `X-Falzmarke-Fassung` nicht in die
+gesendete Mail (ADR 0056).
 
 | `art` | heißt |
 |---|---|
@@ -90,7 +98,7 @@ Eine Zeile JSON an `127.0.0.1:1994`, eine zurück:
 |---|---|
 | `ping` | Name, Fassung, Thunderbird-Version |
 | `entwurf_oeffnen` | `geoeffnet`, `schon_offen`, `ungewiss`, `fenster_ohne_entwurf` oder ein Fehler |
-| `fenster` | die offenen Verfassen-Fenster mit Betreff und Entwurf |
+| `fenster` | die offenen Verfassen-Fenster mit Betreff und Entwurf; ab 0.3.0 auch Absender, An, Cc, Bcc, Anhänge, Text (bis 20.000 Zeichen) und ob ungespeichert |
 | `protokoll` | die letzten 60 Vorgänge |
 
 Der Port lässt sich in Thunderbird über die Einstellung `falzmarke.entwurfsbruecke.port` ändern

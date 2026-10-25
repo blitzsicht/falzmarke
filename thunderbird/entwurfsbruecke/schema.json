@@ -30,6 +30,13 @@
         "parameters": [{ "name": "nachrichtId", "type": "integer" }]
       },
       {
+        "name": "fassungen",
+        "type": "function",
+        "async": true,
+        "description": "Message-ID und Fassung der Mails, die laut Tagebuch in den letzten 14 Tagen hinausgingen.",
+        "parameters": []
+      },
+      {
         "name": "fragen",
         "type": "function",
         "async": true,

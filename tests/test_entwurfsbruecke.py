@@ -29,7 +29,8 @@ VERBOTEN = (
     "SendMsg", "sendMessage", "GenericSendMessage", "nsIMsgCompDeliverMode",
     "SendMessageFile", "deleteMessages", "DeleteMessages", "StoreImapFlags",
     "storeImapFlags", "copyMessages", "CopyMessages", "moveMessages", "expunge",
-    "emptyTrash", "deleteSelf", "saveMessage", "setComposeDetails",
+    "emptyTrash", "deleteSelf", "saveMessage", "setComposeDetails", "SetComposeDetails",
+    "CompFields2Recipients",
     "messages.delete", "messages.move", "messages.copy", "messages.update",
     "messages.archive", "messages.import",
 )
@@ -69,9 +70,26 @@ def test_das_add_on_ruft_nichts_auf_was_sendet_oder_loescht():
     "browser.runtime.sendMessage({});",
     "await browser.messages.delete([id], true);",
     "await browser.compose.setComposeDetails(tab.id, { to: [] });",
+    "fenster.SetComposeDetails({ to: null });",
+    "fenster.CompFields2Recipients(felder);",
 ])
 def test_gegenprobe_ein_sendender_aufruf_faellt_auf(probe):
     assert verbotene_aufrufe(ALLE_JS + "\n" + probe)
+
+
+#: `onBeforeSend` darf mit `details` das Fenster ändern, wie `setComposeDetails`.
+#: Das Add-on hält höchstens an (`{ cancel: true }`), es schreibt nichts zurück,
+#: auch nicht die Fassungs-Kopfzeile (ADR 0056).
+RUECKSCHREIBEN = re.compile(r"return\s*\{[^}]*\bdetails\b")
+
+
+def test_vor_dem_senden_wird_nichts_zurueckgeschrieben():
+    assert not RUECKSCHREIBEN.search(ALLE_JS)
+
+
+def test_gegenprobe_ein_rueckschreiben_faellt_auf():
+    probe = 'return { details: { customHeaders: [{ name: "X-Falzmarke-Fassung", value: f }] } };'
+    assert RUECKSCHREIBEN.search(ALLE_JS + "\n" + probe)
 
 
 def test_die_sperre_waehlt_nicht_senden_vor():
@@ -139,10 +157,10 @@ def test_gegenprobe_ein_weiteres_recht_faellt_auf(recht):
     assert fremde_rechte(manifest) == [recht]
 
 
-def test_das_experiment_bietet_genau_vier_funktionen():
+def test_das_experiment_bietet_genau_fuenf_funktionen():
     (schema,) = json.loads((ADDON / "schema.json").read_text(encoding="utf-8"))
     assert {f["name"] for f in schema["functions"]} == {"starten", "tagebuch", "kennung",
-                                                         "fragen"}
+                                                         "fragen", "fassungen"}
 
 
 def _packer():

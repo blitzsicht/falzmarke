@@ -43,3 +43,4 @@ gelesen wird und die niemand nachpflegt.
 | [0053](0053-email-stil-im-profil.md) | Der Schreibstil steht im Profil, geteilt in prüfbar und übertragen | 25.10.2026 |
 | [0054](0054-entwurfsbruecke-in-thunderbird.md) | Die Entwurfsbrücke: Thunderbird öffnet den Postfach-Entwurf | 25.10.2026 |
 | [0055](0055-entwurfsbuch-status-und-sperre.md) | Was aus einem Entwurf wurde: Entwurfsbuch, `status` und die Sperre beim Senden | 25.10.2026 |
+| [0056](0056-entwurfsbruecke-empfaenger-und-fassung.md) | Die Entwurfsbrücke meldet Empfänger, die Fassung kommt aus dem Tagebuch | 25.10.2026 |

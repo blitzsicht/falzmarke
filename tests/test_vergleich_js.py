@@ -220,3 +220,31 @@ def test_gegenprobe_eine_abweichung_in_js_faellt_auf(tmp_path, alt, neu):
     kaputt = tmp_path / "vergleich.js"
     kaputt.write_text(quelle.replace(alt, neu), encoding="utf-8")
     assert _abweichungen(kaputt) != []
+
+
+KENNUNGEN = ["<a@b.de>", " a@b.de ", "<<a@b.de>>", "a@b.de", "\t<a@b.de>\n", "", "<>", "x<y>z"]
+
+
+def _kennungen_js(modul) -> list[str]:
+    laeufer = ('const e = JSON.parse(require("fs").readFileSync(0, "utf8"));'
+               'const v = require(e.modul);'
+               'process.stdout.write(JSON.stringify(e.werte.map(v.kennung)));')
+    fertig = subprocess.run([_node(), "-e", laeufer],
+                            input=json.dumps({"modul": str(modul), "werte": KENNUNGEN}),
+                            capture_output=True, encoding="utf-8", timeout=60, check=False)
+    assert fertig.returncode == 0, fertig.stderr
+    return json.loads(fertig.stdout)
+
+
+def test_js_und_python_lesen_die_message_id_gleich():
+    """Die Sperre schlägt die Fassung über die Message-ID nach wie `status` (ADR 0056)."""
+    assert _kennungen_js(VERGLEICH_JS) == [gesendet.kennung(k) for k in KENNUNGEN]
+
+
+def test_gegenprobe_eine_abweichende_kennung_faellt_auf(tmp_path):
+    quelle = VERGLEICH_JS.read_text(encoding="utf-8")
+    alt = '.replace(/^<+|>+$/g, "")'
+    assert quelle.count(alt) == 1
+    kaputt = tmp_path / "vergleich.js"
+    kaputt.write_text(quelle.replace(alt, ""), encoding="utf-8")
+    assert _kennungen_js(kaputt) != [gesendet.kennung(k) for k in KENNUNGEN]

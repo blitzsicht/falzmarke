@@ -1,8 +1,9 @@
-/* falzmarke Entwurfsbrücke, Hintergrund (ADR 0054, ADR 0055)
+/* falzmarke Entwurfsbrücke, Hintergrund (ADR 0054, ADR 0055, ADR 0056)
  *
  * Startet die Brücke und führt das Tagebuch: Für jedes Verfassen-Fenster hält
  * es fest, woher der Entwurf kam (Konto, UID, Fassung) und was aus ihm wurde,
- * also geöffnet, gespeichert, gesendet oder ohne Senden geschlossen.
+ * also geöffnet, gespeichert, gesendet oder ohne Senden geschlossen. Beim
+ * Senden stehen Absender, Empfänger samt Bcc und die Namen der Anhänge dabei.
  * `falzmarke status` liest das Tagebuch aus dem Profilordner, auch wenn
  * Thunderbird zu ist.
  *
@@ -158,6 +159,27 @@ async function gesendeteSeit(ordner, seit) {
   }
 }
 
+// Message-ID → Fassung aus dem Tagebuch (ADR 0056). Thunderbird übernimmt
+// `X-Falzmarke-Fassung` beim Senden nicht; ohne das hier griffe der Vergleich
+// über die Fassung bei keiner gesendeten Mail.
+async function fassungenAusTagebuch() {
+  const bekannt = new Map();
+  let eintraege = [];
+  try {
+    eintraege = await browser.entwurfsbruecke.fassungen();
+  } catch (fehler) {
+    // Ohne Tagebuch vergleicht die Sperre wie bisher über Text und Betreff.
+    console.error("falzmarke Tagebuch", fehler);
+  }
+  for (const { message_id, fassung } of eintraege || []) {
+    const kennung = V.kennung(message_id);
+    if (kennung && fassung) {
+      bekannt.set(kennung, fassung);
+    }
+  }
+  return bekannt;
+}
+
 async function befund(details, ursprung) {
   const empfaenger = V.adressen([
     ...liste(details.to),
@@ -167,6 +189,7 @@ async function befund(details, ursprung) {
   if (!empfaenger.size) {
     return null;
   }
+  const bekannt = await fassungenAusTagebuch();
   const eigen = V.merkmale({
     empfaenger,
     betreff: details.subject || "",
@@ -194,7 +217,8 @@ async function befund(details, ursprung) {
       empfaenger: an,
       betreff: kopf.subject || "",
       text: textVon(voll),
-      fassung: kopfwert(voll, "x-falzmarke-fassung"),
+      fassung:
+        kopfwert(voll, "x-falzmarke-fassung") || bekannt.get(V.kennung(kopf.headerMessageId)) || "",
     });
     const urteil = V.vergleiche(eigen, fremd);
     const fund = { zeit, an: gemeinsam, betreff: kopf.subject || "" };
@@ -234,9 +258,30 @@ function frage(fund) {
   ];
 }
 
+// Wohin die Mail geht und was sie mitnimmt, für den Eintrag „gesendet“ (ADR 0056).
+// Scheitert das Lesen der Anhänge, steht das im Eintrag; das Senden hält es nicht auf.
+async function versandVon(tabId, details) {
+  const versand = {
+    identitaet: [...V.adressen(liste(details.from))][0] || "",
+    an: [...V.adressen(liste(details.to))],
+    kopie: [...V.adressen(liste(details.cc))],
+    blindkopie: [...V.adressen(liste(details.bcc))],
+  };
+  try {
+    const anhaenge = await browser.compose.listAttachments(tabId);
+    versand.anhaenge = (anhaenge || []).map((a) => String(a.name || ""));
+  } catch (fehler) {
+    versand.anhaenge_fehler = String(fehler);
+  }
+  return versand;
+}
+
 browser.compose.onBeforeSend.addListener(async (tab, details) => {
   const stand = await merken(tab.id, false);
   stand.angehalten = false;
+  stand.versand = await versandVon(tab.id, details).catch((fehler) => ({
+    versand_fehler: String(fehler),
+  }));
   let fund;
   try {
     fund = await befund(details, stand.ursprung);
@@ -285,7 +330,11 @@ browser.compose.onAfterSend.addListener(async (tab, sendInfo) => {
     return;
   }
   stand.gesendet = true;
-  await eintragen("gesendet", tab.id, { modus, message_id: sendInfo.headerMessageId || "" });
+  await eintragen("gesendet", tab.id, {
+    ...(stand.versand || {}),
+    modus,
+    message_id: sendInfo.headerMessageId || "",
+  });
 });
 
 browser.compose.onAfterSave.addListener(async (tab, saveInfo) => {

@@ -264,7 +264,10 @@ nicht senden), `GESENDET` mit „Text unverändert“ oder „Text geändert“,
 `VERSCHWUNDEN`. `BELEGT` heißt: Postfach und Tagebuch der Entwurfsbrücke sagen beide „gesendet“.
 `nur einen senden` meldet zwei gleiche Entwürfe. Liest nur. `NICHT GEPRÜFT` mit Exit 3 heißt: Das
 Postfach war nicht erreichbar, über die Entwürfe ist nichts gesagt. `--json` für die Weiterarbeit
-(ADR 0055).
+(ADR 0055). Ab Entwurfsbrücke 0.3.0 steht unter `OFFEN`, was das Fenster hinausschicken würde
+(Absender, An, Bcc, Anhänge, „Text wie angelegt“ oder „Text geändert“), und unter `GESENDET`, wohin
+die Mail ging: „Empfänger wie angelegt“ oder `ABWEICHEND vom Entwurf: +x −y`. Vor dem Senden diese
+Zeile lesen, statt im Gesendet-Ordner von Hand nachzusehen (ADR 0056).
 
 **`entwurf-oeffnen` — einen Entwurf, der schon im Postfach liegt, in Thunderbird aufmachen.**
 

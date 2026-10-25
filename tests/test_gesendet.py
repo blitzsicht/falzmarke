@@ -448,3 +448,49 @@ def test_die_flags_stehen_in_der_hilfe(capsys):
         falzmarke.main(["email", "--help"])
     hilfe = capsys.readouterr().out
     assert "--trotz-gesendet" in hilfe and "--noch-ein-entwurf" in hilfe
+
+
+# ── Fassung aus dem Tagebuch (ADR 0056) ─────────────────────────────────────
+
+def _thunderbird_mit_tagebuch(tmp_path, eintraege) -> Path:
+    import json
+
+    from falzmarke import entwurfsbuch
+
+    ordner = tmp_path / "Thunderbird"
+    profil = ordner / "Profiles" / "abc.default-release"
+    profil.mkdir(parents=True)
+    (ordner / "profiles.ini").write_text("[Install1]\nDefault=Profiles/abc.default-release\n",
+                                         encoding="utf-8")
+    (profil / entwurfsbuch.TAGEBUCH).write_text(
+        "".join(json.dumps(e) + "\n" for e in eintraege), encoding="utf-8")
+    return ordner
+
+
+def _fassung_von(eml_pfad) -> str:
+    import email
+    from email import policy
+
+    return str(email.message_from_bytes(eml_pfad.read_bytes(),
+                                        policy=policy.default)["X-Falzmarke-Fassung"])
+
+
+@pytest.mark.parametrize(("kennung", "erwartet"), [
+    ("test@example.org", "gesendet"),
+    # Gegenprobe: Das Tagebuch kennt eine andere Mail, die Fassung bleibt unbekannt.
+    ("andere@example.org", "geaendert"),
+])
+def test_ohne_kopfzeile_kommt_die_fassung_aus_dem_tagebuch(eigene, monkeypatch, tmp_path,
+                                                           kennung, erwartet):
+    """Gemessen 25.10.2026: Thunderbird lässt `X-Falzmarke-Fassung` beim Senden weg.
+    Die Mail ging mit geändertem Text hinaus, die Message-ID steht im Tagebuch."""
+    _server(monkeypatch, _gesendet(text=ANDERER_TEXT))
+    ordner = _thunderbird_mit_tagebuch(tmp_path, [{
+        "zeit": JETZT.isoformat(), "art": "gesendet", "message_id": kennung,
+        "ursprung": {"konto": "muster@example.de", "uid": 7, "fassung": _fassung_von(eigene)}}])
+    assert _pruefe(eigene, thunderbird_ordner=ordner).zustand == erwartet
+
+
+@pytest.mark.parametrize("roh", ["<a@b.de>", " a@b.de ", "<<a@b.de>>", "a@b.de", "\t<a@b.de>\n"])
+def test_die_kennung_ohne_klammern_und_leerraum(roh):
+    assert gesendet.kennung(roh) == "a@b.de"

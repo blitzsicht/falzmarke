@@ -18,8 +18,13 @@ keine reicht allein:
 
 **BELEGT** heißt: Postfach und Tagebuch sagen beide „gesendet“. Thunderbird
 wirft `X-Falzmarke-Fassung` beim Senden weg und vergibt eine neue Message-ID
-(gemessen am 25.10.2026), also findet das Postfach die gesendete Mail nur über
-Empfänger und Text — wie die Prüfung vor dem Entwurf (`gesendet.py`).
+(gemessen am 25.10.2026). Die gesendete Mail findet sich deshalb über
+Empfänger und Text, wie in der Prüfung vor dem Entwurf (`gesendet.py`), und
+über die Fassung, die das Tagebuch zu ihrer Message-ID kennt (ADR 0056).
+
+Ab Add-on 0.3.0 nennt `status` außerdem, was ein offenes Fenster hinausschicken
+würde (Absender, Empfänger samt Bcc, Anhänge, ob der Text noch der angelegte
+ist), und wohin eine gesendete Mail laut Tagebuch ging.
 
 Kein `subprocess` (ADR 0038, Punkt 5). Der MCP-Dienst lädt dieses Modul nicht.
 """
@@ -88,6 +93,9 @@ class Eintrag(NamedTuple):
     an: tuple[str, ...]
     text: str
     ordner: str = ""
+    #: Bcc des Entwurfs. None bei Einträgen von vor 0.11 (ADR 0056): Dann ist
+    #: unbekannt, ob ein Bcc geplant war, und `status` vergleicht ohne.
+    blindkopie: tuple[str, ...] | None = None
 
 
 def buchpfad(umgebung: Mapping[str, str] | None = None) -> Path | None:
@@ -122,6 +130,7 @@ def eintragen(ablage, felder: Mapping, *, umgebung: Mapping[str, str] | None = N
         "fassung": str(felder.get("fassung") or "").strip(),
         "betreff": str(felder.get("betreff") or ""),
         "an": [str(a).lower() for a in (felder.get("an") or []) + (felder.get("kopie") or [])],
+        "blindkopie": [str(a).lower() for a in felder.get("blindkopie") or []],
         "text": text,
     }
     try:
@@ -167,7 +176,9 @@ def lesen(umgebung: Mapping[str, str] | None = None) -> list[Eintrag]:
             zeit=zeit, konto=str(zeile["konto"]).lower(), uid=str(zeile["uid"]),
             fassung=str(zeile.get("fassung") or ""), betreff=str(zeile.get("betreff") or ""),
             an=tuple(str(a).lower() for a in zeile.get("an") or []),
-            text=str(zeile.get("text") or ""), ordner=str(zeile.get("ordner") or "")))
+            text=str(zeile.get("text") or ""), ordner=str(zeile.get("ordner") or ""),
+            blindkopie=(tuple(str(a).lower() for a in zeile["blindkopie"])
+                        if isinstance(zeile.get("blindkopie"), list) else None)))
     return eintraege
 
 
@@ -183,6 +194,24 @@ def tagebuch(profilordner: Path | None = None) -> tuple[list[dict], str]:
     if not pfad.is_file():
         return [], "kein Tagebuch im Thunderbird-Profil — die Entwurfsbrücke ab 0.2.0 schreibt es"
     return _jsonzeilen(pfad), ""
+
+
+def fassungen(eintraege: list[dict]) -> dict[str, str]:
+    """Message-ID → Fassung aus den Einträgen „gesendet“ des Tagebuchs (ADR 0056).
+
+    Thunderbird übernimmt `X-Falzmarke-Fassung` beim Senden nicht in die
+    gesendete Mail (gemessen 25.10.2026); das Tagebuch kennt sie aus dem Entwurf.
+    """
+    from falzmarke import gesendet
+
+    aus = {}
+    for tag in eintraege:
+        ursprung = tag.get("ursprung")
+        fassung = str(ursprung.get("fassung") or "") if isinstance(ursprung, Mapping) else ""
+        kennung = gesendet.kennung(tag.get("message_id"))
+        if tag.get("art") == "gesendet" and kennung and fassung:
+            aus[kennung] = fassung
+    return aus
 
 
 # ── Der Abgleich ────────────────────────────────────────────────────────────
@@ -218,6 +247,15 @@ class Zustand(NamedTuple):
     tagebuch: tuple[dict, ...] = ()
     nachfolger: str = ""
     diff: tuple[str, ...] = ()
+    #: Was das offene Fenster jetzt hinausschicken würde (`fenster` der Brücke, ADR 0056).
+    fenster: Mapping | None = None
+    #: Ob der Text im Fenster noch der des angelegten Entwurfs ist.
+    fenster_text_gleich: bool | None = None
+    #: Absender, Empfänger und Anhänge laut Tagebuch-Eintrag „gesendet“ (Add-on ab 0.3.0).
+    versand: Mapping | None = None
+    #: Gesendet, aber nicht im Entwurf / im Entwurf, aber nicht gesendet.
+    empfaenger_plus: tuple[str, ...] = ()
+    empfaenger_minus: tuple[str, ...] = ()
 
     @property
     def belegt(self) -> bool:
@@ -241,19 +279,20 @@ class Bericht(NamedTuple):
     hinweise: tuple[str, ...] = ()
 
 
-def _offene_uids(adresse: str, umgebung: Mapping[str, str]) -> tuple[set[str], str]:
+def _offene_uids(adresse: str, umgebung: Mapping[str, str]) -> tuple[dict[str, dict], str]:
+    """UID → was die Brücke über das Fenster meldet, in dem dieser Entwurf offen ist."""
     from falzmarke import bruecke
 
     try:
         fenster = bruecke.offene_entwuerfe(umgebung=umgebung)
     except bruecke.BrueckenFehler as fehler:
-        return set(), f"offene Fenster nicht geprüft: {fehler}"
-    uids = set()
+        return {}, f"offene Fenster nicht geprüft: {fehler}"
+    uids = {}
     for eintrag in fenster:
         ziel = unquote(str(eintrag.get("draft_id") or "").split("?")[0]).lower()
         treffer = re.search(r"#(\d+)$", ziel)
         if treffer and adresse in ziel:
-            uids.add(treffer.group(1))
+            uids[treffer.group(1)] = eintrag
     return uids, ""
 
 
@@ -298,6 +337,42 @@ def _gehoert_dazu(tag: Mapping, adresse: str, kette: set[str], fassung: str) -> 
     if uid:
         return uid in kette
     return bool(fassung and str(ursprung.get("fassung") or "") == fassung)
+
+
+def _fenstertext_gleich(fenster: Mapping | None, vorlage: str) -> bool | None:
+    """Ob der Text im offenen Fenster noch der angelegte ist. None: nicht prüfbar.
+
+    Verglichen wird der Kern bis zur Grußformel wie in `gesendet.py`: Thunderbird
+    setzt die Konto-Signatur darunter und schreibt Aufzählungszeichen um.
+    """
+    from falzmarke import gesendet
+
+    if not fenster or not fenster.get("live") or "text" not in fenster or not vorlage:
+        return None
+    eigen = gesendet.merkmale_aus(empfaenger=(), betreff="", text=vorlage)
+    jetzt = gesendet.merkmale_aus(empfaenger=(), betreff="", text=str(fenster["text"]))
+    if len(eigen.kern) >= gesendet.KERN_MIN:
+        return eigen.kern == jetzt.kern
+    return eigen.voll == jetzt.voll
+
+
+def _versand(eintrag: Eintrag, tagebuch: tuple[dict, ...]) -> dict:
+    """Empfänger laut letztem Tagebuch-Eintrag „gesendet“ gegen die des Entwurfs.
+
+    Leer, wenn das Tagebuch keine Empfänger nennt (Add-on vor 0.3.0). Kennt das
+    Entwurfsbuch kein Bcc (Eintrag vor 0.11), zählt das Bcc auf keiner Seite.
+    """
+    versand = next((t for t in reversed(tagebuch)
+                    if t.get("art") == "gesendet" and isinstance(t.get("an"), list)), None)
+    if versand is None:
+        return {}
+    gesendet_an = {str(a).lower() for f in ("an", "kopie") for a in versand.get(f) or []}
+    geplant = set(eintrag.an)
+    if eintrag.blindkopie is not None:
+        gesendet_an |= {str(a).lower() for a in versand.get("blindkopie") or []}
+        geplant |= set(eintrag.blindkopie)
+    return {"versand": versand, "empfaenger_plus": tuple(sorted(gesendet_an - geplant)),
+            "empfaenger_minus": tuple(sorted(geplant - gesendet_an))}
 
 
 def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
@@ -367,12 +442,14 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                         f"{', '.join(k.uid for k in doppelt)}) — nur einen senden")
 
             gelesen: dict[str, tuple] = {}
+            bekannt = fassungen(tage_eintraege)
 
             def gesendete(kopf):
                 if kopf.uid not in gelesen:
                     nachricht = email.message_from_bytes(sitzung.nachricht(ordner_g, kopf.uid),
                                                          policy=policy.default)
-                    gelesen[kopf.uid] = (gesendet.merkmale(nachricht, mit_bcc=True),
+                    gelesen[kopf.uid] = (gesendet.merkmale(nachricht, mit_bcc=True,
+                                                           fassungen=bekannt),
                                          gesendet.klartext(nachricht))
                 return gelesen[kopf.uid]
 
@@ -401,12 +478,17 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                 if nummer is not None:
                     erledigt.add(nummer)
                 gleich, anders = [], []
-                if any(set(kopf.an) & set(k.an) for k in raus):
+                nachricht = None
+                fenster = offen.get(kopf.uid)
+                if any(set(kopf.an) & set(k.an) for k in raus) or fenster is not None:
                     nachricht = email.message_from_bytes(sitzung.nachricht(ordner_e, kopf.uid),
                                                          policy=policy.default)
+                if any(set(kopf.an) & set(k.an) for k in raus):
                     gleich, anders = treffer(gesendet.merkmale(nachricht), None,
                                              gesendet.antwortstufe(kopf.betreff))
-                art = ("offen" if kopf.uid in offen else "schon_raus" if gleich else "wartet")
+                art = ("offen" if fenster is not None else "schon_raus" if gleich else "wartet")
+                vorlage = (buch[nummer].text if nummer is not None
+                           else gesendet.klartext(nachricht) if nachricht is not None else "")
                 kette = _kette(tage_eintraege, adresse, kopf.uid)
                 zustaende.append(Zustand(
                     art, kopf.betreff, kopf.an, kopf.datum, kopf.uid,
@@ -414,13 +496,14 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                     anders=tuple(sorted((k.datum for k, _ in anders), key=_sortzeit)),
                     im_buch=nummer is not None,
                     tagebuch=tuple(t for t in tage_eintraege
-                                   if _gehoert_dazu(t, adresse, kette, kopf.fassung))))
+                                   if _gehoert_dazu(t, adresse, kette, kopf.fassung)),
+                    fenster=fenster, fenster_text_gleich=_fenstertext_gleich(fenster, vorlage)))
 
             for nummer, eintrag in enumerate(buch):
                 if nummer in erledigt:
                     continue
                 eigen = gesendet.merkmale_aus(empfaenger=eintrag.an, betreff=eintrag.betreff,
-                                              text=eintrag.text)
+                                              text=eintrag.text, fassung=eintrag.fassung)
                 gleich, anders = treffer(eigen, eintrag.zeit,
                                          gesendet.antwortstufe(eintrag.betreff))
                 kette = _kette(tage_eintraege, adresse, eintrag.uid)
@@ -463,7 +546,8 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                     gesendet=tuple(sorted((k.datum for k, _ in gleich), key=_sortzeit)),
                     anders=tuple(sorted((k.datum for k, _ in anders), key=_sortzeit)),
                     text_gleich=(True if gleich else False if anders else None),
-                    im_buch=True, tagebuch=tagebuch_hier, nachfolger=nachfolger, diff=diff))
+                    im_buch=True, tagebuch=tagebuch_hier, nachfolger=nachfolger, diff=diff,
+                    **_versand(eintrag, tagebuch_hier)))
         except postfach.PostfachFehler as fehler:
             return leer._replace(grund=str(fehler), hinweise=tuple(hinweise))
 
@@ -497,6 +581,41 @@ def _tagebuchzeile(tagebuch: tuple[dict, ...], zeitzone=None) -> str:
         wort = TAGEBUCH_WORTE.get(art, art)
         teile.append(f"{wort} {_wann(_zeit(eintrag.get('zeit')), zeitzone)}")
     return "Tagebuch: " + " · ".join(teile) if teile else ""
+
+
+def _liste(werte) -> str:
+    return ", ".join(str(w) for w in werte or []) or "—"
+
+
+def _empfaengerzeilen(z: Zustand) -> list[str]:
+    """Was im offenen Fenster steht und wohin die Mail laut Tagebuch ging (ADR 0056)."""
+    aus = []
+    f = z.fenster
+    if f and f.get("live"):
+        teile = [f"Fenster: von {f.get('identitaet') or '—'}", f"An {_liste(f.get('an'))}"]
+        teile += [f"Cc {_liste(f.get('kopie'))}"] if f.get("kopie") else []
+        teile += [f"Bcc {_liste(f.get('blindkopie'))}", f"Anhänge {_liste(f.get('anhaenge'))}"]
+        if z.fenster_text_gleich is not None:
+            teile.append("Text wie angelegt" if z.fenster_text_gleich else "Text geändert")
+        if f.get("ungespeichert"):
+            teile.append("ungespeichert")
+        aus.append(" · ".join(teile))
+    elif f:
+        aus.append(f"Fenster nicht lesbar: {f.get('fehler') or 'Add-on vor 0.3.0'}")
+    v = z.versand
+    if v:
+        teile = [f"Ging an {_liste(v.get('an'))}"]
+        teile += [f"Cc {_liste(v.get('kopie'))}"] if v.get("kopie") else []
+        teile += [f"Bcc {_liste(v.get('blindkopie'))}"]
+        if "anhaenge" in v:
+            teile.append(f"Anhänge {_liste(v.get('anhaenge'))}")
+        if z.empfaenger_plus or z.empfaenger_minus:
+            abw = ([f"+{a}" for a in z.empfaenger_plus] + [f"−{a}" for a in z.empfaenger_minus])
+            teile.append("ABWEICHEND vom Entwurf: " + " ".join(abw))
+        else:
+            teile.append("Empfänger wie angelegt")
+        aus.append(" · ".join(teile))
+    return aus
 
 
 def zeilen(bericht: Bericht, *, zeitzone=None) -> list[str]:
@@ -542,6 +661,7 @@ def zeilen(bericht: Bericht, *, zeitzone=None) -> list[str]:
                                                             if bericht.papierkorb else [])
             rest = "weder in " + " noch in ".join(f"„{o}“" for o in orte)
         aus.append(f"{kopf} · {rest}")
+        aus.extend(" " * 13 + zeile for zeile in _empfaengerzeilen(z))
         tagebuchzeile = _tagebuchzeile(z.tagebuch, zeitzone)
         if tagebuchzeile:
             aus.append(" " * 13 + tagebuchzeile)
@@ -563,5 +683,9 @@ def als_json(bericht: Bericht) -> dict:
             "uid": z.uid, "gesendet": [zeit(t) for t in z.gesendet],
             "anders_gesendet": [zeit(t) for t in z.anders], "text_gleich": z.text_gleich,
             "im_buch": z.im_buch, "belegt": z.belegt, "nachfolger": z.nachfolger,
-            "tagebuch": list(z.tagebuch)} for z in bericht.zustaende],
+            "tagebuch": list(z.tagebuch), "fenster": dict(z.fenster) if z.fenster else None,
+            "fenster_text_gleich": z.fenster_text_gleich,
+            "versand": dict(z.versand) if z.versand else None,
+            "empfaenger_plus": list(z.empfaenger_plus),
+            "empfaenger_minus": list(z.empfaenger_minus)} for z in bericht.zustaende],
     }
