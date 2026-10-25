@@ -35,9 +35,9 @@ bleibt, sind Empfänger, Betreff und Text.
    | `WARTET` | liegt in „Entwürfe“, nichts Passendes gesendet |
    | `OFFEN` | liegt dort und ist gerade in einem Fenster offen |
    | `SCHON RAUS` | liegt noch, derselbe Text ging aber schon hinaus: nicht noch einmal senden |
-   | `GESENDET` | liegt nicht mehr; eine passende Mail liegt in Gesendet („Text unverändert“ oder „Text geändert“, `--diff` zeigt den Unterschied), oder das Tagebuch meldet das Senden. „Text geändert“ heißt derselbe Betreff mit nicht mehr `AW:` als der Entwurf; eine Antwort im selben Faden zählt nicht |
+   | `GESENDET` | liegt nicht mehr; eine passende Mail liegt in Gesendet („Text unverändert“ oder „Text geändert“, `--diff` zeigt den Unterschied), oder das Tagebuch meldet das Senden. „Text geändert“ heißt derselbe Betreff mit nicht mehr `AW:` als der Entwurf; eine Antwort im selben Faden zählt nicht. Liegt der Entwurf im Papierkorb, zählt nur derselbe Text |
    | `ERSETZT` | liegt nicht mehr, ein neuerer mit demselben Betreff an einen dieser Empfänger schon |
-   | `GELÖSCHT` | liegt im Papierkorb |
+   | `GELÖSCHT` | liegt im Papierkorb. Ging derselbe Betreff mit anderem Text hinaus, nennt die Zeile das. Gesendet ist er nicht: Nach dem Senden löscht Thunderbird einen Entwurf, ohne ihn in den Papierkorb zu legen |
    | `VERSCHWUNDEN` | nirgends, die Zeile nennt die Ordner, in denen gesucht wurde |
 
    `GESENDET … BELEGT` steht nur, wenn das Tagebuch das Senden meldet **und** die Mail in Gesendet
@@ -86,6 +86,8 @@ um, und Kindprozesse bekommen `FALZMARKE_ENTWURFSBUCH=nie`.
 - Liegen zwei Entwürfe mit demselben Text, heißen beide `GESENDET`, sobald einer hinausging, auch
   wenn der andere danach gelöscht wurde. Der Text ist draußen; was mit dem zweiten geschah, steht
   in seinen Tagebuchzeilen.
+- Legt ein anderes Mailprogramm einen Entwurf nach dem Senden in den Papierkorb, heißt er
+  `GELÖSCHT`. Ging er mit anderem Text hinaus, nennt die Zeile die gesendete Mail daneben.
 - Die Tests von `background.js` laufen in node gegen eine Attrappe der MailExtension-API. Sie
   zeigen, dass die Regeln stimmen, nicht, dass Thunderbird die API so liefert. Die vier Stellen,
   die die Attrappe nur annimmt, hat die Probe vom 25.10. in Thunderbird bestätigt (Messung).

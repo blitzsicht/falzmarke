@@ -278,7 +278,7 @@ GESENDET     24.10. 16:40  „Angebot“ → kunde@example.org · 24.10. 16:52, 
 | `SCHON RAUS` | liegt noch, derselbe Text ging aber schon hinaus: **nicht** senden |
 | `GESENDET` | ging hinaus, „Text unverändert“ oder „Text geändert“ (`--diff` zeigt was) |
 | `ERSETZT` | ein neuerer Entwurf mit demselben Betreff liegt an seiner Stelle |
-| `GELÖSCHT` / `VERSCHWUNDEN` | liegt im Papierkorb / nirgends, die Zeile nennt, wo gesucht wurde |
+| `GELÖSCHT` / `VERSCHWUNDEN` | liegt im Papierkorb, also weggeworfen, nicht gesendet / nirgends, die Zeile nennt, wo gesucht wurde |
 | `HINWEIS  … — nur einen senden` | zwei gleiche Entwürfe liegen |
 | `NICHT GEPRÜFT` (Exit 3) | Postfach nicht erreichbar, über die Entwürfe ist nichts gesagt |
 

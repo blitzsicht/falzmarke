@@ -397,13 +397,37 @@ def test_eine_antwort_im_faden_ist_keine_geaenderte_fassung(monkeypatch):
     assert _einziger(_stand()).art == "geloescht"
 
 
+def test_eine_antwort_ohne_papierkorb_ist_keine_geaenderte_fassung(monkeypatch):
+    """Der Entwurf ist weg, nicht im Papierkorb; hinaus ging nur eine Antwort darauf."""
+    _postfach(monkeypatch, gesendet=[_mail(betreff="AW: Auftrag S1",
+                                           text="Hallo Erika,\n\npasst so.\n",
+                                           zeit=JETZT - timedelta(hours=1))])
+    _buch(_eintrag(150))
+    assert _einziger(_stand()).art == "verschwunden"
+
+
 def test_derselbe_betreff_mit_anderem_text_bleibt_geaendert_gesendet(monkeypatch):
-    _postfach(monkeypatch, papierkorb=[_mail(fassung="f0f0f0f0f0f0")],
-              gesendet=[_mail(text="Hallo Erika,\n\nneue Fassung, bitte in Silber.\n",
-                              zeit=JETZT - timedelta(hours=1))])
+    _postfach(monkeypatch, gesendet=[_mail(text="Hallo Erika,\n\nneue Fassung, bitte in Silber.\n",
+                                           zeit=JETZT - timedelta(hours=1))])
     _buch(_eintrag(150))
     zustand = _einziger(_stand())
     assert (zustand.art, zustand.text_gleich) == ("gesendet", False)
+
+
+def test_ein_weggeworfener_antwort_entwurf_ist_geloescht_trotz_gleichem_betreff(monkeypatch):
+    """Re-Review 25.10.2026: Thunderbird setzt vor „AW: Auftrag S1“ kein zweites `AW:`.
+    Der Entwurf lag im Papierkorb, eine andere Antwort ging mit demselben Betreff hinaus,
+    und `status` meldete „gesendet, Text geändert“."""
+    _postfach(monkeypatch, papierkorb=[_mail(betreff="AW: Auftrag S1", fassung="f0f0f0f0f0f0")],
+              gesendet=[_mail(betreff="AW: Auftrag S1", text="Hallo Erika,\n\npasst so.\n",
+                              zeit=JETZT - timedelta(hours=1))])
+    _buch(_eintrag(150, betreff="AW: Auftrag S1"))
+    bericht = _stand()
+    zustand = _einziger(bericht)
+    assert zustand.art == "geloescht" and len(zustand.anders) == 1
+    zeile = "\n".join(entwurfsbuch.zeilen(bericht))
+    assert "in „Gelöschte Elemente“ — gleicher Betreff ging" in zeile
+    assert "mit anderem Text raus" in zeile
 
 
 def test_ein_antwort_entwurf_mit_anderem_text_bleibt_geaendert_gesendet(monkeypatch):

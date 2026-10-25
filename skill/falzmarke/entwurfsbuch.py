@@ -435,7 +435,13 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                     or (set(k.an) & set(eintrag.an)
                         and gesendet.betreff_kern(k.betreff) == eigen.betreff)
                     for k in weg)
-                if gleich or anders or any(t.get("art") == "gesendet" for t in tagebuch_hier):
+                if gleich or any(t.get("art") == "gesendet" for t in tagebuch_hier):
+                    art = "gesendet"
+                # Im Papierkorb liegt ein Entwurf, den jemand weggeworfen hat: Nach dem Senden
+                # löscht Thunderbird ihn ohne Papierkorb (`deleteStorage`). Derselbe Betreff mit
+                # anderem Text ist dann eine andere Mail, etwa eine Antwort, die kein `AW:` mehr
+                # bekam, weil der Betreff schon eines trug (ADR 0053).
+                elif anders and not im_papierkorb:
                     art = "gesendet"
                 elif nachfolger:
                     art = "ersetzt"
@@ -525,6 +531,9 @@ def zeilen(bericht: Bericht, *, zeitzone=None) -> list[str]:
             rest = f"neuer Entwurf UID {z.nachfolger} in „{bericht.entwuerfe}“"
         elif z.art == "geloescht":
             rest = f"in „{bericht.papierkorb}“"
+            if z.anders:
+                rest += (f" — gleicher Betreff ging {_wann(z.anders[-1], zeitzone)} "
+                         "mit anderem Text raus")
         else:
             orte = [bericht.entwuerfe, bericht.gesendet] + ([bericht.papierkorb]
                                                             if bericht.papierkorb else [])
