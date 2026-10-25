@@ -79,6 +79,10 @@ falzmarke-offline.skill
 falzmarke-offline.skill.sha256
 falzmarke-chatgpt-plugin.zip
 falzmarke-chatgpt-plugin.zip.sha256
+# Die Entwurfsbrücke, wie release.yml sie an der Wurzel packt.
+entwurfsbruecke-*.xpi
+entwurfsbruecke-*.xpi.sha256
+/updates.json
 .gstack/
 # Gepackter Stand für Vercel, entsteht mit mcp-dienst/packen.sh
 mcp-dienst/_skill/

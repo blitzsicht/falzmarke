@@ -254,8 +254,8 @@ OK  Entwurf offen in Thunderbird: Nachtrag
 Einen Entwurf, der schon liegt, öffnet `falzmarke entwurf-oeffnen --absender <adresse>
 --betreff <teil>` (oder `--uid`); ohne beides listet der Befehl die Entwürfe und nennt die
 Fassung des Add-ons. Geöffnet wird nur, wenn das Thunderbird-Profil für die Adresse genau einen
-Entwürfe-Ordner im eigenen Konto nennt, sonst steht `NICHT GEÖFFNET` da. Installieren:
-`thunderbird/entwurfsbruecke/README.md`. Warum ein Add-on und
+Entwürfe-Ordner im eigenen Konto nennt, sonst steht `NICHT GEÖFFNET` da. Installieren und Updates:
+[docs/entwurfsbruecke.md](entwurfsbruecke.md). Warum ein Add-on und
 was es nicht kann: [ADR 0054](entscheidungen/0054-entwurfsbruecke-in-thunderbird.md).
 
 ### Was aus dem Entwurf wurde: `status`

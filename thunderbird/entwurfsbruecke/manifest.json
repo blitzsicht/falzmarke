@@ -6,7 +6,8 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "entwurfsbruecke@falzmarke",
-      "strict_min_version": "128.0"
+      "strict_min_version": "128.0",
+      "update_url": "https://github.com/blitzsicht/falzmarke/releases/latest/download/updates.json"
     }
   },
   "permissions": ["compose", "messagesRead", "accountsRead"],
