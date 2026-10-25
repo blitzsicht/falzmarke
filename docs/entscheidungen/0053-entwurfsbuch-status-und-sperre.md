@@ -84,9 +84,8 @@ um, und Kindprozesse bekommen `FALZMARKE_ENTWURFSBUCH=nie`.
 - Die Betreff-Regel warnt auch vor einer gewollten Korrektur. Das kostet einen Klick.
 - Was älter als 14 Tage ist, sieht keine der beiden Seiten.
 - Die Tests von `background.js` laufen in node gegen eine Attrappe der MailExtension-API. Sie
-  zeigen, dass die Regeln stimmen, nicht, dass Thunderbird die API so liefert. Ungeprüft sind:
-  `messageManager.get(id).messageKey` als IMAP-UID, `tabManager.get(id).nativeTab` als Fenster des
-  Dialogs, `tabs.onCreated` für Verfassen-Fenster und `folders.query` mit `specialUse`.
+  zeigen, dass die Regeln stimmen, nicht, dass Thunderbird die API so liefert. Die vier Stellen,
+  die die Attrappe nur annimmt, hat die Probe vom 25.10. in Thunderbird bestätigt (Messung).
 
 ## Messung 25.10.2026
 
@@ -102,11 +101,24 @@ um, und Kindprozesse bekommen `FALZMARKE_ENTWURFSBUCH=nie`.
 - Die zwei Entwürfe aus dem Anlass lagen nicht mehr in „Entwürfe“. Per IMAP, nur lesend: beide je
   einmal in Gesendet, am 25.10. um 13:16. `status` hätte das nicht gesagt, denn sie standen in
   keinem Buch. Für Entwürfe ab dieser Fassung schließt das Buch diese Lücke.
-- Die Sperre in Thunderbird ist noch nicht gemessen. Die Probe: 0.2.0 installieren, einen Entwurf
-  an die eigene Adresse zweimal senden. Beim zweiten Mal muss der Dialog kommen, und im Tagebuch
-  müssen `gesendet` und `gesperrt` mit Konto und UID stehen.
+- Die Sperre in Thunderbird, Probe mit 0.2.0: ein Entwurf an die eigene Adresse, zweimal aus
+  derselben Quelle abgelegt. Den einen gesendet. Beim Senden des anderen kam der Dialog „Diese
+  Mail ging schon hinaus“ auf dem Verfassen-Fenster, „Nicht senden“ vorgewählt. Im
+  Tagebuch standen `geoeffnet`, `gesendet` mit `Message-ID`, `gesperrt` (`gleicher_text`) und
+  `geschlossen`, alle mit Konto und UID. `status` meldete den ersten `GESENDET`, „Text
+  unverändert · BELEGT“, den zweiten `SCHON RAUS`.
+- Damit bestätigt: `messageKey` ist die IMAP-UID (dieselbe Zahl im Buch und im Tagebuch),
+  `tabs.onCreated` meldet Verfassen-Fenster, `folders.query` mit `specialUse` findet „Gesendet“,
+  und der Dialog hängt am Verfassen-Fenster.
+- Zwei Fehler, beide in 0.2.1 behoben. Erstens meldet Thunderbird ein angehaltenes Senden danach
+  noch als gescheitertes („Send aborted by an onBeforeSend event“), und das Tagebuch schrieb hinter
+  `gesperrt` ein `senden_fehlgeschlagen`. Jetzt merkt sich das Fenster das Anhalten, und die
+  Attrappe meldet wie Thunderbird. Zweitens tragen zwei Entwürfe aus derselben Quelle dieselbe
+  Fassung. `status` ordnete das Tagebuch über UID oder Fassung zu und zeigte beim einen die
+  Einträge des anderen. Jetzt zählt die UID, samt der Kette, die `gespeichert` mit `neu_uid`
+  bildet. Die Fassung zählt nur, wenn ein Eintrag keine UID hat.
 
 ## Was folgt
 
-Steht die Probe, kann `entwurf-oeffnen` neben jedem Entwurf seinen Zustand aus `status` zeigen,
-damit niemand einen Entwurf öffnet, der schon draußen ist.
+`entwurf-oeffnen` kann neben jedem Entwurf seinen Zustand aus `status` zeigen, damit niemand einen
+Entwurf öffnet, der schon draußen ist.

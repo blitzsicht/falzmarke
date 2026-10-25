@@ -37,7 +37,7 @@ falzmarke entwurf-oeffnen --absender ich@example.de      # braucht den IMAP-Prox
 OK  2 Entwürfe in „Entwürfe“ von ich@example.de
     UID 4711  25.10.2026 12:20  Nachtrag  → du@example.org
     …
-OK  Entwurfsbrücke 0.2.0 in Thunderbird 158.0.1
+OK  Entwurfsbrücke 0.2.1 in Thunderbird 158.0.1
 ```
 
 ## Das Tagebuch
@@ -46,7 +46,7 @@ OK  Entwurfsbrücke 0.2.0 in Thunderbird 158.0.1
 
 ```
 {"art": "gesendet", "ursprung": {"typ": "draft", "konto": "ich@example.de", "betreff": "Nachtrag",
- "uid": 4711, "fassung": "…"}, "modus": "sendNow", "message_id": "…", "zeit": "…", "version": "0.2.0"}
+ "uid": 4711, "fassung": "…"}, "modus": "sendNow", "message_id": "…", "zeit": "…", "version": "0.2.1"}
 ```
 
 | `art` | heißt |

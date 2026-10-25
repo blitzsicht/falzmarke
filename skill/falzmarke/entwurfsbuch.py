@@ -256,14 +256,47 @@ def _offene_uids(adresse: str, umgebung: Mapping[str, str]) -> tuple[set[str], s
     return uids, ""
 
 
-def _gehoert_dazu(tag: Mapping, adresse: str, uid: str, fassung: str) -> bool:
+def _ursprung(tag: Mapping, adresse: str) -> Mapping | None:
     ursprung = tag.get("ursprung")
     if not isinstance(ursprung, Mapping):
+        return None
+    return ursprung if str(ursprung.get("konto") or "").lower() == adresse else None
+
+
+def _kette(tagebuch: list[dict], adresse: str, uid: str) -> set[str]:
+    """Die UID und alle, unter denen Thunderbird denselben Entwurf neu gespeichert hat.
+
+    Speichern legt einen neuen Entwurf mit neuer UID an; `gespeichert` trägt die
+    alte im Ursprung und die neue in `neu_uid`. Gilt in beide Richtungen: Ein
+    liegender Entwurf findet so auch, was vor dem Speichern geschah.
+    """
+    kette = {uid}
+    gewachsen = True
+    while gewachsen:
+        gewachsen = False
+        for tag in tagebuch:
+            ursprung = _ursprung(tag, adresse)
+            neu = tag.get("neu_uid")
+            if tag.get("art") != "gespeichert" or ursprung is None or not isinstance(neu, list):
+                continue
+            glieder = {str(ursprung.get("uid") or "")} | {str(n) for n in neu if n is not None}
+            glieder.discard("")
+            if glieder & kette and not glieder <= kette:
+                kette |= glieder
+                gewachsen = True
+    return kette
+
+
+def _gehoert_dazu(tag: Mapping, adresse: str, kette: set[str], fassung: str) -> bool:
+    """Über die UID. Die Fassung zählt nur, wenn der Eintrag keine UID kennt:
+    Zwei Entwürfe aus derselben Quelle tragen dieselbe (gemessen 25.10.2026)."""
+    ursprung = _ursprung(tag, adresse)
+    if ursprung is None:
         return False
-    if str(ursprung.get("konto") or "").lower() != adresse:
-        return False
-    return (str(ursprung.get("uid") or "") == uid
-            or bool(fassung and str(ursprung.get("fassung") or "") == fassung))
+    uid = str(ursprung.get("uid") or "")
+    if uid:
+        return uid in kette
+    return bool(fassung and str(ursprung.get("fassung") or "") == fassung)
 
 
 def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
@@ -370,13 +403,14 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                                                          policy=policy.default)
                     gleich, anders = treffer(gesendet.merkmale(nachricht), None)
                 art = ("offen" if kopf.uid in offen else "schon_raus" if gleich else "wartet")
+                kette = _kette(tage_eintraege, adresse, kopf.uid)
                 zustaende.append(Zustand(
                     art, kopf.betreff, kopf.an, kopf.datum, kopf.uid,
                     gesendet=tuple(sorted((k.datum for k, _ in gleich), key=_sortzeit)),
                     anders=tuple(sorted((k.datum for k, _ in anders), key=_sortzeit)),
                     im_buch=nummer is not None,
                     tagebuch=tuple(t for t in tage_eintraege
-                                   if _gehoert_dazu(t, adresse, kopf.uid, kopf.fassung))))
+                                   if _gehoert_dazu(t, adresse, kette, kopf.fassung))))
 
             for nummer, eintrag in enumerate(buch):
                 if nummer in erledigt:
@@ -384,8 +418,9 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                 eigen = gesendet.merkmale_aus(empfaenger=eintrag.an, betreff=eintrag.betreff,
                                               text=eintrag.text)
                 gleich, anders = treffer(eigen, eintrag.zeit)
+                kette = _kette(tage_eintraege, adresse, eintrag.uid)
                 tagebuch_hier = tuple(t for t in tage_eintraege
-                                      if _gehoert_dazu(t, adresse, eintrag.uid, eintrag.fassung))
+                                      if _gehoert_dazu(t, adresse, kette, eintrag.fassung))
                 nachfolger = next((k.uid for k in sorted(liegend, key=lambda k: -int(k.uid))
                                    if int(k.uid) > int(eintrag.uid)
                                    and set(k.an) & set(eintrag.an)

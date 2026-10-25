@@ -317,6 +317,50 @@ def test_das_tagebuch_eines_anderen_entwurfs_belegt_nichts(monkeypatch, tmp_path
     assert _einziger(_stand(profilordner=profil)).belegt is False
 
 
+def _tag(art, uid, *, fassung="f0f0f0f0f0f0", **mehr) -> dict:
+    return {"zeit": (JETZT - timedelta(hours=1)).isoformat(), "art": art,
+            "ursprung": {"konto": VON, "uid": uid, "fassung": fassung}, **mehr}
+
+
+def test_zwei_entwuerfe_derselben_quelle_teilen_kein_tagebuch(monkeypatch, tmp_path):
+    """Gemessen 25.10.2026: zweimal aus derselben Quelle abgelegt, also dieselbe
+    Fassung. Das Tagebuch des einen stand auch beim anderen."""
+    server = _postfach(monkeypatch, entwuerfe=[_mail(fassung="f0f0f0f0f0f0"),
+                                              _mail(fassung="f0f0f0f0f0f0")])
+    erst, zweit = (str(k.uid) for k in server.ordner[ENTWUERFE])
+    profil = _profil(tmp_path, [_tag("geoeffnet", int(erst)), _tag("gesperrt", int(zweit))])
+    arten = {z.uid: [t["art"] for t in z.tagebuch] for z in _stand(profilordner=profil).zustaende}
+    assert arten == {erst: ["geoeffnet"], zweit: ["gesperrt"]}
+
+
+def test_neu_gespeichert_bleibt_es_derselbe_entwurf(monkeypatch, tmp_path):
+    """Speichern legt den Entwurf unter neuer UID ab; gesendet wird dann unter ihr."""
+    _postfach(monkeypatch, gesendet=[_mail(zeit=JETZT - timedelta(hours=1))])
+    _buch(_eintrag(150))
+    profil = _profil(tmp_path, [_tag("gespeichert", 150, neu_uid=[160]),
+                                _tag("gesendet", 160, fassung="")])
+    zustand = _einziger(_stand(profilordner=profil))
+    assert [t["art"] for t in zustand.tagebuch] == ["gespeichert", "gesendet"]
+    assert zustand.belegt is True
+
+
+def test_ein_liegender_neu_gespeicherter_entwurf_kennt_seine_vorgeschichte(monkeypatch, tmp_path):
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    uid = int(server.ordner[ENTWUERFE][0].uid)
+    profil = _profil(tmp_path, [_tag("geoeffnet", 90), _tag("gespeichert", 90, neu_uid=[uid]),
+                                _tag("geoeffnet", 91)])
+    zustand = _einziger(_stand(profilordner=profil))
+    assert [t["art"] for t in zustand.tagebuch] == ["geoeffnet", "gespeichert"]
+
+
+def test_ohne_uid_entscheidet_die_fassung(monkeypatch, tmp_path):
+    """Konnte das Add-on die UID nicht lesen, bleibt nur die Fassung."""
+    _postfach(monkeypatch, gesendet=[_mail(zeit=JETZT - timedelta(hours=1))])
+    _buch(_eintrag(150))
+    profil = _profil(tmp_path, [_tag("gesendet", None)])
+    assert _einziger(_stand(profilordner=profil)).belegt is True
+
+
 def test_geaendert_gesendet_zeigt_den_unterschied(monkeypatch):
     neu = TEXT.replace("in Gold anlegen", "in Silber anlegen")
     _postfach(monkeypatch, gesendet=[_mail(text=neu, zeit=JETZT - timedelta(hours=1))])

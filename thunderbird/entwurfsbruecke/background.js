@@ -236,6 +236,7 @@ function frage(fund) {
 
 browser.compose.onBeforeSend.addListener(async (tab, details) => {
   const stand = await merken(tab.id, false);
+  stand.angehalten = false;
   let fund;
   try {
     fund = await befund(details, stand.ursprung);
@@ -264,6 +265,7 @@ browser.compose.onBeforeSend.addListener(async (tab, details) => {
     return {};
   }
   await eintragen("gesperrt", tab.id, mehr);
+  stand.angehalten = true;
   return { cancel: true };
 });
 
@@ -273,6 +275,12 @@ browser.compose.onAfterSend.addListener(async (tab, sendInfo) => {
   const stand = await merken(tab.id, false);
   const modus = sendInfo.mode || "";
   if (sendInfo.error) {
+    if (stand.angehalten) {
+      // Thunderbird meldet das Anhalten noch einmal als gescheitertes Senden („Send
+      // aborted by an onBeforeSend event“, gemessen 25.10.2026). „gesperrt“ steht schon da.
+      stand.angehalten = false;
+      return;
+    }
     await eintragen("senden_fehlgeschlagen", tab.id, { modus, fehler: String(sendInfo.error) });
     return;
   }

@@ -83,7 +83,11 @@ const ruhe = async () => {
   let ergebnis = null;
   if (!fall.ohne_senden) {
     ergebnis = await hoerer.vorSenden(tab, fall.details);
-    if (fall.nach_senden && !(ergebnis && ergebnis.cancel)) {
+    if (ergebnis && ergebnis.cancel) {
+      // So meldet Thunderbird ein angehaltenes Senden (gemessen 25.10.2026).
+      await hoerer.nachSenden(tab, { mode: "sendNow",
+                                     error: "Send aborted by an onBeforeSend event" });
+    } else if (fall.nach_senden) {
       await hoerer.nachSenden(tab, fall.nach_senden);
     }
   }
