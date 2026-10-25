@@ -223,6 +223,8 @@ class Postfach:
         self.adresse = adresse
         self.frist = frist
         self._bis = time.monotonic() + frist
+        #: Ordner, in denen `koepfe` mehr fand, als es ansah: (gefunden, angesehen).
+        self.gekappt: dict[str, tuple[int, int]] = {}
 
     def __enter__(self) -> "Postfach":
         return self
@@ -272,7 +274,8 @@ class Postfach:
         self._befehl(f"Ordner „{utf7_dekodieren(ordner)}“ nicht lesbar",
                      self._v.select, _zitiert(ordner), readonly=True)
 
-    def koepfe(self, ordner: str, seit: date | None = None) -> list[Kopf]:
+    def koepfe(self, ordner: str, seit: date | None = None, *,
+               grenze: int | None = None) -> list[Kopf]:
         """Die Kopfzeilen der Nachrichten im Ordner, seit einem Tag oder alle.
 
         `SINCE` ist tagesgenau und richtet sich nach der Ankunft; die genaue
@@ -281,14 +284,21 @@ class Postfach:
         self._waehle(ordner)
         kriterien = ("SINCE", seit.strftime("%d-%b-%Y")) if seit else ("ALL",)
         daten = self._befehl("SEARCH", self._v.uid, "SEARCH", *kriterien)
-        uids = (daten[0] or b"").split() if daten else []
-        uids = [u.decode() for u in uids][-GRENZE:]
+        uids = [u.decode() for u in ((daten[0] or b"").split() if daten else [])]
+        grenze = GRENZE if grenze is None else grenze
+        if len(uids) > grenze:
+            self.gekappt[ordner] = (len(uids), grenze)
+            uids = uids[-grenze:]
         if not uids:
             return []
         teile = "(UID INTERNALDATE BODY.PEEK[HEADER.FIELDS (" + " ".join(KOPFZEILEN) + ")])"
-        daten = self._befehl("FETCH", self._v.uid, "FETCH", ",".join(uids), teile)
+        daten = []
+        # Je Befehl höchstens GRENZE UIDs, sonst wird die Befehlszeile zu lang.
+        for start in range(0, len(uids), GRENZE):
+            stueck = ",".join(uids[start:start + GRENZE])
+            daten.extend(self._befehl("FETCH", self._v.uid, "FETCH", stueck, teile) or [])
         koepfe = []
-        for eintrag in daten or []:
+        for eintrag in daten:
             if not isinstance(eintrag, tuple) or len(eintrag) < 2:
                 continue
             meta, roh = eintrag[0], eintrag[1]

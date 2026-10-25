@@ -256,7 +256,40 @@ Einen Entwurf, der schon liegt, öffnet `falzmarke entwurf-oeffnen --absender <a
 Fassung des Add-ons. Geöffnet wird nur, wenn das Thunderbird-Profil für die Adresse genau einen
 Entwürfe-Ordner im eigenen Konto nennt, sonst steht `NICHT GEÖFFNET` da. Installieren:
 `thunderbird/entwurfsbruecke/README.md`. Warum ein Add-on und
-was es nicht kann: [ADR 0052](entscheidungen/0052-entwurfsbruecke-in-thunderbird.md).
+was es nicht kann: [ADR 0054](entscheidungen/0054-entwurfsbruecke-in-thunderbird.md).
+
+### Was aus dem Entwurf wurde: `status`
+
+`email --oeffnen` trägt jeden Entwurf, den es ins Postfach legt, ins Entwurfsbuch ein
+(`~/.local/state/falzmarke/entwuerfe.jsonl`; `FALZMARKE_ENTWURFSBUCH=<pfad>` legt es woanders hin,
+`=nie` schaltet es ab). `falzmarke status` gleicht Buch, Postfach und das Tagebuch der
+Entwurfsbrücke ab, nur lesend:
+
+```
+OK  ich@example.de: 1 in „Entwürfe“, 2 im Entwurfsbuch, 37 Mails der letzten 14 Tage in „Gesendet“ angesehen, 5 Tagebucheinträge
+WARTET       25.10. 10:12  „Nachtrag“ → kunde@example.org · liegt in „Entwürfe“ (UID 812)
+GESENDET     24.10. 16:40  „Angebot“ → kunde@example.org · 24.10. 16:52, Text geändert · BELEGT
+             Tagebuch: geöffnet 24.10. 16:41 · gesendet 24.10. 16:52
+```
+
+| Zeile | heißt |
+|---|---|
+| `WARTET` / `OFFEN` | liegt in „Entwürfe“; `OFFEN`: gerade in einem Fenster |
+| `SCHON RAUS` | liegt noch, derselbe Text ging aber schon hinaus: **nicht** senden |
+| `GESENDET` | ging hinaus, „Text unverändert“ oder „Text geändert“ (`--diff` zeigt was) |
+| `ERSETZT` | ein neuerer Entwurf mit demselben Betreff liegt an seiner Stelle |
+| `GELÖSCHT` / `VERSCHWUNDEN` | liegt im Papierkorb, also weggeworfen, nicht gesendet / nirgends, die Zeile nennt, wo gesucht wurde |
+| `HINWEIS  … — nur einen senden` | zwei gleiche Entwürfe liegen |
+| `NICHT GEPRÜFT` (Exit 3) | Postfach nicht erreichbar, über die Entwürfe ist nichts gesagt |
+
+`BELEGT` steht nur, wenn Postfach und Tagebuch beide „gesendet“ sagen. Entwürfe, die nicht über
+falzmarke entstanden, zeigt `status` nur, solange sie in „Entwürfe“ liegen.
+
+Ab 0.2.0 hält die Entwurfsbrücke außerdem das Senden an, wenn derselbe Text in den letzten 14
+Tagen schon an einen dieser Empfänger ging. Bei einem Entwurf oder einer neuen Mail gilt das auch
+für denselben Betreff mit anderem Text in den letzten 24 Stunden. Thunderbird fragt dann, „Nicht
+senden“ ist vorgewählt. Kann das Add-on nicht prüfen, geht die Mail hinaus, und das Tagebuch hält
+es fest ([ADR 0055](entscheidungen/0055-entwurfsbuch-status-und-sperre.md)).
 
 ### Eine fertige Signatur mitbringen
 

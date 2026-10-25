@@ -1,4 +1,4 @@
-"""Zuruf an die Entwurfsbrücke in Thunderbird (ADR 0052).
+"""Zuruf an die Entwurfsbrücke in Thunderbird (ADR 0054).
 
 Das Add-on unter `thunderbird/entwurfsbruecke/` lauscht auf 127.0.0.1 und
 öffnet einen Entwurf aus dem Entwürfe-Ordner eines Kontos so, wie es
@@ -149,6 +149,24 @@ def rufe(anfrage: Mapping, *, umgebung: Mapping[str, str] | None = None,
 def ping(*, umgebung: Mapping[str, str] | None = None) -> dict:
     """Name, Fassung und Thunderbird-Version — oder `BrueckenFehler`."""
     return rufe({"befehl": "ping"}, umgebung=umgebung, frist=FRIST_PING_S)
+
+
+def offene_entwuerfe(*, umgebung: Mapping[str, str] | None = None) -> list[dict]:
+    """Die offenen Verfassen-Fenster — Titel, Betreff, `draft_id` — oder `BrueckenFehler`.
+
+    `draft_id` ist die Adresse der Nachricht im Entwürfe-Ordner, auf die das
+    Fenster zeigt (`imap-message://…#<UID>`); `falzmarke status` erkennt daran,
+    welcher Entwurf gerade offen ist (ADR 0055).
+    """
+    grund = abgeschaltet(umgebung)
+    if grund:
+        raise BrueckenFehler(grund)
+    antwort = rufe({"befehl": "fenster"}, umgebung=umgebung, frist=FRIST_PING_S)
+    if not antwort.get("ok") or not isinstance(antwort.get("fenster"), list):
+        # Sonst hieße eine Fassung, die `fenster` nicht kennt, „kein Fenster offen“.
+        kennung = str(antwort.get("fehler") or "keine Fensterliste")
+        raise BrueckenFehler(FEHLERTEXTE.get(kennung, f"das Add-on meldet „{kennung}“"))
+    return [f for f in antwort["fenster"] if isinstance(f, dict)]
 
 
 def entwurf_oeffnen(konto: str, uid: str | int, *,

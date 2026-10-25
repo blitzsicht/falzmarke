@@ -167,7 +167,7 @@ class _KeineBruecke:
 
 @pytest.fixture(autouse=True)
 def _keine_echte_bruecke(monkeypatch):
-    """Kein Test ruft das Add-on im echten Thunderbird (ADR 0052).
+    """Kein Test ruft das Add-on im echten Thunderbird (ADR 0054).
 
     Auf dem Rechner des Betreibers lauscht es unter 127.0.0.1:1994 — ein
     vergessener Patch öffnete dort ein echtes Entwurfsfenster. Wer die Brücke
@@ -176,6 +176,22 @@ def _keine_echte_bruecke(monkeypatch):
     from falzmarke import bruecke
 
     monkeypatch.setattr(bruecke, "VERBINDEN", _KeineBruecke)
+
+
+@pytest.fixture(autouse=True)
+def _kein_echtes_entwurfsbuch(monkeypatch, tmp_path_factory):
+    """Kein Test schreibt in das Entwurfsbuch des Rechners (ADR 0055).
+
+    Jeder Postfach-Entwurf hängt dort eine Zeile an. Ohne Umleitung stünden
+    nach einem Testlauf Hunderte erfundener Entwürfe im Buch des Betreibers,
+    und `falzmarke status` meldete sie als verschwunden. Jeder Test bekommt
+    ein eigenes, leeres Buch; wer eines braucht, liest `BUCH_VORGABE`.
+    """
+    from falzmarke import entwurfsbuch
+
+    monkeypatch.setattr(entwurfsbuch, "BUCH_VORGABE",
+                        tmp_path_factory.mktemp("entwurfsbuch") / "entwuerfe.jsonl")
+    monkeypatch.delenv("FALZMARKE_ENTWURFSBUCH", raising=False)
 
 
 # ── Der Wächter: kein Test öffnet ein Fenster oder erreicht ein Postfach ──────
@@ -207,7 +223,8 @@ FENSTER_PROGRAMME = frozenset({
 #: Kindprozesse (etwa `python -m falzmarke`) erben den Riegel über die
 #: Umgebung — dort greift der Patch nicht, `kein_bildschirm` aber schon.
 KIND_UMGEBUNG = {"FALZMARKE_OEFFNEN": "nie", "FALZMARKE_GESENDET": "nie",
-                 "FALZMARKE_POSTFACH": "nie", "FALZMARKE_BRUECKE": "nie"}
+                 "FALZMARKE_POSTFACH": "nie", "FALZMARKE_BRUECKE": "nie",
+                 "FALZMARKE_ENTWURFSBUCH": "nie"}
 
 
 class WaechterFehler(AssertionError):

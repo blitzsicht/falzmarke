@@ -1,16 +1,17 @@
 {
   "manifest_version": 2,
   "name": "falzmarke Entwurfsbrücke",
-  "description": "Öffnet einen Entwurf aus dem Entwurfsordner wie „Entwurf bearbeiten“, auf Zuruf von falzmarke über 127.0.0.1.",
-  "version": "0.1.1",
+  "description": "Öffnet Entwürfe auf Zuruf von falzmarke wie „Entwurf bearbeiten“, hält fest, was aus ihnen wurde, und fragt nach, bevor dieselbe Mail ein zweites Mal hinausgeht. Senden kann es nicht.",
+  "version": "0.2.1",
   "browser_specific_settings": {
     "gecko": {
       "id": "entwurfsbruecke@falzmarke",
       "strict_min_version": "128.0"
     }
   },
+  "permissions": ["compose", "messagesRead", "accountsRead"],
   "background": {
-    "scripts": ["background.js"]
+    "scripts": ["vergleich.js", "background.js"]
   },
   "experiment_apis": {
     "entwurfsbruecke": {

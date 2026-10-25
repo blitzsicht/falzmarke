@@ -8,6 +8,37 @@
         "async": true,
         "description": "Öffnet den Port auf 127.0.0.1. Ein zweiter Aufruf meldet nur den Stand.",
         "parameters": []
+      },
+      {
+        "name": "tagebuch",
+        "type": "function",
+        "async": true,
+        "description": "Hängt einen Eintrag an das Tagebuch im Profilordner an. Zeit und Fassung des Add-ons setzt die Brücke.",
+        "parameters": [
+          {
+            "name": "eintrag",
+            "type": "object",
+            "additionalProperties": { "type": "any" }
+          }
+        ]
+      },
+      {
+        "name": "kennung",
+        "type": "function",
+        "async": true,
+        "description": "Die UID einer Nachricht auf dem IMAP-Server, sonst null.",
+        "parameters": [{ "name": "nachrichtId", "type": "integer" }]
+      },
+      {
+        "name": "fragen",
+        "type": "function",
+        "async": true,
+        "description": "Fragt vor dem Senden nach. Wahr nur bei „Trotzdem senden“.",
+        "parameters": [
+          { "name": "tabId", "type": "integer" },
+          { "name": "titel", "type": "string" },
+          { "name": "text", "type": "string" }
+        ]
       }
     ]
   }

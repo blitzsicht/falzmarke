@@ -86,6 +86,14 @@ def betreff_kern(betreff: str) -> str:
     return _nur_zeichen(rest)
 
 
+def antwortstufe(betreff: str) -> int:
+    """Wie viele `AW:`, `Re:`, `WG:` … vor dem Betreff stehen."""
+    stufe, rest = 0, betreff or ""
+    while (kuerzer := _VORSILBE.sub("", rest, count=1)) != rest:
+        stufe, rest = stufe + 1, kuerzer
+    return stufe
+
+
 class _Klartext(HTMLParser):
     BLOCK = {"p", "br", "div", "li", "tr", "h1", "h2", "h3", "h4", "h5", "h6", "table",
              "ul", "ol", "blockquote", "pre", "hr"}
@@ -157,18 +165,25 @@ class Merkmale(NamedTuple):
     fassung: str
 
 
+def merkmale_aus(*, empfaenger, betreff: str, text: str, fassung: str = "") -> Merkmale:
+    """Die Merkmale aus Adressen, Betreff und Klartext — für einen Entwurf, der
+    nur noch im Entwurfsbuch steht (ADR 0055), nicht mehr im Postfach."""
+    return Merkmale(empfaenger=frozenset(a.strip().lower() for a in empfaenger if a.strip()),
+                    betreff=betreff_kern(betreff),
+                    kern=_schnitt(text, gruss=True), bis_signatur=_schnitt(text, gruss=False),
+                    voll=_nur_zeichen(_ADRESSE.sub("", "\n".join(
+                        _LISTE.sub("", z) for z in text.splitlines()))),
+                    fassung=(fassung or "").strip())
+
+
 def merkmale(nachricht, *, mit_bcc: bool = False) -> Merkmale:
     from email.utils import getaddresses
 
     felder = ("To", "Cc", "Bcc") if mit_bcc else ("To", "Cc")
     werte = [str(w) for f in felder for w in nachricht.get_all(f, [])]
-    empfaenger = frozenset(a.strip().lower() for _, a in getaddresses(werte) if a.strip())
-    text = klartext(nachricht)
-    return Merkmale(empfaenger=empfaenger, betreff=betreff_kern(str(nachricht.get("Subject") or "")),
-                    kern=_schnitt(text, gruss=True), bis_signatur=_schnitt(text, gruss=False),
-                    voll=_nur_zeichen(_ADRESSE.sub("", "\n".join(
-                        _LISTE.sub("", z) for z in text.splitlines()))),
-                    fassung=str(nachricht.get("X-Falzmarke-Fassung") or "").strip())
+    return merkmale_aus(empfaenger=[a for _, a in getaddresses(werte)],
+                        betreff=str(nachricht.get("Subject") or ""), text=klartext(nachricht),
+                        fassung=str(nachricht.get("X-Falzmarke-Fassung") or ""))
 
 
 def gleicher_text(eigen: Merkmale, fremd: Merkmale) -> bool:

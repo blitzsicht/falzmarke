@@ -1680,7 +1680,7 @@ def _setze_email(brief_pfad: Path, ausgabe: Path | None = None, *,
 
 
 def _melde_fenster(fenster, ordner: str, betreff: str) -> None:
-    """Sagt, ob der Postfach-Entwurf als Fenster aufging (ADR 0052).
+    """Sagt, ob der Postfach-Entwurf als Fenster aufging (ADR 0054).
 
     Drei Fälle, wie beim Entwurf selbst: offen, nicht offen mit Grund, und
     ungewiss — dann steht womöglich schon ein Fenster, und ein zweiter Zuruf
@@ -1814,7 +1814,7 @@ def befehl_email(args) -> int:
         if lage.postfach is not None:
             # Der Entwurf liegt im Postfach (ADR 0051): die Datei selbst, mit
             # allen Kopfzeilen, am Server nachgezählt. Ein Fenster geht nur
-            # über die Entwurfsbrücke auf (ADR 0052) — deshalb fehlen die
+            # über die Entwurfsbrücke auf (ADR 0054) — deshalb fehlen die
             # Hinweise des `-compose`-Wegs darunter.
             ablage = lage.postfach
             print(f"OK  Entwurf liegt in „{ablage.ordner}“ von {ablage.adresse}: "
@@ -1828,6 +1828,9 @@ def befehl_email(args) -> int:
                 print("HINWEIS  Im abgelegten Entwurf fehlt In-Reply-To — die Mail beginnt "
                       "einen neuen Thread.", file=sys.stderr)
             _melde_fenster(lage.fenster, ablage.ordner, ablage.betreff)
+            if lage.buch_grund:
+                print(f"HINWEIS  nicht im Entwurfsbuch: {lage.buch_grund} — `falzmarke "
+                      "status` weiß später nicht, was im Entwurf stand.", file=sys.stderr)
             print("HINWEIS  Die Signatur kommt aus dem Profil; dass Thunderbird beim "
                   "Öffnen eines Entwurfs\n"
                   "         keine eigene ergänzt, ist vermutlich so — angenommen, nicht "
@@ -1950,7 +1953,7 @@ def befehl_email(args) -> int:
 
 
 def befehl_entwurf_oeffnen(args) -> int:
-    """Öffnet einen Entwurf, der schon im Postfach liegt (ADR 0052).
+    """Öffnet einen Entwurf, der schon im Postfach liegt (ADR 0054).
 
     Für die Frage, die bis dahin an den Menschen ging: „Ich konnte den Entwurf
     nicht öffnen, klick ihn bitte selbst an.“ Gesucht wird im Entwürfe-Ordner,
@@ -2033,6 +2036,37 @@ def befehl_entwurf_oeffnen(args) -> int:
     oeffnung = bruecke.entwurf_oeffnen(adresse, kopf.uid)
     _melde_fenster(oeffnung, anzeige, kopf.betreff)
     return EXIT_OK if oeffnung.offen else EXIT_UMGEBUNG
+
+
+def befehl_status(args) -> int:
+    """Was aus den Postfach-Entwürfen wurde: gesendet, offen, gelöscht … (ADR 0055).
+
+    Für die Frage, die bis dahin an den Menschen ging: „Ist das schon raus?“
+    Liest nur — Postfach, Entwurfsbuch, Tagebuch der Entwurfsbrücke. Exit 3,
+    wenn ein Postfach nicht zu erreichen war: Dann ist dort nichts geprüft.
+    """
+    import json
+
+    from falzmarke import entwurfsbuch
+
+    if args.tage < 1:
+        print("FEHLER  --tage braucht mindestens 1", file=sys.stderr)
+        return EXIT_EINGABE
+    berichte = [entwurfsbuch.abgleich(adresse, tage=args.tage, mit_diff=args.diff)
+                for adresse in args.absender]
+    if args.json:
+        print(json.dumps([entwurfsbuch.als_json(b) for b in berichte], ensure_ascii=False,
+                         indent=2))
+    else:
+        gezeigt = set()  # derselbe Hinweis für zwei Absender nur einmal
+        for bericht in berichte:
+            for zeile in entwurfsbuch.zeilen(bericht):
+                if zeile.startswith("HINWEIS") and zeile in gezeigt:
+                    continue
+                gezeigt.add(zeile)
+                ziel = sys.stderr if zeile.startswith(("NICHT GEPRÜFT", "HINWEIS")) else sys.stdout
+                print(zeile, file=ziel)
+    return EXIT_UMGEBUNG if any(b.grund for b in berichte) else EXIT_OK
 
 
 def befehl_verify(args) -> int:
@@ -2594,6 +2628,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--betreff", help="Teil des Betreffs, ohne Groß- und Kleinschreibung")
     p.add_argument("--uid", type=int, help="die UID aus der Liste, wenn mehrere passen")
     p.set_defaults(funktion=befehl_entwurf_oeffnen)
+
+    p = unter.add_parser("status",
+                         help="was aus den Postfach-Entwürfen wurde: gesendet, offen, gelöscht")
+    p.add_argument("--absender", required=True, action="append",
+                   help="die Adresse des Kontos; mehrfach für mehrere Konten")
+    p.add_argument("--tage", type=int, default=14, help="so weit zurück (Vorgabe 14)")
+    p.add_argument("--diff", action="store_true",
+                   help="bei geändert gesendeten Entwürfen zeigen, was sich änderte")
+    p.add_argument("--json", action="store_true", help="als JSON, für Sitzungen")
+    p.set_defaults(funktion=befehl_status)
 
     p = unter.add_parser("preview", help="PNG der ersten Seite")
     p.add_argument("brief")

@@ -108,7 +108,7 @@ Was dabei nicht fehlen darf, weil es gemessen ist:
   fertige `.eml` mit allen Kopfzeilen im Ordner „Entwürfe" des Absenders, samt `In-Reply-To`
   (ADR 0051). Die erste Zeile lautet
   `OK  Entwurf liegt in „Entwürfe" von <adresse>: <Betreff>`. Ist in Thunderbird das Add-on
-  **Entwurfsbrücke** installiert (`thunderbird/entwurfsbruecke/`, ADR 0052), öffnet es genau
+  **Entwurfsbrücke** installiert (`thunderbird/entwurfsbruecke/`, ADR 0054), öffnet es genau
   diesen Entwurf wie „Entwurf bearbeiten", und die nächste Zeile lautet
   `OK  Entwurf offen in Thunderbird: <Betreff>`. Nach dem Senden räumt Thunderbird ihn dann
   selbst aus „Entwürfe" weg. Ohne Add-on heißt es `HINWEIS  Es geht kein Fenster auf …` mit dem
@@ -247,8 +247,24 @@ brechen mit einer Meldung ab.
 
 ## Weitere Befehle
 
-Sieben Befehle gehören nicht zu jedem Brief und stehen deshalb nicht im Ablauf oben. Zwei davon
+Acht Befehle gehören nicht zu jedem Brief und stehen deshalb nicht im Ablauf oben. Zwei davon
 ändern, wie ein Vorgang anfängt.
+
+**`status` — was aus den Entwürfen eines Absenders wurde.**
+
+```bash
+python3 scripts/falzmarke.py status --absender order@example.de          # letzte 14 Tage
+python3 scripts/falzmarke.py status --absender order@example.de --diff   # mit Änderungen
+```
+
+Für „ist das schon raus?“, „hat er etwas geändert?“, „liegt der noch?“. **Erst `status`, dann
+fragen, und nie aus einem leeren „Entwürfe“-Ordner auf „nicht gesendet“ schließen.** Eine Zeile je
+Entwurf: `WARTET`, `OFFEN` (gerade im Fenster), `SCHON RAUS` (liegt noch, ging aber schon hinaus:
+nicht senden), `GESENDET` mit „Text unverändert“ oder „Text geändert“, `ERSETZT`, `GELÖSCHT`,
+`VERSCHWUNDEN`. `BELEGT` heißt: Postfach und Tagebuch der Entwurfsbrücke sagen beide „gesendet“.
+`nur einen senden` meldet zwei gleiche Entwürfe. Liest nur. `NICHT GEPRÜFT` mit Exit 3 heißt: Das
+Postfach war nicht erreichbar, über die Entwürfe ist nichts gesagt. `--json` für die Weiterarbeit
+(ADR 0055).
 
 **`entwurf-oeffnen` — einen Entwurf, der schon im Postfach liegt, in Thunderbird aufmachen.**
 
@@ -258,7 +274,7 @@ python3 scripts/falzmarke.py entwurf-oeffnen --absender order@example.de --betre
 ```
 
 Für den Fall „ich finde den Entwurf nicht" oder „mach ihn mir auf". Braucht den IMAP-Proxy und
-das Add-on Entwurfsbrücke (ADR 0052). Passen mehrere Entwürfe zum Betreff, wird **keiner**
+das Add-on Entwurfsbrücke (ADR 0054). Passen mehrere Entwürfe zum Betreff, wird **keiner**
 geöffnet, und die Liste nennt die UIDs; dann mit `--uid` genau einen wählen. Nennt das
 Thunderbird-Profil keinen eindeutigen Entwürfe-Ordner im eigenen Konto, öffnet der Befehl nichts
 (`NICHT GEÖFFNET`, Exit 3): Die UID könnte dort eine andere Mail sein. Exit 0 heißt: das

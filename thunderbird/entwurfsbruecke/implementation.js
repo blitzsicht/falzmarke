@@ -12,7 +12,11 @@
  * Browser, der eine Webseite an localhost schicken lässt, nichts auslösen,
  * denn seine erste Zeile ist immer „GET …“ oder „POST …“.
  *
- * Senden kann die Brücke nicht. Es gibt nur „ping“ und „entwurf_oeffnen“.
+ * Senden kann die Brücke nicht. Über den Port gibt es nur „ping“,
+ * „entwurf_oeffnen“, „fenster“ und „protokoll“. Dem Hintergrund (background.js)
+ * gibt sie drei Dinge, die eine MailExtension allein nicht kann: einen Eintrag
+ * ins Tagebuch im Profilordner schreiben, die UID eines Entwurfs nennen und
+ * vor dem Senden nachfragen (ADR 0055). Anhalten kann sie das Senden, auslösen nie.
  */
 "use strict";
 
@@ -45,8 +49,13 @@ const FRIST_FENSTER_MS = 20000;
 // selbst schließt.
 const NACHLAUF_MS = 3000;
 const PROTOKOLL_MAX = 60;
+// Liegt im Profilordner, damit `falzmarke status` es auch bei geschlossenem
+// Thunderbird lesen kann. Eine Zeile JSON je Ereignis.
+const TAGEBUCH_DATEI = "entwurfsbruecke-tagebuch.jsonl";
 
 let dienst = null;
+// Einträge nacheinander schreiben, sonst verschränken sich zwei Zeilen.
+let schreibkette = Promise.resolve();
 // Offene Verbindungen festhalten, sonst räumt der Garbage Collector sie weg.
 const verbindungen = new Set();
 const protokoll = [];
@@ -61,7 +70,7 @@ function notiere(was, angaben = {}) {
 function ascii(antwort) {
   return (
     JSON.stringify(antwort).replace(
-      /[\u007f-￿]/g,
+      /[\u007f-\uffff]/g,
       (z) => "\\u" + z.charCodeAt(0).toString(16).padStart(4, "0")
     ) + "\n"
   );
@@ -387,6 +396,66 @@ function stoppen() {
   }
 }
 
+function insTagebuch(version, eintrag) {
+  const zeile =
+    JSON.stringify({ ...eintrag, zeit: new Date().toISOString(), version }) + "\n";
+  const pfad = PathUtils.join(PathUtils.profileDir, TAGEBUCH_DATEI);
+  const schritt = schreibkette.then(() =>
+    IOUtils.writeUTF8(pfad, zeile, { mode: "appendOrCreate" })
+  );
+  // Die Kette läuft weiter, auch wenn ein Eintrag scheitert.
+  schreibkette = schritt.catch(() => {});
+  return schritt.then(
+    () => true,
+    (e) => {
+      notiere("tagebuch_fehlgeschlagen", { fehler: String(e) });
+      return false;
+    }
+  );
+}
+
+// Die UID eines Entwurfs auf dem IMAP-Server: Bei IMAP-Ordnern ist der
+// messageKey die UID. Ohne Kopf gibt es keine.
+function kennung(context, nachrichtId) {
+  try {
+    const kopf = context.extension.messageManager.get(nachrichtId);
+    return kopf ? kopf.messageKey : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Fragt vor dem Senden nach. Knopf 1 („Nicht senden“) ist vorgewählt, und
+// Escape oder das Schließen des Dialogs zählen ebenfalls als Knopf 1:
+// Nur ein Klick auf „Trotzdem senden“ lässt die Mail hinaus.
+function fragen(context, tabId, titel, text) {
+  let fenster = null;
+  try {
+    fenster = context.extension.tabManager.get(tabId).nativeTab;
+  } catch (e) {
+    fenster = null;
+  }
+  fenster = fenster || Services.wm.getMostRecentWindow("msgcompose");
+  const P = Ci.nsIPromptService;
+  const knoepfe =
+    P.BUTTON_POS_0 * P.BUTTON_TITLE_IS_STRING +
+    P.BUTTON_POS_1 * P.BUTTON_TITLE_IS_STRING +
+    P.BUTTON_POS_1_DEFAULT;
+  const wahl = Services.prompt.confirmEx(
+    fenster,
+    titel,
+    text,
+    knoepfe,
+    "Trotzdem senden",
+    "Nicht senden",
+    null,
+    null,
+    {}
+  );
+  notiere("sperre", { titel, wahl });
+  return wahl === 0;
+}
+
 var entwurfsbruecke = class extends ExtensionCommon.ExtensionAPI {
   onShutdown(isAppShutdown) {
     stoppen();
@@ -402,6 +471,15 @@ var entwurfsbruecke = class extends ExtensionCommon.ExtensionAPI {
       entwurfsbruecke: {
         async starten() {
           return starten(version);
+        },
+        async tagebuch(eintrag) {
+          return insTagebuch(version, eintrag);
+        },
+        async kennung(nachrichtId) {
+          return kennung(context, nachrichtId);
+        },
+        async fragen(tabId, titel, text) {
+          return fragen(context, tabId, titel, text);
         },
       },
     };

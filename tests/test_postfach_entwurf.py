@@ -305,7 +305,7 @@ def test_die_abgelegte_datei_ist_die_gemessene(eml_pfad, felder, monkeypatch):
     assert server.ordner["Entw&APw-rfe"][-1].roh == eml_pfad.read_bytes()
 
 
-# ── Das Fenster (ADR 0052) ──────────────────────────────────────────────────
+# ── Das Fenster (ADR 0054) ──────────────────────────────────────────────────
 #
 # ANLASS (25.10.2026): „Ich konnte die Entwürfe in Thunderbird nicht öffnen.
 # Bitte klick sie selbst an.“ Der Postfach-Entwurf lag richtig, aber kein

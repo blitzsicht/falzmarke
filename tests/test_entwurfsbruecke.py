@@ -1,4 +1,4 @@
-"""Das Thunderbird-Add-on selbst (ADR 0052): was es kann, und was nie.
+"""Das Thunderbird-Add-on selbst (ADR 0054): was es kann, und was nie.
 
 Das Add-on läuft in Thunderbird mit vollen Rechten — eine Experiment-API, die
 Fenster öffnen darf, dürfte technisch auch senden oder löschen. Die Zusage
@@ -19,18 +19,31 @@ from falzmarke import bruecke
 
 ADDON = REPO / "thunderbird" / "entwurfsbruecke"
 QUELLTEXT = (ADDON / "implementation.js").read_text(encoding="utf-8")
+#: Alles, was in Thunderbird läuft: das Experiment und der Hintergrund (ADR 0055).
+ALLE_JS = "\n".join(p.read_text(encoding="utf-8") for p in sorted(ADDON.glob("*.js")))
 
-#: Was das Add-on nie aufrufen darf: senden, löschen, verschieben, Flags setzen.
+#: Was das Add-on nie aufrufen darf: senden, löschen, verschieben, Flags setzen,
+#: den Inhalt des Fensters ändern. `sendMessage` deckt auch `runtime.sendMessage`
+#: ab; das Add-on braucht keine Nachrichten zwischen seinen Teilen.
 VERBOTEN = (
     "SendMsg", "sendMessage", "GenericSendMessage", "nsIMsgCompDeliverMode",
     "SendMessageFile", "deleteMessages", "DeleteMessages", "StoreImapFlags",
     "storeImapFlags", "copyMessages", "CopyMessages", "moveMessages", "expunge",
-    "emptyTrash", "deleteSelf",
+    "emptyTrash", "deleteSelf", "saveMessage", "setComposeDetails",
+    "messages.delete", "messages.move", "messages.copy", "messages.update",
+    "messages.archive", "messages.import",
 )
+
+#: Genau diese Rechte, keines mehr: Fenster lesen, gesendete Mails lesen, Konten lesen.
+RECHTE = ["compose", "messagesRead", "accountsRead"]
 
 
 def verbotene_aufrufe(text: str) -> list[str]:
-    return [wort for wort in VERBOTEN if re.search(rf"\b{wort}\b", text)]
+    return [wort for wort in VERBOTEN if re.search(rf"\b{re.escape(wort)}\b", text)]
+
+
+def fremde_rechte(manifest: dict) -> list:
+    return [r for r in manifest.get("permissions", []) if r not in RECHTE]
 
 
 def befehle(text: str) -> set[str]:
@@ -42,16 +55,47 @@ def test_das_add_on_kennt_nur_seine_vier_befehle():
 
 
 def test_das_add_on_ruft_nichts_auf_was_sendet_oder_loescht():
-    assert verbotene_aufrufe(QUELLTEXT) == []
+    assert {p.name for p in ADDON.glob("*.js")} == {
+        "implementation.js", "background.js", "vergleich.js"}
+    assert verbotene_aufrufe(ALLE_JS) == []
 
 
 @pytest.mark.parametrize("probe", [
     "gMsgCompose.SendMsg(Ci.nsIMsgCompDeliverMode.Now, id, null, null, null);",
     "folder.deleteMessages([hdr], null, true, false, null, false);",
     "imapFolder.StoreImapFlags(0x0008, true, [key], null);",
+    "await browser.compose.sendMessage(tab.id);",
+    "await browser.compose.saveMessage(tab.id);",
+    "browser.runtime.sendMessage({});",
+    "await browser.messages.delete([id], true);",
+    "await browser.compose.setComposeDetails(tab.id, { to: [] });",
 ])
 def test_gegenprobe_ein_sendender_aufruf_faellt_auf(probe):
-    assert verbotene_aufrufe(QUELLTEXT + "\n" + probe)
+    assert verbotene_aufrufe(ALLE_JS + "\n" + probe)
+
+
+def test_die_sperre_waehlt_nicht_senden_vor():
+    """Escape und das Schließen des Dialogs liefern bei `confirmEx` Knopf 1.
+    Deshalb ist Knopf 1 „Nicht senden“ und vorgewählt; nur Knopf 0 sendet."""
+    assert sperre_haelt_im_zweifel(QUELLTEXT)
+
+
+@pytest.mark.parametrize(("alt", "neu"), [
+    ("P.BUTTON_POS_1_DEFAULT", "P.BUTTON_POS_0_DEFAULT"),
+    ('"Trotzdem senden",\n    "Nicht senden",', '"Nicht senden",\n    "Trotzdem senden",'),
+    ("return wahl === 0;", "return wahl !== 0;"),
+])
+def test_gegenprobe_eine_sperre_die_im_zweifel_sendet_faellt_auf(alt, neu):
+    assert QUELLTEXT.count(alt) == 1
+    assert not sperre_haelt_im_zweifel(QUELLTEXT.replace(alt, neu))
+
+
+def sperre_haelt_im_zweifel(text: str) -> bool:
+    knoepfe = re.search(r'"(Trotzdem senden|Nicht senden)",\s*"(Trotzdem senden|Nicht senden)",',
+                        text)
+    return bool(knoepfe and knoepfe.groups() == ("Trotzdem senden", "Nicht senden")
+                and "P.BUTTON_POS_1_DEFAULT" in text and "BUTTON_POS_0_DEFAULT" not in text
+                and "return wahl === 0;" in text)
 
 
 def test_gegenprobe_ein_neuer_befehl_faellt_auf():
@@ -81,7 +125,24 @@ def test_das_manifest():
     api = manifest["experiment_apis"]["entwurfsbruecke"]
     assert (ADDON / api["schema"]).is_file()
     assert (ADDON / api["parent"]["script"]).is_file()
-    assert "permissions" not in manifest, "es braucht keine Berechtigung außer dem Experiment"
+    assert manifest["permissions"] == RECHTE
+    # Erst der Vergleich, dann der Hintergrund, der ihn braucht.
+    assert manifest["background"]["scripts"] == ["vergleich.js", "background.js"]
+
+
+@pytest.mark.parametrize("recht", ["compose.send", "compose.save", "messagesDelete",
+                                   "messagesMove", "messagesModify", "<all_urls>"])
+def test_gegenprobe_ein_weiteres_recht_faellt_auf(recht):
+    manifest = json.loads((ADDON / "manifest.json").read_text(encoding="utf-8"))
+    assert fremde_rechte(manifest) == []
+    manifest["permissions"].append(recht)
+    assert fremde_rechte(manifest) == [recht]
+
+
+def test_das_experiment_bietet_genau_vier_funktionen():
+    (schema,) = json.loads((ADDON / "schema.json").read_text(encoding="utf-8"))
+    assert {f["name"] for f in schema["functions"]} == {"starten", "tagebuch", "kennung",
+                                                         "fragen"}
 
 
 def _packer():

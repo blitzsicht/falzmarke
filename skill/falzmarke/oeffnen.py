@@ -1061,9 +1061,13 @@ class Entwurfslage(NamedTuple):
     #: Die UID dieses liegenden Entwurfs, damit die Brücke ihn öffnen kann.
     schon_da_uid: str = ""
     #: Ob der Postfach-Entwurf über die Entwurfsbrücke als Fenster aufging
-    #: (ADR 0052) — eine `bruecke.Oeffnung`. `None`, wenn es nicht versucht
+    #: (ADR 0054) — eine `bruecke.Oeffnung`. `None`, wenn es nicht versucht
     #: wurde: kein Postfach-Entwurf, oder einer, dessen Lage ungewiss ist.
     fenster: object | None = None
+    #: Warum der Postfach-Entwurf nicht ins Entwurfsbuch kam (ADR 0055). Leer,
+    #: wenn er drinsteht oder es keiner war. Dann weiß `falzmarke status` später
+    #: nicht, was im Entwurf stand — das soll der Aufrufer sagen.
+    buch_grund: str = ""
 
 
 class Postfachablage(NamedTuple):
@@ -1082,7 +1086,7 @@ class Postfachablage(NamedTuple):
     #: Ob er die Fassungs-Kopfzeile trägt.
     fassung: bool | None
     #: Die UID des abgelegten Entwurfs im Ordner — die Kennung, mit der die
-    #: Entwurfsbrücke ihn öffnet (ADR 0052). Leer, wenn sie nicht feststeht.
+    #: Entwurfsbrücke ihn öffnet (ADR 0054). Leer, wenn sie nicht feststeht.
     uid: str = ""
 
 
@@ -1161,18 +1165,22 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
     neu = max((k for k in nachher if k.uid not in alte), key=lambda k: int(k.uid))
     soll_bezug = str(felder.get("antwort_auf") or "").strip()
     soll_fassung = str(felder.get("fassung") or "").strip()
-    return Entwurfslage(
-        "Thunderbird", "", konto=adresse, postfach=Postfachablage(
-            adresse=adresse, ordner=anzeige, betreff=str(felder.get("betreff") or ""),
-            vorher=len(vorher), nachher=len(nachher),
-            bezug=(neu.antwort_auf == soll_bezug) if soll_bezug else None,
-            fassung=(neu.fassung == soll_fassung) if soll_fassung else None,
-            uid=str(neu.uid))), ""
+    ablage = Postfachablage(
+        adresse=adresse, ordner=anzeige, betreff=str(felder.get("betreff") or ""),
+        vorher=len(vorher), nachher=len(nachher),
+        bezug=(neu.antwort_auf == soll_bezug) if soll_bezug else None,
+        fassung=(neu.fassung == soll_fassung) if soll_fassung else None,
+        uid=str(neu.uid))
+    from falzmarke import entwurfsbuch
+
+    return Entwurfslage("Thunderbird", "", konto=adresse, postfach=ablage,
+                        buch_grund=entwurfsbuch.eintragen(ablage, felder,
+                                                          umgebung=umgebung)), ""
 
 
 def _fenster_auf(lage: Entwurfslage, felder: Mapping, umgebung: Mapping[str, str],
                  ) -> Entwurfslage:
-    """Öffnet den Postfach-Entwurf über die Entwurfsbrücke (ADR 0052).
+    """Öffnet den Postfach-Entwurf über die Entwurfsbrücke (ADR 0054).
 
     Nur, wenn feststeht, welcher es ist: der eben abgelegte oder der, der schon
     lag. Ist die Lage ungewiss, bleibt es beim Hinweis — ein Fenster auf einen
@@ -1528,7 +1536,7 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
     Ist der IMAP-Proxy erreichbar, liegt die `.eml` danach im Entwürfe-Ordner
     des Absenders, und es geht **kein** `-compose`-Fenster auf. Nur wenn dort
     nichts entstanden ist, folgt `-compose` wie bisher. `noch_ein_entwurf`
-    legt ab, obwohl ein passender Entwurf schon liegt. Seit ADR 0052 geht der
+    legt ab, obwohl ein passender Entwurf schon liegt. Seit ADR 0054 geht der
     Postfach-Entwurf trotzdem als Fenster auf, wenn in Thunderbird das Add-on
     Entwurfsbrücke läuft — als „Entwurf bearbeiten“, nicht als zweiter Entwurf.
 

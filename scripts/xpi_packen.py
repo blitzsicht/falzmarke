@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Packt das Thunderbird-Add-on Entwurfsbrücke als `.xpi` (ADR 0052).
+"""Packt das Thunderbird-Add-on Entwurfsbrücke als `.xpi` (ADR 0054).
 
 Eine `.xpi` ist ein Zip mit `manifest.json` an der Wurzel. Gepackt wird genau,
 was das Manifest braucht, in fester Reihenfolge und mit festem Zeitstempel:
@@ -25,7 +25,7 @@ REPO = Path(__file__).resolve().parent.parent
 QUELLE = REPO / "thunderbird" / "entwurfsbruecke"
 
 #: Was in das Paket gehört. Die README bleibt draußen: Thunderbird liest sie nicht.
-DATEIEN = ("manifest.json", "schema.json", "background.js", "implementation.js")
+DATEIEN = ("manifest.json", "schema.json", "vergleich.js", "background.js", "implementation.js")
 
 #: Fester Zeitstempel, damit das Paket reproduzierbar ist (Zip kennt nichts vor 1980).
 ZEIT = (1980, 1, 1, 0, 0, 0)

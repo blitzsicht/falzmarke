@@ -1,4 +1,4 @@
-"""Die Entwurfsbrücke im Speicher — die Attrappe für `falzmarke.bruecke` (ADR 0052).
+"""Die Entwurfsbrücke im Speicher — die Attrappe für `falzmarke.bruecke` (ADR 0054).
 
 Sie steht für `socket.create_connection` und antwortet so, wie das Add-on es
 tut: eine Zeile JSON, ASCII, mit `\\n` am Ende. Wer eine Antwort braucht, die
