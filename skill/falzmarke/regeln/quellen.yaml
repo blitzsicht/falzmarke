@@ -583,3 +583,45 @@ quellen:
       Geschaeftsbriefe „gleichviel welcher Form"; eine geschaeftliche E-Mail ist
       damit erfasst. Nicht bei gesetze-im-internet.de: Dort stehen nur
       konsolidierte Fassungen, und ein Aenderungsgesetz hat dort keine Seite.
+
+  unicode_noncharacters:
+    titel: "Unicode FAQ — Private-Use Characters, Noncharacters & Sentinels"
+    url: https://www.unicode.org/faq/private_use.html
+    art: primaerquelle
+    gruppe: unicode
+    zaehlt: voll
+    abgerufen: 2026-10-25
+    bemerkung: >-
+      Belegt die Liste der Nichtzeichen in `zeichen.py`, nicht die Regel: 66
+      Codepunkte, nämlich U+FDD0–FDEF, U+FFFE/FFFF und die beiden letzten
+      Stellen jeder der 16 weiteren Ebenen. Entscheidend ist der Satz „The set
+      of noncharacters is formally immutable" — die Liste altert nicht und darf
+      deshalb wörtlich im Code stehen. Dass ein Nichtzeichen in einem deutschen
+      Geschäftsbrief ein Defekt ist, sagt diese Quelle nicht; das ist der eigene
+      Datenvertrag (ADR 0052).
+
+  unicode_tr44:
+    titel: "UAX #44 — Unicode Character Database"
+    url: https://www.unicode.org/reports/tr44/
+    art: primaerquelle
+    gruppe: unicode
+    zaehlt: voll
+    abgerufen: 2026-10-25
+    bemerkung: >-
+      Belegt die Kategorien, über die `zeichen.py` prüft, statt eine zweite
+      Codepunkt-Liste zu führen: `Cc` als „control", `Co` als „private-use",
+      `Cn` als „reserved" (Tabelle 3). Die abgeleitete Eigenschaft
+      `Default_Ignorable_Code_Point` ist dort hergeleitet als
+      „Other_Default_Ignorable_Code_Point + Cf (Format characters) +
+      Variation_Selector − White_Space − …" — genau der Zuschnitt der
+      Fehlerklasse, ohne dass die Liste von Hand gepflegt wird.
+
+      Dieselbe Quelle nennt den Grund, warum die Kategorie `Cn` NICHT geprüft
+      wird: Sie ist der Standardwert für alles Unzugewiesene (Tabelle 4). In
+      einer älteren Python-Fassung träfe sie auch ein neues, gültiges Zeichen —
+      ein Fehlalarm, der mit dem Alter des Interpreters kommt, nicht mit dem
+      Text. Die Nichtzeichen stehen deshalb wörtlich da, belegt aus
+      `unicode_noncharacters`.
+
+      Zweite Seite derselben Organisation wie `unicode_noncharacters`, deshalb
+      dieselbe `gruppe`: zusammen sind sie EIN Beleg, nicht zwei.

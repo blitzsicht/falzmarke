@@ -327,7 +327,47 @@ PROFIL_EMAIL_FELDER = frozenset({
     # HTML-Fassung ERSETZT die aus dem Profil gebaute Signatur; die
     # Textfassung tut dasselbe im Textteil, damit beide Teile dasselbe sagen.
     "signatur_html", "signatur_text",
+    # Der Schreibstil des Absenders (ADR 0053). Geteilt in einen prüfbaren und
+    # einen unprüfbaren Teil — siehe PROFIL_STIL_FELDER.
+    "stil",
 })
+
+#: Der Abschnitt `email.stil:` (ADR 0053). Drei Felder, und die Grenze zwischen
+#: ihnen ist die Zusage:
+#:
+#:   person    ich oder wir. Prüfbar: `pruefe_email_ton` warnt, wenn der Text
+#:             die andere Form benutzt.
+#:   floskeln  Eigene Wendungen, die der Absender nicht lesen will. Prüfbar wie
+#:             die feste Liste in FLOSKELN, nur aus dem Profil.
+#:   hinweise  Prosa für das Modell, das formuliert. Geprüft wird NUR die Form
+#:             (Liste von Zeichenketten, begrenzte Länge), nie der Inhalt.
+#:
+#: Warum `hinweise` ungeprüft bleibt: falzmarke gibt Profildaten an kein Modell
+#: weiter und versteht keinen Satz. Eine Prüfung, die „Fristen immer als Datum"
+#: einzuhalten behauptete, wäre genau die Zusage, die das Werkzeug nicht halten
+#: kann. Es überträgt die Vorgabe — `SKILL.md` Schritt 4 sagt, wer sie liest —
+#: und erzwingt sie nicht. Dieselbe Linie wie ADR 0039.
+PROFIL_STIL_FELDER = frozenset({"person", "floskeln", "hinweise"})
+
+#: Die beiden Formen, die `email.stil.person:` kennt.
+STIL_PERSONEN = ("ich", "wir")
+
+#: Nur die Subjektform, bewusst eng. „unser Angebot" schreibt auch ein
+#: Einzelunternehmer, „mein Eindruck" auch jemand, der sonst „wir" sagt. Eine
+#: Warnung, die bei gültigem Text anschlägt, kostet Vertrauen in alle anderen —
+#: dieselbe Grenze wie bei `SIEZEN`/`DUZEN` (#133).
+STIL_PERSONENMUSTER = {
+    "ich": re.compile(r"\bwir\b", re.I),
+    "wir": re.compile(r"\bich\b", re.I),
+}
+
+#: Grenzen des Abschnitts. Keine Normaussage, sondern der Datenvertrag: Eine
+#: Liste mit 500 Einträgen oder ein Absatz als „Floskel" ist ein Tippfehler,
+#: und ein Tippfehler soll melden statt stillschweigend nichts zu tun.
+STIL_FLOSKELN_MAX = 20
+STIL_FLOSKEL_ZEICHEN = 60
+STIL_HINWEISE_MAX = 10
+STIL_HINWEIS_ZEICHEN = 200
 
 #: Der Abschnitt `rechnung:` im Profil (#116). Nur, was ein Brief nicht braucht:
 #: Name, Straße, PLZ und Ort stehen unter `absender:` und werden von dort
@@ -850,6 +890,17 @@ VERSALIEN = re.compile(r"\b[A-ZÄÖÜ][A-ZÄÖÜ-]{%d,}\b" % (VERSALIEN_AB - 2))
 #: Verfuegung", „mit freundlichen Gruessen". Die ersten beiden tragen eine
 #: Information, die dritte ist die Grussformel. Eine Warnung, die bei
 #: gueltigem Text anschlaegt, kostet Vertrauen in alle anderen (#133).
+#:
+#: Aus demselben Grund abgelehnt, obwohl sie auf jeder Floskelliste stehen:
+#: „im Rahmen von" (traegt in „im Rahmen der Wartung" einen Bezug) und
+#: „nicht nur …, sondern auch" (traegt in „nicht nur die Vorlage, sondern auch
+#: das Logo" zwei Gegenstaende). Beide sind oft Schmuck und manchmal Inhalt —
+#: und ein Muster, das das nicht unterscheiden kann, gehoert nicht hierher.
+#: Als Prosa stehen sie in `references/stil.md` unter „Was gestrichen wird";
+#: dort liest sie ein Mensch, der den Unterschied sieht.
+#:
+#: „jederzeit gerne zur Verfuegung" steht drin, „bei Rueckfragen stehe ich zur
+#: Verfuegung" nicht: Der Verstaerker ist das Leere, nicht die Erreichbarkeit.
 FLOSKELN = [
     (re.compile(r"\bich hoffe,?\s+(?:diese|die)\s+(?:e-?mail|nachricht|zeilen)\b", re.I),
      "„ich hoffe, diese E-Mail …“"),
@@ -864,6 +915,24 @@ FLOSKELN = [
     (re.compile(r"\bwie bereits (?:erwähnt|gesagt|besprochen)\s*,?\s*(?:möchte|wollte) ich\b", re.I),
      "„wie bereits erwähnt, möchte ich …“"),
     (re.compile(r"\bin diesem sinne\b", re.I), "„in diesem Sinne“"),
+    # Ab hier die Muster aus #402. Jedes ist einzeln gegen die Bedingung oben
+    # geprueft, nicht als Paket uebernommen.
+    (re.compile(r"\bes ist wichtig zu (?:beachten|erwähnen|wissen)\b", re.I),
+     "„es ist wichtig zu beachten“"),
+    (re.compile(r"\b(?:zusammenfassend|abschließend)\s+(?:lässt sich sagen|kann man sagen)\b", re.I),
+     "„zusammenfassend lässt sich sagen“"),
+    (re.compile(r"\bin der heutigen\s+\w+(?:en)?\s+(?:zeit|welt|geschäftswelt)\b", re.I),
+     "„in der heutigen schnelllebigen Zeit“"),
+    (re.compile(r"\bjederzeit\s+(?:gerne\s+)?zu(?:r| Ihrer) Verfügung\b", re.I),
+     "„jederzeit gerne zur Verfügung“"),
+    (re.compile(r"\ban dieser stelle (?:möchte|würde) ich\b", re.I),
+     "„an dieser Stelle möchte ich …“"),
+    (re.compile(r"\bwie sie (?:sicher|bereits|ja) wissen\b", re.I),
+     "„wie Sie sicher wissen“"),
+    (re.compile(r"\bim voraus (?:schon )?(?:vielen|herzlichen) dank\b", re.I),
+     "„im Voraus vielen Dank“"),
+    (re.compile(r"\b(?:ich würde mich|wir würden uns) (?:sehr )?freuen\b", re.I),
+     "„wir würden uns freuen“"),
 ]
 
 
@@ -922,6 +991,82 @@ def pruefe_email_ton(profil: dict, kopf: dict, body: str, bericht: Bericht) -> N
             "in Großbuchstaben geschrieben: " + ", ".join(f"„{w}“" for w in geschrien[:3]),
             "das liest sich wie Schreien — für Betonung reicht **fett**")
 
+    _pruefe_eigenen_stil(abschnitt.get("stil"), body, bericht)
+
+
+def _ohne_auszuege(body: str) -> str:
+    """Der Text ohne wortgetreue Auszüge — für die Stilprüfungen aus dem Profil.
+
+    Ein Auszug ist fremder Wortlaut: eine zitierte Protokollzeile, eine
+    Fehlermeldung, die Antwort eines Kunden. Dass dort „wir" oder „zeitnah"
+    steht, sagt über den Stil des Absenders nichts — es wäre eine Warnung bei
+    gültigem Text, und die kostet Vertrauen in alle anderen (#133).
+
+    Die feste Floskelliste (`FLOSKELN`) bleibt davon unberührt: Was sie heute
+    tut, halten Tests fest, und eine Änderung daran ist ein eigener Vorgang.
+    """
+    zeilen = []
+    zaun = ""
+    for zeile in body.splitlines():
+        zaun_zeile = AUSZUG_ZAUN.match(zeile)
+        if zaun_zeile is not None:
+            marke = zaun_zeile.group(1)
+            if not zaun:
+                zaun = marke
+            elif marke[0] == zaun[0] and len(marke) >= len(zaun):
+                zaun = ""
+            continue
+        if zaun:
+            continue
+        zeilen.append(AUSZUG_INLINE.sub(" ", zeile))
+    return "\n".join(zeilen)
+
+
+def _pruefe_eigenen_stil(stil, body: str, bericht: Bericht) -> None:
+    """`email.stil.person:` und `email.stil.floskeln:` am Text (ADR 0053).
+
+    Beides Warnung, nie Fehler, und es wird nichts geändert: Wie jemand
+    schreibt, entscheidet er selbst — dieselbe Zusage wie bei `email.floskel`
+    und `email.anrede_ton`.
+
+    `hinweise:` kommt hier nicht vor. Das Werkzeug versteht keinen Satz; eine
+    Prüfung, die „Fristen immer als Datum" einzuhalten behauptete, wäre eine
+    Zusage ohne Deckung. Wer die Hinweise liest, steht in `SKILL.md` Schritt 4.
+    """
+    if not isinstance(stil, dict):
+        return
+    text = _ohne_auszuege(body)
+
+    person = str(stil.get("person") or "").strip().lower()
+    muster = STIL_PERSONENMUSTER.get(person)
+    if muster is not None:
+        treffer = sorted({m.group(0).lower() for m in muster.finditer(text)})
+        if treffer:
+            bericht.warnung(
+                1, "email.stil_person",
+                f"das Profil sagt `stil.person: {person}`, im Text steht "
+                + ", ".join(f"„{w}“" for w in treffer),
+                "entweder das Profil oder den Text angleichen — geändert wird hier nichts")
+
+    eigene = stil.get("floskeln")
+    if isinstance(eigene, (list, tuple)):
+        getroffen = []
+        for wendung in eigene:
+            if not isinstance(wendung, str) or not wendung.strip():
+                continue
+            # Als Wort gesucht, nicht als Ausdruck: Ein Regex aus dem Profil
+            # wäre eine Fläche, die niemand prüft, und eine Zeichenkette mit
+            # `(` brächte den Lauf zum Absturz statt zu einer Meldung.
+            if re.search(rf"\b{re.escape(wendung.strip())}\b", text, re.I):
+                getroffen.append(wendung.strip())
+        if getroffen:
+            bericht.warnung(
+                1, "email.stil_floskel",
+                "aus der eigenen Liste im Profil: "
+                + ", ".join(f"„{w}“" for w in getroffen[:3]),
+                "streichen oder durch die Sache ersetzen, die gemeint ist — "
+                "die Liste steht in `email.stil.floskeln:` des Profils")
+
 
 def pruefe_briefkopf(profil: dict, bericht: Bericht) -> None:
     """Der Abschnitt `briefkopf:` eines Profils.
@@ -978,6 +1123,8 @@ def pruefe_email_profil(profil: dict, bericht: Bericht,
             1, "email.anrede", f"`email.anrede: {anrede}` gibt es nicht",
             "bekannt sind " + " und ".join(f"`{a}`" for a in ANREDEN))
 
+    pruefe_email_stil(abschnitt, bericht)
+
     pruefe_email_logo(profil, profil_pfad, bericht)
 
     if not abschnitt.get("pflichtangaben"):
@@ -985,6 +1132,67 @@ def pruefe_email_profil(profil: dict, bericht: Bericht,
             1, "email.pflichtangaben", "`email.pflichtangaben:` ist leer",
             "je nach Rechtsform verlangt § 37a HGB bzw. § 35a GmbHG Angaben in "
             "jeder Geschäftsmail — falzmarke prüft das nicht, es erinnert nur")
+
+
+def pruefe_email_stil(abschnitt: dict, bericht: Bericht) -> None:
+    """Die Form des Abschnitts `email.stil:` (ADR 0053).
+
+    Geprüft wird, dass die Angaben lesbar sind — nicht, ob sie befolgt werden.
+    `hinweise:` ist Prosa für das Modell, das formuliert; dazu sagt diese
+    Prüfung nichts außer: Es ist eine Liste von Sätzen, und sie ist nicht
+    endlos.
+
+    Fehler und nicht Warnung, in jedem Fall hier: Das ist der Datenvertrag,
+    und ein Tippfehler darf nicht stillschweigend nichts bewirken. `person:
+    isch` soll melden, nicht die Prüfung abschalten — derselbe Grund wie bei
+    `email.anrede` und `dialekt`.
+    """
+    stil = abschnitt.get("stil")
+    if stil is None:
+        return
+    if not isinstance(stil, dict):
+        bericht.fehler(
+            1, "email.stil", "`email.stil:` ist kein Abschnitt",
+            "als Unterabschnitt mit `person:`, `floskeln:` oder `hinweise:` "
+            "schreiben — siehe references/frontmatter.md")
+        return
+
+    _melde_unbekannte(stil.keys(), PROFIL_STIL_FELDER, "email.stil", "", bericht)
+
+    person = stil.get("person")
+    if person is not None and str(person).strip().lower() not in STIL_PERSONEN:
+        bericht.fehler(
+            1, "email.stil", f"`email.stil.person: {person}` gibt es nicht",
+            "bekannt sind " + " und ".join(f"`{w}`" for w in STIL_PERSONEN))
+
+    for feld, hoechstens, zeichen in (("floskeln", STIL_FLOSKELN_MAX, STIL_FLOSKEL_ZEICHEN),
+                                      ("hinweise", STIL_HINWEISE_MAX, STIL_HINWEIS_ZEICHEN)):
+        werte = stil.get(feld)
+        if werte is None:
+            continue
+        if isinstance(werte, str) or not isinstance(werte, (list, tuple)):
+            bericht.fehler(
+                1, "email.stil", f"`email.stil.{feld}:` ist keine Liste",
+                "je Eintrag eine Zeile mit `- ` davor")
+            continue
+        if len(werte) > hoechstens:
+            bericht.fehler(
+                1, "email.stil",
+                f"`email.stil.{feld}:` hat {len(werte)} Einträge, höchstens {hoechstens}",
+                "kürzen — eine Liste, die niemand mehr liest, wirkt auch nicht")
+        for eintrag in werte:
+            if not isinstance(eintrag, str) or not eintrag.strip():
+                bericht.fehler(
+                    1, "email.stil",
+                    f"`email.stil.{feld}:` enthält einen Eintrag, der kein Text ist",
+                    "je Eintrag eine Zeichenkette")
+                continue
+            if len(eintrag) > zeichen:
+                bericht.fehler(
+                    1, "email.stil",
+                    f"`email.stil.{feld}:` hat einen Eintrag mit {len(eintrag)} Zeichen, "
+                    f"höchstens {zeichen}",
+                    "kürzen — bei `floskeln` ist eine Wendung gemeint, kein Satz")
 
 
 def pruefe_rechnung_profil(profil: dict, bericht: Bericht) -> None:
@@ -2048,7 +2256,18 @@ def pruefe_body(body: str, versatz: int, bericht: Bericht,
     Behauptung, die altern kann, ohne dass es jemand merkt.
     """
     from falzmarke import markdown as markdown_modul
+    from falzmarke import zeichen as zeichen_modul
     from falzmarke.geometrie import AUSZUG_ZEICHEN, AUSZUG_ZEICHEN_INLINE
+
+    # Unsichtbare Zeichen (ADR 0052). Eigene Schleife vor der Zeilenschleife,
+    # und gemeldet wird immer über `bericht.fehler`: Welche Stufe ein Befund
+    # trägt, entscheidet die Regeldatei (`zeichen.geschuetzt` steht dort auf
+    # `deckel: warnung`). Eine Stufe im Code wäre eine zweite Wahrheit.
+    #
+    # Gilt auch im wortgetreuen Auszug — dort am meisten: Ein Zero-Width-Zeichen
+    # verändert den zitierten Wortlaut, und genau dagegen ist der Auszug gebaut.
+    for befund in zeichen_modul.befunde(body, versatz):
+        bericht.fehler(befund.zeile, befund.regel, befund.meldung, befund.hinweis)
 
     # Auszüge gibt es erst ab Dialekt 1.1. Ohne ihn sind Backticks
     # gewöhnlicher Text, und den darf der Satz umbrechen.

@@ -59,6 +59,12 @@ Dasselbe gilt für die E-Mail-Fassung: **keine Nachricht ohne grünen `verify --
 4. **Text formulieren** nach `references/stil.md`. Diese Datei vor dem Schreiben lesen — sie
    regelt Anrede, Betreffbildung und den Aufbau je Brieftyp.
 
+   Trägt das gewählte Profil einen Abschnitt `email.stil:`, **auch den lesen**: `person:` sagt,
+   ob der Absender „ich" oder „wir" schreibt, `floskeln:` nennt Wendungen, die er nicht lesen
+   will, `hinweise:` steht in Prosa da und gilt. falzmarke überträgt diese Vorgabe, es erzwingt
+   sie nicht: `person:` und `floskeln:` prüft `lint` und meldet als Warnung, `hinweise:` prüft
+   niemand — es wirkt nur, weil hier steht, dass es gelesen wird (ADR 0053).
+
 5. **Datei schreiben** als `briefe/JJJJ-MM-TT_<empfänger-slug>_<betreff-slug>.md`.
    Die Markdown-Datei ist die Quelle der Wahrheit, nicht das PDF.
 
