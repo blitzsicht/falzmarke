@@ -850,6 +850,17 @@ VERSALIEN = re.compile(r"\b[A-ZÄÖÜ][A-ZÄÖÜ-]{%d,}\b" % (VERSALIEN_AB - 2))
 #: Verfuegung", „mit freundlichen Gruessen". Die ersten beiden tragen eine
 #: Information, die dritte ist die Grussformel. Eine Warnung, die bei
 #: gueltigem Text anschlaegt, kostet Vertrauen in alle anderen (#133).
+#:
+#: Aus demselben Grund abgelehnt, obwohl sie auf jeder Floskelliste stehen:
+#: „im Rahmen von" (traegt in „im Rahmen der Wartung" einen Bezug) und
+#: „nicht nur …, sondern auch" (traegt in „nicht nur die Vorlage, sondern auch
+#: das Logo" zwei Gegenstaende). Beide sind oft Schmuck und manchmal Inhalt —
+#: und ein Muster, das das nicht unterscheiden kann, gehoert nicht hierher.
+#: Als Prosa stehen sie in `references/stil.md` unter „Was gestrichen wird";
+#: dort liest sie ein Mensch, der den Unterschied sieht.
+#:
+#: „jederzeit gerne zur Verfuegung" steht drin, „bei Rueckfragen stehe ich zur
+#: Verfuegung" nicht: Der Verstaerker ist das Leere, nicht die Erreichbarkeit.
 FLOSKELN = [
     (re.compile(r"\bich hoffe,?\s+(?:diese|die)\s+(?:e-?mail|nachricht|zeilen)\b", re.I),
      "„ich hoffe, diese E-Mail …“"),
@@ -864,6 +875,24 @@ FLOSKELN = [
     (re.compile(r"\bwie bereits (?:erwähnt|gesagt|besprochen)\s*,?\s*(?:möchte|wollte) ich\b", re.I),
      "„wie bereits erwähnt, möchte ich …“"),
     (re.compile(r"\bin diesem sinne\b", re.I), "„in diesem Sinne“"),
+    # Ab hier die Muster aus #402. Jedes ist einzeln gegen die Bedingung oben
+    # geprueft, nicht als Paket uebernommen.
+    (re.compile(r"\bes ist wichtig zu (?:beachten|erwähnen|wissen)\b", re.I),
+     "„es ist wichtig zu beachten“"),
+    (re.compile(r"\b(?:zusammenfassend|abschließend)\s+(?:lässt sich sagen|kann man sagen)\b", re.I),
+     "„zusammenfassend lässt sich sagen“"),
+    (re.compile(r"\bin der heutigen\s+\w+(?:en)?\s+(?:zeit|welt|geschäftswelt)\b", re.I),
+     "„in der heutigen schnelllebigen Zeit“"),
+    (re.compile(r"\bjederzeit\s+(?:gerne\s+)?zu(?:r| Ihrer) Verfügung\b", re.I),
+     "„jederzeit gerne zur Verfügung“"),
+    (re.compile(r"\ban dieser stelle (?:möchte|würde) ich\b", re.I),
+     "„an dieser Stelle möchte ich …“"),
+    (re.compile(r"\bwie sie (?:sicher|bereits|ja) wissen\b", re.I),
+     "„wie Sie sicher wissen“"),
+    (re.compile(r"\bim voraus (?:schon )?(?:vielen|herzlichen) dank\b", re.I),
+     "„im Voraus vielen Dank“"),
+    (re.compile(r"\b(?:ich würde mich|wir würden uns) (?:sehr )?freuen\b", re.I),
+     "„wir würden uns freuen“"),
 ]
 
 

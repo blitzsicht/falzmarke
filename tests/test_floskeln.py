@@ -16,6 +16,9 @@ Wendung, die ihr **ähnlich sieht und bleiben muss**:
 | „vielen Dank für Ihre Zeit" | „vielen Dank für die Unterlagen" |
 | „ich hoffe, es geht Ihnen gut" | „ich hoffe, der Termin passt Ihnen" |
 | „wollte mich nur kurz melden" | „ich melde mich wegen der Rechnung" |
+| „jederzeit gerne zur Verfügung" | „bei Rückfragen stehe ich zur Verfügung" |
+| „es ist wichtig zu beachten" | „wichtig: die Frist endet am 15." |
+| „wir würden uns freuen" | „wir freuen uns auf die Zusammenarbeit" |
 
 Der Unterschied ist jedes Mal derselbe: Trägt der Satz eine Information oder
 nicht.
@@ -54,6 +57,20 @@ LEER = [
     "Freue mich auf deine Antwort.",
     "Wie bereits erwähnt, möchte ich auf den Termin hinweisen.",
     "In diesem Sinne verbleibe ich.",
+    # Seit #402.
+    "Es ist wichtig zu beachten, dass die Frist am 15. September endet.",
+    "Es ist wichtig zu wissen, dass die Ware vorab bezahlt wird.",
+    "Zusammenfassend lässt sich sagen, dass die Lieferung steht.",
+    "Abschließend lässt sich sagen, dass alles geklärt ist.",
+    "In der heutigen schnelllebigen Geschäftswelt zählt Verlässlichkeit.",
+    "Ich stehe Ihnen jederzeit gerne zur Verfügung.",
+    "Für weitere Auskünfte stehe ich jederzeit zu Ihrer Verfügung.",
+    "An dieser Stelle möchte ich auf die Frist hinweisen.",
+    "Wie Sie sicher wissen, läuft der Vertrag Ende März aus.",
+    "Wie Sie bereits wissen, ist die Ware unterwegs.",
+    "Im Voraus vielen Dank für Ihre Mühe.",
+    "Wir würden uns freuen, von Ihnen zu hören.",
+    "Ich würde mich sehr freuen, wenn Sie zusagen.",
 ]
 
 #: Was bleiben muss. Jede Zeile sieht einer Floskel ähnlich und trägt trotzdem
@@ -69,6 +86,17 @@ TRAEGT = [
     "Die Frist läuft am 15. September 2026 ab.",
     "Ich freue mich, dass die Lieferung angekommen ist.",
     "Vielen Dank, dass Sie so schnell geantwortet haben.",
+    # Seit #402. Jede Zeile sieht einem der neuen Muster aehnlich.
+    "Wichtig: Die Frist endet am 15. September 2026.",
+    "Zusammengefasst: drei Vorlagen, eine davon mit Logo.",
+    "In diesem Jahr sind die Papierpreise um 8 % gestiegen.",
+    "Bei Rückfragen stehe ich zur Verfügung.",
+    "Für Rückfragen erreichen Sie mich montags bis donnerstags.",
+    "An dieser Stelle fehlt die Unterschrift.",
+    "Wie Sie am Lieferschein sehen, fehlen zwei Kartons.",
+    "Vielen Dank für die schnelle Zusage.",
+    "Wir freuen uns auf die Zusammenarbeit ab dem 1. Oktober.",
+    "Es ist wichtig, dass die Kartons trocken stehen.",
 ]
 
 
