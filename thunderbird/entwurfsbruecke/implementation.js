@@ -213,7 +213,6 @@ function fensterInhalt(fenster) {
       anhaenge: (felder.attachments || []).map((a) => String(a.name || "")),
       text: text.slice(0, MAX_TEXT),
       text_gekuerzt: text.length > MAX_TEXT,
-      ungespeichert: Boolean(fenster.gContentChanged || fenster.gMsgCompose?.bodyModified),
     };
   } catch (e) {
     return { ...stand, live: false, fehler: String(e) };

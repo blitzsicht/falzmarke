@@ -21,8 +21,12 @@ Thunderbird, erkannte keiner der drei die gesendete Mail als dieselbe.
    `GetComposeDetails()` im Fenster auf. Das ist dieselbe Funktion, die Thunderbirds eigene
    `compose.getComposeDetails` nutzt (`ext-compose.js`). Sie überträgt den Fensterinhalt in die
    Felder, ohne etwas zu ändern. Neu sind `identitaet`, `an`, `kopie`, `blindkopie`, `anhaenge`
-   (Namen), `text` (Klartext, höchstens 20.000 Zeichen, dann `text_gekuerzt`) und
-   `ungespeichert`. Scheitert das Lesen, steht `live: false` mit `fehler` da.
+   (Namen) und `text` (Klartext, höchstens 20.000 Zeichen, dann `text_gekuerzt`). Scheitert
+   das Lesen, steht `live: false` mit `fehler` da. Das gilt auch in der ersten Sekunde nach
+   dem Öffnen, solange der Editor noch lädt (gemessen 25.10.2026).
+   Ob das Fenster ungespeicherte Änderungen hat, meldet `fenster` nicht. `gContentChanged`
+   setzt Thunderbird beim Laden selbst (`LoadIdentity`, auch ohne Eingabe), in der Live-Probe
+   stand der Wert bei einem unberührten Fenster einmal auf wahr und einmal auf falsch.
    `bruecke.MAX_ANTWORT` steigt dafür von 64 KiB auf 1 MiB.
 2. **`gesendet` im Tagebuch trägt Absender, Empfänger und Anhänge.** Das Add-on liest sie in
    `onBeforeSend` aus den `details` und aus `compose.listAttachments`. Scheitert das, steht
