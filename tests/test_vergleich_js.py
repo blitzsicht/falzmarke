@@ -82,7 +82,7 @@ EMPFAENGER = [
     ("\"r@falsch.example\" <r@richtig.example>",),
 ]
 
-BETREFFE = ["AW: WG: Re[2]: Auftrag S11133 – Gold", "Fwd: Antw: SV: Nachtrag", "", "tr: x"]
+BETREFFE = ["AW: WG: Re[2]: Auftrag S4711 – Gold", "Fwd: Antw: SV: Nachtrag", "", "tr: x"]
 
 
 def _golden() -> list[dict]:

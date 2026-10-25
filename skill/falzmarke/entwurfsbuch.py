@@ -160,7 +160,8 @@ def lesen(umgebung: Mapping[str, str] | None = None) -> list[Eintrag]:
     eintraege = []
     for zeile in _jsonzeilen(buchpfad(umgebung)):
         zeit = _zeit(zeile.get("zeit"))
-        if zeit is None or not zeile.get("konto") or not zeile.get("uid"):
+        # Eine UID ist eine Zahl; eine andere Zeile hat nicht falzmarke geschrieben.
+        if zeit is None or not zeile.get("konto") or not str(zeile.get("uid") or "").isdigit():
             continue
         eintraege.append(Eintrag(
             zeit=zeit, konto=str(zeile["konto"]).lower(), uid=str(zeile["uid"]),
@@ -375,7 +376,7 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                                          gesendet.klartext(nachricht))
                 return gelesen[kopf.uid]
 
-            def treffer(eigen, ab):
+            def treffer(eigen, ab, stufe):
                 gleich, anders = [], []
                 for kopf in raus:
                     if not eigen.empfaenger & set(kopf.an):
@@ -386,7 +387,9 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                     urteil = gesendet.vergleiche(eigen, fremd)
                     if urteil == "gesendet":
                         gleich.append((kopf, text))
-                    elif urteil == "geaendert":
+                    # Eine Antwort im selben Faden ist keine geänderte Fassung des Entwurfs:
+                    # Sie trägt ein `AW:` mehr (wie die Sperre Antworten auslässt, ADR 0053).
+                    elif urteil == "geaendert" and gesendet.antwortstufe(kopf.betreff) <= stufe:
                         anders.append((kopf, text))
                 return gleich, anders
 
@@ -401,7 +404,8 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                 if any(set(kopf.an) & set(k.an) for k in raus):
                     nachricht = email.message_from_bytes(sitzung.nachricht(ordner_e, kopf.uid),
                                                          policy=policy.default)
-                    gleich, anders = treffer(gesendet.merkmale(nachricht), None)
+                    gleich, anders = treffer(gesendet.merkmale(nachricht), None,
+                                             gesendet.antwortstufe(kopf.betreff))
                 art = ("offen" if kopf.uid in offen else "schon_raus" if gleich else "wartet")
                 kette = _kette(tage_eintraege, adresse, kopf.uid)
                 zustaende.append(Zustand(
@@ -417,7 +421,8 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                     continue
                 eigen = gesendet.merkmale_aus(empfaenger=eintrag.an, betreff=eintrag.betreff,
                                               text=eintrag.text)
-                gleich, anders = treffer(eigen, eintrag.zeit)
+                gleich, anders = treffer(eigen, eintrag.zeit,
+                                         gesendet.antwortstufe(eintrag.betreff))
                 kette = _kette(tage_eintraege, adresse, eintrag.uid)
                 tagebuch_hier = tuple(t for t in tage_eintraege
                                       if _gehoert_dazu(t, adresse, kette, eintrag.fassung))

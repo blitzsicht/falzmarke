@@ -387,6 +387,42 @@ def test_im_papierkorb_heisst_geloescht(monkeypatch):
     assert "in „Gelöschte Elemente“" in "\n".join(entwurfsbuch.zeilen(bericht))
 
 
+def test_eine_antwort_im_faden_ist_keine_geaenderte_fassung(monkeypatch):
+    """Review 25.10.2026: Der Entwurf lag im Papierkorb, danach ging eine Antwort
+    mit anderem Text in denselben Faden. `status` meldete „gesendet, Text geändert“."""
+    _postfach(monkeypatch, papierkorb=[_mail(fassung="f0f0f0f0f0f0")],
+              gesendet=[_mail(betreff="AW: Auftrag S1", text="Hallo Erika,\n\npasst so.\n",
+                              zeit=JETZT - timedelta(hours=1))])
+    _buch(_eintrag(150))
+    assert _einziger(_stand()).art == "geloescht"
+
+
+def test_derselbe_betreff_mit_anderem_text_bleibt_geaendert_gesendet(monkeypatch):
+    _postfach(monkeypatch, papierkorb=[_mail(fassung="f0f0f0f0f0f0")],
+              gesendet=[_mail(text="Hallo Erika,\n\nneue Fassung, bitte in Silber.\n",
+                              zeit=JETZT - timedelta(hours=1))])
+    _buch(_eintrag(150))
+    zustand = _einziger(_stand())
+    assert (zustand.art, zustand.text_gleich) == ("gesendet", False)
+
+
+def test_ein_antwort_entwurf_mit_anderem_text_bleibt_geaendert_gesendet(monkeypatch):
+    """Der Entwurf ist selbst eine Antwort; gesendet ging er mit demselben `AW:`."""
+    _postfach(monkeypatch, gesendet=[_mail(betreff="AW: Auftrag S1",
+                                           text="Hallo Erika,\n\nneue Fassung, in Silber.\n",
+                                           zeit=JETZT - timedelta(hours=1))])
+    _buch(_eintrag(150, betreff="AW: Auftrag S1"))
+    zustand = _einziger(_stand())
+    assert (zustand.art, zustand.text_gleich) == ("gesendet", False)
+
+
+def test_eine_kaputte_uid_im_buch_bricht_status_nicht_ab(monkeypatch):
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    _buch(_eintrag("abc"))
+    liegend = str(server.ordner[ENTWUERFE][0].uid)
+    assert [z.uid for z in _stand().zustaende] == [liegend]
+
+
 def test_ein_neuerer_entwurf_mit_demselben_betreff_heisst_ersetzt(monkeypatch):
     server = _postfach(monkeypatch, entwuerfe=[_mail(text="Hallo, neue Fassung.\n")])
     _buch(_eintrag(50))

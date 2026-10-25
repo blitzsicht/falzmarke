@@ -86,6 +86,14 @@ def betreff_kern(betreff: str) -> str:
     return _nur_zeichen(rest)
 
 
+def antwortstufe(betreff: str) -> int:
+    """Wie viele `AW:`, `Re:`, `WG:` … vor dem Betreff stehen."""
+    stufe, rest = 0, betreff or ""
+    while (kuerzer := _VORSILBE.sub("", rest, count=1)) != rest:
+        stufe, rest = stufe + 1, kuerzer
+    return stufe
+
+
 class _Klartext(HTMLParser):
     BLOCK = {"p", "br", "div", "li", "tr", "h1", "h2", "h3", "h4", "h5", "h6", "table",
              "ul", "ol", "blockquote", "pre", "hr"}
