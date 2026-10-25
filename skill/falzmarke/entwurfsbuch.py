@@ -430,10 +430,13 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                                    if int(k.uid) > int(eintrag.uid)
                                    and set(k.an) & set(eintrag.an)
                                    and gesendet.betreff_kern(k.betreff) == eigen.betreff), "")
+                # Was vor diesem Entwurf im Papierkorb lag, ist ein anderer: Er sticht ein
+                # geändertes Senden aus, darf also nur der eigene sein.
                 im_papierkorb = any(
-                    (eintrag.fassung and k.fassung == eintrag.fassung)
-                    or (set(k.an) & set(eintrag.an)
-                        and gesendet.betreff_kern(k.betreff) == eigen.betreff)
+                    (k.datum is None or k.datum >= eintrag.zeit - SPIEL)
+                    and ((eintrag.fassung and k.fassung == eintrag.fassung)
+                         or (set(k.an) & set(eintrag.an)
+                             and gesendet.betreff_kern(k.betreff) == eigen.betreff))
                     for k in weg)
                 if gleich or any(t.get("art") == "gesendet" for t in tagebuch_hier):
                     art = "gesendet"

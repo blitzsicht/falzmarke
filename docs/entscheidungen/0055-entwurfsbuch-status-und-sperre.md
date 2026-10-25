@@ -88,6 +88,9 @@ um, und Kindprozesse bekommen `FALZMARKE_ENTWURFSBUCH=nie`.
   in seinen Tagebuchzeilen.
 - Legt ein anderes Mailprogramm einen Entwurf nach dem Senden in den Papierkorb, heißt er
   `GELÖSCHT`. Ging er mit anderem Text hinaus, nennt die Zeile die gesendete Mail daneben.
+- Als Entwurf im Papierkorb zählt nur, was nicht älter ist als der Eintrag im Buch. Lagen zwei
+  Entwürfe aus derselben Quelle binnen fünf Minuten, ging einer geändert hinaus und landete der
+  andere im Papierkorb, heißen beide `GELÖSCHT`; welcher gesendet wurde, steht nur im Tagebuch.
 - Die Tests von `background.js` laufen in node gegen eine Attrappe der MailExtension-API. Sie
   zeigen, dass die Regeln stimmen, nicht, dass Thunderbird die API so liefert. Die vier Stellen,
   die die Attrappe nur annimmt, hat die Probe vom 25.10. in Thunderbird bestätigt (Messung).

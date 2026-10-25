@@ -414,6 +414,17 @@ def test_derselbe_betreff_mit_anderem_text_bleibt_geaendert_gesendet(monkeypatch
     assert (zustand.art, zustand.text_gleich) == ("gesendet", False)
 
 
+def test_ein_aelterer_entwurf_im_papierkorb_verdeckt_kein_geaendertes_senden(monkeypatch):
+    """Review 25.10.2026: Ein früherer Entwurf mit demselben Betreff lag im Papierkorb, und
+    `status` hätte den geändert gesendeten für gelöscht gehalten."""
+    _postfach(monkeypatch, papierkorb=[_mail(zeit=JETZT - timedelta(days=2))],
+              gesendet=[_mail(text="Hallo Erika,\n\nneue Fassung, bitte in Silber.\n",
+                              zeit=JETZT - timedelta(hours=1))])
+    _buch(_eintrag(150, zeit=JETZT - timedelta(hours=3)))
+    zustand = _einziger(_stand())
+    assert (zustand.art, zustand.text_gleich) == ("gesendet", False)
+
+
 def test_ein_weggeworfener_antwort_entwurf_ist_geloescht_trotz_gleichem_betreff(monkeypatch):
     """Re-Review 25.10.2026: Thunderbird setzt vor „AW: Auftrag S1“ kein zweites `AW:`.
     Der Entwurf lag im Papierkorb, eine andere Antwort ging mit demselben Betreff hinaus,
