@@ -275,13 +275,21 @@ _ECHTES_VERBINDEN = None
 
 
 def _waechter_verbinden(adresse, *a, **k):
-    """`socket.create_connection`, aber nie zur Entwurfsbrücke."""
-    from falzmarke import bruecke
+    """`socket.create_connection` — die Brücke läuft hier nicht mehr durch.
 
-    if tuple(adresse)[1:2] == (bruecke.PORT,):
-        ABGEFANGEN.append("Entwurfsbrücke")
-        raise WaechterFehler("Testlauf: die Entwurfsbrücke ist gesperrt")
+    Bis 0.3.0 verglich diese Stelle den Port mit `bruecke.PORT`. Das war der
+    falsche Referent: Mit gesetztem `FALZMARKE_BRUECKE_PORT` rief `bruecke`
+    einen anderen Port, und der Riegel fiel lautlos aus. Seit dem Umzug auf
+    den Unix-Socket (ADR 0059) liegt er auf `bruecke._sockel` — der Funktion,
+    die wirklich verbindet.
+    """
     return _ECHTES_VERBINDEN(adresse, *a, **k)
+
+
+def _waechter_sockel(pfad, timeout=None):
+    """Kein Test erreicht den Socket der Entwurfsbrücke."""
+    ABGEFANGEN.append(f"Entwurfsbrücke ({pfad or 'ohne Pfad'})")
+    raise WaechterFehler("Testlauf: die Entwurfsbrücke ist gesperrt")
 
 
 def _verboten(was: str):
@@ -299,6 +307,8 @@ def _waechter(monkeypatch):
     import smtplib
     import socket
 
+    from falzmarke import bruecke
+
     global _ECHTES_VERBINDEN
     _ECHTES_VERBINDEN = _ECHTES_VERBINDEN or socket.create_connection
     ABGEFANGEN.clear()
@@ -309,6 +319,7 @@ def _waechter(monkeypatch):
     monkeypatch.setattr(imaplib.IMAP4, "__init__", _verboten("imaplib.IMAP4"))
     monkeypatch.setattr(smtplib.SMTP, "__init__", _verboten("smtplib.SMTP"))
     monkeypatch.setattr(socket, "create_connection", _waechter_verbinden)
+    monkeypatch.setattr(bruecke, "_sockel", _waechter_sockel)
     yield
     pruefe_abgefangen()
 

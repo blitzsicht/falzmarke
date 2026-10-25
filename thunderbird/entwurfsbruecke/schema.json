@@ -6,7 +6,7 @@
         "name": "starten",
         "type": "function",
         "async": true,
-        "description": "Öffnet den Port auf 127.0.0.1. Ein zweiter Aufruf meldet nur den Stand.",
+        "description": "Legt den Unix-Socket mit 0600 im Profilordner an. Ein zweiter Aufruf meldet nur den Stand.",
         "parameters": []
       },
       {

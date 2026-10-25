@@ -35,6 +35,14 @@ liegt, und sagt, ob das Fenster steht.
    Anfrage ist eine Zeile JSON in ASCII, die Antwort auch. Eine Zeile, die nicht mit `{` beginnt,
    wird abgewiesen: Eine Webseite kann den Browser an `localhost` schicken lassen, ihre erste
    Zeile ist aber immer `GET …` oder `POST …`.
+
+   **Nachtrag 25.10.2026, zurückgenommen:** Der Port war die falsche Wahl. Ein Dienst auf
+   127.0.0.1 nimmt jeden Prozess **jedes** Kontos des Rechners an — gemessen bekam ein fremder
+   Prozess ohne Geheimnis eine vollständige `ping`-Antwort, und über `fenster` und `protokoll`
+   hingen Betreffe, Entwurfskennungen und die letzten sechzig Vorgänge daran. Dazu besitzt den
+   Port, wer zuerst lauscht. Seit 0.3.1 liegt der Zuruf auf einem Unix-Socket im Profilordner
+   mit Rechten 0600 (ADR 0059); `falzmarke.entwurfsbruecke.port` und `FALZMARKE_BRUECKE_PORT`
+   gibt es nicht mehr, der Pfad steht notfalls in `FALZMARKE_BRUECKE_SOCKET`.
 2. **Vier Befehle, keiner sendet.** `ping`, `entwurf_oeffnen {konto, uid}`, `fenster` (welche
    Verfassen-Fenster offen sind) und `protokoll` (die letzten Vorgänge, zur Fehlersuche). Geöffnet
    wird mit `OpenComposeWindow(…, Ci.nsIMsgCompType.Draft, …)` auf der Nachricht im

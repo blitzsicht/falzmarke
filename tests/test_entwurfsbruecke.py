@@ -120,8 +120,59 @@ def test_gegenprobe_ein_neuer_befehl_faellt_auf():
     assert befehle(QUELLTEXT + '\n    case "senden":') != befehle(QUELLTEXT)
 
 
-def test_der_port_lauscht_nur_auf_127_0_0_1():
-    assert re.search(r"server\.init\(\s*port\s*,\s*true\s*,", QUELLTEXT)
+def test_der_socket_gehoert_nur_dem_eigenen_konto():
+    """Gegenprobe am 25.10.2026: Auf dem Port kam ein fremder Prozess ohne
+    jedes Geheimnis an eine vollständige `ping`-Antwort. Am Socket mit 0600
+    entscheiden die Dateirechte (ADR 0059)."""
+    assert re.search(r"server\.initWithFilename\(\s*datei\s*,\s*SOCKET_RECHTE\s*,\s*-1\s*\)",
+                     QUELLTEXT)
+    assert "const SOCKET_RECHTE = 0o600;" in QUELLTEXT
+
+
+def _ohne_kommentare(quelle: str) -> str:
+    """Nur der Code. Geschnitten werden Blockkommentare und reine `//`-Zeilen.
+
+    Eine Suche über den ganzen Quelltext trifft die eigene Begründung: Der
+    Kommentar, der den Umzug auf den Socket erklärt, nennt `127.0.0.1:1994`
+    — und ließ die Prüfung darunter am 25.10.2026 anschlagen. Nicht
+    geschnitten wird ein `//` mitten in einer Zeile: Dort stehen URLs in
+    Zeichenketten (`imap-message://…`), und sie wegzuschneiden hieße, Code zu
+    verlieren, den die Prüfung sehen soll.
+    """
+    ohne = re.sub(r"/\*.*?\*/", "", quelle, flags=re.S)
+    return "\n".join(z for z in ohne.splitlines() if not z.lstrip().startswith("//"))
+
+
+def test_kein_teil_des_add_ons_lauscht_auf_einem_port():
+    """Die Rücknahme ist erst fertig, wenn der alte Weg nirgends mehr steht."""
+    code = _ohne_kommentare(ALLE_JS)
+    assert len(code) < len(ALLE_JS), "der Kommentarschnitt hat nichts geschnitten"
+    assert "nsIServerSocket" in code, "der Schnitt hat auch Code verloren"
+    for was in ("server.init(", "127.0.0.1", "STANDARD_PORT", "PREF_PORT", "1994"):
+        assert was not in code, f"„{was}“ steht noch im Code des Add-ons"
+
+
+def test_eine_verbindung_ohne_daten_wird_getrennt():
+    """Sonst bleibt sie für immer in `verbindungen` stehen — und mit ihr das
+    Fenster, auf das sie zeigt."""
+    assert "const FRIST_LEERLAUF_MS = 10000;" in QUELLTEXT
+    anfang = QUELLTEXT.index("const leerlauf = setTimeout(")
+    ende = QUELLTEXT.index("}, FRIST_LEERLAUF_MS);", anfang)
+    assert "trennen();" in QUELLTEXT[anfang:ende], "die Frist trennt die Verbindung nicht"
+    # Und wer eine vollständige Zeile schickt, wird nicht mitten im Dienst getrennt.
+    assert "clearTimeout(leerlauf);" in QUELLTEXT
+
+
+def test_mehr_als_acht_verbindungen_nimmt_die_bruecke_nicht_an():
+    """falzmarke stellt immer genau eine."""
+    assert "const MAX_VERBINDUNGEN = 8;" in QUELLTEXT
+    assert "verbindungen.size >= MAX_VERBINDUNGEN" in QUELLTEXT
+
+
+def test_ein_altes_socket_blockiert_den_start_nicht():
+    """Nach einem Abbruch liegt der Name noch da; `initWithFilename` legt sich
+    nicht darüber. Beim Stoppen wird er weggeräumt."""
+    assert QUELLTEXT.count("datei.remove(false);") == 2
 
 
 def test_eine_browser_anfrage_wird_abgewiesen():

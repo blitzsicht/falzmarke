@@ -23,23 +23,113 @@ def _mit(monkeypatch, attrappe: BrueckenAttrappe) -> BrueckenAttrappe:
     return attrappe
 
 
+def _echter_weg(monkeypatch) -> None:
+    """Gibt `_verbinde_unix` frei — dort liegen die Prüfungen am Socketpfad.
+
+    `conftest._keine_echte_bruecke` besetzt `VERBINDEN` für jeden Test; ohne
+    diese Freigabe liefe keine der Proben darunter durch den Code, den sie
+    prüft. Verbunden wird trotzdem nichts: Der Wächter liegt eine Schicht
+    tiefer auf `bruecke._sockel`.
+    """
+    monkeypatch.setattr(bruecke, "VERBINDEN", None)
+
+
 # ── Die Anfrage ─────────────────────────────────────────────────────────────
 
-def test_eine_zeile_ascii_an_127_0_0_1(monkeypatch):
+def test_eine_zeile_ascii_an_den_socket(monkeypatch, tmp_path):
     attrappe = _mit(monkeypatch, BrueckenAttrappe())
-    bruecke.entwurf_oeffnen("müller@example.de", "219248", umgebung={})
+    socket = tmp_path / bruecke.SOCKET_DATEI
+    bruecke.entwurf_oeffnen("müller@example.de", "219248",
+                            umgebung={"FALZMARKE_BRUECKE_SOCKET": str(socket)})
     (zeile,) = attrappe.zeilen
     assert zeile.endswith(b"\n") and zeile.count(b"\n") == 1
     zeile.decode("ascii")  # wirft, wenn ein Umlaut roh drinsteht
     assert json.loads(zeile) == {"befehl": "entwurf_oeffnen", "konto": "müller@example.de",
                                  "uid": 219248}
-    assert attrappe.adressen == [("127.0.0.1", bruecke.PORT)]
+    assert attrappe.adressen == [str(socket)]
 
 
-def test_der_port_laesst_sich_setzen(monkeypatch):
+def test_der_socketpfad_laesst_sich_setzen(monkeypatch, tmp_path):
     attrappe = _mit(monkeypatch, BrueckenAttrappe())
-    bruecke.ping(umgebung={"FALZMARKE_BRUECKE_PORT": "2994"})
-    assert attrappe.adressen == [("127.0.0.1", 2994)]
+    bruecke.ping(umgebung={"FALZMARKE_BRUECKE_SOCKET": str(tmp_path / "anders.sock")})
+    assert attrappe.adressen == [str(tmp_path / "anders.sock")]
+
+
+def test_ohne_thunderbird_profil_gibt_es_nichts_zu_rufen(monkeypatch):
+    """Der Socket liegt im Profil. Kein Profil, kein Socket — und ein Satz dazu."""
+    from falzmarke import oeffnen
+
+    _echter_weg(monkeypatch)
+    monkeypatch.setattr(oeffnen, "thunderbird_standardprofil", lambda _ordner: None)
+    assert bruecke.socketpfad({}) == ""
+    with pytest.raises(bruecke.BrueckenFehler) as fehler:
+        bruecke.ping(umgebung={})
+    assert bruecke.OHNE_PROFIL in str(fehler.value)
+
+
+def test_der_socket_liegt_im_thunderbird_profil(monkeypatch, tmp_path):
+    from falzmarke import oeffnen
+
+    monkeypatch.setattr(oeffnen, "thunderbird_standardprofil", lambda _ordner: tmp_path)
+    assert bruecke.socketpfad({}) == str(tmp_path / "bruecke.sock")
+
+
+def test_ein_zu_langer_socketpfad_sagt_was_zu_tun_ist(monkeypatch):
+    """`sun_path` fasst 104 Byte. Gemessen am 25.10.2026 war der erste Name
+    (`falzmarke-entwurfsbruecke.sock`) im Profil dieses Rechners 105 Byte lang —
+    eins zu viel; `bruecke.sock` sind 87. Ohne diese Prüfung käme hier ein
+    nacktes OSError aus dem Betriebssystem."""
+    _echter_weg(monkeypatch)
+    lang = "/tmp/" + "x" * 100 + "/bruecke.sock"
+    assert len(lang.encode()) > bruecke.MAX_SOCKETPFAD
+    with pytest.raises(bruecke.BrueckenFehler) as fehler:
+        bruecke.ping(umgebung={"FALZMARKE_BRUECKE_SOCKET": lang})
+    assert "FALZMARKE_BRUECKE_SOCKET" in str(fehler.value)
+    assert str(bruecke.MAX_SOCKETPFAD) in str(fehler.value)
+
+
+def test_gegenprobe_ein_kurzer_pfad_geht_bis_zum_verbinden(monkeypatch):
+    """Die Probe nebenan misst die Länge, nicht das Verbinden: Ein kurzer Pfad
+    kommt bis zum Riegel des Wächters."""
+    from conftest import ABGEFANGEN, WaechterFehler
+
+    _echter_weg(monkeypatch)
+    # Nicht `tmp_path`: Der Pfad von pytest ist hier selbst 135 Byte lang und
+    # würde an derselben Prüfung scheitern wie die Probe darüber.
+    kurz = "/tmp/falzmarke-probe.sock"
+    assert len(kurz.encode()) <= bruecke.MAX_SOCKETPFAD
+    with pytest.raises(WaechterFehler):
+        bruecke.ping(umgebung={"FALZMARKE_BRUECKE_SOCKET": kurz})
+    assert ABGEFANGEN and "Entwurfsbrücke" in ABGEFANGEN[0]
+    ABGEFANGEN.clear()
+
+
+def test_wer_sich_nicht_als_bruecke_ausweist_ist_keine(monkeypatch, tmp_path):
+    """Die Rechte am Socket machen eine Fremdantwort unwahrscheinlich, nicht
+    unmöglich — `FALZMARKE_BRUECKE_SOCKET` zeigt, wohin man ihn stellt."""
+    _mit(monkeypatch, BrueckenAttrappe({"ok": True, "name": "etwas anderes", "version": "9"}))
+    with pytest.raises(bruecke.BrueckenFehler) as fehler:
+        bruecke.ping(umgebung={"FALZMARKE_BRUECKE_SOCKET": str(tmp_path / "s.sock")})
+    assert "nicht die Entwurfsbrücke" in str(fehler.value)
+
+
+def test_steuerzeichen_aus_der_antwort_gehen_nicht_in_die_ausgabe(monkeypatch, tmp_path):
+    """`json.loads` lässt echte ESC-Sequenzen durch, und von dort gehen sie in
+    `print`. Der Betreff verliert sie ganz, der Fenstertext behält den Umbruch."""
+    umgebung = {"FALZMARKE_BRUECKE_SOCKET": str(tmp_path / "s.sock")}
+    _mit(monkeypatch, BrueckenAttrappe({"ok": True, "zustand": "geoeffnet",
+                                        "betreff": "Rechnung\x1b[2Küberschrieben\nZeile 2"}))
+    lage = bruecke.entwurf_oeffnen("a@example.de", 1, umgebung=umgebung)
+    assert lage.betreff == "Rechnung[2KüberschriebenZeile 2"
+    assert "\x1b" not in lage.betreff and "\n" not in lage.betreff
+
+    _mit(monkeypatch, BrueckenAttrappe({"ok": True, "fenster": [
+        {"betreff": "a\x07b", "text": "Zeile 1\nZeile 2\x1b[31m", "an": ["x\x00@y.de"]}]}))
+    (fenster,) = bruecke.offene_entwuerfe(umgebung=umgebung)
+    assert fenster["betreff"] == "ab"
+    assert fenster["text"] == "Zeile 1\nZeile 2[31m"
+    assert "\x1b" not in fenster["text"]
+    assert fenster["an"] == ["x@y.de"]
 
 
 def test_abgeschaltet_ruft_niemanden(monkeypatch):

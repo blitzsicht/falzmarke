@@ -88,7 +88,7 @@ geht die Mail hinaus, und das Tagebuch hält den Grund fest.
 
 ## Wie falzmarke es ruft
 
-Eine Zeile JSON an `127.0.0.1:1994`, eine zurück:
+Eine Zeile JSON an den Socket `bruecke.sock` im Profilordner, eine zurück:
 
 ```
 {"befehl": "entwurf_oeffnen", "konto": "ich@example.de", "uid": 4711}
@@ -102,6 +102,12 @@ Eine Zeile JSON an `127.0.0.1:1994`, eine zurück:
 | `fenster` | die offenen Verfassen-Fenster mit Betreff und Entwurf; ab 0.3.0 auch Absender, An, Cc, Bcc, Anhänge, Text (bis 20.000 Zeichen) und ob ungespeichert |
 | `protokoll` | die letzten 60 Vorgänge |
 
-Der Port lässt sich in Thunderbird über die Einstellung `falzmarke.entwurfsbruecke.port` ändern
-(Einstellungen → Allgemein → Konfiguration bearbeiten), auf der falzmarke-Seite über
-`FALZMARKE_BRUECKE_PORT`. `FALZMARKE_BRUECKE=nie` schaltet den Zuruf ab.
+Der Socket heißt `bruecke.sock` und liegt im Profilordner von Thunderbird; das Add-on legt ihn
+mit Rechten 0600 an und räumt ihn beim Beenden weg. Nur das Konto, das Thunderbird fährt, kommt
+daran — bis 0.3.0 lief der Zuruf über 127.0.0.1:1994, und dort kam jeder Prozess jedes Kontos
+heran (ADR 0059). Einen anderen Pfad nimmt falzmarke über `FALZMARKE_BRUECKE_SOCKET`; der Name
+bleibt kurz, weil ein Unix-Socketpfad auf macOS nur 104 Byte fassen darf.
+`FALZMARKE_BRUECKE=nie` schaltet den Zuruf ab.
+
+Eine Verbindung, die binnen zehn Sekunden keine vollständige Zeile schickt, wird getrennt; mehr
+als acht gleichzeitig nimmt das Add-on nicht an. falzmarke stellt immer genau eine.
