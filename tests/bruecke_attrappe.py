@@ -1,6 +1,6 @@
 """Die Entwurfsbrücke im Speicher — die Attrappe für `falzmarke.bruecke` (ADR 0054).
 
-Sie steht für `socket.create_connection` und antwortet so, wie das Add-on es
+Sie steht für `bruecke._verbinde_unix` und antwortet so, wie das Add-on es
 tut: eine Zeile JSON, ASCII, mit `\\n` am Ende. Wer eine Antwort braucht, die
 das Add-on nie gäbe (abgerissen, zu lang, kein JSON), reicht `roh` herein.
 """
@@ -23,10 +23,11 @@ class BrueckenAttrappe:
         self.fehler_beim_lesen = fehler_beim_lesen
         self.anfragen: list[dict] = []
         self.zeilen: list[bytes] = []
-        self.adressen: list[tuple] = []
+        #: Die Pfade, zu denen verbunden wurde (seit ADR 0059 ein Socketpfad).
+        self.adressen: list[str] = []
 
     def __call__(self, adresse, timeout=None):
-        self.adressen.append(tuple(adresse))
+        self.adressen.append(adresse)
         if self.fehler is not None:
             raise self.fehler
         return _Verbindung(self)

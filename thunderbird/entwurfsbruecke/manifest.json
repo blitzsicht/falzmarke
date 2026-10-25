@@ -2,17 +2,17 @@
   "manifest_version": 2,
   "name": "falzmarke Entwurfsbrücke",
   "description": "Öffnet Entwürfe auf Zuruf von falzmarke wie „Entwurf bearbeiten“, hält fest, was aus ihnen wurde, und fragt nach, bevor dieselbe Mail ein zweites Mal hinausgeht. Senden kann es nicht.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "browser_specific_settings": {
     "gecko": {
       "id": "entwurfsbruecke@falzmarke",
-      "strict_min_version": "128.0",
+      "strict_min_version": "158.0",
       "update_url": "https://github.com/blitzsicht/falzmarke/releases/latest/download/updates.json"
     }
   },
   "permissions": ["compose", "messagesRead", "accountsRead"],
   "background": {
-    "scripts": ["vergleich.js", "background.js"]
+    "scripts": ["zeichennamen.js", "vergleich.js", "background.js"]
   },
   "experiment_apis": {
     "entwurfsbruecke": {

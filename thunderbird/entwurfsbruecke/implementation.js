@@ -6,13 +6,12 @@
  * diesen Entwurf dann selbst weg. Eine .eml-Datei mit X-Unsent dagegen
  * öffnet nur eine Kopie, und der Entwurf bliebe nach dem Senden liegen.
  *
- * Der Zuruf kommt über einen Port, der nur auf 127.0.0.1 lauscht. Eine
- * Anfrage ist genau eine Zeile JSON, die Antwort auch, beides ASCII.
- * Eine Zeile, die nicht mit „{“ beginnt, wird abgewiesen: So kann ein
- * Browser, der eine Webseite an localhost schicken lässt, nichts auslösen,
- * denn seine erste Zeile ist immer „GET …“ oder „POST …“.
+ * Der Zuruf kommt über einen Unix-Socket im Profilordner, Rechte 0600 — nur
+ * das Konto, das Thunderbird fährt, kommt daran (ADR 0059). Eine Anfrage ist
+ * genau eine Zeile JSON, die Antwort auch, beides ASCII. Eine Zeile, die
+ * nicht mit „{“ beginnt, wird abgewiesen.
  *
- * Senden kann die Brücke nicht. Über den Port gibt es nur „ping“,
+ * Senden kann die Brücke nicht. Über den Socket gibt es nur „ping“,
  * „entwurf_oeffnen“, „fenster“ und „protokoll“. „fenster“ meldet je offenem
  * Verfassen-Fenster, was es jetzt hinausschicken würde (ADR 0056). Dem
  * Hintergrund (background.js) gibt sie vier Dinge, die eine MailExtension
@@ -42,8 +41,25 @@ var { setTimeout } = ChromeUtils.importESModule(
   "resource://gre/modules/Timer.sys.mjs"
 );
 
-const STANDARD_PORT = 1994;
-const PREF_PORT = "falzmarke.entwurfsbruecke.port";
+// Der Zuruf kommt über einen Unix-Socket im Profilordner, nicht mehr über
+// 127.0.0.1:1994 (ADR 0059). Zwei Gründe, beide gemessen: Ein Port auf
+// 127.0.0.1 nimmt jeden Prozess *jedes* Benutzers an — ein fremder `ping`
+// bekam am 25.10.2026 eine vollständige Antwort —, und wer zuerst lauscht,
+// besitzt den Port, also kann ein fremder Dienst sich als Brücke ausgeben.
+// Beim Socket entscheiden die Dateirechte, und die gelten für das Konto, das
+// Thunderbird fährt. Der Name ist kurz, weil `sun_path` auf macOS nur 104
+// Byte fasst: Gemessen am 25.10.2026 ist der Profilordner dieses Rechners
+// 74 Byte lang — mit `falzmarke-entwurfsbruecke.sock` wären es 105 Byte
+// gewesen, eins zu viel. Mit diesem Namen sind es 87.
+const SOCKET_DATEI = "bruecke.sock";
+const SOCKET_RECHTE = 0o600;
+// So lange darf eine Verbindung ohne vollständige Zeile offen bleiben. Ohne
+// diese Frist blieb eine Verbindung, die nichts schickt, für immer in
+// `verbindungen` stehen.
+const FRIST_LEERLAUF_MS = 10000;
+// Mehr gleichzeitige Verbindungen nimmt die Brücke nicht an; falzmarke stellt
+// immer genau eine.
+const MAX_VERBINDUNGEN = 8;
 const MAX_ZEILE = 4096;
 // So lange darf das Nachladen des Entwurfsordners dauern, bevor die Brücke
 // es ohne lokalen Kopf versucht.
@@ -355,6 +371,13 @@ async function beantworten(zeile) {
 }
 
 function annehmen(transport) {
+  if (verbindungen.size >= MAX_VERBINDUNGEN) {
+    notiere("zu_viele_verbindungen", { offen: verbindungen.size });
+    try {
+      transport.close(Cr.NS_ERROR_ABORT);
+    } catch (e) {}
+    return;
+  }
   const eingang = transport.openInputStream(0, 0, 0);
   const ausgang = transport.openOutputStream(Ci.nsITransport.OPEN_BLOCKING, 0, 0);
   const verbindung = { transport };
@@ -383,6 +406,13 @@ function annehmen(transport) {
     }
     setTimeout(trennen, NACHLAUF_MS);
   };
+  // Wer nichts schickt, wird nach der Leerlauffrist getrennt.
+  const leerlauf = setTimeout(() => {
+    if (!fertig) {
+      notiere("leerlauf", {});
+      trennen();
+    }
+  }, FRIST_LEERLAUF_MS);
   const pumpe = Cc["@mozilla.org/network/input-stream-pump;1"].createInstance(
     Ci.nsIInputStreamPump
   );
@@ -400,6 +430,7 @@ function annehmen(transport) {
         return;
       }
       fertig = true;
+      clearTimeout(leerlauf);
       const zeile =
         ende < 0 || ende > MAX_ZEILE ? null : puffer.slice(0, ende).replace(/\r$/, "");
       beantworten(zeile)
@@ -426,19 +457,39 @@ function annehmen(transport) {
   });
 }
 
+function socketdatei() {
+  // Über den Verzeichnisdienst, nicht über `PathUtils`: Der ist in jedem
+  // privilegierten Kontext da, und `nsIServerSocket.initWithFilename` will
+  // ohnehin ein `nsIFile`.
+  const datei = Services.dirsvc.get("ProfD", Ci.nsIFile);
+  datei.append(SOCKET_DATEI);
+  return datei;
+}
+
 function starten(version) {
   if (dienst) {
-    return { laeuft: true, port: dienst.port };
+    return { laeuft: true, socket: dienst.pfad };
   }
-  const port = Services.prefs.getIntPref(PREF_PORT, STANDARD_PORT);
+  const datei = socketdatei();
+  const pfad = datei.path;
   const server = Cc["@mozilla.org/network/server-socket;1"].createInstance(
     Ci.nsIServerSocket
   );
   try {
-    // true = nur 127.0.0.1, nie von außen erreichbar.
-    server.init(port, true, -1);
+    // Ein Socket aus einem abgebrochenen Lauf belegt den Namen; initWithFilename
+    // legt ihn nicht über eine bestehende Datei.
+    if (datei.exists()) {
+      datei.remove(false);
+    }
   } catch (e) {
-    return { laeuft: false, port, fehler: String(e) };
+    notiere("altes_socket", { fehler: String(e) });
+  }
+  try {
+    // Die Rechte liegen am Socket selbst: 0600, also nur das Konto, das
+    // Thunderbird fährt.
+    server.initWithFilename(datei, SOCKET_RECHTE, -1);
+  } catch (e) {
+    return { laeuft: false, socket: pfad, fehler: String(e) };
   }
   server.asyncListen({
     onSocketAccepted(_server, transport) {
@@ -446,14 +497,22 @@ function starten(version) {
     },
     onStopListening() {},
   });
-  dienst = { server, port, version };
-  return { laeuft: true, port };
+  dienst = { server, pfad, version };
+  return { laeuft: true, socket: pfad };
 }
 
 function stoppen() {
   if (dienst) {
     try {
       dienst.server.close();
+    } catch (e) {}
+    try {
+      // Sonst bleibt ein Name liegen, an dem nichts horcht, und der nächste
+      // Start müsste ihn für sich wegräumen.
+      const datei = socketdatei();
+      if (datei.exists()) {
+        datei.remove(false);
+      }
     } catch (e) {}
     dienst = null;
   }

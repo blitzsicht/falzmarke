@@ -12,6 +12,7 @@ Kein Test hier öffnet eine Verbindung. Das Postfach ist die Attrappe aus
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -700,3 +701,108 @@ def test_json_traegt_fenster_und_empfaenger(monkeypatch, tmp_path):
     (z,) = entwurfsbuch.als_json(bericht)["entwuerfe"]
     assert z["empfaenger_minus"] == ["dms@example.de"] and z["versand"]["an"] == [AN]
     assert z["fenster"] is None
+
+
+# ── Das Buch gehört nur dem eigenen Konto (ADR 0058) ────────────────────────
+#
+# Gemessen am 25.10.2026 auf diesem Rechner: `-rw-r--r--` in `drwxr-xr-x`, mit
+# dem Brieftext im Klartext. Wer `--oeffnen` nutzt, legte damit ein für jedes
+# Konto des Rechners lesbares Archiv seiner Geschäftspost an. Die Proben hier
+# lesen die Rechte **nach** dem Schreiben und fahren mit Umask 022 — sonst
+# messen sie die Umask und nicht den Code.
+
+nur_unix = pytest.mark.skipif(os.name != "posix",
+                              reason="Rechtebits und Symlinks gibt es nur dort")
+
+
+@pytest.fixture
+def umask_022():
+    vorher = os.umask(0o022)
+    try:
+        yield
+    finally:
+        os.umask(vorher)
+
+
+def _rechte(pfad: Path) -> int:
+    return pfad.stat().st_mode & 0o777
+
+
+@nur_unix
+def test_das_buch_ist_nur_fuer_das_eigene_konto_lesbar(monkeypatch, felder, umask_022, tmp_path):
+    """Der Ordner muss hier erst entstehen.
+
+    `conftest.py` legt das Buch in einen Ordner, den pytest schon angelegt hat
+    — und der steht auf 0700. Gegen ihn gemessen wäre die Probe erfüllt,
+    bevor `mkdir(mode=…)` überhaupt läuft: Die Sabotage „mkdir ohne Modus"
+    ließ am 25.10.2026 alle 63 Tests grün. Deshalb zeigt `BUCH_VORGABE` hier
+    auf einen Pfad, den es noch nicht gibt.
+    """
+    monkeypatch.setattr(entwurfsbuch, "BUCH_VORGABE",
+                        tmp_path / "state" / "falzmarke" / "entwuerfe.jsonl")
+    assert not entwurfsbuch.BUCH_VORGABE.parent.exists()
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", ImapAttrappe({ENTWUERFE: []}))
+    lage = _entwurf(felder)
+    assert lage.buch_grund == ""
+    buch = entwurfsbuch.BUCH_VORGABE
+    assert _rechte(buch) == 0o600, f"das Buch steht auf {oct(_rechte(buch))}"
+    assert _rechte(buch.parent) == 0o700, f"der Ordner steht auf {oct(_rechte(buch.parent))}"
+
+
+@nur_unix
+def test_ein_buch_aus_einer_frueheren_fassung_wird_nachgezogen(monkeypatch, felder, umask_022):
+    """Die Rechte zieht erst das Schreiben nach — vorhandene Zeilen bleiben."""
+    _buch(_eintrag(900))
+    buch = entwurfsbuch.BUCH_VORGABE
+    os.chmod(buch, 0o644)
+    assert _rechte(buch) == 0o644, "die Vorbedingung des Tests stimmt nicht"
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", ImapAttrappe({ENTWUERFE: []}))
+    assert _entwurf(felder).buch_grund == ""
+    assert _rechte(buch) == 0o600
+    assert len(entwurfsbuch.lesen({})) == 2, "beim Nachziehen ging eine Zeile verloren"
+
+
+@nur_unix
+def test_ein_symlink_an_der_stelle_des_buchs_wird_nicht_beschrieben(monkeypatch, felder,
+                                                                   tmp_path):
+    """`O_NOFOLLOW`: Sonst hängt die Zeile in der Datei, auf die der Link zeigt."""
+    fremd = tmp_path / "fremde-datei"
+    fremd.write_text("unberührt\n", encoding="utf-8")
+    buch = entwurfsbuch.BUCH_VORGABE
+    buch.parent.mkdir(parents=True, exist_ok=True)
+    buch.symlink_to(fremd)
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", ImapAttrappe({ENTWUERFE: []}))
+    lage = _entwurf(felder)
+    assert lage.postfach is not None, "der Entwurf muss trotzdem im Postfach liegen"
+    assert lage.buch_grund, "das Schreiben über einen Symlink ging durch"
+    assert fremd.read_text(encoding="utf-8") == "unberührt\n"
+
+
+def test_zu_alte_zeilen_verlassen_das_buch_beim_schreiben(monkeypatch, felder):
+    """Aufbewahrung: `status` sieht 14 Tage, das Buch hält das Vierfache."""
+    jetzt = datetime.now(timezone.utc)
+    alt = jetzt - timedelta(days=entwurfsbuch.AUFBEWAHRUNG_TAGE + 1)
+    frisch = jetzt - timedelta(days=1)
+    _buch(_eintrag(700, zeit=alt), _eintrag(701, zeit=frisch),
+          dict(_eintrag(702, zeit=frisch), zeit="irgendwann"))
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", ImapAttrappe({ENTWUERFE: []}))
+    assert _entwurf(felder).buch_grund == ""
+    # Gemessen wird die Datei, nicht `lesen()`: Das übergeht eine Zeile ohne
+    # lesbare Zeit (`:250`), sie steht aber weiter im Buch — und genau das ist
+    # hier die Zusage.
+    zeilen = [json.loads(z) for z in
+              entwurfsbuch.BUCH_VORGABE.read_text(encoding="utf-8").splitlines()]
+    uids = [z["uid"] for z in zeilen]
+    assert "700" not in uids, "eine Zeile älter als die Aufbewahrung blieb stehen"
+    assert "701" in uids and "702" in uids, f"eine Zeile wurde zu früh verworfen: {uids}"
+    assert len(uids) == 3, f"erwartet: 701, 702 und der neue Eintrag; da sind {uids}"
+
+
+def test_gegenprobe_ohne_aufbewahrung_bleibt_die_alte_zeile_stehen(monkeypatch, felder):
+    """Die Probe nebenan muss anschlagen können."""
+    monkeypatch.setattr(entwurfsbuch, "_ausduennen", lambda *a, **k: 0)
+    jetzt = datetime.now(timezone.utc)
+    _buch(_eintrag(700, zeit=jetzt - timedelta(days=entwurfsbuch.AUFBEWAHRUNG_TAGE + 1)))
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", ImapAttrappe({ENTWUERFE: []}))
+    assert _entwurf(felder).buch_grund == ""
+    assert "700" in entwurfsbuch.BUCH_VORGABE.read_text(encoding="utf-8")

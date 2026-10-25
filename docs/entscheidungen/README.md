@@ -44,3 +44,6 @@ gelesen wird und die niemand nachpflegt.
 | [0054](0054-entwurfsbruecke-in-thunderbird.md) | Die Entwurfsbrücke: Thunderbird öffnet den Postfach-Entwurf | 25.10.2026 |
 | [0055](0055-entwurfsbuch-status-und-sperre.md) | Was aus einem Entwurf wurde: Entwurfsbuch, `status` und die Sperre beim Senden | 25.10.2026 |
 | [0056](0056-entwurfsbruecke-empfaenger-und-fassung.md) | Die Entwurfsbrücke meldet Empfänger, die Fassung kommt aus dem Tagebuch | 25.10.2026 |
+| [0057](0057-zeichennamen-werden-erzeugt.md) | Die Zeichennamen im Add-on werden erzeugt, nicht gepflegt | 25.10.2026 |
+| [0058](0058-sperre-ohne-eigene-blindkopie-mit-frist.md) | Die Sperre rechnet ohne die eigene Blindkopie und bricht nach zehn Sekunden ab | 25.10.2026 |
+| [0059](0059-zuruf-ueber-unix-socket.md) | Der Zuruf an die Entwurfsbrücke läuft über einen Unix-Socket mit 0600 | 25.10.2026 |

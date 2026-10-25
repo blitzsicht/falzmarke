@@ -35,12 +35,28 @@ liegt, und sagt, ob das Fenster steht.
    Anfrage ist eine Zeile JSON in ASCII, die Antwort auch. Eine Zeile, die nicht mit `{` beginnt,
    wird abgewiesen: Eine Webseite kann den Browser an `localhost` schicken lassen, ihre erste
    Zeile ist aber immer `GET …` oder `POST …`.
+
+   **Nachtrag 25.10.2026, zurückgenommen:** Der Port war die falsche Wahl. Ein Dienst auf
+   127.0.0.1 nimmt jeden Prozess **jedes** Kontos des Rechners an — gemessen bekam ein fremder
+   Prozess ohne Geheimnis eine vollständige `ping`-Antwort, und über `fenster` und `protokoll`
+   hingen Betreffe, Entwurfskennungen und die letzten sechzig Vorgänge daran. Dazu besitzt den
+   Port, wer zuerst lauscht. Seit 0.3.1 liegt der Zuruf auf einem Unix-Socket im Profilordner
+   mit Rechten 0600 (ADR 0059); `falzmarke.entwurfsbruecke.port` und `FALZMARKE_BRUECKE_PORT`
+   gibt es nicht mehr, der Pfad steht notfalls in `FALZMARKE_BRUECKE_SOCKET`.
 2. **Vier Befehle, keiner sendet.** `ping`, `entwurf_oeffnen {konto, uid}`, `fenster` (welche
    Verfassen-Fenster offen sind) und `protokoll` (die letzten Vorgänge, zur Fehlersuche). Geöffnet
    wird mit `OpenComposeWindow(…, Ci.nsIMsgCompType.Draft, …)` auf der Nachricht im
    Entwürfe-Ordner, nach `updateFolderAsync`, wenn der Kopf noch nicht lokal liegt.
    `tests/test_entwurfsbruecke.py` prüft am Quelltext, dass kein Aufruf zum Senden, Löschen,
-   Verschieben oder Flaggen darin steht, mit Gegenprobe. Das Manifest verlangt keine Berechtigung.
+   Verschieben oder Flaggen darin steht, mit Gegenprobe.
+
+   **Nachtrag 25.10.2026:** Hier stand „Das Manifest verlangt keine Berechtigung.“ Das war
+   falsch. `manifest.json` verlangt `compose`, `messagesRead` und `accountsRead`, und Thunderbird
+   fragt beim Installieren danach. Richtig ist: Unter diesen Rechten ist **Senden nicht**. Und
+   sie binden nur `background.js` — der Experiment-Teil (`implementation.js`) läuft mit vollen
+   Chrome-Rechten (`nsIServerSocket`, `IOUtils`, `MailServices.compose`) und wird nicht von der
+   Rechteliste begrenzt, sondern von dem, was `schema.json` nach außen gibt. Was das Add-on
+   nicht kann, steht deshalb im Quelltext und in seinem Test, nicht im Manifest.
 3. **Was das Add-on zurückmeldet, ist gesehen, nicht angenommen.** Nach dem Öffnen wartet es bis
    zu 20 s auf das Fenster und liest dessen Betreff. `geoeffnet` und `schon_offen` heißen: das
    Fenster steht, mit diesem Entwurf. `ungewiss` heißt: angestoßen, kein Fenster gesehen.
@@ -68,9 +84,20 @@ das im Kindprozess. Im Testlauf blockt `tests/conftest.py` jede Verbindung zum B
 
 ### Was hingenommen wird
 
-Jeder Prozess auf dem Rechner kann einen Entwurf öffnen lassen; ein Kennwort gibt es nicht.
-Öffnen verschickt nichts und ändert am Entwurf nichts, solange niemand im Fenster speichert. Ein
-Kennwort müsste irgendwo liegen, wo falzmarke es liest, und dort läge es für denselben Prozess.
+Jeder Prozess **desselben Benutzers** kann einen Entwurf öffnen lassen; ein Kennwort gibt es
+nicht. Öffnen verschickt nichts und ändert am Entwurf nichts, solange niemand im Fenster
+speichert. Ein Kennwort müsste irgendwo liegen, wo falzmarke es liest, und dort läge es für
+denselben Prozess.
+
+**Nachtrag 25.10.2026, Mindestfassung:** `strict_min_version` stand auf `128.0`, gemessen ist
+ausschließlich 158.0.1 (unten, dazu ADR 0055 und ADR 0056). Die Zahl war geraten. Sie steht
+jetzt auf `158.0`. Wer älter fährt, bekommt beim Installieren eine klare Absage — vorher bekam er
+ein halb gestartetes Add-on, denn der Fehler aus `starten()` geht nur in die Fehlerkonsole, und
+falzmarke meldete bloß „Thunderbird ist zu oder das Add-on fehlt“. ESR 128 bleibt ausgeschlossen,
+bis es dort gemessen ist: Der privilegierte Teil hängt an internen Pfaden
+(`MailServices.sys.mjs`, `folderLookup`) und an WebExtension-Teilen, die jünger als 128 sein
+dürften (`folders.query({specialUse})`, `messages.continueList`).
+`tests/test_xpi_auslieferung.py` hält Manifest und Messung zusammen.
 
 ## Messung 25.10.2026
 

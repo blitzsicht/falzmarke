@@ -57,7 +57,7 @@ def test_das_add_on_kennt_nur_seine_vier_befehle():
 
 def test_das_add_on_ruft_nichts_auf_was_sendet_oder_loescht():
     assert {p.name for p in ADDON.glob("*.js")} == {
-        "implementation.js", "background.js", "vergleich.js"}
+        "implementation.js", "background.js", "vergleich.js", "zeichennamen.js"}
     assert verbotene_aufrufe(ALLE_JS) == []
 
 
@@ -120,8 +120,59 @@ def test_gegenprobe_ein_neuer_befehl_faellt_auf():
     assert befehle(QUELLTEXT + '\n    case "senden":') != befehle(QUELLTEXT)
 
 
-def test_der_port_lauscht_nur_auf_127_0_0_1():
-    assert re.search(r"server\.init\(\s*port\s*,\s*true\s*,", QUELLTEXT)
+def test_der_socket_gehoert_nur_dem_eigenen_konto():
+    """Gegenprobe am 25.10.2026: Auf dem Port kam ein fremder Prozess ohne
+    jedes Geheimnis an eine vollständige `ping`-Antwort. Am Socket mit 0600
+    entscheiden die Dateirechte (ADR 0059)."""
+    assert re.search(r"server\.initWithFilename\(\s*datei\s*,\s*SOCKET_RECHTE\s*,\s*-1\s*\)",
+                     QUELLTEXT)
+    assert "const SOCKET_RECHTE = 0o600;" in QUELLTEXT
+
+
+def _ohne_kommentare(quelle: str) -> str:
+    """Nur der Code. Geschnitten werden Blockkommentare und reine `//`-Zeilen.
+
+    Eine Suche über den ganzen Quelltext trifft die eigene Begründung: Der
+    Kommentar, der den Umzug auf den Socket erklärt, nennt `127.0.0.1:1994`
+    — und ließ die Prüfung darunter am 25.10.2026 anschlagen. Nicht
+    geschnitten wird ein `//` mitten in einer Zeile: Dort stehen URLs in
+    Zeichenketten (`imap-message://…`), und sie wegzuschneiden hieße, Code zu
+    verlieren, den die Prüfung sehen soll.
+    """
+    ohne = re.sub(r"/\*.*?\*/", "", quelle, flags=re.S)
+    return "\n".join(z for z in ohne.splitlines() if not z.lstrip().startswith("//"))
+
+
+def test_kein_teil_des_add_ons_lauscht_auf_einem_port():
+    """Die Rücknahme ist erst fertig, wenn der alte Weg nirgends mehr steht."""
+    code = _ohne_kommentare(ALLE_JS)
+    assert len(code) < len(ALLE_JS), "der Kommentarschnitt hat nichts geschnitten"
+    assert "nsIServerSocket" in code, "der Schnitt hat auch Code verloren"
+    for was in ("server.init(", "127.0.0.1", "STANDARD_PORT", "PREF_PORT", "1994"):
+        assert was not in code, f"„{was}“ steht noch im Code des Add-ons"
+
+
+def test_eine_verbindung_ohne_daten_wird_getrennt():
+    """Sonst bleibt sie für immer in `verbindungen` stehen — und mit ihr das
+    Fenster, auf das sie zeigt."""
+    assert "const FRIST_LEERLAUF_MS = 10000;" in QUELLTEXT
+    anfang = QUELLTEXT.index("const leerlauf = setTimeout(")
+    ende = QUELLTEXT.index("}, FRIST_LEERLAUF_MS);", anfang)
+    assert "trennen();" in QUELLTEXT[anfang:ende], "die Frist trennt die Verbindung nicht"
+    # Und wer eine vollständige Zeile schickt, wird nicht mitten im Dienst getrennt.
+    assert "clearTimeout(leerlauf);" in QUELLTEXT
+
+
+def test_mehr_als_acht_verbindungen_nimmt_die_bruecke_nicht_an():
+    """falzmarke stellt immer genau eine."""
+    assert "const MAX_VERBINDUNGEN = 8;" in QUELLTEXT
+    assert "verbindungen.size >= MAX_VERBINDUNGEN" in QUELLTEXT
+
+
+def test_ein_altes_socket_blockiert_den_start_nicht():
+    """Nach einem Abbruch liegt der Name noch da; `initWithFilename` legt sich
+    nicht darüber. Beim Stoppen wird er weggeräumt."""
+    assert QUELLTEXT.count("datei.remove(false);") == 2
 
 
 def test_eine_browser_anfrage_wird_abgewiesen():
@@ -144,8 +195,10 @@ def test_das_manifest():
     assert (ADDON / api["schema"]).is_file()
     assert (ADDON / api["parent"]["script"]).is_file()
     assert manifest["permissions"] == RECHTE
-    # Erst der Vergleich, dann der Hintergrund, der ihn braucht.
-    assert manifest["background"]["scripts"] == ["vergleich.js", "background.js"]
+    # Erst die Tabelle, dann der Vergleich, der sie braucht, dann der
+    # Hintergrund, der ihn braucht (ADR 0057).
+    assert manifest["background"]["scripts"] == [
+        "zeichennamen.js", "vergleich.js", "background.js"]
 
 
 @pytest.mark.parametrize("recht", ["compose.send", "compose.save", "messagesDelete",
@@ -181,3 +234,20 @@ def test_das_paket_ist_vollstaendig_und_reproduzierbar(tmp_path):
     with zipfile.ZipFile(erstes) as archiv:
         assert archiv.namelist() == list(packer.DATEIEN)
         assert archiv.read("implementation.js") == (ADDON / "implementation.js").read_bytes()
+
+
+def test_die_erzeugte_tabelle_wird_vor_dem_vergleich_geladen():
+    """`vergleich.js` holt sie über `require` oder aus `globalThis` — beides.
+
+    Im Add-on gibt es kein `require`; dort lädt das Manifest die Tabelle als
+    eigenes Hintergrundskript, und sie steht als `globalThis`-Eigenschaft da.
+    Im Testlauf lädt node sie über `require`. Fiele einer der beiden Wege weg,
+    liefe die Prüfung in genau der Umgebung ins Leere, in der sie nicht
+    gemessen wird (ADR 0057).
+    """
+    quelle = (ADDON / "vergleich.js").read_text(encoding="utf-8")
+    assert 'require("./zeichennamen.js")' in quelle
+    assert "globalThis.FalzmarkeZeichennamen" in quelle
+    tabelle = (ADDON / "zeichennamen.js").read_text(encoding="utf-8")
+    assert "wurzel.FalzmarkeZeichennamen = api;" in tabelle
+    assert "module.exports = api;" in tabelle

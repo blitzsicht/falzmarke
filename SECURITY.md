@@ -29,6 +29,19 @@ Compiler weiter. Interessant sind deshalb vor allem:
   geschickt hat. Bis v0.3.1 gab es diese Prüfung für `briefkopf_typ`, aber nicht für `logo` und
   `signatur`; siehe [`docs/angriff-2026-08-25.md`](docs/angriff-2026-08-25.md). Ein Weg aus
   diesem Verzeichnis heraus ist ein Fund.
+- **Das Entwurfsbuch** (`~/.local/state/falzmarke/entwuerfe.jsonl`, Pfad über
+  `FALZMARKE_ENTWURFSBUCH`, `nie` schaltet es ab) merkt sich zu jedem Entwurf, den
+  `--oeffnen` ins Postfach legt, Konto, Empfänger und **den Brieftext im Klartext**. Es wird
+  mit 0600 in einem Ordner mit 0700 angelegt, über `os.open` mit `O_NOFOLLOW` geschrieben,
+  und Zeilen älter als 56 Tage verlassen es beim Schreiben. Ein Weg, darüber in eine fremde
+  Datei zu schreiben oder es für andere Konten lesbar zu machen, wäre ein Fund.
+- **Der Horchposten der Entwurfsbrücke.** Das Add-on in Thunderbird
+  (`thunderbird/entwurfsbruecke/`) nimmt Zurufe von falzmarke an: eine Zeile JSON über einen
+  **Unix-Socket im Thunderbird-Profil** mit Rechten 0600. Es kann einen Entwurf öffnen, offene
+  Verfassen-Fenster melden (samt Betreff, Empfängern und Text) und sein Protokoll herausgeben —
+  senden, löschen oder verschieben nicht. Bis 0.3.0 lief das über einen Port auf 127.0.0.1;
+  dort kam jeder Prozess jedes Kontos des Rechners heran (ADR 0059). Ein Weg, ohne die Rechte
+  an diesem Socket eine Antwort zu bekommen, wäre ein Fund.
 - **Typst** kompiliert in einem eigenen Wurzelverzeichnis und liest nichts darüber hinaus.
   Systemschriften sind abgeschaltet (`ignore_system_fonts`), ein Dokument kann also keine
   Schriften vom Rechner nachladen.

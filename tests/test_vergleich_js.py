@@ -9,6 +9,8 @@ Node führt die JS-Fassung aus, ohne Thunderbird. Fehlt node, wird der Test
 übersprungen, in der CI nicht: Die Runner von GitHub haben es immer.
 """
 
+import html
+import html.entities
 import json
 import os
 import shutil
@@ -21,6 +23,7 @@ from conftest import REPO
 from falzmarke import gesendet
 
 VERGLEICH_JS = REPO / "thunderbird" / "entwurfsbruecke" / "vergleich.js"
+ZEICHENNAMEN_JS = REPO / "thunderbird" / "entwurfsbruecke" / "zeichennamen.js"
 GOLDEN = sorted((REPO / "tests" / "golden" / "email").glob("*.eml"))
 
 LAEUFER = r"""
@@ -73,6 +76,14 @@ HTML = [
      "<table><tr><td>Feld</td><td>Wert &#228; &#xE4;</td></tr></table>"
      "<ul><li>eins</li><li>zwei</li></ul><p>Beste Grüße</p><p>Paul</p></body></html>"),
     "<P CLASS=\"x\">Großbuchstaben im Tag</P><BR><Div>und &lt;spitz&gt; &quot;zitiert&quot;</Div>",
+    # Zeichennamen, die bis 0.3.0 nicht in der Tabelle des Add-ons standen
+    # (ADR 0057). Je Zeile ein anderer Ausgang im Textkern: `&ndash;` fällt
+    # ganz weg, `&ntilde;` bleibt als Buchstabe, `&gibtsnicht;` bleibt als
+    # eigenes Wort, `&amp` ohne Semikolon löst auf, `&Jerry` nicht.
+    ("<p>&bdquo;Angebot&ldquo; &ndash; 5&nbsp;&euro;, 3&deg;, &frac12; &sup2; &copy; 2026"
+     "&hellip;</p><p>Se&ntilde;or &oelig;uvre, &gibtsnicht; und &notit; dazu</p>"
+     "<p>Tom&amp Jerry gegen Tom&Jerry</p>"),
+    "<p>&#8364; &#x20AC; &#128; &#1; &#55296; &#99999999; &#xZZ; &amp;#8364;</p>",
 ]
 
 EMPFAENGER = [
@@ -172,6 +183,22 @@ def _js(modul, faelle, paare) -> dict:
     return json.loads(fertig.stdout)
 
 
+def _kopie(tmp_path, quelle: str | None = None, tabelle: str | None = None):
+    """`vergleich.js` und `zeichennamen.js` in `tmp_path`; `None` heißt original.
+
+    Ohne die Tabelle im selben Ordner lädt die Kopie nicht. Der Test wäre dann
+    nicht rot, weil die Sabotage greift, sondern weil eine Datei fehlt — und
+    das sähe gleich aus (ADR 0057).
+    """
+    ziel = tmp_path / "vergleich.js"
+    ziel.write_text(VERGLEICH_JS.read_text(encoding="utf-8") if quelle is None else quelle,
+                    encoding="utf-8")
+    (tmp_path / ZEICHENNAMEN_JS.name).write_text(
+        ZEICHENNAMEN_JS.read_text(encoding="utf-8") if tabelle is None else tabelle,
+        encoding="utf-8")
+    return ziel
+
+
 def _abweichungen(modul) -> list[str]:
     """Jedes Merkmal und jedes Urteil, in dem JS und Python auseinanderliegen."""
     gelesen = [_python(f)[0] for f in _faelle()]
@@ -217,8 +244,7 @@ def test_js_und_python_bilden_dieselben_merkmale_und_urteile():
 def test_gegenprobe_eine_abweichung_in_js_faellt_auf(tmp_path, alt, neu):
     quelle = VERGLEICH_JS.read_text(encoding="utf-8")
     assert quelle.count(alt) == 1, f"{alt!r} steht nicht genau einmal in vergleich.js"
-    kaputt = tmp_path / "vergleich.js"
-    kaputt.write_text(quelle.replace(alt, neu), encoding="utf-8")
+    kaputt = _kopie(tmp_path, quelle.replace(alt, neu))
     assert _abweichungen(kaputt) != []
 
 
@@ -245,6 +271,87 @@ def test_gegenprobe_eine_abweichende_kennung_faellt_auf(tmp_path):
     quelle = VERGLEICH_JS.read_text(encoding="utf-8")
     alt = '.replace(/^<+|>+$/g, "")'
     assert quelle.count(alt) == 1
-    kaputt = tmp_path / "vergleich.js"
-    kaputt.write_text(quelle.replace(alt, ""), encoding="utf-8")
+    kaputt = _kopie(tmp_path, quelle.replace(alt, ""))
     assert _kennungen_js(kaputt) != [gesendet.kennung(k) for k in KENNUNGEN]
+
+
+# ── Alle Zeichennamen, nicht nur die im Fließtext ───────────────────────────
+#
+# Anlass (ADR 0057): Das Add-on trug eine Tabelle von zwanzig Zeichennamen,
+# Python löst 2231 auf. Die HTML-Fälle oben benutzten bis 0.3.0 ausschließlich
+# Namen, die in dieser Tabelle standen — dieser Teil des Paritätstests konnte
+# nicht rot werden, obwohl `&ndash;` in JS als Wort „ndash“ im Textkern blieb
+# und in Python verschwand. Hier bekommt jeder Name, den Python kennt, seine
+# eigene Probe, dazu die Grenzfälle der Auflösung.
+
+#: Zahlenverweise und Namen, die keine sind — die Fälle, in denen sich
+#: `html.unescape` nicht an der Tabelle entscheidet.
+GRENZFAELLE = [
+    "&#8364;", "&#x20AC;", "&#X20ac;", "&#128;", "&#129;", "&#0;", "&#1;",
+    "&#13;", "&#55296;", "&#1114112;", "&#99999999999;", "&#xZZ;",
+    "&gibtsnicht;", "&gibtsnicht", "a&Jerry", "Tom&Jerry", "Tom&amp Jerry",
+    "&notit;", "&notin;", "&not;", "&not", "&", "&;", "&#;", "&&amp;;",
+    "&amp;#8364;", "a&" + "x" * 40 + ";b", "&AMP", "&AMP;", "&nbsp&nbsp;",
+]
+
+
+def _entitaeten() -> list[str]:
+    """Jeden Zeichennamen von Python in Text eingebettet, dazu die Grenzfälle.
+
+    Die Schlüssel von `html.entities.html5` tragen das Semikolon selbst, wenn
+    es dazugehört — `&amp;` und das veraltete `&amp` sind zwei Einträge. So
+    sind beide Formen gedeckt, ohne sie zu erfinden.
+    """
+    return [f"a&{name}b" for name in sorted(html.entities.html5)] + GRENZFAELLE
+
+
+def _entschluesselt_js(modul, werte) -> list[str]:
+    laeufer = ('const e = JSON.parse(require("fs").readFileSync(0, "utf8"));'
+               'const v = require(e.modul);'
+               'process.stdout.write(JSON.stringify(e.werte.map(v.klartextAusHtml)));')
+    fertig = subprocess.run([_node(), "-e", laeufer],
+                            input=json.dumps({"modul": str(modul), "werte": werte}),
+                            capture_output=True, encoding="utf-8", timeout=120, check=False)
+    assert fertig.returncode == 0, fertig.stderr
+    return json.loads(fertig.stdout)
+
+
+def _entitaeten_abweichungen(modul) -> list[str]:
+    werte = _entitaeten()
+    js = _entschluesselt_js(modul, werte)
+    return [f"{wert!r}: JS {hab!r}, Python {html.unescape(wert)!r}"
+            for wert, hab in zip(werte, js, strict=True) if hab != html.unescape(wert)]
+
+
+def test_js_loest_jeden_zeichennamen_auf_wie_python():
+    """Keine Eingabe enthält ein Tag; `klartextAusHtml` ist dann reines Auflösen."""
+    assert len(html.entities.html5) >= 2231
+    assert _entitaeten_abweichungen(VERGLEICH_JS) == []
+
+
+@pytest.mark.parametrize(("alt", "neu", "was"), [
+    ('"ndash;": "–",', '"ndash;": "ndash",', "ein Wert in der Tabelle"),
+    ('"not": "¬",', "", "ein Name ohne Semikolon"),
+])
+def test_gegenprobe_eine_abweichende_tabelle_faellt_auf(tmp_path, alt, neu, was):
+    tabelle = ZEICHENNAMEN_JS.read_text(encoding="utf-8")
+    assert tabelle.count(alt) == 1, f"{alt!r} steht nicht genau einmal in zeichennamen.js ({was})"
+    kaputt = _kopie(tmp_path, tabelle=tabelle.replace(alt, neu))
+    assert _entitaeten_abweichungen(kaputt) != []
+
+
+@pytest.mark.parametrize(("alt", "neu"), [
+    # Ohne die Längstübereinstimmung bleibt „&not“ ohne Semikolon ungelöst.
+    ("for (let laenge = kern.length - 1; laenge > 1; laenge -= 1) {",
+     "for (let laenge = 0; laenge > 1; laenge -= 1) {"),
+    # Ohne die Ausnahmetabelle wird `&#128;` zu U+0080 statt zu „€“.
+    ("if (Object.hasOwn(UNGUELTIGE_KENNZIFFER, zahl)) {",
+     "if (false) {"),
+    # Ohne die verbotenen Stellen bleibt `&#1;` als Steuerzeichen stehen.
+    ("if (UNGUELTIGE_STELLE.has(zahl)) {", "if (false) {"),
+])
+def test_gegenprobe_ein_abweichender_algorithmus_faellt_auf(tmp_path, alt, neu):
+    quelle = VERGLEICH_JS.read_text(encoding="utf-8")
+    assert quelle.count(alt) == 1, f"{alt!r} steht nicht genau einmal in vergleich.js"
+    kaputt = _kopie(tmp_path, quelle.replace(alt, neu))
+    assert _entitaeten_abweichungen(kaputt) != []

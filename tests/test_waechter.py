@@ -95,13 +95,19 @@ def test_der_waechter_ist_scharf_geschaltet():
 def test_die_entwurfsbruecke_verbindet_nicht(monkeypatch):
     """Gegenprobe für ADR 0054. Gezielt wird mit `ping`: Fiele der Wächter aus,
     erreichte der Aufruf schlimmstenfalls das echte Add-on, und `ping` öffnet
-    kein Fenster — der Test würde rot, weil kein `WaechterFehler` kam."""
+    kein Fenster — der Test würde rot, weil kein `WaechterFehler` kam.
+
+    Der Socketpfad steht ausdrücklich da (ADR 0059): Ohne ihn hinge das
+    Ergebnis daran, ob auf dem Rechner ein Thunderbird-Profil liegt — ohne
+    Profil bräche der Ruf schon vor dem Wächter ab, und die Probe wäre auf
+    jedem Bauserver grün, ohne etwas gemessen zu haben."""
     from falzmarke import bruecke
 
     monkeypatch.setattr(bruecke, "VERBINDEN", None)  # der echte Weg
     with pytest.raises(WaechterFehler):
-        bruecke.ping(umgebung={})
-    assert _abgefangen() == ["Entwurfsbrücke"]
+        bruecke.ping(umgebung={"FALZMARKE_BRUECKE_SOCKET": "/tmp/falzmarke-waechter.sock"})
+    (eins,) = _abgefangen()
+    assert eins.startswith("Entwurfsbrücke")
 
 
 def test_ohne_attrappe_antwortet_keine_bruecke():

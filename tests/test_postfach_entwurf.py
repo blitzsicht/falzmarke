@@ -383,7 +383,7 @@ def test_befehl_ohne_bruecke_sagt_warum_kein_fenster(befehl, monkeypatch, capsys
     ausgabe = capsys.readouterr()
     assert "OK  Entwurf offen" not in ausgabe.out
     assert "Es geht kein Fenster auf" in ausgabe.err
-    assert "Entwurfsbrücke: auf 127.0.0.1:1994 antwortet nichts" in ausgabe.err
+    assert "Entwurfsbrücke: am Socket im Thunderbird-Profil antwortet nichts" in ausgabe.err
 
 
 def test_befehl_bei_ungewissem_fenster_warnt_vor_dem_zweiten(befehl, monkeypatch, capsys):
@@ -448,7 +448,7 @@ def test_entwurf_oeffnen_liste_sagt_wenn_keine_bruecke_antwortet(oeffne_befehl, 
     assert oeffne_befehl() == 0
     ausgabe = capsys.readouterr()
     assert "2 Entwürfe" in ausgabe.out and "OK  Entwurfsbrücke" not in ausgabe.out
-    assert "HINWEIS  Entwurfsbrücke: auf 127.0.0.1:1994 antwortet nichts" in ausgabe.err
+    assert "HINWEIS  Entwurfsbrücke: am Socket im Thunderbird-Profil antwortet nichts" in ausgabe.err
 
 
 def test_entwurf_oeffnen_nach_betreff(oeffne_befehl, monkeypatch, capsys):
@@ -487,7 +487,7 @@ def test_entwurf_oeffnen_ohne_treffer(oeffne_befehl, monkeypatch, capsys):
 def test_entwurf_oeffnen_ohne_bruecke_ist_exit_3(oeffne_befehl, monkeypatch, capsys):
     _zwei_entwuerfe(monkeypatch)
     assert oeffne_befehl("--betreff", "wappen") == 3
-    assert "Entwurfsbrücke: auf 127.0.0.1:1994 antwortet nichts" in capsys.readouterr().err
+    assert "Entwurfsbrücke: am Socket im Thunderbird-Profil antwortet nichts" in capsys.readouterr().err
 
 
 def test_entwurf_oeffnen_ohne_bildschirm_ruft_niemanden(oeffne_befehl, monkeypatch, capsys):
@@ -530,8 +530,15 @@ def test_der_aufrufer_wartet_laenger_als_das_add_on():
     frist = {name: int(wert) / 1000 for name, wert
              in re.findall(r"^const (FRIST_\w+_MS) = (\d+);", quelle, re.M)}
     # Ordner nachladen, dann zweimal warten: aufs Fenster und auf den Entwurf darin.
-    assert set(frist) == {"FRIST_ORDNER_MS", "FRIST_FENSTER_MS"}
+    # Die Menge ist geschlossen, damit eine neue Frist im Add-on hier auffällt
+    # und nicht still an der Rechnung vorbeiläuft.
+    assert set(frist) == {"FRIST_ORDNER_MS", "FRIST_FENSTER_MS", "FRIST_LEERLAUF_MS"}
     assert bruecke.FRIST_OEFFNEN_S > frist["FRIST_ORDNER_MS"] + 2 * frist["FRIST_FENSTER_MS"]
+    # Die Leerlauffrist zählt in dieser Rechnung nicht mit: Sie läuft nur, bis
+    # eine vollständige Zeile da ist, und falzmarke schickt sie sofort
+    # (`clearTimeout(leerlauf)` beim ersten Zeilenende, ADR 0059). Was sie
+    # abschneidet, ist eine Verbindung, die nichts sagt.
+    assert "clearTimeout(leerlauf);" in quelle
 
 
 def test_entwurf_oeffnen_ohne_proxy_ist_exit_3(oeffne_befehl, monkeypatch, capsys):

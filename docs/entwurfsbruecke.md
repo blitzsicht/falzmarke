@@ -54,8 +54,10 @@ aufgeht.
 
 Ein Tagebuch, `entwurfsbruecke-tagebuch.jsonl` im Profilordner von Thunderbird: geöffnet,
 gespeichert, gesendet, ohne Senden geschlossen, angehalten. `falzmarke status` liest es mit. Was
-in den Einträgen steht: `thunderbird/entwurfsbruecke/README.md`. Das Add-on lauscht nur auf
-127.0.0.1, von außen ist es nicht erreichbar.
+in den Einträgen steht: `thunderbird/entwurfsbruecke/README.md`. Gerufen wird das Add-on über
+einen Unix-Socket im Profilordner von Thunderbird (`bruecke.sock`, Rechte 0600): Von außen ist
+es nicht erreichbar, und auf demselben Rechner kommt nur das Konto daran, das Thunderbird
+fährt.
 
 ## Entfernen
 
