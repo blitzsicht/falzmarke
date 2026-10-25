@@ -1,4 +1,4 @@
-"""Zuruf an die Entwurfsbrücke in Thunderbird (ADR 0052).
+"""Zuruf an die Entwurfsbrücke in Thunderbird (ADR 0054).
 
 Das Add-on unter `thunderbird/entwurfsbruecke/` lauscht auf 127.0.0.1 und
 öffnet einen Entwurf aus dem Entwürfe-Ordner eines Kontos so, wie es
@@ -156,7 +156,7 @@ def offene_entwuerfe(*, umgebung: Mapping[str, str] | None = None) -> list[dict]
 
     `draft_id` ist die Adresse der Nachricht im Entwürfe-Ordner, auf die das
     Fenster zeigt (`imap-message://…#<UID>`); `falzmarke status` erkennt daran,
-    welcher Entwurf gerade offen ist (ADR 0053).
+    welcher Entwurf gerade offen ist (ADR 0055).
     """
     grund = abgeschaltet(umgebung)
     if grund:

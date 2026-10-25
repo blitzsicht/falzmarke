@@ -1,4 +1,4 @@
-"""Sperre und Tagebuch des Add-ons (ADR 0053), in node gegen ein nachgebautes Thunderbird.
+"""Sperre und Tagebuch des Add-ons (ADR 0055), in node gegen ein nachgebautes Thunderbird.
 
 `background.js` sieht nur die MailExtension-API: Verfassen-Fenster, gesendete
 Mails, das Experiment. Hier steht an ihrer Stelle eine Attrappe, die aufzeichnet,

@@ -1061,10 +1061,10 @@ class Entwurfslage(NamedTuple):
     #: Die UID dieses liegenden Entwurfs, damit die Brücke ihn öffnen kann.
     schon_da_uid: str = ""
     #: Ob der Postfach-Entwurf über die Entwurfsbrücke als Fenster aufging
-    #: (ADR 0052) — eine `bruecke.Oeffnung`. `None`, wenn es nicht versucht
+    #: (ADR 0054) — eine `bruecke.Oeffnung`. `None`, wenn es nicht versucht
     #: wurde: kein Postfach-Entwurf, oder einer, dessen Lage ungewiss ist.
     fenster: object | None = None
-    #: Warum der Postfach-Entwurf nicht ins Entwurfsbuch kam (ADR 0053). Leer,
+    #: Warum der Postfach-Entwurf nicht ins Entwurfsbuch kam (ADR 0055). Leer,
     #: wenn er drinsteht oder es keiner war. Dann weiß `falzmarke status` später
     #: nicht, was im Entwurf stand — das soll der Aufrufer sagen.
     buch_grund: str = ""
@@ -1086,7 +1086,7 @@ class Postfachablage(NamedTuple):
     #: Ob er die Fassungs-Kopfzeile trägt.
     fassung: bool | None
     #: Die UID des abgelegten Entwurfs im Ordner — die Kennung, mit der die
-    #: Entwurfsbrücke ihn öffnet (ADR 0052). Leer, wenn sie nicht feststeht.
+    #: Entwurfsbrücke ihn öffnet (ADR 0054). Leer, wenn sie nicht feststeht.
     uid: str = ""
 
 
@@ -1180,7 +1180,7 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
 
 def _fenster_auf(lage: Entwurfslage, felder: Mapping, umgebung: Mapping[str, str],
                  ) -> Entwurfslage:
-    """Öffnet den Postfach-Entwurf über die Entwurfsbrücke (ADR 0052).
+    """Öffnet den Postfach-Entwurf über die Entwurfsbrücke (ADR 0054).
 
     Nur, wenn feststeht, welcher es ist: der eben abgelegte oder der, der schon
     lag. Ist die Lage ungewiss, bleibt es beim Hinweis — ein Fenster auf einen
@@ -1536,7 +1536,7 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
     Ist der IMAP-Proxy erreichbar, liegt die `.eml` danach im Entwürfe-Ordner
     des Absenders, und es geht **kein** `-compose`-Fenster auf. Nur wenn dort
     nichts entstanden ist, folgt `-compose` wie bisher. `noch_ein_entwurf`
-    legt ab, obwohl ein passender Entwurf schon liegt. Seit ADR 0052 geht der
+    legt ab, obwohl ein passender Entwurf schon liegt. Seit ADR 0054 geht der
     Postfach-Entwurf trotzdem als Fenster auf, wenn in Thunderbird das Add-on
     Entwurfsbrücke läuft — als „Entwurf bearbeiten“, nicht als zweiter Entwurf.
 

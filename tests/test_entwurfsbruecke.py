@@ -1,4 +1,4 @@
-"""Das Thunderbird-Add-on selbst (ADR 0052): was es kann, und was nie.
+"""Das Thunderbird-Add-on selbst (ADR 0054): was es kann, und was nie.
 
 Das Add-on läuft in Thunderbird mit vollen Rechten — eine Experiment-API, die
 Fenster öffnen darf, dürfte technisch auch senden oder löschen. Die Zusage
@@ -19,7 +19,7 @@ from falzmarke import bruecke
 
 ADDON = REPO / "thunderbird" / "entwurfsbruecke"
 QUELLTEXT = (ADDON / "implementation.js").read_text(encoding="utf-8")
-#: Alles, was in Thunderbird läuft: das Experiment und der Hintergrund (ADR 0053).
+#: Alles, was in Thunderbird läuft: das Experiment und der Hintergrund (ADR 0055).
 ALLE_JS = "\n".join(p.read_text(encoding="utf-8") for p in sorted(ADDON.glob("*.js")))
 
 #: Was das Add-on nie aufrufen darf: senden, löschen, verschieben, Flags setzen,

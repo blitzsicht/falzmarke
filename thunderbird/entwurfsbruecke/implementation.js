@@ -16,7 +16,7 @@
  * „entwurf_oeffnen“, „fenster“ und „protokoll“. Dem Hintergrund (background.js)
  * gibt sie drei Dinge, die eine MailExtension allein nicht kann: einen Eintrag
  * ins Tagebuch im Profilordner schreiben, die UID eines Entwurfs nennen und
- * vor dem Senden nachfragen (ADR 0053). Anhalten kann sie das Senden, auslösen nie.
+ * vor dem Senden nachfragen (ADR 0055). Anhalten kann sie das Senden, auslösen nie.
  */
 "use strict";
 

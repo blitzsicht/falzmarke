@@ -93,7 +93,7 @@ def test_der_waechter_ist_scharf_geschaltet():
 
 
 def test_die_entwurfsbruecke_verbindet_nicht(monkeypatch):
-    """Gegenprobe für ADR 0052. Gezielt wird mit `ping`: Fiele der Wächter aus,
+    """Gegenprobe für ADR 0054. Gezielt wird mit `ping`: Fiele der Wächter aus,
     erreichte der Aufruf schlimmstenfalls das echte Add-on, und `ping` öffnet
     kein Fenster — der Test würde rot, weil kein `WaechterFehler` kam."""
     from falzmarke import bruecke

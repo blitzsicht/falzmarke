@@ -1,4 +1,4 @@
-# 0052 — Die Entwurfsbrücke: Thunderbird öffnet den Postfach-Entwurf
+# 0054 — Die Entwurfsbrücke: Thunderbird öffnet den Postfach-Entwurf
 
 **Datum:** 25.10.2026 · **Status:** angenommen · **Ergänzt:** [0051](0051-gesendet-sperre-und-postfach-entwurf.md),
 [0049](0049-entwurf-in-thunderbird.md) · **Hält:** [0038](0038-oeffnen-ist-kein-versand.md), Punkt 5
@@ -93,4 +93,4 @@ Kennwort müsste irgendwo liegen, wo falzmarke es liest, und dort läge es für 
 Das Add-on sieht als Einziges, ob ein Entwurf gesendet, verworfen oder geändert wurde. Eine
 Rückmeldung darüber und eine Warnung vor dem zweiten Senden derselben Mail sind die nächsten
 Schritte; senden wird das Add-on auch dann nicht. Beides beschreibt
-[ADR 0053](0053-entwurfsbuch-status-und-sperre.md).
+[ADR 0055](0055-entwurfsbuch-status-und-sperre.md).

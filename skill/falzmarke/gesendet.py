@@ -167,7 +167,7 @@ class Merkmale(NamedTuple):
 
 def merkmale_aus(*, empfaenger, betreff: str, text: str, fassung: str = "") -> Merkmale:
     """Die Merkmale aus Adressen, Betreff und Klartext — für einen Entwurf, der
-    nur noch im Entwurfsbuch steht (ADR 0053), nicht mehr im Postfach."""
+    nur noch im Entwurfsbuch steht (ADR 0055), nicht mehr im Postfach."""
     return Merkmale(empfaenger=frozenset(a.strip().lower() for a in empfaenger if a.strip()),
                     betreff=betreff_kern(betreff),
                     kern=_schnitt(text, gruss=True), bis_signatur=_schnitt(text, gruss=False),

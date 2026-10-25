@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Packt das Thunderbird-Add-on Entwurfsbrücke als `.xpi` (ADR 0052).
+"""Packt das Thunderbird-Add-on Entwurfsbrücke als `.xpi` (ADR 0054).
 
 Eine `.xpi` ist ein Zip mit `manifest.json` an der Wurzel. Gepackt wird genau,
 was das Manifest braucht, in fester Reihenfolge und mit festem Zeitstempel:

@@ -1680,7 +1680,7 @@ def _setze_email(brief_pfad: Path, ausgabe: Path | None = None, *,
 
 
 def _melde_fenster(fenster, ordner: str, betreff: str) -> None:
-    """Sagt, ob der Postfach-Entwurf als Fenster aufging (ADR 0052).
+    """Sagt, ob der Postfach-Entwurf als Fenster aufging (ADR 0054).
 
     Drei Fälle, wie beim Entwurf selbst: offen, nicht offen mit Grund, und
     ungewiss — dann steht womöglich schon ein Fenster, und ein zweiter Zuruf
@@ -1814,7 +1814,7 @@ def befehl_email(args) -> int:
         if lage.postfach is not None:
             # Der Entwurf liegt im Postfach (ADR 0051): die Datei selbst, mit
             # allen Kopfzeilen, am Server nachgezählt. Ein Fenster geht nur
-            # über die Entwurfsbrücke auf (ADR 0052) — deshalb fehlen die
+            # über die Entwurfsbrücke auf (ADR 0054) — deshalb fehlen die
             # Hinweise des `-compose`-Wegs darunter.
             ablage = lage.postfach
             print(f"OK  Entwurf liegt in „{ablage.ordner}“ von {ablage.adresse}: "
@@ -1953,7 +1953,7 @@ def befehl_email(args) -> int:
 
 
 def befehl_entwurf_oeffnen(args) -> int:
-    """Öffnet einen Entwurf, der schon im Postfach liegt (ADR 0052).
+    """Öffnet einen Entwurf, der schon im Postfach liegt (ADR 0054).
 
     Für die Frage, die bis dahin an den Menschen ging: „Ich konnte den Entwurf
     nicht öffnen, klick ihn bitte selbst an.“ Gesucht wird im Entwürfe-Ordner,
@@ -2039,7 +2039,7 @@ def befehl_entwurf_oeffnen(args) -> int:
 
 
 def befehl_status(args) -> int:
-    """Was aus den Postfach-Entwürfen wurde: gesendet, offen, gelöscht … (ADR 0053).
+    """Was aus den Postfach-Entwürfen wurde: gesendet, offen, gelöscht … (ADR 0055).
 
     Für die Frage, die bis dahin an den Menschen ging: „Ist das schon raus?“
     Liest nur — Postfach, Entwurfsbuch, Tagebuch der Entwurfsbrücke. Exit 3,

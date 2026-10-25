@@ -1,4 +1,4 @@
-/* falzmarke Entwurfsbrücke, Hintergrund (ADR 0052, ADR 0053)
+/* falzmarke Entwurfsbrücke, Hintergrund (ADR 0054, ADR 0055)
  *
  * Startet die Brücke und führt das Tagebuch: Für jedes Verfassen-Fenster hält
  * es fest, woher der Entwurf kam (Konto, UID, Fassung) und was aus ihm wurde,

@@ -1,6 +1,6 @@
-# 0053 — Was aus einem Entwurf wurde: Entwurfsbuch, `status` und die Sperre beim Senden
+# 0055 — Was aus einem Entwurf wurde: Entwurfsbuch, `status` und die Sperre beim Senden
 
-**Datum:** 25.10.2026 · **Status:** angenommen · **Ergänzt:** [0052](0052-entwurfsbruecke-in-thunderbird.md),
+**Datum:** 25.10.2026 · **Status:** angenommen · **Ergänzt:** [0054](0054-entwurfsbruecke-in-thunderbird.md),
 [0051](0051-gesendet-sperre-und-postfach-entwurf.md) · **Hält:** [0038](0038-oeffnen-ist-kein-versand.md), Punkt 5
 
 ## Anlass
@@ -15,7 +15,7 @@ aber in Thunderbird, wo kein falzmarke läuft: ein Entwurf, der zweimal liegt, o
 schon draußen ist und noch einmal geöffnet wird.
 
 Zuordnen lässt sich eine gesendete Mail ihrem Entwurf nicht über Kopfzeilen. Thunderbird vergibt
-beim Senden eine neue `Message-ID` und verwirft `X-Falzmarke-Fassung` (ADR 0052, Messung). Was
+beim Senden eine neue `Message-ID` und verwirft `X-Falzmarke-Fassung` (ADR 0054, Messung). Was
 bleibt, sind Empfänger, Betreff und Text.
 
 ## Entscheidung

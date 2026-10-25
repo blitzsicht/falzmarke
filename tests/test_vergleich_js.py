@@ -1,6 +1,6 @@
 """Das Add-on urteilt wie falzmarke: `vergleich.js` gegen `gesendet.py`.
 
-Die Sperre beim Senden (ADR 0053) läuft in Thunderbird, die Prüfung vor dem
+Die Sperre beim Senden (ADR 0055) läuft in Thunderbird, die Prüfung vor dem
 Entwurf in Python (ADR 0051). Halten beide dieselbe Mail einmal für gesendet
 und einmal nicht, warnt das eine, wo das andere schweigt. Deshalb bekommen
 beide hier dieselben Eingaben, und jedes Merkmal muss gleich herauskommen.

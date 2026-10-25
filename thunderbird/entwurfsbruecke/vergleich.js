@@ -1,5 +1,5 @@
 /* Ging diese Nachricht schon hinaus? Derselbe Vergleich wie in
- * `skill/falzmarke/gesendet.py` (ADR 0051), für die Sperre beim Senden (ADR 0053).
+ * `skill/falzmarke/gesendet.py` (ADR 0051), für die Sperre beim Senden (ADR 0055).
  *
  * Zwei Fassungen derselben Regel laufen auseinander, wenn niemand hinsieht.
  * `tests/test_vergleich_js.py` gibt beiden dieselben Eingaben und verlangt

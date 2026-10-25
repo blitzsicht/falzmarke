@@ -1,4 +1,4 @@
-"""Was aus einem Postfach-Entwurf wurde — Entwurfsbuch und `falzmarke status` (ADR 0053).
+"""Was aus einem Postfach-Entwurf wurde — Entwurfsbuch und `falzmarke status` (ADR 0055).
 
 ANLASS (25.10.2026): „Die Entwürfe senden, falls noch nicht geschehen“ — und
 die Frage, ob eine Mail schon raus ist, ob sie gelöscht oder vor dem Senden

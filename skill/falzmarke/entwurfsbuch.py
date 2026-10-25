@@ -1,4 +1,4 @@
-"""Was aus einem Postfach-Entwurf wurde — `falzmarke status` (ADR 0053).
+"""Was aus einem Postfach-Entwurf wurde — `falzmarke status` (ADR 0055).
 
 Die Frage kam immer wieder: Ist das schon raus? Hat er etwas geändert? Liegt
 der Entwurf noch, oder ist er gelöscht? Drei Quellen beantworten sie, und
@@ -388,7 +388,7 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                     if urteil == "gesendet":
                         gleich.append((kopf, text))
                     # Eine Antwort im selben Faden ist keine geänderte Fassung des Entwurfs:
-                    # Sie trägt ein `AW:` mehr (wie die Sperre Antworten auslässt, ADR 0053).
+                    # Sie trägt ein `AW:` mehr (wie die Sperre Antworten auslässt, ADR 0055).
                     elif urteil == "geaendert" and gesendet.antwortstufe(kopf.betreff) <= stufe:
                         anders.append((kopf, text))
                 return gleich, anders
@@ -440,7 +440,7 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                 # Im Papierkorb liegt ein Entwurf, den jemand weggeworfen hat: Nach dem Senden
                 # löscht Thunderbird ihn ohne Papierkorb (`deleteStorage`). Derselbe Betreff mit
                 # anderem Text ist dann eine andere Mail, etwa eine Antwort, die kein `AW:` mehr
-                # bekam, weil der Betreff schon eines trug (ADR 0053).
+                # bekam, weil der Betreff schon eines trug (ADR 0055).
                 elif anders and not im_papierkorb:
                     art = "gesendet"
                 elif nachfolger:

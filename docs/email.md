@@ -256,7 +256,7 @@ Einen Entwurf, der schon liegt, öffnet `falzmarke entwurf-oeffnen --absender <a
 Fassung des Add-ons. Geöffnet wird nur, wenn das Thunderbird-Profil für die Adresse genau einen
 Entwürfe-Ordner im eigenen Konto nennt, sonst steht `NICHT GEÖFFNET` da. Installieren:
 `thunderbird/entwurfsbruecke/README.md`. Warum ein Add-on und
-was es nicht kann: [ADR 0052](entscheidungen/0052-entwurfsbruecke-in-thunderbird.md).
+was es nicht kann: [ADR 0054](entscheidungen/0054-entwurfsbruecke-in-thunderbird.md).
 
 ### Was aus dem Entwurf wurde: `status`
 
@@ -289,7 +289,7 @@ Ab 0.2.0 hält die Entwurfsbrücke außerdem das Senden an, wenn derselbe Text i
 Tagen schon an einen dieser Empfänger ging. Bei einem Entwurf oder einer neuen Mail gilt das auch
 für denselben Betreff mit anderem Text in den letzten 24 Stunden. Thunderbird fragt dann, „Nicht
 senden“ ist vorgewählt. Kann das Add-on nicht prüfen, geht die Mail hinaus, und das Tagebuch hält
-es fest ([ADR 0053](entscheidungen/0053-entwurfsbuch-status-und-sperre.md)).
+es fest ([ADR 0055](entscheidungen/0055-entwurfsbuch-status-und-sperre.md)).
 
 ### Eine fertige Signatur mitbringen
 

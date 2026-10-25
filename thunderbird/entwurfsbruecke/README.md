@@ -4,10 +4,10 @@ Ein Thunderbird-Add-on mit drei Aufgaben:
 
 - Es öffnet einen Entwurf aus dem Ordner „Entwürfe“, wenn falzmarke darum bittet, so wie
   „Entwurf bearbeiten“. Nach dem Senden räumt Thunderbird den Entwurf dann selbst weg
-  ([ADR 0052](../../docs/entscheidungen/0052-entwurfsbruecke-in-thunderbird.md)).
+  ([ADR 0054](../../docs/entscheidungen/0054-entwurfsbruecke-in-thunderbird.md)).
 - Es hält im Tagebuch fest, was aus jedem Verfassen-Fenster wurde. `falzmarke status` liest es.
 - Es fragt nach, bevor dieselbe Mail ein zweites Mal hinausgeht
-  ([ADR 0053](../../docs/entscheidungen/0053-entwurfsbuch-status-und-sperre.md)).
+  ([ADR 0055](../../docs/entscheidungen/0055-entwurfsbuch-status-und-sperre.md)).
 
 Ein Senden anhalten kann es, auslösen nicht. Löschen, verschieben und Kennzeichen setzen kann es
 auch nicht, und `tests/test_entwurfsbruecke.py` hält das an Manifest und Quelltext fest.

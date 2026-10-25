@@ -1,4 +1,4 @@
-"""Der Zuruf an die Entwurfsbrücke (ADR 0052).
+"""Der Zuruf an die Entwurfsbrücke (ADR 0054).
 
 ANLASS (25.10.2026): „Ich konnte die Entwürfe in Thunderbird nicht öffnen.
 Bitte klick sie selbst an.“ Der Postfach-Entwurf aus ADR 0051 lag richtig im
