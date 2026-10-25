@@ -24,6 +24,7 @@ python3 scripts/xpi_packen.py          # schreibt dist/entwurfsbruecke-<fassung>
 In Thunderbird: Menü → Add-ons und Themes → Zahnrad → „Add-on aus Datei installieren…“ → die
 `.xpi` wählen. Danach holt Thunderbird neue Fassungen selbst: `update_url` im Manifest zeigt auf
 `updates.json` am jüngsten Release, `scripts/xpi_updates.py` schreibt die Datei im Release-Lauf.
+0.3.0 ist die erste Fassung mit `update_url`: Wer 0.2.x hat, installiert sie einmal von Hand.
 
 Ab 0.2.0 fragt Thunderbird beim Installieren nach drei Rechten: `compose` für das
 Verfassen-Fenster und den Moment vor dem Senden, `messagesRead` und `accountsRead`, um in
