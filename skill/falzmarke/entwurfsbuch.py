@@ -64,6 +64,19 @@ TAGEBUCH_WORTE = {
 #: So weit zurück sieht `status` ohne `--tage`.
 TAGE_VORGABE = 14
 
+#: So lange bleibt eine Zeile im Entwurfsbuch. Vier Mal die Spanne, die
+#: `status` ohne `--tage` ansieht: Wer weiter zurückfragt, bekommt eine
+#: Antwort, aber das Buch wächst nicht zum dauerhaften Archiv der
+#: Geschäftspost. Es trägt den Brieftext im Klartext (ADR 0055, ADR 0058).
+AUFBEWAHRUNG_TAGE = TAGE_VORGABE * 4
+
+#: Rechte für Buch und Ordner: nur das eigene Konto. `os.open` mit diesem Modus
+#: legt die Datei gleich so an; ein vorhandenes Buch wird beim nächsten
+#: Schreiben nachgezogen. Unter Windows sagen die Bits nichts — dort schützt
+#: das Benutzerprofil, und `os.chmod` kennt die Gruppenbits gar nicht.
+BUCH_RECHTE = 0o600
+ORDNER_RECHTE = 0o700
+
 #: So viele gesendete Mails sieht `status` höchstens an. Nur Kopfzeilen; ein
 #: Bestellpostfach verschickt in vierzehn Tagen leicht mehr als die 500 von
 #: `postfach.GRENZE` (gemessen 25.10.2026: 550).
@@ -135,12 +148,75 @@ def eintragen(ablage, felder: Mapping, *, umgebung: Mapping[str, str] | None = N
         "text": text,
     }
     try:
-        pfad.parent.mkdir(parents=True, exist_ok=True)
-        with pfad.open("a", encoding="utf-8") as datei:
-            datei.write(json.dumps(zeile, ensure_ascii=False) + "\n")
+        pfad.parent.mkdir(parents=True, exist_ok=True, mode=ORDNER_RECHTE)
+        _anhaengen(pfad, json.dumps(zeile, ensure_ascii=False) + "\n")
     except OSError as fehler:
         return f"{pfad}: {fehler.strerror or fehler}"
     return ""
+
+
+#: `O_NOFOLLOW` gibt es nur dort, wo es Symlinks gibt; unter Windows ist der
+#: Wert 0 und der Aufruf fällt auf das gewöhnliche Anhängen zurück.
+_SCHREIBEN = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+
+
+def _anhaengen(pfad: Path, zeile: str) -> None:
+    """Hängt eine Zeile an — mit 0600, ohne einem Symlink zu folgen.
+
+    Zwei Gründe für `os.open` statt `open("a")`: Der Modus liegt dann am
+    Aufruf und nicht an der Umask des Aufrufers (gemessen 25.10.2026:
+    `-rw-r--r--`, also für jedes Konto des Rechners lesbar), und `O_NOFOLLOW`
+    verhindert, dass ein Symlink an dieser Stelle die Zeile in eine fremde
+    Datei hängt. Vor dem Anhängen werden zu alte Zeilen verworfen.
+    """
+    _ausduennen(pfad)
+    kennung = os.open(pfad, _SCHREIBEN, BUCH_RECHTE)
+    try:
+        # Ein Buch aus einer früheren Fassung trägt noch die Umask-Rechte. Am
+        # offenen Deskriptor nachziehen, nicht am Pfad: Dazwischen könnte die
+        # Datei eine andere sein.
+        nachziehen = getattr(os, "fchmod", None)
+        if nachziehen is not None:
+            nachziehen(kennung, BUCH_RECHTE)
+        with os.fdopen(kennung, "a", encoding="utf-8") as datei:
+            datei.write(zeile)
+    except BaseException:
+        os.close(kennung)
+        raise
+
+
+def _ausduennen(pfad: Path, jetzt: datetime | None = None) -> int:
+    """Verwirft Zeilen, die älter sind als `AUFBEWAHRUNG_TAGE`. Rückgabe: wie viele.
+
+    Eine Zeile ohne lesbare Zeit bleibt stehen. Verwerfen wäre die falsche
+    Richtung: `status` wüsste dann weniger, weil eine Zeile kaputt war.
+    Geschrieben wird daneben und dann umbenannt — sonst stünde das Buch
+    mitten im Schreiben leer da.
+    """
+    if not pfad.is_file():
+        return 0
+    grenze = (jetzt or datetime.now(timezone.utc)) - timedelta(days=AUFBEWAHRUNG_TAGE)
+    behalten, verworfen = [], 0
+    for roh in pfad.read_text(encoding="utf-8", errors="replace").splitlines():
+        zeit = None
+        try:
+            wert = json.loads(roh)
+        except ValueError:
+            wert = None
+        if isinstance(wert, dict):
+            zeit = _zeit(wert.get("zeit"))
+        if zeit is not None and zeit < grenze:
+            verworfen += 1
+            continue
+        behalten.append(roh)
+    if not verworfen:
+        return 0
+    neben = pfad.with_name(pfad.name + ".neu")
+    kennung = os.open(neben, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, BUCH_RECHTE)
+    with os.fdopen(kennung, "w", encoding="utf-8") as datei:
+        datei.write("".join(z + "\n" for z in behalten))
+    os.replace(neben, pfad)
+    return verworfen
 
 
 def _zeit(wert) -> datetime | None:

@@ -78,7 +78,16 @@ um, und Kindprozesse bekommen `FALZMARKE_ENTWURFSBUCH=nie`.
 
 ### Was hingenommen wird
 
-- Das Buch enthält den Text jeder Mail im Klartext auf der lokalen Platte, wie die `.eml` daneben.
+- Das Buch enthält den Text jeder Mail im Klartext auf der lokalen Platte, wie die `.eml`
+  daneben. **Nachtrag 25.10.2026:** Der Vergleich mit der `.eml` trug nicht weit genug. Die
+  `.eml` ist eine Datei je Vorgang, das Buch ist das wachsende Archiv aller — und es lag
+  gemessen als `-rw-r--r--` in `drwxr-xr-x`, also für jedes Konto des Rechners lesbar, ohne
+  Obergrenze und ohne Aufbewahrungsfrist. Seit 0.11 legt `os.open` es mit 0600 in einem
+  Ordner mit 0700 an, ein vorhandenes Buch wird beim nächsten Schreiben nachgezogen, und
+  Zeilen älter als `AUFBEWAHRUNG_TAGE` (vier Mal die Spanne von `status`) verlassen es beim
+  Schreiben. `O_NOFOLLOW` verhindert dabei, dass ein Symlink an dieser Stelle die Zeile in
+  eine fremde Datei hängt (ADR 0058). Unter Windows sagen die Rechtebits nichts; dort
+  schützt das Benutzerprofil.
 - Die Sperre sieht nur, was Thunderbird von den Gesendet-Ordnern kennt. Eine Mail, die von einem
   anderen Gerät hinausging, zählt erst, wenn Thunderbird den Ordner abgeglichen hat.
 - Die Betreff-Regel warnt auch vor einer gewollten Korrektur. Das kostet einen Klick.
