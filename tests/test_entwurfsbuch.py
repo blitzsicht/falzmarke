@@ -417,12 +417,32 @@ def test_derselbe_betreff_mit_anderem_text_bleibt_geaendert_gesendet(monkeypatch
 def test_ein_aelterer_entwurf_im_papierkorb_verdeckt_kein_geaendertes_senden(monkeypatch):
     """Review 25.10.2026: Ein früherer Entwurf mit demselben Betreff lag im Papierkorb, und
     `status` hätte den geändert gesendeten für gelöscht gehalten."""
-    _postfach(monkeypatch, papierkorb=[_mail(zeit=JETZT - timedelta(days=2))],
+    _postfach(monkeypatch, papierkorb=[_mail(zeit=JETZT - timedelta(days=2),
+                                             fassung="f0f0f0f0f0f0")],
               gesendet=[_mail(text="Hallo Erika,\n\nneue Fassung, bitte in Silber.\n",
                               zeit=JETZT - timedelta(hours=1))])
     _buch(_eintrag(150, zeit=JETZT - timedelta(hours=3)))
     zustand = _einziger(_stand())
     assert (zustand.art, zustand.text_gleich) == ("gesendet", False)
+
+
+def test_ein_spaeterer_anderer_entwurf_im_papierkorb_verdeckt_kein_geaendertes_senden(
+        monkeypatch):
+    """Review 25.10.2026: Der Entwurf ging geändert hinaus, danach warf jemand eine Antwort
+    „AW: Auftrag S1“ aus einer anderen Quelle weg. Derselbe Betreff ist nicht derselbe Entwurf."""
+    _postfach(monkeypatch, papierkorb=[_mail(betreff="AW: Auftrag S1", fassung="a1a1a1a1a1a1",
+                                             zeit=JETZT - timedelta(hours=1))],
+              gesendet=[_mail(text="Hallo Erika,\n\nneue Fassung, bitte in Silber.\n",
+                              zeit=JETZT - timedelta(hours=2))])
+    _buch(_eintrag(150, zeit=JETZT - timedelta(hours=3)))
+    zustand = _einziger(_stand())
+    assert (zustand.art, zustand.text_gleich) == ("gesendet", False)
+
+
+def test_nur_ein_aelterer_mit_demselben_betreff_im_papierkorb_heisst_verschwunden(monkeypatch):
+    _postfach(monkeypatch, papierkorb=[_mail(zeit=JETZT - timedelta(days=2))])
+    _buch(_eintrag(150, zeit=JETZT - timedelta(hours=3)))
+    assert _einziger(_stand()).art == "verschwunden"
 
 
 def test_ein_weggeworfener_antwort_entwurf_ist_geloescht_trotz_gleichem_betreff(monkeypatch):

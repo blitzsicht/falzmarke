@@ -35,9 +35,9 @@ bleibt, sind Empfänger, Betreff und Text.
    | `WARTET` | liegt in „Entwürfe“, nichts Passendes gesendet |
    | `OFFEN` | liegt dort und ist gerade in einem Fenster offen |
    | `SCHON RAUS` | liegt noch, derselbe Text ging aber schon hinaus: nicht noch einmal senden |
-   | `GESENDET` | liegt nicht mehr; eine passende Mail liegt in Gesendet („Text unverändert“ oder „Text geändert“, `--diff` zeigt den Unterschied), oder das Tagebuch meldet das Senden. „Text geändert“ heißt derselbe Betreff mit nicht mehr `AW:` als der Entwurf; eine Antwort im selben Faden zählt nicht. Liegt der Entwurf im Papierkorb, zählt nur derselbe Text |
+   | `GESENDET` | liegt nicht mehr; eine passende Mail liegt in Gesendet („Text unverändert“ oder „Text geändert“, `--diff` zeigt den Unterschied), oder das Tagebuch meldet das Senden. „Text geändert“ heißt derselbe Betreff mit nicht mehr `AW:` als der Entwurf; eine Antwort im selben Faden zählt nicht. Liegt der Entwurf selbst (seine Fassung) im Papierkorb, zählt nur derselbe Text |
    | `ERSETZT` | liegt nicht mehr, ein neuerer mit demselben Betreff an einen dieser Empfänger schon |
-   | `GELÖSCHT` | liegt im Papierkorb. Ging derselbe Betreff mit anderem Text hinaus, nennt die Zeile das. Gesendet ist er nicht: Nach dem Senden löscht Thunderbird einen Entwurf, ohne ihn in den Papierkorb zu legen |
+   | `GELÖSCHT` | liegt im Papierkorb (dieselbe Fassung oder derselbe Betreff an einen dieser Empfänger, nicht älter als der Entwurf). Ging derselbe Betreff mit anderem Text hinaus, nennt die Zeile das. Gesendet ist er nicht: Nach dem Senden löscht Thunderbird einen Entwurf, ohne ihn in den Papierkorb zu legen |
    | `VERSCHWUNDEN` | nirgends, die Zeile nennt die Ordner, in denen gesucht wurde |
 
    `GESENDET … BELEGT` steht nur, wenn das Tagebuch das Senden meldet **und** die Mail in Gesendet
@@ -88,9 +88,12 @@ um, und Kindprozesse bekommen `FALZMARKE_ENTWURFSBUCH=nie`.
   in seinen Tagebuchzeilen.
 - Legt ein anderes Mailprogramm einen Entwurf nach dem Senden in den Papierkorb, heißt er
   `GELÖSCHT`. Ging er mit anderem Text hinaus, nennt die Zeile die gesendete Mail daneben.
-- Als Entwurf im Papierkorb zählt nur, was nicht älter ist als der Eintrag im Buch. Lagen zwei
-  Entwürfe aus derselben Quelle binnen fünf Minuten, ging einer geändert hinaus und landete der
-  andere im Papierkorb, heißen beide `GELÖSCHT`; welcher gesendet wurde, steht nur im Tagebuch.
+- Als der Entwurf selbst gilt im Papierkorb nur eine Mail mit seiner Fassung, die nicht älter ist
+  als sein Eintrag im Buch. Lag dieselbe Quelle zweimal als Entwurf, ging der frühere geändert
+  hinaus und landete der spätere im Papierkorb, heißen beide `GELÖSCHT`; welcher gesendet wurde,
+  steht nur im Tagebuch. Ob Thunderbird `X-Falzmarke-Fassung` beim erneuten Speichern eines
+  Entwurfs behält, ist nicht gemessen. Fehlt sie, gilt ein weggeworfener Entwurf wieder als
+  „gesendet, Text geändert“, sobald derselbe Betreff mit anderem Text hinausging.
 - Die Tests von `background.js` laufen in node gegen eine Attrappe der MailExtension-API. Sie
   zeigen, dass die Regeln stimmen, nicht, dass Thunderbird die API so liefert. Die vier Stellen,
   die die Attrappe nur annimmt, hat die Probe vom 25.10. in Thunderbird bestätigt (Messung).

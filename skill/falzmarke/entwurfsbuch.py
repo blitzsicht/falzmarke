@@ -430,21 +430,21 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                                    if int(k.uid) > int(eintrag.uid)
                                    and set(k.an) & set(eintrag.an)
                                    and gesendet.betreff_kern(k.betreff) == eigen.betreff), "")
-                # Was vor diesem Entwurf im Papierkorb lag, ist ein anderer: Er sticht ein
-                # geändertes Senden aus, darf also nur der eigene sein.
-                im_papierkorb = any(
-                    (k.datum is None or k.datum >= eintrag.zeit - SPIEL)
-                    and ((eintrag.fassung and k.fassung == eintrag.fassung)
-                         or (set(k.an) & set(eintrag.an)
-                             and gesendet.betreff_kern(k.betreff) == eigen.betreff))
-                    for k in weg)
+                # Was vor diesem Entwurf im Papierkorb lag, ist ein anderer.
+                neuer = [k for k in weg if k.datum is None or k.datum >= eintrag.zeit - SPIEL]
+                # Der Entwurf selbst: dieselbe Fassung. Derselbe Betreff allein kann auch ein
+                # anderer Entwurf sein und reicht nur für „gelöscht“ statt „verschwunden“.
+                selbst = bool(eintrag.fassung) and any(k.fassung == eintrag.fassung for k in neuer)
+                im_papierkorb = selbst or any(
+                    set(k.an) & set(eintrag.an)
+                    and gesendet.betreff_kern(k.betreff) == eigen.betreff for k in neuer)
                 if gleich or any(t.get("art") == "gesendet" for t in tagebuch_hier):
                     art = "gesendet"
-                # Im Papierkorb liegt ein Entwurf, den jemand weggeworfen hat: Nach dem Senden
-                # löscht Thunderbird ihn ohne Papierkorb (`deleteStorage`). Derselbe Betreff mit
-                # anderem Text ist dann eine andere Mail, etwa eine Antwort, die kein `AW:` mehr
-                # bekam, weil der Betreff schon eines trug (ADR 0055).
-                elif anders and not im_papierkorb:
+                # Liegt der Entwurf selbst im Papierkorb, hat ihn jemand weggeworfen: Nach dem
+                # Senden löscht Thunderbird ihn ohne Papierkorb (`deleteStorage`). Derselbe
+                # Betreff mit anderem Text ist dann eine andere Mail, etwa eine Antwort, die kein
+                # `AW:` mehr bekam, weil der Betreff schon eines trug (ADR 0055).
+                elif anders and not selbst:
                     art = "gesendet"
                 elif nachfolger:
                     art = "ersetzt"
