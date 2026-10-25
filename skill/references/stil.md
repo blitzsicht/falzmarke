@@ -87,6 +87,14 @@ auch im Fließtext: `am 1. September 2026`, `unter 0941 620-9800`, `1.234,56 EUR
 Fristen immer mit Datum, nie nur mit Dauer: „bis zum 15. September 2026", nicht „innerhalb von
 14 Tagen" — der Empfänger soll nicht rechnen müssen.
 
+**Kopierter Text wird nachgesehen.** Ein Absatz aus einem Browser, einem Chatfenster oder einem
+PDF bringt Zeichen mit, die niemand sieht: Zero-Width-Marken, weiche Trennstriche,
+Bidi-Steuerzeichen. `lint` meldet sie mit Zeile und Stelle (Regel `zeichen.unsichtbar`, ADR 0052)
+und hält den Lauf an — sie stünden sonst unbemerkt in der fertigen `.eml` und im PDF. Geändert
+wird nichts: Wer kopiert, löscht selbst. Geschützte Leerzeichen setzt der Satz an den Stellen, an
+denen sie hingehören (`z. B.`, `§ 7`, `12 kg`); sie von Hand einzufügen ist unnötig und wird als
+Warnung gemeldet.
+
 ## Was gestrichen wird
 
 Diese Muster klingen nach Maschine, und zwar unabhängig von der Sprache. Neben jedem steht der

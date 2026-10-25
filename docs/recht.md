@@ -85,10 +85,13 @@ sähe anders aus, als er geschrieben wurde, und niemand erführe warum.
 Die Tabelle oben sagt, was eine Stufe **bedeutet**. Hier steht, was die Regeln tatsächlich
 tragen. **Stand: 25.09.2026**, gemessen gegen `main` nach dem Aufstieg der Geometrie-Regeln
 ([#355](https://github.com/blitzsicht/falzmarke/issues/355)); die Gesamtzahl ist am 07.10.2026
-nachgezählt, als die Regeln der Urkunde dazukamen, und am 17.10.2026 mit der Prüfung auf
-getrennte Mail-Adressen und URLs. Weder die Regeln der Urkunde noch diese Prüfung berühren eine
-der Zahlen darunter: Keine von ihnen beruft sich auf eine Quelle, also kann auch keine zu ihr
-schweigen. Die Zahlen kommen aus
+nachgezählt, als die Regeln der Urkunde dazukamen, am 17.10.2026 mit der Prüfung auf
+getrennte Mail-Adressen und URLs und am 25.10.2026 mit der Zeichenprüfung
+([ADR 0052](entscheidungen/0052-unsichtbare-zeichen-melden-nicht-aendern.md)). Keine dieser
+Ergänzungen berührt eine der Zahlen darunter: Die Regeln der Urkunde und die beiden
+Netzadress-Prüfungen berufen sich auf keine Quelle, also kann auch keine zu ihr schweigen; die
+Zeichenprüfung nennt zwei Unicode-Quellen, und zu beiden ist nachgelesen worden — sie stehen mit
+Wortlaut in `belegt_durch` und zählen deshalb weder als schweigend noch als ungeprüft. Die Zahlen kommen aus
 der Regeldatei; `tests/test_textkanon.py` zählt sie bei jedem Lauf nach und wird rot, sobald
 dieser Abschnitt ihnen nicht mehr folgt.
 
@@ -98,7 +101,7 @@ Regel **nachweislich schweigen**: Sie zählen nicht mehr mit.
 
 | | |
 |---|---|
-| 140 | Regeln insgesamt — sechzehn davon seit dem 07.10.2026 für die Urkunde ([ADR 0048](entscheidungen/0048-urkunde-ein-schriftstueck-ohne-anschriftfeld.md)), alle `herkunft: werkzeug`; eine seit dem 17.10.2026 für getrennte Netzadressen, ebenso `werkzeug` |
+| 142 | Regeln insgesamt — sechzehn davon seit dem 07.10.2026 für die Urkunde ([ADR 0048](entscheidungen/0048-urkunde-ein-schriftstueck-ohne-anschriftfeld.md)), alle `herkunft: werkzeug`; eine seit dem 17.10.2026 für getrennte Netzadressen, ebenso `werkzeug`; zwei seit dem 25.10.2026 für die Zeichenprüfung ([ADR 0052](entscheidungen/0052-unsichtbare-zeichen-melden-nicht-aendern.md)), auch sie `werkzeug` |
 | 16 | Quelle-Regel-Paare, bei denen die Quelle **nachweislich schweigt** — zehn davon `onlineprinters` ([Befund](quellenpruefung-onlineprinters-2026-08-27.md)), seit dem 22.09.2026 dazu die Zeichnung `massskizze_b` bei `text.vermerke_max_3`, seit dem 25.09.2026 fünf weitere aus der Nachlese zu den Marken und zur Höhe des Informationsblocks |
 | 7 | der betroffenen Regeln führen jetzt `herkunft: werkzeug` — eine Setzgewohnheit des Werkzeugs, keine Aussage der Norm |
 | 4 | stehen auf `einzeln belegt`. Drei fielen dorthin von Fehler herab: `schreibweise.datum`, `schreibweise.abkuerzungen`, `text.vermerke_max_3` — ihre zweite volle Quelle schwieg, es bleibt eine. Der Typografie-Pass meldet Datum und Abkürzungen seither nur noch, er ersetzt sie nicht mehr. Die vierte, `text.anschrift_ohne_leerzeilen`, ist umgekehrt **gestiegen** — von `werkzeug`, am 22.09.2026 mit [#344](https://github.com/blitzsicht/falzmarke/issues/344) |

@@ -39,3 +39,4 @@ gelesen wird und die niemand nachpflegt.
 | [0049](0049-entwurf-in-thunderbird.md) | Der Entwurf entsteht in Thunderbird | 13.10.2026 |
 | [0050](0050-signatur-aus-thunderbird.md) | Trägt die Identität eine Signatur, kommt sie aus Thunderbird | 15.10.2026 |
 | [0051](0051-gesendet-sperre-und-postfach-entwurf.md) | Gesendet-Sperre, Entwurf im Postfach, Fassungs-Kopfzeile | 21.10.2026 |
+| [0052](0052-unsichtbare-zeichen-melden-nicht-aendern.md) | Unsichtbare Zeichen werden gemeldet, nicht geändert | 25.10.2026 |

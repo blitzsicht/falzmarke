@@ -2077,7 +2077,18 @@ def pruefe_body(body: str, versatz: int, bericht: Bericht,
     Behauptung, die altern kann, ohne dass es jemand merkt.
     """
     from falzmarke import markdown as markdown_modul
+    from falzmarke import zeichen as zeichen_modul
     from falzmarke.geometrie import AUSZUG_ZEICHEN, AUSZUG_ZEICHEN_INLINE
+
+    # Unsichtbare Zeichen (ADR 0052). Eigene Schleife vor der Zeilenschleife,
+    # und gemeldet wird immer über `bericht.fehler`: Welche Stufe ein Befund
+    # trägt, entscheidet die Regeldatei (`zeichen.geschuetzt` steht dort auf
+    # `deckel: warnung`). Eine Stufe im Code wäre eine zweite Wahrheit.
+    #
+    # Gilt auch im wortgetreuen Auszug — dort am meisten: Ein Zero-Width-Zeichen
+    # verändert den zitierten Wortlaut, und genau dagegen ist der Auszug gebaut.
+    for befund in zeichen_modul.befunde(body, versatz):
+        bericht.fehler(befund.zeile, befund.regel, befund.meldung, befund.hinweis)
 
     # Auszüge gibt es erst ab Dialekt 1.1. Ohne ihn sind Backticks
     # gewöhnlicher Text, und den darf der Satz umbrechen.
