@@ -247,8 +247,24 @@ brechen mit einer Meldung ab.
 
 ## Weitere Befehle
 
-Sieben Befehle gehören nicht zu jedem Brief und stehen deshalb nicht im Ablauf oben. Zwei davon
+Acht Befehle gehören nicht zu jedem Brief und stehen deshalb nicht im Ablauf oben. Zwei davon
 ändern, wie ein Vorgang anfängt.
+
+**`status` — was aus den Entwürfen eines Absenders wurde.**
+
+```bash
+python3 scripts/falzmarke.py status --absender order@example.de          # letzte 14 Tage
+python3 scripts/falzmarke.py status --absender order@example.de --diff   # mit Änderungen
+```
+
+Für „ist das schon raus?“, „hat er etwas geändert?“, „liegt der noch?“. **Erst `status`, dann
+fragen, und nie aus einem leeren „Entwürfe“-Ordner auf „nicht gesendet“ schließen.** Eine Zeile je
+Entwurf: `WARTET`, `OFFEN` (gerade im Fenster), `SCHON RAUS` (liegt noch, ging aber schon hinaus:
+nicht senden), `GESENDET` mit „Text unverändert“ oder „Text geändert“, `ERSETZT`, `GELÖSCHT`,
+`VERSCHWUNDEN`. `BELEGT` heißt: Postfach und Tagebuch der Entwurfsbrücke sagen beide „gesendet“.
+`nur einen senden` meldet zwei gleiche Entwürfe. Liest nur. `NICHT GEPRÜFT` mit Exit 3 heißt: Das
+Postfach war nicht erreichbar, über die Entwürfe ist nichts gesagt. `--json` für die Weiterarbeit
+(ADR 0053).
 
 **`entwurf-oeffnen` — einen Entwurf, der schon im Postfach liegt, in Thunderbird aufmachen.**
 

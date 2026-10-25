@@ -1064,6 +1064,10 @@ class Entwurfslage(NamedTuple):
     #: (ADR 0052) — eine `bruecke.Oeffnung`. `None`, wenn es nicht versucht
     #: wurde: kein Postfach-Entwurf, oder einer, dessen Lage ungewiss ist.
     fenster: object | None = None
+    #: Warum der Postfach-Entwurf nicht ins Entwurfsbuch kam (ADR 0053). Leer,
+    #: wenn er drinsteht oder es keiner war. Dann weiß `falzmarke status` später
+    #: nicht, was im Entwurf stand — das soll der Aufrufer sagen.
+    buch_grund: str = ""
 
 
 class Postfachablage(NamedTuple):
@@ -1161,13 +1165,17 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
     neu = max((k for k in nachher if k.uid not in alte), key=lambda k: int(k.uid))
     soll_bezug = str(felder.get("antwort_auf") or "").strip()
     soll_fassung = str(felder.get("fassung") or "").strip()
-    return Entwurfslage(
-        "Thunderbird", "", konto=adresse, postfach=Postfachablage(
-            adresse=adresse, ordner=anzeige, betreff=str(felder.get("betreff") or ""),
-            vorher=len(vorher), nachher=len(nachher),
-            bezug=(neu.antwort_auf == soll_bezug) if soll_bezug else None,
-            fassung=(neu.fassung == soll_fassung) if soll_fassung else None,
-            uid=str(neu.uid))), ""
+    ablage = Postfachablage(
+        adresse=adresse, ordner=anzeige, betreff=str(felder.get("betreff") or ""),
+        vorher=len(vorher), nachher=len(nachher),
+        bezug=(neu.antwort_auf == soll_bezug) if soll_bezug else None,
+        fassung=(neu.fassung == soll_fassung) if soll_fassung else None,
+        uid=str(neu.uid))
+    from falzmarke import entwurfsbuch
+
+    return Entwurfslage("Thunderbird", "", konto=adresse, postfach=ablage,
+                        buch_grund=entwurfsbuch.eintragen(ablage, felder,
+                                                          umgebung=umgebung)), ""
 
 
 def _fenster_auf(lage: Entwurfslage, felder: Mapping, umgebung: Mapping[str, str],

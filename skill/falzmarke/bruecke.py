@@ -151,6 +151,24 @@ def ping(*, umgebung: Mapping[str, str] | None = None) -> dict:
     return rufe({"befehl": "ping"}, umgebung=umgebung, frist=FRIST_PING_S)
 
 
+def offene_entwuerfe(*, umgebung: Mapping[str, str] | None = None) -> list[dict]:
+    """Die offenen Verfassen-Fenster — Titel, Betreff, `draft_id` — oder `BrueckenFehler`.
+
+    `draft_id` ist die Adresse der Nachricht im Entwürfe-Ordner, auf die das
+    Fenster zeigt (`imap-message://…#<UID>`); `falzmarke status` erkennt daran,
+    welcher Entwurf gerade offen ist (ADR 0053).
+    """
+    grund = abgeschaltet(umgebung)
+    if grund:
+        raise BrueckenFehler(grund)
+    antwort = rufe({"befehl": "fenster"}, umgebung=umgebung, frist=FRIST_PING_S)
+    if not antwort.get("ok") or not isinstance(antwort.get("fenster"), list):
+        # Sonst hieße eine Fassung, die `fenster` nicht kennt, „kein Fenster offen“.
+        kennung = str(antwort.get("fehler") or "keine Fensterliste")
+        raise BrueckenFehler(FEHLERTEXTE.get(kennung, f"das Add-on meldet „{kennung}“"))
+    return [f for f in antwort["fenster"] if isinstance(f, dict)]
+
+
 def entwurf_oeffnen(konto: str, uid: str | int, *,
                     umgebung: Mapping[str, str] | None = None) -> Oeffnung:
     """Öffnet den Entwurf `uid` im Entwürfe-Ordner von `konto`.

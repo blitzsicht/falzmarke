@@ -92,4 +92,5 @@ Kennwort müsste irgendwo liegen, wo falzmarke es liest, und dort läge es für 
 
 Das Add-on sieht als Einziges, ob ein Entwurf gesendet, verworfen oder geändert wurde. Eine
 Rückmeldung darüber und eine Warnung vor dem zweiten Senden derselben Mail sind die nächsten
-Schritte; senden wird das Add-on auch dann nicht.
+Schritte; senden wird das Add-on auch dann nicht. Beides beschreibt
+[ADR 0053](0053-entwurfsbuch-status-und-sperre.md).
