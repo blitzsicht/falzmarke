@@ -14,12 +14,16 @@ auch nicht, und `tests/test_entwurfsbruecke.py` hält das an Manifest und Quellt
 
 ## Installieren
 
+Die `.xpi` hängt an jedem Release, mit Prüfsumme und Herkunftsbeleg. Anleitung für Installieren,
+Prüfen und Updates: [docs/entwurfsbruecke.md](../../docs/entwurfsbruecke.md). Selbst packen:
+
 ```bash
 python3 scripts/xpi_packen.py          # schreibt dist/entwurfsbruecke-<fassung>.xpi
 ```
 
 In Thunderbird: Menü → Add-ons und Themes → Zahnrad → „Add-on aus Datei installieren…“ → die
-`.xpi` wählen. Eine neue Fassung wird genauso installiert und ersetzt die alte.
+`.xpi` wählen. Danach holt Thunderbird neue Fassungen selbst: `update_url` im Manifest zeigt auf
+`updates.json` am jüngsten Release, `scripts/xpi_updates.py` schreibt die Datei im Release-Lauf.
 
 Ab 0.2.0 fragt Thunderbird beim Installieren nach drei Rechten: `compose` für das
 Verfassen-Fenster und den Moment vor dem Senden, `messagesRead` und `accountsRead`, um in
