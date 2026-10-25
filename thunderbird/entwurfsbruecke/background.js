@@ -1,4 +1,4 @@
-/* falzmarke Entwurfsbrücke, Hintergrund (ADR 0054, ADR 0055, ADR 0056)
+/* falzmarke Entwurfsbrücke, Hintergrund (ADR 0054, ADR 0055, ADR 0056, ADR 0058)
  *
  * Startet die Brücke und führt das Tagebuch: Für jedes Verfassen-Fenster hält
  * es fest, woher der Entwurf kam (Konto, UID, Fassung) und was aus ihm wurde,
@@ -15,6 +15,11 @@
  * lässt sie senden und schreibt das ins Tagebuch: Eine Prüfung, die
  * scheitert, darf den Menschen nicht aufhalten.
  *
+ * Welche Empfänger die Sperre vergleicht, ist nicht dasselbe wie das, was im
+ * Tagebuch steht: Verglichen wird ohne die **eigene** Blindkopie, wie
+ * `gesendet.py` es tut — eine Archivadresse in Bcc steht sonst auf jeder Mail
+ * und hebt den Vorfilter auf. Ins Tagebuch kommt sie trotzdem (ADR 0056).
+ *
  * Senden kann das Add-on nicht. Es hat die Berechtigung dazu nicht, und
  * `tests/test_entwurfsbruecke.py` prüft den Quelltext darauf.
  */
@@ -29,6 +34,11 @@ const FRIST_BETREFF_MS = TAG_MS;
 const MAX_GESENDET = 2000;
 // So lange wartet das Tagebuch nach dem Schließen, ob das Senden noch gemeldet wird.
 const NACHLAUF_MS = 3000;
+// So lange darf die ganze Prüfung dauern. ADR 0055, Punkt 5 sagt zu: Eine
+// Prüfung, die hängt, darf den Menschen nicht aufhalten — abgesichert war
+// aber nur die Stückzahl (MAX_GESENDET) und der Fehlerfall. Eine einzige
+// Abfrage, die nicht zurückkommt, hielt das Fenster für immer.
+const FRIST_PRUEFUNG_MS = 10000;
 
 // Je Verfassen-Fenster: woher der Entwurf kam und ob er hinausging.
 const fenster = new Map();
@@ -180,11 +190,28 @@ async function fassungenAusTagebuch() {
   return bekannt;
 }
 
-async function befund(details, ursprung) {
+// Nach der Frist gewinnt die Grenze, und die Prüfung läuft ins Leere statt
+// ins Fenster. `finally` räumt die Uhr ab, damit node nicht auf sie wartet.
+function mitFrist(versprechen, frist) {
+  let uhr;
+  const grenze = new Promise((_ja, nein) => {
+    uhr = setTimeout(() => nein(new Error("frist_abgelaufen")), frist);
+  });
+  return Promise.race([versprechen, grenze]).finally(() => clearTimeout(uhr));
+}
+
+async function befund(details, ursprung, tabId) {
+  // **Ohne die eigene Blindkopie.** `gesendet.py` bildet die eigenen
+  // Empfänger aus An und Cc (`mit_bcc=False`) und die der gesendeten Mail
+  // aus An, Cc und Bcc (`mit_bcc=True`). Hier stand die eigene Bcc mit drin,
+  // und das hob den Vorfilter auf: Vier Profile tragen eine Archivadresse in
+  // Bcc, also teilte jede gesendete Mail eine Adresse mit jeder neuen. Die
+  // Folge war nicht eine schärfere Sperre, sondern eine, die bei „Rechnung"
+  // an zwei verschiedene Kunden am selben Tag fragt — und wer dreißig Mal
+  // umsonst gefragt wird, klickt beim einunddreißigsten weg.
   const empfaenger = V.adressen([
     ...liste(details.to),
     ...liste(details.cc),
-    ...liste(details.bcc),
   ]);
   if (!empfaenger.size) {
     return null;
@@ -201,6 +228,16 @@ async function befund(details, ursprung) {
   const gesendete = await gesendeteSeit(ordner, new Date(jetzt - FRIST_GLEICH_MS));
   const mitBetreff = details.type === "draft" || details.type === "new";
   let aehnlich = null;
+  // Eine unlesbare Mail überspringt die Prüfung, statt sie abzubrechen: Der
+  // echte Treffer kann zwei Kandidaten später liegen. Gemeldet wird das auf
+  // *jedem* Weg hinaus — auch beim Treffer, denn „gesperrt, aber nicht alles
+  // gesehen" ist eine andere Aussage als „gesperrt".
+  let uebersprungen = 0;
+  const melden = async () => {
+    if (uebersprungen) {
+      await eintragen("pruefung_teilweise", tabId, { uebersprungen });
+    }
+  };
   for (const kopf of gesendete) {
     const an = V.adressen([
       ...liste(kopf.recipients),
@@ -212,7 +249,13 @@ async function befund(details, ursprung) {
       continue;
     }
     const zeit = new Date(kopf.date).getTime();
-    const voll = await browser.messages.getFull(kopf.id);
+    let voll;
+    try {
+      voll = await browser.messages.getFull(kopf.id);
+    } catch (fehler) {
+      uebersprungen += 1;
+      continue;
+    }
     const fremd = V.merkmale({
       empfaenger: an,
       betreff: kopf.subject || "",
@@ -223,12 +266,14 @@ async function befund(details, ursprung) {
     const urteil = V.vergleiche(eigen, fremd);
     const fund = { zeit, an: gemeinsam, betreff: kopf.subject || "" };
     if (urteil === "gesendet") {
+      await melden();
       return { ...fund, grund: "gleicher_text" };
     }
     if (urteil === "geaendert" && mitBetreff && !aehnlich && jetzt - zeit <= FRIST_BETREFF_MS) {
       aehnlich = { ...fund, grund: "gleicher_betreff" };
     }
   }
+  await melden();
   return aehnlich;
 }
 
@@ -284,7 +329,7 @@ browser.compose.onBeforeSend.addListener(async (tab, details) => {
   }));
   let fund;
   try {
-    fund = await befund(details, stand.ursprung);
+    fund = await mitFrist(befund(details, stand.ursprung, tab.id), FRIST_PRUEFUNG_MS);
   } catch (fehler) {
     await eintragen("pruefung_fehlgeschlagen", tab.id, { fehler: String(fehler) });
     return {};

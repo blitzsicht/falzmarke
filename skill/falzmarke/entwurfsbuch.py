@@ -58,7 +58,8 @@ TAGEBUCH_WORTE = {
     "geoeffnet": "geöffnet", "gespeichert": "gespeichert", "gesendet": "gesendet",
     "geschlossen": "ohne Senden geschlossen", "gesperrt": "Sperre hielt an",
     "trotzdem": "trotz Sperre gesendet", "senden_fehlgeschlagen": "Senden scheiterte",
-    "pruefung_fehlgeschlagen": "Sperre konnte nicht prüfen"}
+    "pruefung_fehlgeschlagen": "Sperre konnte nicht prüfen",
+    "pruefung_teilweise": "Sperre hat nicht alles gesehen"}
 
 #: So weit zurück sieht `status` ohne `--tage`.
 TAGE_VORGABE = 14

@@ -31,7 +31,14 @@ const vm = require("vm");
 const eingabe = JSON.parse(fs.readFileSync(0, "utf8"));
 const fall = eingabe.fall;
 globalThis.FalzmarkeVergleich = require(eingabe.vergleich);
-globalThis.setTimeout = (f) => { f(); return 0; };
+const quelle = fs.readFileSync(eingabe.hintergrund, "utf8");
+// Nur der Nachlauf nach dem Schließen (NACHLAUF_MS) wird sofort ausgelöst,
+// sonst wartete jeder Fall drei Sekunden. Jede andere Uhr läuft echt: Löste
+// auch die Prüffrist sofort aus, lief jede Prüfung in ihre eigene Frist, und
+// die Sperre hielte nie an — gemessen am 25.10.2026, 14 Fälle auf einmal rot.
+const nachlauf = Number(/const NACHLAUF_MS = (\d+);/.exec(quelle)[1]);
+const echteUhr = setTimeout;
+globalThis.setTimeout = (f, ms) => (ms === nachlauf ? (f(), 0) : echteUhr(f, ms));
 console.log = (...teile) => console.error(...teile);
 const hoerer = {};
 const tagebuch = [];
@@ -67,10 +74,15 @@ globalThis.browser = {
   messages: {
     getFull: async (id) => {
       if (id === fall.details.relatedMessageId) { return fall.entwurf_voll; }
+      // Eine Mail, die sich nicht lesen lässt — im Postfach kommt das vor.
+      if ((fall.unlesbar || []).includes(id)) { throw new Error("Mail nicht lesbar"); }
       return gesendet.find((m) => m.id === id).voll;
     },
     query: async (q) => {
       abfragen.push({ folderId: q.folderId, fromDate: q.fromDate.toISOString() });
+      // Eine Abfrage, die nie zurückkommt. Ohne Frist hielte sie das Fenster
+      // für immer auf; mit Frist muss die Mail hinausgehen.
+      if (fall.haengt) { await new Promise(() => {}); }
       return { id: null, messages: gesendet.filter((m) => m.date >= q.fromDate) };
     },
     continueList: async () => ({ id: null, messages: [] }),
@@ -81,7 +93,7 @@ globalThis.browser = {
   },
   tabs: { onCreated: ereignis("neu"), onRemoved: ereignis("zu"), query: async () => [] },
 };
-vm.runInThisContext(fs.readFileSync(eingabe.hintergrund, "utf8"), { filename: "background.js" });
+vm.runInThisContext(quelle, { filename: "background.js" });
 const ruhe = async () => {
   for (let i = 0; i < 20; i++) { await new Promise((r) => setImmediate(r)); }
 };
@@ -144,13 +156,26 @@ def _fall(*gesendet, typ="draft", text=TEXT, betreff="Auftrag S1", **mehr):
     return fall
 
 
-def _lauf(fall, hintergrund=HINTERGRUND) -> dict:
-    eingabe = {"fall": fall, "hintergrund": str(hintergrund),
-               "vergleich": str(ADDON / "vergleich.js")}
-    fertig = subprocess.run([_node(), "-e", LAEUFER], input=json.dumps(eingabe),
-                            capture_output=True, encoding="utf-8", timeout=60, check=False)
+def _lauf(fall, hintergrund=HINTERGRUND, *, frist_s=60) -> dict:
+    fertig = _lauf_roh(fall, hintergrund, frist_s=frist_s)
     assert fertig.returncode == 0, fertig.stderr
     return json.loads(fertig.stdout)
+
+
+def _lauf_roh(fall, hintergrund=HINTERGRUND, *, frist_s=60):
+    """Wie `_lauf`, ohne Urteil über den Ausgang — für die Probe, die hängt."""
+    eingabe = {"fall": fall, "hintergrund": str(hintergrund),
+               "vergleich": str(ADDON / "vergleich.js")}
+    return subprocess.run([_node(), "-e", LAEUFER], input=json.dumps(eingabe),
+                          capture_output=True, encoding="utf-8", timeout=frist_s, check=False)
+
+
+def _kurze_frist(wert: int = 50) -> str:
+    """`background.js` mit kurzer Prüffrist — zehn Sekunden sind kein Testlauf."""
+    quelle = HINTERGRUND.read_text(encoding="utf-8")
+    alt = "const FRIST_PRUEFUNG_MS = 10000;"
+    assert quelle.count(alt) == 1, "die Prüffrist steht nicht genau einmal in background.js"
+    return quelle.replace(alt, f"const FRIST_PRUEFUNG_MS = {wert};")
 
 
 def _arten(aus) -> list[str]:
@@ -370,3 +395,116 @@ def test_gegenprobe_eine_neue_art_faellt_auf():
     arten = set(re.findall(r'eintragen\(\s*"(\w+)"',
                            HINTERGRUND.read_text(encoding="utf-8") + '\neintragen("neu", 1);'))
     assert arten != set(entwurfsbuch.TAGEBUCH_WORTE)
+
+
+# ── Die eigene Blindkopie zählt nicht mit (ADR 0058) ────────────────────────
+#
+# Vier Profile tragen eine Archivadresse in Bcc. Stand sie in den eigenen
+# Empfängern, teilte **jede** gesendete Mail eine Adresse mit **jeder** neuen,
+# und der Vorfilter in `befund` lief leer. `gesendet.py` macht es umgekehrt:
+# eigene Seite aus An und Cc (`mit_bcc=False`), gesendete Mail aus An, Cc und
+# Bcc (`mit_bcc=True`). Beide Richtungen bekommen hier ihre Probe.
+
+ARCHIV = "archiv@example.de"
+
+
+def test_die_eigene_blindkopie_zaehlt_nicht_als_gemeinsamer_empfaenger():
+    """Gleicher Text, aber nur das Archiv ist gemeinsam — kein Dialog.
+
+    Der Text ist absichtlich derselbe: So entscheidet allein der Vorfilter.
+    Zählte die eigene Bcc mit, hielte die Sperre hier an.
+    """
+    fall = _fall(_gesendet(an=("alt@example.com",)), typ="new")
+    fall["details"]["to"] = ["Neu <neu@example.com>"]
+    fall["details"]["bcc"] = [ARCHIV]
+    fall["gesendet"][0]["bccList"] = [ARCHIV]
+    aus = _lauf(fall)
+    assert aus["ergebnis"] == {}
+    assert aus["fragen"] == []
+    assert _arten(aus) == ["geoeffnet", "geschlossen"]
+
+
+def test_eine_fremde_blindkopie_zaehlt_weiter():
+    """Ging die Mail damals nur per Bcc an diesen Empfänger, gilt sie trotzdem."""
+    fall = _fall(_gesendet(an=()))
+    fall["gesendet"][0]["bccList"] = ["erika@example.com"]
+    aus = _lauf(fall)
+    assert aus["ergebnis"] == {"cancel": True}
+    assert aus["tagebuch"][1]["an"] == ["erika@example.com"]
+
+
+def test_die_blindkopie_steht_trotzdem_im_tagebuch():
+    """Nicht verglichen heißt nicht ungemeldet (ADR 0056)."""
+    fall = _fall(nach_senden={"mode": "sendNow", "headerMessageId": "z@example.de"})
+    fall["details"]["bcc"] = [ARCHIV]
+    aus = _lauf(fall)
+    (eintrag,) = [e for e in aus["tagebuch"] if e["art"] == "gesendet"]
+    assert eintrag["blindkopie"] == [ARCHIV]
+
+
+# ── Eine Prüfung, die hängt, hält niemanden auf (ADR 0055, Punkt 5) ─────────
+
+def test_eine_haengende_abfrage_laesst_die_mail_hinaus(tmp_path):
+    kaputt = tmp_path / "background.js"
+    kaputt.write_text(_kurze_frist(), encoding="utf-8")
+    aus = _lauf(_fall(_gesendet(), haengt=True), kaputt)
+    assert aus["ergebnis"] == {}, "die Mail wurde von einer hängenden Prüfung aufgehalten"
+    (fehler,) = [e for e in aus["tagebuch"] if e["art"] == "pruefung_fehlgeschlagen"]
+    assert "frist_abgelaufen" in fehler["fehler"]
+
+
+def test_gegenprobe_ohne_frist_faellt_das_urteil_nie(tmp_path):
+    """Die Probe muss anschlagen: ohne `mitFrist` gibt der Hörer nichts zurück.
+
+    Gemessen am 25.10.2026: Der Knoten endet dabei mit 0 und **leerem** stdout —
+    ein offenes Versprechen hält die Ereignisschleife nicht am Leben, also
+    stirbt der Lauf, ohne je ein Urteil zu fällen. In Thunderbird entspricht
+    das dem Fenster, das auf eine Antwort wartet, die nicht kommt; hier ist das
+    fehlende Urteil der Beleg. Mit `mitFrist` steht an derselben Stelle `{}`.
+    """
+    quelle = _kurze_frist()
+    alt = "await mitFrist(befund(details, stand.ursprung, tab.id), FRIST_PRUEFUNG_MS)"
+    assert quelle.count(alt) == 1
+    kaputt = tmp_path / "background.js"
+    kaputt.write_text(quelle.replace(alt, "await befund(details, stand.ursprung, tab.id)"),
+                      encoding="utf-8")
+    fertig = _lauf_roh(_fall(_gesendet(), haengt=True), kaputt, frist_s=20)
+    assert fertig.stdout.strip() == "", (
+        "ohne Frist kam doch ein Urteil — dann belegt der Test nebenan nichts")
+    # Und mit Frist, derselbe Fall, dieselbe Attrappe: ein Urteil kommt.
+    heil = tmp_path / "heil.js"
+    heil.write_text(quelle, encoding="utf-8")
+    assert _lauf_roh(_fall(_gesendet(), haengt=True), heil, frist_s=20).stdout.strip() != ""
+
+
+# ── Eine unlesbare Mail überspringt die Prüfung, bricht sie nicht ab ───────
+
+def test_eine_unlesbare_mail_haelt_die_pruefung_nicht_auf():
+    """Der Treffer liegt hinter der unlesbaren Mail und wird trotzdem gefunden."""
+    aus = _lauf(_fall(_gesendet(text="egal, nicht lesbar", vor=timedelta(days=1),
+                                message_id="kaputt@example.de"),
+                      _gesendet(vor=timedelta(days=2)), unlesbar=[1000]))
+    assert aus["ergebnis"] == {"cancel": True}
+    (teil,) = [e for e in aus["tagebuch"] if e["art"] == "pruefung_teilweise"]
+    assert teil["uebersprungen"] == 1
+
+
+def test_gegenprobe_ohne_das_ueberspringen_bricht_die_pruefung_ab(tmp_path):
+    quelle = HINTERGRUND.read_text(encoding="utf-8")
+    alt = """    let voll;
+    try {
+      voll = await browser.messages.getFull(kopf.id);
+    } catch (fehler) {
+      uebersprungen += 1;
+      continue;
+    }"""
+    assert quelle.count(alt) == 1
+    kaputt = tmp_path / "background.js"
+    kaputt.write_text(quelle.replace(alt, "    const voll = await browser.messages.getFull("
+                                          "kopf.id);"), encoding="utf-8")
+    fall = _fall(_gesendet(text="egal, nicht lesbar", vor=timedelta(days=1),
+                           message_id="kaputt@example.de"),
+                 _gesendet(vor=timedelta(days=2)), unlesbar=[1000])
+    aus = _lauf(fall, kaputt)
+    assert aus["ergebnis"] == {}, "ohne das Überspringen müsste die Prüfung abbrechen"
+    assert "pruefung_fehlgeschlagen" in _arten(aus)
