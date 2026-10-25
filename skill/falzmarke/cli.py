@@ -1679,6 +1679,28 @@ def _setze_email(brief_pfad: Path, ausgabe: Path | None = None, *,
     return dateien[0], dateien, unterschrift
 
 
+def _melde_fenster(fenster, ordner: str, betreff: str) -> None:
+    """Sagt, ob der Postfach-Entwurf als Fenster aufging (ADR 0052).
+
+    Drei Fälle, wie beim Entwurf selbst: offen, nicht offen mit Grund, und
+    ungewiss — dann steht womöglich schon ein Fenster, und ein zweiter Zuruf
+    öffnete ein zweites.
+    """
+    if fenster is not None and fenster.offen:
+        print(f"OK  Entwurf offen in Thunderbird: {fenster.betreff or betreff}"
+              + (" (war schon offen)" if fenster.zustand == "schon_offen" else ""))
+        return
+    if fenster is not None and fenster.zustand == "ungewiss":
+        print(f"HINWEIS  Fenster ungewiss: {fenster.grund}\n"
+              f"         Erst in Thunderbird nachsehen, nicht noch einmal öffnen. Der "
+              f"Entwurf liegt unter „{ordner}“.", file=sys.stderr)
+        return
+    print(f"HINWEIS  Es geht kein Fenster auf: Der Entwurf steht in Thunderbird "
+          f"unter „{ordner}“.", file=sys.stderr)
+    if fenster is not None and fenster.grund:
+        print(f"         Entwurfsbrücke: {fenster.grund}", file=sys.stderr)
+
+
 def befehl_email(args) -> int:
     from falzmarke import pruefung_eml
 
@@ -1791,8 +1813,9 @@ def befehl_email(args) -> int:
                                      noch_ein_entwurf=args.noch_ein_entwurf)
         if lage.postfach is not None:
             # Der Entwurf liegt im Postfach (ADR 0051): die Datei selbst, mit
-            # allen Kopfzeilen, am Server nachgezählt. Es geht kein Fenster
-            # auf — deshalb fehlen die Hinweise des `-compose`-Wegs darunter.
+            # allen Kopfzeilen, am Server nachgezählt. Ein Fenster geht nur
+            # über die Entwurfsbrücke auf (ADR 0052) — deshalb fehlen die
+            # Hinweise des `-compose`-Wegs darunter.
             ablage = lage.postfach
             print(f"OK  Entwurf liegt in „{ablage.ordner}“ von {ablage.adresse}: "
                   f"{ablage.betreff}")
@@ -1804,9 +1827,8 @@ def befehl_email(args) -> int:
             elif ablage.bezug is False and felder.get("antwort_auf"):
                 print("HINWEIS  Im abgelegten Entwurf fehlt In-Reply-To — die Mail beginnt "
                       "einen neuen Thread.", file=sys.stderr)
-            print(f"HINWEIS  Es geht kein Fenster auf: Der Entwurf steht in Thunderbird "
-                  f"unter „{ablage.ordner}“.\n"
-                  "         Die Signatur kommt aus dem Profil; dass Thunderbird beim "
+            _melde_fenster(lage.fenster, ablage.ordner, ablage.betreff)
+            print("HINWEIS  Die Signatur kommt aus dem Profil; dass Thunderbird beim "
                   "Öffnen eines Entwurfs\n"
                   "         keine eigene ergänzt, ist vermutlich so — angenommen, nicht "
                   "gemessen.",
@@ -1882,6 +1904,9 @@ def befehl_email(args) -> int:
             print(f"ENTWURF LIEGT SCHON  {lage.schon_da}\n"
                   "         Keinen zweiten angelegt. Trotzdem noch einen: --noch-ein-entwurf",
                   file=sys.stderr)
+            # Der liegende ist der, den es zu senden gilt — also ihn öffnen.
+            if lage.fenster is not None:
+                _melde_fenster(lage.fenster, "Entwürfe", "")
         elif lage.ungewiss:
             # Der dritte Zustand (#287). Ob ein Fenster offen ist, weiß hier
             # niemand — und „nicht geprüft" ist nicht „nichts da". Die `.eml`
@@ -1922,6 +1947,83 @@ def befehl_email(args) -> int:
             sys.stdout.flush()
             print(gesendet_modul.meldung(befund), file=sys.stderr)
     return EXIT_OK
+
+
+def befehl_entwurf_oeffnen(args) -> int:
+    """Öffnet einen Entwurf, der schon im Postfach liegt (ADR 0052).
+
+    Für die Frage, die bis dahin an den Menschen ging: „Ich konnte den Entwurf
+    nicht öffnen, klick ihn bitte selbst an.“ Gesucht wird im Entwürfe-Ordner,
+    den Thunderbird für die Adresse führt — derselbe Ordner, in den `email
+    --oeffnen` ablegt. Ohne `--betreff` und `--uid` wird nur aufgelistet.
+    Mehrere Treffer öffnen nichts: Welcher gemeint ist, sagt `--uid`.
+    """
+    from falzmarke import bruecke, postfach
+    from falzmarke import oeffnen as oeffnen_modul
+
+    adresse = args.absender.strip()
+    try:
+        sitzung = postfach.verbinde(adresse, frist=oeffnen_modul.FRIST_POSTFACH_S)
+    except postfach.PostfachFehler as fehler:
+        print(f"FEHLER  Postfach von {adresse}: {fehler}", file=sys.stderr)
+        return EXIT_UMGEBUNG
+    with sitzung:
+        try:
+            ordner = (oeffnen_modul.thunderbird_ordner(adresse, "draft_folder")
+                      or sitzung.sonderordner("\\Drafts"))
+            koepfe = sitzung.koepfe(ordner) if ordner else []
+        except postfach.PostfachFehler as fehler:
+            print(f"FEHLER  Postfach von {adresse}: {fehler}", file=sys.stderr)
+            return EXIT_UMGEBUNG
+    if not ordner:
+        print(f"FEHLER  im Postfach von {adresse} ist kein Entwürfe-Ordner gekennzeichnet",
+              file=sys.stderr)
+        return EXIT_UMGEBUNG
+    anzeige = postfach.utf7_dekodieren(ordner)
+
+    def zeile(kopf) -> str:
+        zeit = kopf.datum.astimezone().strftime("%d.%m.%Y %H:%M") if kopf.datum else "ohne Datum"
+        return f"    UID {kopf.uid}  {zeit}  {kopf.betreff}  → {', '.join(kopf.an) or '—'}"
+
+    if args.uid is None and not args.betreff:
+        print(f"OK  {len(koepfe)} Entwürfe in „{anzeige}“ von {adresse}")
+        for kopf in koepfe:
+            print(zeile(kopf))
+        # Welche Fassung antwortet: So sieht man, ob die installierte die aus dem Repo ist.
+        grund = bruecke.abgeschaltet()
+        try:
+            if grund:
+                raise bruecke.BrueckenFehler(grund)
+            antwort = bruecke.ping()
+        except bruecke.BrueckenFehler as fehler:
+            print(f"HINWEIS  Entwurfsbrücke: {fehler}", file=sys.stderr)
+        else:
+            print(f"OK  Entwurfsbrücke {antwort.get('version', '?')} in Thunderbird "
+                  f"{antwort.get('thunderbird', '?')}")
+        return EXIT_OK
+    suche = (args.betreff or "").casefold()
+    treffer = [k for k in koepfe
+               if (args.uid is None or k.uid == str(args.uid))
+               and suche in k.betreff.casefold()]
+    if not treffer:
+        print(f"KEIN ENTWURF  in „{anzeige}“ von {adresse} passt "
+              f"({len(koepfe)} geprüft). Ohne --betreff und --uid stehen alle da.",
+              file=sys.stderr)
+        return EXIT_EINGABE
+    if len(treffer) > 1:
+        print(f"MEHRERE ENTWÜRFE  {len(treffer)} passen — nichts geöffnet. "
+              "Mit --uid wählen:", file=sys.stderr)
+        for kopf in treffer:
+            print(zeile(kopf), file=sys.stderr)
+        return EXIT_EINGABE
+    (kopf,) = treffer
+    ohne_fenster = oeffnen_modul.kein_bildschirm()
+    if ohne_fenster:
+        print(f"HINWEIS  kein Fenster: {ohne_fenster}\n{zeile(kopf)}", file=sys.stderr)
+        return EXIT_UMGEBUNG
+    oeffnung = bruecke.entwurf_oeffnen(adresse, kopf.uid)
+    _melde_fenster(oeffnung, anzeige, kopf.betreff)
+    return EXIT_OK if oeffnung.offen else EXIT_UMGEBUNG
 
 
 def befehl_verify(args) -> int:
@@ -2475,6 +2577,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--profiles")
     p.add_argument("--verbose", action="store_true", help="alle Prüfungen zeigen")
     p.set_defaults(funktion=befehl_email)
+
+    p = unter.add_parser("entwurf-oeffnen",
+                         help="einen Entwurf aus dem Postfach in Thunderbird öffnen")
+    p.add_argument("--absender", required=True,
+                   help="die Adresse des Kontos, in dessen Entwürfen er liegt")
+    p.add_argument("--betreff", help="Teil des Betreffs, ohne Groß- und Kleinschreibung")
+    p.add_argument("--uid", type=int, help="die UID aus der Liste, wenn mehrere passen")
+    p.set_defaults(funktion=befehl_entwurf_oeffnen)
 
     p = unter.add_parser("preview", help="PNG der ersten Seite")
     p.add_argument("brief")

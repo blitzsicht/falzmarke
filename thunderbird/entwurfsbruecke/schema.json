@@ -1,0 +1,14 @@
+[
+  {
+    "namespace": "entwurfsbruecke",
+    "functions": [
+      {
+        "name": "starten",
+        "type": "function",
+        "async": true,
+        "description": "Öffnet den Port auf 127.0.0.1. Ein zweiter Aufruf meldet nur den Stand.",
+        "parameters": []
+      }
+    ]
+  }
+]

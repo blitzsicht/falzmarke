@@ -22,7 +22,9 @@ from pathlib import Path
 
 import pytest
 
+from bruecke_attrappe import BrueckenAttrappe
 from conftest import PROFILE
+from falzmarke import bruecke
 from falzmarke import cli as falzmarke
 from falzmarke import eml as eml_modul
 from falzmarke import oeffnen, postfach
@@ -300,3 +302,194 @@ def test_die_abgelegte_datei_ist_die_gemessene(eml_pfad, felder, monkeypatch):
     assert abgelegt["In-Reply-To"] == "<vorher@example.org>"
     assert abgelegt["X-Falzmarke-Fassung"]
     assert server.ordner["Entw&APw-rfe"][-1].roh == eml_pfad.read_bytes()
+
+
+# ── Das Fenster (ADR 0052) ──────────────────────────────────────────────────
+#
+# ANLASS (25.10.2026): „Ich konnte die Entwürfe in Thunderbird nicht öffnen.
+# Bitte klick sie selbst an.“ Der Postfach-Entwurf lag richtig, aber kein
+# Fenster ging auf. Seitdem ruft `--oeffnen` die Entwurfsbrücke — mit genau dem
+# Entwurf, der eben abgelegt wurde, und nie mit einem, dessen Lage ungewiss ist.
+
+def _bruecke(monkeypatch, *a, **k) -> BrueckenAttrappe:
+    attrappe = BrueckenAttrappe(*a, **k)
+    monkeypatch.setattr(bruecke, "VERBINDEN", attrappe)
+    return attrappe
+
+
+def test_der_abgelegte_entwurf_geht_als_fenster_auf(monkeypatch, felder):
+    server = _server(monkeypatch)
+    tb_bruecke = _bruecke(monkeypatch)
+    lage = _entwurf(felder, Thunderbird())
+    neu = server.ordner["Entw&APw-rfe"][-1]
+    assert lage.postfach.uid == str(neu.uid)
+    assert tb_bruecke.oeffnungen() == [(ABSENDER, neu.uid)]
+    assert lage.fenster.offen
+
+
+def test_der_liegende_entwurf_geht_auf_statt_eines_zweiten(monkeypatch, felder):
+    server = _server(monkeypatch, [_vorhanden()])
+    tb_bruecke = _bruecke(monkeypatch)
+    lage = _entwurf(felder, Thunderbird())
+    (liegend,) = server.ordner["Entw&APw-rfe"]
+    assert server.befehle("APPEND") == []
+    assert tb_bruecke.oeffnungen() == [(ABSENDER, liegend.uid)]
+    assert lage.schon_da and lage.fenster.offen
+
+
+@pytest.mark.parametrize("art", [{"append_wirkt": False},
+                                 {"append_fehler": TimeoutError("timed out")}])
+def test_bei_ungewisser_lage_ruft_niemand_die_bruecke(monkeypatch, felder, art):
+    _server(monkeypatch, **art)
+    tb_bruecke = _bruecke(monkeypatch)
+    lage = _entwurf(felder, Thunderbird())
+    assert lage.ungewiss and lage.fenster is None
+    assert tb_bruecke.anfragen == []
+
+
+def test_ohne_postfach_ruft_niemand_die_bruecke(monkeypatch, felder):
+    """Der `-compose`-Weg öffnet sein Fenster selbst; ein Zuruf öffnete ein zweites."""
+    monkeypatch.setattr(postfach, "IMAP_KLASSE",
+                        ImapAttrappe(verbindungsfehler=ConnectionRefusedError(61, "refused")))
+    tb_bruecke = _bruecke(monkeypatch)
+    tb = Thunderbird()
+    lage = _entwurf(felder, tb)
+    assert len(tb.compose) == 1 and tb_bruecke.anfragen == []
+    assert lage.fenster is None
+
+
+def test_ohne_bruecke_liegt_der_entwurf_trotzdem(monkeypatch, felder):
+    server = _server(monkeypatch)
+    _bruecke(monkeypatch, fehler=ConnectionRefusedError(61, "refused"))
+    tb = Thunderbird()
+    lage = _entwurf(felder, tb)
+    assert len(server.befehle("APPEND")) == 1 and tb.compose == []
+    assert lage.programm == "Thunderbird" and lage.fenster.zustand == "fehler"
+
+
+def test_befehl_meldet_das_offene_fenster(befehl, monkeypatch, capsys):
+    _server(monkeypatch)
+    _bruecke(monkeypatch, {"ok": True, "zustand": "geoeffnet", "betreff": BETREFF})
+    assert befehl() == 0
+    ausgabe = capsys.readouterr()
+    assert f"OK  Entwurf offen in Thunderbird: {BETREFF}" in ausgabe.out
+    assert "Es geht kein Fenster auf" not in ausgabe.err
+
+
+def test_befehl_ohne_bruecke_sagt_warum_kein_fenster(befehl, monkeypatch, capsys):
+    _server(monkeypatch)
+    assert befehl() == 0
+    ausgabe = capsys.readouterr()
+    assert "OK  Entwurf offen" not in ausgabe.out
+    assert "Es geht kein Fenster auf" in ausgabe.err
+    assert "Entwurfsbrücke: auf 127.0.0.1:1994 antwortet nichts" in ausgabe.err
+
+
+def test_befehl_bei_ungewissem_fenster_warnt_vor_dem_zweiten(befehl, monkeypatch, capsys):
+    _server(monkeypatch)
+    _bruecke(monkeypatch, {"ok": True, "zustand": "ungewiss"})
+    assert befehl() == 0
+    ausgabe = capsys.readouterr()
+    assert "Fenster ungewiss" in ausgabe.err and "nicht noch einmal öffnen" in ausgabe.err
+
+
+def test_befehl_oeffnet_den_liegenden_entwurf(befehl, monkeypatch, capsys):
+    _server(monkeypatch, [_vorhanden()])
+    _bruecke(monkeypatch, {"ok": True, "zustand": "geoeffnet", "betreff": BETREFF})
+    assert befehl() == 0
+    ausgabe = capsys.readouterr()
+    assert "ENTWURF LIEGT SCHON" in ausgabe.err
+    assert f"OK  Entwurf offen in Thunderbird: {BETREFF}" in ausgabe.out
+
+
+# ── Der Befehl `entwurf-oeffnen` ────────────────────────────────────────────
+
+@pytest.fixture
+def oeffne_befehl(monkeypatch):
+    monkeypatch.delenv("CI", raising=False)
+    monkeypatch.delenv("FALZMARKE_OEFFNEN", raising=False)
+    monkeypatch.delenv("FALZMARKE_BRUECKE", raising=False)
+    monkeypatch.setenv("DISPLAY", ":0")
+
+    def lauf(*argumente):
+        return falzmarke.main(["entwurf-oeffnen", "--absender", ABSENDER, *argumente])
+    return lauf
+
+
+def _zwei_entwuerfe(monkeypatch):
+    return _server(monkeypatch, [_vorhanden("Nachtrag S1: Logo"),
+                                 _vorhanden("Vektor S2: Wappen", an="b@example.org")])
+
+
+def test_entwurf_oeffnen_ohne_suche_listet_nur(oeffne_befehl, monkeypatch, capsys):
+    _zwei_entwuerfe(monkeypatch)
+    tb_bruecke = _bruecke(monkeypatch)
+    assert oeffne_befehl() == 0
+    ausgabe = capsys.readouterr().out
+    assert "2 Entwürfe in „Entwürfe“" in ausgabe and "Vektor S2: Wappen" in ausgabe
+    assert tb_bruecke.oeffnungen() == []
+    assert [a["befehl"] for a in tb_bruecke.anfragen] == ["ping"]
+    assert "OK  Entwurfsbrücke 0.1.1 in Thunderbird 158.0.1" in ausgabe
+
+
+def test_entwurf_oeffnen_liste_sagt_wenn_keine_bruecke_antwortet(oeffne_befehl, monkeypatch,
+                                                                  capsys):
+    _zwei_entwuerfe(monkeypatch)
+    assert oeffne_befehl() == 0
+    ausgabe = capsys.readouterr()
+    assert "2 Entwürfe" in ausgabe.out and "OK  Entwurfsbrücke" not in ausgabe.out
+    assert "HINWEIS  Entwurfsbrücke: auf 127.0.0.1:1994 antwortet nichts" in ausgabe.err
+
+
+def test_entwurf_oeffnen_nach_betreff(oeffne_befehl, monkeypatch, capsys):
+    server = _zwei_entwuerfe(monkeypatch)
+    tb_bruecke = _bruecke(monkeypatch, {"ok": True, "zustand": "geoeffnet",
+                                        "betreff": "Vektor S2: Wappen"})
+    assert oeffne_befehl("--betreff", "wappen") == 0
+    gesucht = server.ordner["Entw&APw-rfe"][1]
+    assert tb_bruecke.oeffnungen() == [(ABSENDER, gesucht.uid)]
+    assert "OK  Entwurf offen in Thunderbird: Vektor S2: Wappen" in capsys.readouterr().out
+
+
+def test_entwurf_oeffnen_bei_mehreren_oeffnet_nichts(oeffne_befehl, monkeypatch, capsys):
+    _zwei_entwuerfe(monkeypatch)
+    tb_bruecke = _bruecke(monkeypatch)
+    assert oeffne_befehl("--betreff", "S") == 1
+    assert "MEHRERE ENTWÜRFE  2 passen" in capsys.readouterr().err
+    assert tb_bruecke.anfragen == []
+
+
+def test_entwurf_oeffnen_nach_uid(oeffne_befehl, monkeypatch, capsys):
+    server = _zwei_entwuerfe(monkeypatch)
+    tb_bruecke = _bruecke(monkeypatch)
+    erster = server.ordner["Entw&APw-rfe"][0]
+    assert oeffne_befehl("--uid", str(erster.uid)) == 0
+    assert tb_bruecke.oeffnungen() == [(ABSENDER, erster.uid)]
+
+
+def test_entwurf_oeffnen_ohne_treffer(oeffne_befehl, monkeypatch, capsys):
+    _zwei_entwuerfe(monkeypatch)
+    tb_bruecke = _bruecke(monkeypatch)
+    assert oeffne_befehl("--betreff", "gibt es nicht") == 1
+    assert "KEIN ENTWURF" in capsys.readouterr().err and tb_bruecke.anfragen == []
+
+
+def test_entwurf_oeffnen_ohne_bruecke_ist_exit_3(oeffne_befehl, monkeypatch, capsys):
+    _zwei_entwuerfe(monkeypatch)
+    assert oeffne_befehl("--betreff", "wappen") == 3
+    assert "Entwurfsbrücke: auf 127.0.0.1:1994 antwortet nichts" in capsys.readouterr().err
+
+
+def test_entwurf_oeffnen_ohne_bildschirm_ruft_niemanden(oeffne_befehl, monkeypatch, capsys):
+    _zwei_entwuerfe(monkeypatch)
+    monkeypatch.setenv("FALZMARKE_OEFFNEN", "nie")
+    tb_bruecke = _bruecke(monkeypatch)
+    assert oeffne_befehl("--betreff", "wappen") == 3
+    assert tb_bruecke.anfragen == []
+
+
+def test_entwurf_oeffnen_ohne_proxy_ist_exit_3(oeffne_befehl, monkeypatch, capsys):
+    monkeypatch.setattr(postfach, "IMAP_KLASSE",
+                        ImapAttrappe(verbindungsfehler=ConnectionRefusedError(61, "refused")))
+    assert oeffne_befehl("--betreff", "x") == 3
+    assert "FEHLER  Postfach von" in capsys.readouterr().err

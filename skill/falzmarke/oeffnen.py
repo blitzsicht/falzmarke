@@ -1058,6 +1058,12 @@ class Entwurfslage(NamedTuple):
     #: Ein Entwurf an dieselben Empfänger mit demselben Betreff liegt schon im
     #: Postfach — Zeit und Betreff. Dann wurde nichts angelegt (ADR 0051).
     schon_da: str = ""
+    #: Die UID dieses liegenden Entwurfs, damit die Brücke ihn öffnen kann.
+    schon_da_uid: str = ""
+    #: Ob der Postfach-Entwurf über die Entwurfsbrücke als Fenster aufging
+    #: (ADR 0052) — eine `bruecke.Oeffnung`. `None`, wenn es nicht versucht
+    #: wurde: kein Postfach-Entwurf, oder einer, dessen Lage ungewiss ist.
+    fenster: object | None = None
 
 
 class Postfachablage(NamedTuple):
@@ -1075,6 +1081,9 @@ class Postfachablage(NamedTuple):
     bezug: bool | None
     #: Ob er die Fassungs-Kopfzeile trägt.
     fassung: bool | None
+    #: Die UID des abgelegten Entwurfs im Ordner — die Kennung, mit der die
+    #: Entwurfsbrücke ihn öffnet (ADR 0052). Leer, wenn sie nicht feststeht.
+    uid: str = ""
 
 
 #: Zeitlimit für den Postfach-Entwurf. Länger als die Gesendet-Prüfung: Eine
@@ -1135,7 +1144,8 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
                     if juengster.datum else "(ohne Datum)")
             return Entwurfslage(None, "", schon_da=(
                 f"{zeit} „{juengster.betreff}“ in „{anzeige}“ von {adresse}"
-                + (f" ({len(vorher)} Stück)" if len(vorher) > 1 else ""))), ""
+                + (f" ({len(vorher)} Stück)" if len(vorher) > 1 else "")),
+                schon_da_uid=str(juengster.uid)), ""
         try:
             sitzung.ablegen(ordner, bytes(roh))
             nachher = [k for k in sitzung.koepfe(ordner) if _gleicher_entwurf(k, felder)]
@@ -1156,7 +1166,27 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
             adresse=adresse, ordner=anzeige, betreff=str(felder.get("betreff") or ""),
             vorher=len(vorher), nachher=len(nachher),
             bezug=(neu.antwort_auf == soll_bezug) if soll_bezug else None,
-            fassung=(neu.fassung == soll_fassung) if soll_fassung else None)), ""
+            fassung=(neu.fassung == soll_fassung) if soll_fassung else None,
+            uid=str(neu.uid))), ""
+
+
+def _fenster_auf(lage: Entwurfslage, felder: Mapping, umgebung: Mapping[str, str],
+                 ) -> Entwurfslage:
+    """Öffnet den Postfach-Entwurf über die Entwurfsbrücke (ADR 0052).
+
+    Nur, wenn feststeht, welcher es ist: der eben abgelegte oder der, der schon
+    lag. Ist die Lage ungewiss, bleibt es beim Hinweis — ein Fenster auf einen
+    Entwurf, von dem niemand weiß, ob es ihn gibt, hülfe niemandem.
+    """
+    if lage.postfach is not None and lage.postfach.uid:
+        konto, uid = lage.postfach.adresse, lage.postfach.uid
+    elif lage.schon_da and lage.schon_da_uid:
+        konto, uid = str(felder.get("absender") or ""), lage.schon_da_uid
+    else:
+        return lage
+    from falzmarke import bruecke
+
+    return lage._replace(fenster=bruecke.entwurf_oeffnen(konto, uid, umgebung=umgebung))
 
 
 def _steuere(skript: str, kennung: str, *, laufen=subprocess.run) -> str | None:
@@ -1498,7 +1528,9 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
     Ist der IMAP-Proxy erreichbar, liegt die `.eml` danach im Entwürfe-Ordner
     des Absenders, und es geht **kein** `-compose`-Fenster auf. Nur wenn dort
     nichts entstanden ist, folgt `-compose` wie bisher. `noch_ein_entwurf`
-    legt ab, obwohl ein passender Entwurf schon liegt.
+    legt ab, obwohl ein passender Entwurf schon liegt. Seit ADR 0052 geht der
+    Postfach-Entwurf trotzdem als Fenster auf, wenn in Thunderbird das Add-on
+    Entwurfsbrücke läuft — als „Entwurf bearbeiten“, nicht als zweiter Entwurf.
 
     Die Anhänge stehen in der `.eml` als Bytes; das Programm will Pfade. Für
     Outlook werden sie in ein Verzeichnis geschrieben, das erst nach dem Lauf
@@ -1530,7 +1562,7 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
                                         profilordner=thunderbird_ordner,
                                         noch_ein_entwurf=noch_ein_entwurf)
         if lage is not None:
-            return lage
+            return _fenster_auf(lage, felder, umgebung)
         return _entwurf_compose(programm, felder, laufen=laufen, ablage=ablage,
                                 thunderbird_ordner=thunderbird_ordner)._replace(
                                     postfach_grund=grund)

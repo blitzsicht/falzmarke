@@ -100,13 +100,18 @@ Was dabei nicht fehlen darf, weil es gemessen ist:
 
 - **Liegt der IMAP-Proxy bereit (`127.0.0.1:1993`), liegt der Entwurf im Postfach** — die
   fertige `.eml` mit allen Kopfzeilen im Ordner „Entwürfe" des Absenders, samt `In-Reply-To`
-  (ADR 0051). Es geht **kein Fenster** auf; die erste Zeile lautet
-  `OK  Entwurf liegt in „Entwürfe" von <adresse>: <Betreff>`. Diese Zeile gehört in die Antwort
-  an den Menschen: Er findet den Entwurf in Thunderbird unter „Entwürfe". Liegt dort schon einer
-  mit demselben Empfänger und Betreff, heißt es `ENTWURF LIEGT SCHON …` — dann **keinen zweiten**
-  anlegen, sondern den Menschen auf den vorhandenen verweisen; `--noch-ein-entwurf` nur, wenn er
-  ausdrücklich einen zweiten will. Ist der Proxy nicht da, geht es weiter wie im nächsten Punkt,
-  mit einer Zeile `kein Postfach-Entwurf: <Grund>`.
+  (ADR 0051). Die erste Zeile lautet
+  `OK  Entwurf liegt in „Entwürfe" von <adresse>: <Betreff>`. Ist in Thunderbird das Add-on
+  **Entwurfsbrücke** installiert (`thunderbird/entwurfsbruecke/`, ADR 0052), öffnet es genau
+  diesen Entwurf wie „Entwurf bearbeiten", und die nächste Zeile lautet
+  `OK  Entwurf offen in Thunderbird: <Betreff>`. Nach dem Senden räumt Thunderbird ihn dann
+  selbst aus „Entwürfe" weg. Ohne Add-on heißt es `HINWEIS  Es geht kein Fenster auf …` mit dem
+  Grund; dann findet der Mensch den Entwurf unter „Entwürfe". `HINWEIS  Fenster ungewiss` heißt:
+  **nicht noch einmal öffnen**, erst nachsehen lassen. Liegt dort schon einer mit demselben
+  Empfänger und Betreff, heißt es `ENTWURF LIEGT SCHON …` — dann **keinen zweiten** anlegen;
+  das Add-on öffnet den vorhandenen. `--noch-ein-entwurf` nur, wenn der Mensch ausdrücklich
+  einen zweiten will. Ist der Proxy nicht da, geht es weiter wie im nächsten Punkt, mit einer
+  Zeile `kein Postfach-Entwurf: <Grund>`.
 - Sonst entsteht der Entwurf als Fenster in **Thunderbird** (`-compose`), wenn es installiert
   ist; `from=` wählt dort die Identität, der Absender stimmt (ADR 0049). Thunderbird meldet nichts zurück — Exit 0 heißt
   „angenommen", und der Befehl sagt, dass **nichts nachgezählt** ist: Empfänger, Anhänge und
@@ -236,8 +241,20 @@ brechen mit einer Meldung ab.
 
 ## Weitere Befehle
 
-Sechs Befehle gehören nicht zu jedem Brief und stehen deshalb nicht im Ablauf oben. Zwei davon
+Sieben Befehle gehören nicht zu jedem Brief und stehen deshalb nicht im Ablauf oben. Zwei davon
 ändern, wie ein Vorgang anfängt.
+
+**`entwurf-oeffnen` — einen Entwurf, der schon im Postfach liegt, in Thunderbird aufmachen.**
+
+```bash
+python3 scripts/falzmarke.py entwurf-oeffnen --absender order@example.de             # auflisten
+python3 scripts/falzmarke.py entwurf-oeffnen --absender order@example.de --betreff "Nachtrag"
+```
+
+Für den Fall „ich finde den Entwurf nicht" oder „mach ihn mir auf". Braucht den IMAP-Proxy und
+das Add-on Entwurfsbrücke (ADR 0052). Passen mehrere Entwürfe zum Betreff, wird **keiner**
+geöffnet, und die Liste nennt die UIDs; dann mit `--uid` genau einen wählen. Exit 0 heißt: das
+Fenster steht. Das Add-on kann nur öffnen — senden, löschen und verschieben kann es nicht.
 
 **`xml` — eine Rechnung als reine XML-Datei, ohne PDF.**
 
