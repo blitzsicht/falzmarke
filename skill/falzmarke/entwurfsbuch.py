@@ -564,9 +564,14 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                     gleich, anders = treffer(gesendet.merkmale(nachricht), None,
                                              gesendet.antwortstufe(kopf.betreff))
                 art = ("offen" if fenster is not None else "schon_raus" if gleich else "wartet")
-                vorlage = (buch[nummer].text if nummer is not None
-                           else gesendet.klartext(nachricht) if nachricht is not None else "")
                 kette = _kette(tage_eintraege, adresse, kopf.uid)
+                # Verglichen wird mit dem Text aus dem Buch, auch wenn Thunderbird den Entwurf
+                # inzwischen unter neuer UID gespeichert hat: Der gespeicherte ist HTML, und
+                # sein Klartext trägt die Signatur ohne erkennbare Grußformel (gemessen 25.10.).
+                quelle = (nummer if nummer is not None
+                          else max((i for i, e in enumerate(buch) if e.uid in kette), default=None))
+                vorlage = (buch[quelle].text if quelle is not None
+                           else gesendet.klartext(nachricht) if nachricht is not None else "")
                 zustaende.append(Zustand(
                     art, kopf.betreff, kopf.an, kopf.datum, kopf.uid,
                     gesendet=tuple(sorted((k.datum for k, _ in gleich), key=_sortzeit)),
@@ -674,8 +679,6 @@ def _empfaengerzeilen(z: Zustand) -> list[str]:
         teile += [f"Bcc {_liste(f.get('blindkopie'))}", f"Anhänge {_liste(f.get('anhaenge'))}"]
         if z.fenster_text_gleich is not None:
             teile.append("Text wie angelegt" if z.fenster_text_gleich else "Text geändert")
-        if f.get("ungespeichert"):
-            teile.append("ungespeichert")
         aus.append(" · ".join(teile))
     elif f:
         aus.append(f"Fenster nicht lesbar: {f.get('fehler') or 'Add-on vor 0.3.0'}")

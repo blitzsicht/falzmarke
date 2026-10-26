@@ -578,7 +578,7 @@ def _offen(monkeypatch, uid, **fenster) -> None:
     eintrag = {"titel": "Verfassen: Auftrag S1", "betreff": "Auftrag S1", "live": True,
                "draft_id": f"imap-message://order%40example.de@127.0.0.1/Entw&APw-rfe#{uid}",
                "identitaet": VON, "an": [AN], "kopie": [], "blindkopie": ["dms@example.de"],
-               "anhaenge": ["Lageplan.pdf"], "text": TEXT, "ungespeichert": False, **fenster}
+               "anhaenge": ["Lageplan.pdf"], "text": TEXT, **fenster}
     monkeypatch.setattr(bruecke, "VERBINDEN", BrueckenAttrappe({"ok": True, "fenster": [eintrag]}))
 
 
@@ -597,17 +597,16 @@ def test_ein_offenes_fenster_nennt_absender_empfaenger_und_anhaenge(monkeypatch)
     for teil in (f"von {VON}", f"An {AN}", "Bcc dms@example.de", "Anhänge Lageplan.pdf",
                  "Text wie angelegt"):
         assert teil in zeile
-    assert "ungespeichert" not in zeile
 
 
 def test_gegenprobe_ein_im_fenster_geaenderter_text_faellt_auf(monkeypatch):
     server = _postfach(monkeypatch, entwuerfe=[_mail()])
     _offen(monkeypatch, server.ordner[ENTWUERFE][0].uid,
-           text=TEXT.replace("in Gold anlegen", "in Silber anlegen"), ungespeichert=True)
+           text=TEXT.replace("in Gold anlegen", "in Silber anlegen"))
     bericht = _stand()
     assert _einziger(bericht).fenster_text_gleich is False
     zeile = _fensterzeile(bericht)
-    assert "Text geändert" in zeile and "ungespeichert" in zeile
+    assert "Text geändert" in zeile and "Text wie angelegt" not in zeile
 
 
 def test_die_konto_signatur_im_fenster_aendert_den_text_nicht(monkeypatch):
@@ -806,3 +805,33 @@ def test_gegenprobe_ohne_aufbewahrung_bleibt_die_alte_zeile_stehen(monkeypatch, 
     monkeypatch.setattr(postfach, "IMAP_KLASSE", ImapAttrappe({ENTWUERFE: []}))
     assert _entwurf(felder).buch_grund == ""
     assert "700" in entwurfsbuch.BUCH_VORGABE.read_text(encoding="utf-8")
+
+
+def _gespeichert_unter_neuer_uid(monkeypatch, tmp_path, fenstertext):
+    """Gemessen 25.10.2026: Thunderbird speichert den offenen Entwurf als HTML unter
+    neuer UID. Dessen Klartext taugt nicht als Vorlage, das Buch kennt die alte UID."""
+    html = ("<p>Hallo Erika,</p><p>bitte die Stickdatei für S1 in Gold anlegen, alle Formate "
+            "neu, und das Farbblatt auch in Gold.</p><p>Viele<br>Grüße</p><p>Paul</p>"
+            "<p>Siluri · Kremser Str. 35 · Regensburg</p>")
+    neu = nachricht(an=AN, betreff="Auftrag S1", text=None, html=html, von=VON,
+                    datum=JETZT - timedelta(hours=1)), JETZT - timedelta(hours=1)
+    server = _postfach(monkeypatch, entwuerfe=[neu])
+    uid = server.ordner[ENTWUERFE][0].uid
+    _buch(_eintrag(150))
+    profil = _profil(tmp_path, [_tag("gespeichert", 150, neu_uid=[uid])])
+    _offen(monkeypatch, uid, text=fenstertext)
+    bericht = _stand(profilordner=profil)
+    assert not bericht.grund, bericht.grund
+    (zustand,) = [z for z in bericht.zustaende if z.art == "offen"]
+    return zustand
+
+
+def test_neu_gespeichert_vergleicht_das_fenster_mit_dem_buch(monkeypatch, tmp_path):
+    zustand = _gespeichert_unter_neuer_uid(monkeypatch, tmp_path, TEXT)
+    assert (zustand.art, zustand.fenster_text_gleich) == ("offen", True)
+
+
+def test_gegenprobe_neu_gespeichert_und_geaendert(monkeypatch, tmp_path):
+    zustand = _gespeichert_unter_neuer_uid(
+        monkeypatch, tmp_path, TEXT.replace("in Gold anlegen", "in Silber anlegen"))
+    assert zustand.fenster_text_gleich is False

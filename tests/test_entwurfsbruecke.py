@@ -163,6 +163,30 @@ def test_eine_verbindung_ohne_daten_wird_getrennt():
     assert "clearTimeout(leerlauf);" in QUELLTEXT
 
 
+#: Uhr-Funktionen, die es im Experiment nicht als globale Namen gibt. Eine davon
+#: ohne Import wirft erst zur Laufzeit; am 26.10.2026 brach so jede Anfrage an
+#: 0.3.2 ohne Antwort ab, während alle Quelltextproben grün waren.
+UHREN = ("setTimeout", "clearTimeout", "setInterval", "clearInterval")
+
+
+def ungeladene_uhren(text: str) -> list[str]:
+    geladen = re.search(r"var \{([^}]*)\} = ChromeUtils\.importESModule\(\s*"
+                        r'"resource://gre/modules/Timer\.sys\.mjs"', text)
+    namen = {n.strip() for n in geladen.group(1).split(",")} if geladen else set()
+    return [u for u in UHREN if re.search(rf"\b{u}\(", text) and u not in namen]
+
+
+def test_jede_gerufene_uhr_ist_importiert():
+    assert ungeladene_uhren(QUELLTEXT) == []
+    assert "clearTimeout(" in QUELLTEXT, "die Probe hat nichts zu prüfen"
+
+
+def test_gegenprobe_eine_uhr_ohne_import_faellt_auf():
+    ohne = QUELLTEXT.replace("var { clearTimeout, setTimeout }", "var { setTimeout }")
+    assert ohne != QUELLTEXT
+    assert ungeladene_uhren(ohne) == ["clearTimeout"]
+
+
 def test_mehr_als_acht_verbindungen_nimmt_die_bruecke_nicht_an():
     """falzmarke stellt immer genau eine."""
     assert "const MAX_VERBINDUNGEN = 8;" in QUELLTEXT

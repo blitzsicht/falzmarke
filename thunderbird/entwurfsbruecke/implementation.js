@@ -37,7 +37,10 @@ var { NetUtil } = ChromeUtils.importESModule(
   "resource://gre/modules/NetUtil.sys.mjs"
 );
 var parserUtils = Cc["@mozilla.org/parserutils;1"].getService(Ci.nsIParserUtils);
-var { setTimeout } = ChromeUtils.importESModule(
+// Im Experiment gibt es keine Uhr-Funktionen als globale Namen. Jede, die der
+// Code ruft, muss hier stehen: 0.3.1 und 0.3.2 riefen clearTimeout ohne Import
+// und brachen jede Anfrage ohne Antwort ab (gemessen 26.10.2026).
+var { clearTimeout, setTimeout } = ChromeUtils.importESModule(
   "resource://gre/modules/Timer.sys.mjs"
 );
 
@@ -213,7 +216,6 @@ function fensterInhalt(fenster) {
       anhaenge: (felder.attachments || []).map((a) => String(a.name || "")),
       text: text.slice(0, MAX_TEXT),
       text_gekuerzt: text.length > MAX_TEXT,
-      ungespeichert: Boolean(fenster.gContentChanged || fenster.gMsgCompose?.bodyModified),
     };
   } catch (e) {
     return { ...stand, live: false, fehler: String(e) };
