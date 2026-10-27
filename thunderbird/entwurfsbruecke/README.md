@@ -42,7 +42,7 @@ falzmarke entwurf-oeffnen --absender ich@example.de      # braucht den IMAP-Prox
 OK  2 Entwürfe in „Entwürfe“ von ich@example.de
     UID 4711  25.10.2026 12:20  Nachtrag  → du@example.org
     …
-OK  Entwurfsbrücke 0.3.3 in Thunderbird 158.0.1
+OK  Entwurfsbrücke 0.3.4 in Thunderbird 158.0.1
 ```
 
 ## Das Tagebuch
@@ -53,7 +53,7 @@ OK  Entwurfsbrücke 0.3.3 in Thunderbird 158.0.1
 {"art": "gesendet", "ursprung": {"typ": "draft", "konto": "ich@example.de", "betreff": "Nachtrag",
  "uid": 4711, "fassung": "…"}, "identitaet": "ich@example.de", "an": ["paula@example.org"],
  "kopie": [], "blindkopie": ["archiv@example.de"], "anhaenge": ["Lageplan.pdf"],
- "modus": "sendNow", "message_id": "…", "zeit": "…", "version": "0.3.3"}
+ "modus": "sendNow", "message_id": "…", "zeit": "…", "version": "0.3.4"}
 ```
 
 Ab 0.3.0 stehen bei `gesendet` Absender, Empfänger samt Bcc und die Namen der Anhänge. Das
@@ -73,6 +73,26 @@ gesendete Mail (ADR 0056).
 
 Das Tagebuch schreibt nur das Add-on. Gelesen wird es von `falzmarke status`, auch bei
 geschlossenem Thunderbird.
+
+## Die Fehlerdatei
+
+`entwurfsbruecke-fehler.jsonl` im Profilordner, ab 0.3.4. Hier steht nur, was am Add-on selbst
+schiefging — eine Anfrage ohne Antwort, ein Wurf beim Annehmen, ein Tagebucheintrag, der nicht
+geschrieben wurde:
+
+```json
+{"zeit": "…", "was": "annehmen_gescheitert", "version": "0.3.4", "fehler": "ReferenceError: …"}
+```
+
+Sie muss auf Platte liegen: Das Protokoll der letzten sechzig Vorgänge steht im Speicher und ist
+allein über den Socket lesbar, also über genau den Kanal, der im Fehlerfall ausfällt. Am
+26.10.2026 beantwortete die Brücke keine einzige Anfrage, und der Grund stand nur in
+Thunderbirds Fehlerkonsole.
+
+In die Datei geht kein Mailinhalt: Zeitstempel, Art, Fassung, Ausnahmetext. Keine Betreffe,
+keine Adressen, keine UIDs. Sie fasst 200 Zeilen, die älteste fällt heraus. Ist sie leer, ist
+nichts passiert — bleibt sie auch bei einem offensichtlichen Fehler leer, schreibt das Add-on
+nicht, und das ist selbst ein Befund.
 
 ## Die Sperre
 

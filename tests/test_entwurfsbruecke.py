@@ -11,11 +11,13 @@ from __future__ import annotations
 import importlib.util
 import json
 import re
+import subprocess
 import zipfile
 
 import pytest
 from conftest import REPO
 from falzmarke import bruecke
+from test_vergleich_js import _node
 
 ADDON = REPO / "thunderbird" / "entwurfsbruecke"
 QUELLTEXT = (ADDON / "implementation.js").read_text(encoding="utf-8")
@@ -275,3 +277,119 @@ def test_die_erzeugte_tabelle_wird_vor_dem_vergleich_geladen():
     tabelle = (ADDON / "zeichennamen.js").read_text(encoding="utf-8")
     assert "wurzel.FalzmarkeZeichennamen = api;" in tabelle
     assert "module.exports = api;" in tabelle
+
+
+# ── Die Fehlerdatei im Profil (#421) ────────────────────────────────────────
+#
+# Das Protokoll im Speicher ist allein über den Socket lesbar. Als der Socket
+# am 26.10.2026 schwieg, stand der Grund nur in Thunderbirds Fehlerkonsole —
+# der Abend ging dafür hin. Defekte gehen deshalb zusätzlich auf Platte.
+
+
+def _js_funktion(quelle: str, name: str) -> str:
+    """Eine Funktion aus dem Quelltext schneiden, über Klammerstände.
+
+    Nicht über einen Ausdruck: der bliebe an der ersten Zeile mit `}` hängen
+    und schnitte den halben Körper ab, ohne das zu sagen.
+    """
+    anfang = quelle.index(f"function {name}(")
+    tiefe = 0
+    for stelle in range(quelle.index("{", anfang), len(quelle)):
+        if quelle[stelle] == "{":
+            tiefe += 1
+        elif quelle[stelle] == "}":
+            tiefe -= 1
+            if tiefe == 0:
+                return quelle[anfang : stelle + 1]
+    raise AssertionError(f"die Funktion {name} ist im Quelltext nicht geschlossen")
+
+
+def _deckel_lauf(funktion: str, zeilen: list[str], max_: int) -> list[str]:
+    """Den Deckel wirklich fahren, nicht im Quelltext nachlesen."""
+    laeufer = (
+        f"const FEHLER_MAX = {max_};\n"
+        + funktion
+        + "\nconst zeilen = JSON.parse(require('fs').readFileSync(0, 'utf8'));\n"
+        + "let text = '';\nfor (const z of zeilen) { text = fehlerzeilen(text, z); }\n"
+        + "process.stdout.write(text);\n"
+    )
+    fertig = subprocess.run([_node(), "-e", laeufer], input=json.dumps(zeilen),
+                            capture_output=True, encoding="utf-8", timeout=60, check=False)
+    assert fertig.returncode == 0, fertig.stderr
+    return [z for z in fertig.stdout.split("\n") if z]
+
+
+def _fehler_arten(text: str) -> set[str]:
+    block = re.search(r"const FEHLER_ARTEN = new Set\(\[(.*?)\]\);", text, re.S)
+    return set(re.findall(r'"(\w+)"', block.group(1))) if block else set()
+
+
+def test_die_fehlerdatei_laeuft_nicht_ueber():
+    """250 Zeilen hinein, 200 heraus — und die ältesten 50 sind weg."""
+    max_ = int(re.search(r"const FEHLER_MAX = (\d+);", QUELLTEXT).group(1))
+    assert max_ == 200
+    zeilen = [f'{{"nr":{i}}}' for i in range(max_ + 50)]
+    behalten = _deckel_lauf(_js_funktion(QUELLTEXT, "fehlerzeilen"), zeilen, max_)
+    assert len(behalten) == max_
+    assert behalten[0] == zeilen[50], "die älteste Zeile ist nicht herausgefallen"
+    assert behalten[-1] == zeilen[-1], "die neueste Zeile fehlt"
+
+
+def test_gegenprobe_ohne_deckel_laeuft_die_datei_ueber():
+    funktion = _js_funktion(QUELLTEXT, "fehlerzeilen")
+    ohne = funktion.replace("  while (zeilen.length > FEHLER_MAX) {\n    zeilen.shift();\n  }\n", "")
+    assert ohne != funktion, "der Deckel steht nicht da, wo die Probe ihn sucht"
+    zeilen = [f'{{"nr":{i}}}' for i in range(250)]
+    assert len(_deckel_lauf(ohne, zeilen, 200)) == 250
+
+
+def test_nur_defekte_gehen_auf_platte():
+    """Die Datei ist ein Fehlerprotokoll, kein zweites Tagebuch."""
+    arten = _fehler_arten(QUELLTEXT)
+    gerufen = set(re.findall(r'notiere\("(\w+)"', QUELLTEXT))
+    assert arten, "die Liste der Arten ist leer"
+    assert arten <= gerufen, f"nie gemeldet: {sorted(arten - gerufen)}"
+    assert "annehmen_gescheitert" in arten
+    for alltag in ("entwurf", "geoeffnet", "gesperrt", "geschlossen"):
+        assert alltag not in arten
+    # Sonst ruft der Fehler beim Schreiben sich selbst.
+    assert "fehlerdatei_gescheitert" in gerufen
+    assert "fehlerdatei_gescheitert" not in arten
+
+
+def test_in_die_fehlerdatei_geht_kein_mailinhalt():
+    """Gebaut aus einer Positivliste. Eine Spreizung von `angaben` schriebe
+    Betreff, Adressen und UID mit — die stehen in denselben Aufrufen."""
+    koerper = _js_funktion(QUELLTEXT, "insFehlerdatei")
+    assert "...angaben" not in koerper
+    assert "for (const feld of FEHLER_FELDER)" in koerper
+    felder = re.search(r"const FEHLER_FELDER = \[(.*?)\];", QUELLTEXT, re.S)
+    assert set(re.findall(r'"(\w+)"', felder.group(1))) == {"fehler", "offen", "status"}
+
+
+def test_gegenprobe_eine_spreizung_der_angaben_faellt_auf():
+    koerper = _js_funktion(QUELLTEXT, "insFehlerdatei")
+    mit = koerper.replace("const eintrag = { zeit:", "const eintrag = { ...angaben, zeit:")
+    assert mit != koerper
+    assert "...angaben" in mit
+
+
+def test_jeder_rueckruf_des_transports_liegt_in_der_huelle():
+    """0.3.1 und 0.3.2 starben in `onDataAvailable`, unsichtbar für jede Probe
+    und für den Aufrufer, der nur ein EOF sah."""
+    koerper = _js_funktion(QUELLTEXT, "verbindungAnnehmen")
+    for ruf in ("onStartRequest", "onDataAvailable", "onStopRequest"):
+        assert re.search(rf"{ruf}: sicher\(", koerper), f"{ruf} liegt nicht in der Hülle"
+    assert not re.search(r"onStartRequest\(\)|onStopRequest\(\)", koerper), \
+        "ein Rückruf steht noch als Methode da"
+    assert 'notiere("annehmen_gescheitert"' in _js_funktion(QUELLTEXT, "annehmen"), \
+        "ein Wurf beim Annehmen selbst wird nicht gemeldet"
+
+
+def test_gegenprobe_ein_rueckruf_ohne_huelle_faellt_auf():
+    koerper = _js_funktion(QUELLTEXT, "verbindungAnnehmen")
+    ohne = koerper.replace('onStopRequest: sicher("annehmen_gescheitert", () => {',
+                           "onStopRequest() {")
+    assert ohne != koerper
+    assert not re.search(r"onStopRequest: sicher\(", ohne)
+    assert re.search(r"onStopRequest\(\)", ohne)

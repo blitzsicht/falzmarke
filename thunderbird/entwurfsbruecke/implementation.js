@@ -82,8 +82,36 @@ const FASSUNGEN_TAGE = 14;
 // Liegt im Profilordner, damit `falzmarke status` es auch bei geschlossenem
 // Thunderbird lesen kann. Eine Zeile JSON je Ereignis.
 const TAGEBUCH_DATEI = "entwurfsbruecke-tagebuch.jsonl";
+// Liegt neben dem Tagebuch, weil es etwas anderes führt: das Tagebuch, was mit
+// einer Mail geschah, diese Datei nur, was am Add-on selbst schiefging. Sie muss
+// auf Platte, denn `protokoll` steht im Speicher und ist allein über den Socket
+// lesbar — also über genau den Kanal, der im Fehlerfall ausfällt (#421).
+const FEHLER_DATEI = "entwurfsbruecke-fehler.jsonl";
+// Mehr Zeilen behält die Datei nicht; die älteste fällt heraus.
+const FEHLER_MAX = 200;
+// Nur diese Arten bedeuten, dass eine Anfrage nicht beantwortet wurde. Die
+// normalen Vorgänge bleiben im Speicher: die Datei ist ein Fehlerprotokoll,
+// kein zweites Tagebuch. „fehlerdatei_gescheitert“ steht bewusst nicht hier —
+// sonst riefe der Fehler beim Schreiben sich selbst.
+const FEHLER_ARTEN = new Set([
+  "altes_socket",
+  "annehmen_gescheitert",
+  "antwort_gescheitert",
+  "ausgang_schliessen",
+  "leerlauf",
+  "schreiben_fehlgeschlagen",
+  "tagebuch_fehlgeschlagen",
+  "zu_viele_verbindungen",
+]);
+// Mehr als diese Felder geht nie hinein: keine Betreffe, keine Adressen, keine
+// UIDs, kein Mailtext. Eine Positivliste, keine Streichliste — damit ein neues
+// Feld in `notiere` nicht aus Versehen auf Platte landet.
+const FEHLER_FELDER = ["fehler", "offen", "status"];
 
 let dienst = null;
+// Steht hier und nicht nur in `dienst`, weil `starten()` schon vor dem Dienst
+// protokolliert (altes_socket) und jede Fehlerzeile ihre Fassung tragen soll.
+let fassung = null;
 // Einträge nacheinander schreiben, sonst verschränken sich zwei Zeilen.
 let schreibkette = Promise.resolve();
 // Offene Verbindungen festhalten, sonst räumt der Garbage Collector sie weg.
@@ -95,6 +123,75 @@ function notiere(was, angaben = {}) {
   while (protokoll.length > PROTOKOLL_MAX) {
     protokoll.shift();
   }
+  if (FEHLER_ARTEN.has(was)) {
+    insFehlerdatei(was, angaben);
+  }
+}
+
+// Rein und ohne Platte, damit der Deckel gemessen werden kann und nicht nur
+// behauptet ist: Text und neue Zeile hinein, gedeckelter Text hinaus.
+function fehlerzeilen(alt, zeile) {
+  const zeilen = String(alt || "")
+    .split("\n")
+    .filter((z) => z.length > 0);
+  zeilen.push(zeile);
+  while (zeilen.length > FEHLER_MAX) {
+    zeilen.shift();
+  }
+  return zeilen.join("\n") + "\n";
+}
+
+function insFehlerdatei(was, angaben) {
+  const eintrag = { zeit: new Date().toISOString(), was, version: fassung };
+  for (const feld of FEHLER_FELDER) {
+    if (angaben[feld] !== undefined) {
+      eintrag[feld] = String(angaben[feld]);
+    }
+  }
+  const zeile = JSON.stringify(eintrag);
+  const pfad = PathUtils.join(PathUtils.profileDir, FEHLER_DATEI);
+  // Über dieselbe Kette wie das Tagebuch: Lesen, Ändern und Schreiben darf sich
+  // mit keinem anderen Schreiber verschränken, sonst verliert der Deckel Zeilen.
+  const schritt = schreibkette.then(async () => {
+    let alt = "";
+    try {
+      alt = await IOUtils.readUTF8(pfad);
+    } catch (e) {
+      // Beim ersten Fehler gibt es die Datei noch nicht.
+      alt = "";
+    }
+    await IOUtils.writeUTF8(pfad, fehlerzeilen(alt, zeile));
+  });
+  schreibkette = schritt.catch(() => {});
+  return schritt.then(
+    () => true,
+    (e) => {
+      // Diese Art steht nicht in FEHLER_ARTEN: ein Fehler beim Schreiben der
+      // Fehlerdatei darf nicht in die Fehlerdatei wollen.
+      notiere("fehlerdatei_gescheitert", { fehler: String(e) });
+      return false;
+    }
+  );
+}
+
+// Eine Ausnahme in einem Rückruf des Transports reißt still ab: der Aufrufer
+// sieht nur EOF, und der Grund steht allein in Thunderbirds Fehlerkonsole.
+// Genau so brachen 0.3.1 und 0.3.2 jede Anfrage ab, während alle Quelltext-
+// proben grün waren (#421). Darum liegt jeder Rückruf in dieser Hülle.
+function sicher(was, fn, aufraeumen = null) {
+  return function (...args) {
+    try {
+      return fn(...args);
+    } catch (e) {
+      notiere(was, { fehler: String(e) });
+      if (aufraeumen) {
+        try {
+          aufraeumen();
+        } catch (e2) {}
+      }
+      return undefined;
+    }
+  };
 }
 
 function ascii(antwort) {
@@ -373,6 +470,17 @@ async function beantworten(zeile) {
 }
 
 function annehmen(transport) {
+  try {
+    verbindungAnnehmen(transport);
+  } catch (e) {
+    notiere("annehmen_gescheitert", { fehler: String(e) });
+    try {
+      transport.close(Cr.NS_ERROR_ABORT);
+    } catch (e2) {}
+  }
+}
+
+function verbindungAnnehmen(transport) {
   if (verbindungen.size >= MAX_VERBINDUNGEN) {
     notiere("zu_viele_verbindungen", { offen: verbindungen.size });
     try {
@@ -420,8 +528,8 @@ function annehmen(transport) {
   );
   pumpe.init(eingang, 0, 0, true);
   pumpe.asyncRead({
-    onStartRequest() {},
-    onDataAvailable(_anfrage, strom, _versatz, anzahl) {
+    onStartRequest: sicher("annehmen_gescheitert", () => {}),
+    onDataAvailable: sicher("annehmen_gescheitert", (_anfrage, strom, _versatz, anzahl) => {
       const stueck = NetUtil.readInputStreamToString(strom, anzahl);
       if (fertig) {
         return;
@@ -445,9 +553,15 @@ function annehmen(transport) {
             notiere("schreiben_fehlgeschlagen", { fehler: String(e) });
           }
           schliessen();
+        })
+        .catch((e) => {
+          // Wirft schon das Bauen der Antwort, bliebe die Verbindung ohne
+          // dieses Netz offen stehen, bis die Gegenseite aufgibt.
+          notiere("antwort_gescheitert", { fehler: String(e) });
+          schliessen();
         });
-    },
-    onStopRequest() {
+    }, trennen),
+    onStopRequest: sicher("annehmen_gescheitert", () => {
       if (fertig) {
         // Der Aufrufer hat geschlossen; er schließt erst nach der ganzen
         // Antwortzeile, oder er wartet gar nicht mehr.
@@ -455,7 +569,7 @@ function annehmen(transport) {
       } else {
         schliessen();
       }
-    },
+    }, trennen),
   });
 }
 
@@ -469,6 +583,7 @@ function socketdatei() {
 }
 
 function starten(version) {
+  fassung = version;
   if (dienst) {
     return { laeuft: true, socket: dienst.pfad };
   }
