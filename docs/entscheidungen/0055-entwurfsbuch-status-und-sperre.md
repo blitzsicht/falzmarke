@@ -73,9 +73,29 @@ bleibt, sind Empfänger, Betreff und Text.
    Menschen nicht aufhalten; dass sie nicht geprüft hat, steht dann in `status`.
 6. **Senden kann das Add-on weiter nicht.** Das Manifest verlangt genau `compose`, `messagesRead`
    und `accountsRead`, nicht `compose.send`, `compose.save`, `messagesDelete`, `messagesMove` oder
-   `messagesModify`. `tests/test_entwurfsbruecke.py` prüft das Manifest und alle drei
+   `messagesModify`. `tests/test_entwurfsbruecke.py` prüft das Manifest und alle vier
    JS-Dateien auf verbotene Aufrufe, je mit Gegenprobe. Die Sperre kann ein Senden anhalten,
    auslösen kann sie keines.
+
+   **Wie weit diese Prüfung trägt (Nachtrag 27.10.2026, #412).** Sie ist eine Rückfallsicherung
+   gegen das Versehen, keine technische Grenze: Der privilegierte Teil des Add-ons — das
+   Experiment in `implementation.js` — läuft in Thunderbird mit vollen Rechten und dürfte
+   technisch auch senden oder löschen; die Rechteliste des Manifests bindet allein `background.js`.
+   Was die Prüfung seit #412 hält:
+
+   - Die Rechte werden als **Positivliste über das ganze Manifest** gelesen, nicht nur unter
+     `permissions`. Ein weiterer Schlüssel ist ein Fehler, auch `optional_permissions`,
+     `content_scripts`, `web_accessible_resources`, `content_security_policy` oder `cloud_file`,
+     und ebenso ein zweiter Eintrag unter `experiment_apis`. Je Schlüssel eine eigene Gegenprobe.
+   - Die Namensliste der Sendewege vergleicht **ohne Rücksicht auf Groß- und Kleinschreibung** und
+     kennt den privilegierten Weg `goDoCommand("cmd_sendNow")`. Gesucht wird im Code, nicht in
+     Kommentaren — die eigene Begründung ist kein Aufruf.
+   - Die Dateiliste des Pakets wird am Manifest abgelesen (`scripts/xpi_packen.py`, `dateien()`),
+     der Sollwert der Prüfung steht davon getrennt im Test.
+
+   Was weiter durchgeht: ein zur Laufzeit gebildeter Name (`obj["send" + "Message"]`). Dagegen
+   hilft keine Textsuche. Wer dem Add-on nicht traut, liest die vier Dateien — es sind unter
+   3000 Zeilen — oder installiert es nicht.
 
 ### Was ADR 0029 dazu sagt
 

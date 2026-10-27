@@ -11,6 +11,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import re
+import shutil
 import subprocess
 import zipfile
 
@@ -27,11 +28,16 @@ ALLE_JS = "\n".join(p.read_text(encoding="utf-8") for p in sorted(ADDON.glob("*.
 #: Was das Add-on nie aufrufen darf: senden, löschen, verschieben, Flags setzen,
 #: den Inhalt des Fensters ändern. `sendMessage` deckt auch `runtime.sendMessage`
 #: ab; das Add-on braucht keine Nachrichten zwischen seinen Teilen.
+#:
+#: Je Weg steht **eine** Schreibweise, denn gesucht wird ohne Rücksicht auf Groß-
+#: und Kleinschreibung: `SendMessage` groß ging bis #412 gegen den kleinen
+#: Eintrag durch. `goDoCommand` und `cmd_send` fehlten ganz — der übliche Weg,
+#: aus privilegiertem Code zu senden, lautet `goDoCommand("cmd_sendNow")`.
 VERBOTEN = (
     "SendMsg", "sendMessage", "GenericSendMessage", "nsIMsgCompDeliverMode",
-    "SendMessageFile", "deleteMessages", "DeleteMessages", "StoreImapFlags",
-    "storeImapFlags", "copyMessages", "CopyMessages", "moveMessages", "expunge",
-    "emptyTrash", "deleteSelf", "saveMessage", "setComposeDetails", "SetComposeDetails",
+    "nsIMsgSend", "MsgSendLater", "cmd_send", "goDoCommand",
+    "deleteMessages", "StoreImapFlags", "copyMessages", "moveMessages", "expunge",
+    "emptyTrash", "deleteSelf", "saveMessage", "setComposeDetails",
     "CompFields2Recipients",
     "messages.delete", "messages.move", "messages.copy", "messages.update",
     "messages.archive", "messages.import",
@@ -40,13 +46,60 @@ VERBOTEN = (
 #: Genau diese Rechte, keines mehr: Fenster lesen, gesendete Mails lesen, Konten lesen.
 RECHTE = ["compose", "messagesRead", "accountsRead"]
 
+#: Genau diese Angaben im Manifest, keine weitere. Eine Liste der verbotenen
+#: Schlüssel wäre immer unvollständig: `optional_permissions` trägt
+#: `nativeMessaging` unsichtbar nach, `content_scripts` bringt Code in fremde
+#: Seiten, `cloud_file` einen eigenen Hochladeweg. Deshalb eine Positivliste
+#: über das ganze Manifest (#412).
+ERLAUBTE_ANGABEN = ("manifest_version", "name", "description", "version",
+                    "browser_specific_settings", "permissions", "background",
+                    "experiment_apis")
+
+#: Das eine Experiment, das es gibt. Ein zweiter Eintrag darunter wäre kein
+#: neuer Top-Level-Schlüssel und fiele der Positivliste sonst nicht auf.
+EXPERIMENTE = ("entwurfsbruecke",)
+
+
+def _ohne_kommentare(quelle: str) -> str:
+    """Nur der Code. Geschnitten werden Blockkommentare und reine `//`-Zeilen.
+
+    Eine Suche über den ganzen Quelltext trifft die eigene Begründung: Der
+    Kommentar, der den Umzug auf den Socket erklärt, nennt `127.0.0.1:1994`
+    — und ließ die Prüfung darunter am 25.10.2026 anschlagen. Nicht
+    geschnitten wird ein `//` mitten in einer Zeile: Dort stehen URLs in
+    Zeichenketten (`imap-message://…`), und sie wegzuschneiden hieße, Code zu
+    verlieren, den die Prüfung sehen soll.
+    """
+    ohne = re.sub(r"/\*.*?\*/", "", quelle, flags=re.S)
+    return "\n".join(z for z in ohne.splitlines() if not z.lstrip().startswith("//"))
+
 
 def verbotene_aufrufe(text: str) -> list[str]:
-    return [wort for wort in VERBOTEN if re.search(rf"\b{re.escape(wort)}\b", text)]
+    """Gesucht wird im Code, nicht in der Prosa, und ohne Rücksicht auf die
+    Schreibweise (#412).
+
+    Die Wortgrenze steht nur links: `cmd_send` muss auch in `cmd_sendNow`
+    auffallen, `sendMessage` in `sendMessageFile`. Nach rechts offen heißt
+    strenger, nicht lockerer. Was weiter durchgeht, ist der zur Laufzeit
+    gebildete Name (`obj["send" + "Message"]`) — dagegen hilft keine Textsuche,
+    und das Add-on läuft ohnehin mit vollen Rechten (ADR 0055, Punkt 6).
+    """
+    code = _ohne_kommentare(text)
+    return [wort for wort in VERBOTEN if re.search(rf"\b{re.escape(wort)}", code, re.I)]
 
 
-def fremde_rechte(manifest: dict) -> list:
-    return [r for r in manifest.get("permissions", []) if r not in RECHTE]
+def fremde_angaben(manifest: dict) -> list[str]:
+    """Eine Positivliste über das ganze Manifest, nicht über einen Schlüssel.
+
+    Bis #412 las der Wächter allein `permissions`. `optional_permissions`,
+    `content_scripts`, `web_accessible_resources`, `content_security_policy`,
+    `cloud_file` und ein zweites Experiment blieben unsichtbar.
+    """
+    befunde = [schluessel for schluessel in manifest if schluessel not in ERLAUBTE_ANGABEN]
+    befunde += [recht for recht in manifest.get("permissions", []) if recht not in RECHTE]
+    befunde += [f"experiment_apis.{name}" for name in manifest.get("experiment_apis", {})
+                if name not in EXPERIMENTE]
+    return befunde
 
 
 def befehle(text: str) -> set[str]:
@@ -61,6 +114,11 @@ def test_das_add_on_ruft_nichts_auf_was_sendet_oder_loescht():
     assert {p.name for p in ADDON.glob("*.js")} == {
         "implementation.js", "background.js", "vergleich.js", "zeichennamen.js"}
     assert verbotene_aufrufe(ALLE_JS) == []
+    # Der Schnitt, über den die Suche läuft, muss schneiden und darf keinen
+    # Code verlieren — sonst prüft die Zeile darüber einen Rumpf.
+    code = _ohne_kommentare(ALLE_JS)
+    assert len(code) < len(ALLE_JS), "der Kommentarschnitt hat nichts geschnitten"
+    assert "nsIServerSocket" in code, "der Schnitt hat auch Code verloren"
 
 
 @pytest.mark.parametrize("probe", [
@@ -74,9 +132,37 @@ def test_das_add_on_ruft_nichts_auf_was_sendet_oder_loescht():
     "await browser.compose.setComposeDetails(tab.id, { to: [] });",
     "fenster.SetComposeDetails({ to: null });",
     "fenster.CompFields2Recipients(felder);",
+    # Seit #412: der privilegierte Weg und die Groß-Schreibweise.
+    'goDoCommand("cmd_sendNow");',
+    "window.goDoCommand(befehl);",
+    "gMsgCompose.SendMessage(modus);",  # allein die Schreibweise unterscheidet
+    "await browser.compose.sendMessageFile(tab.id, datei);",
+    'const s = Cc["@mozilla.org/messengercompose/send;1"].createInstance(Ci.nsIMsgSend);',
+    "window.MsgSendLater();",
 ])
 def test_gegenprobe_ein_sendender_aufruf_faellt_auf(probe):
     assert verbotene_aufrufe(ALLE_JS + "\n" + probe)
+
+
+def test_die_schreibweise_entscheidet_nicht():
+    """`SendMessage` groß ist derselbe Weg wie `sendMessage` klein (#412)."""
+    probe = "GENERICSENDMESSAGE(felder);"
+    assert verbotene_aufrufe(ALLE_JS + "\n" + probe) == ["GenericSendMessage"]
+    # Trennschärfe: genau diese Zeile ginge ohne `re.I` durch. Fiele das Flag
+    # weg, wäre die Zeile darüber die einzige, die das meldet.
+    code = _ohne_kommentare(ALLE_JS + "\n" + probe)
+    assert not [w for w in VERBOTEN if re.search(rf"\b{re.escape(w)}", code)]
+
+
+def test_eine_erklaerung_im_kommentar_ist_kein_aufruf():
+    """Gesucht wird im Code, nicht in der eigenen Begründung.
+
+    Trennschärfe: dieselbe Zeile ohne `//` muss auffallen — sonst belegt die
+    Probe nur, dass der Name nirgends steht.
+    """
+    erklaerung = "// Nie senden: goDoCommand(\"cmd_sendNow\") oder compose.sendMessage(tab.id)."
+    assert verbotene_aufrufe(ALLE_JS + "\n" + erklaerung) == []
+    assert verbotene_aufrufe(ALLE_JS + "\n" + erklaerung.removeprefix("// Nie senden: "))
 
 
 #: `onBeforeSend` darf mit `details` das Fenster ändern, wie `setComposeDetails`.
@@ -129,20 +215,6 @@ def test_der_socket_gehoert_nur_dem_eigenen_konto():
     assert re.search(r"server\.initWithFilename\(\s*datei\s*,\s*SOCKET_RECHTE\s*,\s*-1\s*\)",
                      QUELLTEXT)
     assert "const SOCKET_RECHTE = 0o600;" in QUELLTEXT
-
-
-def _ohne_kommentare(quelle: str) -> str:
-    """Nur der Code. Geschnitten werden Blockkommentare und reine `//`-Zeilen.
-
-    Eine Suche über den ganzen Quelltext trifft die eigene Begründung: Der
-    Kommentar, der den Umzug auf den Socket erklärt, nennt `127.0.0.1:1994`
-    — und ließ die Prüfung darunter am 25.10.2026 anschlagen. Nicht
-    geschnitten wird ein `//` mitten in einer Zeile: Dort stehen URLs in
-    Zeichenketten (`imap-message://…`), und sie wegzuschneiden hieße, Code zu
-    verlieren, den die Prüfung sehen soll.
-    """
-    ohne = re.sub(r"/\*.*?\*/", "", quelle, flags=re.S)
-    return "\n".join(z for z in ohne.splitlines() if not z.lstrip().startswith("//"))
 
 
 def test_kein_teil_des_add_ons_lauscht_auf_einem_port():
@@ -221,6 +293,7 @@ def test_das_manifest():
     assert (ADDON / api["schema"]).is_file()
     assert (ADDON / api["parent"]["script"]).is_file()
     assert manifest["permissions"] == RECHTE
+    assert fremde_angaben(manifest) == []
     # Erst die Tabelle, dann der Vergleich, der sie braucht, dann der
     # Hintergrund, der ihn braucht (ADR 0057).
     assert manifest["background"]["scripts"] == [
@@ -231,9 +304,34 @@ def test_das_manifest():
                                    "messagesMove", "messagesModify", "<all_urls>"])
 def test_gegenprobe_ein_weiteres_recht_faellt_auf(recht):
     manifest = json.loads((ADDON / "manifest.json").read_text(encoding="utf-8"))
-    assert fremde_rechte(manifest) == []
+    assert fremde_angaben(manifest) == []
     manifest["permissions"].append(recht)
-    assert fremde_rechte(manifest) == [recht]
+    assert fremde_angaben(manifest) == [recht]
+
+
+#: Jede für sich: Gebündelt ginge die Angabe durch, deren Prüfung nicht greift.
+@pytest.mark.parametrize(("schluessel", "wert", "befund"), [
+    ("optional_permissions", ["nativeMessaging"], "optional_permissions"),
+    ("content_scripts", [{"matches": ["<all_urls>"], "js": ["x.js"]}], "content_scripts"),
+    ("web_accessible_resources", ["implementation.js"], "web_accessible_resources"),
+    ("content_security_policy", "script-src 'self' 'unsafe-eval'", "content_security_policy"),
+    ("cloud_file", {"name": "Brücke", "management_url": "x.html"}, "cloud_file"),
+    ("chrome_url_overrides", {"newtab": "x.html"}, "chrome_url_overrides"),
+])
+def test_gegenprobe_eine_weitere_manifest_angabe_faellt_auf(schluessel, wert, befund):
+    manifest = json.loads((ADDON / "manifest.json").read_text(encoding="utf-8"))
+    assert fremde_angaben(manifest) == []
+    manifest[schluessel] = wert
+    assert fremde_angaben(manifest) == [befund]
+
+
+def test_gegenprobe_ein_zweites_experiment_faellt_auf():
+    """Es stünde unter `experiment_apis`, wäre also kein neuer Top-Level-Schlüssel."""
+    manifest = json.loads((ADDON / "manifest.json").read_text(encoding="utf-8"))
+    assert fremde_angaben(manifest) == []
+    manifest["experiment_apis"]["versandbruecke"] = {
+        "schema": "schema.json", "parent": {"script": "implementation.js"}}
+    assert fremde_angaben(manifest) == ["experiment_apis.versandbruecke"]
 
 
 def test_das_experiment_bietet_genau_fuenf_funktionen():
@@ -250,6 +348,14 @@ def _packer():
     return modul
 
 
+#: Was im Paket liegt, in dieser Reihenfolge — hier ausgeschrieben und nicht aus
+#: dem Manifest gerechnet. Bis #412 verglich die Probe gegen `packer.DATEIEN`:
+#: Soll und Ist kamen aus derselben Quelle, eine unvollständige Liste konnte sie
+#: nicht finden.
+PAKET = ["manifest.json", "schema.json", "zeichennamen.js", "vergleich.js",
+         "background.js", "implementation.js"]
+
+
 def test_das_paket_ist_vollstaendig_und_reproduzierbar(tmp_path):
     packer = _packer()
     erstes = packer.packe(ziel=tmp_path / "a")
@@ -258,8 +364,41 @@ def test_das_paket_ist_vollstaendig_und_reproduzierbar(tmp_path):
     version = json.loads((ADDON / "manifest.json").read_text(encoding="utf-8"))["version"]
     assert erstes.name == f"entwurfsbruecke-{version}.xpi"
     with zipfile.ZipFile(erstes) as archiv:
-        assert archiv.namelist() == list(packer.DATEIEN)
+        assert archiv.namelist() == PAKET
         assert archiv.read("implementation.js") == (ADDON / "implementation.js").read_bytes()
+
+
+def test_keine_datei_des_add_ons_bleibt_aus_dem_paket(tmp_path):
+    """Fängt die neue Datei, die niemand eingetragen hat. Die README bleibt
+    draußen, Thunderbird liest sie nicht."""
+    with zipfile.ZipFile(_packer().packe(ziel=tmp_path)) as archiv:
+        drin = set(archiv.namelist())
+    vorhanden = {d.name for d in ADDON.iterdir() if d.suffix in (".js", ".json")}
+    assert len(vorhanden) == 6, f"der Add-on-Ordner hat sich geändert: {sorted(vorhanden)}"
+    assert vorhanden <= drin, f"nicht im Paket: {sorted(vorhanden - drin)}"
+
+
+def test_gegenprobe_ein_fehlendes_hintergrundskript_faellt_auf(tmp_path):
+    """Belegt, dass die Dateiliste wirklich am Manifest hängt (#412).
+
+    Sabotiert wird eine Kopie in `tmp_path`, nie das Add-on im Repo: Eine
+    Gegenprobe, die den Arbeitsbaum ändert, muss zurückgenommen werden, und
+    genau dabei geht etwas verloren.
+    """
+    kopie = tmp_path / "addon"
+    shutil.copytree(ADDON, kopie)
+    manifest = json.loads((kopie / "manifest.json").read_text(encoding="utf-8"))
+    assert "vergleich.js" in manifest["background"]["scripts"]
+    manifest["background"]["scripts"] = [s for s in manifest["background"]["scripts"]
+                                         if s != "vergleich.js"]
+    (kopie / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2),
+                                         encoding="utf-8")
+    with zipfile.ZipFile(_packer().packe(quelle=kopie, ziel=tmp_path / "dist")) as archiv:
+        namen = archiv.namelist()
+    assert "vergleich.js" not in namen, "die Liste liest das Manifest nicht"
+    assert namen != PAKET
+    # Die Datei liegt im Ordner und fehlt doch im Paket — genau das muss auffallen.
+    assert (kopie / "vergleich.js").is_file()
 
 
 def test_die_erzeugte_tabelle_wird_vor_dem_vergleich_geladen():
