@@ -1,7 +1,8 @@
 # 0055 — Was aus einem Entwurf wurde: Entwurfsbuch, `status` und die Sperre beim Senden
 
 **Datum:** 25.10.2026 · **Status:** angenommen · **Ergänzt:** [0054](0054-entwurfsbruecke-in-thunderbird.md),
-[0051](0051-gesendet-sperre-und-postfach-entwurf.md) · **Hält:** [0038](0038-oeffnen-ist-kein-versand.md), Punkt 5
+[0051](0051-gesendet-sperre-und-postfach-entwurf.md) · **Hält:** [0038](0038-oeffnen-ist-kein-versand.md), Punkt 5,
+[0029](0029-falzmarke-ist-werkzeug-kein-kanal.md) („Versandzustände in einem Ausgangsbuch“)
 
 ## Anlass
 
@@ -58,6 +59,13 @@ bleibt, sind Empfänger, Betreff und Text.
    teilen ihren Betreff. Vorgewählt ist „Nicht senden“, und Escape oder das Schließen des Dialogs
    zählen ebenso. Der Vergleich steht als `vergleich.js` im Add-on und urteilt wie
    `gesendet.py`; `tests/test_vergleich_js.py` gibt beiden dieselben Eingaben.
+
+   „Derselbe Text“ hat zwei Schwellen, und sie gelten auf beiden Seiten gleich: Ein Textkern —
+   alles bis zur Grußformel — zählt erst ab **20 Zeichen Textkern**, und ein eigener Text, der
+   bloß der Anfang der gesendeten Mail ist, erst ab **80 Zeichen Anfang** (`KERN_MIN` und
+   `ANFANG_MIN` in `gesendet.py` und `vergleich.js`). Darunter vergleicht die Regel nichts: Eine
+   leere Nachricht gliche jeder anderen leeren, und „Hallo Paula, danke!“ steht am Anfang vieler
+   verschiedener Mails.
 5. **Scheitert die Prüfung, wird gesendet.** Fehlt der Gesendet-Ordner, wirft eine Abfrage, geht
    der Dialog nicht auf oder liegen mehr als 2000 gesendete Mails in 14 Tagen, lässt die Sperre die
    Mail hinaus und schreibt
@@ -68,6 +76,26 @@ bleibt, sind Empfänger, Betreff und Text.
    `messagesModify`. `tests/test_entwurfsbruecke.py` prüft das Manifest und alle drei
    JS-Dateien auf verbotene Aufrufe, je mit Gegenprobe. Die Sperre kann ein Senden anhalten,
    auslösen kann sie keines.
+
+### Was ADR 0029 dazu sagt
+
+[0029](0029-falzmarke-ist-werkzeug-kein-kanal.md) nennt **Versandzustände in einem Ausgangsbuch**
+ausdrücklich als nicht Teil von falzmarke und verweist sie in ein eigenes Repository. Gemeint ist
+dort der Nachweis über den Weg einer Nachricht: dass sie befördert und dass sie zugestellt wurde,
+samt Verwahrung dieses Nachweises. Diesen Nachweis führt das Entwurfsbuch nicht, und `status`
+behauptet ihn an keiner Stelle.
+
+Das Buch hält fest, was aus einem **lokalen Entwurf** wurde — aus einer Datei, die falzmarke
+selbst erzeugt und ins eigene Postfach gelegt hat. `GESENDET` heißt dort „liegt in Gesendet“,
+nicht „ist angekommen“: gelesen wird allein das eigene Postfach, nie ein Empfänger, kein
+Zustellbericht und kein Dritter. Die Zusicherung, um die es 0029 ging, bleibt damit unangetastet
+— wer eine Datei erzeugt, haftet für ihren Inhalt; wer sie befördert, für Zustellung und
+Nachweis, und falzmarke befördert weiterhin nichts.
+
+Die Grenze bleibt deshalb, wo 0029 sie gezogen hat: Einlieferungsbeleg, Empfangsbestätigung und
+Aufbewahrungsfrist gehören nicht hierher. Die Zustände, die `status` meldet, lesen das
+eigene Postfach; sie sind kein Ausgangsbuch, sondern die Antwort auf die Frage „habe ich
+das schon geschickt?“.
 
 ### Was ADR 0038, Punkt 5 dazu sagt
 
@@ -91,6 +119,11 @@ um, und Kindprozesse bekommen `FALZMARKE_ENTWURFSBUCH=nie`.
 - Die Sperre sieht nur, was Thunderbird von den Gesendet-Ordnern kennt. Eine Mail, die von einem
   anderen Gerät hinausging, zählt erst, wenn Thunderbird den Ordner abgeglichen hat.
 - Die Betreff-Regel warnt auch vor einer gewollten Korrektur. Das kostet einen Klick.
+- Kurze Mails deckt die Textregel nicht ab. Unter den beiden Schwellen — **20 Zeichen Textkern**,
+  **80 Zeichen Anfang** — bleibt allein die Betreff-Regel, also 24 Stunden und nur bei einem
+  Entwurf oder einer neuen Mail. „Anbei die Rechnung, viele Grüße“ zweimal zu senden ist von zwei
+  verschiedenen kurzen Mails nicht zu unterscheiden; eine Sperre, die bei jeder Kurznachricht
+  fragt, erzieht zum Wegklicken. Die Lücke bleibt bewusst offen.
 - Was älter als 14 Tage ist, sieht keine der beiden Seiten.
 - Liegen zwei Entwürfe mit demselben Text, heißen beide `GESENDET`, sobald einer hinausging, auch
   wenn der andere danach gelöscht wurde. Der Text ist draußen; was mit dem zweiten geschah, steht
