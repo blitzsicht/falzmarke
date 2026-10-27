@@ -70,9 +70,45 @@ schützen soll. **Bewusst unverändert**, nicht vergessen.
 - **`FALZMARKE_BRUECKE_SOCKET` zeigt, wohin man den Socket stellt.** Deshalb bleibt die
   Namensprüfung aus Punkt 3 nötig, auch wenn die Rechte eine Fremdantwort unwahrscheinlich
   machen.
-- **Die Rechte des Sockets selbst sind nicht am laufenden Thunderbird nachgemessen.** Belegt ist
-  der Aufruf im Quelltext und mit Sabotage, nicht die Datei auf der Platte: Das verlangt das
-  installierte Add-on. Bis dahin gilt dieser Punkt als **nicht geprüft** — nicht als grün.
+- **Die Rechte des Sockets sind seit dem 26.10.2026 am laufenden Thunderbird nachgemessen**
+  (Nachtrag unten). Vorher galt dieser Punkt als nicht geprüft, weil nur der Aufruf im
+  Quelltext belegt war.
+
+## Nachtrag 26.10.2026 — am Gerät gemessen, und was dabei auffiel
+
+**1. Die Rechte stimmen.** Am installierten Add-on im Profil: `srw------- 600`, Eigentümer das
+Konto, das Thunderbird fährt. Der Pfad ist 87 von 104 Byte lang, wie gerechnet. Der alte Weg ist
+zu: auf 1994 horcht nichts, ein fremder `python3 -I` bekommt `ConnectionRefusedError`, `lsof`
+auf den Port ist leer. Damit ist Punkt 1 nicht mehr nur im Quelltext belegt.
+
+**2. 0.3.1 und 0.3.2 haben auf keine Anfrage geantwortet.** Der Socket nahm die Verbindung an
+und schloss nach zwei Millisekunden mit null Byte, fünfmal in Folge gleich. Ursache war
+`clearTimeout` ohne Import: im Experiment gibt es keine Uhr-Funktionen als globale Namen, und
+der Aufruf stand im Annahmepfad. Behoben in 0.3.3, nachgemessen am 26.10.2026: `ping` antwortet
+dreimal in je einer Millisekunde, `fenster` und `protokoll` ebenso, ein unbekannter Befehl wird
+mit `befehl_unbekannt` abgewiesen. Die Vermutung, es liege an
+`openOutputStream(OPEN_BLOCKING, 0, 0)` statt an Flags `0`, war **falsch** — der Ausgang ist
+unverändert und trägt. Sie steht hier, weil sie gekostet hat: Ein Verdacht auf unveränderten
+Code erklärt nicht, warum derselbe Code vorher trug.
+
+**3. Für den Transport gibt es keine automatische Gegenprobe.** Kein Test der Suite kann einen
+Thunderbird-Socket öffnen. Dass die Brücke antwortet, ist nur am Gerät messbar, und zwar nach
+jeder Installation. Die Proben in `tests/test_entwurfsbruecke.py` prüfen den Quelltext; sie
+haben am 26.10. durchgehend grün gestanden, während keine einzige Anfrage beantwortet wurde.
+
+**4. Defekte gehen auf Platte** (0.3.4, #421). Das Protokoll stand allein im Speicher und war
+allein über den Socket lesbar — also über genau den Kanal, der im Fehlerfall ausfällt. Darum
+`entwurfsbruecke-fehler.jsonl` im Profil, 200 Zeilen gedeckelt, Inhalt begrenzt auf Zeitstempel,
+Art, Ausnahmetext und Fassung. Keine Betreffe, keine Adressen, keine UIDs, kein Mailtext: der
+Eintrag wird aus einer Positivliste gebaut, nicht aus den Angaben des Protokolls. Jeder Rückruf
+des Transports liegt jetzt in einer Hülle, die wirft, meldet und aufräumt, statt still
+abzureißen.
+
+**Zu den Rechten dieser Datei:** `IOUtils` kennt keinen Modus-Parameter, die Datei entsteht also
+mit der Vorgabe des Systems — gemessen `-rw-r--r-- 644`, wie das Tagebuch daneben. Geschützt ist
+sie über den Ordner: der Profilordner liegt auf `drwx------ 700`, fremde Konten kommen nicht
+hinein. Das ist der Unterschied zum Entwurfsbuch, das in einem 755er Ordner liegt und deshalb
+0600 an der Datei selbst braucht.
 
 ## Belege
 
