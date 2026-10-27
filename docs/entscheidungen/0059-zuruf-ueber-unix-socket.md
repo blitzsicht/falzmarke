@@ -110,6 +110,33 @@ sie über den Ordner: der Profilordner liegt auf `drwx------ 700`, fremde Konten
 hinein. Das ist der Unterschied zum Entwurfsbuch, das in einem 755er Ordner liegt und deshalb
 0600 an der Datei selbst braucht.
 
+**Nachtrag 27.10.2026 — die Fehlerdatei ist am Gerät gemessen.** Punkt 4 stand bis dahin allein
+auf Quelltextproben. Gefahren mit installiertem 0.3.4 (Prüfsumme der XPI im Profil gleich dem
+gebauten Paket, `extensions.json` meldet 0.3.4 aktiv):
+
+- **Vorher nicht vorhanden.** `entwurfsbruecke-fehler.jsonl` gab es im Profil nicht, während
+  `ping` dreimal in unter einer Millisekunde antwortete und alle vier Befehle liefen. Eine
+  fehlerfreie Brücke legt die Datei also nicht an.
+- **Defekt von außen ausgelöst, ohne eine zweite Installation.** Fünf Verbindungen aufgebaut und
+  nichts gesendet; nach `FRIST_LEERLAUF_MS` schloss die Brücke sie. Danach trug die Datei genau
+  fünf Zeilen, jede mit `"was":"leerlauf"` und `"version":"0.3.4"`, dieselben Zeitstempel wie die
+  fünf Einträge, die der Befehl `protokoll` aus dem Speicher meldete. Der Weg auf die Platte und
+  der Weg im Speicher stimmen damit überein.
+- **Kein Mailinhalt.** Keine Adresse, kein Betreff, keine UID in der Datei — gesucht wurde danach,
+  und zwar während ein Verfassen-Fenster mit Betreff offen war und das Tagebuch daneben solche
+  Angaben in 43 KB führte. Die Positivliste wirkt am echten Datenpfad, nicht nur im Test.
+
+Zwei Grenzen dieser Messung: Gefahren ist die Art `leerlauf`, nicht der Pfad, auf dem das
+*Schreiben selbst* scheitert (`fehlerdatei_gescheitert` bleibt ungemessen). Und
+`zu_viele_verbindungen` ist von außen nicht erreichbar — der Backlog des Sockets lehnt die neunte
+Verbindung schon ab (`ConnectionRefusedError`), bevor die Brücke sie annehmen und zählen kann.
+
+**Nebenbefund, gemessen:** Das Experiment wird beim Austausch der XPI neu geladen, ohne Neustart
+von Thunderbird. Die Fehlerdatei entstand aus dem Code von 0.3.4, obwohl der Prozess seit dem
+26.10., 15:28 lief und die XPI erst am 27.10., 08:50 ersetzt wurde. Eine Messung nach einem
+Add-on-Austausch braucht also keinen Programmneustart — sie darf ihn aber auch nicht
+voraussetzen, wenn sie eine Fassung belegen will.
+
 ## Belege
 
 - Gegenprobe des Befundes am 25.10.2026: fremder Prozess, kein Geheimnis, vollständige
