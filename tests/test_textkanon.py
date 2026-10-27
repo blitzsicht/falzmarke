@@ -737,3 +737,24 @@ def test_adr_0055_grenzt_sich_gegen_0029_ab():
     assert ABGRENZUNG_0029 in _fliesstext(REPO / ADR_0055), (
         f"0055 sagt nicht mehr, dass {ABGRENZUNG_0029!r} — ohne diesen Satz "
         "liest sich das Entwurfsbuch wie ein Zustellnachweis")
+
+
+#: Was die Textproben am Add-on tragen — und was nicht. Der Satz stand bis #412
+#: allein im Docstring von `tests/test_entwurfsbruecke.py`; ADR 0055, Punkt 6
+#: las sich stärker, als die Proben halten. Wer nur das ADR liest, hielt sie für
+#: eine technische Grenze.
+GRENZE_ADDON = "läuft in Thunderbird mit vollen Rechten"
+PROBEN_ADDON = "tests/test_entwurfsbruecke.py"
+
+
+def test_adr_0055_sagt_wie_weit_die_pruefung_am_add_on_traegt():
+    """Eine Aussage, zwei Orte: Fällt sie an einem weg, wird dieser Test rot.
+
+    Im ADR, weil dort steht, was zugesagt ist; an den Proben, weil dort steht,
+    was gemessen wird. Dass es dieselbe Aussage ist, hält nur dieser Test.
+    """
+    assert GRENZE_ADDON in (REPO / PROBEN_ADDON).read_text(encoding="utf-8"), (
+        f"{PROBEN_ADDON} sagt nicht mehr, dass das Add-on {GRENZE_ADDON}")
+    assert GRENZE_ADDON in _fliesstext(REPO / ADR_0055), (
+        f"0055 sagt nicht mehr, dass das Add-on {GRENZE_ADDON} — dann liest sich "
+        "Punkt 6 wie eine technische Grenze, und die Textproben sind keine")
