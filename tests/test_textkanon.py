@@ -671,3 +671,69 @@ def test_die_gemessenen_zahlen_sind_nicht_leer_und_verschieden():
     assert all(z > 0 for z in zahlen), gemessen
     assert len(set(zahlen)) == len(zahlen), (
         f"zwei Zählungen liefern dieselbe Zahl: {gemessen} — die Suche trennte sie nicht mehr")
+
+
+# ── Die Festlegungen zum Entwurfsbuch stehen geschrieben (#416) ─────────────
+#
+# Zwei Dinge standen bis #416 nur im Quelltext. Erstens die beiden Schwellen
+# der Sendesperre: Unter 20 Zeichen Textkern und 80 Zeichen Anfang vergleicht
+# sie keinen Text mehr, und wer sich auf sie verlässt, soll wissen, wo sie
+# aufhört. Zweitens das Verhältnis von ADR 0055 zu ADR 0029, das
+# „Versandzustände in einem Ausgangsbuch“ ausdrücklich ausschließt — ohne den
+# Absatz dazu wäre 0029 stillschweigend tot oder `status` ein Verstoß.
+#
+# Die Zahlen kommen aus `falzmarke.gesendet`, nicht aus einer zweiten
+# Konstante hier: Sonst prüfte sich die Doku an einer Kopie ihrer selbst.
+# Ändert sich eine Schwelle im Code, wird dieser Test rot, und beide Texte
+# müssen mit.
+
+ADR_0055 = "docs/entscheidungen/0055-entwurfsbuch-status-und-sperre.md"
+
+#: Beide Dateien, weil die eine sagt, was gilt, und die andere, warum.
+SCHWELLEN_DATEIEN = ("docs/email.md", ADR_0055)
+
+SCHWELLEN_MUSTER = {
+    "KERN_MIN": re.compile(r"(\d+) Zeichen Textkern"),
+    "ANFANG_MIN": re.compile(r"(\d+) Zeichen Anfang"),
+}
+
+#: Der Kern der Abgrenzung, ohne die verlinkten Teile — die dürfen sich
+#: ändern. Er trägt die Aussage, auf die es ankommt: Das Entwurfsbuch liest
+#: das eigene Postfach und behauptet keine Zustellung.
+ABGRENZUNG_0029 = "gelesen wird allein das eigene Postfach, nie ein Empfänger"
+
+
+def test_die_doku_nennt_die_schwellen_der_sperre():
+    """`KERN_MIN` und `ANFANG_MIN` entscheiden, wann die Sperre überhaupt
+    vergleicht. Steht die Zahl nirgends, hält der Leser eine Kurznachricht für
+    gedeckt, die es nicht ist — und merkt es erst, wenn sie zweimal draußen ist.
+    """
+    from falzmarke.gesendet import ANFANG_MIN, KERN_MIN
+
+    soll = {"KERN_MIN": KERN_MIN, "ANFANG_MIN": ANFANG_MIN}
+    for datei in SCHWELLEN_DATEIEN:
+        text = _fliesstext(REPO / datei)
+        for name, muster in SCHWELLEN_MUSTER.items():
+            gefunden = muster.findall(text)
+            assert gefunden, (
+                f"{datei}: keine Schwelle zu {name} genannt — misst der Test noch etwas?")
+            assert set(gefunden) == {str(soll[name])}, (
+                f"{datei} nennt {sorted(set(gefunden))}, {name} steht auf {soll[name]}")
+
+
+def test_adr_0055_grenzt_sich_gegen_0029_ab():
+    """0029 schließt ein Ausgangsbuch aus, 0055 baut eines — scheinbar.
+
+    Dass `status` keine Zustellung behauptet, ist der ganze Unterschied. Er
+    steht im Kopf (`Hält:`) und als Absatz im Text; fällt eines von beiden weg,
+    ist der andere Teil eine Behauptung ohne Begründung.
+    """
+    roh = (REPO / ADR_0055).read_text(encoding="utf-8")
+    kopf = roh.split("\n## ", 1)[0]
+    assert "**Hält:**" in kopf, "der Kopf von 0055 nennt kein „Hält:“ mehr"
+    assert "0029" in kopf.split("**Hält:**", 1)[1], (
+        "0055 nennt 0029 nicht mehr im Kopf — das Verhältnis zur Entscheidung, "
+        "die ein Ausgangsbuch ausschließt, muss dort stehen")
+    assert ABGRENZUNG_0029 in _fliesstext(REPO / ADR_0055), (
+        f"0055 sagt nicht mehr, dass {ABGRENZUNG_0029!r} — ohne diesen Satz "
+        "liest sich das Entwurfsbuch wie ein Zustellnachweis")

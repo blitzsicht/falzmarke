@@ -291,6 +291,15 @@ für denselben Betreff mit anderem Text in den letzten 24 Stunden. Thunderbird f
 senden“ ist vorgewählt. Kann das Add-on nicht prüfen, geht die Mail hinaus, und das Tagebuch hält
 es fest ([ADR 0055](entscheidungen/0055-entwurfsbuch-status-und-sperre.md)).
 
+**Wo die Sperre aufhört.** „Derselbe Text“ setzt genug Text voraus. Ein Textkern — alles bis zur
+Grußformel — zählt erst ab **20 Zeichen Textkern**, und ein eigener Text, der bloß der Anfang der
+gesendeten Mail ist, erst ab **80 Zeichen Anfang**. Darunter vergleicht die Regel nichts, und das
+ist Absicht: Eine leere Nachricht gliche jeder anderen leeren, und „Hallo Paula, danke!“ steht am
+Anfang vieler verschiedener Mails. Die Folge ist eine Lücke. Eine kurze Mail — „Anbei die
+Rechnung, viele Grüße“ — fällt unter beide Schwellen und wird damit nur von der Betreff-Regel
+erfasst: 24 Stunden, und nur bei einem Entwurf oder einer neuen Mail. Wer sich auf die Sperre
+verlässt, sollte wissen, dass sie zwei kurze Mails nicht auseinanderhält.
+
 ### Eine fertige Signatur mitbringen
 
 Wer seine Signatur schon hat — gestaltet, in den Mailprogrammen im Einsatz —, muss sie nicht ein
