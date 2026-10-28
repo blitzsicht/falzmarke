@@ -1040,24 +1040,72 @@ def _durch_den_wrapper(*zeilen: str) -> list[int]:
     return roh.vorgaenge
 
 
+def _als_bytes(zeile: str) -> int:
+    """Wie viele Bytes aus `zeile` werden, wenn sie durch den Wrapper geht.
+
+    Der gemessene Wrapper läuft mit `newline=None` — so wie `os.fdopen(…, "a")`,
+    der alte Schreibweg des Buchs. Dabei wird `\\n` zu `os.linesep`: unter
+    Windows werden aus der 20013-Byte-Zeile 20014.
+    """
+    return len(zeile.replace("\n", os.linesep).encode("utf-8"))
+
+
+def _zeilengrenzen_eingehalten(vorgaenge: list[int], laengen: list[int]) -> bool:
+    """Endet jeder Schreibvorgang an einer Zeilengrenze?
+
+    Mehrere Zeilen in einem Vorgang sind erlaubt, eine Zeile über zwei Vorgänge
+    nicht — das ist die Eigenschaft, auf die es ankommt.
+    """
+    if sum(vorgaenge) != sum(laengen):
+        return False
+    grenzen: set[int] = set()
+    stand = 0
+    for laenge in laengen:
+        stand += laenge
+        grenzen.add(stand)
+    stand = 0
+    for vorgang in vorgaenge:
+        stand += vorgang
+        if stand not in grenzen:
+            return False
+    return True
+
+
 def test_der_gepufferte_wrapper_war_nicht_der_verlustweg():
-    """Nachgemessen am 27.10.2026, gegen den Wortlaut von #411.
+    """Nachgemessen am 28.10.2026, gegen den Wortlaut von #411.
 
     Der Vorgang sagt, über ~8 KiB zerfalle der Schreibvorgang in mehrere
-    Syscalls, die sich verschränken könnten. Das trifft für diesen Schreibpfad
-    nicht zu: `TextIOWrapper` über `BufferedWriter` gibt eine Zeile von 20 KB in
-    einem Stück weiter — auch mit etwas im Puffer davor. Gemessen werden die
-    Klassen, durch die das Buch vor #411 schrieb (`os.fdopen(…, "a")`).
+    Syscalls, die sich verschränken könnten. Für diesen Schreibpfad trifft das
+    nicht zu: `TextIOWrapper` über `BufferedWriter` gibt **keine Zeile
+    zerstückelt** weiter, jeder Vorgang endet an einer Zeilengrenze. Gemessen
+    werden die Klassen, durch die das Buch vor #411 schrieb
+    (`os.fdopen(…, "a")`, also `newline=None`).
 
-    `os.write` bleibt der richtige Weg, aus einem anderen Grund: Es ist genau
-    ein Syscall, sein Rückgabewert sagt, wie viele Bytes ankamen, und die Zusage
-    hängt nicht an Pufferinterna, die zwischen Python-Fassungen wandern können.
-    Der belegte Verlustweg ist das Ausdünnen — siehe die Probe mit zwei Läufen.
+    Wie viele Zeilen in einen Vorgang gebündelt werden, ist dagegen nicht
+    verlässlich — gemessen, nicht vermutet: bei einer kurzen Zeile vor einer
+    langen liefern 3.12.9 und 3.13.12 zwei Vorgänge (`[17, 20013]`), 3.14.7
+    einen einzigen (`[20030]`). Eine frühere Fassung dieses Tests schrieb die
+    Bündelung von 3.14 fest und fiel darum in der CI auf allen drei Plattformen
+    (Lauf 40641191943, Python 3.12).
+
+    Genau deshalb hängt die Zusage an `os.write`: ein Syscall, sein Rückgabewert
+    sagt, wie viele Bytes ankamen, und nichts davon an Pufferinterna. Der
+    belegte Verlustweg ist das Ausdünnen — siehe die Probe mit zwei Läufen.
     """
     lang = json.dumps({"text": "x" * 20000}, ensure_ascii=False) + "\n"
-    ganz = len(lang.encode("utf-8"))
-    assert _durch_den_wrapper(lang) == [ganz]
-    assert _durch_den_wrapper("eine kurze Zeile\n", lang) == [ganz + 17]
+    kurz = "eine kurze Zeile\n"
+
+    assert _zeilengrenzen_eingehalten(_durch_den_wrapper(lang), [_als_bytes(lang)])
+    assert _zeilengrenzen_eingehalten(
+        _durch_den_wrapper(kurz, lang), [_als_bytes(kurz), _als_bytes(lang)]
+    )
+
+    # Gegenprobe: Die zwei Zusagen oben wären wertlos, wenn die Prüfung nie
+    # fehlschlagen könnte. Eine Zeile über zwei Vorgänge — genau der Fall, den
+    # #411 befürchtete — muss sie melden, ebenso eine unvollständig angekommene.
+    ganz = _als_bytes(lang)
+    assert not _zeilengrenzen_eingehalten([7000, ganz - 7000], [ganz])
+    assert not _zeilengrenzen_eingehalten([ganz - 1], [ganz])
 
 
 # ── Zwei Läufe zugleich ─────────────────────────────────────────────────────

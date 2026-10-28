@@ -52,13 +52,23 @@ bleibt, sind Empfänger, Betreff und Text.
    „Entwürfe“ verschwindet — der Fall, für den dieses ADR angetreten ist. `status` nennt sie als
    Hinweis, nicht als Zustand: Liegt der Entwurf doch, meldet ihn das Postfach selbst.
 
-   **Was dabei nachgemessen wurde (27.10.2026).** #411 nannte als Verlustweg den gepufferten
-   Schreibvorgang: Über ~8 KiB zerfalle er in mehrere Syscalls, die sich verschränken könnten.
-   Das trifft für diesen Pfad nicht zu — `TextIOWrapper` über `BufferedWriter` gibt eine Zeile von
-   20 KB in einem Stück weiter, auch mit etwas im Puffer davor (`tests/test_entwurfsbuch.py`,
-   `test_der_gepufferte_wrapper_war_nicht_der_verlustweg`). `os.write` bleibt der richtige Weg,
-   aber aus einem anderen Grund: ein Syscall, ein prüfbarer Rückgabewert, keine Abhängigkeit von
-   Pufferinterna. Der belegte Verlustweg ist das Ausdünnen — zwei Läufe zugleich, ohne Sperre
+   **Was dabei nachgemessen wurde (27.10.2026, nachgeschärft am 28.10.2026).** #411 nannte als
+   Verlustweg den gepufferten Schreibvorgang: Über ~8 KiB zerfalle er in mehrere Syscalls, die
+   sich verschränken könnten. Das trifft für diesen Pfad nicht zu — `TextIOWrapper` über
+   `BufferedWriter` gibt keine Zeile zerstückelt weiter, jeder Schreibvorgang endet an einer
+   Zeilengrenze (`tests/test_entwurfsbuch.py`,
+   `test_der_gepufferte_wrapper_war_nicht_der_verlustweg`).
+
+   Wie viele Zeilen in einen Vorgang gebündelt werden, ist dagegen **nicht** verlässlich, und das
+   ist der stärkere Grund für `os.write`: Bei einer kurzen Zeile vor einer langen liefern Python
+   3.12.9 und 3.13.12 zwei Vorgänge, 3.14.7 einen einzigen; unter Windows übersetzt der Textmodus
+   zusätzlich `\n` zu `\r\n`. Eine erste Fassung des Tests schrieb die Bündelung der lokalen
+   3.14 als Sollwert fest und fiel darum in der CI auf allen drei Plattformen (Lauf 40641191943).
+   Damit ist belegt, was vorher nur behauptet war: Eine Zusage über die Unteilbarkeit einer Zeile
+   darf nicht an Pufferinterna hängen. `os.write` ist genau ein Syscall mit prüfbarem
+   Rückgabewert und hängt an keiner davon.
+
+   Der belegte Verlustweg ist das Ausdünnen — zwei Läufe zugleich, ohne Sperre
    fehlt die Zeile des zweiten, mit Sperre bleiben beide
    (`test_zwei_laeufe_zugleich_verlieren_keine_zeile` samt Gegenprobe, fünf Läufe). Dabei zeigte
    sich ein zweiter Schaden: Ohne Sperre schreiben beide Läufe dieselbe Zwischendatei
