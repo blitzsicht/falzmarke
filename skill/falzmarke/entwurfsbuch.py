@@ -126,6 +126,12 @@ SPIEL = timedelta(minutes=5)
 #: Höchstens so viele Zeilen zeigt `--diff` je Entwurf.
 DIFF_ZEILEN = 60
 
+#: Wie die UID aus der Adresse einer Nachricht gelesen wird
+#: (`imap-message://…/Entwürfe#4711`). Dasselbe Muster steht im Add-on als
+#: `UID_AUS_URI` und liefert dort den zweiten Weg zur UID eines Entwurfs
+#: (ADR 0060); `tests/test_entwurfsbruecke.py` hält beide Seiten gleich.
+UID_AUS_URI = re.compile(r"#(\d+)$")
+
 
 # ── Das Entwurfsbuch ────────────────────────────────────────────────────────
 
@@ -397,6 +403,17 @@ def _zeit(wert) -> datetime | None:
     return zeit if zeit.tzinfo else zeit.replace(tzinfo=timezone.utc)
 
 
+def _zuordnungswort(anzahl: int) -> str:
+    """„2 Tagebuch-Einträge … lassen sich keinem Entwurf zuordnen“ (#420)."""
+    viele = anzahl != 1
+    # „Eintrag“ + „e“ gäbe „Eintrage“: Der Plural trägt einen Umlaut, also steht
+    # das ganze Wort da.
+    return (f"{anzahl} {'Tagebuch-Einträge' if viele else 'Tagebuch-Eintrag'} zu einem Entwurf "
+            f"{'tragen' if viele else 'trägt'} weder UID noch Fassung — "
+            f"{'sie stehen' if viele else 'er steht'} unter keinem Entwurf; "
+            "ab Entwurfsbrücke 0.3.7 nennt `uid_grund` im Tagebuch den Grund")
+
+
 def _zeilenwort(anzahl: int, wo: str) -> str:
     """„2 Zeilen im Entwurfsbuch sind unlesbar — …“ (ADR 0055, #411)."""
     viele = anzahl != 1
@@ -571,6 +588,8 @@ class Bericht(NamedTuple):
     unlesbar: int = 0
     #: Läufe dieses Kontos, bei denen das Ablegen ungewiss blieb — ohne UID.
     ungewiss: tuple[Eintrag, ...] = ()
+    #: Tagebuch-Einträge zu einem Entwurf ohne UID und ohne Fassung (#420).
+    ohne_zuordnung: int = 0
 
 
 def _offene_uids(adresse: str, umgebung: Mapping[str, str]) -> tuple[dict[str, dict], str]:
@@ -584,7 +603,7 @@ def _offene_uids(adresse: str, umgebung: Mapping[str, str]) -> tuple[dict[str, d
     uids = {}
     for eintrag in fenster:
         ziel = unquote(str(eintrag.get("draft_id") or "").split("?")[0]).lower()
-        treffer = re.search(r"#(\d+)$", ziel)
+        treffer = UID_AUS_URI.search(ziel)
         if treffer and adresse in ziel:
             uids[treffer.group(1)] = eintrag
     return uids, ""
@@ -595,6 +614,30 @@ def _ursprung(tag: Mapping, adresse: str) -> Mapping | None:
     if not isinstance(ursprung, Mapping):
         return None
     return ursprung if str(ursprung.get("konto") or "").lower() == adresse else None
+
+
+def ohne_zuordnung(eintraege: list[dict], adresse: str) -> int:
+    """Einträge dieses Kontos zu einem Entwurf **ohne** UID und **ohne** Fassung (#420).
+
+    Genau diese Signatur ist ein Fehler und kein Sonderfall. Ein Fenster vom Typ
+    `new` oder `reply` hat von Natur aus keine UID — der Entwurf, von dem es
+    käme, gibt es nicht. Ein Entwurf hat eine. Fehlen bei ihm beide
+    Zuordnungsmerkmale, hängt die Zeile an keinem Eintrag im Entwurfsbuch:
+    `status` zeigt die Mail dann ohne „Ging an …“ und ohne BELEGT, und die
+    Sperre erkennt sie nicht über die Fassung.
+
+    Gezählt statt übergangen, aus demselben Grund wie die unlesbaren Zeilen
+    (#411): Am 26.10.2026 lag genau ein solches Paar im Tagebuch, und zu sehen
+    war es allein daran, dass eine Versandzeile fehlte.
+    """
+    treffer = 0
+    for tag in eintraege:
+        ursprung = _ursprung(tag, adresse)
+        if ursprung is None or str(ursprung.get("typ") or "") != "draft":
+            continue
+        if not str(ursprung.get("uid") or "") and not str(ursprung.get("fassung") or ""):
+            treffer += 1
+    return treffer
 
 
 def _kette(tagebuch: list[dict], adresse: str, uid: str) -> set[str]:
@@ -692,7 +735,13 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
     # Das Tagebuch führt alle Konten des Profils, die Zeile stellt die Zahl aber hinter
     # einem einzelnen Absender dar. Also auch nur dessen Einträge zählen (#414).
     tagebuch_eigene = sum(_ursprung(t, adresse) is not None for t in tage_eintraege)
+    # Vor dem Postfach, wie die unlesbaren Zeilen: Dass das Add-on einen Entwurf
+    # nicht zuordnen konnte, weiß das Tagebuch unabhängig davon, ob das Postfach
+    # antwortet (#411, #420).
+    verwaist = ohne_zuordnung(tage_eintraege, adresse)
     hinweise = [tagebuch_grund] if tagebuch_grund else []
+    if verwaist:
+        hinweise.append(_zuordnungswort(verwaist))
     # Vor `leer`: Ist das Postfach nicht erreichbar, nimmt `leer._replace(grund=…)` nur
     # mit, was jetzt schon in `hinweise` steht — und gerade dann zählt, was das Buch weiß.
     if stand.unlesbar:
@@ -702,7 +751,8 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
         hinweise.append(offen_grund)
 
     leer = Bericht(adresse, tage=tage, im_buch=len(buch), tagebuch=tagebuch_eigene,
-                   hinweise=tuple(hinweise), unlesbar=stand.unlesbar, ungewiss=ungewiss)
+                   hinweise=tuple(hinweise), unlesbar=stand.unlesbar, ungewiss=ungewiss,
+                   ohne_zuordnung=verwaist)
     try:
         sitzung = postfach.verbinde(adresse, umgebung=umgebung, frist=FRIST_S)
     except postfach.PostfachFehler as fehler:
@@ -875,7 +925,7 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                    papierkorb=postfach.utf7_dekodieren(ordner_p) if ordner_p else "",
                    angesehen=len(raus), tage=tage, im_buch=len(buch),
                    tagebuch=tagebuch_eigene, hinweise=tuple(hinweise),
-                   unlesbar=stand.unlesbar, ungewiss=ungewiss)
+                   unlesbar=stand.unlesbar, ungewiss=ungewiss, ohne_zuordnung=verwaist)
 
 
 def _sortzeit(zeit: datetime | None) -> datetime:
@@ -1016,7 +1066,7 @@ def als_json(bericht: Bericht) -> dict:
     return {
         "adresse": bericht.adresse, "geprueft": not bericht.grund, "grund": bericht.grund,
         "tage": bericht.tage, "angesehen": bericht.angesehen, "hinweise": list(bericht.hinweise),
-        "unlesbar": bericht.unlesbar,
+        "unlesbar": bericht.unlesbar, "ohne_zuordnung": bericht.ohne_zuordnung,
         "ungewiss": [{"zeit": zeit(e.zeit), "betreff": e.betreff, "an": list(e.an),
                       "ordner": e.ordner, "grund": e.ungewiss} for e in bericht.ungewiss],
         "entwuerfe": [{

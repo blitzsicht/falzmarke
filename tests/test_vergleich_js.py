@@ -355,3 +355,96 @@ def test_gegenprobe_ein_abweichender_algorithmus_faellt_auf(tmp_path, alt, neu):
     assert quelle.count(alt) == 1, f"{alt!r} steht nicht genau einmal in vergleich.js"
     kaputt = _kopie(tmp_path, quelle.replace(alt, neu))
     assert _entitaeten_abweichungen(kaputt) != []
+
+
+# ── Die Kette der UIDs, in JS wie in Python (ADR 0060) ──────────────────────
+#
+# Anlass (#420): Speichert Thunderbird einen Entwurf, bekommt er eine neue UID
+# und verliert `X-Falzmarke-Fassung`. Beide Seiten gewinnen die Fassung über
+# dieselbe Kette zurück — `status` in Python (`entwurfsbuch._kette`), die Sperre
+# in JS. Laufen die zwei auseinander, ordnet die eine Seite zu, wo die andere
+# nichts findet, und das fiele erst am Gerät auf.
+
+#: Zeilen in der Form des Tagebuchs. Enthalten sind: eine Kette über zwei
+#: Speicherungen, dieselbe UID unter einem anderen Konto, eine Zeile ohne
+#: `neu_uid` und eine, deren `neu_uid` kein Feld ist.
+KETTENZEILEN = [
+    {"art": "geoeffnet", "ursprung": {"konto": "order@example.de", "uid": 150,
+                                      "fassung": "abc123def456"}},
+    {"art": "gespeichert", "ursprung": {"konto": "order@example.de", "uid": 150,
+                                        "fassung": "abc123def456"}, "neu_uid": [160]},
+    {"art": "gespeichert", "ursprung": {"konto": "order@example.de", "uid": 160,
+                                        "fassung": ""}, "neu_uid": [170, None]},
+    {"art": "gespeichert", "ursprung": {"konto": "FREMD@example.de", "uid": 170,
+                                        "fassung": ""}, "neu_uid": [900]},
+    {"art": "gespeichert", "ursprung": {"konto": "order@example.de", "uid": 500,
+                                        "fassung": ""}, "neu_uid": [510]},
+    {"art": "gespeichert", "ursprung": {"konto": "order@example.de", "uid": None,
+                                        "fassung": ""}, "neu_uid": [520]},
+    {"art": "gespeichert", "ursprung": None, "neu_uid": [530]},
+    {"art": "gespeichert", "ursprung": {"konto": "order@example.de", "uid": 170},
+     "neu_uid": "160"},
+    {"art": "gesendet", "ursprung": {"konto": "order@example.de", "uid": 170,
+                                     "fassung": "abc123def456"}},
+]
+
+#: Je Probe das Konto und die UID, von der aus gekettet wird. „fremd“ steht
+#: groß in der Zeile und klein in der Anfrage: Das Konto wird kleingeschrieben
+#: verglichen, auf beiden Seiten.
+KETTENPROBEN = [
+    ("order@example.de", "150"),
+    ("order@example.de", "170"),
+    ("order@example.de", "520"),
+    ("order@example.de", "900"),
+    ("fremd@example.de", "170"),
+    ("fremd@example.de", "150"),
+    ("order@example.de", "999"),
+]
+
+
+def _ketten_js(modul) -> list[list[str]]:
+    laeufer = ('const e = JSON.parse(require("fs").readFileSync(0, "utf8"));'
+               'const v = require(e.modul);'
+               'process.stdout.write(JSON.stringify(e.proben.map('
+               '([konto, uid]) => [...v.kette(e.zeilen, konto, uid)].sort())));')
+    fertig = subprocess.run(
+        [_node(), "-e", laeufer],
+        input=json.dumps({"modul": str(modul), "zeilen": KETTENZEILEN, "proben": KETTENPROBEN}),
+        capture_output=True, encoding="utf-8", timeout=60, check=False)
+    assert fertig.returncode == 0, fertig.stderr
+    return json.loads(fertig.stdout)
+
+
+def _ketten_python() -> list[list[str]]:
+    from falzmarke.entwurfsbuch import _kette
+
+    return [sorted(_kette(KETTENZEILEN, konto, uid)) for konto, uid in KETTENPROBEN]
+
+
+def test_die_proben_treffen_mehr_als_das_startglied():
+    """Sonst wäre jede Antwort `[uid]`, und der Vergleich könnte nicht rot werden."""
+    gewachsen = [k for k in _ketten_python() if len(k) > 1]
+    assert len(gewachsen) >= 3, f"nur {len(gewachsen)} Proben wachsen über ihr Startglied hinaus"
+    assert ["150", "160", "170"] in _ketten_python(), "die Kette über zwei Speicherungen fehlt"
+
+
+def test_js_und_python_bilden_dieselbe_kette():
+    assert _ketten_js(VERGLEICH_JS) == _ketten_python()
+
+
+@pytest.mark.parametrize(("alt", "neu"), [
+    # Ohne den Konto-Filter kettet UID 170 weiter an die 900 eines anderen
+    # Postfachs — eine UID gilt je Ordner.
+    ('return String(ursprung.konto || "").toLowerCase() === konto ? ursprung : null;',
+     "return ursprung;"),
+    # Ohne den zweiten Durchgang bleibt die Kette bei der ersten Speicherung stehen.
+    ("    while (gewachsen) {", "    while (false) {"),
+    # Ohne die Prüfung auf eine Liste wird `neu_uid: "160"` zeichenweise gekettet:
+    # Die Zeile hängt an UID 170, also an der Kette, und zieht „1“, „6“ und „0“ hinein.
+    ("!Array.isArray(neu)", "false"),
+])
+def test_gegenprobe_eine_abweichende_kette_faellt_auf(tmp_path, alt, neu):
+    quelle = VERGLEICH_JS.read_text(encoding="utf-8")
+    assert quelle.count(alt) == 1, f"{alt!r} steht nicht genau einmal in vergleich.js"
+    kaputt = _kopie(tmp_path, quelle.replace(alt, neu))
+    assert _ketten_js(kaputt) != _ketten_python()

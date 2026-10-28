@@ -331,9 +331,12 @@ def test_das_tagebuch_eines_anderen_entwurfs_belegt_nichts(monkeypatch, tmp_path
     assert _einziger(_stand(profilordner=profil)).belegt is False
 
 
-def _tag(art, uid, *, fassung="f0f0f0f0f0f0", **mehr) -> dict:
+def _tag(art, uid, *, fassung="f0f0f0f0f0f0", typ="draft", **mehr) -> dict:
+    """Eine Tagebuchzeile wie das Add-on sie schreibt. `typ` steht ausdrücklich
+    dabei: Ob ein Eintrag von einem Entwurf kommt, entscheidet, ob eine fehlende
+    UID ein Fehler ist (#420) oder die Natur der Sache (`new`, `reply`)."""
     return {"zeit": (JETZT - timedelta(hours=1)).isoformat(), "art": art,
-            "ursprung": {"konto": VON, "uid": uid, "fassung": fassung}, **mehr}
+            "ursprung": {"typ": typ, "konto": VON, "uid": uid, "fassung": fassung}, **mehr}
 
 
 def test_zwei_entwuerfe_derselben_quelle_teilen_kein_tagebuch(monkeypatch, tmp_path):
@@ -1483,3 +1486,79 @@ def test_gegenprobe_ohne_kappung_heisst_es_text_geaendert(monkeypatch):
     zustand = _gekappt_gegen_gesendet(monkeypatch, gekappt=False)
     assert (zustand.art, zustand.text_gleich, zustand.text_gekappt) == ("gesendet", False, False)
     assert any("Text geändert" in z for z in entwurfsbuch.zeilen(_stand()))
+
+
+# ── Tagebuch-Einträge, die an keinem Entwurf hängen (#420) ──────────────────
+#
+# ANLASS: Am 26.10.2026 trug genau ein Fensterpaar im Tagebuch dieses Rechners
+# `uid: null` und `fassung: ""` — bei 117 Öffnungen mit UID. Die Versandzeile
+# hing an keinem Eintrag im Entwurfsbuch, und zu sehen war das allein daran,
+# dass unter dem Entwurf „Ging an …“ und BELEGT fehlten. Diese Zahl macht den
+# Fall sichtbar, auch wenn er wiederkommt.
+
+def _zuordnungshinweis(bericht) -> list[str]:
+    return [h for h in bericht.hinweise if "weder UID noch Fassung" in h]
+
+
+def test_ein_entwurf_ohne_uid_und_ohne_fassung_wird_gemeldet(monkeypatch, tmp_path):
+    _postfach(monkeypatch)
+    profil = _profil(tmp_path, [_tag("geoeffnet", None, fassung=""),
+                                                _tag("gesendet", None, fassung="")])
+    bericht = _stand(profilordner=profil)
+    assert bericht.ohne_zuordnung == 2
+    assert _zuordnungshinweis(bericht) == [
+        "2 Tagebuch-Einträge zu einem Entwurf tragen weder UID noch Fassung — sie stehen "
+        "unter keinem Entwurf; ab Entwurfsbrücke 0.3.7 nennt `uid_grund` im Tagebuch den Grund"]
+    assert any("weder UID noch Fassung" in z for z in entwurfsbuch.zeilen(bericht)), (
+        "der Hinweis fehlt in der Ausgabe")
+    assert entwurfsbuch.als_json(bericht)["ohne_zuordnung"] == 2
+
+
+def test_der_einzelne_eintrag_steht_im_singular(monkeypatch, tmp_path):
+    _postfach(monkeypatch)
+    profil = _profil(tmp_path, [_tag("gesendet", None, fassung="")])
+    bericht = _stand(profilordner=profil)
+    assert bericht.ohne_zuordnung == 1
+    assert _zuordnungshinweis(bericht) == [
+        "1 Tagebuch-Eintrag zu einem Entwurf trägt weder UID noch Fassung — er steht "
+        "unter keinem Entwurf; ab Entwurfsbrücke 0.3.7 nennt `uid_grund` im Tagebuch den Grund"]
+
+
+def test_gegenprobe_mit_uid_wird_nichts_gemeldet(monkeypatch, tmp_path):
+    """Die Probe nebenan muss anschlagen können: derselbe Eintrag, nur mit UID."""
+    _postfach(monkeypatch)
+    profil = _profil(tmp_path, [_tag("gesendet", 150, fassung="")])
+    bericht = _stand(profilordner=profil)
+    assert bericht.ohne_zuordnung == 0 and _zuordnungshinweis(bericht) == []
+
+
+def test_gegenprobe_mit_fassung_wird_nichts_gemeldet(monkeypatch, tmp_path):
+    """Ohne UID, aber mit Fassung ist der Eintrag zuzuordnen — `_gehoert_dazu`
+    tut genau das (`test_ohne_uid_entscheidet_die_fassung`)."""
+    _postfach(monkeypatch)
+    profil = _profil(tmp_path, [_tag("gesendet", None)])
+    bericht = _stand(profilordner=profil)
+    assert bericht.ohne_zuordnung == 0 and _zuordnungshinweis(bericht) == []
+
+
+@pytest.mark.parametrize("typ", ["new", "reply"])
+def test_gegenprobe_eine_neue_mail_und_eine_antwort_zaehlen_nicht(monkeypatch, tmp_path, typ):
+    """Gemessen am Tagebuch dieses Rechners: `new` und `reply` tragen **nie** eine
+    UID — es gibt keinen Entwurf, von dem sie käme. Zählte der Hinweis sie mit,
+    stünde er unter jedem Postfach und sagte nichts mehr."""
+    _postfach(monkeypatch)
+    profil = _profil(tmp_path,
+                     [_tag("geoeffnet", None, fassung="", typ=typ),
+                      _tag("gesendet", None, fassung="", typ=typ)])
+    bericht = _stand(profilordner=profil)
+    assert bericht.ohne_zuordnung == 0 and _zuordnungshinweis(bericht) == []
+
+
+def test_das_unerreichbare_postfach_nennt_den_eintrag_trotzdem(monkeypatch, tmp_path):
+    """Was das Tagebuch weiß, weiß es unabhängig vom Postfach (#411, #420)."""
+    monkeypatch.setattr(postfach, "IMAP_KLASSE",
+                        ImapAttrappe({}, verbindungsfehler=OSError("nicht erreichbar")))
+    profil = _profil(tmp_path, [_tag("gesendet", None, fassung="")])
+    bericht = _stand(profilordner=profil)
+    assert bericht.grund, "die Vorbedingung stimmt nicht: das Postfach antwortet"
+    assert any("weder UID noch Fassung" in z for z in entwurfsbuch.zeilen(bericht))

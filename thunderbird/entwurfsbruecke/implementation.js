@@ -15,9 +15,10 @@
  * „entwurf_oeffnen“, „fenster“ und „protokoll“. „fenster“ meldet je offenem
  * Verfassen-Fenster, was es jetzt hinausschicken würde (ADR 0056). Dem
  * Hintergrund (background.js) gibt sie vier Dinge, die eine MailExtension
- * allein nicht kann: einen Eintrag ins Tagebuch im Profilordner schreiben, die
- * Fassungen gesendeter Mails daraus lesen, die UID eines Entwurfs nennen und
- * vor dem Senden nachfragen (ADR 0055). Anhalten kann sie das Senden, auslösen nie.
+ * allein nicht kann: einen Eintrag ins Tagebuch im Profilordner schreiben,
+ * einen Auszug daraus lesen, die UID eines Entwurfs über zwei Wege nennen
+ * (ADR 0060) und vor dem Senden nachfragen (ADR 0055). Anhalten kann sie das
+ * Senden, auslösen nie.
  */
 "use strict";
 
@@ -77,8 +78,8 @@ const PROTOKOLL_MAX = 60;
 // So viel Text je Fenster meldet `fenster`. Eine Mail, die länger ist, wird
 // gekürzt gemeldet (`text_gekuerzt`), nicht gar nicht.
 const MAX_TEXT = 20000;
-// So weit zurück liest `fassungen` das Tagebuch, wie die Sperre zurücksieht.
-const FASSUNGEN_TAGE = 14;
+// So weit zurück liest `tagebuchauszug` das Tagebuch, wie die Sperre zurücksieht.
+const AUSZUG_TAGE = 14;
 // Liegt im Profilordner, damit `falzmarke status` es auch bei geschlossenem
 // Thunderbird lesen kann. Eine Zeile JSON je Ereignis.
 const TAGEBUCH_DATEI = "entwurfsbruecke-tagebuch.jsonl";
@@ -655,11 +656,24 @@ function insTagebuch(version, eintrag) {
   );
 }
 
-// Message-ID und Fassung jeder Mail, die laut Tagebuch in den letzten 14 Tagen
-// hinausging (#407). Thunderbird übernimmt `X-Falzmarke-Fassung` beim Senden
-// nicht in die gesendete Mail (gemessen 25.10.2026); das Tagebuch kennt sie
-// noch aus dem Entwurf. Fehlt das Tagebuch, ist die Liste leer.
-async function fassungen() {
+// Die Zeilen des Tagebuchs aus den letzten 14 Tagen, beschnitten auf die
+// Felder, mit denen der Hintergrund arbeitet. Zwei Dinge liest er daraus:
+//
+// * **Message-ID → Fassung** (#407, ADR 0056). Thunderbird übernimmt
+//   `X-Falzmarke-Fassung` beim Senden nicht in die gesendete Mail (gemessen
+//   25.10.2026); das Tagebuch kennt sie noch aus dem Entwurf.
+// * **die Kette `gespeichert` → `neu_uid`** (ADR 0060). Über sie kommt die
+//   Fassung eines Entwurfs zurück, den Thunderbird selbst gespeichert hat —
+//   beim Speichern fällt die Kopfzeile weg (#420).
+//
+// Die **Form bleibt die des Tagebuchs**. Das ist der Punkt: `vergleich.js`
+// und `entwurfsbuch.py` bilden die Kette aus derselben Struktur, und
+// `tests/test_vergleich_js.py` gibt beiden dieselben Zeilen. Betreff und
+// Empfänger bleiben draußen; der Hintergrund braucht sie nicht.
+//
+// Fehlt das Tagebuch, ist die Liste leer — das ist kein Fehler, nur nichts
+// zu wissen.
+async function tagebuchauszug() {
   const pfad = PathUtils.join(PathUtils.profileDir, TAGEBUCH_DATEI);
   let inhalt = "";
   try {
@@ -667,7 +681,7 @@ async function fassungen() {
   } catch (e) {
     return [];
   }
-  const grenze = Date.now() - FASSUNGEN_TAGE * 24 * 60 * 60 * 1000;
+  const grenze = Date.now() - AUSZUG_TAGE * 24 * 60 * 60 * 1000;
   const aus = [];
   for (const zeile of inhalt.split("\n")) {
     let eintrag;
@@ -676,27 +690,92 @@ async function fassungen() {
     } catch (e) {
       continue; // eine halb geschriebene letzte Zeile
     }
-    const fassung = eintrag?.ursprung?.fassung;
-    if (eintrag?.art !== "gesendet" || !eintrag.message_id || !fassung) {
+    if (!eintrag || !(Date.parse(eintrag.zeit) >= grenze)) {
       continue;
     }
-    if (!(Date.parse(eintrag.zeit) >= grenze)) {
-      continue;
-    }
-    aus.push({ message_id: String(eintrag.message_id), fassung: String(fassung) });
+    const ursprung = eintrag.ursprung;
+    aus.push({
+      art: String(eintrag.art || ""),
+      zeit: String(eintrag.zeit || ""),
+      message_id: eintrag.message_id ? String(eintrag.message_id) : "",
+      neu_uid: Array.isArray(eintrag.neu_uid) ? eintrag.neu_uid.slice() : null,
+      ursprung:
+        ursprung && typeof ursprung === "object"
+          ? {
+              konto: String(ursprung.konto || ""),
+              uid: ursprung.uid === undefined ? null : ursprung.uid,
+              fassung: String(ursprung.fassung || ""),
+            }
+          : null,
+    });
   }
   return aus;
 }
 
-// Die UID eines Entwurfs auf dem IMAP-Server: Bei IMAP-Ordnern ist der
-// messageKey die UID. Ohne Kopf gibt es keine.
-function kennung(context, nachrichtId) {
+// Die UID eines Entwurfs auf dem IMAP-Server, über zwei Wege (ADR 0060).
+//
+// **Weg 1, der Kopf der Nachricht:** Bei IMAP-Ordnern ist der `messageKey` die
+// UID (ADR 0055, gemessen 25.10.2026). **Weg 2, das Fenster:** die `draftId`
+// des Verfassen-Fensters, dieselbe Adresse, über die `falzmarke status` ein
+// offenes Fenster schon heute einem Entwurf zuordnet
+// (`entwurfsbuch._offene_uids`, dasselbe Muster).
+//
+// **Gemessen werden immer beide, und beide stehen im Tagebuch.** Am 26.10.2026
+// trug genau ein Fensterpaar `uid: null`, bei 117 mit UID (#420) — ein Lauf,
+// der diesen Fall nicht auslöst, würde über Weg 2 nichts belegen. Stehen beide
+// Zahlen da, belegt jedes gewöhnliche Öffnen, dass sie dieselbe ist.
+//
+// `grund` nennt den Ausfall in einem Wort. Er bleibt leer, wenn Weg 1 getragen
+// hat: Dass Weg 2 bei `gespeichert` ohne Fenster nichts liefert, ist kein
+// Befund, und `uid_draft_id` sagt es ohnehin.
+const UID_AUS_URI = /#(\d+)$/;
+
+function uidAusKopf(context, nachrichtId) {
+  if (!nachrichtId) {
+    return { uid: null, grund: "kein_related" };
+  }
   try {
     const kopf = context.extension.messageManager.get(nachrichtId);
-    return kopf ? kopf.messageKey : null;
+    return kopf ? { uid: kopf.messageKey, grund: "" } : { uid: null, grund: "kennung_null" };
   } catch (e) {
-    return null;
+    return { uid: null, grund: "kennung_wurf" };
   }
+}
+
+function uidAusFenster(context, tabId) {
+  if (tabId === null || tabId === undefined) {
+    return { uid: null, grund: "kein_fenster" };
+  }
+  let fenster = null;
+  try {
+    fenster = context.extension.tabManager.get(tabId).nativeTab;
+  } catch (e) {
+    fenster = null;
+  }
+  if (!fenster) {
+    return { uid: null, grund: "kein_fenster" };
+  }
+  const adresse = ohneAnfrage(fenster.gMsgCompose?.compFields?.draftId || "");
+  if (!adresse) {
+    return { uid: null, grund: "kein_draft_id" };
+  }
+  const treffer = UID_AUS_URI.exec(adresse);
+  return treffer
+    ? { uid: Number(treffer[1]), grund: "" }
+    : { uid: null, grund: "draft_id_ohne_uid" };
+}
+
+function entwurfskennung(context, nachrichtId, tabId) {
+  const kopf = uidAusKopf(context, nachrichtId);
+  const fenster = uidAusFenster(context, tabId);
+  const quelle = kopf.uid !== null ? "kennung" : fenster.uid !== null ? "draft_id" : "";
+  return {
+    uid: kopf.uid !== null ? kopf.uid : fenster.uid,
+    quelle,
+    grund: quelle === "kennung" ? "" : [kopf.grund, fenster.grund].filter(Boolean).join(" · "),
+    uid_kennung: kopf.uid,
+    uid_draft_id: fenster.uid,
+  };
 }
 
 // Fragt vor dem Senden nach. Knopf 1 („Nicht senden“) ist vorgewählt, und
@@ -749,14 +828,14 @@ var entwurfsbruecke = class extends ExtensionCommon.ExtensionAPI {
         async tagebuch(eintrag) {
           return insTagebuch(version, eintrag);
         },
-        async kennung(nachrichtId) {
-          return kennung(context, nachrichtId);
+        async entwurfskennung(nachrichtId, tabId) {
+          return entwurfskennung(context, nachrichtId, tabId);
         },
         async fragen(tabId, titel, text) {
           return fragen(context, tabId, titel, text);
         },
-        async fassungen() {
-          return fassungen();
+        async tagebuchauszug() {
+          return tagebuchauszug();
         },
       },
     };

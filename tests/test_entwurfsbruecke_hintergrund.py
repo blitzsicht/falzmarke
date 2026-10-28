@@ -44,21 +44,54 @@ const hoerer = {};
 const tagebuch = [];
 const fragen = [];
 const abfragen = [];
+let rufe = 0;
 const ereignis = (name) => ({ addListener(f) { hoerer[name] = f; } });
 const gesendet = fall.gesendet.map((m, i) => ({ id: 1000 + i, ...m, date: new Date(m.date) }));
 globalThis.browser = {
   entwurfsbruecke: {
     starten: async () => ({ laeuft: true }),
     tagebuch: async (e) => { tagebuch.push(JSON.parse(JSON.stringify(e))); return true; },
-    kennung: async (id) => (fall.kennung && id in fall.kennung ? fall.kennung[id] : null),
+    // Zwei Wege zur UID (ADR 0060): `fall.kennung` ist der Kopf der Nachricht,
+    // `fall.draft_id` die draftId des Fensters. Welcher Grund dabei fällt,
+    // entscheidet in Thunderbird die chrome-Seite; hier steht nur, was
+    // `background.js` davon sieht.
+    entwurfskennung: async (id, tabId) => {
+      if (fall.kennung_wirft) { throw new Error("kein Kopf"); }
+      // `stumm_bis` stellt ein Fenster nach, das beim Öffnen noch nichts
+      // hergibt und vor dem Senden schon: Bis zum n-ten Aufruf schweigen
+      // beide Wege.
+      rufe += 1;
+      if (fall.stumm_bis && rufe < fall.stumm_bis) {
+        return { uid: null, quelle: "", grund: "kein_draft_id",
+          uid_kennung: null, uid_draft_id: null };
+      }
+      const kopf = fall.kennung && id in fall.kennung ? fall.kennung[id] : null;
+      const fenster = fall.draft_id && tabId in fall.draft_id ? fall.draft_id[tabId] : null;
+      const quelle = kopf !== null ? "kennung" : fenster !== null ? "draft_id" : "";
+      const gruende = [];
+      if (kopf === null) { gruende.push(id ? "kennung_null" : "kein_related"); }
+      if (fenster === null) {
+        gruende.push(tabId === null || tabId === undefined ? "kein_fenster" : "kein_draft_id");
+      }
+      return { uid: kopf !== null ? kopf : fenster, quelle,
+        grund: quelle === "kennung" ? "" : gruende.join(" · "),
+        uid_kennung: kopf, uid_draft_id: fenster };
+    },
     fragen: async (tabId, titel, text) => {
       fragen.push({ tabId, titel, text });
       if (fall.fragen_wirft) { throw new Error("kein Fenster"); }
       return fall.trotzdem;
     },
-    fassungen: async () => {
-      if (fall.fassungen_wirft) { throw new Error("Tagebuch nicht lesbar"); }
-      return fall.fassungen || [];
+    // Der Auszug trägt die Form des Tagebuchs. `fall.fassungen` ist die
+    // Kurzform für gesendete Mails, `fall.auszug` sind Zeilen im Original —
+    // die Kette (`gespeichert` → `neu_uid`) braucht sie so.
+    tagebuchauszug: async () => {
+      if (fall.auszug_wirft) { throw new Error("Tagebuch nicht lesbar"); }
+      const kurz = (fall.fassungen || []).map((f) => ({
+        art: "gesendet", zeit: new Date().toISOString(), message_id: f.message_id,
+        neu_uid: null,
+        ursprung: { konto: "order@example.de", uid: null, fassung: f.fassung } }));
+      return [...kurz, ...(fall.auszug || [])];
     },
   },
   compose: {
@@ -213,9 +246,15 @@ def test_derselbe_text_an_denselben_empfaenger_haelt_an():
     assert _arten(aus) == ["geoeffnet", "gesperrt", "geschlossen"]
     gesperrt = aus["tagebuch"][1]
     assert gesperrt["grund"] == "gleicher_text" and gesperrt["an"] == ["erika@example.com"]
+    # Der ganze Ursprung, Feld für Feld: Beide Wege zur UID stehen drin, auch der,
+    # der nichts lieferte (ADR 0060). `uid_draft_id` ist None, weil das Fenster der
+    # Attrappe keine draftId hat — eine Angabe, die die Fassungen bis 0.3.6 gar
+    # nicht machen konnten.
     assert gesperrt["ursprung"] == {"typ": "draft", "konto": "order@example.de",
                                     "betreff": "Auftrag S1", "uid": 219249,
-                                    "fassung": "abc123def456"}
+                                    "fassung": "abc123def456", "uid_quelle": "kennung",
+                                    "uid_grund": "", "uid_kennung": 219249,
+                                    "uid_draft_id": None, "fassung_quelle": "kopf"}
 
 
 def test_trotzdem_senden_laesst_hinaus_und_steht_im_tagebuch():
@@ -291,7 +330,7 @@ def test_gegenprobe_ohne_tagebuchtreffer_kein_gleicher_text():
 
 
 def test_ist_das_tagebuch_nicht_lesbar_prueft_die_sperre_ueber_den_text():
-    aus = _lauf(_fall(_gesendet(), fassungen_wirft=True))
+    aus = _lauf(_fall(_gesendet(), auszug_wirft=True))
     assert aus["ergebnis"] == {"cancel": True}
     assert "pruefung_fehlgeschlagen" not in _arten(aus)
 
@@ -568,7 +607,7 @@ def test_die_sitzung_wird_vor_dem_gesendet_ordner_gefragt():
     Fenster fragt das Postfach gar nicht mehr — und hielte auch an, wenn es
     dort keinen Ordner „Gesendet“ gäbe und das Tagebuch schwiege."""
     aus = _lauf(_fall(nach_senden=RAUS, zweites=_zweites(),
-                      ohne_gesendet=True, fassungen_wirft=True))
+                      ohne_gesendet=True, auszug_wirft=True))
     assert aus["zweites"] == {"cancel": True}
     assert aus["abfragen"] == [], "ohne Ordner kommt keine Abfrage zustande"
     # Die ganze Kette: Dem ersten Fenster scheitert die Prüfung am fehlenden
@@ -638,7 +677,7 @@ def test_gegenprobe_ohne_die_sitzungsrunde_geht_die_zweite_mail_hinaus(tmp_path)
     Fall wieder der aus #413 — zwei gleiche Mails, keine Rückfrage."""
     quelle = HINTERGRUND.read_text(encoding="utf-8")
     anfang = "  for (const frueher of hinaus) {"
-    ende = "  const bekannt = await fassungenAusTagebuch();"
+    ende = "  const bekannt = fassungenAus(await auszug());"
     assert quelle.count(anfang) == 1 and quelle.count(ende) == 1
     schnitt = quelle[quelle.index(anfang):quelle.index(ende)]
     assert "V.vergleiche(eigen, frueher.merkmale)" in schnitt, "der Schnitt trifft die Runde nicht"
@@ -666,3 +705,195 @@ def test_die_blindkopie_der_ersten_sendung_zaehlt_in_der_sitzung_mit():
     assert aus["ergebnis"] == {}, "die erste Mail geht hinaus, es gibt nichts zu finden"
     assert aus["zweites"] == {"cancel": True}
     assert [e["an"] for e in aus["tagebuch"] if e["art"] == "gesperrt"] == [["udo@example.net"]]
+
+
+# ── Der Anker der Zuordnung (#420, ADR 0060) ────────────────────────────────
+#
+# ANLASS: Ein von Thunderbird selbst gespeicherter Entwurf kam beim Öffnen ohne
+# UID und ohne Fassung ins Tagebuch. Damit hing die Versandzeile an keinem
+# Eintrag im Entwurfsbuch — `status` zeigte die Mail ohne „Ging an …“ und ohne
+# BELEGT. Gemessen am 26.10.2026 an einem von 118 Fensterpaaren; weil der Fall
+# selten ist, messen die Fassungen ab 0.3.7 **beide** Wege bei jedem Öffnen.
+
+FASSUNG = "abc123def456"
+
+
+def _ohne_kopfzeile(fall: dict) -> dict:
+    """Wie ein Entwurf, den Thunderbird gespeichert hat: `X-Falzmarke-Fassung`
+    ist beim Speichern weggefallen."""
+    fall["entwurf_voll"] = {"contentType": "text/plain", "body": TEXT, "headers": {}}
+    return fall
+
+
+def _gespeichert_unter(alt, neu, *, konto="order@example.de", fassung=FASSUNG) -> dict:
+    """Eine Zeile `gespeichert` im Tagebuch: der Entwurf `alt` liegt jetzt unter `neu`."""
+    return {"art": "gespeichert", "zeit": JETZT.isoformat(), "message_id": "",
+            "neu_uid": [neu], "ursprung": {"konto": konto, "uid": alt, "fassung": fassung}}
+
+
+def _ursprung_von(aus, art="geoeffnet") -> dict:
+    return next(e["ursprung"] for e in aus["tagebuch"] if e["art"] == art)
+
+
+def test_schweigt_der_kopf_kommt_die_uid_aus_dem_fenster():
+    aus = _lauf(_fall(ohne_senden=True, kennung={}, draft_id={"7": 1214}))
+    ursprung = _ursprung_von(aus)
+    assert (ursprung["uid"], ursprung["uid_quelle"]) == (1214, "draft_id")
+    assert ursprung["uid_grund"] == "kennung_null"
+    assert (ursprung["uid_kennung"], ursprung["uid_draft_id"]) == (None, 1214)
+
+
+def test_beide_wege_stehen_auch_dann_im_tagebuch_wenn_der_erste_traegt():
+    """Der Fall aus #420 trat in 258 Zeilen einmal auf. Stünde nur der Weg da,
+    der getragen hat, belegte ein gewöhnlicher Lauf über den zweiten nichts."""
+    aus = _lauf(_fall(ohne_senden=True, draft_id={"7": 219249}))
+    ursprung = _ursprung_von(aus)
+    assert (ursprung["uid"], ursprung["uid_quelle"]) == (219249, "kennung")
+    assert (ursprung["uid_kennung"], ursprung["uid_draft_id"]) == (219249, 219249)
+    assert ursprung["uid_grund"] == "", "Weg 1 hat getragen, es gibt nichts zu melden"
+
+
+def test_gegenprobe_ohne_beide_wege_bleibt_die_uid_leer_und_die_mail_geht_hinaus():
+    """Der Zustand aus #420, jetzt mit Grund. Und das Wichtigere: Eine Diagnose,
+    die nichts findet, hält niemanden auf (ADR 0055, Punkt 5)."""
+    aus = _lauf(_fall(kennung={}, nach_senden=RAUS))
+    ursprung = _ursprung_von(aus)
+    assert ursprung["uid"] is None and ursprung["uid_quelle"] == ""
+    assert ursprung["uid_grund"] == "kennung_null · kein_draft_id"
+    assert aus["ergebnis"] == {} and aus["fragen"] == []
+
+
+def test_fehlt_die_related_id_steht_das_als_grund_da():
+    """Die erste offene Frage aus #420 war, ob `relatedMessageId` überhaupt
+    gesetzt ist. Künftig steht die Antwort im Tagebuch statt in einer Vermutung."""
+    fall = _fall(ohne_senden=True, kennung={}, draft_id={"7": 1214})
+    fall["details"]["relatedMessageId"] = None
+    assert _ursprung_von(_lauf(fall))["uid_grund"] == "kein_related"
+
+
+def test_die_uid_wird_vor_dem_senden_nachgeholt():
+    """Gibt das Fenster beim Öffnen noch nichts her, zählt der Eintrag
+    `gesendet`: Über ihn ordnet `status` die Mail ihrem Entwurf zu."""
+    aus = _lauf(_fall(stumm_bis=2, nach_senden=RAUS))
+    assert _ursprung_von(aus, "geoeffnet")["uid"] is None
+    nachgeholt = _ursprung_von(aus, "gesendet")
+    assert (nachgeholt["uid"], nachgeholt["uid_quelle"]) == (219249, "kennung")
+
+
+def test_gegenprobe_ohne_den_zweiten_anlauf_bleibt_der_eintrag_gesendet_leer(tmp_path):
+    """Die Sabotage muss genau diese Probe treffen und keine andere."""
+    quelle = HINTERGRUND.read_text(encoding="utf-8")
+    alt = "      await ankern(stand.ursprung, tab.id, details.relatedMessageId);"
+    assert quelle.count(alt) == 1
+    kaputt = tmp_path / "background.js"
+    kaputt.write_text(quelle.replace(alt, ""), encoding="utf-8")
+    aus = _lauf(_fall(stumm_bis=2, nach_senden=RAUS), kaputt)
+    assert _ursprung_von(aus, "gesendet")["uid"] is None, (
+        "ohne den zweiten Anlauf müsste der Eintrag `gesendet` ohne UID bleiben")
+
+
+def test_die_fassung_kommt_aus_der_kette():
+    """Thunderbird wirft `X-Falzmarke-Fassung` beim Speichern weg. Die Kette
+    `gespeichert` → `neu_uid` führt zurück auf den Entwurf, den falzmarke
+    angelegt hat — dort steht sie noch (#420)."""
+    aus = _lauf(_ohne_kopfzeile(_fall(ohne_senden=True,
+                                      auszug=[_gespeichert_unter(150, 219249)])))
+    ursprung = _ursprung_von(aus)
+    assert (ursprung["fassung"], ursprung["fassung_quelle"]) == (FASSUNG, "kette")
+
+
+def test_am_geraet_gemessen_zeigt_kennung_aufs_buch_und_draft_id_auf_die_lebende():
+    """Gerätelauf 28.10.2026: Nach zwei Speicherungen lebte im Postfach nur noch
+    UID 1220, das Entwurfsbuch kannte 1218, und die Kette verband beide. Die zwei
+    Wege tragen also **nicht** dieselbe Zahl, sobald Thunderbird neu angelegt hat
+    — und der Vorrang auf `kennung` ist genau darum richtig: Er trifft die UID,
+    unter der falzmarke ablegte, also den Eintrag, an dem `status` die Zeile
+    aufhängt. Hier nachgestellt mit 219249 (Buch) gegen 219270 (lebend).
+
+    GRENZE: Den Vorrang entscheidet `entwurfskennung` in `implementation.js`, und
+    die Attrappe baut ihn nach — dieser Test deckt also, dass `ankern` die Felder
+    unverfälscht ins Tagebuch trägt und die Kette greift, nicht den Vorrang selbst.
+    Der ist allein am Gerät belegt (28.10.2026, UID 1218/1220); im Chrome-Kontext
+    kann kein Test der Suite laufen (wie ADR 0059, Punkt 3 für den Transport)."""
+    aus = _lauf(_ohne_kopfzeile(_fall(ohne_senden=True, draft_id={"7": 219270},
+                                      auszug=[_gespeichert_unter(219249, 219270)])))
+    ursprung = _ursprung_von(aus)
+    assert ursprung["uid_kennung"] != ursprung["uid_draft_id"], "sonst prüft der Fall nichts"
+    assert (ursprung["uid"], ursprung["uid_quelle"]) == (219249, "kennung")
+    assert (ursprung["uid_kennung"], ursprung["uid_draft_id"]) == (219249, 219270)
+    assert ursprung["fassung_quelle"] == "kette", "die Kopfzeile ist beim Speichern weg"
+
+
+def test_die_kette_traegt_auch_ueber_zwei_speicherungen():
+    aus = _lauf(_ohne_kopfzeile(_fall(ohne_senden=True, auszug=[
+        _gespeichert_unter(150, 160),
+        _gespeichert_unter(160, 219249, fassung=""),
+    ])))
+    assert _ursprung_von(aus)["fassung"] == FASSUNG
+
+
+def test_gegenprobe_die_kette_eines_anderen_kontos_zaehlt_nicht():
+    """Eine UID gilt je Ordner: Ohne den Konto-Filter käme die Fassung aus einem
+    fremden Entwurf, und die Sperre verglich zwei Mails, die nichts verbindet."""
+    aus = _lauf(_ohne_kopfzeile(_fall(
+        ohne_senden=True,
+        auszug=[_gespeichert_unter(150, 219249, konto="fremd@example.de")])))
+    ursprung = _ursprung_von(aus)
+    assert (ursprung["fassung"], ursprung["fassung_quelle"]) == ("", "")
+
+
+def test_gegenprobe_dieselbe_uid_unter_fremdem_konto_zaehlt_nicht():
+    """Der Fall, den die Kette allein nicht abfängt: Die fremde Zeile trägt
+    **dieselbe** UID wie unser Entwurf — das Startglied prüft `V.kette` nicht,
+    es ist ja die Frage. Ohne den Konto-Filter beim Nachschlagen käme hier die
+    Fassung eines fremden Postfachs heraus, und die Sperre verglich zwei Mails,
+    die nichts verbindet."""
+    aus = _lauf(_ohne_kopfzeile(_fall(ohne_senden=True, auszug=[
+        {"art": "geoeffnet", "zeit": JETZT.isoformat(), "message_id": "", "neu_uid": None,
+         "ursprung": {"konto": "fremd@example.de", "uid": 219249, "fassung": "fremde000000"}},
+    ])))
+    ursprung = _ursprung_von(aus)
+    assert (ursprung["fassung"], ursprung["fassung_quelle"]) == ("", "")
+
+
+def test_gegenprobe_die_kopfzeile_geht_vor():
+    """Liegt die Kopfzeile vor, wird das Tagebuch nicht gebraucht — und die
+    Herkunft steht trotzdem da."""
+    aus = _lauf(_fall(ohne_senden=True, auszug=[_gespeichert_unter(150, 219249,
+                                                                  fassung="fremde000000")]))
+    ursprung = _ursprung_von(aus)
+    assert (ursprung["fassung"], ursprung["fassung_quelle"]) == (FASSUNG, "kopf")
+
+
+# Die Mail aus dem Fenster und die gesendete teilen weder Text noch Betreff;
+# allein die Fassung verbindet sie. Ohne die Kette fragt die Sperre dort nicht.
+ANDERER_BETREFF = "Ganz andere Sache"
+
+
+def _nur_ueber_die_fassung(**mehr) -> dict:
+    return _ohne_kopfzeile(_fall(
+        _gesendet(text=GEAENDERT, betreff=ANDERER_BETREFF, vor=timedelta(days=3)),
+        fassungen=[{"message_id": "m1@example.de", "fassung": FASSUNG}], **mehr))
+
+
+def test_die_sperre_greift_ueber_die_fassung_aus_der_kette():
+    aus = _lauf(_nur_ueber_die_fassung(auszug=[_gespeichert_unter(150, 219249)]))
+    assert aus["ergebnis"] == {"cancel": True}
+    assert aus["tagebuch"][1]["grund"] == "gleicher_text"
+
+
+def test_gegenprobe_ohne_die_kette_fragt_die_sperre_dort_nicht():
+    aus = _lauf(_nur_ueber_die_fassung())
+    assert aus["ergebnis"] == {} and aus["fragen"] == []
+
+
+def test_gespeichert_nimmt_das_fenster_nur_bei_einer_nachricht():
+    """Die `draftId` des Fensters zeigt auf genau einen Entwurf. Bei mehreren
+    gespeicherten Nachrichten wäre nicht zu sagen, auf welchen — dann bleibt
+    nur der Kopf."""
+    fall = _fall(ohne_senden=True, kennung={},
+                 draft_id={"7": 1214},
+                 speichern={"mode": "draft", "messages": [{"id": 77}, {"id": 78}]})
+    gespeichert = next(e for e in _lauf(fall)["tagebuch"] if e["art"] == "gespeichert")
+    assert gespeichert["neu_uid"] == [None, None], (
+        "ohne Kopf und ohne eindeutiges Fenster gibt es keine neue UID")

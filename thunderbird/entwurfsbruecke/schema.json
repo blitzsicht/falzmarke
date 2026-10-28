@@ -23,17 +23,20 @@
         ]
       },
       {
-        "name": "kennung",
+        "name": "entwurfskennung",
         "type": "function",
         "async": true,
-        "description": "Die UID einer Nachricht auf dem IMAP-Server, sonst null.",
-        "parameters": [{ "name": "nachrichtId", "type": "integer" }]
+        "description": "Die UID eines Entwurfs auf dem IMAP-Server über zwei Wege (Kopf der Nachricht, draftId des Fensters) samt Quelle und Grund. Beide Wege werden immer gemessen.",
+        "parameters": [
+          { "name": "nachrichtId", "type": "integer", "optional": true },
+          { "name": "tabId", "type": "integer", "optional": true }
+        ]
       },
       {
-        "name": "fassungen",
+        "name": "tagebuchauszug",
         "type": "function",
         "async": true,
-        "description": "Message-ID und Fassung der Mails, die laut Tagebuch in den letzten 14 Tagen hinausgingen.",
+        "description": "Die Zeilen des Tagebuchs aus den letzten 14 Tagen, beschnitten auf Art, Zeit, Message-ID, neu_uid und Ursprung. Ohne Betreff und ohne Empfänger.",
         "parameters": []
       },
       {

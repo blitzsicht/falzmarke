@@ -389,9 +389,27 @@ def test_gegenprobe_ein_zweites_experiment_faellt_auf():
 
 
 def test_das_experiment_bietet_genau_fuenf_funktionen():
+    """Die Positivliste. Sie ist der Grund, warum eine neue Fähigkeit auffällt:
+    `entwurfskennung` ersetzt `kennung` (zweiter Weg zur UID, ADR 0060),
+    `tagebuchauszug` ersetzt `fassungen` (dieselbe Datei, mehr Felder, kein
+    Betreff und keine Empfänger). Die Zahl bleibt fünf — das Add-on kann nach
+    #420 nicht mehr als vorher, es nennt nur, was es weiß.
+    """
     (schema,) = json.loads((ADDON / "schema.json").read_text(encoding="utf-8"))
-    assert {f["name"] for f in schema["functions"]} == {"starten", "tagebuch", "kennung",
-                                                         "fragen", "fassungen"}
+    assert {f["name"] for f in schema["functions"]} == {"starten", "tagebuch", "entwurfskennung",
+                                                         "fragen", "tagebuchauszug"}
+
+
+def test_die_uid_wird_auf_beiden_seiten_gleich_aus_der_adresse_gelesen():
+    """Weg 2 zur UID liest sie aus `compFields.draftId`, `falzmarke status` aus
+    demselben Wert in der Antwort von `fenster` (`entwurfsbuch._offene_uids`).
+    Laufen die zwei Muster auseinander, ordnet die eine Seite zu, wo die andere
+    nichts findet — und das fiele erst am Gerät auf.
+    """
+    from falzmarke import entwurfsbuch
+
+    assert entwurfsbuch.UID_AUS_URI.pattern == r"#(\d+)$"
+    assert f"const UID_AUS_URI = /{entwurfsbuch.UID_AUS_URI.pattern}/;" in QUELLTEXT
 
 
 def _packer():

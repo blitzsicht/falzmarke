@@ -258,6 +258,56 @@
     return "frei";
   }
 
+  // Die UID und alle, unter denen Thunderbird denselben Entwurf neu gespeichert
+  // hat — der Zwilling zu `entwurfsbuch._kette()` (ADR 0055). Speichern legt
+  // einen neuen Entwurf mit neuer UID an; `gespeichert` trägt die alte im
+  // Ursprung und die neue in `neu_uid`. Gilt in beide Richtungen.
+  //
+  // Der Konto-Filter ist keine Kosmetik: Eine UID gilt je Ordner. Ohne ihn
+  // kettete UID 150 von einem Konto an UID 150 von einem anderen, und die
+  // Fassung käme aus einem fremden Entwurf. Das Konto kommt klein herein, wie
+  // `abgleich()` es übergibt; verglichen wird mit dem kleingeschriebenen Wert
+  // des Eintrags.
+  function ursprungVon(eintrag, konto) {
+    const ursprung = eintrag && eintrag.ursprung;
+    if (!ursprung || typeof ursprung !== "object") {
+      return null;
+    }
+    return String(ursprung.konto || "").toLowerCase() === konto ? ursprung : null;
+  }
+
+  function kette(eintraege, konto, uid) {
+    const gefunden = new Set([String(uid)]);
+    let gewachsen = true;
+    while (gewachsen) {
+      gewachsen = false;
+      for (const eintrag of eintraege || []) {
+        const ursprung = ursprungVon(eintrag, konto);
+        const neu = eintrag && eintrag.neu_uid;
+        if (eintrag.art !== "gespeichert" || ursprung === null || !Array.isArray(neu)) {
+          continue;
+        }
+        const glieder = new Set([String(ursprung.uid === null || ursprung.uid === undefined
+          ? "" : ursprung.uid)]);
+        for (const n of neu) {
+          if (n !== null && n !== undefined) {
+            glieder.add(String(n));
+          }
+        }
+        glieder.delete("");
+        const schnittmenge = [...glieder].some((g) => gefunden.has(g));
+        const enthalten = [...glieder].every((g) => gefunden.has(g));
+        if (schnittmenge && !enthalten) {
+          for (const g of glieder) {
+            gefunden.add(g);
+          }
+          gewachsen = true;
+        }
+      }
+    }
+    return gefunden;
+  }
+
   // Eine Message-ID ohne spitze Klammern und Leerraum. Das Tagebuch schreibt
   // sie ohne Klammern (`headerMessageId`), die Kopfzeile trägt sie mit.
   function kennung(wert) {
@@ -265,7 +315,7 @@
   }
 
   const api = { KERN_MIN, ANFANG_MIN, nurZeichen, betreffKern, klartextAusHtml, schnitt, voll,
-    adressen, merkmale, gleicherText, vergleiche, kennung };
+    adressen, merkmale, gleicherText, vergleiche, kennung, kette };
   if (typeof module !== "undefined" && module.exports) {
     module.exports = api;
   } else {
