@@ -1105,6 +1105,19 @@ def _gleicher_entwurf(kopf, felder: Mapping) -> bool:
             == gesendet.betreff_kern(str(felder.get("betreff") or "")))
 
 
+def _ungewiss_ins_buch(adresse: str, ordner: str, felder, grund: str, umgebung) -> str:
+    """Hält einen ungewissen Lauf im Entwurfsbuch fest. Rückgabe: leer, sonst der Grund.
+
+    Nach dem Abriss gibt es keine UID — die Zeile trägt deshalb keine. Was sie
+    trägt, ist der Text: Liegt der Entwurf doch im Postfach und verschwindet
+    später aus „Entwürfe“, ist er sonst nirgends mehr zu finden (ADR 0055, #411).
+    """
+    from falzmarke import entwurfsbuch
+
+    return entwurfsbuch.eintragen_ungewiss(adresse, ordner, felder, grund=grund,
+                                           umgebung=umgebung)
+
+
 def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
                       profilordner: Path | None, noch_ein_entwurf: bool,
                       ) -> tuple["Entwurfslage | None", str]:
@@ -1154,13 +1167,17 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
             sitzung.ablegen(ordner, bytes(roh))
             nachher = [k for k in sitzung.koepfe(ordner) if _gleicher_entwurf(k, felder)]
         except postfach.PostfachFehler as fehler:
-            return Entwurfslage(None, f"Ablegen im Postfach abgebrochen ({fehler}) — ob der "
-                                      f"Entwurf in „{anzeige}“ angekommen ist, ist offen",
-                                ungewiss=True), ""
+            grund = (f"Ablegen im Postfach abgebrochen ({fehler}) — ob der "
+                     f"Entwurf in „{anzeige}“ angekommen ist, ist offen")
+            return Entwurfslage(None, grund, ungewiss=True,
+                                buch_grund=_ungewiss_ins_buch(adresse, anzeige, felder,
+                                                              grund, umgebung)), ""
     if len(nachher) != len(vorher) + 1:
-        return Entwurfslage(None, f"der Server nahm den Entwurf an, aber in „{anzeige}“ "
-                                  f"liegen danach {len(nachher)} passende statt "
-                                  f"{len(vorher) + 1}", ungewiss=True), ""
+        grund = (f"der Server nahm den Entwurf an, aber in „{anzeige}“ "
+                 f"liegen danach {len(nachher)} passende statt {len(vorher) + 1}")
+        return Entwurfslage(None, grund, ungewiss=True,
+                            buch_grund=_ungewiss_ins_buch(adresse, anzeige, felder,
+                                                          grund, umgebung)), ""
     alte = {k.uid for k in vorher}
     neu = max((k for k in nachher if k.uid not in alte), key=lambda k: int(k.uid))
     soll_bezug = str(felder.get("antwort_auf") or "").strip()

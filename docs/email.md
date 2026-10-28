@@ -280,7 +280,14 @@ GESENDET     24.10. 16:40  „Angebot“ → kunde@example.org · 24.10. 16:52, 
 | `ERSETZT` | ein neuerer Entwurf mit demselben Betreff liegt an seiner Stelle |
 | `GELÖSCHT` / `VERSCHWUNDEN` | liegt im Papierkorb, also weggeworfen, nicht gesendet / nirgends, die Zeile nennt, wo gesucht wurde |
 | `HINWEIS  … — nur einen senden` | zwei gleiche Entwürfe liegen |
-| `NICHT GEPRÜFT` (Exit 3) | Postfach nicht erreichbar, über die Entwürfe ist nichts gesagt |
+| `HINWEIS  … Zeilen im Entwurfsbuch sind unlesbar` | das Buch ist beschädigt; über diese Entwürfe sagt `status` nichts |
+| `HINWEIS  … das Ablegen blieb ungewiss` | ob der Entwurf im Postfach liegt, ist offen — nachsehen, **nicht** neu anlegen |
+| `NICHT GEPRÜFT` (Exit 3) | Postfach nicht erreichbar, über die Entwürfe ist nichts gesagt — die beiden `HINWEIS`-Zeilen darüber stehen trotzdem, sie kommen aus dem Buch |
+
+Eine Buchzeile kommt ganz oder nicht an, und der Mailtext wird über 32 KiB gekappt; dann sagt die
+Zeile „Text im Buch gekappt — verglichen ist nur sein Anfang“ statt „Text geändert“. Was sich
+nicht lesen lässt, wird gezählt und genannt, statt die Zahl im Kopf kleiner zu machen
+([ADR 0055](entscheidungen/0055-entwurfsbuch-status-und-sperre.md), Punkt 1).
 
 `BELEGT` steht nur, wenn Postfach und Tagebuch beide „gesendet“ sagen. Entwürfe, die nicht über
 falzmarke entstanden, zeigt `status` nur, solange sie in „Entwürfe“ liegen.

@@ -1921,6 +1921,11 @@ def befehl_email(args) -> int:
                   "         damit kein zweites Fenster aufgeht. Die geprüfte "
                   f"Nachricht liegt hier:\n         {eml_pfad}",
                   file=sys.stderr)
+            # Auch der ungewisse Lauf steht im Buch (#411) — ohne UID, mit Vermerk.
+            # Scheitert das, weiß `status` später nicht einmal, dass es diesen Lauf gab.
+            if lage.buch_grund:
+                print(f"HINWEIS  nicht im Entwurfsbuch: {lage.buch_grund} — `falzmarke "
+                      "status` nennt diesen Lauf später nicht.", file=sys.stderr)
         else:
             # Kein anderer Exit-Code: Die Datei ist geschrieben und gemessen,
             # das ist die Zusage des Befehls (ADR 0038, Punkt 4). Der Rückfall

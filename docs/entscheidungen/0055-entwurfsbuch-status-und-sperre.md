@@ -27,6 +27,45 @@ bleibt, sind Empfänger, Betreff und Text.
    Der Text steht darin, weil nur er Entwurf und gesendete Mail verbindet. `FALZMARKE_ENTWURFSBUCH`
    legt das Buch woanders hin, `=nie` schaltet es ab. Scheitert das Schreiben, liegt der Entwurf
    trotzdem; falzmarke meldet `HINWEIS  nicht im Entwurfsbuch: <Grund>`.
+
+   **Was geschrieben wird, kommt an (Nachtrag 27.10.2026, #411).** „Scheitert das Schreiben“
+   deckte den dritten Fall nicht: geschrieben und unlesbar. Drei Festlegungen dazu.
+
+   - **Eine Zeile kommt ganz oder nicht an.** Geschrieben wird mit genau einem `os.write` auf
+     einen `O_APPEND`-Deskriptor, und der Rückgabewert sagt, wie viele Bytes ankamen. Über
+     `ZEILE_MAX` (32 KiB) wird allein der Mailtext gekappt — das einzige Feld ohne natürliche
+     Grenze —, und `text_gekappt` hält seine ursprüngliche Länge fest. Ein gekappter Text belegt
+     dann kein „Text geändert“ mehr: `status` sagt, dass nur sein Anfang verglichen ist.
+   - **Das Ausdünnen läuft unter einer Sperre.** `entwuerfe.jsonl.sperre` neben dem Buch, über
+     Ausdünnen und Anhängen gehalten (`flock`, unter Windows `msvcrt.locking`). Bekommt sie
+     niemand binnen zehn Sekunden, wird ohne sie geschrieben und der Grund gemeldet — wie bei der
+     Sperre beim Senden (Punkt 5): Eine Prüfung, die hängt, darf den Menschen nicht aufhalten.
+   - **Unlesbare Zeilen werden gezählt.** Jede Zeile, aus der kein Eintrag wird — kaputtes JSON,
+     keine Zeit, kein Konto, eine UID, die keine Zahl ist —, geht in einen Zähler, und `status`
+     nennt ihn (`HINWEIS  2 Zeilen im Entwurfsbuch sind unlesbar`). Auch dann, wenn das Postfach
+     schweigt: `NICHT GEPRÜFT` und „eine Zeile ist weg“ sind zwei verschiedene Lücken.
+
+   **Der ungewisse Lauf steht im Buch.** Reißt die Verbindung hinter dem `APPEND` oder liegt
+   danach eine andere Zahl passender Entwürfe (ADR 0051), gibt es keine UID — sie ist nach dem
+   Abriss nicht zu ermitteln, und `APPENDUID` wird nicht gelesen. Die Zeile trägt deshalb keine,
+   dafür den Grund und den Text. Ohne sie wäre der Text verloren, sobald der Entwurf aus
+   „Entwürfe“ verschwindet — der Fall, für den dieses ADR angetreten ist. `status` nennt sie als
+   Hinweis, nicht als Zustand: Liegt der Entwurf doch, meldet ihn das Postfach selbst.
+
+   **Was dabei nachgemessen wurde (27.10.2026).** #411 nannte als Verlustweg den gepufferten
+   Schreibvorgang: Über ~8 KiB zerfalle er in mehrere Syscalls, die sich verschränken könnten.
+   Das trifft für diesen Pfad nicht zu — `TextIOWrapper` über `BufferedWriter` gibt eine Zeile von
+   20 KB in einem Stück weiter, auch mit etwas im Puffer davor (`tests/test_entwurfsbuch.py`,
+   `test_der_gepufferte_wrapper_war_nicht_der_verlustweg`). `os.write` bleibt der richtige Weg,
+   aber aus einem anderen Grund: ein Syscall, ein prüfbarer Rückgabewert, keine Abhängigkeit von
+   Pufferinterna. Der belegte Verlustweg ist das Ausdünnen — zwei Läufe zugleich, ohne Sperre
+   fehlt die Zeile des zweiten, mit Sperre bleiben beide
+   (`test_zwei_laeufe_zugleich_verlieren_keine_zeile` samt Gegenprobe, fünf Läufe). Dabei zeigte
+   sich ein zweiter Schaden: Ohne Sperre schreiben beide Läufe dieselbe Zwischendatei
+   `entwuerfe.jsonl.neu` und ziehen sie einander weg. Ein dritter Schaden fiel erst beim Lauf am
+   echten Befehl auf: `zeilen()` stieg bei gesetztem `grund` nach der einen `NICHT GEPRÜFT`-Zeile
+   aus, der Hinweis stand im Bericht und in keiner Ausgabe. Der Test dazu maß bis dahin das
+   Berichtsobjekt — das falsche Objekt; er liest jetzt die Zeilen, die `status` ausgibt.
 2. **`falzmarke status --absender <adresse>`** liest Entwürfe, Gesendet und Papierkorb nur
    lesend (`EXAMINE`, `BODY.PEEK`) und gleicht sie mit dem Buch und dem Tagebuch ab. Eine Zeile
    je Entwurf:
@@ -136,6 +175,14 @@ um, und Kindprozesse bekommen `FALZMARKE_ENTWURFSBUCH=nie`.
   Schreiben. `O_NOFOLLOW` verhindert dabei, dass ein Symlink an dieser Stelle die Zeile in
   eine fremde Datei hängt (ADR 0058). Unter Windows sagen die Rechtebits nichts; dort
   schützt das Benutzerprofil.
+- Auf einem Netzpfad bleibt „ganz oder nicht“ unzugesagt: Weder `O_APPEND` noch ein einzelner
+  `write` sind dort atomar, und `flock` wirkt über NFS nur, wo der Server es unterstützt. Der
+  Rückgabewert von `os.write` wird trotzdem geprüft — eine halb angekommene Zeile wird gemeldet,
+  statt still zu stehen.
+- Zeilen, die vor dieser Fassung verloren gingen, bleiben verloren. Der Zähler sieht allein, was
+  als beschädigte Zeile im Buch steht, nicht, was nie hineinkam.
+- Unter Windows ist die Sperre nicht gemessen. Die Probe mit zwei Läufen fährt auf POSIX; dort
+  liegt `msvcrt.locking` an derselben Stelle, aber ohne Messung ist das NICHT GEPRÜFT.
 - Die Sperre sieht nur, was Thunderbird von den Gesendet-Ordnern kennt. Eine Mail, die von einem
   anderen Gerät hinausging, zählt erst, wenn Thunderbird den Ordner abgeglichen hat.
 - Die Betreff-Regel warnt auch vor einer gewollten Korrektur. Das kostet einen Klick.

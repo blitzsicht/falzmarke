@@ -36,12 +36,26 @@ import email
 import json
 import os
 import re
-from collections.abc import Mapping
+import time
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from email import policy
 from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import unquote
+
+#: Die Dateisperre des Betriebssystems. Auf keiner Plattform gibt es beide, und
+#: auf einer dritten gibt es keine — dann wird ohne Sperre geschrieben und der
+#: Grund geht in die Rückgabe von `eintragen`.
+try:
+    import fcntl
+except ImportError:  # Windows
+    fcntl = None
+try:
+    import msvcrt
+except ImportError:  # POSIX
+    msvcrt = None
 
 #: Wo das Entwurfsbuch liegt, wenn `FALZMARKE_ENTWURFSBUCH` nichts sagt. Eine
 #: Modulkonstante, damit `conftest.py` sie für jeden Test umlegt: Kein Testlauf
@@ -77,6 +91,25 @@ AUFBEWAHRUNG_TAGE = TAGE_VORGABE * 4
 BUCH_RECHTE = 0o600
 ORDNER_RECHTE = 0o700
 
+#: So viele Bytes hat eine Buchzeile höchstens. Darüber wird allein `text`
+#: gekürzt, das einzige Feld ohne natürliche Grenze, und `text_gekappt` hält
+#: die ursprüngliche Länge fest.
+#:
+#: Die Zahl ist eine eigene Schranke, keine Zusage der Plattform: POSIX sichert
+#: für `O_APPEND` allein zu, dass Dateiende-Suche und Schreiben nicht getrennt
+#: werden — nicht, dass ein einzelner `write` ungeteilt bleibt. Deshalb sieht
+#: `_anhaengen` zusätzlich nach, wie viele Bytes ankamen. Auf einem Netzpfad
+#: ist auch das nicht zugesagt (ADR 0055).
+#:
+#: Gemessen am 27.10.2026: Die längste Beispielmail ergibt eine Buchzeile weit
+#: unter dieser Schranke; `tests/test_entwurfsbuch.py` hält den Abstand fest.
+ZEILE_MAX = 32 * 1024
+
+#: So lange wird auf die Schreibsperre gewartet, dann wird ohne sie geschrieben.
+#: Dieselbe Frist wie die der Sperre beim Senden (ADR 0058, Punkt 3) und aus
+#: demselben Grund: Ein Buch, das wartet, hält den Menschen auf.
+SPERRE_FRIST_S = 10.0
+
 #: So viele gesendete Mails sieht `status` höchstens an. Nur Kopfzeilen; ein
 #: Bestellpostfach verschickt in vierzehn Tagen leicht mehr als die 500 von
 #: `postfach.GRENZE` (gemessen 25.10.2026: 550).
@@ -110,6 +143,24 @@ class Eintrag(NamedTuple):
     #: Bcc des Entwurfs. None bei Einträgen von vor 0.11 (ADR 0056): Dann ist
     #: unbekannt, ob ein Bcc geplant war, und `status` vergleicht ohne.
     blindkopie: tuple[str, ...] | None = None
+    #: Ursprüngliche Zeichenzahl, wenn `text` gekappt wurde (0 sonst). Ein
+    #: gekappter Text belegt kein „Text geändert“ — verglichen ist nur der Anfang.
+    text_gekappt: int = 0
+    #: Warum das Ablegen ungewiss blieb (leer bei einem Entwurf, der liegt).
+    #: Eine solche Zeile hat keine UID: Nach dem Abriss ist sie nicht zu ermitteln.
+    ungewiss: str = ""
+
+
+class Buch(NamedTuple):
+    """Was im Entwurfsbuch steht — und was sich daraus nicht lesen ließ."""
+
+    eintraege: list[Eintrag]
+    #: Zeilen, die kein Eintrag sind: kaputtes JSON, keine lesbare Zeit, kein
+    #: Konto, eine UID, die keine Zahl ist. Gezählt statt übergangen, sonst
+    #: wäre eine verlorene Zeile von „es gab sie nie“ nicht zu unterscheiden.
+    unlesbar: int = 0
+    #: Läufe, bei denen das Ablegen ungewiss blieb — ohne UID, nicht abgleichbar.
+    ungewiss: tuple[Eintrag, ...] = ()
 
 
 def buchpfad(umgebung: Mapping[str, str] | None = None) -> Path | None:
@@ -129,30 +180,84 @@ def eintragen(ablage, felder: Mapping, *, umgebung: Mapping[str, str] | None = N
     das sich nicht schreiben lässt, macht ihn nicht ungültig. Der Aufrufer
     meldet den Grund, damit `status` später nicht still weniger weiß.
     """
-    from falzmarke import gesendet
-
     pfad = buchpfad(umgebung)
     if pfad is None:
         return "FALZMARKE_ENTWURFSBUCH=nie ist gesetzt"
+    zeile, grund = _zeile_bauen(felder, konto=ablage.adresse, ordner=ablage.ordner,
+                                uid=str(ablage.uid), jetzt=jetzt)
+    return _schreiben(pfad, zeile, grund)
+
+
+def eintragen_ungewiss(adresse: str, ordner: str, felder: Mapping, *, grund: str,
+                       umgebung: Mapping[str, str] | None = None,
+                       jetzt: datetime | None = None) -> str:
+    """Hält einen Lauf fest, bei dem das Ablegen ungewiss blieb (ADR 0055, #411).
+
+    Nach einem Abriss hinter dem `APPEND` gibt es keine UID: Ob der Entwurf im
+    Postfach liegt, ist offen. Was in ihm stand, ist dann nur hier noch zu
+    finden — ohne diese Zeile wäre der Text verloren, sobald der Entwurf aus
+    „Entwürfe“ verschwindet. `status` nennt sie als Hinweis, nicht als Zustand:
+    Liegt der Entwurf doch, meldet ihn das Postfach selbst.
+    """
+    pfad = buchpfad(umgebung)
+    if pfad is None:
+        return "FALZMARKE_ENTWURFSBUCH=nie ist gesetzt"
+    zeile, kappgrund = _zeile_bauen(felder, konto=adresse, ordner=ordner, uid="",
+                                    jetzt=jetzt, ungewiss=grund or "ohne Grund")
+    return _schreiben(pfad, zeile, kappgrund)
+
+
+def _zeile_bauen(felder: Mapping, *, konto: str, ordner: str, uid: str,
+                 jetzt: datetime | None = None, ungewiss: str = "") -> tuple[str, str]:
+    """Die JSON-Zeile des Buchs und ein Grund, falls an ihr etwas offen blieb.
+
+    Über `ZEILE_MAX` wird allein `text` gekürzt: Betreff und Adressen haben ihre
+    Grenze in der Sache, der Mailtext nicht. `text_gekappt` hält fest, wie lang
+    er war — eine gekappte Zeile ist etwas anderes als eine kurze Mail.
+    """
+    from falzmarke import gesendet
+
     roh = felder.get("roh") or b""
     text = gesendet.klartext(email.message_from_bytes(bytes(roh), policy=policy.default))
     zeile = {
         "zeit": (jetzt or datetime.now(timezone.utc)).isoformat(timespec="seconds"),
-        "konto": ablage.adresse.strip().lower(),
-        "ordner": ablage.ordner,
-        "uid": str(ablage.uid),
+        "konto": konto.strip().lower(),
+        "ordner": ordner,
+        "uid": uid,
         "fassung": str(felder.get("fassung") or "").strip(),
         "betreff": str(felder.get("betreff") or ""),
         "an": [str(a).lower() for a in (felder.get("an") or []) + (felder.get("kopie") or [])],
         "blindkopie": [str(a).lower() for a in felder.get("blindkopie") or []],
         "text": text,
     }
+    if ungewiss:
+        zeile["ungewiss"] = ungewiss
+    fertig = json.dumps(zeile, ensure_ascii=False) + "\n"
+    if len(fertig.encode("utf-8")) <= ZEILE_MAX:
+        return fertig, ""
+    zeile["text_gekappt"] = len(text)
+    behalten = len(text)
+    while behalten > 0:
+        ueberschuss = len(fertig.encode("utf-8")) - ZEILE_MAX
+        if ueberschuss <= 0:
+            break
+        behalten = max(0, behalten - max(ueberschuss, 1))
+        zeile["text"] = text[:behalten]
+        fertig = json.dumps(zeile, ensure_ascii=False) + "\n"
+    if len(fertig.encode("utf-8")) > ZEILE_MAX:
+        return fertig, (f"die Zeile bleibt mit {len(fertig.encode('utf-8'))} Bytes über "
+                        f"{ZEILE_MAX} — sie kommt unter Umständen nicht ganz an")
+    return fertig, ""
+
+
+def _schreiben(pfad: Path, zeile: str, grund: str) -> str:
+    """Legt Ordner und Buch an und hängt die Zeile an. Rückgabe: leer, sonst der Grund."""
     try:
         pfad.parent.mkdir(parents=True, exist_ok=True, mode=ORDNER_RECHTE)
-        _anhaengen(pfad, json.dumps(zeile, ensure_ascii=False) + "\n")
+        offen = _anhaengen(pfad, zeile)
     except OSError as fehler:
         return f"{pfad}: {fehler.strerror or fehler}"
-    return ""
+    return " · ".join(g for g in (offen, grund) if g)
 
 
 #: `O_NOFOLLOW` gibt es nur dort, wo es Symlinks gibt; unter Windows ist der
@@ -160,29 +265,92 @@ def eintragen(ablage, felder: Mapping, *, umgebung: Mapping[str, str] | None = N
 _SCHREIBEN = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
 
 
-def _anhaengen(pfad: Path, zeile: str) -> None:
-    """Hängt eine Zeile an — mit 0600, ohne einem Symlink zu folgen.
+@contextmanager
+def _sperre(pfad: Path) -> Iterator[str]:
+    """Hält die Schreibsperre des Buchs; liefert den Grund, wenn es keine gibt.
 
-    Zwei Gründe für `os.open` statt `open("a")`: Der Modus liegt dann am
-    Aufruf und nicht an der Umask des Aufrufers (gemessen 25.10.2026:
-    `-rw-r--r--`, also für jedes Konto des Rechners lesbar), und `O_NOFOLLOW`
-    verhindert, dass ein Symlink an dieser Stelle die Zeile in eine fremde
-    Datei hängt. Vor dem Anhängen werden zu alte Zeilen verworfen.
+    Gesperrt wird eine eigene Datei neben dem Buch, nicht das Buch selbst:
+    `_ausduennen` tauscht es per `os.replace`, und eine Sperre auf dem alten
+    Deskriptor hält danach nichts mehr — der nächste Schreiber öffnet eine
+    andere Datei. Die Sperrdatei wird nie ersetzt und nie gelöscht.
     """
-    _ausduennen(pfad)
-    kennung = os.open(pfad, _SCHREIBEN, BUCH_RECHTE)
+    wache = pfad.with_name(pfad.name + ".sperre")
+    kennung = os.open(wache, os.O_WRONLY | os.O_CREAT, BUCH_RECHTE)
     try:
-        # Ein Buch aus einer früheren Fassung trägt noch die Umask-Rechte. Am
-        # offenen Deskriptor nachziehen, nicht am Pfad: Dazwischen könnte die
-        # Datei eine andere sein.
-        nachziehen = getattr(os, "fchmod", None)
-        if nachziehen is not None:
-            nachziehen(kennung, BUCH_RECHTE)
-        with os.fdopen(kennung, "a", encoding="utf-8") as datei:
-            datei.write(zeile)
-    except BaseException:
+        grund = _greifen(kennung, wache)
+        try:
+            yield grund
+        finally:
+            if not grund:
+                _loesen(kennung)
+    finally:
         os.close(kennung)
-        raise
+
+
+def _greifen(kennung: int, wache: Path) -> str:
+    """Wartet bis `SPERRE_FRIST_S` auf die Sperre. Rückgabe: leer, sonst der Grund."""
+    if fcntl is not None:
+        ende = time.monotonic() + SPERRE_FRIST_S
+        while True:
+            try:
+                fcntl.flock(kennung, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return ""
+            except OSError as fehler:
+                if time.monotonic() >= ende:
+                    was = fehler.strerror or fehler
+                    return (f"{wache} war {SPERRE_FRIST_S:.0f} s gesperrt ({was}) — "
+                            "geschrieben wurde ohne Sperre")
+                time.sleep(0.02)
+    if msvcrt is not None:
+        try:
+            msvcrt.locking(kennung, msvcrt.LK_LOCK, 1)
+            return ""
+        except OSError as fehler:
+            return f"{wache}: {fehler.strerror or fehler} — geschrieben wurde ohne Sperre"
+    return "diese Plattform kennt keine Dateisperre — zwei Läufe zugleich können eine Zeile kosten"
+
+
+def _loesen(kennung: int) -> None:
+    if fcntl is not None:
+        fcntl.flock(kennung, fcntl.LOCK_UN)
+    elif msvcrt is not None:
+        os.lseek(kennung, 0, os.SEEK_SET)
+        msvcrt.locking(kennung, msvcrt.LK_UNLCK, 1)
+
+
+def _anhaengen(pfad: Path, zeile: str) -> str:
+    """Hängt eine Zeile an: ganz oder nicht, mit 0600, ohne einem Symlink zu folgen.
+
+    **Eine Zeile kommt ganz oder nicht an.** Geschrieben wird mit genau einem
+    `os.write` auf einen `O_APPEND`-Deskriptor, nicht durch einen `TextIOWrapper`:
+    Der puffert 8 KiB, und eine Buchzeile trägt den ganzen Mailtext — darüber
+    zerfiel der Schreibvorgang in mehrere Syscalls, die sich mit denen eines
+    zweiten Laufs verschränken konnten. Wie viele Bytes ankamen, wird nachgesehen.
+
+    Die Sperre liegt über dem Ausdünnen **und** dem Anhängen. Ohne sie verlor ein
+    Lauf seine Zeile, sobald ein zweiter zwischen Lesen und `os.replace` anhängte.
+
+    `O_NOFOLLOW` verhindert, dass ein Symlink an dieser Stelle die Zeile in eine
+    fremde Datei hängt. Rückgabe: leer, sonst was offen blieb.
+    """
+    daten = zeile.encode("utf-8")
+    with _sperre(pfad) as sperrgrund:
+        _ausduennen(pfad)
+        kennung = os.open(pfad, _SCHREIBEN, BUCH_RECHTE)
+        try:
+            # Ein Buch aus einer früheren Fassung trägt noch die Umask-Rechte. Am
+            # offenen Deskriptor nachziehen, nicht am Pfad: Dazwischen könnte die
+            # Datei eine andere sein.
+            nachziehen = getattr(os, "fchmod", None)
+            if nachziehen is not None:
+                nachziehen(kennung, BUCH_RECHTE)
+            geschrieben = os.write(kennung, daten)
+        finally:
+            os.close(kennung)
+    if geschrieben != len(daten):
+        return (f"{pfad}: nur {geschrieben} von {len(daten)} Bytes angekommen — "
+                "die Zeile steht halb im Buch")
+    return sperrgrund
 
 
 def _ausduennen(pfad: Path, jetzt: datetime | None = None) -> int:
@@ -191,7 +359,9 @@ def _ausduennen(pfad: Path, jetzt: datetime | None = None) -> int:
     Eine Zeile ohne lesbare Zeit bleibt stehen. Verwerfen wäre die falsche
     Richtung: `status` wüsste dann weniger, weil eine Zeile kaputt war.
     Geschrieben wird daneben und dann umbenannt — sonst stünde das Buch
-    mitten im Schreiben leer da.
+    mitten im Schreiben leer da. Der Aufrufer hält dabei die Sperre: Lesen,
+    Schreiben und Umbenennen sind drei Schritte, und wer dazwischen anhängt,
+    verliert seine Zeile.
     """
     if not pfad.is_file():
         return 0
@@ -227,36 +397,68 @@ def _zeit(wert) -> datetime | None:
     return zeit if zeit.tzinfo else zeit.replace(tzinfo=timezone.utc)
 
 
-def _jsonzeilen(pfad: Path | None) -> list[dict]:
-    """Die Zeilen einer JSONL-Datei, die sich lesen lassen. Fehlt sie: keine."""
+def _zeilenwort(anzahl: int, wo: str) -> str:
+    """„2 Zeilen im Entwurfsbuch sind unlesbar — …“ (ADR 0055, #411)."""
+    viele = anzahl != 1
+    return (f"{anzahl} Zeile{'n' if viele else ''} {wo} {'sind' if viele else 'ist'} unlesbar"
+            " — was dort stand, fehlt im Abgleich")
+
+
+def _jsonzeilen(pfad: Path | None) -> tuple[list[dict], int]:
+    """Die Zeilen einer JSONL-Datei, die sich lesen lassen — und wie viele nicht.
+
+    Eine unlesbare Zeile wird gezählt, nicht übergangen: Sonst meldet `status`
+    eine zu kleine Zahl statt eines Hinweises, und „die Zeile ist weg“ wäre von
+    „es gab sie nie“ nicht zu unterscheiden (#411). Fehlt die Datei: keine Zeilen
+    und keine unlesbare — das ist etwas anderes als eine beschädigte Datei.
+    """
     if pfad is None or not pfad.is_file():
-        return []
-    zeilen = []
+        return [], 0
+    zeilen, unlesbar = [], 0
     for zeile in pfad.read_text(encoding="utf-8", errors="replace").splitlines():
+        if not zeile.strip():
+            continue  # eine leere Zeile trägt keinen Eintrag und ist keine Beschädigung
         try:
             wert = json.loads(zeile)
         except ValueError:
-            continue  # eine halb geschriebene letzte Zeile
+            unlesbar += 1  # halb geschrieben oder verschränkt
+            continue
         if isinstance(wert, dict):
             zeilen.append(wert)
-    return zeilen
+        else:
+            unlesbar += 1
+    return zeilen, unlesbar
 
 
-def lesen(umgebung: Mapping[str, str] | None = None) -> list[Eintrag]:
-    eintraege = []
-    for zeile in _jsonzeilen(buchpfad(umgebung)):
+def lesen(umgebung: Mapping[str, str] | None = None) -> Buch:
+    """Das Entwurfsbuch: die Einträge, die Zahl der unlesbaren Zeilen, die ungewissen Läufe."""
+    zeilen, unlesbar = _jsonzeilen(buchpfad(umgebung))
+    eintraege: list[Eintrag] = []
+    ungewiss: list[Eintrag] = []
+    for zeile in zeilen:
         zeit = _zeit(zeile.get("zeit"))
-        # Eine UID ist eine Zahl; eine andere Zeile hat nicht falzmarke geschrieben.
-        if zeit is None or not zeile.get("konto") or not str(zeile.get("uid") or "").isdigit():
+        if zeit is None or not zeile.get("konto"):
+            unlesbar += 1
             continue
-        eintraege.append(Eintrag(
-            zeit=zeit, konto=str(zeile["konto"]).lower(), uid=str(zeile["uid"]),
+        kappung = zeile.get("text_gekappt")
+        eintrag = Eintrag(
+            zeit=zeit, konto=str(zeile["konto"]).lower(), uid=str(zeile.get("uid") or ""),
             fassung=str(zeile.get("fassung") or ""), betreff=str(zeile.get("betreff") or ""),
             an=tuple(str(a).lower() for a in zeile.get("an") or []),
             text=str(zeile.get("text") or ""), ordner=str(zeile.get("ordner") or ""),
             blindkopie=(tuple(str(a).lower() for a in zeile["blindkopie"])
-                        if isinstance(zeile.get("blindkopie"), list) else None)))
-    return eintraege
+                        if isinstance(zeile.get("blindkopie"), list) else None),
+            text_gekappt=kappung if isinstance(kappung, int) else 0,
+            ungewiss=str(zeile.get("ungewiss") or ""))
+        if eintrag.ungewiss:
+            ungewiss.append(eintrag)  # ohne UID, siehe `eintragen_ungewiss`
+        elif eintrag.uid.isdigit():
+            eintraege.append(eintrag)
+        else:
+            # Eine UID ist eine Zahl; eine andere Zeile hat nicht falzmarke geschrieben
+            # — oder sie ist beschädigt. Beides wird gezählt, nicht verschwiegen.
+            unlesbar += 1
+    return Buch(eintraege, unlesbar, tuple(ungewiss))
 
 
 def tagebuch(profilordner: Path | None = None) -> tuple[list[dict], str]:
@@ -270,7 +472,8 @@ def tagebuch(profilordner: Path | None = None) -> tuple[list[dict], str]:
     pfad = profil / TAGEBUCH
     if not pfad.is_file():
         return [], "kein Tagebuch im Thunderbird-Profil — die Entwurfsbrücke ab 0.2.0 schreibt es"
-    return _jsonzeilen(pfad), ""
+    zeilen, unlesbar = _jsonzeilen(pfad)
+    return zeilen, (_zeilenwort(unlesbar, "im Tagebuch der Entwurfsbrücke") if unlesbar else "")
 
 
 def fassungen(eintraege: list[dict]) -> dict[str, str]:
@@ -333,6 +536,8 @@ class Zustand(NamedTuple):
     #: Gesendet, aber nicht im Entwurf / im Entwurf, aber nicht gesendet.
     empfaenger_plus: tuple[str, ...] = ()
     empfaenger_minus: tuple[str, ...] = ()
+    #: Ob der Text im Buch gekappt ist. Dann belegt er kein „Text geändert“.
+    text_gekappt: bool = False
 
     @property
     def belegt(self) -> bool:
@@ -354,6 +559,10 @@ class Bericht(NamedTuple):
     im_buch: int = 0
     tagebuch: int = 0
     hinweise: tuple[str, ...] = ()
+    #: Zeilen des Entwurfsbuchs, aus denen kein Eintrag wurde (#411).
+    unlesbar: int = 0
+    #: Läufe dieses Kontos, bei denen das Ablegen ungewiss blieb — ohne UID.
+    ungewiss: tuple[Eintrag, ...] = ()
 
 
 def _offene_uids(adresse: str, umgebung: Mapping[str, str]) -> tuple[dict[str, dict], str]:
@@ -466,17 +675,23 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
     adresse = adresse.strip().lower()
     jetzt = jetzt or datetime.now(timezone.utc)
     grenze = jetzt - timedelta(days=tage)
-    buch = [e for e in lesen(umgebung) if e.konto == adresse and e.zeit >= grenze]
+    stand = lesen(umgebung)
+    buch = [e for e in stand.eintraege if e.konto == adresse and e.zeit >= grenze]
+    ungewiss = tuple(e for e in stand.ungewiss if e.konto == adresse and e.zeit >= grenze)
     tage_eintraege, tagebuch_grund = tagebuch(profilordner)
     tage_eintraege = [t for t in tage_eintraege
                       if (_zeit(t.get("zeit")) or grenze) >= grenze]
     hinweise = [tagebuch_grund] if tagebuch_grund else []
+    # Vor `leer`: Ist das Postfach nicht erreichbar, nimmt `leer._replace(grund=…)` nur
+    # mit, was jetzt schon in `hinweise` steht — und gerade dann zählt, was das Buch weiß.
+    if stand.unlesbar:
+        hinweise.append(_zeilenwort(stand.unlesbar, "im Entwurfsbuch"))
     offen, offen_grund = _offene_uids(adresse, umgebung)
     if offen_grund:
         hinweise.append(offen_grund)
 
     leer = Bericht(adresse, tage=tage, im_buch=len(buch), tagebuch=len(tage_eintraege),
-                   hinweise=tuple(hinweise))
+                   hinweise=tuple(hinweise), unlesbar=stand.unlesbar, ungewiss=ungewiss)
     try:
         sitzung = postfach.verbinde(adresse, umgebung=umgebung, frist=FRIST_S)
     except postfach.PostfachFehler as fehler:
@@ -617,8 +832,15 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                     art = "geloescht"
                 else:
                     art = "verschwunden"
+                if gleich:
+                    text_gleich = True
+                elif anders and not eintrag.text_gekappt:
+                    text_gleich = False
+                else:
+                    # Ein gekappter Text belegt kein „geändert“: Verglichen war nur sein Anfang.
+                    text_gleich = None
                 diff = ()
-                if mit_diff and anders and not gleich:
+                if mit_diff and anders and not gleich and not eintrag.text_gekappt:
                     spaeteste = max(anders, key=lambda t: _sortzeit(t[0].datum))
                     diff = tuple(difflib.unified_diff(
                         eintrag.text.splitlines(), spaeteste[1].splitlines(),
@@ -627,7 +849,7 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                     art, eintrag.betreff, eintrag.an, eintrag.zeit, eintrag.uid,
                     gesendet=tuple(sorted((k.datum for k, _ in gleich), key=_sortzeit)),
                     anders=tuple(sorted((k.datum for k, _ in anders), key=_sortzeit)),
-                    text_gleich=(True if gleich else False if anders else None),
+                    text_gleich=text_gleich, text_gekappt=bool(eintrag.text_gekappt),
                     im_buch=True, tagebuch=tagebuch_hier, nachfolger=nachfolger, diff=diff,
                     **_versand(eintrag, tagebuch_hier)))
         except postfach.PostfachFehler as fehler:
@@ -638,7 +860,8 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                    gesendet=postfach.utf7_dekodieren(ordner_g),
                    papierkorb=postfach.utf7_dekodieren(ordner_p) if ordner_p else "",
                    angesehen=len(raus), tage=tage, im_buch=len(buch),
-                   tagebuch=len(tage_eintraege), hinweise=tuple(hinweise))
+                   tagebuch=len(tage_eintraege), hinweise=tuple(hinweise),
+                   unlesbar=stand.unlesbar, ungewiss=ungewiss)
 
 
 def _sortzeit(zeit: datetime | None) -> datetime:
@@ -698,10 +921,25 @@ def _empfaengerzeilen(z: Zustand) -> list[str]:
     return aus
 
 
+def _hinweiszeilen(bericht: Bericht, zeitzone=None) -> list[str]:
+    """Die `HINWEIS`-Zeilen: ungewisse Läufe zuerst, dann die Hinweise des Abgleichs.
+
+    Sie stehen auch unter `NICHT GEPRÜFT`: Was das Buch weiß, weiß es unabhängig
+    davon, ob das Postfach antwortet — und eine unlesbare Buchzeile ist eine
+    andere Lücke als ein stummes Postfach (#411).
+    """
+    aus = [f"HINWEIS  {_wann(e.zeit, zeitzone)} „{e.betreff}“ → {', '.join(e.an) or '—'}: "
+           f"das Ablegen blieb ungewiss ({e.ungewiss}) — ob der Entwurf in „{e.ordner}“ "
+           "liegt, ist offen; was in ihm stand, steht im Entwurfsbuch"
+           for e in bericht.ungewiss]
+    return aus + [f"HINWEIS  {h}" for h in bericht.hinweise]
+
+
 def zeilen(bericht: Bericht, *, zeitzone=None) -> list[str]:
     """Die Ausgabe von `falzmarke status`, eine Zeile je Entwurf."""
     if bericht.grund:
-        return [f"NICHT GEPRÜFT  {bericht.adresse}: {bericht.grund}"]
+        return ([f"NICHT GEPRÜFT  {bericht.adresse}: {bericht.grund}"]
+                + _hinweiszeilen(bericht, zeitzone))
     liegen = sum(z.art in ("wartet", "offen", "schon_raus") for z in bericht.zustaende)
     aus = [(f"OK  {bericht.adresse}: {liegen} in „{bericht.entwuerfe}“, {bericht.im_buch} im "
             f"Entwurfsbuch, {bericht.angesehen} Mails der letzten {bericht.tage} Tage in "
@@ -723,9 +961,12 @@ def zeilen(bericht: Bericht, *, zeitzone=None) -> list[str]:
         elif z.art == "gesendet":
             zeiten = z.gesendet or z.anders
             if zeiten:
+                if z.text_gleich is None:
+                    wie = ", Text im Buch gekappt — verglichen ist nur sein Anfang"
+                else:
+                    wie = ", Text unverändert" if z.text_gleich else ", Text geändert"
                 rest = (f"{_wann(zeiten[0], zeitzone)}"
-                        + (f", {len(zeiten)}×" if len(zeiten) > 1 else "")
-                        + (", Text unverändert" if z.text_gleich else ", Text geändert"))
+                        + (f", {len(zeiten)}×" if len(zeiten) > 1 else "") + wie)
             else:
                 rest = f"laut Tagebuch, nicht in „{bericht.gesendet}“ gefunden"
             rest += " · BELEGT" if z.belegt else ""
@@ -746,7 +987,7 @@ def zeilen(bericht: Bericht, *, zeitzone=None) -> list[str]:
         if tagebuchzeile:
             aus.append(" " * 13 + tagebuchzeile)
         aus.extend(" " * 13 + d for d in z.diff)
-    aus.extend(f"HINWEIS  {h}" for h in bericht.hinweise)
+    aus.extend(_hinweiszeilen(bericht, zeitzone))
     return aus
 
 
@@ -758,10 +999,14 @@ def als_json(bericht: Bericht) -> dict:
     return {
         "adresse": bericht.adresse, "geprueft": not bericht.grund, "grund": bericht.grund,
         "tage": bericht.tage, "angesehen": bericht.angesehen, "hinweise": list(bericht.hinweise),
+        "unlesbar": bericht.unlesbar,
+        "ungewiss": [{"zeit": zeit(e.zeit), "betreff": e.betreff, "an": list(e.an),
+                      "ordner": e.ordner, "grund": e.ungewiss} for e in bericht.ungewiss],
         "entwuerfe": [{
             "zustand": z.art, "betreff": z.betreff, "an": list(z.an), "angelegt": zeit(z.angelegt),
             "uid": z.uid, "gesendet": [zeit(t) for t in z.gesendet],
             "anders_gesendet": [zeit(t) for t in z.anders], "text_gleich": z.text_gleich,
+            "text_gekappt": z.text_gekappt,
             "im_buch": z.im_buch, "belegt": z.belegt, "nachfolger": z.nachfolger,
             "tagebuch": list(z.tagebuch), "fenster": dict(z.fenster) if z.fenster else None,
             "fenster_text_gleich": z.fenster_text_gleich,
