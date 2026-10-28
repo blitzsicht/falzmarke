@@ -62,7 +62,9 @@ globalThis.browser = {
     },
   },
   compose: {
-    getComposeDetails: async () => fall.details,
+    // Zwei Fenster haben zwei Ständen: Tab 8 ist das zweite (#413).
+    getComposeDetails: async (tabId) =>
+      (fall.zweites && tabId === 8 ? fall.zweites.details : fall.details),
     listAttachments: async () => {
       if (fall.anhaenge_wirft) { throw new Error("keine Anhangliste"); }
       return (fall.anhaenge || []).map((name, i) => ({ id: i + 1, name }));
@@ -74,6 +76,9 @@ globalThis.browser = {
   messages: {
     getFull: async (id) => {
       if (id === fall.details.relatedMessageId) { return fall.entwurf_voll; }
+      if (fall.zweites && id === fall.zweites.details.relatedMessageId) {
+        return fall.zweites.entwurf_voll || fall.entwurf_voll;
+      }
       // Eine Mail, die sich nicht lesen lässt — im Postfach kommt das vor.
       if ((fall.unlesbar || []).includes(id)) { throw new Error("Mail nicht lesbar"); }
       return gesendet.find((m) => m.id === id).voll;
@@ -112,9 +117,25 @@ const ruhe = async () => {
     }
   }
   if (fall.speichern) { await hoerer.nachSpeichern(tab, fall.speichern); }
+  // Das zweite Fenster steht noch offen, während das erste gesendet hat: der
+  // Ablauf aus #413. Was dort hinausging, ist im Gesendet-Ordner noch nicht
+  // zu finden — `fall.gesendet` bleibt absichtlich leer.
+  let zweites = null;
+  if (fall.zweites) {
+    const tab2 = { id: 8, type: "messageCompose" };
+    hoerer.neu(tab2);
+    zweites = await hoerer.vorSenden(tab2, fall.zweites.details);
+    if (zweites && zweites.cancel) {
+      await hoerer.nachSenden(tab2, { mode: "sendNow",
+                                      error: "Send aborted by an onBeforeSend event" });
+    } else if (fall.zweites.nach_senden) {
+      await hoerer.nachSenden(tab2, fall.zweites.nach_senden);
+    }
+    hoerer.zu(tab2.id);
+  }
   hoerer.zu(tab.id);
   await ruhe();
-  process.stdout.write(JSON.stringify({ ergebnis, tagebuch, fragen, abfragen }));
+  process.stdout.write(JSON.stringify({ ergebnis, zweites, tagebuch, fragen, abfragen }));
 })().catch((e) => { console.error(e && e.stack || e); process.exit(3); });
 """
 
@@ -463,10 +484,10 @@ def test_gegenprobe_ohne_frist_faellt_das_urteil_nie(tmp_path):
     fehlende Urteil der Beleg. Mit `mitFrist` steht an derselben Stelle `{}`.
     """
     quelle = _kurze_frist()
-    alt = "await mitFrist(befund(details, stand.ursprung, tab.id), FRIST_PRUEFUNG_MS)"
+    alt = "await mitFrist(befund(details, eigen, tab.id), FRIST_PRUEFUNG_MS)"
     assert quelle.count(alt) == 1
     kaputt = tmp_path / "background.js"
-    kaputt.write_text(quelle.replace(alt, "await befund(details, stand.ursprung, tab.id)"),
+    kaputt.write_text(quelle.replace(alt, "await befund(details, eigen, tab.id)"),
                       encoding="utf-8")
     fertig = _lauf_roh(_fall(_gesendet(), haengt=True), kaputt, frist_s=20)
     assert fertig.stdout.strip() == "", (
@@ -508,3 +529,140 @@ def test_gegenprobe_ohne_das_ueberspringen_bricht_die_pruefung_ab(tmp_path):
     aus = _lauf(fall, kaputt)
     assert aus["ergebnis"] == {}, "ohne das Überspringen müsste die Prüfung abbrechen"
     assert "pruefung_fehlgeschlagen" in _arten(aus)
+
+
+# ── Zwei Fenster in derselben Sitzung (#413) ────────────────────────────────
+
+RAUS = {"mode": "sendNow", "headerMessageId": "<erste@example.de>"}
+
+
+def _zweites(*, text=TEXT, betreff="Auftrag S1", an=AN, typ="draft", **mehr):
+    """Das zweite Fenster. `fall.gesendet` bleibt leer: Der Gesendet-Ordner hat
+    die erste Mail noch nicht, genau darum ging sie bisher ungefragt hinaus."""
+    zweites = {
+        "details": {"type": typ, "from": "Paul <order@example.de>", "to": [an], "cc": [],
+                    "bcc": [], "subject": betreff, "plainTextBody": text, "body": "",
+                    "identityId": "id5", "relatedMessageId": 77},
+        # Eine eigene Fassung. Teilten beide Fenster dieselbe, entschiede schon
+        # `eigen.fassung === fremd.fassung`, und der Textvergleich käme nie dran.
+        "entwurf_voll": {"contentType": "text/plain", "body": text,
+                         "headers": {"x-falzmarke-fassung": ["99zzz888yyy7"]}},
+    }
+    zweites.update(mehr)
+    return zweites
+
+
+def test_das_zweite_fenster_derselben_sitzung_haelt_an():
+    aus = _lauf(_fall(nach_senden=RAUS, zweites=_zweites()))
+    assert aus["ergebnis"] == {}, "die erste Mail geht hinaus, es gibt noch nichts zu finden"
+    assert aus["zweites"] == {"cancel": True}
+    assert [f["titel"] for f in aus["fragen"]] == ["Diese Mail ging schon hinaus"]
+    assert aus["fragen"][0]["tabId"] == 8
+    gesperrt = [e for e in aus["tagebuch"] if e["art"] == "gesperrt"]
+    assert [e["grund"] for e in gesperrt] == ["gleicher_text"]
+    assert gesperrt[0]["an"] == ["erika@example.com"]
+
+
+def test_die_sitzung_wird_vor_dem_gesendet_ordner_gefragt():
+    """Die Abnahme verlangt die Reihenfolge, nicht nur das Urteil: Das zweite
+    Fenster fragt das Postfach gar nicht mehr — und hielte auch an, wenn es
+    dort keinen Ordner „Gesendet“ gäbe und das Tagebuch schwiege."""
+    aus = _lauf(_fall(nach_senden=RAUS, zweites=_zweites(),
+                      ohne_gesendet=True, fassungen_wirft=True))
+    assert aus["zweites"] == {"cancel": True}
+    assert aus["abfragen"] == [], "ohne Ordner kommt keine Abfrage zustande"
+    # Die ganze Kette: Dem ersten Fenster scheitert die Prüfung am fehlenden
+    # Ordner, es sendet trotzdem (ADR 0055, Punkt 5) — und genau diese Sendung
+    # hält das zweite an, ohne Ordner und ohne Tagebuch.
+    assert _arten(aus) == ["geoeffnet", "pruefung_fehlgeschlagen", "gesendet",
+                           "geoeffnet", "gesperrt", "geschlossen"]
+
+
+def test_das_zweite_fenster_mit_demselben_betreff_fragt_anders():
+    aus = _lauf(_fall(nach_senden=RAUS,
+                      zweites=_zweites(text="Hallo Erika,\n\nganz andere Sache.\n")))
+    assert aus["zweites"] == {"cancel": True}
+    assert [f["titel"] for f in aus["fragen"]] == ["Eine Mail mit diesem Betreff ging schon hinaus"]
+    assert [e["grund"] for e in aus["tagebuch"] if e["art"] == "gesperrt"] == ["gleicher_betreff"]
+
+
+def test_ein_anderer_empfaenger_in_derselben_sitzung_wird_nicht_gefragt():
+    aus = _lauf(_fall(nach_senden=RAUS, zweites=_zweites(an="Udo <udo@example.net>")))
+    assert aus["zweites"] == {} and aus["fragen"] == []
+
+
+def test_eine_antwort_mit_demselben_betreff_fragt_auch_in_der_sitzung_nicht():
+    aus = _lauf(_fall(nach_senden=RAUS,
+                      zweites=_zweites(text="Hallo Erika,\n\nganz andere Sache.\n", typ="reply")))
+    assert aus["zweites"] == {} and aus["fragen"] == []
+
+
+def test_gescheitertes_senden_haelt_die_naechste_sendung_nicht_auf():
+    """Die erste Mail ging **nicht** hinaus. Dann darf sie die zweite, gleiche
+    nicht aufhalten — sonst sperrt die Sitzungsliste genau den zweiten Anlauf,
+    den der Mensch nach einem Fehler braucht."""
+    aus = _lauf(_fall(nach_senden={"mode": "sendNow", "error": "SMTP nicht erreichbar"},
+                      zweites=_zweites(), ohne_gesendet=True))
+    assert "senden_fehlgeschlagen" in _arten(aus)
+    assert aus["zweites"] == {}, "die zweite Sendung wurde von einer gescheiterten aufgehalten"
+    assert aus["fragen"] == []
+
+
+def test_gesperrt_merkt_sich_nichts():
+    """Das erste Fenster wurde angehalten, die Mail ging nie hinaus. Das zweite
+    darf daran nicht hängen: Es findet den alten Gesendet-Eintrag, nicht zwei."""
+    aus = _lauf(_fall(_gesendet(), zweites=_zweites()))
+    assert aus["ergebnis"] == {"cancel": True} and aus["zweites"] == {"cancel": True}
+    gesperrt = [e for e in aus["tagebuch"] if e["art"] == "gesperrt"]
+    assert [e["grund"] for e in gesperrt] == ["gleicher_text", "gleicher_text"]
+    # Beide Male war der Fund die gesendete Mail von vor zwei Tagen, nicht die
+    # angehaltene von gerade: deren Zeit wäre „heute“.
+    frueher = {e["frueher"][:10] for e in gesperrt}
+    assert frueher == {(JETZT - timedelta(days=2)).date().isoformat()}
+
+
+def test_trotzdem_gesendetes_haelt_die_naechste_sendung_an():
+    """Wer „Trotzdem senden“ geklickt hat, hat gesendet. Die Mail steht noch
+    nicht im Ordner, die Sitzung weiß es aber — also wird im zweiten Fenster
+    noch einmal gefragt. Die Attrappe klickt beide Male durch, darum geht die
+    zweite Mail hinaus; der Beleg ist die zweite Frage, nicht das Anhalten."""
+    aus = _lauf(_fall(_gesendet(), trotzdem=True, nach_senden=RAUS, zweites=_zweites()))
+    assert _arten(aus)[:2] == ["geoeffnet", "trotzdem"]
+    assert [(f["tabId"], f["titel"]) for f in aus["fragen"]] == [
+        (7, "Diese Mail ging schon hinaus"), (8, "Diese Mail ging schon hinaus")]
+    assert [e["art"] for e in aus["tagebuch"] if e["art"] == "trotzdem"] == ["trotzdem"] * 2
+
+
+def test_gegenprobe_ohne_die_sitzungsrunde_geht_die_zweite_mail_hinaus(tmp_path):
+    """Die Probe muss anschlagen: Fällt die Runde über `hinaus` weg, ist der
+    Fall wieder der aus #413 — zwei gleiche Mails, keine Rückfrage."""
+    quelle = HINTERGRUND.read_text(encoding="utf-8")
+    anfang = "  for (const frueher of hinaus) {"
+    ende = "  const bekannt = await fassungenAusTagebuch();"
+    assert quelle.count(anfang) == 1 and quelle.count(ende) == 1
+    schnitt = quelle[quelle.index(anfang):quelle.index(ende)]
+    assert "V.vergleiche(eigen, frueher.merkmale)" in schnitt, "der Schnitt trifft die Runde nicht"
+    kaputt = tmp_path / "background.js"
+    kaputt.write_text(quelle.replace(schnitt, ""), encoding="utf-8")
+    fall = _fall(nach_senden=RAUS, zweites=_zweites())
+    aus = _lauf(fall, kaputt)
+    assert aus["zweites"] == {}, "ohne die Sitzungsrunde müsste die zweite Mail hinausgehen"
+    assert aus["fragen"] == []
+    # Und mit der Runde, derselbe Fall, dieselbe Attrappe: die Rückfrage kommt.
+    heil = tmp_path / "heil.js"
+    heil.write_text(quelle, encoding="utf-8")
+    assert _lauf(fall, heil)["zweites"] == {"cancel": True}
+
+
+def test_die_blindkopie_der_ersten_sendung_zaehlt_in_der_sitzung_mit():
+    """Die erste Mail ging per Blindkopie auch an Udo. Dieselbe Nachricht an Udo
+    direkt ist dieselbe Mail an denselben Menschen, also muss die Sitzung sie
+    finden — wie im Postfach, wo `bccList` sie mitliefert. Die andere Richtung
+    bleibt wie in ADR 0058: Als Sender zählt die eigene Blindkopie nicht mit,
+    sonst teilte jede Mail mit Archivadresse eine Adresse mit jeder anderen."""
+    fall = _fall(nach_senden=RAUS, zweites=_zweites(an="Udo <udo@example.net>"))
+    fall["details"]["bcc"] = ["Udo <udo@example.net>"]
+    aus = _lauf(fall)
+    assert aus["ergebnis"] == {}, "die erste Mail geht hinaus, es gibt nichts zu finden"
+    assert aus["zweites"] == {"cancel": True}
+    assert [e["an"] for e in aus["tagebuch"] if e["art"] == "gesperrt"] == [["udo@example.net"]]

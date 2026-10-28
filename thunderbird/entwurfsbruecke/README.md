@@ -96,11 +96,16 @@ nicht, und das ist selbst ein Befund.
 
 ## Die Sperre
 
-Vor dem Senden sieht das Add-on in „Gesendet“ des Kontos nach. Es fragt nach, wenn
+Vor dem Senden sieht das Add-on zuerst nach, was in dieser Sitzung schon hinausging, dann in
+„Gesendet“ des Kontos. Es fragt nach, wenn
 
 - derselbe Text in den letzten 14 Tagen schon an einen dieser Empfänger ging, oder
 - bei einem Entwurf oder einer neuen Mail derselbe Betreff mit anderem Text in den letzten 24
   Stunden. Antworten teilen ihren Betreff und fallen nicht darunter.
+
+Die Sitzung zählt mit, weil der Ordner „Gesendet“ eine Mail erst Sekunden später kennt: Zwei
+Fenster, kurz hintereinander gesendet, kamen sonst beide ungefragt durch (#413). Eine Sendung,
+die scheitert, wird wieder vergessen.
 
 Vorgewählt ist „Nicht senden“; Escape und Schließen zählen ebenso. Verglichen wird wie in
 falzmarke (`vergleich.js` ist das Gegenstück zu `gesendet.py`). Kann das Add-on nicht prüfen,
