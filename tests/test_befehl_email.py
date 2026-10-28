@@ -407,6 +407,19 @@ def test_das_flag_steht_in_der_hilfe():
     assert "--oeffnen" in _cli("email", "--help").stdout
 
 
+def test_die_hilfe_nennt_den_schalter_und_beide_umgebungsvariablen():
+    """Abnahme #415: Wer den Befehl skriptet, soll den Weg ohne Quelltext finden.
+
+    Gelesen wird die Ausgabe von `--help` im Kindprozess, nicht der Quelltext:
+    Ein Schalter, der aus der Hilfe ausgeschlossen ist, stünde sonst im Code und
+    fiele hier nicht auf.
+    """
+    hilfe = _cli("email", "--help").stdout
+    assert "--kein-fenster" in hilfe
+    assert "FALZMARKE_BRUECKE=nie" in hilfe
+    assert "FALZMARKE_ENTWURF=nie" in hilfe
+
+
 def _importiert_subprocess(quelle: str) -> bool:
     """Ob dieses Modul `subprocess` wirklich einbindet — über den Syntaxbaum.
 

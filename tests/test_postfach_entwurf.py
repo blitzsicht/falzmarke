@@ -338,6 +338,47 @@ def test_der_liegende_entwurf_geht_auf_statt_eines_zweiten(monkeypatch, felder):
     assert lage.schon_da and lage.fenster.offen
 
 
+@pytest.mark.parametrize(("kein_fenster", "erwartet_gerufen"), [(True, False), (False, True)])
+def test_kein_fenster_haelt_die_bruecke_ganz_heraus(monkeypatch, felder, kein_fenster,
+                                                    erwartet_gerufen):
+    """#415: Vier Briefe in einer Schleife waren vier Fenster und vier Fokussprünge.
+
+    MIT gegen OHNE in einer Probe: Derselbe Aufbau, nur der Schalter wechselt.
+    Ein Test allein auf `lage.fenster is None` wäre erfüllt, bevor der Schalter
+    existiert — eine nicht antwortende Brücke liefert dasselbe. Gemessen wird
+    deshalb `adressen`: Ohne den Schalter wird der Socket angesprochen, mit ihm
+    nicht einmal das.
+    """
+    server = _server(monkeypatch)
+    tb_bruecke = _bruecke(monkeypatch)
+    lage = _entwurf(felder, Thunderbird(), kein_fenster=kein_fenster)
+    neu = server.ordner["Entw&APw-rfe"][-1]
+    assert lage.postfach.uid == str(neu.uid), "der Entwurf liegt in beiden Fällen"
+    assert bool(tb_bruecke.adressen) is erwartet_gerufen
+    assert bool(tb_bruecke.oeffnungen()) is erwartet_gerufen
+    assert (lage.fenster is not None) is erwartet_gerufen
+
+
+def test_der_befehl_mit_kein_fenster_endet_auf_null(befehl, monkeypatch, capsys):
+    """Abnahme #415: Der Lauf kommt ohne Fenster aus und liefert trotzdem Exit 0.
+
+    Dazu die Gegenprobe im selben Durchgang: Dass keine Fenstermeldung kommt,
+    liegt am Schalter, nicht daran, dass die Attrappe nichts liefert — der Lauf
+    ohne ihn meldet sie.
+    """
+    _server(monkeypatch)
+    tb_bruecke = _bruecke(monkeypatch)
+    assert befehl("--kein-fenster") == 0
+    ausgabe = capsys.readouterr()
+    assert f"OK  Entwurf liegt in „Entwürfe“ von {ABSENDER}: {BETREFF}" in ausgabe.out
+    assert "Entwurf offen in Thunderbird" not in ausgabe.out
+    assert tb_bruecke.adressen == []
+
+    assert befehl() == 0
+    assert "Entwurf offen in Thunderbird" in capsys.readouterr().out
+    assert tb_bruecke.adressen, "ohne den Schalter wird die Brücke gerufen"
+
+
 @pytest.mark.parametrize("art", [{"append_wirkt": False},
                                  {"append_fehler": TimeoutError("timed out")}])
 def test_bei_ungewisser_lage_ruft_niemand_die_bruecke(monkeypatch, felder, art):
