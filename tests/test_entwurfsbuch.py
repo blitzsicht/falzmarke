@@ -1108,6 +1108,166 @@ def test_der_gepufferte_wrapper_war_nicht_der_verlustweg():
     assert not _zeilengrenzen_eingehalten([ganz - 1], [ganz])
 
 
+# ── Eine Antwort je Frage: Text gegen --json (#414) ─────────────────────────
+
+def _belegt_stimmt_zusammen(bericht, aus=None) -> list[str]:
+    """Zustände, bei denen Textzeile und `--json` über `belegt` auseinanderlaufen.
+
+    Leer heißt einig. Verglichen wird je Eintrag, nicht über die ganze Ausgabe:
+    Sonst deckte ein `BELEGT` an der falschen Zeile das Fehlen an der richtigen.
+    `aus` nimmt die Textausgabe von außen — die Gegenprobe gibt eine verdrehte
+    hinein, ohne dafür `entwurfsbuch.zeilen` auszutauschen.
+    """
+    aus = entwurfsbuch.zeilen(bericht) if aus is None else aus
+    kopfzeilen = [z for z in aus[1:] if not z.startswith((" ", "HINWEIS"))]
+    daten = entwurfsbuch.als_json(bericht)["entwuerfe"]
+    assert len(kopfzeilen) == len(daten), (len(kopfzeilen), len(daten))
+    return [e["zustand"] for zeile, e in zip(kopfzeilen, daten)
+            if ("· BELEGT" in zeile) is not e["belegt"]]
+
+
+def _zustand(art: str) -> entwurfsbuch.Zustand:
+    """Ein Zustand dieser Art, bei dem beide Quellen „gesendet“ sagen.
+
+    Sonst wäre `belegt` überall falsch, und der Vergleich unten prüfte nur
+    Zeilen, in denen ohnehin kein `BELEGT` stünde.
+    """
+    return entwurfsbuch.Zustand(
+        art, "Auftrag S1", (AN,), JETZT - timedelta(hours=3), "812",
+        gesendet=(JETZT - timedelta(hours=1),),
+        anders=(JETZT - timedelta(hours=1),) if art == "geloescht" else (),
+        im_buch=True, tagebuch=(_tag("gesendet", 812),),
+        nachfolger="813" if art == "ersetzt" else "")
+
+
+def test_belegt_antwortet_in_text_und_json_gleich():
+    """Abnahme #414: eine Antwort je Frage, für jede Art.
+
+    Vorher hing „· BELEGT“ allein im Zweig `gesendet`, während `als_json` es
+    für jeden Zustand meldete. Der Test läuft über alle Arten aus `KOPF`, damit
+    eine neu hinzukommende nicht stillschweigend durchfällt.
+    """
+    bericht = entwurfsbuch.Bericht(
+        VON, tuple(_zustand(art) for art in entwurfsbuch.KOPF),
+        entwuerfe="Entwürfe", gesendet="Gesendet", papierkorb="Papierkorb")
+    assert set(entwurfsbuch.KOPF) == {z.art for z in bericht.zustaende}
+    assert _belegt_stimmt_zusammen(bericht) == []
+
+
+def test_der_vergleich_schlaegt_an_wenn_beide_auseinanderlaufen():
+    """Gegenprobe: Ohne sie könnte `_belegt_stimmt_zusammen` nie etwas melden.
+
+    `geloescht` trägt nur einen Treffer mit anderem Text. Macht man daraus
+    einen echten, wird `belegt` wahr — die Textzeile dieses Zustands nennt es
+    dann auch, aber die Prüfung muss den umgekehrten Fall ebenso sehen.
+    """
+    einig = entwurfsbuch.Bericht(VON, (_zustand("gesendet"),), entwuerfe="Entwürfe",
+                                 gesendet="Gesendet", papierkorb="Papierkorb")
+    assert _belegt_stimmt_zusammen(einig) == []
+
+    # Dieselbe Lage, aber die Textausgabe schweigt über `belegt`.
+    stumm = [z.replace(" · BELEGT", "") for z in entwurfsbuch.zeilen(einig)]
+    assert stumm != entwurfsbuch.zeilen(einig), "ohne Suffix wäre die Probe wirkungslos"
+    assert _belegt_stimmt_zusammen(einig, stumm) == ["gesendet"]
+
+
+def test_ein_liegender_entwurf_mit_zwei_quellen_nennt_belegt(monkeypatch, tmp_path):
+    """Der Fall, der wirklich auseinanderlief — am echten Datenpfad.
+
+    `geloescht` und `ersetzt`, die #414 nennt, können `belegt` gar nicht
+    tragen: Sagt das Tagebuch „gesendet“, wird die Art `gesendet`
+    (`entwurfsbuch.py`, Zweig über dem Papierkorb). Im liegend-Zweig gibt es
+    diese Prüfung nicht — dort ist `schon_raus` mit `belegt` erreichbar, und
+    genau dort fehlte das Wort.
+    """
+    server = _postfach(monkeypatch, entwuerfe=[_mail()],
+                       gesendet=[_mail(zeit=JETZT - timedelta(hours=1))])
+    profil = _profil(tmp_path, [_tag("gesendet", server.ordner[ENTWUERFE][0].uid)])
+    bericht = _stand(profilordner=profil)
+    (zustand,) = [z for z in bericht.zustaende if z.art == "schon_raus"]
+    assert zustand.belegt is True
+    (zeile,) = [z for z in entwurfsbuch.zeilen(bericht) if z.startswith("SCHON RAUS")]
+    assert "nicht noch einmal senden · BELEGT" in zeile
+    assert _belegt_stimmt_zusammen(bericht) == []
+
+
+def test_das_tagebuch_erzwingt_gesendet_also_ist_geloescht_nie_belegt(monkeypatch, tmp_path):
+    """Messung zur Aussage im Test darüber, statt einer Behauptung.
+
+    Ein Entwurf, der nicht mehr liegt, dessen Fassung im Papierkorb steht und
+    zu dem das Tagebuch „gesendet“ meldet: Er heißt `gesendet`, nicht
+    `geloescht`. Darum ist `belegt` an einer `GELÖSCHT`-Zeile unerreichbar.
+
+    `belegt` ist hier dennoch falsch, und das gehört zur Messung: In „Gesendet“
+    liegt nichts: Das Tagebuch ist die einzige Quelle, und eine Quelle belegt
+    nichts. Zwei Quellen zeigt der Test darüber.
+    """
+    _postfach(monkeypatch, papierkorb=[_mail(fassung="f0f0f0f0f0f0")])
+    _buch(_eintrag(150))
+    profil = _profil(tmp_path, [_tag("gesendet", 150)])
+    bericht = _stand(profilordner=profil)
+    zustand = _einziger(bericht)
+    assert zustand.art == "gesendet"
+    assert not [z for z in entwurfsbuch.zeilen(bericht) if z.startswith("GELÖSCHT")]
+    assert zustand.belegt is False, "nur das Tagebuch sagt es — das ist eine Quelle"
+    assert _belegt_stimmt_zusammen(bericht) == []
+
+
+def test_ein_treffer_mit_anderem_text_belegt_nichts(monkeypatch, tmp_path):
+    """Die Stelle, an der `belegt` die Art überhaupt braucht — gemessen, nicht geraten.
+
+    Der Entwurf liegt noch, in „Gesendet“ steht nur derselbe Betreff mit anderem
+    Text, und das Tagebuch sagt „gesendet“. Das sind zwei Quellen, aber nicht
+    über diesen Entwurf: Er liegt ja. Ohne die Abfrage auf `art` in
+    `Zustand.belegt` stünde hier `BELEGT`, und zwar in Text und `--json`
+    gleichzeitig — der Vergleich oben bliebe stumm. Deshalb dieser Test.
+    """
+    neu = "Hallo Erika,\n\nkurze Änderung: Wir nehmen Silber statt Gold.\n\nGruß\nPaul\n"
+    server = _postfach(monkeypatch, entwuerfe=[_mail()],
+                       gesendet=[_mail(text=neu, zeit=JETZT - timedelta(hours=1))])
+    profil = _profil(tmp_path, [_tag("gesendet", server.ordner[ENTWUERFE][0].uid)])
+    bericht = _stand(profilordner=profil)
+    zustand = _einziger(bericht)
+    assert (zustand.art, zustand.gesendet) == ("wartet", ()), "sonst prüft der Test etwas anderes"
+    assert zustand.anders and [t["art"] for t in zustand.tagebuch] == ["gesendet"]
+    assert zustand.belegt is False
+    assert "BELEGT" not in "".join(entwurfsbuch.zeilen(bericht))
+    assert _belegt_stimmt_zusammen(bericht) == []
+
+
+def test_die_tagebuchzahl_zaehlt_nur_diesen_absender(monkeypatch, tmp_path):
+    """Abnahme #414: Die Zeile steht hinter einem Absender, die Zahl galt für alle.
+
+    Das Tagebuch führt alle Konten des Thunderbird-Profils.
+    """
+    _postfach(monkeypatch, entwuerfe=[_mail()])
+    _buch(_eintrag(150))
+    fremd = _tag("gesendet", 900)
+    fremd["ursprung"] = {**fremd["ursprung"], "konto": "wer@anders.example"}
+    profil = _profil(tmp_path, [_tag("geoeffnet", 150), fremd, _tag("geschlossen", 150)])
+    bericht = _stand(profilordner=profil)
+    assert bericht.tagebuch == 2, "der fremde Eintrag darf nicht mitzählen"
+    assert ", 2 Tagebucheinträge" in entwurfsbuch.zeilen(bericht)[0]
+
+
+def test_schon_raus_sticht_offen_und_nennt_das_fenster(monkeypatch):
+    """Abnahme #414: Dass der Text schon hinausging, ist die Nachricht.
+
+    Vorher trug die Zeile `OFFEN`, obwohl beides zutraf; die Warnung stand nur
+    dahinter. Das offene Fenster darf dabei nicht verschwinden.
+    """
+    server = _postfach(monkeypatch, entwuerfe=[_mail()],
+                       gesendet=[_mail(zeit=JETZT - timedelta(hours=1))])
+    _offen(monkeypatch, server.ordner[ENTWUERFE][0].uid)
+    bericht = _stand()
+    zustand = _einziger(bericht)
+    assert zustand.art == "schon_raus"
+    assert zustand.fenster is not None
+    (zeile,) = [z for z in entwurfsbuch.zeilen(bericht) if z.startswith("SCHON RAUS")]
+    assert "gerade im Fenster offen" in zeile
+    assert "nicht noch einmal senden" in zeile
+
+
 # ── Zwei Läufe zugleich ─────────────────────────────────────────────────────
 
 KIND = """

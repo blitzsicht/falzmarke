@@ -275,10 +275,11 @@ GESENDET     24.10. 16:40  „Angebot“ → kunde@example.org · 24.10. 16:52, 
 | Zeile | heißt |
 |---|---|
 | `WARTET` / `OFFEN` | liegt in „Entwürfe“; `OFFEN`: gerade in einem Fenster |
-| `SCHON RAUS` | liegt noch, derselbe Text ging aber schon hinaus: **nicht** senden |
+| `SCHON RAUS` | liegt noch, derselbe Text ging aber schon hinaus: **nicht** senden. Sticht `OFFEN` — steht ein Fenster offen, sagt das dieselbe Zeile |
 | `GESENDET` | ging hinaus, „Text unverändert“ oder „Text geändert“ (`--diff` zeigt was) |
 | `ERSETZT` | ein neuerer Entwurf mit demselben Betreff liegt an seiner Stelle |
-| `GELÖSCHT` / `VERSCHWUNDEN` | liegt im Papierkorb, also weggeworfen, nicht gesendet / nirgends, die Zeile nennt, wo gesucht wurde |
+| `GELÖSCHT` | liegt im Papierkorb — dorthin legt ihn auch ein anderes Mailprogramm nach dem Senden; ging derselbe Betreff mit anderem Text hinaus, nennt die Zeile das |
+| `VERSCHWUNDEN` | nirgends; die Zeile nennt, wo gesucht wurde |
 | `HINWEIS  … — nur einen senden` | zwei gleiche Entwürfe liegen |
 | `HINWEIS  … Zeilen im Entwurfsbuch sind unlesbar` | das Buch ist beschädigt; über diese Entwürfe sagt `status` nichts |
 | `HINWEIS  … das Ablegen blieb ungewiss` | ob der Entwurf im Postfach liegt, ist offen — nachsehen, **nicht** neu anlegen |
@@ -289,8 +290,11 @@ Zeile „Text im Buch gekappt — verglichen ist nur sein Anfang“ statt „Tex
 nicht lesen lässt, wird gezählt und genannt, statt die Zahl im Kopf kleiner zu machen
 ([ADR 0055](entscheidungen/0055-entwurfsbuch-status-und-sperre.md), Punkt 1).
 
-`BELEGT` steht nur, wenn Postfach und Tagebuch beide „gesendet“ sagen. Entwürfe, die nicht über
-falzmarke entstanden, zeigt `status` nur, solange sie in „Entwürfe“ liegen.
+`BELEGT` steht, wo Postfach und Tagebuch beide „gesendet“ sagen — auch hinter `SCHON RAUS`, wo
+es die Warnung „nicht noch einmal senden“ um eine zweite Quelle verstärkt. Hinter `GELÖSCHT`
+steht es nicht: Dass derselbe Betreff mit anderem Text hinausging, belegt für diesen Entwurf
+nichts. Entwürfe, die nicht über falzmarke entstanden, zeigt `status` nur, solange sie in
+„Entwürfe“ liegen.
 
 Ab 0.2.0 hält die Entwurfsbrücke außerdem das Senden an, wenn derselbe Text in den letzten 14
 Tagen schon an einen dieser Empfänger ging. Bei einem Entwurf oder einer neuen Mail gilt das auch
