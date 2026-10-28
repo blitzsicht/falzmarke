@@ -747,6 +747,25 @@ GRENZE_ADDON = "läuft in Thunderbird mit vollen Rechten"
 PROBEN_ADDON = "tests/test_entwurfsbruecke.py"
 
 
+#: Die Zusage, die der Schreibpfad des Buchs trägt (#411). Sie stand zuerst allein
+#: im Docstring von `_anhaengen`; ADR 0055, Punkt 1 sprach nur von „Scheitert das
+#: Schreiben“ und deckte den Fall „geschrieben und unlesbar“ nicht.
+ZUSAGE_BUCH = "Eine Zeile kommt ganz oder nicht an"
+SCHREIBPFAD_BUCH = "skill/falzmarke/entwurfsbuch.py"
+
+
+def test_adr_0055_sagt_was_der_schreibpfad_des_buchs_zusagt():
+    """Eine Aussage, zwei Orte: Fällt sie an einem weg, wird dieser Test rot.
+
+    Im ADR, weil dort steht, was zugesagt ist; im Modul, weil dort steht, wie es
+    gehalten wird. Wer die Zusage zurücknimmt, muss beide Seiten anfassen.
+    """
+    assert ZUSAGE_BUCH in (REPO / SCHREIBPFAD_BUCH).read_text(encoding="utf-8"), (
+        f"{SCHREIBPFAD_BUCH} sagt nicht mehr: „{ZUSAGE_BUCH}“")
+    assert ZUSAGE_BUCH in _fliesstext(REPO / ADR_0055), (
+        f"0055 sagt nicht mehr: „{ZUSAGE_BUCH}“ — dann steht die Zusage nur im Quelltext")
+
+
 def test_adr_0055_sagt_wie_weit_die_pruefung_am_add_on_traegt():
     """Eine Aussage, zwei Orte: Fällt sie an einem weg, wird dieser Test rot.
 
