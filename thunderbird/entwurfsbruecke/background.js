@@ -1,4 +1,4 @@
-/* falzmarke Entwurfsbrücke, Hintergrund (ADR 0054, ADR 0055, ADR 0056, ADR 0058)
+/* falzmarke Entwurfsbrücke, Hintergrund (ADR 0054, ADR 0055, ADR 0056, ADR 0058, ADR 0060)
  *
  * Startet die Brücke und führt das Tagebuch: Für jedes Verfassen-Fenster hält
  * es fest, woher der Entwurf kam (Konto, UID, Fassung) und was aus ihm wurde,
@@ -117,20 +117,79 @@ async function ursprungVon(tabId) {
     uid: null,
     fassung: "",
   };
-  if (details.type === "draft" && details.relatedMessageId) {
+  if (details.type === "draft") {
+    await ankern(ursprung, tabId, details.relatedMessageId);
+  }
+  return ursprung;
+}
+
+// Setzt UID und Fassung des Entwurfs und hält fest, woher beide kommen
+// (ADR 0060). An dieser Zahl hängt die ganze Zuordnung: Ohne sie findet
+// `falzmarke status` zu der Versandzeile keinen Eintrag im Entwurfsbuch — kein
+// „Ging an …“, kein BELEGT, und die Sperre kann den Entwurf nicht über die
+// Fassung erkennen (#420).
+//
+// Gerufen wird auch **ohne** `relatedMessageId`: Dass sie fehlt, ist selbst
+// einer der möglichen Gründe, und er soll im Tagebuch stehen statt vermutet zu
+// werden. Ein zweites Mal gerufen wird die Funktion vor dem Senden, wenn beim
+// Öffnen keine UID zu haben war.
+async function ankern(ursprung, tabId, nachrichtId) {
+  let kennung;
+  try {
+    kennung = await browser.entwurfsbruecke.entwurfskennung(nachrichtId || null, tabId);
+  } catch (fehler) {
+    kennung = { uid: null, quelle: "", grund: String(fehler) };
+  }
+  const zahl = (wert) => (wert === undefined || wert === null ? null : wert);
+  ursprung.uid = zahl(kennung.uid);
+  ursprung.uid_quelle = kennung.quelle || "";
+  ursprung.uid_grund = kennung.grund || "";
+  ursprung.uid_kennung = zahl(kennung.uid_kennung);
+  ursprung.uid_draft_id = zahl(kennung.uid_draft_id);
+  if (!ursprung.fassung && nachrichtId) {
     try {
-      ursprung.uid = await browser.entwurfsbruecke.kennung(details.relatedMessageId);
-    } catch (e) {
-      ursprung.uid = null;
-    }
-    try {
-      const voll = await browser.messages.getFull(details.relatedMessageId);
+      const voll = await browser.messages.getFull(nachrichtId);
       ursprung.fassung = kopfwert(voll, "x-falzmarke-fassung");
     } catch (e) {
       ursprung.fassung = "";
     }
   }
-  return ursprung;
+  ursprung.fassung_quelle = ursprung.fassung ? "kopf" : "";
+  if (!ursprung.fassung && ursprung.uid !== null) {
+    const ausKette = fassungAusKette(await auszug(), ursprung.konto, ursprung.uid);
+    if (ausKette) {
+      ursprung.fassung = ausKette;
+      ursprung.fassung_quelle = "kette";
+    }
+  }
+}
+
+// Die Fassung eines Entwurfs, den Thunderbird selbst gespeichert hat (#420).
+// Beim Speichern fällt `X-Falzmarke-Fassung` weg und die UID wechselt; die
+// Kette `gespeichert` → `neu_uid` führt zurück auf den Entwurf, den falzmarke
+// angelegt hat — der trägt sie im Tagebuch. Die jüngste Zeile der Kette
+// gewinnt; getrennt werden zwei Entwürfe aus derselben Quelle über die UID,
+// nicht über die Fassung (ADR 0055).
+//
+// Hat schon das **erste** Öffnen keine UID bekommen, findet auch die Kette
+// nichts. Dann bleibt die Fassung leer und verglichen wird über Text und
+// Betreff, wie bisher.
+function fassungAusKette(eintraege, konto, uid) {
+  const kette = V.kette(eintraege, konto, uid);
+  let gefunden = "";
+  for (const eintrag of eintraege) {
+    const ursprung = eintrag.ursprung;
+    if (!ursprung || String(ursprung.konto || "").toLowerCase() !== konto) {
+      continue;
+    }
+    const fassung = String(ursprung.fassung || "");
+    const uidHier = ursprung.uid === null || ursprung.uid === undefined
+      ? "" : String(ursprung.uid);
+    if (fassung && uidHier && kette.has(uidHier)) {
+      gefunden = fassung;
+    }
+  }
+  return gefunden;
 }
 
 function merken(tabId, neu) {
@@ -182,21 +241,30 @@ async function gesendeteSeit(ordner, seit) {
   }
 }
 
-// Message-ID → Fassung aus dem Tagebuch (ADR 0056). Thunderbird übernimmt
+// Die Zeilen des Tagebuchs aus den letzten 14 Tagen. Zwei Dinge kommen
+// daraus: die Fassung einer gesendeten Mail (ADR 0056) und die Kette, über
+// die ein von Thunderbird gespeicherter Entwurf seine Fassung zurückbekommt
+// (ADR 0060). Schweigt das Tagebuch, vergleicht die Sperre wie bisher über
+// Text und Betreff — eine Prüfung, die nicht alles weiß, darf den Menschen
+// nicht aufhalten.
+async function auszug() {
+  try {
+    return (await browser.entwurfsbruecke.tagebuchauszug()) || [];
+  } catch (fehler) {
+    console.error("falzmarke Tagebuch", fehler);
+    return [];
+  }
+}
+
+// Message-ID → Fassung (ADR 0056). Thunderbird übernimmt
 // `X-Falzmarke-Fassung` beim Senden nicht; ohne das hier griffe der Vergleich
 // über die Fassung bei keiner gesendeten Mail.
-async function fassungenAusTagebuch() {
+function fassungenAus(eintraege) {
   const bekannt = new Map();
-  let eintraege = [];
-  try {
-    eintraege = await browser.entwurfsbruecke.fassungen();
-  } catch (fehler) {
-    // Ohne Tagebuch vergleicht die Sperre wie bisher über Text und Betreff.
-    console.error("falzmarke Tagebuch", fehler);
-  }
-  for (const { message_id, fassung } of eintraege || []) {
-    const kennung = V.kennung(message_id);
-    if (kennung && fassung) {
+  for (const eintrag of eintraege) {
+    const fassung = (eintrag.ursprung && eintrag.ursprung.fassung) || "";
+    const kennung = V.kennung(eintrag.message_id);
+    if (eintrag.art === "gesendet" && kennung && fassung) {
       bekannt.set(kennung, fassung);
     }
   }
@@ -309,7 +377,7 @@ async function befund(details, eigen, tabId) {
       aehnlich = { ...fund, grund: "gleicher_betreff" };
     }
   }
-  const bekannt = await fassungenAusTagebuch();
+  const bekannt = fassungenAus(await auszug());
   const ordner = await gesendetOrdner(details.identityId);
   const gesendete = await gesendeteSeit(ordner, new Date(jetzt - FRIST_GLEICH_MS));
   for (const kopf of gesendete) {
@@ -397,6 +465,18 @@ async function versandVon(tabId, details) {
 
 browser.compose.onBeforeSend.addListener(async (tab, details) => {
   const stand = await merken(tab.id, false);
+  // Blieb die UID beim Öffnen leer, hier noch einmal: Der Eintrag `gesendet`
+  // ist der, über den `status` die Mail ihrem Entwurf zuordnet, und bis hierher
+  // ist das Fenster fertig geladen (#420). `stand.ursprung` ist dasselbe
+  // Objekt, das `geoeffnet` schon geschrieben hat — jene Zeile steht und bleibt
+  // wie sie ist, die folgenden tragen die Werte.
+  if (stand.ursprung && stand.ursprung.typ === "draft" && stand.ursprung.uid === null) {
+    try {
+      await ankern(stand.ursprung, tab.id, details.relatedMessageId);
+    } catch (fehler) {
+      console.error("falzmarke Ursprung", fehler);
+    }
+  }
   stand.angehalten = false;
   stand.versand = await versandVon(tab.id, details).catch((fehler) => ({
     versand_fehler: String(fehler),
@@ -462,8 +542,17 @@ browser.compose.onAfterSend.addListener(async (tab, sendInfo) => {
 browser.compose.onAfterSave.addListener(async (tab, saveInfo) => {
   await merken(tab.id, false);
   const neu = [];
+  // Das Fenster als zweiter Weg nur bei **einer** gespeicherten Nachricht:
+  // Seine `draftId` zeigt auf genau einen Entwurf, und bei mehreren wäre nicht
+  // zu sagen, auf welchen (ADR 0060).
+  const einzeln = (saveInfo.messages || []).length === 1;
   for (const nachricht of saveInfo.messages || []) {
-    neu.push(await browser.entwurfsbruecke.kennung(nachricht.id).catch(() => null));
+    neu.push(
+      await browser.entwurfsbruecke
+        .entwurfskennung(nachricht.id, einzeln ? tab.id : null)
+        .then((kennung) => (kennung && kennung.uid !== undefined ? kennung.uid : null))
+        .catch(() => null)
+    );
   }
   await eintragen("gespeichert", tab.id, { modus: saveInfo.mode || "", neu_uid: neu });
 });

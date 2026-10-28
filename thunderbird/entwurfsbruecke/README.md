@@ -42,7 +42,7 @@ falzmarke entwurf-oeffnen --absender ich@example.de      # braucht den IMAP-Prox
 OK  2 Entwürfe in „Entwürfe“ von ich@example.de
     UID 4711  25.10.2026 12:20  Nachtrag  → du@example.org
     …
-OK  Entwurfsbrücke 0.3.4 in Thunderbird 158.0.1
+OK  Entwurfsbrücke 0.3.7 in Thunderbird 158.0.1
 ```
 
 ## Das Tagebuch
@@ -51,9 +51,11 @@ OK  Entwurfsbrücke 0.3.4 in Thunderbird 158.0.1
 
 ```
 {"art": "gesendet", "ursprung": {"typ": "draft", "konto": "ich@example.de", "betreff": "Nachtrag",
- "uid": 4711, "fassung": "…"}, "identitaet": "ich@example.de", "an": ["paula@example.org"],
- "kopie": [], "blindkopie": ["archiv@example.de"], "anhaenge": ["Lageplan.pdf"],
- "modus": "sendNow", "message_id": "…", "zeit": "…", "version": "0.3.4"}
+ "uid": 4711, "uid_quelle": "kennung", "uid_grund": "", "uid_kennung": 4711, "uid_draft_id": 4711,
+ "fassung": "…", "fassung_quelle": "kopf"}, "identitaet": "ich@example.de",
+ "an": ["paula@example.org"], "kopie": [], "blindkopie": ["archiv@example.de"],
+ "anhaenge": ["Lageplan.pdf"], "modus": "sendNow", "message_id": "…", "zeit": "…",
+ "version": "0.3.7"}
 ```
 
 Ab 0.3.0 stehen bei `gesendet` Absender, Empfänger samt Bcc und die Namen der Anhänge. Das
@@ -61,6 +63,35 @@ Tagebuch enthält damit Adressen; es liegt nur lokal im Profil. Über `message_i
 `ursprung.fassung` erkennen falzmarke und die Sperre eine gesendete Mail als ihren Entwurf,
 auch wenn der Text geändert wurde: Thunderbird übernimmt `X-Falzmarke-Fassung` nicht in die
 gesendete Mail (ADR 0056).
+
+### Der Anker: `uid` und `fassung`
+
+`ursprung.uid` ist die einzige Zahl, über die `falzmarke status` eine Zeile des Tagebuchs einem
+Entwurf im Buch zuordnet. Ab 0.3.7 entsteht sie über **zwei** Wege, und das Tagebuch hält beide
+fest ([ADR 0060](../../docs/entscheidungen/0060-anker-der-zuordnung.md)):
+
+| Feld | heißt |
+|---|---|
+| `uid_kennung` | was Thunderbirds `messageKey` zur Entwurfsnachricht sagte |
+| `uid_draft_id` | was die Entwurfsadresse des Verfassen-Fensters sagte |
+| `uid_quelle` | welcher der beiden getragen hat: `kennung` (Vorrang) oder `draft_id` |
+| `uid_grund` | warum der andere nicht: `kein_related`, `kennung_null`, `kennung_wurf`, `kein_fenster`, `kein_draft_id`, `draft_id_ohne_uid` |
+| `fassung_quelle` | `kopf` aus `X-Falzmarke-Fassung`, `kette` aus den Speicherungen davor, leer = keine |
+
+Dieselbe Zahl tragen `uid_kennung` und `uid_draft_id` nur, solange Thunderbird den Entwurf
+nicht neu angelegt hat. Danach zeigt `uid_kennung` auf die UID, unter der falzmarke ablegte —
+die, an der `status` die Zeile aufhängt —, und `uid_draft_id` auf die Nachricht, die im Postfach
+lebt. Die Kette verbindet beide; deshalb hat `kennung` den Vorrang (am 28.10.2026 gemessen:
+Buch 1218, Postfach 1220).
+
+Stehen beide UID-Felder leer, geht die Mail trotzdem hinaus, und `uid_grund` nennt beide Gründe.
+Blieb die UID beim Öffnen leer, holt das Add-on sie vor dem Senden noch einmal — `geoeffnet`
+bleibt dann ohne, `gesendet` trägt sie. Für `status` zählt `gesendet`.
+
+Die `fassung` wirft Thunderbird beim Speichern weg. Steht sie nicht in der Kopfzeile, sucht das
+Add-on sie über die Kette der Speicherungen (`gespeichert` verbindet die alte UID mit `neu_uid`)
+und setzt `fassung_quelle: "kette"`. Zurückgeschrieben wird sie nie — in die ausgehende Mail
+greift das Add-on nicht ein (ADR 0054, ADR 0056).
 
 | `art` | heißt |
 |---|---|
