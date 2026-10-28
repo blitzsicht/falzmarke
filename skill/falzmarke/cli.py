@@ -1810,7 +1810,8 @@ def befehl_email(args) -> int:
         # eine eigene Signatur, kommt diese hier aus dem Rumpf des Entwurfs.
         felder["signatur_html"] = unterschrift
         lage = oeffnen_modul.entwurf(felder, wahl=args.programm,
-                                     noch_ein_entwurf=args.noch_ein_entwurf)
+                                     noch_ein_entwurf=args.noch_ein_entwurf,
+                                     kein_fenster=args.kein_fenster)
         if lage.postfach is not None:
             # Der Entwurf liegt im Postfach (ADR 0051): die Datei selbst, mit
             # allen Kopfzeilen, am Server nachgezählt. Ein Fenster geht nur
@@ -2612,7 +2613,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--mit-quelle", dest="mit_quelle", action="store_true",
                    help="die Markdown-Quelle als text/markdown-Teil mitschicken")
     p.add_argument("--oeffnen", action="store_true",
-                   help="einen Entwurf im Mailprogramm anlegen; sonst die .eml übergeben")
+                   help="einen Entwurf im Mailprogramm anlegen; sonst die .eml übergeben "
+                        "(FALZMARKE_ENTWURF=nie schaltet den Entwurf ab, "
+                        "FALZMARKE_BRUECKE=nie nur das Fenster)")
+    p.add_argument("--kein-fenster", dest="kein_fenster", action="store_true",
+                   help="den Entwurf ablegen, aber kein Verfassen-Fenster öffnen und "
+                        "Thunderbird nicht nach vorn holen (für Schleifen über viele Briefe)")
     p.add_argument("--programm", choices=["thunderbird", "outlook"],
                    help="Mailprogramm für den Entwurf (ohne Angabe Thunderbird; "
                         "Outlook nur auf Wahl); schließt --oeffnen ein")

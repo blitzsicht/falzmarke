@@ -1196,13 +1196,19 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
 
 
 def _fenster_auf(lage: Entwurfslage, felder: Mapping, umgebung: Mapping[str, str],
-                 ) -> Entwurfslage:
+                 *, kein_fenster: bool = False) -> Entwurfslage:
     """Öffnet den Postfach-Entwurf über die Entwurfsbrücke (ADR 0054).
 
     Nur, wenn feststeht, welcher es ist: der eben abgelegte oder der, der schon
     lag. Ist die Lage ungewiss, bleibt es beim Hinweis — ein Fenster auf einen
     Entwurf, von dem niemand weiß, ob es ihn gibt, hülfe niemandem.
+
+    `kein_fenster` hält die Brücke ganz heraus: kein Aufruf, kein Fenster, kein
+    Fokussprung (#415). Vier Briefe in einer Schleife wären sonst vier Fenster —
+    derselbe Einwand, mit dem ADR 0038 das Opt-in begründet hat.
     """
+    if kein_fenster:
+        return lage
     if lage.postfach is not None and lage.postfach.uid:
         konto, uid = lage.postfach.adresse, lage.postfach.uid
     elif lage.schon_da and lage.schon_da_uid:
@@ -1530,7 +1536,8 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
             laufen=subprocess.run, wahl: str | None = None,
             binaer=thunderbird_binaer, ablage=None,
             thunderbird_ordner: Path | None = None,
-            noch_ein_entwurf: bool = False) -> "Entwurfslage":
+            noch_ein_entwurf: bool = False,
+            kein_fenster: bool = False) -> "Entwurfslage":
     """Legt den Entwurf an — oder sagt in einem Satz, warum nicht.
 
     Rückgabe: `(Programmname, "")`, wenn er steht, sonst `(None, Grund)`. Der
@@ -1540,7 +1547,8 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
     geprüfte `.eml` bereits.
 
     `FALZMARKE_ENTWURF=nie` schaltet den Weg ab, ohne `--oeffnen` aufzugeben —
-    für den, der die Datei will und nicht das Fenster.
+    für den, der die Datei will und nicht das Fenster. `kein_fenster` (am Befehl
+    `--kein-fenster`) legt den Entwurf dagegen ab und lässt nur das Fenster weg.
 
     `wahl` ist das Wort aus `--programm` (siehe `entwurfsweg`), `binaer` die
     Suche nach Thunderbird und `ablage` das Verzeichnis, unter dem dessen
@@ -1587,7 +1595,7 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
                                         profilordner=thunderbird_ordner,
                                         noch_ein_entwurf=noch_ein_entwurf)
         if lage is not None:
-            return _fenster_auf(lage, felder, umgebung)
+            return _fenster_auf(lage, felder, umgebung, kein_fenster=kein_fenster)
         return _entwurf_compose(programm, felder, laufen=laufen, ablage=ablage,
                                 thunderbird_ordner=thunderbird_ordner)._replace(
                                     postfach_grund=grund)

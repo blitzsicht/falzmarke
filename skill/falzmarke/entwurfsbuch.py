@@ -541,9 +541,17 @@ class Zustand(NamedTuple):
 
     @property
     def belegt(self) -> bool:
-        """Postfach und Tagebuch sagen beide „gesendet“."""
-        return bool(self.gesendet or self.anders) and any(
-            t.get("art") == "gesendet" for t in self.tagebuch)
+        """Postfach und Tagebuch sagen beide „gesendet“.
+
+        Ein Treffer mit nur gleichem Betreff (`anders`) trägt das allein im
+        Zustand `gesendet`. Liegt der Entwurf im Papierkorb, sagt ADR 0055
+        ausdrücklich „Gesendet ist er nicht“, und die Zeile nennt bloß, dass
+        derselbe Betreff mit anderem Text hinausging — das ist keine zweite
+        Quelle für diesen Entwurf (#414).
+        """
+        if not any(t.get("art") == "gesendet" for t in self.tagebuch):
+            return False
+        return bool(self.gesendet) or (self.art == "gesendet" and bool(self.anders))
 
 
 class Bericht(NamedTuple):
@@ -681,6 +689,9 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
     tage_eintraege, tagebuch_grund = tagebuch(profilordner)
     tage_eintraege = [t for t in tage_eintraege
                       if (_zeit(t.get("zeit")) or grenze) >= grenze]
+    # Das Tagebuch führt alle Konten des Profils, die Zeile stellt die Zahl aber hinter
+    # einem einzelnen Absender dar. Also auch nur dessen Einträge zählen (#414).
+    tagebuch_eigene = sum(_ursprung(t, adresse) is not None for t in tage_eintraege)
     hinweise = [tagebuch_grund] if tagebuch_grund else []
     # Vor `leer`: Ist das Postfach nicht erreichbar, nimmt `leer._replace(grund=…)` nur
     # mit, was jetzt schon in `hinweise` steht — und gerade dann zählt, was das Buch weiß.
@@ -690,7 +701,7 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
     if offen_grund:
         hinweise.append(offen_grund)
 
-    leer = Bericht(adresse, tage=tage, im_buch=len(buch), tagebuch=len(tage_eintraege),
+    leer = Bericht(adresse, tage=tage, im_buch=len(buch), tagebuch=tagebuch_eigene,
                    hinweise=tuple(hinweise), unlesbar=stand.unlesbar, ungewiss=ungewiss)
     try:
         sitzung = postfach.verbinde(adresse, umgebung=umgebung, frist=FRIST_S)
@@ -778,7 +789,10 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                 if any(set(kopf.an) & set(k.an) for k in raus):
                     gleich, anders = treffer(gesendet.merkmale(nachricht), None,
                                              gesendet.antwortstufe(kopf.betreff))
-                art = ("offen" if fenster is not None else "schon_raus" if gleich else "wartet")
+                # `schon_raus` sticht `offen`: Dass derselbe Text schon hinausging, ist die
+                # Nachricht, auf die es ankommt — dass ein Fenster offen steht, sagt die Zeile
+                # daneben (#414, ADR 0055).
+                art = ("schon_raus" if gleich else "offen" if fenster is not None else "wartet")
                 kette = _kette(tage_eintraege, adresse, kopf.uid)
                 # Verglichen wird mit dem Text aus dem Buch, auch wenn Thunderbird den Entwurf
                 # inzwischen unter neuer UID gespeichert hat: Der gespeicherte ist HTML, und
@@ -860,7 +874,7 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                    gesendet=postfach.utf7_dekodieren(ordner_g),
                    papierkorb=postfach.utf7_dekodieren(ordner_p) if ordner_p else "",
                    angesehen=len(raus), tage=tage, im_buch=len(buch),
-                   tagebuch=len(tage_eintraege), hinweise=tuple(hinweise),
+                   tagebuch=tagebuch_eigene, hinweise=tuple(hinweise),
                    unlesbar=stand.unlesbar, ungewiss=ungewiss)
 
 
@@ -949,7 +963,7 @@ def zeilen(bericht: Bericht, *, zeitzone=None) -> list[str]:
         kopf = f"{KOPF[z.art]:<13}{_wann(z.angelegt, zeitzone)}  „{z.betreff}“ → {an}"
         if z.art in ("wartet", "offen", "schon_raus"):
             rest = f"liegt in „{bericht.entwuerfe}“ (UID {z.uid})"
-            if z.art == "offen":
+            if z.fenster is not None:
                 rest += ", gerade im Fenster offen"
             if z.gesendet:
                 rest += (f" — ging aber {_wann(z.gesendet[-1], zeitzone)} schon raus"
@@ -969,7 +983,6 @@ def zeilen(bericht: Bericht, *, zeitzone=None) -> list[str]:
                         + (f", {len(zeiten)}×" if len(zeiten) > 1 else "") + wie)
             else:
                 rest = f"laut Tagebuch, nicht in „{bericht.gesendet}“ gefunden"
-            rest += " · BELEGT" if z.belegt else ""
         elif z.art == "ersetzt":
             rest = f"neuer Entwurf UID {z.nachfolger} in „{bericht.entwuerfe}“"
         elif z.art == "geloescht":
@@ -981,6 +994,10 @@ def zeilen(bericht: Bericht, *, zeitzone=None) -> list[str]:
             orte = [bericht.entwuerfe, bericht.gesendet] + ([bericht.papierkorb]
                                                             if bericht.papierkorb else [])
             rest = "weder in " + " noch in ".join(f"„{o}“" for o in orte)
+        # Eine Entscheidung, eine Stelle: Vorher hing „· BELEGT“ allein im Zweig `gesendet`,
+        # während `als_json` `belegt` für jeden Zustand meldete (#414).
+        if z.belegt:
+            rest += " · BELEGT"
         aus.append(f"{kopf} · {rest}")
         aus.extend(" " * 13 + zeile for zeile in _empfaengerzeilen(z))
         tagebuchzeile = _tagebuchzeile(z.tagebuch, zeitzone)

@@ -89,6 +89,27 @@ nicht. Öffnen verschickt nichts und ändert am Entwurf nichts, solange niemand 
 speichert. Ein Kennwort müsste irgendwo liegen, wo falzmarke es liest, und dort läge es für
 denselben Prozess.
 
+**Nachtrag 28.10.2026, Fenster und Fokus (#415):** ADR 0051 hielt für den Postfach-Weg fest
+„Es geht kein Fenster auf." Diese Entscheidung hat das aufgehoben, ohne einen Weg zurück zu
+lassen: Abschalten ging nur über `FALZMARKE_BRUECKE=nie`, und das stand in keiner Befehlshilfe.
+Vier Briefe in einer Schleife waren vier Fenster und vier Fokussprünge — derselbe Einwand, mit
+dem ADR 0038 das Opt-in begründet hat. Es gibt deshalb `--kein-fenster` am Befehl `email`, und
+die Hilfe zu `--oeffnen` nennt beide Umgebungsvariablen. Der Schalter hält die Brücke **ganz**
+heraus; er wird nicht als `FALZMARKE_BRUECKE=nie` in die Umgebung geschrieben, denn das wäre ein
+zweiter Weg zum selben Schalter und benennte den Grund falsch.
+
+Der Fokus wird außerdem nur noch geholt, wenn das Fenster in diesem Aufruf entstand. Das kostet
+etwas, und das steht hier, damit es eine Entscheidung bleibt und kein Versehen: `falzmarke
+entwurf-oeffnen` holt einen bereits offenen Entwurf nicht mehr nach vorn. Der Befehl sagt
+weiterhin, dass das Fenster steht („war schon offen"), den Wechsel macht der Mensch. Ein Fenster,
+das schon stand, hat niemand in diesem Augenblick angefordert — die Schleife über viele Briefe
+hat das Gegenteil bewiesen.
+
+Grenze: Belegt ist das am Quelltext (`tests/test_entwurfsbruecke.py`, Abschnitt zum Fokus, mit
+Gegenprobe je Zweig). `implementation.js` lädt über `ChromeUtils.importESModule` und läuft nur in
+Thunderbirds privilegiertem Bereich; dass am Gerät kein Fokus mehr springt, ist **nicht
+gemessen** und wartet auf einen Lauf mit installierter 0.3.5.
+
 **Nachtrag 25.10.2026, Mindestfassung:** `strict_min_version` stand auf `128.0`, gemessen ist
 ausschließlich 158.0.1 (unten, dazu ADR 0055 und ADR 0056). Die Zahl war geraten. Sie steht
 jetzt auf `158.0`. Wer älter fährt, bekommt beim Installieren eine klare Absage — vorher bekam er

@@ -375,7 +375,9 @@ async function entwurfOeffnen(anfrage) {
   for (const fenster of verfassenFenster()) {
     const offen = fenster.gMsgCompose?.compFields?.draftId;
     if (offen && ohneAnfrage(offen) === nachricht) {
-      vorholen(fenster);
+      // Kein vorholen: Der Fokus wird nur geholt, wenn das Fenster in diesem
+      // Aufruf entstand (#415). Dass es schon stand, sagt `schon_offen` dem
+      // Aufrufer — der Befehl schreibt „war schon offen“ dazu.
       return {
         ok: true,
         zustand: "schon_offen",

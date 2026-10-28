@@ -204,6 +204,60 @@ def sperre_haelt_im_zweifel(text: str) -> bool:
                 and "return wahl === 0;" in text)
 
 
+# ── Der Fokus springt nur für ein neues Fenster (#415) ──────────────────────
+#
+# Geprüft wird am Quelltext, nicht an einem Lauf: `implementation.js` zieht
+# seine Module über `ChromeUtils.importESModule` und läuft nur in Thunderbirds
+# privilegiertem Bereich. Dass der Fokus am Gerät nicht mehr springt, ist damit
+# NICHT GEPRÜFT — das belegt erst ein Lauf mit installiertem 0.3.5.
+
+#: Vom Treffer auf ein offenes Fenster bis zum Öffnen eines neuen.
+ZWEIG_SCHON_OFFEN = ("if (offen && ohneAnfrage(offen) === nachricht) {",
+                     "const vorher = new Set(verfassenFenster());")
+#: Von dort bis zum Ende der Funktion.
+ZWEIG_NEUES_FENSTER = ("const vorher = new Set(verfassenFenster());",
+                       "async function beantworten(")
+
+
+def _nur_code(js: str) -> str:
+    """Ohne Zeilenkommentare. Der Kommentar, der das Verbot erklärt, ist kein Aufruf."""
+    return "\n".join(re.sub(r"//.*$", "", zeile) for zeile in js.splitlines())
+
+
+def _abschnitt(text: str, grenzen: tuple[str, str]) -> str:
+    anfang, ende = grenzen
+    beginn = text.index(anfang)
+    return _nur_code(text[beginn:text.index(ende, beginn + len(anfang))])
+
+
+def test_der_fokus_wird_nur_fuer_ein_neues_fenster_geholt():
+    """Stand das Fenster schon, sprang der Fokus trotzdem — in einer Schleife
+    über vier Briefe viermal (#415, ADR 0038 „Fensterlawine“)."""
+    assert "vorholen(" not in _abschnitt(QUELLTEXT, ZWEIG_SCHON_OFFEN)
+    assert "vorholen(" in _abschnitt(QUELLTEXT, ZWEIG_NEUES_FENSTER), (
+        "sonst wäre die Probe oben auch erfüllt, wenn es den Fokus nirgends gibt")
+
+
+@pytest.mark.parametrize(("grenzen", "stelle"), [
+    (ZWEIG_SCHON_OFFEN, "if (offen && ohneAnfrage(offen) === nachricht) {"),
+    (ZWEIG_NEUES_FENSTER, "const vorher = new Set(verfassenFenster());"),
+])
+def test_gegenprobe_die_fokusprobe_sieht_den_aufruf(grenzen, stelle):
+    """Beide Hälften einzeln: Eine Probe, die den Aufruf nicht findet, wo er
+    steht, fände auch sein Fehlen nicht."""
+    assert QUELLTEXT.count(stelle) == 1
+    gesetzt = QUELLTEXT.replace(stelle, stelle + "\n      vorholen(fenster);")
+    assert "vorholen(" in _abschnitt(gesetzt, grenzen)
+
+
+def test_gegenprobe_ein_kommentar_zaehlt_nicht_als_aufruf():
+    """Sonst machte der Kommentar, der das Verbot erklärt, die Probe rot."""
+    roh = QUELLTEXT[QUELLTEXT.index(ZWEIG_SCHON_OFFEN[0]):
+                    QUELLTEXT.index(ZWEIG_SCHON_OFFEN[1])]
+    assert "vorholen" in roh, "der erklärende Kommentar fehlt — dann prüft dies nichts"
+    assert "vorholen(" not in _nur_code(roh)
+
+
 def test_gegenprobe_ein_neuer_befehl_faellt_auf():
     assert befehle(QUELLTEXT + '\n    case "senden":') != befehle(QUELLTEXT)
 
