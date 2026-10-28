@@ -250,6 +250,51 @@ um, und Kindprozesse bekommen `FALZMARKE_ENTWURFSBUCH=nie`.
   Einträge des anderen. Jetzt zählt die UID, samt der Kette, die `gespeichert` mit `neu_uid`
   bildet. Die Fassung zählt nur, wenn ein Eintrag keine UID hat.
 
+## Messung 28.10.2026, zwei Fenster in derselben Sitzung (#413)
+
+Die Probe vom 25.10. deckte diesen Ablauf nicht ab: Dort wurde der eine Entwurf gesendet und
+**danach** der andere geöffnet, also hatte Thunderbird die erste Mail längst in „Gesendet“
+abgelegt. Stehen beide Fenster gleichzeitig offen und wird kurz hintereinander gesendet, läuft
+das zweite `onBeforeSend` vor dem Abgleich — und die Sperre sah nichts.
+
+Seit 0.3.6 führt das Add-on mit, was in dieser Sitzung hinausging (`hinaus` in `background.js`:
+Empfänger samt Blindkopie, Betreff, Textkern, Fassung, Zeit), und fragt diese Liste **vor** dem
+Gesendet-Ordner. Drei Festlegungen dazu:
+
+- **Gemerkt wird auf jedem Weg hinaus**, auch nach „Trotzdem senden“ und nach einer
+  gescheiterten Prüfung. Im Quelltext ist das keine Zusage, sondern Bauform: `hinausMerken`
+  liefert das `{}`, mit dem der Hörer Thunderbird das Senden erlaubt, also kann kein Zweig das
+  Merken auslassen.
+- **Was nicht hinausging, wird vergessen.** Meldet Thunderbird ein gescheitertes Senden, fällt
+  der Eintrag wieder weg. Sonst sperrte die Liste genau den zweiten Anlauf, den der Mensch nach
+  einem Fehler braucht.
+- **Die Liste ist gedeckelt** (`MAX_SITZUNG` = 200) und wirft weg, was älter als 14 Tage ist —
+  dieselbe Frist, nach der auch der Gesendet-Ordner nicht mehr zählt.
+
+Verglichen wird mit derselben Richtung wie im Postfach: Die Nachricht im Fenster zählt als
+Sender ohne die eigene Blindkopie (ADR 0058), als gesendete Mail mit ihr, wie `gesendet.py` es
+mit `mit_bcc=True` tut.
+
+**In node gemessen** (`tests/test_entwurfsbruecke_hintergrund.py`, neun Fälle): Zwei Fenster mit
+demselben Text halten beim zweiten an, mit demselben Betreff fragen sie anders, bei anderem
+Empfänger schweigen sie, eine Antwort fällt wie bisher nicht unter die Betreffregel. Das zweite
+Fenster hält auch an, wenn das Konto keinen Ordner „Gesendet“ hat und das Tagebuch nicht lesbar
+ist — es stellt dann gar keine Abfrage mehr, und das belegt die Reihenfolge. Gegenprobe im
+selben Lauf: Fällt die Runde über `hinaus` weg, geht die zweite Mail ungefragt hinaus.
+
+**Am Gerät gemessen (28.10.2026, 0.3.6 installiert, Thunderbird 158.0.1).** Zwei Fenster mit
+demselben Entwurf an die eigene Adresse, beide offen. Das erste ging um 14:25:01 UTC hinaus
+(Tagebuch `gesendet`, UID 1213), beim zweiten stand der Dialog auf dem Verfassen-Fenster und
+„Nicht senden“ wurde gewählt: `gesperrt`, `gleicher_text`, UID 1214, um 14:25:15.
+
+**Was diese Messung nicht trennt.** Der Server legte die gesendete Mail laut `INTERNALDATE`
+bereits um 14:25:01 in „Gesendete Elemente“ ab, also vierzehn Sekunden vor dem Anhalten. Ob die
+Sitzungsliste geantwortet hat oder der Ordner, sagt dieser Lauf damit nicht; beide hätten denselben
+Ausgang erzeugt. Belegt ist am Gerät nur, dass die Sperre in diesem Ablauf anhält. Dass sie es
+**ohne** den Ordner kann, steht nur in node (oben,
+`test_die_sitzung_wird_vor_dem_gesendet_ordner_gefragt`).
+Die trennende Probe wäre derselbe Ablauf unter 0.3.5; sie ist nicht gefahren.
+
 ## Was folgt
 
 `entwurf-oeffnen` kann neben jedem Entwurf seinen Zustand aus `status` zeigen, damit niemand einen

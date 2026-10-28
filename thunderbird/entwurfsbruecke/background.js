@@ -7,7 +7,9 @@
  * `falzmarke status` liest das Tagebuch aus dem Profilordner, auch wenn
  * Thunderbird zu ist.
  *
- * Dazu die Sperre beim Senden. Sie fragt nach, wenn derselbe Text in den
+ * Dazu die Sperre beim Senden. Sie fragt zuerst, was in dieser Sitzung schon
+ * hinausging — der Gesendet-Ordner hat es erst Sekunden später (#413) —, dann
+ * den Ordner selbst. Sie fragt nach, wenn derselbe Text in den
  * letzten 14 Tagen schon an einen dieser Empfänger ging, oder wenn in den
  * letzten 24 Stunden ein anderer Text mit demselben Betreff an sie ging und
  * das Fenster ein Entwurf oder eine neue Mail ist (Antworten teilen ihren
@@ -34,6 +36,10 @@ const FRIST_BETREFF_MS = TAG_MS;
 const MAX_GESENDET = 2000;
 // So lange wartet das Tagebuch nach dem Schließen, ob das Senden noch gemeldet wird.
 const NACHLAUF_MS = 3000;
+// So viele Sendungen hält die Sitzung höchstens vor. Mehr sind in einer
+// Sitzung kein Postfach dieser Größe mehr, und der Gesendet-Ordner hat sie
+// bis dahin längst (#413).
+const MAX_SITZUNG = 200;
 // So lange darf die ganze Prüfung dauern. ADR 0055, Punkt 5 sagt zu: Eine
 // Prüfung, die hängt, darf den Menschen nicht aufhalten — abgesichert war
 // aber nur die Stückzahl (MAX_GESENDET) und der Fehlerfall. Eine einzige
@@ -42,6 +48,13 @@ const FRIST_PRUEFUNG_MS = 10000;
 
 // Je Verfassen-Fenster: woher der Entwurf kam und ob er hinausging.
 const fenster = new Map();
+
+// Was in dieser Sitzung hinausgegangen ist, in der Reihenfolge des Sendens.
+// Der Gesendet-Ordner weiß davon erst, wenn Thunderbird die Mail dort
+// abgelegt und abgeglichen hat — bei IMAP Sekunden später. Wer zwei Fenster
+// kurz hintereinander sendet, kam in dieser Lücke ungefragt durch (#413);
+// bis dahin ist diese Liste die einzige Quelle.
+const hinaus = [];
 
 browser.entwurfsbruecke.starten().then(
   (stand) => console.log("falzmarke Entwurfsbrücke", JSON.stringify(stand)),
@@ -200,7 +213,57 @@ function mitFrist(versprechen, frist) {
   return Promise.race([versprechen, grenze]).finally(() => clearTimeout(uhr));
 }
 
-async function befund(details, ursprung, tabId) {
+// Die Merkmale der Nachricht im Fenster. `mitBcc` entscheidet die Richtung:
+// Als **Sender** vergleicht sie ohne die eigene Blindkopie (siehe unten), als
+// **gesendete Mail** zählt sie mit, wie `gesendet.py` es mit `mit_bcc=True`
+// tut und wie der Gesendet-Ordner sie liefert (`bccList`).
+function merkmaleVon(details, ursprung, mitBcc) {
+  const empfaenger = V.adressen([
+    ...liste(details.to),
+    ...liste(details.cc),
+    ...(mitBcc ? liste(details.bcc) : []),
+  ]);
+  return V.merkmale({
+    empfaenger,
+    betreff: details.subject || "",
+    text: details.plainTextBody || V.klartextAusHtml(details.body || ""),
+    fassung: (ursprung && ursprung.fassung) || "",
+  });
+}
+
+// Eine Sendung, die hinausgeht, kommt in die Sitzungsliste — und zwar auf
+// jedem Weg, der sie hinauslässt: ohne Fund, nach „Trotzdem senden“ und auch
+// nach einer gescheiterten Prüfung. Der Rückgabewert `{}` ist die Antwort an
+// Thunderbird; so kann kein Zweig das Merken vergessen (#413).
+function hinausMerken(tabId, details, ursprung) {
+  const jetzt = Date.now();
+  hinaus.push({
+    tabId,
+    zeit: jetzt,
+    betreff: details.subject || "",
+    merkmale: merkmaleVon(details, ursprung, true),
+  });
+  // Alt genug, um auch im Gesendet-Ordner nicht mehr zu zählen.
+  while (hinaus.length && jetzt - hinaus[0].zeit > FRIST_GLEICH_MS) {
+    hinaus.shift();
+  }
+  while (hinaus.length > MAX_SITZUNG) {
+    hinaus.shift();
+  }
+  return {};
+}
+
+// Eine Sendung, die doch nicht hinausging, darf die nächste nicht aufhalten.
+function hinausVergessen(tabId) {
+  for (let i = hinaus.length - 1; i >= 0; i -= 1) {
+    if (hinaus[i].tabId === tabId) {
+      hinaus.splice(i, 1);
+      return;
+    }
+  }
+}
+
+async function befund(details, eigen, tabId) {
   // **Ohne die eigene Blindkopie.** `gesendet.py` bildet die eigenen
   // Empfänger aus An und Cc (`mit_bcc=False`) und die der gesendeten Mail
   // aus An, Cc und Bcc (`mit_bcc=True`). Hier stand die eigene Bcc mit drin,
@@ -209,23 +272,10 @@ async function befund(details, ursprung, tabId) {
   // Folge war nicht eine schärfere Sperre, sondern eine, die bei „Rechnung"
   // an zwei verschiedene Kunden am selben Tag fragt — und wer dreißig Mal
   // umsonst gefragt wird, klickt beim einunddreißigsten weg.
-  const empfaenger = V.adressen([
-    ...liste(details.to),
-    ...liste(details.cc),
-  ]);
-  if (!empfaenger.size) {
+  if (!eigen.empfaenger.size) {
     return null;
   }
-  const bekannt = await fassungenAusTagebuch();
-  const eigen = V.merkmale({
-    empfaenger,
-    betreff: details.subject || "",
-    text: details.plainTextBody || V.klartextAusHtml(details.body || ""),
-    fassung: (ursprung && ursprung.fassung) || "",
-  });
   const jetzt = Date.now();
-  const ordner = await gesendetOrdner(details.identityId);
-  const gesendete = await gesendeteSeit(ordner, new Date(jetzt - FRIST_GLEICH_MS));
   const mitBetreff = details.type === "draft" || details.type === "new";
   let aehnlich = null;
   // Eine unlesbare Mail überspringt die Prüfung, statt sie abzubrechen: Der
@@ -238,6 +288,30 @@ async function befund(details, ursprung, tabId) {
       await eintragen("pruefung_teilweise", tabId, { uebersprungen });
     }
   };
+  // Zuerst die eigene Sitzung, vor jeder Abfrage: Was gerade hinausging,
+  // steht noch nicht im Gesendet-Ordner. Diese Runde braucht weder das
+  // Tagebuch noch das Postfach und antwortet darum auch dann, wenn beide
+  // schweigen (#413).
+  for (const frueher of hinaus) {
+    const gemeinsam = [...eigen.empfaenger].filter(
+      (adresse) => frueher.merkmale.empfaenger.has(adresse));
+    if (!gemeinsam.length) {
+      continue;
+    }
+    const urteil = V.vergleiche(eigen, frueher.merkmale);
+    const fund = { zeit: frueher.zeit, an: gemeinsam, betreff: frueher.betreff };
+    if (urteil === "gesendet") {
+      await melden();
+      return { ...fund, grund: "gleicher_text" };
+    }
+    if (urteil === "geaendert" && mitBetreff && !aehnlich
+        && jetzt - frueher.zeit <= FRIST_BETREFF_MS) {
+      aehnlich = { ...fund, grund: "gleicher_betreff" };
+    }
+  }
+  const bekannt = await fassungenAusTagebuch();
+  const ordner = await gesendetOrdner(details.identityId);
+  const gesendete = await gesendeteSeit(ordner, new Date(jetzt - FRIST_GLEICH_MS));
   for (const kopf of gesendete) {
     const an = V.adressen([
       ...liste(kopf.recipients),
@@ -327,15 +401,16 @@ browser.compose.onBeforeSend.addListener(async (tab, details) => {
   stand.versand = await versandVon(tab.id, details).catch((fehler) => ({
     versand_fehler: String(fehler),
   }));
+  const eigen = merkmaleVon(details, stand.ursprung, false);
   let fund;
   try {
-    fund = await mitFrist(befund(details, stand.ursprung, tab.id), FRIST_PRUEFUNG_MS);
+    fund = await mitFrist(befund(details, eigen, tab.id), FRIST_PRUEFUNG_MS);
   } catch (fehler) {
     await eintragen("pruefung_fehlgeschlagen", tab.id, { fehler: String(fehler) });
-    return {};
+    return hinausMerken(tab.id, details, stand.ursprung);
   }
   if (!fund) {
-    return {};
+    return hinausMerken(tab.id, details, stand.ursprung);
   }
   const [titel, text] = frage(fund);
   const mehr = {
@@ -348,11 +423,11 @@ browser.compose.onBeforeSend.addListener(async (tab, details) => {
     trotzdem = await browser.entwurfsbruecke.fragen(tab.id, titel, text);
   } catch (fehler) {
     await eintragen("pruefung_fehlgeschlagen", tab.id, { ...mehr, fehler: String(fehler) });
-    return {};
+    return hinausMerken(tab.id, details, stand.ursprung);
   }
   if (trotzdem) {
     await eintragen("trotzdem", tab.id, mehr);
-    return {};
+    return hinausMerken(tab.id, details, stand.ursprung);
   }
   await eintragen("gesperrt", tab.id, mehr);
   stand.angehalten = true;
@@ -371,6 +446,8 @@ browser.compose.onAfterSend.addListener(async (tab, sendInfo) => {
       stand.angehalten = false;
       return;
     }
+    // Was nicht hinausging, darf die nächste Sendung nicht aufhalten (#413).
+    hinausVergessen(tab.id);
     await eintragen("senden_fehlgeschlagen", tab.id, { modus, fehler: String(sendInfo.error) });
     return;
   }
