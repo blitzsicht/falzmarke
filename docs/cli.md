@@ -12,7 +12,7 @@ falzmarke email       NACHRICHT.md [-o STAMM] [--html] [--txt] [--mit-quelle] [-
 falzmarke serie       VORLAGE.md --daten DATEN.csv --ziel ORDNER/ [--benennen SPALTE] [--sammel]
 falzmarke status      --absender ADRESSE [--tage 14] [--diff] [--json]
 falzmarke entwurf-oeffnen --absender ADRESSE [--betreff "..."] [--uid N]
-falzmarke aufraeumen  --absender ADRESSE [--seit 30] [--machen] [--json]
+falzmarke aufraeumen  --absender ADRESSE [--seit 30] [--machen] [--json]   # --seit: 1 bis 3650
 falzmarke einlesen    AUS.pdf [-o GERUEST.md] [--ueberschreiben] [--json]
 falzmarke mcp
 falzmarke preview     BRIEF.md [-o AUS.png] [--ppi 120]

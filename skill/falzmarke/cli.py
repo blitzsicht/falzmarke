@@ -2047,10 +2047,15 @@ def befehl_entwurf_oeffnen(args) -> int:
 def ablage_aus_profil(adresse: str, zusatz=None) -> tuple[str | None, str | None]:
     """`email.ablage` des Profils, dessen `email.absender` die Adresse ist.
 
-    Gibt `(ablage, hinweis)`. Kein Profil zu finden ist kein Fehler: Dann
-    entscheidet das Kennzeichen `\\Archive` am Konto. Zwei Profile mit
-    derselben Adresse und verschiedener Ablage sind einer — sonst hinge das
-    Ziel daran, welche Datei zuerst gelesen wurde.
+    Gibt `(ablage, grund)`. Kein Profil zu finden ist kein Fehler: Dann
+    entscheidet das Kennzeichen `\\Archive` am Konto.
+
+    Zwei Profile mit derselben Adresse und verschiedener Ablage sind ein
+    **Grund** und nicht nur ein Hinweis. Vorher stand hier `(None, hinweis)`,
+    und `None` ist für `ablage.ablageordner` nicht von „kein Profil nennt das
+    Feld" zu unterscheiden: Der Lauf nahm dann `\\Archive` und verschob die Post
+    mit `--machen` in einen Ordner, den keines der beiden Profile verlangt
+    hatte — während die Ausgabe sagte, es sei keines genommen worden (#438).
     """
     import yaml
 
@@ -2072,8 +2077,8 @@ def ablage_aus_profil(adresse: str, zusatz=None) -> tuple[str | None, str | None
     werte = set(treffer.values())
     if len(werte) > 1:
         namen = ", ".join(f"{n} → „{w}“" for n, w in sorted(treffer.items()))
-        return None, (f"HINWEIS  mehrere Profile nennen für {adresse} verschiedene "
-                      f"`email.ablage`: {namen} — keines wird genommen")
+        return None, (f"mehrere Profile nennen für {adresse} verschiedene `email.ablage`: "
+                      f"{namen} — welche gilt, muss im Profil stehen, geraten wird nicht")
     return (werte.pop() if werte else None), None
 
 
@@ -2088,23 +2093,29 @@ def befehl_aufraeumen(args) -> int:
 
     from falzmarke import ablage as ablage_modul
 
-    if args.seit < 1:
-        print("FEHLER  --seit braucht mindestens 1 Tag", file=sys.stderr)
+    if not 1 <= args.seit <= ablage_modul.SEIT_MAX:
+        print(f"FEHLER  --seit braucht 1 bis {ablage_modul.SEIT_MAX} Tage — zehn Jahre, "
+              "darüber bricht die Datumsrechnung", file=sys.stderr)
         return EXIT_EINGABE
     zusatz = Path(args.profiles) if args.profiles else None
-    berichte, hinweise = [], []
+    berichte = []
     for adresse in args.absender:
-        wunsch, hinweis = ablage_aus_profil(adresse, zusatz)
-        if hinweis:
-            hinweise.append(hinweis)
+        wunsch, grund = ablage_aus_profil(adresse, zusatz)
+        if grund:
+            # Ohne Ziel ist nichts zu planen — dann wird auch kein Postfach
+            # geöffnet. Der Grund wandert in den Bericht und damit in **beide**
+            # Darstellungen; eine Hinweisliste neben den Berichten hätte unter
+            # `--json` auf keinem Kanal gestanden (#438).
+            berichte.append(ablage_modul.Bericht(
+                adresse=adresse, ziel=None, grund=grund, seit=None, antworten=0,
+                nicht_im_eingang=0, zuege=(), verschoben=0))
+            continue
         berichte.append(ablage_modul.raeume_auf(
             adresse, wunsch=wunsch, seit_tagen=args.seit, machen=args.machen))
     if args.json:
         print(json.dumps([ablage_modul.als_json(b) for b in berichte], ensure_ascii=False,
                          indent=2))
     else:
-        for zeile in hinweise:
-            print(zeile, file=sys.stderr)
         for bericht in berichte:
             for zeile in ablage_modul.zeilen(bericht):
                 ziel = sys.stderr if zeile.startswith(("NICHT GEPRÜFT", "HINWEIS")) else sys.stdout
@@ -2724,7 +2735,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--absender", required=True, action="append",
                    help="die Adresse des Kontos; mehrfach für mehrere Konten")
     p.add_argument("--seit", type=int, default=30,
-                   help="so weit zurück werden gesendete Antworten angesehen (Vorgabe 30 Tage)")
+                   help="so weit zurück werden gesendete Antworten angesehen "
+                        "(Vorgabe 30 Tage, höchstens 3650)")
     p.add_argument("--machen", action="store_true",
                    help="wirklich verschieben; ohne diesen Schalter wird nur gezeigt")
     p.add_argument("--profiles", help="Verzeichnis mit den Absenderprofilen")

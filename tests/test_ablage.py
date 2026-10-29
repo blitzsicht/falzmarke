@@ -183,6 +183,103 @@ def test_ohne_gesendet_kennzeichen_wird_nichts_gesagt_was_erledigt_ist():
     assert "`\\Sent`" in bericht.grund and bericht.zuege == ()
 
 
+# ── Die Zuordnung über `In-Reply-To` (#438) ────────────────────────────────
+
+#: Zwei Kennungen, deren Summe über 78 Zeichen liegt. `EmailMessage` faltet die
+#: Zeile dann von selbst — der Fall braucht keinen Kunstgriff.
+LANG = "<kunde-mit-sehr-langer-nachrichtenkennung-aus-dem-fremdsystem-0001@example.org>"
+ZWEITE = "<zweite-kennung@example.org>"
+
+
+def _antwort_auf_zwei(erste, zweite, *, tage=1, falten=False):
+    """Eine Antwort, deren `In-Reply-To` zwei Kennungen nennt — RFC 5322 erlaubt es.
+
+    Die Kopfzeile wird **roh** gesetzt (`roh_kopf`), nicht über `EmailMessage`:
+    Dessen Policy kodiert eine lange Message-ID auf Python 3.12 als
+    `=?utf-8?q?…?=` und auf 3.14 nicht. Über die Policy gebaut, prüfte diese
+    Probe auf der CI-Fassung etwas anderes als lokal (#438).
+    """
+    zeit = HEUTE - timedelta(days=tage)
+    trenner = "\r\n " if falten else " "
+    return (nachricht(an="kunde@example.org", betreff="AW: Sammelvorgang", datum=zeit,
+                      kennung=f"<eigene-{tage}@example.org>",
+                      roh_kopf={"In-Reply-To": f"{erste}{trenner}{zweite}"}), zeit)
+
+
+def test_eine_gefaltete_kopfzeile_laesst_den_lauf_berichten():
+    """Der rohe Feldwert trägt dann einen Umbruch, und ungeparst geht er in die
+    IMAP-Befehlszeile. Auf Python 3.14 ist das ein `ValueError`, auf 3.12 und
+    3.13 gehen **zwei** Befehle auf die Leitung — gemessen am 29.10.2026, und
+    die CI fährt 3.12. Die Attrappe lehnt mit demselben Wortlaut ab wie
+    `imaplib.IMAP4._command`, damit die Probe überall gleich anschlägt.
+    """
+    attrappe, sitzung = _postfach(eingang=[_eingegangen(kennung=LANG)],
+                                  gesendet=[_antwort_auf_zwei(LANG, ZWEITE, falten=True)])
+    with sitzung:
+        bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+    assert bericht.grund is None, f"der Lauf kam nicht durch: {bericht.grund}"
+    assert [z.kennung for z in bericht.zuege] == [LANG]
+    gesucht = [a for befehl in attrappe.befehle("UID SEARCH") for a in befehl]
+    assert not any("\r" in str(a) or "\n" in str(a) for a in gesucht), \
+        "ein Umbruch erreichte die Befehlszeile"
+
+
+def test_zwei_kennungen_in_einer_zeile_finden_beide_nachrichten():
+    """Als **eine** Teilkette gesucht, trifft `<a@x> <b@y>` keine der beiden
+    Message-IDs. Beide Nachrichten blieben im Eingang und würden trotzdem als
+    „längst weggeräumt" gezählt, also als erledigt gemeldet, ohne es zu sein.
+    """
+    erste, zweite = "<a@example.org>", "<b@example.org>"
+    _, sitzung = _postfach(eingang=[_eingegangen(kennung=erste, betreff="Erstes"),
+                                    _eingegangen(kennung=zweite, betreff="Zweites")],
+                           gesendet=[_antwort_auf_zwei(erste, zweite)])
+    with sitzung:
+        bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+    assert sorted(z.kennung for z in bericht.zuege) == [erste, zweite]
+    assert bericht.nicht_im_eingang == 0
+
+
+def test_eine_antwort_zaehlt_erst_als_erledigt_wenn_keine_kennung_traf():
+    """Die Gegenrichtung: Nennt eine Antwort zwei Kennungen und liegt nur eine
+    im Eingang, ist sie nicht „ohne Nachricht im Eingang" — sonst zählte
+    dieselbe Antwort gleichzeitig als Zug und als längst erledigt.
+    """
+    _, sitzung = _postfach(eingang=[_eingegangen(kennung="<a@example.org>")],
+                           gesendet=[_antwort_auf_zwei("<a@example.org>", "<fort@example.org>")])
+    with sitzung:
+        bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+    assert len(bericht.zuege) == 1 and bericht.nicht_im_eingang == 0
+
+
+def test_eine_gekappte_suche_im_gesendet_ordner_wird_gemeldet(monkeypatch):
+    """Über `postfach.GRENZE` sieht `koepfe` nur die jüngsten Mails. Ohne
+    Hinweis liest sich „0 von 2 Antworten seit …" wie ein vollständiges
+    Fenster, und was davor liegt, wird nie aufgeräumt. `entwurfsbuch` meldet
+    das für dieselben Ordner längst (ADR 0055).
+    """
+    monkeypatch.setattr(postfach, "GRENZE", 2)
+    _, sitzung = _postfach(eingang=[_eingegangen(kennung="<alt@example.org>", betreff="Alt")],
+                           gesendet=[_antwort(auf="<alt@example.org>", tage=3),
+                                     _antwort(tage=2), _antwort(tage=1)])
+    with sitzung:
+        bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+    (hinweis,) = [h for h in bericht.hinweise if "angesehen" in h]
+    assert "nur die neuesten 2 von 3" in hinweis
+    assert hinweis in "\n".join(ablage.zeilen(bericht)), "der Text verschweigt die Kappung"
+    assert hinweis in ablage.als_json(bericht)["hinweise"], "--json verschweigt die Kappung"
+    assert bericht.zuege == (), \
+        "die Probe trifft nicht: die weggekappte Antwort war trotzdem dabei"
+
+
+def test_gegenprobe_ohne_kappung_steht_kein_hinweis_da():
+    """Ohne sie belegte der Test darüber nichts: Ein Hinweis, der immer käme,
+    sagt über die Kappung nichts."""
+    _, sitzung = _postfach(eingang=[_eingegangen()], gesendet=[_antwort()])
+    with sitzung:
+        bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+    assert bericht.hinweise == () and len(bericht.zuege) == 1
+
+
 # ── Der Zug ─────────────────────────────────────────────────────────────────
 
 def test_ohne_machen_bewegt_der_lauf_nichts():
@@ -228,6 +325,46 @@ def test_ohne_move_in_capability_wird_nichts_nachgebaut():
     assert "CAPABILITY kein MOVE" in bericht.grund
     assert not attrappe.befehle("UID MOVE")
     assert len(attrappe.ordner["INBOX"]) == 1
+
+
+def test_scheitert_der_zug_bleiben_die_gefundenen_nachrichten_sichtbar():
+    """„0 von 0 Antworten" ist die stärkste Form von „nichts geschehen" — und
+    stand bisher genau dort, wo etwas geschehen sein kann: Bricht `UID MOVE`
+    ab, nachdem der Server einen Teil des Satzes bewegt hat, verwarf der
+    `except` den fertigen Plan samt UIDs (#438).
+    """
+    _postfach(eingang=[_eingegangen()], gesendet=[_antwort()], faehigkeiten=("IMAP4REV1",))
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={})
+    assert "CAPABILITY kein MOVE" in bericht.grund
+    assert bericht.antworten == 1 and len(bericht.zuege) == 1, \
+        "der Grund hat den Plan mitgenommen"
+    assert bericht.verschoben == 0 and bericht.ziel == "Archiv"
+
+
+def test_ein_ziel_das_nach_dem_plan_verschwindet_ist_ein_grund(monkeypatch):
+    """Der Ablageordner wird je Lauf **einmal** bestimmt. Vorher bestimmte ihn
+    der Zug ein zweites Mal und benutzte das Ergebnis ungeprüft: Fiel der
+    Ordner inzwischen weg, lief `None` als Ziel ins Modul und endete als
+    `TypeError`, nicht als Satz (#438).
+
+    Der Ordner verschwindet hier **nach** dem Plan, nicht nach dem n-ten
+    `LIST`: Eine Probe, die interne Aufrufe zählt, misst den Umbau mit, nicht
+    die Zusage — und wurde genau daran rot, als der Umbau einen `LIST` sparte.
+    """
+    attrappe, _ = _postfach(eingang=[_eingegangen()], gesendet=[_antwort()])
+    echtes_plane = ablage.plane
+
+    def plane_und_dann_ordner_weg(*args, **kwargs):
+        bericht = echtes_plane(*args, **kwargs)
+        attrappe.sonder.pop("Archiv", None)
+        attrappe.ordner.pop("Archiv", None)
+        return bericht
+
+    monkeypatch.setattr(ablage, "plane", plane_und_dann_ordner_weg)
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={})
+    assert bericht.grund, "ein verschwundenes Ziel muss ein Satz sein, kein Absturz"
+    assert bericht.verschoben == 0 and len(bericht.zuege) == 1, \
+        "der Grund hat den Plan mitgenommen"
 
 
 def test_ein_unerreichbares_postfach_ist_ein_grund(monkeypatch):
@@ -363,6 +500,71 @@ def test_ein_fenster_unter_einem_tag_ist_ein_eingabefehler(capsys):
     assert falzmarke.main(["aufraeumen", "--absender", "joe@example.org", "--seit", "0"]) \
         == falzmarke.EXIT_EINGABE
     assert "--seit" in capsys.readouterr().err
+
+
+def test_ein_fenster_ueber_zehn_jahren_ist_ein_eingabefehler(capsys):
+    """`--seit 9999999` passierte die Untergrenze und starb in der
+    Datumsrechnung: `OverflowError: date value out of range` (#438)."""
+    from falzmarke import cli as falzmarke
+
+    assert falzmarke.main(["aufraeumen", "--absender", "joe@example.org",
+                           "--seit", "9999999"]) == falzmarke.EXIT_EINGABE
+    assert "--seit" in capsys.readouterr().err
+
+
+def test_gegenprobe_zehn_jahre_passieren_die_eingabepruefung(monkeypatch, capsys):
+    """Ohne sie wäre eine Obergrenze, die alles ablehnt, auch grün. `--seit
+    3650` kommt bis zum Postfach und scheitert dort an etwas anderem."""
+    from falzmarke import cli as falzmarke
+
+    attrappe, _ = _postfach(sonder={"INBOX": "", "Archiv": "\\Archive"})
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", attrappe)
+    assert falzmarke.main(["aufraeumen", "--absender", "joe@example.org",
+                           "--seit", "3650"]) == falzmarke.EXIT_UMGEBUNG
+    assert "NICHT GEPRÜFT" in capsys.readouterr().err
+
+
+def test_zwei_profile_mit_verschiedener_ablage_sind_ein_grund(tmp_path, monkeypatch, capsys):
+    """Dasselbe Konto, zwei Profile, verschiedenes `email.ablage`. Der Hinweis
+    sagte „keines wird genommen" — genommen wurde `\\Archive`, und mit
+    `--machen` wanderte die Post dorthin. Unter `--json` stand das auf keinem
+    Kanal (#438).
+    """
+    import json
+
+    from falzmarke import cli as falzmarke
+
+    for name, ziel in (("eins", "Archiv/A"), ("zwei", "Archiv/B")):
+        (tmp_path / f"{name}.yaml").write_text(
+            f"email:\n  absender: joe@example.org\n  ablage: {ziel}\n", encoding="utf-8")
+    attrappe = ImapAttrappe(
+        {"INBOX": [_eingegangen()], "Gesendete Elemente": [_antwort()]},
+        sonder={"INBOX": "", "Gesendete Elemente": "\\Sent", "Archiv": "\\Archive"},
+        verschieben_erlaubt=True)
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", attrappe)
+    code = falzmarke.main(["aufraeumen", "--absender", "joe@example.org",
+                           "--profiles", str(tmp_path), "--machen", "--json"])
+    (eintrag,) = json.loads(capsys.readouterr().out)
+    assert code == falzmarke.EXIT_UMGEBUNG
+    assert eintrag["grund"] and "email.ablage" in eintrag["grund"], \
+        "der Grund fehlt in --json"
+    assert eintrag["ablage"] is None and eintrag["verschoben"] == 0
+    assert attrappe.verbindungen == [], "ohne Ziel wird kein Postfach geöffnet"
+    assert len(attrappe.ordner["INBOX"]) == 1
+
+
+def test_gegenprobe_ein_profil_allein_nennt_sein_ziel(tmp_path, monkeypatch, capsys):
+    """Ohne sie belegte der Test darüber nichts: Ein Grund, der bei jedem
+    `--profiles` käme, sagte über die Mehrdeutigkeit nichts."""
+    from falzmarke import cli as falzmarke
+
+    (tmp_path / "eins.yaml").write_text(
+        "email:\n  absender: joe@example.org\n  ablage: Archiv\n", encoding="utf-8")
+    attrappe, _ = _postfach(eingang=[_eingegangen()], gesendet=[_antwort()])
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", attrappe)
+    assert falzmarke.main(["aufraeumen", "--absender", "joe@example.org",
+                           "--profiles", str(tmp_path)]) == falzmarke.EXIT_OK
+    assert "Archiv" in capsys.readouterr().out
 
 
 # ── Die Quelle selbst ───────────────────────────────────────────────────────
