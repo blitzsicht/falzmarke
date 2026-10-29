@@ -1959,3 +1959,119 @@ def test_ohne_signaturklasse_findet_die_pruefung_keine_signatur(tmp_path, monkey
     assert elemente() == 1
     monkeypatch.setattr(_eml, "KLASSE_SIGNATUR", "fm-sabotage")
     assert elemente() == 0
+
+
+# ── Die Ablage je Konto (#431, ADR 0061) ───────────────────────────────────
+#
+# `tests/test_ablage.py` hält fest, was der Befehl tut. Hier steht die Frage,
+# die nur hier gestellt wird: Können die drei Zusagen überhaupt rot werden —
+# die Zielsperre, der fehlende Fallback und die Positivliste im Profil?
+#
+# Die vierte Zusage, „ohne --machen wird nichts bewegt“, braucht hier keine
+# Sabotage: `test_der_trockenlauf_haelt_auch_an_einer_sperrenden_attrappe`
+# läuft gegen eine Attrappe, die jedes Verschieben verbietet, und wird von
+# selbst rot, sobald der Trockenlauf fällt.
+
+def _ablage_sitzung(monkeypatch, sonder):
+    from falzmarke import postfach
+
+    from imap_attrappe import ImapAttrappe
+
+    attrappe = ImapAttrappe({"INBOX": [], "Gesendete Elemente": []}, sonder=sonder)
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", attrappe)
+    return postfach.verbinde("joe@example.org", umgebung={}, frist=30)
+
+
+SONDER = {"INBOX": "", "Gesendete Elemente": "\\Sent", "Archiv": ""}
+
+
+def test_die_zielsperre_faellt_unsabotiert_auf():
+    """Kontrollprobe. Ohne sie belegte die Sabotage unten nichts: Ein Grund,
+    der nie kam, kann durch keine Sabotage verschwinden."""
+    from falzmarke import ablage as _ablage
+
+    with pytest.MonkeyPatch.context() as mp:
+        with _ablage_sitzung(mp, SONDER) as sitzung:
+            ordner, grund = _ablage.ablageordner(sitzung, "Gesendete Elemente")
+    assert ordner is None and "\\sent" in grund
+
+
+def test_eine_geleerte_zielsperre_nimmt_den_gesendet_ordner_an(monkeypatch):
+    """Sabotage an genau einer Stelle: Ohne die Kennzeichen in
+    `VERBOTENE_ZIELE` wird der Gesendet-Ordner zur Ablage — genau das, was die
+    Abnahme von #431 ausschließt.
+
+    Der Fallback-Grund bleibt davon unberührt: Er misst etwas anderes, und das
+    soll die Probe zeigen — die Sabotage trifft die Zielliste, nicht pauschal
+    die ganze Funktion.
+    """
+    from falzmarke import ablage as _ablage
+
+    assert set(_ablage.VERBOTENE_ZIELE) == {"\\sent", "\\drafts", "\\trash", "\\junk"}, \
+        "Ankerwert veraltet: VERBOTENE_ZIELE hat andere Kennzeichen"
+    monkeypatch.setattr(_ablage, "VERBOTENE_ZIELE", {})
+    with _ablage_sitzung(monkeypatch, SONDER) as sitzung:
+        ordner, grund = _ablage.ablageordner(sitzung, "Gesendete Elemente")
+        ohne_wunsch = _ablage.ablageordner(sitzung, None)
+    assert ordner == "Gesendete Elemente" and grund is None, \
+        "die Kennzeichenliste ist nicht die Stelle, an der das Ziel abgelehnt wird"
+    assert ohne_wunsch[0] is None and "`\\Archive`" in ohne_wunsch[1], \
+        "die Sabotage hat mehr getroffen als die Zielliste"
+
+
+def test_der_fehlende_archive_ordner_faellt_unsabotiert_auf():
+    from falzmarke import ablage as _ablage
+
+    with pytest.MonkeyPatch.context() as mp:
+        with _ablage_sitzung(mp, SONDER) as sitzung:
+            ordner, grund = _ablage.ablageordner(sitzung, None)
+    assert ordner is None and "`\\Archive`" in grund
+
+
+def test_ein_erfundener_archive_ordner_laesst_den_grund_verschwinden(monkeypatch):
+    """Sabotage am Kennzeichen, nicht am Code: Liefert der Server plötzlich
+    einen `\\Archive`-Ordner, wandert ohne Profilzeile etwas.
+
+    Das ist die Probe auf den ausführenden Pfad — sie zeigt, dass der Grund
+    wirklich am Kennzeichen des Servers hängt und nicht an einer Abfrage, die
+    ohnehin immer zutrifft.
+    """
+    from falzmarke import ablage as _ablage
+
+    mit_archiv = dict(SONDER, Archiv="\\Archive")
+    with _ablage_sitzung(monkeypatch, mit_archiv) as sitzung:
+        ordner, grund = _ablage.ablageordner(sitzung, None)
+        gesperrt = _ablage.ablageordner(sitzung, "Gesendete Elemente")
+    assert (ordner, grund) == ("Archiv", None)
+    assert gesperrt[0] is None, "die Sabotage hat mehr getroffen als den Fallback"
+
+
+def test_das_profilfeld_ablage_faellt_unsabotiert_auf():
+    """Kontrollprobe zur Positivliste: Ein gepflegtes `ablage:` ist bekannt."""
+    regeln = _email_profilregeln({"absender": "joe@example.org", "ablage": "Archiv"})
+    assert "email.profil" not in regeln
+
+
+def test_eine_feldliste_ohne_ablage_meldet_das_gepflegte_feld_als_unbekannt(monkeypatch):
+    """Sabotage an genau einer Stelle: Fehlt `ablage` in der Positivliste,
+    meldet `lint` ein korrekt gepflegtes Profil.
+
+    Die Prüfung auf die fehlende Absenderadresse bleibt stehen — die Sabotage
+    trifft die Feldliste und nicht die ganze Funktion.
+    """
+    _sabotiere_konstante(monkeypatch, "PROFIL_EMAIL_FELDER",
+                         getattr(_lint, "PROFIL_EMAIL_FELDER"),
+                         getattr(_lint, "PROFIL_EMAIL_FELDER") - {"ablage"})
+    regeln = _email_profilregeln({"absender": "joe@example.org", "ablage": "Archiv"})
+    assert "email.profil" in regeln, \
+        "die Positivliste ist nicht die Stelle, an der ein Feld als bekannt gilt"
+    assert "email.absender" not in regeln, \
+        "die Sabotage hat mehr getroffen als die Feldliste"
+    assert "email.absender" in _email_profilregeln({"ablage": "Archiv"}), \
+        "die Sabotage hat die übrigen Prüfungen abgeschaltet"
+
+
+def _email_profilregeln(abschnitt: dict) -> set:
+    bericht = _lint.Bericht()
+    _lint.pruefe_email_profil({"email": abschnitt}, bericht)
+    return {befund.regel for befund in bericht.befunde}

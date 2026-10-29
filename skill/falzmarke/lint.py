@@ -330,6 +330,12 @@ PROFIL_EMAIL_FELDER = frozenset({
     # Der Schreibstil des Absenders (ADR 0053). Geteilt in einen prüfbaren und
     # einen unprüfbaren Teil — siehe PROFIL_STIL_FELDER.
     "stil",
+    # Der Ordner, in den `aufraeumen` beantwortete Eingangspost legt (#431).
+    # Ohne diese Zeile wird nichts verschoben: Der IMAP-Sonderordner
+    # `\Archive` ist an vielen Einrichtungen nicht gekennzeichnet — an den
+    # Konten des Betreibers gemessen gibt es ihn nicht —, und nach einem
+    # Ordnernamen zu raten verschiebt im Zweifel in den falschen.
+    "ablage",
 })
 
 #: Der Abschnitt `email.stil:` (ADR 0053). Drei Felder, und die Grenze zwischen
@@ -1123,6 +1129,8 @@ def pruefe_email_profil(profil: dict, bericht: Bericht,
             1, "email.anrede", f"`email.anrede: {anrede}` gibt es nicht",
             "bekannt sind " + " und ".join(f"`{a}`" for a in ANREDEN))
 
+    pruefe_email_ablage(abschnitt, bericht)
+
     pruefe_email_stil(abschnitt, bericht)
 
     pruefe_email_logo(profil, profil_pfad, bericht)
@@ -1132,6 +1140,33 @@ def pruefe_email_profil(profil: dict, bericht: Bericht,
             1, "email.pflichtangaben", "`email.pflichtangaben:` ist leer",
             "je nach Rechtsform verlangt § 37a HGB bzw. § 35a GmbHG Angaben in "
             "jeder Geschäftsmail — falzmarke prüft das nicht, es erinnert nur")
+
+
+def pruefe_email_ablage(abschnitt: dict, bericht: Bericht) -> None:
+    """Die Form von `email.ablage:` — der Ablageordner für `aufraeumen` (#431).
+
+    Geprüft wird nur, dass der Name lesbar ist. Ob der Ordner existiert und ob
+    er ein erlaubtes Ziel ist, weiß allein der Server: Welcher Ordner mit
+    `\\Sent` gekennzeichnet ist, steht nicht im Profil. Diese Prüfung ist
+    deshalb bewusst schwächer als die Sperre in `falzmarke.ablage`.
+
+    Fehler und nicht Warnung: Das ist der Datenvertrag, und `ablage: ""` soll
+    melden, nicht stillschweigend „verschiebe nichts“ bedeuten — derselbe
+    Grund wie bei `email.anrede` und `email.stil.person`.
+    """
+    ablage = abschnitt.get("ablage")
+    if ablage is None:
+        return
+    if not isinstance(ablage, str) or not ablage.strip():
+        bericht.fehler(
+            1, "email.ablage", "`email.ablage:` ist kein Ordnername",
+            "den Ordner angeben, in den beantwortete Eingangspost wandert, "
+            "etwa `ablage: Archiv` — siehe references/frontmatter.md")
+        return
+    if ablage != ablage.strip():
+        bericht.fehler(
+            1, "email.ablage", f"`email.ablage: {ablage!r}` hat Leerraum am Rand",
+            "IMAP vergleicht den Namen zeichengenau — den Leerraum entfernen")
 
 
 def pruefe_email_stil(abschnitt: dict, bericht: Bericht) -> None:

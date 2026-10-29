@@ -173,6 +173,8 @@ email:
   #                                    Rasterbild (PNG/JPG/GIF) — Outlook zeigt kein SVG.
   #                                    Es muss auf hellem UND dunklem Grund tragen; `lint`
   #                                    misst das und warnt (Issue #154).
+  ablage: Archiv                       # optional, der Ordner für `aufraeumen` — ohne ihn
+  #                                    wird keine beantwortete Eingangspost verschoben
   stil:                                # optional, der eigene Schreibstil — siehe unten
     person: ich
     floskeln: [zeitnah, kurzfristig]

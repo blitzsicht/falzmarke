@@ -311,6 +311,52 @@ Rechnung, viele Grüße“ — fällt unter beide Schwellen und wird damit nur v
 erfasst: 24 Stunden, und nur bei einem Entwurf oder einer neuen Mail. Wer sich auf die Sperre
 verlässt, sollte wissen, dass sie zwei kurze Mails nicht auseinanderhält.
 
+### Was beantwortet ist, kommt aus dem Eingang: `aufraeumen`
+
+`status` sagt, was aus einem **Entwurf** wurde. Die Gegenrichtung fehlte: Was wird aus der
+**eingegangenen** Nachricht, nachdem sie beantwortet ist? Sie bleibt liegen, und der Eingang
+trägt Bearbeitetes und Unbearbeitetes nebeneinander.
+
+```bash
+falzmarke aufraeumen --absender ich@example.de             # nur zeigen
+falzmarke aufraeumen --absender ich@example.de --machen    # verschieben
+```
+
+```
+OK  ich@example.de: 2 von 14 Antworten seit 28.09.2026 haben ihre Nachricht noch im Eingang → „Archiv“
+    UID 1183  12.10.2026 09:14  „Angebot S1“ — beantwortet mit „AW: Angebot S1“
+    UID 1207  19.10.2026 16:02  „Rückfrage Termin“ — beantwortet mit „AW: Rückfrage Termin“
+    12 Antworten ohne Nachricht im Eingang (längst weggeräumt)
+    nichts bewegt — mit --machen verschieben
+```
+
+**Erledigt heißt: eine gesendete Antwort nennt die Nachricht in `In-Reply-To`.** Nicht das
+Tagebuch der Entwurfsbrücke — es benennt bei einer Antwort die Quelle nicht. Daraus folgt
+zweierlei: Auch eine von Hand in Thunderbird geschriebene Antwort räumt auf, und die beantwortete
+Nachricht darf beliebig alt sein. `--seit` begrenzt nur, wie weit die **gesendeten Antworten**
+zurück angesehen werden (Vorgabe 30 Tage).
+
+| Zeile | heißt |
+|---|---|
+| `OK  … → „Archiv“` | so viele Nachrichten sind beantwortet und liegen noch im Eingang; nichts bewegt |
+| `OK  … — 2 nach „Archiv“ verschoben` | mit `--machen`: so viele sind gewandert |
+| `… Antworten ohne Nachricht im Eingang` | längst weggeräumt, von Hand oder von einem früheren Lauf |
+| `NICHT GEPRÜFT` (Exit 3) | kein Ziel, kein Gesendet-Ordner oder Postfach nicht erreichbar — der Grund steht dabei |
+
+**Das Ziel wird nie geraten und nie angelegt.** Es steht als `ablage:` im Abschnitt `email:` des
+Profils ([profiles.md](profiles.md)). Fehlt die Zeile, gilt der Sonderordner `\Archive`; gibt es
+auch den nicht, wandert nichts, und das wird gesagt. Ausgeschlossen sind der Gesendet-Ordner,
+die Entwürfe, der Papierkorb, der Spam-Ordner und der Eingang selbst — geprüft am Kennzeichen des
+Servers, nicht am Namen. **„Gesendete Elemente“ ist für falzmarke Datenquelle, keine Ablage:**
+`status` und die Sendesperre lesen daraus, ob eine Mail schon hinausging
+([ADR 0051](entscheidungen/0051-gesendet-sperre-und-postfach-entwurf.md)).
+
+Ein zweiter Lauf verschiebt nichts mehr, weil die Nachricht dann nicht mehr im Eingang liegt —
+ein Protokoll der Züge gibt es deshalb nicht. Der einzige ändernde Befehl ist `UID MOVE`; nennt
+der Server ihn nicht, wird nichts verschoben, statt ihn aus `COPY`, `STORE` und `EXPUNGE`
+nachzubauen. Das Add-on Entwurfsbrücke ist daran nicht beteiligt und braucht keine neue
+Berechtigung ([ADR 0061](entscheidungen/0061-ablage-je-konto.md)).
+
 ### Eine fertige Signatur mitbringen
 
 Wer seine Signatur schon hat — gestaltet, in den Mailprogrammen im Einsatz —, muss sie nicht ein

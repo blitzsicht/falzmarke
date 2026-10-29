@@ -196,6 +196,27 @@ def test_gegenprobe_die_attrappe_wirft_bei_aendernden_befehlen():
         attrappe.uid("FETCH", "1", "(BODY[])")
 
 
+def test_gegenprobe_das_verschieben_ist_einzeln_einzuschalten():
+    """Seit #431 kann die Attrappe `UID MOVE` — aber nur mit
+    `verschieben_erlaubt=True`. Ohne diese Probe wäre die Erweiterung eine
+    Hintertür: Jeder andere Test dürfte dann unbemerkt verschieben, und die
+    Zusage von `postfach` wäre nur noch im Text.
+    """
+    attrappe = ImapAttrappe()
+    attrappe.select("INBOX", readonly=True)
+    with pytest.raises(AssertionError, match="UID MOVE"):
+        attrappe.uid("MOVE", "101", '"Archiv"')
+    with pytest.raises(AssertionError, match="readonly"):
+        attrappe.select("INBOX")
+
+    # Und mit dem Schalter geht beides — sonst belegte die Probe oben nur,
+    # dass die Attrappe grundsätzlich wirft.
+    offen = ImapAttrappe(sonder={"INBOX": "", "Archiv": ""},
+                         verschieben_erlaubt=True)
+    offen.select('"INBOX"')
+    assert offen.uid("MOVE", "1", '"Archiv"')[0] == "OK"
+
+
 def test_das_modul_kennt_keinen_aendernden_befehl():
     """Die Quelle selbst: kein STORE, EXPUNGE, COPY, MOVE, DELETE — und kein
     smtplib. Gelesen wird der Syntaxbaum, nicht die Doku."""

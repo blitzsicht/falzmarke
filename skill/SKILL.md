@@ -283,6 +283,26 @@ Thunderbird-Profil keinen eindeutigen Entwürfe-Ordner im eigenen Konto, öffnet
 (`NICHT GEÖFFNET`, Exit 3): Die UID könnte dort eine andere Mail sein. Exit 0 heißt: das
 Fenster steht. Das Add-on kann nur öffnen — senden, löschen und verschieben kann es nicht.
 
+**`aufraeumen` — beantwortete Post aus dem Eingang in die Ablage des Kontos legen.**
+
+```bash
+python3 scripts/falzmarke.py aufraeumen --absender order@example.de            # nur zeigen
+python3 scripts/falzmarke.py aufraeumen --absender order@example.de --machen   # verschieben
+```
+
+Für die Frage „ist das erledigt?“, die der Eingang nicht beantwortet, solange Bearbeitetes und
+Unbearbeitetes nebeneinander liegen. Erledigt heißt: Eine gesendete Antwort nennt diese Nachricht
+in `In-Reply-To`. Das gilt auch für eine Antwort, die von Hand in Thunderbird entstand.
+**Ohne `--machen` wird nichts bewegt**, nur gezeigt. Das Ziel steht als `ablage:` im Abschnitt
+`email:` des Profils; fehlt es, gilt der Sonderordner `\Archive`, und gibt es auch den nicht,
+wandert nichts und der Grund steht da — geraten wird nicht. Der Gesendet-Ordner ist als Ziel
+**ausgeschlossen**: Er ist Datenquelle der Sendesperre und von `status` (ADR 0051), ebenso die
+Entwürfe, der Papierkorb, der Spam-Ordner und der Eingang selbst. Ein zweiter Lauf verschiebt
+nichts mehr, weil die Nachricht dann nicht mehr im Eingang liegt — ein Protokoll braucht es
+dafür nicht. `--seit` setzt das Fenster für die gesendeten Antworten (Vorgabe 30 Tage); die
+beantwortete Nachricht darf beliebig alt sein. Braucht den IMAP-Proxy. `--json` für die
+Weiterarbeit (ADR 0061).
+
 **`xml` — eine Rechnung als reine XML-Datei, ohne PDF.**
 
 ```bash

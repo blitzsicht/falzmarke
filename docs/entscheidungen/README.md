@@ -48,3 +48,4 @@ gelesen wird und die niemand nachpflegt.
 | [0058](0058-sperre-ohne-eigene-blindkopie-mit-frist.md) | Die Sperre rechnet ohne die eigene Blindkopie und bricht nach zehn Sekunden ab | 25.10.2026 |
 | [0059](0059-zuruf-ueber-unix-socket.md) | Der Zuruf an die Entwurfsbrücke läuft über einen Unix-Socket mit 0600 | 25.10.2026 |
 | [0060](0060-anker-der-zuordnung.md) | Der Anker der Zuordnung hat zwei Wege und nennt seinen | 28.10.2026 |
+| [0061](0061-ablage-je-konto.md) | Die Ablage je Konto: `In-Reply-To` sagt, was erledigt ist | 28.10.2026 |

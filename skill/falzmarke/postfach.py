@@ -251,10 +251,17 @@ class Postfach:
             raise PostfachFehler(f"{was}: {_kurz(daten)}")
         return daten
 
-    def sonderordner(self, kennzeichen: str) -> str | None:
-        """Der Ordner, den der Server mit `\\Sent`, `\\Drafts` … kennzeichnet (RFC 6154)."""
+    def ordner_liste(self) -> list[tuple[str, tuple[str, ...]]]:
+        """Alle Ordner als `(name, kennzeichen)` — ein `LIST`, nur lesend.
+
+        Die Kennzeichen sind die Attribute aus RFC 3501/6154, klein
+        geschrieben: `\\hasnochildren`, `\\sent`, `\\drafts` … Ein Ordner, den
+        der Server nicht kennzeichnet, hat trotzdem einen Namen — genau
+        deshalb gibt es diese Liste neben `sonderordner`.
+        """
         daten = self._befehl("LIST", self._v.list, '""', "*")
         muster = re.compile(r'\(([^)]*)\)\s+(?:"[^"]*"|NIL)\s+(.*)$')
+        ordner: list[tuple[str, tuple[str, ...]]] = []
         for eintrag in daten or []:
             if isinstance(eintrag, tuple):
                 eintrag = eintrag[0] + b" " + eintrag[1]
@@ -262,10 +269,22 @@ class Postfach:
             treffer = muster.match(zeile.strip())
             if not treffer:
                 continue
-            if kennzeichen.lower() in treffer.group(1).lower().split():
-                name = treffer.group(2).strip()
-                if len(name) >= 2 and name[0] == name[-1] == '"':
-                    name = name[1:-1].replace('\\"', '"').replace("\\\\", "\\")
+            name = treffer.group(2).strip()
+            if len(name) >= 2 and name[0] == name[-1] == '"':
+                name = name[1:-1].replace('\\"', '"').replace("\\\\", "\\")
+            ordner.append((name, tuple(treffer.group(1).lower().split())))
+        return ordner
+
+    def sonderordner(self, kennzeichen: str) -> str | None:
+        """Der Ordner, den der Server mit `\\Sent`, `\\Drafts` … kennzeichnet (RFC 6154).
+
+        `None` heißt „nicht gekennzeichnet“, nicht „gibt es nicht“: An den
+        Microsoft-Konten des Betreibers liegt ein Ordner „Archiv“, und
+        `\\Archive` kennzeichnet ihn trotzdem keiner (gemessen 28.10.2026).
+        """
+        gesucht = kennzeichen.lower()
+        for name, kennzeichen_des_ordners in self.ordner_liste():
+            if gesucht in kennzeichen_des_ordners:
                 return name
         return None
 
@@ -274,17 +293,34 @@ class Postfach:
         self._befehl(f"Ordner „{utf7_dekodieren(ordner)}“ nicht lesbar",
                      self._v.select, _zitiert(ordner), readonly=True)
 
+    def suche_kopfzeile(self, ordner: str, feld: str, wert: str) -> list[str]:
+        """Die UIDs im Ordner, deren Kopfzeile `feld` den `wert` enthält.
+
+        `UID SEARCH HEADER` — nur lesend, und es lässt den Server suchen,
+        statt alle Köpfe zu holen: Ein Eingang mit Jahren an Post würde sonst
+        an `GRENZE` gekappt, und gerade die ältere Nachricht ist die gesuchte.
+        Am Microsoft-Konto gegengeprüft (28.10.2026): dieselben Treffer wie
+        ein Kopfvergleich von Hand, und eine erfundene Message-ID findet
+        nichts.
+        """
+        self._waehle(ordner)
+        daten = self._befehl("SEARCH", self._v.uid, "SEARCH", "HEADER", feld, _zitiert(wert))
+        return [u.decode() for u in ((daten[0] or b"").split() if daten else [])]
+
     def koepfe(self, ordner: str, seit: date | None = None, *,
-               grenze: int | None = None) -> list[Kopf]:
+               grenze: int | None = None, uids: list[str] | None = None) -> list[Kopf]:
         """Die Kopfzeilen der Nachrichten im Ordner, seit einem Tag oder alle.
 
         `SINCE` ist tagesgenau und richtet sich nach der Ankunft; die genaue
-        Grenze zieht der Aufrufer am `datum` des Kopfs.
+        Grenze zieht der Aufrufer am `datum` des Kopfs. Mit `uids` wird nicht
+        gesucht, sondern genau diese Nachrichten geholt.
         """
         self._waehle(ordner)
-        kriterien = ("SINCE", seit.strftime("%d-%b-%Y")) if seit else ("ALL",)
-        daten = self._befehl("SEARCH", self._v.uid, "SEARCH", *kriterien)
-        uids = [u.decode() for u in ((daten[0] or b"").split() if daten else [])]
+        if uids is None:
+            kriterien = ("SINCE", seit.strftime("%d-%b-%Y")) if seit else ("ALL",)
+            daten = self._befehl("SEARCH", self._v.uid, "SEARCH", *kriterien)
+            uids = [u.decode() for u in ((daten[0] or b"").split() if daten else [])]
+        uids = list(uids)
         grenze = GRENZE if grenze is None else grenze
         if len(uids) > grenze:
             self.gekappt[ordner] = (len(uids), grenze)

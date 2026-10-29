@@ -9,6 +9,12 @@ Alles, was im Postfach etwas ändern würde außer `APPEND`, ist hier verboten u
 wirft: `STORE`, `EXPUNGE`, `COPY`, `MOVE`, `DELETE`, `CREATE`, `RENAME`. Ein
 Test, der einen solchen Aufruf auslöst, wird rot — das ist die Zusage „nie
 löschen, nie verschieben, keine Flags ändern“ als Prüfung.
+
+**Eine Ausnahme, und sie ist einzeln einzuschalten:** `verschieben_erlaubt=True`
+öffnet `SELECT` ohne `readonly` und `UID MOVE` — für `falzmarke.ablage` (#431),
+das eine beantwortete Nachricht aus dem Eingang legt. Ohne den Schalter wirft
+die Attrappe beides weiter, und `test_postfach.py` prüft genau das: Sonst wäre
+die Erweiterung hier eine Hintertür für jeden anderen Test.
 """
 
 from __future__ import annotations
@@ -28,6 +34,14 @@ def _internaldate(zeit: datetime) -> str:
     return zeit.strftime("%d-%b-%Y %H:%M:%S %z")
 
 
+def _kopfzeile_enthaelt(roh: bytes, feld: str, wert: str) -> bool:
+    """Wie `SEARCH HEADER <feld> <wert>`: Teilzeichenkette, ohne Groß/Klein."""
+    kopf = roh.split(b"\r\n\r\n", 1)[0].split(b"\n\n", 1)[0]
+    text = kopf.decode("utf-8", "replace")
+    muster = re.compile(rf"(?im)^{re.escape(feld)}:\s*(.*)$")
+    return any(wert.lower() in treffer.lower() for treffer in muster.findall(text))
+
+
 class ImapAttrappe:
     """Nimmt die Rolle von `imaplib.IMAP4` ein: aufrufen wie die Klasse, dann bedienen."""
 
@@ -39,7 +53,9 @@ class ImapAttrappe:
                  verbindungsfehler: BaseException | None = None,
                  login_fehler: str | None = None,
                  append_wirkt: bool = True,
-                 append_fehler: BaseException | None = None):
+                 append_fehler: BaseException | None = None,
+                 verschieben_erlaubt: bool = False,
+                 faehigkeiten: tuple[str, ...] = ("IMAP4REV1", "UIDPLUS", "MOVE")):
         self.ordner: dict[str, list[Eintrag]] = {}
         self._naechste_uid = 100
         for name, nachrichten in (ordner or {}).items():
@@ -54,6 +70,10 @@ class ImapAttrappe:
         self.login_fehler = login_fehler
         self.append_wirkt = append_wirkt
         self.append_fehler = append_fehler
+        self.verschieben_erlaubt = verschieben_erlaubt
+        #: Wie `imaplib.IMAP4.capabilities` — `falzmarke.ablage` liest daraus,
+        #: ob der Server `MOVE` kennt, statt es anzunehmen.
+        self.capabilities = tuple(faehigkeiten)
         #: Jeder Befehl mit seinen Argumenten, in Reihenfolge.
         self.protokoll: list[tuple] = []
         self.verbindungen: list[tuple] = []
@@ -99,7 +119,7 @@ class ImapAttrappe:
     def select(self, mailbox="INBOX", readonly=False):
         name = self._name(mailbox)
         self.protokoll.append(("EXAMINE" if readonly else "SELECT", name))
-        if not readonly:
+        if not readonly and not self.verschieben_erlaubt:
             raise AssertionError(f"SELECT ohne readonly auf {name} — das Postfach wird nur gelesen")
         if name not in self.ordner:
             return "NO", [b"Folder not found."]
@@ -117,6 +137,9 @@ class ImapAttrappe:
             if kriterien and kriterien[0].upper() == "SINCE":
                 seit = datetime.strptime(kriterien[1], "%d-%b-%Y").date()
                 treffer = [n for n in nachrichten if n.angekommen.date() >= seit]
+            elif kriterien and kriterien[0].upper() == "HEADER":
+                feld, wert = kriterien[1], self._name(kriterien[2])
+                treffer = [n for n in nachrichten if _kopfzeile_enthaelt(n.roh, feld, wert)]
             else:
                 treffer = list(nachrichten)
             return "OK", [" ".join(str(n.uid) for n in treffer).encode()]
@@ -152,6 +175,18 @@ class ImapAttrappe:
                     meta = f"{nummer} (UID {n.uid} BODY[] {{{len(literal)}}}"
                 antwort += [(meta.encode(), literal), b")"]
             return "OK", antwort
+        if befehl == "MOVE":
+            if not self.verschieben_erlaubt:
+                raise AssertionError("UID MOVE ändert das Postfach — verboten")
+            menge, ziel = args
+            ziel = self._name(ziel)
+            if ziel not in self.ordner:
+                return "NO", [b"Folder not found."]
+            uids = {int(u) for u in str(menge).split(",") if u}
+            bewegt = [n for n in nachrichten if n.uid in uids]
+            self.ordner[self.ausgewaehlt] = [n for n in nachrichten if n.uid not in uids]
+            self.ordner[ziel].extend(bewegt)
+            return "OK", [f"[COPYUID 1 {menge} {menge}] MOVE completed.".encode()]
         raise AssertionError(f"UID {befehl} ist hier nicht vorgesehen")
 
     def append(self, mailbox, flags, date_time, message):
@@ -190,7 +225,7 @@ class ImapAttrappe:
 def nachricht(*, an: str = "paula@example.org", betreff: str = "Angebot",
               text: str = "Hallo Paula,\n\ndanke.\n", datum: datetime | None = None,
               von: str = "joe@example.org", kopf: dict | None = None,
-              html: str | None = None) -> bytes:
+              html: str | None = None, kennung: str | None = None) -> bytes:
     """Eine gesendete Mail als Bytes — so, wie sie im Gesendet-Ordner liegt."""
     from email.message import EmailMessage
 
@@ -199,7 +234,10 @@ def nachricht(*, an: str = "paula@example.org", betreff: str = "Angebot",
     m["To"] = an
     m["Subject"] = betreff
     m["Date"] = format_datetime(datum or datetime.now(timezone.utc))
-    m["Message-ID"] = "<test@example.org>"
+    # Über `kennung` ersetzbar, nicht ergänzbar: `m[name] = wert` hängt bei
+    # EmailMessage eine ZWEITE Kopfzeile an, und zwei Message-IDs machen jede
+    # Zuordnung über sie wertlos (#431).
+    m["Message-ID"] = kennung or "<test@example.org>"
     for name, wert in (kopf or {}).items():
         m[name] = wert
     if text is not None:

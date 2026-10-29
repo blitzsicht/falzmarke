@@ -317,6 +317,20 @@ regeln:
       Feld gesetzt" durchgehen — dann bliebe die Pruefung darunter wirkungslos,
       ohne dass es jemand merkt.
 
+  - id: email.ablage
+    titel: Das Feld `ablage` trägt einen lesbaren Ordnernamen
+    lint: email.ablage
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: fehler
+    bemerkung: >-
+      Eine Aussage über den Datenvertrag, nicht über IMAP: eine nicht leere
+      Zeichenkette ohne Leerraum am Rand. Ob der Ordner existiert und ob er ein
+      erlaubtes Ziel ist, weiß allein der Server — welcher Ordner mit `\Sent`
+      gekennzeichnet ist, steht nicht im Profil. Die Prüfung ist deshalb
+      bewusst schwächer als die Sperre in `falzmarke.ablage` (#431).
+
   - id: email.anrede_ton
     titel: Anrede im Profil und im Text gehen auseinander
     lint: email.anrede_ton

@@ -2044,6 +2044,74 @@ def befehl_entwurf_oeffnen(args) -> int:
     return EXIT_OK if oeffnung.offen else EXIT_UMGEBUNG
 
 
+def ablage_aus_profil(adresse: str, zusatz=None) -> tuple[str | None, str | None]:
+    """`email.ablage` des Profils, dessen `email.absender` die Adresse ist.
+
+    Gibt `(ablage, hinweis)`. Kein Profil zu finden ist kein Fehler: Dann
+    entscheidet das Kennzeichen `\\Archive` am Konto. Zwei Profile mit
+    derselben Adresse und verschiedener Ablage sind einer — sonst hinge das
+    Ziel daran, welche Datei zuerst gelesen wurde.
+    """
+    import yaml
+
+    gesucht = adresse.strip().casefold()
+    treffer: dict[str, str] = {}
+    for name, pfad in finde_profile(zusatz).items():
+        try:
+            profil = yaml.safe_load(pfad.read_text(encoding="utf-8")) or {}
+        except (OSError, yaml.YAMLError):
+            continue
+        abschnitt = profil.get("email")
+        if not isinstance(abschnitt, dict):
+            continue
+        if str(abschnitt.get("absender") or "").strip().casefold() != gesucht:
+            continue
+        wert = abschnitt.get("ablage")
+        if isinstance(wert, str) and wert.strip():
+            treffer[name] = wert.strip()
+    werte = set(treffer.values())
+    if len(werte) > 1:
+        namen = ", ".join(f"{n} → „{w}“" for n, w in sorted(treffer.items()))
+        return None, (f"HINWEIS  mehrere Profile nennen für {adresse} verschiedene "
+                      f"`email.ablage`: {namen} — keines wird genommen")
+    return (werte.pop() if werte else None), None
+
+
+def befehl_aufraeumen(args) -> int:
+    """Beantwortete Eingangspost in die Ablage des Kontos (#431, ADR 0061).
+
+    Ohne `--machen` wird nur gelesen und gezeigt. Das Ziel kommt aus
+    `email.ablage` im Profil des Absenders, sonst aus dem Kennzeichen
+    `\\Archive`; gibt es keines, wandert nichts.
+    """
+    import json
+
+    from falzmarke import ablage as ablage_modul
+
+    if args.seit < 1:
+        print("FEHLER  --seit braucht mindestens 1 Tag", file=sys.stderr)
+        return EXIT_EINGABE
+    zusatz = Path(args.profiles) if args.profiles else None
+    berichte, hinweise = [], []
+    for adresse in args.absender:
+        wunsch, hinweis = ablage_aus_profil(adresse, zusatz)
+        if hinweis:
+            hinweise.append(hinweis)
+        berichte.append(ablage_modul.raeume_auf(
+            adresse, wunsch=wunsch, seit_tagen=args.seit, machen=args.machen))
+    if args.json:
+        print(json.dumps([ablage_modul.als_json(b) for b in berichte], ensure_ascii=False,
+                         indent=2))
+    else:
+        for zeile in hinweise:
+            print(zeile, file=sys.stderr)
+        for bericht in berichte:
+            for zeile in ablage_modul.zeilen(bericht):
+                ziel = sys.stderr if zeile.startswith(("NICHT GEPRÜFT", "HINWEIS")) else sys.stdout
+                print(zeile, file=ziel)
+    return EXIT_UMGEBUNG if any(b.grund for b in berichte) else EXIT_OK
+
+
 def befehl_status(args) -> int:
     """Was aus den Postfach-Entwürfen wurde: gesendet, offen, gelöscht … (ADR 0055).
 
@@ -2649,6 +2717,19 @@ def main(argv: list[str] | None = None) -> int:
                    help="bei geändert gesendeten Entwürfen zeigen, was sich änderte")
     p.add_argument("--json", action="store_true", help="als JSON, für Sitzungen")
     p.set_defaults(funktion=befehl_status)
+
+    p = unter.add_parser(
+        "aufraeumen",
+        help="beantwortete Eingangspost in die Ablage des Kontos legen")
+    p.add_argument("--absender", required=True, action="append",
+                   help="die Adresse des Kontos; mehrfach für mehrere Konten")
+    p.add_argument("--seit", type=int, default=30,
+                   help="so weit zurück werden gesendete Antworten angesehen (Vorgabe 30 Tage)")
+    p.add_argument("--machen", action="store_true",
+                   help="wirklich verschieben; ohne diesen Schalter wird nur gezeigt")
+    p.add_argument("--profiles", help="Verzeichnis mit den Absenderprofilen")
+    p.add_argument("--json", action="store_true", help="als JSON, für Sitzungen")
+    p.set_defaults(funktion=befehl_aufraeumen)
 
     p = unter.add_parser("preview", help="PNG der ersten Seite")
     p.add_argument("brief")

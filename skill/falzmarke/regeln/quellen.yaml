@@ -375,6 +375,13 @@ quellen:
       Grob- und Feinadressierung, Prüfziffer, Trennzeichen). Das Beispiel
       `04011000-1234512345-06` aus Abschnitt 2.4 steht in den Tests.
 
+  rfc6154:
+    titel: "RFC 6154 — IMAP LIST Extension for Special-Use Mailboxes"
+    url: https://www.rfc-editor.org/rfc/rfc6154
+    art: primaerquelle
+    gruppe: rfc6154
+    zaehlt: voll
+    abgerufen: 2026-10-28
   rfc6531:
     titel: "RFC 6531 — SMTP Extension for Internationalized Email"
     url: https://www.rfc-editor.org/rfc/rfc6531
