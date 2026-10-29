@@ -418,6 +418,14 @@ def _loese_aus(regel: str, tmp_path):
         pfad.write_text(f"---\n{MAIL}---\nText der Nachricht.\n", encoding="utf-8")
         return falzmarke.linte(pfad, profil_verzeichnis=_profil_mit(
             {"stil": {"person": "isch"}}, tmp_path))
+    if regel == "email.ablage":
+        # Leerraum am Rand: `ablage: " Archiv"` zeigt auf einen Ordner, den der
+        # Server unter diesem Namen nicht hat. Eine Aussage über den
+        # Datenvertrag, deshalb Fehler und nicht Warnung (#431).
+        pfad = tmp_path / "nachricht.md"
+        pfad.write_text(f"---\n{MAIL}---\nText der Nachricht.\n", encoding="utf-8")
+        return falzmarke.linte(pfad, profil_verzeichnis=_profil_mit(
+            {"ablage": " Archiv"}, tmp_path))
     if regel in ("email.stil_person", "email.stil_floskel"):
         # Je Regel ein eigener Fall: Stünden beide in einem Text, prüfte jeder
         # Durchgang beide, und ein Ausfall einer der zwei bliebe unsichtbar.

@@ -79,6 +79,30 @@ Begründung: [ADR 0053](entscheidungen/0053-email-stil-im-profil.md).
 Das mitgelieferte Beispielprofil trägt **kein** `stil:`. Ein Profil, das bei jedem Lauf warnt,
 ist Lärm; wer den Stil festhalten will, trägt ihn in sein eigenes Profil ein.
 
+## Die Ablage für beantwortete Post
+
+`email.ablage:` nennt den Ordner, in den [`aufraeumen`](cli.md) eine eingegangene Nachricht
+legt, sobald sie beantwortet ist. Der Name ist der IMAP-Ordnername des Kontos, so wie der
+Server ihn führt.
+
+```yaml
+email:
+  absender: muster@example.de
+  ablage: Archiv             # oder "Erledigt", "INBOX/Fertig" …
+```
+
+**Ohne diese Zeile wird nichts verschoben**, und `aufraeumen` sagt das. Der naheliegende
+Ausweg — der IMAP-Sonderordner `\Archive` ([RFC 6154](https://www.rfc-editor.org/rfc/rfc6154)) — trägt nicht: An den Konten des
+Betreibers ist er nicht gekennzeichnet, obwohl ein Ordner „Archiv“ dort liegt. Ist er
+gekennzeichnet, wird er genommen. Nach einem Ordnernamen zu **raten** tut falzmarke nicht: Ein
+falsch getroffener Ordner ist nur von Hand zurückzuholen.
+
+Der Ordner wird nie angelegt, und einige Ziele sind ausgeschlossen — der Gesendet-Ordner, die
+Entwürfe, der Papierkorb, der Spam-Ordner und der Eingang selbst. „Gesendete Elemente“ ist für
+falzmarke Datenquelle und keine Ablage ([ADR 0051](entscheidungen/0051-gesendet-sperre-und-postfach-entwurf.md)).
+
+Das mitgelieferte Beispielprofil trägt **kein** `ablage:` — aus demselben Grund wie bei `stil:`.
+
 ## Eigener Briefkopf
 
 Wer den Briefkopf frei gestalten will, setzt `briefkopf_typ: meinkopf.typ` und legt daneben
