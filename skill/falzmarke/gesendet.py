@@ -341,7 +341,10 @@ def pruefe_datei(eml_pfad, *, umgebung: Mapping[str, str] | None = None, verbind
         ordner = oeffnen.thunderbird_ordner(absender, "fcc_folder", thunderbird_ordner)
     from falzmarke import entwurfsbuch
 
-    fassungen = entwurfsbuch.fassungen(entwurfsbuch.tagebuch(thunderbird_ordner)[0])
+    # `umgebung` mit: Sie bestimmt über `FALZMARKE_BRUECKE_SOCKET`, aus welchem
+    # Thunderbird-Profil das Tagebuch kommt (#410).
+    fassungen = entwurfsbuch.fassungen(
+        entwurfsbuch.tagebuch(thunderbird_ordner, umgebung)[0])
     return pruefe(merkmale(nachricht), absender, verbindung=verbindung, ordner=ordner,
                   jetzt=jetzt, stunden=_stunden(umgebung), umgebung=umgebung,
                   fassungen=fassungen)

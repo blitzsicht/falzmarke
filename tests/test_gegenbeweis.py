@@ -2075,3 +2075,191 @@ def _email_profilregeln(abschnitt: dict) -> set:
     bericht = _lint.Bericht()
     _lint.pruefe_email_profil({"email": abschnitt}, bericht)
     return {befund.regel for befund in bericht.befunde}
+
+
+# ── Das Konto hinter einem offenen Fenster (#410) ───────────────────────────
+#
+# Vier Sabotagen, jede an genau einer Stelle, jede mit einer eigenen Wirkung.
+# Sie liegen hier und nicht nur in `test_entwurfsbuch.py`, weil die Zusagen
+# **Abwesenheiten** sind: „das Konto wird nicht geraten" und „es wird nicht das
+# falsche Profil gelesen". Eine Probe über eine Abwesenheit bleibt grün, solange
+# der geprüfte Weg gar nicht beschritten wird — erst der Zwilling mit anderem
+# Ergebnis zeigt, dass gemessen wurde.
+
+_VON_410 = "order@example.de"
+_URI_FREMD = "imap-message://m0123456@imap.example.de/Entw&APw-rfe#4711"
+_URI_EIGEN = "imap-message://order%40example.de@127.0.0.1/Entw&APw-rfe#4711"
+
+
+def _fenster_410(uri: str, **felder) -> dict:
+    return {"titel": "Verfassen", "betreff": "Auftrag", "draft_id": uri, **felder}
+
+
+def _uids_410(monkeypatch, *fenster) -> dict:
+    """`_offene_uids` über die Attrappe — der Weg, den `status` wirklich geht."""
+    from bruecke_attrappe import BrueckenAttrappe
+
+    from falzmarke import bruecke as _bruecke
+    from falzmarke import entwurfsbuch as _buch
+
+    monkeypatch.setattr(_bruecke, "VERBINDEN",
+                        BrueckenAttrappe({"ok": True, "fenster": list(fenster)}))
+    uids, grund = _buch._offene_uids(_VON_410, {})
+    assert not grund, grund
+    return uids
+
+
+def test_die_zuordnung_ist_unsabotiert_gruen(monkeypatch):
+    """Kontrollprobe: Beide Fälle fallen ohne Sabotage richtig aus.
+
+    Ohne sie wäre an den folgenden Tests nicht zu sehen, ob die Sabotage wirkt
+    oder ob der Aufbau von sich aus das erwartete Ergebnis liefert.
+    """
+    eigen = _uids_410(monkeypatch, _fenster_410(_URI_FREMD, identitaet=_VON_410))
+    fremd = _uids_410(monkeypatch, _fenster_410(_URI_EIGEN, identitaet="wer@example.net"))
+    assert set(eigen) == {"4711"} and fremd == {}
+
+
+def test_eine_geratene_zuordnung_verliert_das_konto_mit_fremdem_login(monkeypatch):
+    """Sabotage: wieder `adresse in ziel`, die Teilkette der IMAP-URI.
+
+    Genau der Zustand vor #410. Beide Richtungen kippen zugleich, und das ist
+    der Punkt: Der Login `m0123456` verliert sein Fenster, während ein fremdes
+    Konto eines bekommt, nur weil seine URI die Adresse als Teilstück trägt.
+    """
+    from falzmarke import entwurfsbuch as _buch
+
+    def geraten(fenster, adresse):
+        # `unquote` gehört dazu: Die URI trägt die Adresse prozentcodiert
+        # (`order%40example.de`), und ohne das Entpacken träfe die Teilkette
+        # auch im alten Code nie — der Nachbau wäre dann milder als das
+        # Original und bewiese nichts.
+        from urllib.parse import unquote
+
+        aus = {}
+        for eintrag in fenster:
+            ziel = unquote(str(eintrag.get("draft_id") or "").split("?")[0]).lower()
+            treffer = _buch.UID_AUS_URI.search(ziel)
+            if treffer and adresse in ziel:
+                aus[treffer.group(1)] = eintrag
+        return aus
+
+    monkeypatch.setattr(_buch, "fenster_des_kontos", geraten)
+    assert _uids_410(monkeypatch, _fenster_410(_URI_FREMD, identitaet=_VON_410)) == {}
+    assert set(_uids_410(monkeypatch,
+                         _fenster_410(_URI_EIGEN, identitaet="wer@example.net"))) == {"4711"}
+
+
+def test_ohne_pruefung_der_identitaet_bekommt_ein_fremdes_fenster_die_uid(monkeypatch):
+    """Sabotage: nur die UID, die gemeldete Identität wird nicht gelesen.
+
+    Die Gegenrichtung zur vorigen Sabotage, und sie trennt den Fix von seiner
+    Lockerung: Dass die Adresse nicht mehr **ausschließt**, darf nicht heißen,
+    dass eine gemeldete Identität nicht mehr **entscheidet**.
+    """
+    from falzmarke import entwurfsbuch as _buch
+
+    def nur_uid(fenster, adresse):
+        aus = {}
+        for eintrag in fenster:
+            treffer = _buch.UID_AUS_URI.search(str(eintrag.get("draft_id") or ""))
+            if treffer:
+                aus[treffer.group(1)] = eintrag
+        return aus
+
+    monkeypatch.setattr(_buch, "fenster_des_kontos", nur_uid)
+    assert set(_uids_410(monkeypatch,
+                         _fenster_410(_URI_EIGEN, identitaet="wer@example.net"))) == {"4711"}
+
+
+# ── Das Profil, aus dem die Brücke antwortet (#410) ─────────────────────────
+
+def _zwei_profile_410(tmp_path, *, in_a=True, in_b=True):
+    """Thunderbird-Ordner, Profil A (Standard, ohne Socket), Profil B (mit Socket)."""
+    import json as _json
+
+    from falzmarke import bruecke as _bruecke
+    from falzmarke import entwurfsbuch as _buch
+
+    ordner = tmp_path / "Thunderbird"
+    a, b = ordner / "Profiles" / "aaa.default-release", ordner / "Profiles" / "bbb.zweites"
+    a.mkdir(parents=True)
+    b.mkdir(parents=True)
+    (ordner / "profiles.ini").write_text(
+        "[Install1]\nDefault=Profiles/aaa.default-release\n", encoding="utf-8")
+    for profil, da, woher in ((a, in_a, "A"), (b, in_b, "B")):
+        if da:
+            (profil / _buch.TAGEBUCH).write_text(
+                _json.dumps({"art": "geoeffnet", "zeit": "2026-10-25T11:00:00.000Z",
+                             "ursprung": {"betreff": f"aus {woher}"}}) + "\n", encoding="utf-8")
+    (b / _bruecke.SOCKET_DATEI).write_text("", encoding="utf-8")
+    return ordner, a, b
+
+
+def _woher_410(eintraege) -> list[str]:
+    return [(e.get("ursprung") or {}).get("betreff", "") for e in eintraege]
+
+
+def test_der_socket_entscheidet_das_profil_und_der_zwilling_zeigt_es(monkeypatch, tmp_path):
+    """Zwillingsvergleich: derselbe Aufbau, einmal mit und einmal ohne Schalter.
+
+    Ein einzelner Lauf könnte nicht belegen, dass der Socket das Profil
+    bestimmt — er sähe genauso aus, wenn stets B gelesen würde. Erst die zwei
+    verschiedenen Ergebnisse trennen die Fälle.
+    """
+    from falzmarke import bruecke as _bruecke
+    from falzmarke import entwurfsbuch as _buch
+    from falzmarke import oeffnen as _oeff
+
+    ordner, _, b = _zwei_profile_410(tmp_path)
+    monkeypatch.setattr(_oeff, "THUNDERBIRD_ORDNER", ordner)
+    mit, _ = _buch.tagebuch(umgebung={"FALZMARKE_BRUECKE_SOCKET":
+                                      str(b / _bruecke.SOCKET_DATEI)})
+    ohne, _ = _buch.tagebuch(umgebung={})
+    assert (_woher_410(mit), _woher_410(ohne)) == (["aus B"], ["aus A"])
+
+
+def test_ein_standardprofil_statt_des_sockets_liest_die_falsche_datei(monkeypatch, tmp_path):
+    """Sabotage: `bruecken_profil` nimmt wieder stur das Standardprofil.
+
+    Dann steht im Bericht, was in Profil A liegt, während das Add-on aus B
+    antwortet — und bei fehlendem Tagebuch in B meldete es nicht einmal etwas,
+    weil A ja eines hat. Still falsch, nicht leer: der Kern von #410.
+    """
+    from falzmarke import bruecke as _bruecke
+    from falzmarke import entwurfsbuch as _buch
+    from falzmarke import oeffnen as _oeff
+
+    ordner, _, b = _zwei_profile_410(tmp_path)
+    monkeypatch.setattr(_oeff, "THUNDERBIRD_ORDNER", ordner)
+    monkeypatch.setattr(_buch, "bruecken_profil",
+                        lambda profilordner=None, umgebung=None:
+                        (_oeff.thunderbird_standardprofil(
+                            _oeff.THUNDERBIRD_ORDNER if profilordner is None
+                            else Path(profilordner)), ""))
+    eintraege, grund = _buch.tagebuch(
+        umgebung={"FALZMARKE_BRUECKE_SOCKET": str(b / _bruecke.SOCKET_DATEI)})
+    assert _woher_410(eintraege) == ["aus A"] and not grund
+
+
+def test_der_hinweis_nennt_das_gelesene_profil_und_zwar_verschieden(monkeypatch, tmp_path):
+    """Zwei Profile ohne Tagebuch, zwei Hinweise — und sie müssen sich unterscheiden.
+
+    Ein fester Text „kein Tagebuch im Thunderbird-Profil" könnte diese Probe
+    nicht bestehen: Sie verlangt nicht, dass ein Name dasteht, sondern dass der
+    **richtige** dasteht. Das ist der Unterschied zwischen einer Behauptung und
+    einer Messung.
+    """
+    from falzmarke import bruecke as _bruecke
+    from falzmarke import entwurfsbuch as _buch
+    from falzmarke import oeffnen as _oeff
+
+    ordner, a, b = _zwei_profile_410(tmp_path, in_a=False, in_b=False)
+    monkeypatch.setattr(_oeff, "THUNDERBIRD_ORDNER", ordner)
+    (a / _bruecke.SOCKET_DATEI).write_text("", encoding="utf-8")
+    _, aus_b = _buch.tagebuch(umgebung={"FALZMARKE_BRUECKE_SOCKET":
+                                        str(b / _bruecke.SOCKET_DATEI)})
+    _, aus_a = _buch.tagebuch(umgebung={"FALZMARKE_BRUECKE_SOCKET":
+                                        str(a / _bruecke.SOCKET_DATEI)})
+    assert b.name in aus_b and a.name not in aus_b
+    assert a.name in aus_a and b.name not in aus_a
