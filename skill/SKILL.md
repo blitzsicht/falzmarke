@@ -269,6 +269,11 @@ Postfach war nicht erreichbar, über die Entwürfe ist nichts gesagt. `--json` f
 die Mail ging: „Empfänger wie angelegt“ oder `ABWEICHEND vom Entwurf: +x −y`. Vor dem Senden diese
 Zeile lesen, statt im Gesendet-Ordner von Hand nachzusehen (ADR 0056).
 
+Welchem Konto ein Fenster gehört, meldet das Add-on; geraten wird es nicht aus der Adresse der
+Nachricht, deren Autoritätsteil den IMAP-Anmeldenamen trägt. Das Tagebuch kommt aus dem
+Thunderbird-Profil, in dem der Socket der Brücke liegt — bei gesetztem `FALZMARKE_BRUECKE_SOCKET`
+also nicht aus dem Standardprofil (ADR 0060, Nachtrag).
+
 **`entwurf-oeffnen` — einen Entwurf, der schon im Postfach liegt, in Thunderbird aufmachen.**
 
 ```bash

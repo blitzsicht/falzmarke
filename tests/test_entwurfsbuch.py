@@ -1562,3 +1562,186 @@ def test_das_unerreichbare_postfach_nennt_den_eintrag_trotzdem(monkeypatch, tmp_
     bericht = _stand(profilordner=profil)
     assert bericht.grund, "die Vorbedingung stimmt nicht: das Postfach antwortet"
     assert any("weder UID noch Fassung" in z for z in entwurfsbuch.zeilen(bericht))
+
+
+# ── Das Konto wird nicht aus der URI geraten (#410) ─────────────────────────
+#
+# Der Autoritätsteil einer `imap-message://`-URI trägt den IMAP-Anmeldenamen,
+# nicht die Adresse. `LOGIN_FREMD` ist der Fall, der die alte Teilketten-Prüfung
+# `adresse in ziel` nie treffen konnte: ein Login ohne jede Ähnlichkeit zur
+# Adresse, wie ihn Telekom-Aliasse, Uni-Kennungen und `m0123456` bei 1&1 haben.
+#
+# Die Annahme über die URI-Form schrumpft damit auf das Stück, das doppelt
+# belegt ist: `#<uid>` am Ende. Dasselbe Muster steht im Add-on, und
+# `tests/test_entwurfsbruecke.py` hält beide Seiten gleich — Soll und Ist kommen
+# also **nicht** mehr aus derselben Quelle, anders als beim alten Vergleich,
+# dessen einzige Festlegung diese Testdatei selbst war.
+LOGIN_FREMD = "imap-message://m0123456@imap.example.de/Entw&APw-rfe#{uid}"
+LOGIN_EIGEN = "imap-message://order%40example.de@127.0.0.1/Entw&APw-rfe#{uid}"
+
+
+def _fenster(uid, uri=LOGIN_FREMD, **felder) -> dict:
+    return {"titel": "Verfassen: Auftrag S1", "betreff": "Auftrag S1",
+            "draft_id": uri.format(uid=uid), **felder}
+
+
+def _mit_fenstern(monkeypatch, *fenster) -> BrueckenAttrappe:
+    attrappe = BrueckenAttrappe({"ok": True, "fenster": list(fenster)})
+    monkeypatch.setattr(bruecke, "VERBINDEN", attrappe)
+    return attrappe
+
+
+def test_ein_konto_mit_fremdem_login_erreicht_offen(monkeypatch):
+    """Der Fund von #410: `OFFEN` hing an einer Teilkette der IMAP-URI.
+
+    Heißt der Login `m0123456`, während die Adresse `order@example.de` ist, war
+    `adresse in ziel` immer falsch — der Entwurf stand in einem Fenster und hieß
+    trotzdem `WARTET`. Jetzt entscheidet, was das Add-on meldet.
+    """
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    uid = server.ordner[ENTWUERFE][0].uid
+    _mit_fenstern(monkeypatch, _fenster(uid, identitaet=VON))
+    assert _einziger(_stand()).art == "offen"
+
+
+def test_ein_fremdes_konto_wird_nicht_offen_weil_die_uri_die_adresse_enthaelt(monkeypatch):
+    """Die andere Richtung desselben Funds, und sie ist die gefährlichere.
+
+    Die Teilkette traf auch ein fremdes Konto, dessen URI die eigene Adresse
+    als Teilstück trug. Dann hätte ein Entwurf dieses Kontos `OFFEN` geheißen,
+    obwohl das Fenster einem anderen Absender gehört.
+    """
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    uid = server.ordner[ENTWUERFE][0].uid
+    _mit_fenstern(monkeypatch, _fenster(uid, uri=LOGIN_EIGEN, identitaet="fremd@example.net"))
+    assert _einziger(_stand()).art == "wartet"
+
+
+def test_ohne_gemeldete_identitaet_traegt_die_uid_allein(monkeypatch):
+    """Ein Add-on vor 0.3.0 — oder ein Fenster, das sich nicht lesen ließ.
+
+    Dann fehlt `identitaet`, und die UID ist der einzige Anker. Sie trägt: Die
+    Liste wird je Konto gegen dessen Entwürfe-Ordner abgeglichen. Die Adresse in
+    der URI darf hier nicht mehr ausschließen, sonst wäre der Fund nur um eine
+    Fassung verschoben.
+    """
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    uid = server.ordner[ENTWUERFE][0].uid
+    _mit_fenstern(monkeypatch, _fenster(uid, live=False))
+    assert _einziger(_stand()).art == "offen"
+
+
+def test_bei_zwei_fenstern_derselben_uid_entscheidet_die_gemeldete_identitaet(monkeypatch):
+    """Mehrdeutigkeit, und zwar die einzige, die übrig bleibt.
+
+    Zwei Fenster melden dieselbe UID; eines nennt seine Identität, das andere
+    nicht. Gewählt wird das gemeldete — es ist das einzige, das etwas über das
+    Konto aussagt. Geprüft am Betreff, nicht an der Zahl der Fenster: Sonst
+    stünde hier, wie viele Einträge die Attrappe liefert, und nicht, welcher
+    genommen wurde.
+    """
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    uid = server.ordner[ENTWUERFE][0].uid
+    _mit_fenstern(monkeypatch,
+                  _fenster(uid, uri=LOGIN_EIGEN, betreff="ohne Meldung"),
+                  _fenster(uid, identitaet=VON, betreff="mit Meldung"))
+    gewaehlt = entwurfsbuch.fenster_des_kontos(
+        [_fenster(uid, uri=LOGIN_EIGEN, betreff="ohne Meldung"),
+         _fenster(uid, identitaet=VON, betreff="mit Meldung")], VON)
+    assert gewaehlt[str(uid)]["betreff"] == "mit Meldung"
+
+
+def test_ein_fenster_ohne_uid_in_der_uri_zaehlt_nicht(monkeypatch):
+    """Ohne `#<uid>` ist nicht zu sagen, welcher Entwurf gemeint ist.
+
+    Gegenprobe zur gelockerten Zuordnung: Dass die Adresse nicht mehr
+    ausschließt, heißt nicht, dass jedes Fenster zählt.
+    """
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    _mit_fenstern(monkeypatch, {"titel": "Verfassen", "betreff": "neu",
+                                "draft_id": "", "identitaet": VON})
+    assert _einziger(_stand()).art == "wartet"
+    assert server.ordner[ENTWUERFE]
+
+
+# ── Das Tagebuch kommt aus dem Profil des Sockets (#410) ────────────────────
+#
+# Vorher las `tagebuch()` stur das Standardprofil, während `bruecke.socketpfad`
+# `FALZMARKE_BRUECKE_SOCKET` folgte. Bei gesetztem Schalter antwortete das
+# Add-on damit aus Profil B, während hier Profil A gelesen wurde: `BELEGT`
+# konnte nicht entstehen, `gesperrt` und `gesendet` blieben unsichtbar, und der
+# einzige Hinweis lautete „kein Tagebuch" — was nach einem zu alten Add-on
+# klingt, nicht nach dem falschen Profil.
+
+def _zwei_profile(tmp_path, *, in_a=True, in_b=True) -> tuple[Path, Path, Path]:
+    """Thunderbird-Ordner, Profil A (Standard) und Profil B (Socket)."""
+    ordner = tmp_path / "Thunderbird"
+    a, b = ordner / "Profiles" / "aaa.default-release", ordner / "Profiles" / "bbb.zweites"
+    a.mkdir(parents=True)
+    b.mkdir(parents=True)
+    (ordner / "profiles.ini").write_text(
+        "[Install1]\nDefault=Profiles/aaa.default-release\n", encoding="utf-8")
+    for profil, da, woher in ((a, in_a, "A"), (b, in_b, "B")):
+        if da:
+            (profil / entwurfsbuch.TAGEBUCH).write_text(
+                json.dumps({"art": "geoeffnet", "zeit": "2026-10-25T11:00:00.000Z",
+                            "ursprung": {"konto": VON, "betreff": f"aus {woher}"}}) + "\n",
+                encoding="utf-8")
+    (b / bruecke.SOCKET_DATEI).write_text("", encoding="utf-8")
+    return ordner, a, b
+
+
+def _betreffe(eintraege) -> list[str]:
+    return [(e.get("ursprung") or {}).get("betreff", "") for e in eintraege]
+
+
+def test_das_tagebuch_kommt_aus_dem_profil_des_sockets(monkeypatch, tmp_path):
+    """Der Schalter bestimmt das Profil, und zwar für beide Seiten."""
+    ordner, _, b = _zwei_profile(tmp_path)
+    monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER", ordner)
+    eintraege, grund = entwurfsbuch.tagebuch(
+        umgebung={"FALZMARKE_BRUECKE_SOCKET": str(b / bruecke.SOCKET_DATEI)})
+    assert not grund
+    assert _betreffe(eintraege) == ["aus B"]
+
+
+def test_gegenprobe_ohne_schalter_bleibt_es_das_standardprofil(monkeypatch, tmp_path):
+    """Dasselbe Verzeichnis, nur ohne Schalter — und ein anderes Ergebnis.
+
+    Die Gegenprobe zur ersten: Ohne sie wäre nicht zu sehen, ob der Schalter
+    wirkt oder ob B schon vorher gelesen wurde. Zwei Läufe, zwei verschiedene
+    Betreffe.
+    """
+    ordner, _, _ = _zwei_profile(tmp_path)
+    monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER", ordner)
+    eintraege, grund = entwurfsbuch.tagebuch(umgebung={})
+    assert not grund
+    assert _betreffe(eintraege) == ["aus A"]
+
+
+def test_fehlt_das_tagebuch_nennt_der_hinweis_das_gelesene_profil(monkeypatch, tmp_path):
+    """Liegt im Profil des Sockets keines, muss der Hinweis das Profil nennen.
+
+    Sonst beantwortet er die Frage nicht, die er aufwirft: Es gibt hier zwei
+    Profile, und eines trägt ein Tagebuch. „Kein Tagebuch" allein schickt den
+    Leser zum Add-on, statt zum Profil.
+    """
+    ordner, _, b = _zwei_profile(tmp_path, in_b=False)
+    monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER", ordner)
+    eintraege, grund = entwurfsbuch.tagebuch(
+        umgebung={"FALZMARKE_BRUECKE_SOCKET": str(b / bruecke.SOCKET_DATEI)})
+    assert eintraege == []
+    assert b.name in grund and "Entwurfsbrücke ab 0.2.0" in grund
+
+
+def test_ohne_profil_bleibt_der_grund_bei_der_alten_aussage(monkeypatch, tmp_path):
+    """Kein Profil heißt weiter „kein Standardprofil", nicht „kein Socket".
+
+    Für den Leser ist das Profil die Sache, die fehlt; der Socket ist nur der
+    Weg, auf dem es bestimmt wird.
+    """
+    leer = tmp_path / "ohne"
+    leer.mkdir()
+    monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER", leer)
+    eintraege, grund = entwurfsbuch.tagebuch(umgebung={})
+    assert eintraege == [] and "kein Thunderbird-Standardprofil" in grund

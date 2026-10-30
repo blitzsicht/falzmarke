@@ -478,17 +478,52 @@ def lesen(umgebung: Mapping[str, str] | None = None) -> Buch:
     return Buch(eintraege, unlesbar, tuple(ungewiss))
 
 
-def tagebuch(profilordner: Path | None = None) -> tuple[list[dict], str]:
-    """Die Einträge des Add-on-Tagebuchs und ein Hinweis, warum es fehlt (sonst leer)."""
-    from falzmarke import oeffnen
+def bruecken_profil(profilordner: Path | None = None,
+                    umgebung: Mapping[str, str] | None = None) -> tuple[Path | None, str]:
+    """Das Thunderbird-Profil, aus dem die Entwurfsbrücke antwortet.
 
-    ordner = oeffnen.THUNDERBIRD_ORDNER if profilordner is None else Path(profilordner)
+    Nicht „das Standardprofil": Der Socket der Brücke bestimmt das Profil, und
+    `FALZMARKE_BRUECKE_SOCKET` sticht die Auflösung des Standardprofils. Wer
+    hier stur das Standardprofil nähme, läse bei gesetztem Schalter eine Datei,
+    die niemand schreibt — `BELEGT` könnte nicht entstehen, `gesperrt` und
+    `gesendet` blieben unsichtbar, und der einzige Hinweis lautete „kein
+    Tagebuch", was nach einem zu alten Add-on klingt statt nach dem falschen
+    Profil (#410).
+
+    Weil Socket und Tagebuch jetzt aus **einer** Quelle kommen, kann das Paar
+    nicht mehr auseinanderlaufen. Ein ausdrücklich übergebener `profilordner`
+    geht vor — daran hängen `gesendet.fassungen` und die Proben.
+    """
+    from falzmarke import bruecke, oeffnen
+
+    if profilordner is None:
+        sock = bruecke.socketpfad(umgebung)
+        if sock:
+            return Path(sock).parent, ""
+        return None, f"kein Thunderbird-Standardprofil unter {oeffnen.THUNDERBIRD_ORDNER}"
+    ordner = Path(profilordner)
     profil = oeffnen.thunderbird_standardprofil(ordner)
     if profil is None:
-        return [], f"kein Thunderbird-Standardprofil unter {ordner}"
+        return None, f"kein Thunderbird-Standardprofil unter {ordner}"
+    return profil, ""
+
+
+def tagebuch(profilordner: Path | None = None,
+             umgebung: Mapping[str, str] | None = None) -> tuple[list[dict], str]:
+    """Die Einträge des Add-on-Tagebuchs und ein Hinweis, warum es fehlt (sonst leer).
+
+    Gelesen wird das Profil, in dem der Socket der Brücke liegt
+    (`bruecken_profil`) — nicht blind das Standardprofil.
+    """
+    profil, grund = bruecken_profil(profilordner, umgebung)
+    if profil is None:
+        return [], grund
     pfad = profil / TAGEBUCH
     if not pfad.is_file():
-        return [], "kein Tagebuch im Thunderbird-Profil — die Entwurfsbrücke ab 0.2.0 schreibt es"
+        # Das Profil **beim Namen nennen**: Der Hinweis soll die Frage „welches
+        # Profil wurde gelesen?" beantworten, nicht offenlassen (#410).
+        return [], (f"kein Tagebuch im Thunderbird-Profil „{profil.name}“ — "
+                    "die Entwurfsbrücke ab 0.2.0 schreibt es")
     zeilen, unlesbar = _jsonzeilen(pfad)
     return zeilen, (_zeilenwort(unlesbar, "im Tagebuch der Entwurfsbrücke") if unlesbar else "")
 
@@ -592,6 +627,46 @@ class Bericht(NamedTuple):
     ohne_zuordnung: int = 0
 
 
+def fenster_des_kontos(fenster: list[dict], adresse: str) -> dict[str, dict]:
+    """UID → das Fenster, in dem ein Entwurf dieses Kontos offen steht.
+
+    Das Konto wird **nicht** aus der `draft_id` geraten. Deren Autoritätsteil
+    trägt den IMAP-Anmeldenamen, und der muss die Adresse nicht enthalten:
+    Lautet der Login `m0123456` oder `order`, während die Adresse
+    `order@example.de` ist, traf die alte Teilketten-Prüfung `adresse in ziel`
+    nie — ein Entwurf, der gerade in einem Fenster stand, hieß dann `WARTET`,
+    und `OFFEN` konnte an solchen Einrichtungen überhaupt nicht entstehen.
+    Umgekehrt traf die Teilkette auch ein fremdes Konto, dessen URI die Adresse
+    als Teilstück enthielt (#410).
+
+    Gefragt wird stattdessen das Add-on: Es meldet ab 0.3.0 unter `identitaet`
+    die Absenderadresse des Fensters (`implementation.js`, aus `from`) — eine
+    Identität, kein Anmeldename. Wo sie dasteht, entscheidet sie allein.
+
+    Fehlt sie — älteres Add-on, oder `live: false`, weil sich das Fenster nicht
+    lesen ließ —, bleibt die UID der einzige Anker. Sie trägt für sich: Die
+    Fensterliste wird je Konto gegen dessen Entwürfe-Ordner abgeglichen, und
+    eine UID ohne Fenster bleibt einfach `WARTET`. Die Adresse in der URI darf
+    dann nicht mehr ausschließen; sie entscheidet nur noch, wenn zwei Fenster
+    dieselbe UID melden.
+    """
+    nach_uid: dict[str, list[tuple[bool, bool, dict]]] = {}
+    for eintrag in fenster:
+        ziel = unquote(str(eintrag.get("draft_id") or "").split("?")[0]).lower()
+        treffer = UID_AUS_URI.search(ziel)
+        if not treffer:
+            continue
+        gemeldet = str(eintrag.get("identitaet") or "").strip().lower()
+        if gemeldet and gemeldet != adresse.strip().lower():
+            continue
+        nach_uid.setdefault(treffer.group(1), []).append(
+            (not gemeldet, adresse.strip().lower() not in ziel, eintrag))
+    # Je UID das beste Fenster: gemeldete Identität vor Treffer in der URI vor
+    # erstem Fund. `sorted` ist stabil, der letzte Rang ist damit die Reihenfolge
+    # der Liste.
+    return {uid: sorted(liste, key=lambda e: e[:2])[0][2] for uid, liste in nach_uid.items()}
+
+
 def _offene_uids(adresse: str, umgebung: Mapping[str, str]) -> tuple[dict[str, dict], str]:
     """UID → was die Brücke über das Fenster meldet, in dem dieser Entwurf offen ist."""
     from falzmarke import bruecke
@@ -600,13 +675,7 @@ def _offene_uids(adresse: str, umgebung: Mapping[str, str]) -> tuple[dict[str, d
         fenster = bruecke.offene_entwuerfe(umgebung=umgebung)
     except bruecke.BrueckenFehler as fehler:
         return {}, f"offene Fenster nicht geprüft: {fehler}"
-    uids = {}
-    for eintrag in fenster:
-        ziel = unquote(str(eintrag.get("draft_id") or "").split("?")[0]).lower()
-        treffer = UID_AUS_URI.search(ziel)
-        if treffer and adresse in ziel:
-            uids[treffer.group(1)] = eintrag
-    return uids, ""
+    return fenster_des_kontos(fenster, adresse), ""
 
 
 def _ursprung(tag: Mapping, adresse: str) -> Mapping | None:
@@ -729,7 +798,10 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
     stand = lesen(umgebung)
     buch = [e for e in stand.eintraege if e.konto == adresse and e.zeit >= grenze]
     ungewiss = tuple(e for e in stand.ungewiss if e.konto == adresse and e.zeit >= grenze)
-    tage_eintraege, tagebuch_grund = tagebuch(profilordner)
+    # `umgebung` mit: Sie entscheidet über `FALZMARKE_BRUECKE_SOCKET` und damit
+    # über das Profil. Ohne sie läse `tagebuch` `os.environ` — ein anderes
+    # Objekt als das, das dieser Lauf benutzt.
+    tage_eintraege, tagebuch_grund = tagebuch(profilordner, umgebung)
     tage_eintraege = [t for t in tage_eintraege
                       if (_zeit(t.get("zeit")) or grenze) >= grenze]
     # Das Tagebuch führt alle Konten des Profils, die Zeile stellt die Zahl aber hinter

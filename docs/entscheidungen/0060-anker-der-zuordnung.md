@@ -174,3 +174,48 @@ abgelesen.
 meldeten `schon_offen` und schrieben keine Zeile — das Messskript hielt die alte Zeile zunächst
 für die neue, bis es den Tagebuchstand **vor** dem Öffnen nahm und bei ausbleibendem Wachstum
 abbricht. Ein Messaufbau, der nicht wachsen kann, meldet sonst den letzten Fund als neuen.
+
+## Nachtrag 29.10.2026 — das Konto wird nicht geraten (#410)
+
+Der Anker beantwortet, **welcher Entwurf** gemeint ist. Offen blieb, **welchem Konto** das Fenster
+gehört, und dort stand bis hierher eine Teilketten-Prüfung: `adresse in ziel`, gegen die
+entpackte `draft_id`.
+
+Das trägt nicht. Der Autoritätsteil einer `imap-message://`-URI ist der IMAP-Anmeldename, nicht
+die E-Mail-Adresse. Lautet er `m0123456` oder bloß `order`, während die Adresse
+`order@example.de` ist, war der Vergleich immer falsch: `OFFEN` konnte an solchen Einrichtungen
+nicht entstehen, und der Entwurf hieß `WARTET`, während er in einem Fenster stand. Die
+Gegenrichtung ist die gefährlichere — eine URI, die die eigene Adresse als Teilstück trägt, ordnete
+ein fremdes Fenster dem eigenen Konto zu.
+
+Die einzige Festlegung der URI-Form war die Testattrappe selbst. Soll und Ist kamen damit aus
+derselben Annahme; ein Test konnte den Fehler nicht finden.
+
+**Entschieden: Das Add-on wird gefragt.** Es meldet ab 0.3.0 unter `identitaet` die
+Absenderadresse des Fensters (`implementation.js`, aus `from`) — eine Identität, kein Anmeldename.
+Wo sie dasteht, entscheidet sie allein. Fehlt sie, weil das Add-on älter ist oder sich das Fenster
+nicht lesen ließ (`live: false`), bleibt die UID der einzige Anker; sie trägt für sich, weil die
+Fensterliste je Konto gegen dessen Entwürfe-Ordner abgeglichen wird. Die Adresse in der URI darf
+dann nicht mehr ausschließen und entscheidet nur noch zwischen zwei Fenstern derselben UID.
+
+Von der URI bleibt damit genau `#<uid>` am Ende — und dieses Stück ist doppelt belegt, weil
+dasselbe Muster im Add-on steht und `tests/test_entwurfsbruecke.py` beide Seiten gleich hält.
+
+**Dazu: ein Profil, nicht zwei.** `tagebuch()` löste stur das Standardprofil auf, während
+`bruecke.socketpfad` `FALZMARKE_BRUECKE_SOCKET` folgte. Bei gesetztem Schalter antwortete das
+Add-on aus Profil B, während Profil A gelesen wurde: `BELEGT` konnte nicht entstehen, `gesperrt`
+und `gesendet` blieben unsichtbar, und der einzige Hinweis lautete „kein Tagebuch" — was den
+Leser zum Add-on schickt statt zum Profil. Beide Seiten kommen jetzt aus `bruecken_profil`, also
+aus **einer** Quelle; das Paar kann nicht mehr auseinanderlaufen. Fehlt das Tagebuch wirklich,
+nennt der Hinweis das gelesene Profil beim Namen.
+
+### Was dieser Nachtrag nicht behauptet
+
+Am Gerät des Betreibers ist der Fehler **nicht beobachtbar**: Alle neun IMAP-Konten tragen dort
+ihre Adresse als Login (29.10.2026 aus `prefs.js` gemessen), und Socket wie Tagebuch liegen im
+Standardprofil. Der Fix schützt fremde Einrichtungen — Telekom-Aliasse, Uni-Kennungen,
+`m0123456` bei 1&1 —, nicht dieses eine Postfach. Belegt ist er deshalb allein in der Suite, mit
+vier Sabotagen in `tests/test_gegenbeweis.py`, und nicht durch einen Gerätelauf.
+
+Der Nebenbefund aus #410 bleibt offen: `THUNDERBIRD_ORDNER` ist macOS-fest, auf Linux liefert
+`tagebuch()` weiter nur den Hinweis.

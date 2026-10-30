@@ -296,6 +296,19 @@ steht es nicht: Dass derselbe Betreff mit anderem Text hinausging, belegt für d
 nichts. Entwürfe, die nicht über falzmarke entstanden, zeigt `status` nur, solange sie in
 „Entwürfe“ liegen.
 
+Welchem Konto ein offenes Fenster gehört, sagt das Add-on: Es meldet ab 0.3.0 die Absenderadresse
+des Fensters. Geraten wird sie **nicht** mehr aus der Adresse der Nachricht — deren Autoritätsteil
+trägt den IMAP-Anmeldenamen, und der muss die E-Mail-Adresse nicht enthalten. Heißt der Login
+`m0123456`, konnte `OFFEN` dort vorher überhaupt nicht entstehen. Meldet ein älteres Add-on keine
+Adresse, hängt die Zuordnung an der UID allein; die Adresse entscheidet dann nur noch, wenn zwei
+Fenster dieselbe UID nennen ([ADR 0060](entscheidungen/0060-anker-der-zuordnung.md), Nachtrag
+29.10.2026).
+
+Gelesen wird das Thunderbird-Profil, in dem der Socket der Brücke liegt — bei gesetztem
+`FALZMARKE_BRUECKE_SOCKET` also ein anderes als das Standardprofil. Liegt dort kein Tagebuch,
+nennt der Hinweis das Profil beim Namen: `kein Tagebuch im Thunderbird-Profil „…“`. Vorher stand
+dort nur „kein Tagebuch", und das klang nach einem zu alten Add-on statt nach dem falschen Profil.
+
 Ab 0.2.0 hält die Entwurfsbrücke außerdem das Senden an, wenn derselbe Text in den letzten 14
 Tagen schon an einen dieser Empfänger ging. Bei einem Entwurf oder einer neuen Mail gilt das auch
 für denselben Betreff mit anderem Text in den letzten 24 Stunden. Thunderbird fragt dann, „Nicht
