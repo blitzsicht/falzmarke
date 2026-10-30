@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import shutil
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -2263,3 +2264,203 @@ def test_der_hinweis_nennt_das_gelesene_profil_und_zwar_verschieden(monkeypatch,
                                         str(a / _bruecke.SOCKET_DATEI)})
     assert b.name in aus_b and a.name not in aus_b
     assert a.name in aus_a and b.name not in aus_a
+# ── Die Review-Funde an der Ablage (#438) ──────────────────────────────────
+#
+# Vier Zusagen, die #435 nicht hatte, und zu jeder die Frage, ob sie rot werden
+# kann. Jede Sabotage sitzt an **einer** Stelle; gebündelt wäre eine darunter,
+# die nie anschlägt, nicht zu sehen.
+
+_HEUTE_438 = datetime(2026, 10, 28, 12, 0, tzinfo=timezone.utc)
+#: Zwei Kennungen, deren Summe über 78 Zeichen liegt — `EmailMessage` faltet
+#: die Zeile dann selbst, der Fall ist keiner von Hand gebaut.
+_LANG_438 = "<kunde-mit-sehr-langer-nachrichtenkennung-aus-dem-fremdsystem-0001@example.org>"
+_ZWEITE_438 = "<zweite-kennung@example.org>"
+
+
+def _ablage_lage(monkeypatch, *, eingang, gesendet):
+    """Eine Sitzung über einer Attrappe mit Eingang, Gesendet und „Archiv"."""
+    from falzmarke import postfach as _postfach_modul
+
+    from imap_attrappe import ImapAttrappe
+
+    attrappe = ImapAttrappe(
+        {"INBOX": list(eingang), "Gesendete Elemente": list(gesendet)},
+        sonder={"INBOX": "", "Gesendete Elemente": "\\Sent", "Archiv": ""},
+        verschieben_erlaubt=True)
+    monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE", attrappe)
+    return attrappe, _postfach_modul.verbinde("joe@example.org", umgebung={}, frist=30)
+
+
+def _eingang_438(kennung, betreff="Angebot"):
+    from imap_attrappe import nachricht
+
+    zeit = _HEUTE_438 - timedelta(days=5)
+    return (nachricht(an="joe@example.org", von="kunde@example.org", betreff=betreff,
+                      datum=zeit, kennung=kennung), zeit)
+
+
+def _antwort_438(bezug, *, tage=1):
+    """`roh_kopf`, nicht `kopf`: Die Policy von `EmailMessage` kodiert eine
+    lange Message-ID auf Python 3.12 anders als auf 3.14, und die CI fährt
+    3.12 — über die Policy gebaut, prüfte diese Probe dort etwas anderes."""
+    from imap_attrappe import nachricht
+
+    zeit = _HEUTE_438 - timedelta(days=tage)
+    return (nachricht(an="kunde@example.org", betreff="AW: Angebot", datum=zeit,
+                      kennung=f"<eigene-{tage}@example.org>",
+                      roh_kopf={"In-Reply-To": bezug}), zeit)
+
+
+def test_der_umbruch_wird_zweimal_gehalten_und_jede_linie_einzeln_belegt(monkeypatch):
+    """Zwei Filter stehen hier in Reihe, und das verdeckt jede einzelne
+    Sabotage: `postfach.kennungen` zerlegt den Feldwert, danach lehnt
+    `postfach._zitiert` einen Umbruch ohnehin ab. Nur `_zitiert` kaputt zu
+    machen bleibt grün — nicht weil die Prüfung wertlos ist, sondern weil der
+    Fall sie nie erreicht.
+
+    Deshalb drei Stufen in einem Durchgang, mit **drei verschiedenen**
+    Ergebnissen:
+
+    1. unsabotiert — ein Bericht, der gefaltete Bezug ist gefunden;
+    2. ohne das Zerlegen — `PostfachFehler`: die zweite Linie hält;
+    3. ohne beides — `ValueError` aus der Attrappe, mit dem Wortlaut von
+       `imaplib.IMAP4._command`. Das ist der Zustand, in dem der Umbruch auf
+       die Leitung geht; auf Python 3.12 und 3.13 lehnt `imaplib` ihn **nicht**
+       ab, dort wären es zwei Befehle (gemessen 29.10.2026, #438). Die CI
+       fährt 3.12 — ohne die Ablehnung in der Attrappe wäre diese Stufe dort
+       stumm.
+    """
+    from falzmarke import ablage as _ablage
+    from falzmarke import postfach as _postfach_modul
+
+    lage = dict(eingang=[_eingang_438(_LANG_438)],
+                gesendet=[_antwort_438(f"{_LANG_438}\r\n {_ZWEITE_438}")])
+
+    def plane_einmal():
+        with _ablage_lage(monkeypatch, **lage)[1] as sitzung:
+            return _ablage.plane(sitzung, wunsch="Archiv", heute=_HEUTE_438.date())
+
+    bericht = plane_einmal()
+    assert [z.kennung for z in bericht.zuege] == [_LANG_438], \
+        "Kontrollprobe: unsabotiert muss der gefaltete Bezug gefunden werden"
+
+    # Stufe 2: ohne das Zerlegen trägt der Suchbegriff den Umbruch wieder.
+    monkeypatch.setattr(_postfach_modul, "kennungen",
+                        lambda wert: (str(wert or "").strip(),) if str(wert or "").strip() else ())
+    with pytest.raises(_postfach_modul.PostfachFehler, match="Umbruch oder Nullbyte"):
+        plane_einmal()
+
+    # Stufe 3: und ohne die Ablehnung geht er hinaus.
+    def nur_zitieren(name):
+        return '"' + name.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+    monkeypatch.setattr(_postfach_modul, "_zitiert", nur_zitieren)
+    with pytest.raises(ValueError, match="NUL, CR and LF"):
+        plane_einmal()
+    assert nur_zitieren("Gesendete Elemente") == '"Gesendete Elemente"', \
+        "die Sabotage hat mehr getroffen als die Prüfung — das Zitieren selbst fiel"
+
+
+def test_ohne_das_zerlegen_fallen_zwei_kennungen_aus_der_zuordnung(monkeypatch):
+    """Sabotage an genau einer Stelle: `kennungen` gibt den rohen Feldwert.
+
+    Dann wird `<a@…> <b@…>` als eine Teilkette gesucht, trifft nichts — und die
+    Antwort zählt als „längst weggeräumt", während beide Nachrichten im Eingang
+    liegen bleiben. Die Sabotage ist genau die Fassung, die #435 hatte.
+    """
+    from falzmarke import ablage as _ablage
+    from falzmarke import postfach as _postfach_modul
+
+    erste, zweite = "<a@example.org>", "<b@example.org>"
+    lage = dict(eingang=[_eingang_438(erste, "Erstes"), _eingang_438(zweite, "Zweites")],
+                gesendet=[_antwort_438(f"{erste} {zweite}")])
+    with _ablage_lage(monkeypatch, **lage)[1] as sitzung:
+        bericht = _ablage.plane(sitzung, wunsch="Archiv", heute=_HEUTE_438.date())
+    assert len(bericht.zuege) == 2 and bericht.nicht_im_eingang == 0, \
+        "Kontrollprobe: unsabotiert müssen beide Nachrichten gefunden werden"
+
+    monkeypatch.setattr(_postfach_modul, "kennungen",
+                        lambda wert: (str(wert or "").strip(),) if str(wert or "").strip() else ())
+    attrappe, sitzung = _ablage_lage(monkeypatch, **lage)
+    with sitzung:
+        sabotiert = _ablage.plane(sitzung, wunsch="Archiv", heute=_HEUTE_438.date())
+    assert sabotiert.zuege == () and sabotiert.nicht_im_eingang == 1, \
+        "das Zerlegen ist nicht die Stelle, an der die Zuordnung entsteht"
+    assert len(attrappe.ordner["INBOX"]) == 2, "die Sabotage hat Post bewegt"
+
+
+def test_ohne_den_kappungshinweis_liest_sich_das_fenster_vollstaendig(monkeypatch):
+    """Sabotage an genau einer Stelle: `_kappungen` gibt nichts zurück.
+
+    Dann steht in beiden Darstellungen „0 von 2 Antworten seit …", als wäre das
+    Fenster ganz gelesen — und die dritte, ältere Antwort wird nie aufgeräumt.
+    """
+    from falzmarke import ablage as _ablage
+    from falzmarke import postfach as _postfach_modul
+
+    monkeypatch.setattr(_postfach_modul, "GRENZE", 2)
+    lage = dict(eingang=[_eingang_438("<alt@example.org>", "Alt")],
+                gesendet=[_antwort_438("<alt@example.org>", tage=3),
+                          _antwort_438("<x@example.org>", tage=2),
+                          _antwort_438("<y@example.org>", tage=1)])
+    with _ablage_lage(monkeypatch, **lage)[1] as sitzung:
+        bericht = _ablage.plane(sitzung, wunsch="Archiv", heute=_HEUTE_438.date())
+    assert any("nur die neuesten 2 von 3" in h for h in bericht.hinweise), \
+        "Kontrollprobe: unsabotiert muss die Kappung im Bericht stehen"
+    assert bericht.zuege == (), "die Probe trifft nicht: die alte Antwort war doch dabei"
+
+    monkeypatch.setattr(_ablage, "_kappungen", lambda sitzung: ())
+    with _ablage_lage(monkeypatch, **lage)[1] as sitzung:
+        stumm = _ablage.plane(sitzung, wunsch="Archiv", heute=_HEUTE_438.date())
+    assert stumm.hinweise == (), "`_kappungen` ist nicht die Stelle, die den Hinweis setzt"
+    assert _ablage.als_json(stumm)["hinweise"] == [] \
+        and not [z for z in _ablage.zeilen(stumm) if z.startswith("HINWEIS")], \
+        "ein zweiter Weg setzt den Hinweis — dann belegt die Sabotage ihn nicht"
+    assert stumm.antworten == 2, "die Sabotage hat mehr getroffen als den Hinweis"
+
+
+def test_ohne_den_grund_wandert_die_post_in_den_archive_ordner(monkeypatch, tmp_path, capsys):
+    """Sabotage an genau einer Stelle: `ablage_aus_profil` meldet die
+    Mehrdeutigkeit wieder als blankes `None`.
+
+    Dann ist sie für `ablageordner` von „kein Profil nennt das Feld" nicht zu
+    unterscheiden, der Lauf nimmt `\\Archive` — und mit `--machen` liegt die
+    Post in einem Ordner, den keines der beiden Profile verlangt hat. Genau
+    diese Fassung hatte #435.
+    """
+    import json
+
+    from falzmarke import cli as _cli
+    from falzmarke import postfach as _postfach_modul
+
+    for name, ziel in (("eins", "Archiv/A"), ("zwei", "Archiv/B")):
+        (tmp_path / f"{name}.yaml").write_text(
+            f"email:\n  absender: joe@example.org\n  ablage: {ziel}\n", encoding="utf-8")
+
+    def lauf():
+        from imap_attrappe import ImapAttrappe
+
+        attrappe = ImapAttrappe(
+            {"INBOX": [_eingang_438("<a@example.org>")],
+             "Gesendete Elemente": [_antwort_438("<a@example.org>")]},
+            sonder={"INBOX": "", "Gesendete Elemente": "\\Sent", "Archiv": "\\Archive"},
+            verschieben_erlaubt=True)
+        monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE", attrappe)
+        code = _cli.main(["aufraeumen", "--absender", "joe@example.org",
+                          "--profiles", str(tmp_path), "--machen", "--json"])
+        return attrappe, code, json.loads(capsys.readouterr().out)[0]
+
+    attrappe, code, eintrag = lauf()
+    assert code == _cli.EXIT_UMGEBUNG and eintrag["grund"], \
+        "Kontrollprobe: unsabotiert muss die Mehrdeutigkeit ein Grund sein"
+    assert len(attrappe.ordner["INBOX"]) == 1 and len(attrappe.ordner["Archiv"]) == 0
+
+    echtes = _cli.ablage_aus_profil
+    monkeypatch.setattr(_cli, "ablage_aus_profil",
+                        lambda adresse, zusatz=None: (echtes(adresse, zusatz)[0], None))
+    attrappe, code, eintrag = lauf()
+    assert code == _cli.EXIT_OK and eintrag["grund"] is None, \
+        "der Grund kommt nicht aus `ablage_aus_profil`"
+    assert eintrag["ablage"] == "Archiv" and eintrag["verschoben"] == 1, \
+        "ohne den Grund muss die Post nach `\\Archive` wandern — sonst hält sie etwas anderes"
+    assert len(attrappe.ordner["Archiv"]) == 1

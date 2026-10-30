@@ -126,12 +126,54 @@ def ordner_aus_url(url: str) -> tuple[str, str] | None:
     return unquote(teile.username or ""), name
 
 
+#: Zeichen, die in einem IMAP-Argument nichts zu suchen haben. Derselbe Satz
+#: wie `imaplib._control_chars` — hier aber selbst geprüft, weil es diese
+#: Prüfung in `imaplib.IMAP4._command` erst ab Python 3.14 gibt.
+_STEUERZEICHEN = re.compile(r"[\x00\r\n]")
+
+#: Eine Message-ID in spitzen Klammern. `[^<>\s]` statt `.`, damit zwei
+#: Kennungen in einer Zeile nicht zu einer verschmelzen.
+_KENNUNG = re.compile(r"<[^<>\s]+>")
+
+
 def _zitiert(name: str) -> str:
-    """Ein Ordnername als IMAP-Zeichenkette — immer in Anführungszeichen.
+    """Ein Ordnername oder Suchwert als IMAP-Zeichenkette — in Anführungszeichen.
 
     `Gesendete Elemente` hat ein Leerzeichen; unzitiert wären es zwei Argumente.
+
+    Ein Umbruch oder Nullbyte wird **abgelehnt**, nicht entschärft: In IMAP
+    trennt `\r\n` zwei Befehle. Ein Wert, der von außen kommt — die
+    `Message-ID` fremder Post, über `In-Reply-To` einer Antwort — stünde dann
+    als eigener Befehl in einer Sitzung, die verschieben darf. `imaplib` fängt
+    das erst ab Python 3.14 ab; auf 3.12.9 und 3.13.12 gehen zwei Zeilen auf
+    die Leitung (gemessen am 29.10.2026 mit abgefangenem `send`, #438), und die
+    CI fährt 3.12.
     """
+    if _STEUERZEICHEN.search(name or ""):
+        raise PostfachFehler(
+            "ein Umbruch oder Nullbyte in einem IMAP-Argument wird nicht gesendet — "
+            "er würde dort einen zweiten Befehl beginnen")
     return '"' + name.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def kennungen(wert: str) -> tuple[str, ...]:
+    """Die Message-IDs eines rohen Feldwerts, einzeln und ohne Doppelte.
+
+    `In-Reply-To` und `References` tragen nach RFC 5322 eine **Liste**, und ein
+    langer Wert liegt über mehrere Zeilen gefaltet in der Nachricht. Beides
+    heißt: Der Feldwert, wie `kopf_aus` ihn liefert, ist kein Suchbegriff — es
+    ist einer je Kennung (#438).
+
+    Ohne spitze Klammern bleibt der zu einer Zeile zusammengezogene Wert die
+    einzige Kennung. Ein Programm, das sie ohne Klammern schreibt, soll nicht
+    stillschweigend aus der Zuordnung fallen.
+    """
+    roh = str(wert or "")
+    gefunden = tuple(dict.fromkeys(_KENNUNG.findall(roh)))
+    if gefunden:
+        return gefunden
+    eine = " ".join(roh.split())
+    return (eine,) if eine else ()
 
 
 # ── Ziel ────────────────────────────────────────────────────────────────────

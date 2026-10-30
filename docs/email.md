@@ -354,7 +354,23 @@ zurück angesehen werden (Vorgabe 30 Tage).
 | `OK  … → „Archiv“` | so viele Nachrichten sind beantwortet und liegen noch im Eingang; nichts bewegt |
 | `OK  … — 2 nach „Archiv“ verschoben` | mit `--machen`: so viele sind gewandert |
 | `… Antworten ohne Nachricht im Eingang` | längst weggeräumt, von Hand oder von einem früheren Lauf |
+| `HINWEIS …` (stderr) | der Befund ist eingeschränkt, etwa weil der Gesendet-Ordner gekappt wurde |
 | `NICHT GEPRÜFT` (Exit 3) | kein Ziel, kein Gesendet-Ordner oder Postfach nicht erreichbar — der Grund steht dabei |
+
+**Eine Antwort darf mehrere Nachrichten erledigen.** `In-Reply-To` trägt nach RFC 5322 eine
+Liste, und ein langer Wert liegt über mehrere Zeilen gefaltet in der Nachricht. Gesucht wird
+deshalb je Kennung einzeln; eine Antwort zählt erst als „längst weggeräumt", wenn **keine** ihrer
+Kennungen im Eingang liegt. Ein Umbruch in einem IMAP-Argument wird abgelehnt und nicht
+entschärft — in IMAP beginnt dort ein zweiter Befehl.
+
+**Liest der Lauf nicht alles, sagt er es.** Liegen im Fenster mehr gesendete Mails als
+`postfach.GRENZE` (500), sieht `aufraeumen` nur die jüngsten an. Das steht dann als `HINWEIS` in
+**beiden** Darstellungen — im Text und unter `--json` —, denn was davor liegt, wird nicht
+aufgeräumt und erscheint auch nicht als erledigt.
+
+**Zwei Profile mit derselben Adresse und verschiedenem `ablage:` sind ein Grund, kein Hinweis.**
+Dann steht `NICHT GEPRÜFT`, der Lauf öffnet kein Postfach, und nichts wandert: Welcher Ordner
+gilt, muss im Profil stehen.
 
 **Das Ziel wird nie geraten und nie angelegt.** Es steht als `ablage:` im Abschnitt `email:` des
 Profils ([profiles.md](profiles.md)). Fehlt die Zeile, gilt der Sonderordner `\Archive`; gibt es

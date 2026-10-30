@@ -304,9 +304,13 @@ wandert nichts und der Grund steht da — geraten wird nicht. Der Gesendet-Ordne
 **ausgeschlossen**: Er ist Datenquelle der Sendesperre und von `status` (ADR 0051), ebenso die
 Entwürfe, der Papierkorb, der Spam-Ordner und der Eingang selbst. Ein zweiter Lauf verschiebt
 nichts mehr, weil die Nachricht dann nicht mehr im Eingang liegt — ein Protokoll braucht es
-dafür nicht. `--seit` setzt das Fenster für die gesendeten Antworten (Vorgabe 30 Tage); die
-beantwortete Nachricht darf beliebig alt sein. Braucht den IMAP-Proxy. `--json` für die
-Weiterarbeit (ADR 0061).
+dafür nicht. `--seit` setzt das Fenster für die gesendeten Antworten (Vorgabe 30 Tage, höchstens
+3650); die beantwortete Nachricht darf beliebig alt sein. Nennt eine Antwort mehrere Kennungen,
+wird jede einzeln gesucht, und sie gilt erst als erledigt, wenn keine davon im Eingang liegt.
+Sah der Lauf nur die jüngsten Mails des Fensters, steht das als `HINWEIS` in Text **und**
+`--json`. Nennen zwei Profile derselben Adresse verschiedene `ablage:`, wird kein Postfach
+geöffnet und nichts bewegt — welcher Ordner gilt, muss im Profil stehen. Braucht den IMAP-Proxy.
+`--json` für die Weiterarbeit (ADR 0061).
 
 **`xml` — eine Rechnung als reine XML-Datei, ohne PDF.**
 
