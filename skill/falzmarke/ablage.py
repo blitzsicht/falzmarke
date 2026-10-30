@@ -44,6 +44,11 @@ EINGANG = "INBOX"
 #: `Message-ID`, nicht über ein Datum.
 SEIT_TAGEN = 30
 
+#: Das längste Fenster, das `--seit` annimmt. Zehn Jahre: Darüber bricht
+#: `heute - timedelta(days=…)` mit `OverflowError`, und ein Fenster dieser
+#: Länge liest ohnehin nur die jüngsten `postfach.GRENZE` Mails (#438).
+SEIT_MAX = 3650
+
 #: Zeitlimit der ganzen Sitzung. Großzügiger als `postfach.FRIST_S`: Dort hält
 #: ein hängender Proxy das Öffnen eines Entwurfs auf, hier läuft ein Befehl,
 #: den jemand bewusst gestartet hat.
@@ -93,6 +98,14 @@ class Bericht(NamedTuple):
     zuege: tuple[Zug, ...]
     #: Tatsächlich bewegt. Ohne `--machen` immer 0.
     verschoben: int
+    #: Was den Befund einschränkt, ohne ihn zu verhindern — eine gekappte
+    #: Suche etwa. Geht in **beide** Darstellungen: Ein Kanal, den nur der
+    #: Text hat, schweigt unter `--json` (#438).
+    hinweise: tuple[str, ...] = ()
+    #: Das Ziel, wie der Server es führt (UTF-7). `ziel` daneben ist dasselbe,
+    #: nur lesbar. Steht hier, damit der Zug den Ordner nicht ein zweites Mal
+    #: bestimmen muss — zwei Bestimmungen können verschieden ausfallen.
+    ziel_server: str | None = None
 
 
 # ── Das Ziel ────────────────────────────────────────────────────────────────
@@ -156,6 +169,10 @@ def plane(sitzung: postfach.Postfach, *, wunsch: str | None = None,
                   "gesendeten Antworten ist nicht zu sagen, was beantwortet wurde")
 
     heute = heute or datetime.now(timezone.utc).date()
+    if not 1 <= seit_tagen <= SEIT_MAX:
+        return leer._replace(
+            ziel=postfach.utf7_dekodieren(ziel), ziel_server=ziel,
+            grund=f"ein Fenster von {seit_tagen} Tagen liegt außerhalb von 1 bis {SEIT_MAX}")
     seit = heute - timedelta(days=seit_tagen)
     grenze = datetime.combine(seit, datetime.min.time(), tzinfo=timezone.utc)
     antworten = [k for k in sitzung.koepfe(gesendet, seit=seit)
@@ -166,22 +183,41 @@ def plane(sitzung: postfach.Postfach, *, wunsch: str | None = None,
     gefunden: dict[str, Zug] = {}
     nicht_im_eingang = 0
     for antwort in antworten:
-        uids = sitzung.suche_kopfzeile(EINGANG, "Message-ID", antwort.antwort_auf)
-        if not uids:
-            nicht_im_eingang += 1
-            continue
-        for kopf in sitzung.koepfe(EINGANG, uids=uids):
-            vorher = gefunden.get(kopf.uid)
-            if vorher is not None and _spaeter(vorher.antwort_datum, antwort.datum):
+        # Je Kennung eine Suche. Der rohe Feldwert ist keine: Er trägt eine
+        # Liste und bei Länge einen Umbruch (#438).
+        traf = False
+        for kennung in postfach.kennungen(antwort.antwort_auf):
+            uids = sitzung.suche_kopfzeile(EINGANG, "Message-ID", kennung)
+            if not uids:
                 continue
-            gefunden[kopf.uid] = Zug(uid=kopf.uid, betreff=kopf.betreff, datum=kopf.datum,
-                                     kennung=antwort.antwort_auf,
-                                     antwort_betreff=antwort.betreff,
-                                     antwort_datum=antwort.datum)
+            traf = True
+            for kopf in sitzung.koepfe(EINGANG, uids=uids):
+                vorher = gefunden.get(kopf.uid)
+                if vorher is not None and _spaeter(vorher.antwort_datum, antwort.datum):
+                    continue
+                gefunden[kopf.uid] = Zug(uid=kopf.uid, betreff=kopf.betreff, datum=kopf.datum,
+                                         kennung=kennung,
+                                         antwort_betreff=antwort.betreff,
+                                         antwort_datum=antwort.datum)
+        if not traf:
+            nicht_im_eingang += 1
     zuege = tuple(sorted(gefunden.values(), key=lambda z: int(z.uid)))
     return Bericht(adresse=sitzung.adresse, ziel=postfach.utf7_dekodieren(ziel), grund=None,
                    seit=seit, antworten=len(antworten), nicht_im_eingang=nicht_im_eingang,
-                   zuege=zuege, verschoben=0)
+                   zuege=zuege, verschoben=0, hinweise=_kappungen(sitzung), ziel_server=ziel)
+
+
+def _kappungen(sitzung: postfach.Postfach) -> tuple[str, ...]:
+    """Je Ordner, in dem `koepfe` mehr fand als es ansah, ein Satz.
+
+    Derselbe Wortlaut wie in `entwurfsbuch` (ADR 0055): Dort steht er für
+    dieselben Ordner, und zwei Formulierungen für dieselbe Lücke wären für den
+    Leser zwei verschiedene Lücken.
+    """
+    return tuple(
+        f"„{postfach.utf7_dekodieren(ordner)}“: nur die neuesten {angesehen} von {alle} "
+        "Mails angesehen — was davor liegt, fehlt im Abgleich"
+        for ordner, (alle, angesehen) in sorted(sitzung.gekappt.items()))
 
 
 def _spaeter(a: datetime | None, b: datetime | None) -> bool:
@@ -205,6 +241,8 @@ def verschiebe(sitzung: postfach.Postfach, ziel: str, uids: list[str]) -> int:
     """
     if not uids:
         return 0
+    if not ziel:
+        raise AblageFehler("ohne Ablageordner wird nichts verschoben")
     if not _kann_verschieben(sitzung):
         raise AblageFehler(
             "der Server nennt in CAPABILITY kein MOVE (RFC 6851) — falzmarke baut es nicht "
@@ -231,30 +269,36 @@ def raeume_auf(adresse: str, *, wunsch: str | None = None, seit_tagen: int = SEI
                machen: bool = False, umgebung: Mapping[str, str] | None = None,
                frist: float = FRIST_S) -> Bericht:
     """Ein Absender, von der Anmeldung bis zum Zug. Ohne `machen` wird nur gelesen."""
+    bericht = Bericht(adresse=adresse, ziel=None, grund=None, seit=None, antworten=0,
+                      nicht_im_eingang=0, zuege=(), verschoben=0)
     try:
         sitzung = postfach.verbinde(adresse, umgebung=umgebung, frist=frist)
     except postfach.PostfachFehler as fehler:
-        return Bericht(adresse=adresse, ziel=None, grund=str(fehler), seit=None, antworten=0,
-                       nicht_im_eingang=0, zuege=(), verschoben=0)
+        return bericht._replace(grund=str(fehler))
     with sitzung:
         try:
             bericht = plane(sitzung, wunsch=wunsch, seit_tagen=seit_tagen)
             if not machen or bericht.grund or not bericht.zuege:
                 return bericht
-            ziel, _ = ablageordner(sitzung, wunsch)
-            anzahl = verschiebe(sitzung, ziel, [z.uid for z in bericht.zuege])
+            # Das Ziel steht im Bericht. Ein zweites `ablageordner` wäre eine
+            # zweite Bestimmung, und die kann anders ausfallen als die erste.
+            anzahl = verschiebe(sitzung, bericht.ziel_server, [z.uid for z in bericht.zuege])
             return bericht._replace(verschoben=anzahl)
         except (postfach.PostfachFehler, AblageFehler) as fehler:
-            return Bericht(adresse=adresse, ziel=None, grund=str(fehler), seit=None,
-                           antworten=0, nicht_im_eingang=0, zuege=(), verschoben=0)
+            # `_replace`, kein frischer Bericht: Bricht der Zug ab, nachdem der
+            # Server einen Teil bewegt hat, wäre „0 von 0" die stärkste Form
+            # von „nichts geschehen" — für den einen Fall, in dem etwas
+            # geschehen sein kann (#438).
+            return bericht._replace(grund=str(fehler))
 
 
 # ── Ausgabe: ein Bericht, zwei Darstellungen ────────────────────────────────
 
 def zeilen(bericht: Bericht) -> list[str]:
     """Der Bericht als Text. `NICHT GEPRÜFT` gehört auf stderr, der Rest nicht."""
+    nachspann = [f"HINWEIS  {h}" for h in bericht.hinweise]
     if bericht.grund:
-        return [f"NICHT GEPRÜFT  {bericht.adresse}: {bericht.grund}"]
+        return [f"NICHT GEPRÜFT  {bericht.adresse}: {bericht.grund}"] + nachspann
     aus = [f"OK  {bericht.adresse}: {len(bericht.zuege)} von {bericht.antworten} Antworten "
            f"seit {bericht.seit.strftime('%d.%m.%Y')} haben ihre Nachricht noch im Eingang"
            + (f" — {bericht.verschoben} nach „{bericht.ziel}“ verschoben"
@@ -268,7 +312,7 @@ def zeilen(bericht: Bericht) -> list[str]:
                    "(längst weggeräumt)")
     if bericht.zuege and not bericht.verschoben:
         aus.append("    nichts bewegt — mit --machen verschieben")
-    return aus
+    return aus + nachspann
 
 
 def als_json(bericht: Bericht) -> dict:
@@ -281,6 +325,7 @@ def als_json(bericht: Bericht) -> dict:
         "antworten": bericht.antworten,
         "nicht_im_eingang": bericht.nicht_im_eingang,
         "verschoben": bericht.verschoben,
+        "hinweise": list(bericht.hinweise),
         "zuege": [{"uid": z.uid, "betreff": z.betreff,
                    "datum": z.datum.isoformat() if z.datum else None,
                    "kennung": z.kennung, "antwort_betreff": z.antwort_betreff,

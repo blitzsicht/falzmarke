@@ -104,3 +104,33 @@ räumte fast nichts auf. Eine Abnahme, die sich daran nicht messen lässt, ist k
 Nachricht nicht. Das ist ein eigener Mangel, unabhängig von dieser Entscheidung, und steht in
 [#434](https://github.com/blitzsicht/falzmarke/issues/434). Diese Entscheidung legt nichts in
 „Gesendete Elemente" ab und verschärft ihn nicht.
+
+## Nachtrag (29.10.2026, #438)
+
+Das Review der Umsetzung hat drei Festlegungen nachgeschärft. Keine widerspricht dem Beschluss
+oben; sie schließen Lücken, die beim Schreiben nicht gesehen wurden.
+
+**Die Zuordnung läuft über die einzelnen Kennungen, nicht über den Feldwert.** `In-Reply-To`
+trägt nach RFC 5322 eine Liste, und ein langer Wert liegt gefaltet in der Nachricht — der rohe
+Feldwert ist also kein Suchbegriff. `postfach.kennungen` zerlegt ihn, und gesucht wird je
+Kennung. Eine Antwort gilt erst als erledigt, wenn **keine** ihrer Kennungen im Eingang liegt.
+
+**Ein Umbruch in einem IMAP-Argument wird abgelehnt, nicht entschärft.** In IMAP trennt `\r\n`
+zwei Befehle. Der rohe Feldwert einer fremden Nachricht erreichte die Befehlszeile, und `imaplib`
+fängt das erst ab Python 3.14 ab: Auf 3.12.9 und 3.13.12 gingen zwei Zeilen auf die Leitung
+(gemessen mit abgefangenem `send`), und die CI fährt 3.12. `postfach._zitiert` lehnt jetzt selbst
+ab — die engste Stelle, sie liegt vor jedem `SEARCH`, `SELECT` und `FETCH`. Für die Proben folgt
+daraus, dass die Attrappe die Ablehnung ebenfalls selbst mitbringen muss; eine Probe, die sich
+auf `imaplib` stützt, wäre lokal rot und auf der CI stumm.
+
+**Eine mehrdeutige `email.ablage` ist ein Grund, kein Rückfall.** Nennen zwei Profile derselben
+Absenderadresse verschiedene Ordner, gab `cli.ablage_aus_profil` ein blankes `None` zurück — für
+`ablageordner` nicht von „kein Profil nennt das Feld" zu unterscheiden. Der Lauf nahm dann
+`\Archive` und verschob die Post mit `--machen` dorthin, während die Ausgabe sagte, es sei keines
+genommen worden; unter `--json` stand davon nichts. Jetzt steht der Satz als `grund` im Bericht,
+es wird kein Postfach geöffnet, und beide Darstellungen tragen ihn.
+
+Dazu zwei kleinere Festlegungen: Der Ablageordner wird je Lauf **einmal** bestimmt und über den
+Bericht an den Zug gegeben (zwei Bestimmungen können verschieden ausfallen), und ein Fehler beim
+Zug lässt den gefundenen Plan stehen, statt ihn durch Nullen zu ersetzen — „0 von 0" wäre die
+stärkste Form von „nichts geschehen" für den einen Fall, in dem etwas geschehen sein kann.
