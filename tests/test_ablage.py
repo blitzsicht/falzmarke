@@ -224,6 +224,39 @@ def test_eine_gefaltete_kopfzeile_laesst_den_lauf_berichten():
         "ein Umbruch erreichte die Befehlszeile"
 
 
+@pytest.mark.parametrize("kennung, erwartet", [
+    ("<gut@example.org>", True),
+    ("frei ohne Klammern", True),
+    ("<a\x00b@example.org>", False),
+    ("<a\rb@example.org>", False),
+    ("<müller@example.org>", False),
+], ids=["gesund", "fallback", "nullbyte", "umbruch", "nicht-ascii"])
+def test_sendbar_trennt_was_die_leitung_vertraegt(kennung, erwartet):
+    assert postfach.sendbar(kennung) is erwartet
+
+
+def test_der_kodierfehler_von_imaplib_wird_ein_grund_kein_traceback():
+    """`imaplib` kodiert mit ASCII, und das ist ein `ValueError` (#442)."""
+    _, sitzung = _postfach()
+    with sitzung, pytest.raises(postfach.PostfachFehler, match="SEARCH"):
+        sitzung._befehl("SEARCH", lambda: bytes("<müller@example.org>", "ascii"))
+
+
+def test_eine_unsendbare_kennung_ist_kein_laengst_weggeraeumt():
+    """Nicht gesucht heißt nicht gefunden: Die Nachricht wird im Bericht genannt, nicht
+    als erledigt gezählt."""
+    zeit = HEUTE - timedelta(days=1)
+    antwort = (nachricht(an="kunde@example.org", betreff="AW: x", datum=zeit,
+                         kennung="<eigene@example.org>",
+                         roh_kopf={"In-Reply-To": "<a\x01\x00b@example.org>"}), zeit)
+    _, sitzung = _postfach(gesendet=[antwort])
+    with sitzung:
+        bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+    assert (bericht.antworten, bericht.nicht_im_eingang, bericht.grund) == (1, 0, None)
+    assert any("1 Kennungen in `In-Reply-To` übersprungen" in h for h in bericht.hinweise)
+    assert ablage.als_json(bericht)["hinweise"] == list(bericht.hinweise)
+
+
 def test_zwei_kennungen_in_einer_zeile_finden_beide_nachrichten():
     """Als **eine** Teilkette gesucht, trifft `<a@x> <b@y>` keine der beiden
     Message-IDs. Beide Nachrichten blieben im Eingang und würden trotzdem als

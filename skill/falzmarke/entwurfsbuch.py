@@ -486,25 +486,36 @@ def bruecken_profil(profilordner: Path | None = None,
                     umgebung: Mapping[str, str] | None = None) -> tuple[Path | None, str]:
     """Das Thunderbird-Profil, aus dem die Entwurfsbrücke antwortet.
 
-    Nicht „das Standardprofil": Der Socket der Brücke bestimmt das Profil, und
-    `FALZMARKE_BRUECKE_SOCKET` sticht die Auflösung des Standardprofils. Wer
+    Nicht blind „das Standardprofil": Liegt der Socket der Brücke in einem
+    Profil, bestimmt er es, und `FALZMARKE_BRUECKE_SOCKET` sticht dann die
+    Auflösung des Standardprofils. Wer
     hier stur das Standardprofil nähme, läse bei gesetztem Schalter eine Datei,
     die niemand schreibt — `BELEGT` könnte nicht entstehen, `gesperrt` und
     `gesendet` blieben unsichtbar, und der einzige Hinweis lautete „kein
     Tagebuch", was nach einem zu alten Add-on klingt statt nach dem falschen
     Profil (#410).
 
-    Weil Socket und Tagebuch jetzt aus **einer** Quelle kommen, kann das Paar
-    nicht mehr auseinanderlaufen. Ein ausdrücklich übergebener `profilordner`
-    geht vor — daran hängen `gesendet.fassungen` und die Proben.
+    Der Schalter ist aber auch dafür da, den Socket aus dem Profil **heraus** zu
+    legen: Ein Unix-Socketpfad fasst auf macOS nur 104 Byte (ADR 0059). Dann ist
+    sein Verzeichnis kein Profil, und es wird das Standardprofil gelesen. Ein
+    Profil erkennt sich an `prefs.js`, die Thunderbird beim ersten Start anlegt
+    (#442). Ein ausdrücklich übergebener `profilordner` geht vor — daran hängen
+    `gesendet.fassungen` und die Proben.
     """
     from falzmarke import bruecke, oeffnen
 
     if profilordner is None:
         sock = bruecke.socketpfad(umgebung)
-        if sock:
-            return Path(sock).parent, ""
-        return None, f"kein Thunderbird-Standardprofil unter {oeffnen.THUNDERBIRD_ORDNER}"
+        if not sock:
+            return None, f"kein Thunderbird-Standardprofil unter {oeffnen.THUNDERBIRD_ORDNER}"
+        verzeichnis = Path(sock).parent
+        if (verzeichnis / "prefs.js").is_file():
+            return verzeichnis, ""
+        profil = oeffnen.thunderbird_standardprofil(oeffnen.THUNDERBIRD_ORDNER)
+        if profil is None:
+            return None, (f"der Socket liegt in {verzeichnis}, das ist kein Thunderbird-Profil, "
+                          f"und unter {oeffnen.THUNDERBIRD_ORDNER} gibt es kein Standardprofil")
+        return profil, ""
     ordner = Path(profilordner)
     profil = oeffnen.thunderbird_standardprofil(ordner)
     if profil is None:
@@ -692,11 +703,17 @@ def fenster_des_kontos(fenster: list[dict], adresse: str) -> dict[str, dict]:
     Identität, kein Anmeldename. Wo sie dasteht, entscheidet sie allein.
 
     Fehlt sie — älteres Add-on, oder `live: false`, weil sich das Fenster nicht
-    lesen ließ —, bleibt die UID der einzige Anker. Sie trägt für sich: Die
-    Fensterliste wird je Konto gegen dessen Entwürfe-Ordner abgeglichen, und
-    eine UID ohne Fenster bleibt einfach `WARTET`. Die Adresse in der URI darf
-    dann nicht mehr ausschließen; sie entscheidet nur noch, wenn zwei Fenster
-    dieselbe UID melden.
+    lesen ließ —, bleibt die UID der einzige Anker, und der ist schwach:
+    Verglichen wird nur die Zahl, Konto und Ordner gehen nicht ein. IMAP-UIDs
+    gelten je Ordner und sind klein, ein fremdes Fenster mit derselben Zahl
+    trifft also ebenfalls (#442). Der zweite Anker, der Ordner aus der URI,
+    braucht eine Messung an offenen Fenstern (#443).
+
+    Der Treffer zählt trotzdem, weil die beiden Irrtümer nicht gleich teuer
+    sind: `OFFEN` sperrt den Entwurf gegen das Wegräumen, `WARTET` gibt ihn frei.
+    Ein falsches `OFFEN` lässt ihn liegen, ein falsches `WARTET` zöge ihn aus
+    einem offenen Fenster. Die Ausgabe nennt den Fall (`nur_uid`). Die Adresse
+    in der URI entscheidet nur noch, wenn zwei Fenster dieselbe UID melden.
     """
     nach_uid: dict[str, list[tuple[bool, bool, dict]]] = {}
     for eintrag in fenster:
@@ -713,6 +730,11 @@ def fenster_des_kontos(fenster: list[dict], adresse: str) -> dict[str, dict]:
     # erstem Fund. `sorted` ist stabil, der letzte Rang ist damit die Reihenfolge
     # der Liste.
     return {uid: sorted(liste, key=lambda e: e[:2])[0][2] for uid, liste in nach_uid.items()}
+
+
+def nur_uid(fenster: Mapping | None) -> bool:
+    """Hat allein die UID dieses Fenster dem Konto zugeordnet? Siehe `fenster_des_kontos`."""
+    return fenster is not None and not str(fenster.get("identitaet") or "").strip()
 
 
 def _offene_uids(adresse: str, umgebung: Mapping[str, str]) -> tuple[dict[str, dict], str]:
@@ -1204,6 +1226,8 @@ def zeilen(bericht: Bericht, *, zeitzone=None) -> list[str]:
             rest = f"liegt in „{bericht.entwuerfe}“ (UID {z.uid})"
             if z.fenster is not None:
                 rest += ", gerade im Fenster offen"
+                if nur_uid(z.fenster):
+                    rest += " (zugeordnet nur über die UID, das Fenster meldet keinen Absender)"
             if z.gesendet:
                 rest += (f" — ging aber {_wann(z.gesendet[-1], zeitzone)} schon raus"
                          + (f" ({len(z.gesendet)}×)" if len(z.gesendet) > 1 else "")
@@ -1265,6 +1289,7 @@ def als_json(bericht: Bericht) -> dict:
             "text_gekappt": z.text_gekappt,
             "im_buch": z.im_buch, "belegt": z.belegt, "nachfolger": z.nachfolger,
             "tagebuch": list(z.tagebuch), "fenster": dict(z.fenster) if z.fenster else None,
+            "fenster_nur_uid": nur_uid(z.fenster),
             "fenster_text_gleich": z.fenster_text_gleich,
             "versand": dict(z.versand) if z.versand else None,
             "empfaenger_plus": list(z.empfaenger_plus),

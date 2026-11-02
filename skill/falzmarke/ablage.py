@@ -182,11 +182,18 @@ def plane(sitzung: postfach.Postfach, *, wunsch: str | None = None,
     # Die jüngste Antwort steht dann im Bericht.
     gefunden: dict[str, Zug] = {}
     nicht_im_eingang = 0
+    unsendbar = 0
     for antwort in antworten:
         # Je Kennung eine Suche. Der rohe Feldwert ist keine: Er trägt eine
         # Liste und bei Länge einen Umbruch (#438).
         traf = False
+        gesucht = False
         for kennung in postfach.kennungen(antwort.antwort_auf):
+            # Von außen gekommen: Sie darf nur sich selbst kosten, nicht das Konto (#442).
+            if not postfach.sendbar(kennung):
+                unsendbar += 1
+                continue
+            gesucht = True
             uids = sitzung.suche_kopfzeile(EINGANG, "Message-ID", kennung)
             if not uids:
                 continue
@@ -199,12 +206,14 @@ def plane(sitzung: postfach.Postfach, *, wunsch: str | None = None,
                                          kennung=kennung,
                                          antwort_betreff=antwort.betreff,
                                          antwort_datum=antwort.datum)
-        if not traf:
+        # Ohne Suche ist nichts über den Eingang bekannt: „längst weggeräumt" wäre erfunden.
+        if gesucht and not traf:
             nicht_im_eingang += 1
     zuege = tuple(sorted(gefunden.values(), key=lambda z: int(z.uid)))
     return Bericht(adresse=sitzung.adresse, ziel=postfach.utf7_dekodieren(ziel), grund=None,
                    seit=seit, antworten=len(antworten), nicht_im_eingang=nicht_im_eingang,
-                   zuege=zuege, verschoben=0, hinweise=_kappungen(sitzung), ziel_server=ziel)
+                   zuege=zuege, verschoben=0, ziel_server=ziel,
+                   hinweise=_kappungen(sitzung) + _unsendbare(unsendbar))
 
 
 def _kappungen(sitzung: postfach.Postfach) -> tuple[str, ...]:
@@ -218,6 +227,14 @@ def _kappungen(sitzung: postfach.Postfach) -> tuple[str, ...]:
         f"„{postfach.utf7_dekodieren(ordner)}“: nur die neuesten {angesehen} von {alle} "
         "Mails angesehen — was davor liegt, fehlt im Abgleich"
         for ordner, (alle, angesehen) in sorted(sitzung.gekappt.items()))
+
+
+def _unsendbare(anzahl: int) -> tuple[str, ...]:
+    """Der Satz zu Kennungen, nach denen nicht gesucht werden konnte."""
+    if not anzahl:
+        return ()
+    return ((f"{anzahl} Kennungen in `In-Reply-To` übersprungen: Steuerzeichen oder Nicht-ASCII "
+             "lassen sich nicht als Suchbegriff senden. Ihre Nachrichten bleiben im Eingang"),)
 
 
 def _spaeter(a: datetime | None, b: datetime | None) -> bool:

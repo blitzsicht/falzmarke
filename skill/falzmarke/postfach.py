@@ -159,6 +159,17 @@ def _zitiert(name: str) -> str:
     return '"' + name.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
+def sendbar(kennung: str) -> bool:
+    """Lässt sich dieser Wert als IMAP-Suchbegriff senden?
+
+    Eine Kennung kommt aus einer Mail, also von außen. `_zitiert` lehnt
+    Umbruch und Nullbyte ab, `imaplib` kodiert Argumente mit ASCII: Beides
+    beendet die Sitzung, und mit ihr den Lauf für das ganze Konto (#442). Der
+    Aufrufer überspringt deshalb, was hier durchfällt, und nennt es im Bericht.
+    """
+    return kennung.isascii() and not _STEUERZEICHEN.search(kennung)
+
+
 def kennungen(wert: str) -> tuple[str, ...]:
     """Die Message-IDs eines rohen Feldwerts, einzeln und ohne Doppelte.
 
@@ -290,7 +301,9 @@ class Postfach:
         self._rest()
         try:
             typ, daten = aufruf(*args, **kwargs)
-        except (imaplib.IMAP4.error, OSError) as fehler:
+        except (imaplib.IMAP4.error, OSError, UnicodeEncodeError) as fehler:
+            # `UnicodeEncodeError`: `imaplib` kodiert Argumente mit ASCII und wirft,
+            # bevor etwas gesendet ist. Das ist ein `ValueError`, kein IMAP-Fehler.
             raise PostfachFehler(f"{was}: {_kurz(fehler)}") from None
         if typ != "OK":
             raise PostfachFehler(f"{was}: {_kurz(daten)}")
