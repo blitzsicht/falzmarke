@@ -38,6 +38,10 @@ HOECHSTZAHL = 20
 #: 03.09. und noch einmal am 07.09.2026 enthielten die fünfzehn Themen keines
 #: der drei. Alle drei Schreibweisen, weil die Verzeichnisse verschieden
 #: suchen und ein Thema nichts kostet.
+#:
+#: `business-letter` und `document-generation` sind die Suchbegriffe, unter
+#: denen englischsprachige Verzeichnisse das Werkzeug einordnen. Damit ist die
+#: Grenze von 20 erreicht: Ein weiterer Eintrag verlangt, einen zu streichen.
 TOPICS = (
     # Das Werkzeug selbst
     "falzmarke",
@@ -47,6 +51,8 @@ TOPICS = (
     "brief",
     "normbrief",
     "letter",
+    "business-letter",
+    "document-generation",
     # Technik und Ausgabeformate
     "typst",
     "pdf",

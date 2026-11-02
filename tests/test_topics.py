@@ -32,6 +32,12 @@ def test_die_mcp_themen_stehen_drin():
         assert thema in topics.TOPICS, f"{thema} fehlt — #237 wäre zurückgenommen"
 
 
+def test_die_englischen_suchbegriffe_stehen_drin():
+    """Ohne sie findet die englische Suche das Werkzeug nur über `letter`."""
+    for thema in ("business-letter", "document-generation"):
+        assert thema in topics.TOPICS, f"{thema} fehlt"
+
+
 def test_die_liste_bleibt_unter_der_grenze_von_github():
     assert len(topics.TOPICS) <= topics.HOECHSTZAHL, (
         f"{len(topics.TOPICS)} Themen — GitHub nimmt höchstens "
