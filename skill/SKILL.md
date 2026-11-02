@@ -14,7 +14,7 @@ description: >
   Die Sollwerte stammen aus Sekundärquellen; der Abgleich mit dem Originaltext der DIN 5008:2020-03 einschließlich Berichtigung 1:2020-07 steht aus, und Regeln aus einzelnen Quellen wirken nur als Warnung.
 license: MIT
 metadata:
-  version: "0.10.0"
+  version: "0.11.0"
 ---
 
 # falzmarke
