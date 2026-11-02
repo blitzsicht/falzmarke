@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.blitzsicht/falzmarke",
   "title": "falzmarke",
-  "description": "Geschäftspost nach DIN 5008 aus Markdown — Brief und E-Mail, am fertigen Dokument nachgemessen.",
+  "description": "Am fertigen PDF nachgemessen: DIN-5008-Briefe aus Markdown. Sollwerte aus Sekundärquellen.",
   "version": "0.10.0",
   "repository": {
     "url": "https://github.com/blitzsicht/falzmarke",
@@ -16,6 +16,19 @@
       "identifier": "falzmarke",
       "version": "0.10.0",
       "runtimeHint": "uvx",
+      "runtimeArguments": [
+        {
+          "type": "named",
+          "name": "--with",
+          "value": "mcp~=2.0"
+        }
+      ],
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        }
+      ],
       "transport": {
         "type": "stdio"
       }

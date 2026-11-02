@@ -32,7 +32,9 @@ Prüfmittel, das nie rot werden kann, ist kein Nachweis.
 Code, Kommentare, Fehlermeldungen, Dokumentation und Commits auf Deutsch — der Gegenstand ist
 eine deutsche Norm. `CONTRIBUTING.md` und `SECURITY.md` sind ebenfalls deutsch, tragen aber je
 einen kurzen englischen Absatz: Beiträge und Sicherheitsmeldungen kommen von überall, und wer
-kein Deutsch liest, soll wenigstens wissen, worum es geht und wohin er sich wendet.
+kein Deutsch liest, soll wenigstens wissen, worum es geht und wohin er sich wendet. `README.md`
+trägt aus demselben Grund den kurzen Abschnitt `## In English`: Verzeichnisse und Crawler lesen
+diese Datei, nicht `README.en.md`.
 
 **Keine Claude-Attribution in Commits** — kein `Co-Authored-By`, kein Session-Trailer, kein
 „Generated with". Dass große Teile mit Claude Code entstanden sind, steht in `CONTRIBUTING.md`

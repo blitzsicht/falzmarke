@@ -12,6 +12,7 @@ Gegenprobe: eine Pruefung, die nie rot werden kann, ist kein Nachweis.
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 import sys
@@ -93,6 +94,12 @@ def test_pyproject_summary_ist_der_kanon(kanon):
     treffer = re.search(r'^description\s*=\s*"(.*)"$', PYPROJECT.read_text(encoding="utf-8"), re.M)
     assert treffer, "pyproject.toml hat keine description"
     assert treffer.group(1) == kanon["github_beschreibung"]
+
+
+def test_server_json_beschreibung_ist_der_kanon(kanon):
+    """Handkopie Nummer drei: Ändert sich der Kanon, zöge das Registry sonst nicht mit."""
+    eintrag = json.loads((REPO / "server.json").read_text(encoding="utf-8"))
+    assert eintrag["description"] == kanon["github_beschreibung"]
 
 
 def test_github_beschreibung_passt_in_das_feld(kanon):

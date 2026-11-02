@@ -38,11 +38,16 @@ UTF8 = {"PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
 
 #: Wörter, bei denen der Skill auslösen muss. ChatGPT wie Claude lesen vor dem
 #: Laden nur die description — was dort fehlt, löst nicht aus.
-AUSLOESER = ["Brief", "Anschreiben", "Kündigung", "Mahnung", "Angebot", "Widerspruch",
+AUSLOESER = ["Brief", "Briefkopf", "Anschriftfeld", "Anschreiben", "Kündigung", "Mahnung", "Angebot", "Widerspruch",
              "Behördenschreiben", "Mieterschreiben", "E-Mail", "Mail", "Nachricht",
              "Serienbrief", "einlesen",
              # Die Urkunde (ADR 0048). `typ: urkunde` sucht niemand — gesagt wird eines davon.
              "Urkunde", "Vereinbarung", "Vertrag", "Erklärung", "Vollmacht", "Nachweis"]
+#: Dieselbe Pflicht auf Englisch: Das Verzeichnis ist international, und wer dort
+#: „formal letter“ schreibt, löst sonst nichts aus.
+AUSLOESER_EN = ["German business letter", "formal letter", "cover letter", "cancellation",
+                "payment reminder", "quote", "email", "contract", "power of attorney",
+                "mail merge"]
 
 
 def _packer():
@@ -100,6 +105,11 @@ def test_zu_lange_description_bricht_das_packen_ab(tmp_path):
 @pytest.mark.parametrize("wort", AUSLOESER)
 def test_description_nennt_jeden_ausloeser(wort):
     """Kürzen darf Merkmale streichen, keine Auslöser."""
+    assert wort in _beschreibung(), f"„{wort}“ fehlt in der description von SKILL.md"
+
+
+@pytest.mark.parametrize("wort", AUSLOESER_EN)
+def test_description_nennt_jeden_englischen_ausloeser(wort):
     assert wort in _beschreibung(), f"„{wort}“ fehlt in der description von SKILL.md"
 
 

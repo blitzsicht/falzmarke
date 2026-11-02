@@ -20,7 +20,7 @@ auf 105,0 mm, endet der Lauf mit einem Fehler statt mit einem Brief, der nur ung
 
 <div align="center">
 
-**[falzmarke.com — Anleitung ohne Terminal](https://falzmarke.com)** ·
+**[falzmarke.com — Anleitung ohne Terminal](https://falzmarke.com/?utm_source=footer&utm_medium=product&utm_campaign=readme-202611)** ·
 **[⬇ Als Claude-Skill laden](https://github.com/blitzsicht/falzmarke/releases/latest/download/falzmarke.skill)** ·
 **[In 60 Sekunden ausprobieren](#in-60-sekunden)** ·
 **[Beispielbrief ansehen](https://github.com/blitzsicht/falzmarke/raw/main/docs/renders/brief-form-b.png)**
@@ -32,6 +32,17 @@ auf 105,0 mm, endet der Lauf mit einem Fehler statt mit einem Brief, der nur ung
 </div>
 
 ---
+
+## In English
+
+**DIN 5008 business letters from Markdown, PDF/A, MCP + CLI.** falzmarke typesets German business
+letters as PDF/A and then measures the finished PDF; a folding mark out of place ends the run with
+an error. It runs as a Claude skill, as a command-line tool (`pipx install falzmarke`) and as an
+MCP server (`falzmarke mcp`). The target values come from secondary sources: the comparison
+against the original text of DIN 5008:2020-03 including Corrigendum 1:2020-07 is still outstanding,
+and rules backed by a single source act as warnings only.
+[English overview](https://github.com/blitzsicht/falzmarke/blob/main/README.en.md) ·
+[Website, German](https://falzmarke.com/?utm_source=footer&utm_medium=product&utm_campaign=readme-202611)
 
 ## In Bewegung
 
@@ -108,7 +119,7 @@ gepflegten Vorlage lässt sich vieles davon erreichen.
 |---|---|---|---|
 | Quelle diffbar und versionierbar | teilweise | selten | ja — Markdown und YAML |
 | Layout reproduzierbar | hängt an Vorlage und Umgebung | nicht zugesichert | ja — derselbe Renderer, dieselbe Ausgabe |
-| Fertiges PDF wird nachgemessen | nein | nein | ja — 35 Maße, jede Seite, Abweichung ist ein Fehler |
+| Fertiges PDF wird nachgemessen | nein | nein | ja — 35 Maße, jede Seite; belegte Regeln brechen ab, Einzelquellen warnen |
 | Absenderprofile | von Hand gepflegt | uneinheitlich | ja — einmal anlegen, überall nutzen |
 | Prüfbericht maschinenlesbar | nein | nein | ja — `--json` und Exit-Codes |
 | PDF/A als Voreinstellung | nicht automatisch | nicht zugesichert | ja — ohne zusätzliches Flag |

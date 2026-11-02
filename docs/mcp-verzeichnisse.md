@@ -5,15 +5,17 @@ Werkzeug existiert, heißt nicht, dass es gefunden wird — Issue #237 entstand,
 Verzeichnisse den Server nicht kannten.
 
 Dieses Dokument hält fest, was erledigt ist, was **automatisch** läuft und was einen Menschen
-braucht. Es ist bewusst eine Bestandsliste und keine Anleitung zum Bewerben.
+braucht. Es ist bewusst eine Bestandsliste und keine Anleitung zum Bewerben. Die Tabelle ist am
+02.11.2026 nachgemessen; die Einreichtexte und alle Verzeichnisse stehen in
+[listings.md](listings.md). Die Abschnitte unten beschreiben den Stand ihres Datums.
 
 ## Stand
 
 | Verzeichnis | Wie der Eintrag entsteht | Stand |
 |---|---|---|
-| **Offizielles MCP-Registry** | `server.json` + Job `mcp-registry` im Release-Lauf, OIDC | läuft beim nächsten Release von selbst |
-| **Glama** | Konto nötig, „Add Server" in der Weboberfläche | **offen** — siehe unten |
-| **awesome-mcp-servers** | PR [punkpeye/awesome-mcp-servers#13221](https://github.com/punkpeye/awesome-mcp-servers/pull/13221) | offen; der Score-Badge setzt den Glama-Eintrag voraus |
+| **Offizielles MCP-Registry** | `server.json` + Job `mcp-registry` im Release-Lauf, OIDC | gelistet, v0.10.0; bis zum nächsten Release mit defektem Startbefehl ([Finding 1](bestandsaufnahme-distribution.md)) |
+| **Glama** | Konto nötig, „Add Server" in der Weboberfläche | gelistet, noch nicht beansprucht |
+| **awesome-mcp-servers** | PR [punkpeye/awesome-mcp-servers#13221](https://github.com/punkpeye/awesome-mcp-servers/pull/13221) | offen; der Maintainer verlangt Anspruch und Quality Score auf Glama |
 | Repo-Themen (`mcp`, `mcp-server`, `model-context-protocol`) | `scripts/topics.py`, Wächter `repo_pruefung.py` | erledigt |
 | `Dockerfile` im Wurzelverzeichnis | liegt dort; CI-Job „MCP-Dienst im Container" baut und spricht ihn an | erledigt |
 | Englisches README | `README.en.md` | erledigt |
