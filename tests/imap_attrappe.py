@@ -12,7 +12,8 @@ löschen, nie verschieben, keine Flags ändern“ als Prüfung.
 
 **Eine Ausnahme, und sie ist einzeln einzuschalten:** `verschieben_erlaubt=True`
 öffnet `SELECT` ohne `readonly` und `UID MOVE` — für `falzmarke.ablage` (#431),
-das eine beantwortete Nachricht aus dem Eingang legt. Ohne den Schalter wirft
+das eine beantwortete Nachricht aus dem Eingang legt, und für
+`falzmarke.entwurfsablage` (#425), das überholte Entwürfe in den Papierkorb legt. Ohne den Schalter wirft
 die Attrappe beides weiter, und `test_postfach.py` prüft genau das: Sonst wäre
 die Erweiterung hier eine Hintertür für jeden anderen Test.
 

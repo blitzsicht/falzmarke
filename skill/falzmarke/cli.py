@@ -1701,6 +1701,50 @@ def _melde_fenster(fenster, ordner: str, betreff: str) -> None:
         print(f"         Entwurfsbrücke: {fenster.grund}", file=sys.stderr)
 
 
+def _melde_ersetzt(lage) -> None:
+    """Welche alten Entwürfe der neue Text ablöste, und welche nicht (ADR 0062)."""
+    if lage.ersetzt:
+        print(f"OK  ersetzt: UID {', '.join(lage.ersetzt)} → „{lage.ersetzt_ziel}“")
+    if lage.ersetzt_grund:
+        print(f"NICHT GEPRÜFT  alte Entwürfe nicht ersetzt: {lage.ersetzt_grund}\n"
+              "         Der neue Entwurf liegt trotzdem; es liegen jetzt beide da.",
+              file=sys.stderr)
+    for rest in lage.bleibt:
+        print(f"HINWEIS  bleibt liegen: UID {rest.uid} „{rest.betreff}“ — {rest.grund}",
+              file=sys.stderr)
+    if lage.bleibt and lage.schon_da:
+        print("         Den neuen Text trotzdem anlegen: --ersetzen", file=sys.stderr)
+
+
+def _raeume_entwuerfe_mit(adresse: str, *, kein_fenster: bool = False,
+                          ausser: frozenset[str] = frozenset()) -> None:
+    """Das Wegräumen nebenbei (ADR 0062). Ändert nie den Exit-Code des Befehls.
+
+    `FALZMARKE_AUFRAEUMEN=nie` schaltet es ab, `--kein-fenster` lässt es aus:
+    Der Schalter ist für Schleifen über viele Briefe, und ein solcher Lauf spricht
+    die Brücke gar nicht an (#415). Der breite `except` ist Absicht:
+    Der Entwurf steht längst, und ein unerwarteter Fehler beim Aufräumen darf
+    den Lauf nicht mit einem Traceback beenden (ADR 0038, Punkt 4). Er wird als
+    `NICHT GEPRÜFT` gesagt, nicht verschluckt.
+    """
+    aus = (os.environ.get("FALZMARKE_AUFRAEUMEN") or "").strip().lower() == "nie"
+    if not adresse or kein_fenster or aus:
+        return
+    # Erst hier: Die MCP-Dienste laden `cli`, und der Lesepfad soll das Modul
+    # mit dem ändernden Befehl nicht mitnehmen.
+    from falzmarke import entwurfsablage
+
+    sys.stdout.flush()
+    try:
+        bericht = entwurfsablage.raeume_auf(adresse, machen=True, ausser=ausser)
+    except Exception as fehler:  # noqa: BLE001
+        print(f"NICHT GEPRÜFT  Entwürfe von {adresse} nicht aufgeräumt: {fehler}",
+              file=sys.stderr)
+        return
+    for zeile in entwurfsablage.kurzzeilen(bericht):
+        print(zeile, file=sys.stdout if zeile.startswith("OK") else sys.stderr)
+
+
 def befehl_email(args) -> int:
     from falzmarke import pruefung_eml
 
@@ -1773,7 +1817,7 @@ def befehl_email(args) -> int:
     # `--programm` schließt `--oeffnen` ein: Wer ein Programm nennt, will den
     # Entwurf. Ein Schalter, der gesetzt ist und nichts bewirkt, wäre der
     # schlechtere Fall.
-    if args.oeffnen or args.programm:
+    if args.oeffnen or args.programm or args.ersetzen:
         from falzmarke import gesendet as gesendet_modul
         from falzmarke import oeffnen as oeffnen_modul
 
@@ -1811,7 +1855,8 @@ def befehl_email(args) -> int:
         felder["signatur_html"] = unterschrift
         lage = oeffnen_modul.entwurf(felder, wahl=args.programm,
                                      noch_ein_entwurf=args.noch_ein_entwurf,
-                                     kein_fenster=args.kein_fenster)
+                                     kein_fenster=args.kein_fenster,
+                                     ersetzen=args.ersetzen)
         if lage.postfach is not None:
             # Der Entwurf liegt im Postfach (ADR 0051): die Datei selbst, mit
             # allen Kopfzeilen, am Server nachgezählt. Ein Fenster geht nur
@@ -1828,6 +1873,7 @@ def befehl_email(args) -> int:
             elif ablage.bezug is False and felder.get("antwort_auf"):
                 print("HINWEIS  Im abgelegten Entwurf fehlt In-Reply-To — die Mail beginnt "
                       "einen neuen Thread.", file=sys.stderr)
+            _melde_ersetzt(lage)
             _melde_fenster(lage.fenster, ablage.ordner, ablage.betreff)
             if lage.buch_grund:
                 print(f"HINWEIS  nicht im Entwurfsbuch: {lage.buch_grund} — `falzmarke "
@@ -1837,6 +1883,7 @@ def befehl_email(args) -> int:
                   "         keine eigene ergänzt, ist vermutlich so — angenommen, nicht "
                   "gemessen.",
                   file=sys.stderr)
+            _raeume_entwuerfe_mit(ablage.adresse, kein_fenster=args.kein_fenster)
         elif lage.programm:
             if lage.postfach_grund:
                 print(f"HINWEIS  kein Postfach-Entwurf: {lage.postfach_grund}\n"
@@ -1908,9 +1955,13 @@ def befehl_email(args) -> int:
             print(f"ENTWURF LIEGT SCHON  {lage.schon_da}\n"
                   "         Keinen zweiten angelegt. Trotzdem noch einen: --noch-ein-entwurf",
                   file=sys.stderr)
+            _melde_ersetzt(lage)
             # Der liegende ist der, den es zu senden gilt — also ihn öffnen.
             if lage.fenster is not None:
                 _melde_fenster(lage.fenster, "Entwürfe", "")
+            _raeume_entwuerfe_mit(str(felder.get("absender") or ""),
+                                  kein_fenster=args.kein_fenster,
+                                  ausser=frozenset({lage.schon_da_uid}))
         elif lage.ungewiss:
             # Der dritte Zustand (#287). Ob ein Fenster offen ist, weiß hier
             # niemand — und „nicht geprüft" ist nicht „nichts da". Die `.eml`
@@ -2082,12 +2133,35 @@ def ablage_aus_profil(adresse: str, zusatz=None) -> tuple[str | None, str | None
     return (werte.pop() if werte else None), None
 
 
+def _raeume_entwuerfe(args) -> int:
+    """`aufraeumen --entwuerfe`: ein Bericht je Konto, Exit 3 bei `NICHT GEPRÜFT`."""
+    import json
+
+    from falzmarke import entwurfsablage
+
+    berichte = [entwurfsablage.raeume_auf(adresse, machen=args.machen, tage=args.seit)
+                for adresse in args.absender]
+    if args.json:
+        print(json.dumps([entwurfsablage.als_json(b) for b in berichte], ensure_ascii=False,
+                         indent=2))
+    else:
+        for bericht in berichte:
+            for zeile in entwurfsablage.zeilen(bericht):
+                ziel = sys.stderr if zeile.startswith(("NICHT GEPRÜFT", "HINWEIS")) else sys.stdout
+                print(zeile, file=ziel)
+    return EXIT_UMGEBUNG if any(b.grund for b in berichte) else EXIT_OK
+
+
 def befehl_aufraeumen(args) -> int:
     """Beantwortete Eingangspost in die Ablage des Kontos (#431, ADR 0061).
 
     Ohne `--machen` wird nur gelesen und gezeigt. Das Ziel kommt aus
     `email.ablage` im Profil des Absenders, sonst aus dem Kennzeichen
     `\\Archive`; gibt es keines, wandert nichts.
+
+    `--entwuerfe` räumt stattdessen „Entwürfe“ auf (#425, ADR 0062), allein:
+    Ein Schalter, der beides täte, ließe `--machen` mehr bewegen, als die
+    Anzeige eben versprochen hat, sobald jemand ihn nur für eines setzt.
     """
     import json
 
@@ -2097,6 +2171,8 @@ def befehl_aufraeumen(args) -> int:
         print(f"FEHLER  --seit braucht 1 bis {ablage_modul.SEIT_MAX} Tage — zehn Jahre, "
               "darüber bricht die Datumsrechnung", file=sys.stderr)
         return EXIT_EINGABE
+    if args.entwuerfe:
+        return _raeume_entwuerfe(args)
     zusatz = Path(args.profiles) if args.profiles else None
     berichte = []
     for adresse in args.absender:
@@ -2704,9 +2780,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--trotz-gesendet", dest="trotz_gesendet", action="store_true",
                    help="den Entwurf auch dann anlegen, wenn dieselbe Nachricht in den "
                         "letzten 24 Stunden schon hinausging (sonst Exit 4)")
-    p.add_argument("--noch-ein-entwurf", dest="noch_ein_entwurf", action="store_true",
-                   help="einen weiteren Entwurf ablegen, obwohl einer mit diesem Empfänger "
-                        "und Betreff schon im Postfach liegt")
+    gruppe = p.add_mutually_exclusive_group()
+    gruppe.add_argument("--noch-ein-entwurf", dest="noch_ein_entwurf", action="store_true",
+                        help="einen weiteren Entwurf ablegen, obwohl einer mit diesem "
+                             "Empfänger und Betreff schon im Postfach liegt")
+    gruppe.add_argument("--ersetzen", action="store_true",
+                        help="neuen Text ablegen, auch wenn ein alter Entwurf nicht weg darf: "
+                             "eigene unveränderte alte Entwürfe gehen in den Papierkorb, der "
+                             "Rest bleibt und wird genannt; schließt --oeffnen ein")
     p.add_argument("--profiles")
     p.add_argument("--verbose", action="store_true", help="alle Prüfungen zeigen")
     p.set_defaults(funktion=befehl_email)
@@ -2731,12 +2812,16 @@ def main(argv: list[str] | None = None) -> int:
 
     p = unter.add_parser(
         "aufraeumen",
-        help="beantwortete Eingangspost in die Ablage des Kontos legen")
+        help="beantwortete Eingangspost in die Ablage legen, mit --entwuerfe "
+             "überholte Entwürfe in den Papierkorb")
     p.add_argument("--absender", required=True, action="append",
                    help="die Adresse des Kontos; mehrfach für mehrere Konten")
     p.add_argument("--seit", type=int, default=30,
                    help="so weit zurück werden gesendete Antworten angesehen "
                         "(Vorgabe 30 Tage, höchstens 3650)")
+    p.add_argument("--entwuerfe", action="store_true",
+                   help="statt des Eingangs „Entwürfe“ aufräumen: was belegt überholt ist, "
+                        "geht in den Papierkorb, jeder andere Entwurf bleibt mit Grund")
     p.add_argument("--machen", action="store_true",
                    help="wirklich verschieben; ohne diesen Schalter wird nur gezeigt")
     p.add_argument("--profiles", help="Verzeichnis mit den Absenderprofilen")
