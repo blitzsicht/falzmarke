@@ -18,7 +18,7 @@ Die Wege, die es schon gab, öffnen alle etwas anderes als den liegenden Entwurf
 |---|---|---|
 | `thunderbird -compose` (ADR 0049) | eine neue Nachricht mit demselben Inhalt | der Entwurf im Ordner, also zwei |
 | die `.eml` öffnen, auch mit `X-Unsent: 1` | eine Kopie | der Entwurf im Ordner |
-| „Entwurf bearbeiten“ im Ordner | der Entwurf selbst | nichts, Thunderbird räumt ihn weg |
+| „Entwurf bearbeiten“ im Ordner | der Entwurf selbst | nichts, Thunderbird räumt ihn weg (in der Regel, siehe [ADR 0062](0062-ueberholte-entwuerfe-wegraeumen.md)) |
 
 Nur der dritte Weg lässt keinen zweiten Entwurf zurück, und ein zweiter Entwurf war der Anfang
 des Doppelversands, der ADR 0051 auslöste. Von außen erreichbar ist dieser Weg aber nicht: Die

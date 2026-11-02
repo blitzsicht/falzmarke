@@ -1068,6 +1068,14 @@ class Entwurfslage(NamedTuple):
     #: wenn er drinsteht oder es keiner war. Dann weiß `falzmarke status` später
     #: nicht, was im Entwurf stand — das soll der Aufrufer sagen.
     buch_grund: str = ""
+    #: Die UIDs alter Entwürfe, die der neue Text abgelöst hat (#425, ADR 0062).
+    ersetzt: tuple[str, ...] = ()
+    #: Der Papierkorb, in dem sie jetzt liegen.
+    ersetzt_ziel: str = ""
+    #: Warum das Wegräumen abbrach. Der neue Entwurf liegt dann trotzdem.
+    ersetzt_grund: str = ""
+    #: `entwurfsablage.Bleibt` je passendem Entwurf, der nicht abgelöst werden durfte.
+    bleibt: tuple = ()
 
 
 class Postfachablage(NamedTuple):
@@ -1120,7 +1128,7 @@ def _ungewiss_ins_buch(adresse: str, ordner: str, felder, grund: str, umgebung) 
 
 def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
                       profilordner: Path | None, noch_ein_entwurf: bool,
-                      ) -> tuple["Entwurfslage | None", str]:
+                      ersetzen: bool = False) -> tuple["Entwurfslage | None", str]:
     """Legt die `.eml` als Entwurf ins Postfach des Absenders (ADR 0051).
 
     Rückgabe `(Lage, "")`, wenn der Weg zu Ende ging — abgelegt, schon da oder
@@ -1132,8 +1140,13 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
     nach dem Absenden des `APPEND` schiefgeht, ist **ungewiss**, nicht
     gescheitert: Der Entwurf kann angekommen sein, und ein `-compose` danach
     wäre der zweite Entwurf aus #287.
+
+    Liegt schon einer mit **anderem Text**, löst der neue ihn ab, wenn alle
+    passenden alten ablösbar sind (ADR 0062). Sonst bleibt es bei „liegt schon“,
+    und `ersetzen` legt den neuen trotzdem an und lässt stehen, was nicht weg
+    darf. Weggeräumt wird erst nach dem Nachzählen.
     """
-    from falzmarke import postfach
+    from falzmarke import entwurfsablage, postfach
 
     if (umgebung.get("FALZMARKE_POSTFACH") or "").strip().lower() == "nie":
         return None, "FALZMARKE_POSTFACH=nie ist gesetzt"
@@ -1152,20 +1165,35 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
             if not ordner:
                 return None, f"im Postfach von {adresse} ist kein Entwürfe-Ordner gekennzeichnet"
             vorher = [k for k in sitzung.koepfe(ordner) if _gleicher_entwurf(k, felder)]
+            soll_fassung = str(felder.get("fassung") or "").strip()
+            derselbe = [k for k in vorher if soll_fassung and k.fassung == soll_fassung]
+            wertung = entwurfsablage.Wertung()
+            if vorher and not noch_ein_entwurf and not derselbe:
+                wertung = entwurfsablage.ersetzbar(sitzung, ordner, vorher, felder,
+                                                   umgebung=umgebung,
+                                                   profilordner=profilordner)
         except postfach.PostfachFehler as fehler:
             return None, str(fehler)
         anzeige = postfach.utf7_dekodieren(ordner)
-        if vorher and not noch_ein_entwurf:
-            juengster = max(vorher, key=lambda k: (k.datum is not None, k.datum, int(k.uid)))
+        if vorher and not noch_ein_entwurf and (derselbe or (wertung.bleibt and not ersetzen)):
+            juengster = max(derselbe or vorher,
+                            key=lambda k: (k.datum is not None, k.datum, int(k.uid)))
             zeit = (juengster.datum.astimezone().strftime("%d.%m.%Y %H:%M")
                     if juengster.datum else "(ohne Datum)")
             return Entwurfslage(None, "", schon_da=(
                 f"{zeit} „{juengster.betreff}“ in „{anzeige}“ von {adresse}"
                 + (f" ({len(vorher)} Stück)" if len(vorher) > 1 else "")),
-                schon_da_uid=str(juengster.uid)), ""
+                schon_da_uid=str(juengster.uid), bleibt=wertung.bleibt), ""
+        ersetzt, bleibt, ersetzt_grund, ersetzt_ziel = (), wertung.bleibt, "", ""
         try:
             sitzung.ablegen(ordner, bytes(roh))
             nachher = [k for k in sitzung.koepfe(ordner) if _gleicher_entwurf(k, felder)]
+            if wertung.weg and len(nachher) == len(vorher) + 1:
+                ersetzt, gehalten, ersetzt_grund, ziel = entwurfsablage.ersetze(
+                    sitzung, ordner, wertung.weg, adresse=adresse.strip().lower(),
+                    umgebung=umgebung)
+                bleibt += gehalten
+                ersetzt_ziel = postfach.utf7_dekodieren(ziel)
         except postfach.PostfachFehler as fehler:
             grund = (f"Ablegen im Postfach abgebrochen ({fehler}) — ob der "
                      f"Entwurf in „{anzeige}“ angekommen ist, ist offen")
@@ -1181,7 +1209,6 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
     alte = {k.uid for k in vorher}
     neu = max((k for k in nachher if k.uid not in alte), key=lambda k: int(k.uid))
     soll_bezug = str(felder.get("antwort_auf") or "").strip()
-    soll_fassung = str(felder.get("fassung") or "").strip()
     ablage = Postfachablage(
         adresse=adresse, ordner=anzeige, betreff=str(felder.get("betreff") or ""),
         vorher=len(vorher), nachher=len(nachher),
@@ -1191,8 +1218,9 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
     from falzmarke import entwurfsbuch
 
     return Entwurfslage("Thunderbird", "", konto=adresse, postfach=ablage,
-                        buch_grund=entwurfsbuch.eintragen(ablage, felder,
-                                                          umgebung=umgebung)), ""
+                        buch_grund=entwurfsbuch.eintragen(ablage, felder, umgebung=umgebung),
+                        ersetzt=ersetzt, ersetzt_ziel=ersetzt_ziel,
+                        ersetzt_grund=ersetzt_grund, bleibt=bleibt), ""
 
 
 def _fenster_auf(lage: Entwurfslage, felder: Mapping, umgebung: Mapping[str, str],
@@ -1537,7 +1565,7 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
             binaer=thunderbird_binaer, ablage=None,
             thunderbird_ordner: Path | None = None,
             noch_ein_entwurf: bool = False,
-            kein_fenster: bool = False) -> "Entwurfslage":
+            kein_fenster: bool = False, ersetzen: bool = False) -> "Entwurfslage":
     """Legt den Entwurf an — oder sagt in einem Satz, warum nicht.
 
     Rückgabe: `(Programmname, "")`, wenn er steht, sonst `(None, Grund)`. Der
@@ -1561,7 +1589,8 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
     Ist der IMAP-Proxy erreichbar, liegt die `.eml` danach im Entwürfe-Ordner
     des Absenders, und es geht **kein** `-compose`-Fenster auf. Nur wenn dort
     nichts entstanden ist, folgt `-compose` wie bisher. `noch_ein_entwurf`
-    legt ab, obwohl ein passender Entwurf schon liegt. Seit ADR 0054 geht der
+    legt ab, obwohl ein passender Entwurf schon liegt; `ersetzen` legt ab und
+    räumt die alten weg, soweit sie weg dürfen (ADR 0062). Seit ADR 0054 geht der
     Postfach-Entwurf trotzdem als Fenster auf, wenn in Thunderbird das Add-on
     Entwurfsbrücke läuft — als „Entwurf bearbeiten“, nicht als zweiter Entwurf.
 
@@ -1593,7 +1622,8 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
     if programm.weg == "compose":
         lage, grund = _entwurf_postfach(felder, umgebung=umgebung,
                                         profilordner=thunderbird_ordner,
-                                        noch_ein_entwurf=noch_ein_entwurf)
+                                        noch_ein_entwurf=noch_ein_entwurf,
+                                        ersetzen=ersetzen)
         if lage is not None:
             return _fenster_auf(lage, felder, umgebung, kein_fenster=kein_fenster)
         return _entwurf_compose(programm, felder, laufen=laufen, ablage=ablage,
