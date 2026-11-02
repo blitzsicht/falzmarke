@@ -9,7 +9,7 @@ verlangen, und keine Mehrfacheinreichung.
 
 | Ziel | Stand | Nächster Schritt |
 |---|---|---|
-| Anthropic-Plugin-Verzeichnis | **gesperrt**, Manifest fehlt | erst Plugin-Ordner bauen |
+| Anthropic-Plugin-Verzeichnis | einreichbar | im Portal **Validate**, dann einreichen |
 | mcp.so | nicht gelistet | anmelden, kostenlosen Weg suchen, nicht zahlen |
 | Smithery | **abgeschaltet** am 31.10.2026 | nichts tun |
 | Glama | gelistet, nicht beansprucht | Eintrag beanspruchen |
@@ -19,8 +19,8 @@ verlangen, und keine Mehrfacheinreichung.
 
 ## Anthropic-Plugin-Verzeichnis
 
-- [ ] Plugin-Ordner gebaut (fehlt: `.claude-plugin/plugin.json`, README; siehe Finding 2)
-- [ ] `claude plugin validate ./skill` grün
+- [x] Plugin-Ordner gebaut (`skill/.claude-plugin/plugin.json`, `skill/README.md`, Icon)
+- [x] `claude plugin validate ./skill` ohne Fehler; eine Warnung bleibt, siehe unten
 - [ ] im Portal **Validate** grün
 
 **Ziel-URL:** https://claude.ai/directory/manage → Submit new → Plugin bundle
@@ -31,6 +31,9 @@ GitHub-Konto mit Schreibrecht. Das Plugin gehört der Organisation, die zuerst e
 Das Portal liest Name und Kurzbeschreibung aus `plugin.json` und dem README. Der Text gehört also
 ins Manifest. `homepage` bleibt die nackte Adresse (siehe UTM-Konvention), der Link unten gehört ins
 README des Plugin-Ordners.
+
+Das Manifest nennt bewusst keine `version`: Sie wäre die fünfte Stelle, die bei jedem Release
+mitwandern müsste. Der Validator warnt deshalb einmal, das ändert sein Ergebnis nicht.
 
 **Link:** https://falzmarke.com/?utm_source=listing&utm_medium=directory&utm_campaign=anthropic-202611
 
