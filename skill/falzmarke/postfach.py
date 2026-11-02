@@ -9,7 +9,10 @@ Zwei Dinge braucht `email --oeffnen` aus dem Postfach, und nur diese:
 
 Es gibt hier kein `STORE`, `EXPUNGE`, `COPY`, `MOVE` oder `DELETE`, und keinen
 Versandweg: IMAP kann nicht senden, und `smtplib` ist nicht importiert.
-`tests/test_postfach.py` liest das am Syntaxbaum nach.
+`tests/test_postfach.py` liest das am Syntaxbaum nach. Nachrichten bewegen
+`falzmarke.ablage` (Eingang → Ablage, ADR 0061) und `falzmarke.entwurfsablage`
+(überholte Entwürfe → Papierkorb, ADR 0062): zwei eigene Module, je ein `UID
+MOVE`, damit die Zusage hier wahr bleibt.
 
 **Der Weg:** unverschlüsselt an einen Proxy auf dem eigenen Rechner (Vorgabe
 `127.0.0.1:1993`, `FALZMARKE_GESENDET_IMAP`), Benutzer ist die Absenderadresse,

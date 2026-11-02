@@ -49,3 +49,4 @@ gelesen wird und die niemand nachpflegt.
 | [0059](0059-zuruf-ueber-unix-socket.md) | Der Zuruf an die Entwurfsbrücke läuft über einen Unix-Socket mit 0600 | 25.10.2026 |
 | [0060](0060-anker-der-zuordnung.md) | Der Anker der Zuordnung hat zwei Wege und nennt seinen | 28.10.2026 |
 | [0061](0061-ablage-je-konto.md) | Die Ablage je Konto: `In-Reply-To` sagt, was erledigt ist | 28.10.2026 |
+| [0062](0062-ueberholte-entwuerfe-wegraeumen.md) | Überholte Entwürfe gehen von selbst in den Papierkorb | 02.11.2026 |

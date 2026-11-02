@@ -238,7 +238,9 @@ hat, steht in [ADR 0038](entscheidungen/0038-oeffnen-ist-kein-versand.md).
 
 Liegt der Entwurf im Ordner „Entwürfe“ (ADR 0051), öffnet ihn das Thunderbird-Add-on unter
 `thunderbird/entwurfsbruecke/` so, wie „Entwurf bearbeiten“ es tut. Nach dem Senden räumt
-Thunderbird den Entwurf selbst weg; ein Fenster aus `-compose` ließe ihn liegen.
+Thunderbird den Entwurf in der Regel selbst weg, zugesagt ist das nicht
+([ADR 0062](entscheidungen/0062-ueberholte-entwuerfe-wegraeumen.md)); ein Fenster aus `-compose`
+ließe ihn immer liegen.
 
 ```
 OK  Entwurf liegt in „Entwürfe“ von ich@example.de: Nachtrag
@@ -263,7 +265,7 @@ was es nicht kann: [ADR 0054](entscheidungen/0054-entwurfsbruecke-in-thunderbird
 `email --oeffnen` trägt jeden Entwurf, den es ins Postfach legt, ins Entwurfsbuch ein
 (`~/.local/state/falzmarke/entwuerfe.jsonl`; `FALZMARKE_ENTWURFSBUCH=<pfad>` legt es woanders hin,
 `=nie` schaltet es ab). `falzmarke status` gleicht Buch, Postfach und das Tagebuch der
-Entwurfsbrücke ab, nur lesend:
+Entwurfsbrücke ab. `status` liest nur; das Wegräumen macht `aufraeumen --entwuerfe`:
 
 ```
 OK  ich@example.de: 1 in „Entwürfe“, 2 im Entwurfsbuch, 37 Mails der letzten 14 Tage in „Gesendet“ angesehen, 5 Tagebucheinträge
@@ -385,6 +387,54 @@ ein Protokoll der Züge gibt es deshalb nicht. Der einzige ändernde Befehl ist 
 der Server ihn nicht, wird nichts verschoben, statt ihn aus `COPY`, `STORE` und `EXPUNGE`
 nachzubauen. Das Add-on Entwurfsbrücke ist daran nicht beteiligt und braucht keine neue
 Berechtigung ([ADR 0061](entscheidungen/0061-ablage-je-konto.md)).
+
+### Was überholt ist, verschwindet aus „Entwürfe“
+
+Niemand soll einen Entwurf von Hand löschen. `email --oeffnen` räumt deshalb für den eigenen
+Absender mit auf und nennt die UIDs (nicht mit `--kein-fenster`, das ist für Schleifen da):
+
+```
+OK  aus „Entwürfe“ von ich@example.de weggeräumt: UID 812, 815 → „Papierkorb“
+```
+
+Dasselbe von Hand, ohne `--machen` nur zeigend:
+
+```
+falzmarke aufraeumen --absender ich@example.de --entwuerfe
+falzmarke aufraeumen --absender ich@example.de --entwuerfe --machen
+```
+
+```
+OK  ich@example.de: 1 von 3 in „Entwürfe“ sind überholt
+    UID 812  02.11.2026 09:58  „Angebot“ — eine neuere Fassung ging hinaus
+    BLEIBT UID 815  „Nachtrag“ — wartet: keine neuere Fassung gesendet
+    BLEIBT UID 820  „Rückfrage“ — trägt keine Fassung, also nicht von falzmarke angelegt
+    nichts bewegt — mit --machen verschieben
+```
+
+Weg darf nur, was belegt ist:
+
+| Regel | Beleg |
+|---|---|
+| dieselbe Fassung ging hinaus | `status` sagt BELEGT, das Tagebuch nennt die Fassung, die Mail liegt in „Gesendet“ |
+| eine neuere Fassung ging hinaus | gleicher Betreff, genau dieselben Empfänger, gesendet nach dem Entwurf, andere Fassung im Tagebuch |
+
+Immer liegen bleibt, was gerade im Fenster offen ist, was keine Fassung trägt, was das Entwurfsbuch
+nicht unter UID und Fassung kennt, was in Thunderbird gespeichert wurde oder vom Buch abweicht, und
+alles, solange Buch, Tagebuch oder Fensterliste nicht vollständig zu lesen sind. Der Grund steht
+dabei. Ist das Postfach nicht zu erreichen, heißt es `NICHT GEPRÜFT` mit Exit 3 und nie „nichts zu
+tun“.
+
+Gelöscht wird nichts hart: Der einzige ändernde Befehl ist `UID MOVE` in den Ordner mit `\Trash`.
+Vor jedem Zug werden Fensterliste und Kopf neu gelesen, danach wird nachgesehen, ob die Nachricht
+weg ist. `FALZMARKE_AUFRAEUMEN=nie` schaltet das Mitaufräumen in `email --oeffnen` ab.
+
+**Ändert sich nur der Text, ersetzt der neue Entwurf den alten.** Gleicher Empfänger, gleicher
+Betreff, andere Fassung: Der neue wird angelegt und nachgezählt, der alte geht in den Papierkorb,
+und nur der neue geht auf (`OK  ersetzt: UID 812 → „Papierkorb“`). Das gilt, wenn alle passenden
+alten von falzmarke stammen, unverändert und zu sind. Sonst bleibt es bei `ENTWURF LIEGT SCHON`, und
+`--ersetzen` legt den neuen trotzdem an und lässt stehen, was nicht weg darf
+([ADR 0062](entscheidungen/0062-ueberholte-entwuerfe-wegraeumen.md)).
 
 ### Eine fertige Signatur mitbringen
 

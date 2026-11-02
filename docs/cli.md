@@ -8,11 +8,12 @@ falzmarke render      BRIEF.md [-o AUS.pdf] [--png] [--no-pdfa] [--pdfua] [--ver
 falzmarke xml         RECHNUNG.md [-o AUS.xml]
 falzmarke verify      AUS.pdf [--form A|B] [--json] [--verbose]
 falzmarke verify      NACHRICHT.eml --email [--json] [--verbose]
-falzmarke email       NACHRICHT.md [-o STAMM] [--html] [--txt] [--mit-quelle] [--oeffnen] [--programm thunderbird|outlook] [--verbose]
+falzmarke email       NACHRICHT.md [-o STAMM] [--html] [--txt] [--mit-quelle] [--oeffnen] [--programm thunderbird|outlook] [--ersetzen|--noch-ein-entwurf] [--verbose]
 falzmarke serie       VORLAGE.md --daten DATEN.csv --ziel ORDNER/ [--benennen SPALTE] [--sammel]
 falzmarke status      --absender ADRESSE [--tage 14] [--diff] [--json]
 falzmarke entwurf-oeffnen --absender ADRESSE [--betreff "..."] [--uid N]
 falzmarke aufraeumen  --absender ADRESSE [--seit 30] [--machen] [--json]   # --seit: 1 bis 3650
+falzmarke aufraeumen  --absender ADRESSE --entwuerfe [--seit 30] [--machen] [--json]
 falzmarke einlesen    AUS.pdf [-o GERUEST.md] [--ueberschreiben] [--json]
 falzmarke mcp
 falzmarke preview     BRIEF.md [-o AUS.png] [--ppi 120]

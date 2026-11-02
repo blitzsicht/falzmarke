@@ -123,6 +123,10 @@ FRIST_S = 120
 #: `Date` der gesendeten Mail stammt nicht unbedingt von der Uhr, die den Eintrag schrieb.
 SPIEL = timedelta(minutes=5)
 
+#: Abstand zwischen Tagebuchzeile und `Date` der gesendeten Mail, in Sekunden, bis zu
+#: dem beide als dieselbe gelten. Gemessen 02.11.2026: höchstens 103 s an fünf Konten.
+ANKER_S = 120
+
 #: Höchstens so viele Zeilen zeigt `--diff` je Entwurf.
 DIFF_ZEILEN = 60
 
@@ -548,6 +552,30 @@ def fassungen(eintraege: list[dict]) -> dict[str, str]:
 
 # ── Der Abgleich ────────────────────────────────────────────────────────────
 
+class Sendung(NamedTuple):
+    """Eine gesendete Mail, die zu einem liegenden Entwurf passen könnte.
+
+    Getrennt von `Zustand.gesendet` und `.anders`, die nur Zeiten tragen und für
+    die Ausgabe gebaut sind: Das Wegräumen (ADR 0062) braucht die Empfängermenge,
+    denn `treffer` lässt schon einen Schnitt gelten, und am 02.11.2026 gingen
+    zwei Mails mit gleichem Betreff an zwei Adressen desselben Hauses.
+    """
+
+    datum: datetime | None
+    #: To, Cc und Bcc der gesendeten Mail, wie `postfach.Kopf.an`.
+    an: frozenset[str]
+    #: Die Fassungen, die das Tagebuch dieser Mail zuordnet. Mehrere, wenn zwei
+    #: Einträge auf sie passen; leer, wenn sie keinem Eintrag gehört.
+    fassungen: frozenset[str]
+    betreff_kern: str
+    stufe: int
+    #: Ob `gesendet.vergleiche` „gesendet“ sagte, nicht „geaendert“.
+    gleich: bool
+    #: Wann das Buch die Fassung dieser Mail zuerst eintrug, bei mehreren die früheste.
+    #: `None`, wenn es eine davon nicht kennt: Dann ist „neuer“ nicht belegt.
+    buch_zeit: datetime | None = None
+
+
 class Zustand(NamedTuple):
     """Was aus einem Entwurf wurde.
 
@@ -590,6 +618,18 @@ class Zustand(NamedTuple):
     empfaenger_minus: tuple[str, ...] = ()
     #: Ob der Text im Buch gekappt ist. Dann belegt er kein „Text geändert“.
     text_gekappt: bool = False
+    #: `X-Falzmarke-Fassung` im Kopf des liegenden Entwurfs. Leer: keine.
+    fassung: str = ""
+    #: Wann das Buch ihn eingetragen hat. `None`, wenn es ihn nicht kennt.
+    buch_zeit: datetime | None = None
+    #: Die gesendeten Mails zu `gesendet` und `anders`, mit Empfängern und Fassung.
+    sendungen: tuple[Sendung, ...] = ()
+    #: Ob der Text im Postfach noch der im Buch ist. `None`: nicht verglichen.
+    text_wie_buch: bool | None = None
+    #: Ob eine UID seiner Speicher-Kette gerade in einem Fenster offen steht.
+    kette_offen: bool = False
+    #: Die UIDs dieser Kette, für den zweiten Blick unmittelbar vor dem Zug.
+    kette: frozenset[str] = frozenset()
 
     @property
     def belegt(self) -> bool:
@@ -625,6 +665,14 @@ class Bericht(NamedTuple):
     ungewiss: tuple[Eintrag, ...] = ()
     #: Tagebuch-Einträge zu einem Entwurf ohne UID und ohne Fassung (#420).
     ohne_zuordnung: int = 0
+    #: Die Ordner, wie der Server sie führt. Die Felder darüber sind lesbar gemacht.
+    entwuerfe_server: str = ""
+    papierkorb_server: str = ""
+    #: Warum Buch oder Tagebuch nicht vollständig zu lesen sind. Für `status` ein
+    #: Hinweis unter vielen, für das Wegräumen eine Sperre (ADR 0062).
+    beleg_grund: str = ""
+    #: Warum die offenen Fenster nicht zu erfragen waren. Dito.
+    fenster_grund: str = ""
 
 
 def fenster_des_kontos(fenster: list[dict], adresse: str) -> dict[str, dict]:
@@ -676,6 +724,41 @@ def _offene_uids(adresse: str, umgebung: Mapping[str, str]) -> tuple[dict[str, d
     except bruecke.BrueckenFehler as fehler:
         return {}, f"offene Fenster nicht geprüft: {fehler}"
     return fenster_des_kontos(fenster, adresse), ""
+
+
+def tagebuch_fassungen(kopf, eintraege: list[dict], adresse: str) -> frozenset[str]:
+    """Die Fassungen, die das Tagebuch einer gesendeten Mail zuordnet, ohne `Message-ID`.
+
+    `fassungen()` geht über die `Message-ID`, und die taugt nicht überall: An
+    outlook.de ersetzt der Server sie beim Senden. Von 26 Tagebuchzeilen fanden
+    dort 12 ihre Mail im Gesendet-Ordner, an den vier anderen Konten 91 von 92
+    (Messung 02.11.2026, die eine Ausnahme ist Fall 1 aus #425 mit leerer
+    `message_id`).
+
+    Deshalb der zweite Anker: dasselbe Konto, genau dieselben Empfänger,
+    derselbe Betreffkern und höchstens `ANKER_S` Abstand. Zeit und Empfänger
+    allein trafen 26 von 26, aber zwölfmal mehrdeutig; deshalb der Betreff. Passen
+    trotzdem mehrere Einträge, kommen alle Fassungen zurück, und der Aufrufer
+    entscheidet: Ein „vielleicht dieselbe“ ist dort kein „eine andere“.
+    """
+    from falzmarke import gesendet
+
+    aus = set()
+    kern = gesendet.betreff_kern(kopf.betreff)
+    if kopf.datum is None or not kern:
+        return frozenset()
+    for tag in eintraege:
+        ursprung = _ursprung(tag, adresse)
+        zeit = _zeit(tag.get("zeit"))
+        fassung = str(ursprung.get("fassung") or "") if ursprung else ""
+        if tag.get("art") != "gesendet" or not fassung or zeit is None:
+            continue
+        empfaenger = {str(a).lower() for f in ("an", "kopie", "blindkopie")
+                      for a in tag.get(f) or []}
+        if (empfaenger == set(kopf.an) and abs((zeit - kopf.datum).total_seconds()) <= ANKER_S
+                and gesendet.betreff_kern(str(ursprung.get("betreff") or "")) == kern):
+            aus.add(fassung)
+    return frozenset(aus)
 
 
 def _ursprung(tag: Mapping, adresse: str) -> Mapping | None:
@@ -745,21 +828,23 @@ def _gehoert_dazu(tag: Mapping, adresse: str, kette: set[str], fassung: str) -> 
     return bool(fassung and str(ursprung.get("fassung") or "") == fassung)
 
 
-def _fenstertext_gleich(fenster: Mapping | None, vorlage: str) -> bool | None:
-    """Ob der Text im offenen Fenster noch der angelegte ist. None: nicht prüfbar.
-
-    Verglichen wird der Kern bis zur Grußformel wie in `gesendet.py`: Thunderbird
-    setzt die Konto-Signatur darunter und schreibt Aufzählungszeichen um.
-    """
+def wortlaut_gleich(vorlage: str, text: str) -> bool:
+    """Verglichen wird der Kern bis zur Grußformel wie in `gesendet.py`: Thunderbird
+    setzt die Konto-Signatur darunter und schreibt Aufzählungszeichen um."""
     from falzmarke import gesendet
 
-    if not fenster or not fenster.get("live") or "text" not in fenster or not vorlage:
-        return None
     eigen = gesendet.merkmale_aus(empfaenger=(), betreff="", text=vorlage)
-    jetzt = gesendet.merkmale_aus(empfaenger=(), betreff="", text=str(fenster["text"]))
+    jetzt = gesendet.merkmale_aus(empfaenger=(), betreff="", text=text)
     if len(eigen.kern) >= gesendet.KERN_MIN:
         return eigen.kern == jetzt.kern
     return eigen.voll == jetzt.voll
+
+
+def _fenstertext_gleich(fenster: Mapping | None, vorlage: str) -> bool | None:
+    """Ob der Text im offenen Fenster noch der angelegte ist. None: nicht prüfbar."""
+    if not fenster or not fenster.get("live") or "text" not in fenster or not vorlage:
+        return None
+    return wortlaut_gleich(vorlage, str(fenster["text"]))
 
 
 def _versand(eintrag: Eintrag, tagebuch: tuple[dict, ...]) -> dict:
@@ -822,9 +907,12 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
     if offen_grund:
         hinweise.append(offen_grund)
 
+    beleg_grund = " · ".join(g for g in (
+        tagebuch_grund, _zeilenwort(stand.unlesbar, "im Entwurfsbuch") if stand.unlesbar else ""
+    ) if g)
     leer = Bericht(adresse, tage=tage, im_buch=len(buch), tagebuch=tagebuch_eigene,
                    hinweise=tuple(hinweise), unlesbar=stand.unlesbar, ungewiss=ungewiss,
-                   ohne_zuordnung=verwaist)
+                   ohne_zuordnung=verwaist, beleg_grund=beleg_grund, fenster_grund=offen_grund)
     try:
         sitzung = postfach.verbinde(adresse, umgebung=umgebung, frist=FRIST_S)
     except postfach.PostfachFehler as fehler:
@@ -895,6 +983,24 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                         anders.append((kopf, text))
                 return gleich, anders
 
+            # Aus dem ganzen Buch: Ist die gesendete Fassung älter als das Lesefenster,
+            # ist sie auch älter als jeder Entwurf darin.
+            erste_im_buch: dict[str, datetime] = {}
+            for eintrag in stand.eintraege:
+                if eintrag.konto == adresse and eintrag.fassung:
+                    erste_im_buch[eintrag.fassung] = min(
+                        eintrag.zeit, erste_im_buch.get(eintrag.fassung, eintrag.zeit))
+
+            def sendung(kopf, gleich):
+                aus_kennung = gesendete(kopf)[0].fassung
+                zugeordnet = (tagebuch_fassungen(kopf, tage_eintraege, adresse)
+                              | ({aus_kennung} if aus_kennung else set()))
+                zeiten = [erste_im_buch.get(f) for f in zugeordnet]
+                return Sendung(
+                    kopf.datum, frozenset(kopf.an), zugeordnet,
+                    gesendet.betreff_kern(kopf.betreff), gesendet.antwortstufe(kopf.betreff),
+                    gleich, min(zeiten) if zeiten and None not in zeiten else None)
+
             zustaende = []
             erledigt: set[int] = set()
             for kopf in liegend:
@@ -923,11 +1029,20 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                           else max((i for i, e in enumerate(buch) if e.uid in kette), default=None))
                 vorlage = (buch[quelle].text if quelle is not None
                            else gesendet.klartext(nachricht) if nachricht is not None else "")
+                im_buch = buch[nummer] if nummer is not None else None
                 zustaende.append(Zustand(
                     art, kopf.betreff, kopf.an, kopf.datum, kopf.uid,
                     gesendet=tuple(sorted((k.datum for k, _ in gleich), key=_sortzeit)),
                     anders=tuple(sorted((k.datum for k, _ in anders), key=_sortzeit)),
                     im_buch=nummer is not None,
+                    text_gekappt=bool(im_buch and im_buch.text_gekappt),
+                    fassung=kopf.fassung, buch_zeit=im_buch.zeit if im_buch else None,
+                    sendungen=(*(sendung(k, True) for k, _ in gleich),
+                               *(sendung(k, False) for k, _ in anders)),
+                    text_wie_buch=(wortlaut_gleich(im_buch.text, gesendet.klartext(nachricht))
+                                   if im_buch and nachricht is not None
+                                   and not im_buch.text_gekappt else None),
+                    kette_offen=bool(kette & set(offen)), kette=frozenset(kette),
                     tagebuch=tuple(t for t in tage_eintraege
                                    if _gehoert_dazu(t, adresse, kette, kopf.fassung)),
                     fenster=fenster, fenster_text_gleich=_fenstertext_gleich(fenster, vorlage)))
@@ -997,7 +1112,9 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                    papierkorb=postfach.utf7_dekodieren(ordner_p) if ordner_p else "",
                    angesehen=len(raus), tage=tage, im_buch=len(buch),
                    tagebuch=tagebuch_eigene, hinweise=tuple(hinweise),
-                   unlesbar=stand.unlesbar, ungewiss=ungewiss, ohne_zuordnung=verwaist)
+                   unlesbar=stand.unlesbar, ungewiss=ungewiss, ohne_zuordnung=verwaist,
+                   entwuerfe_server=ordner_e, papierkorb_server=ordner_p or "",
+                   beleg_grund=beleg_grund, fenster_grund=offen_grund)
 
 
 def _sortzeit(zeit: datetime | None) -> datetime:

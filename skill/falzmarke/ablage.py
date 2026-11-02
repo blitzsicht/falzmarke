@@ -1,10 +1,10 @@
 """Beantwortete Eingangspost in die Ablage des Kontos (#431, ADR 0061).
 
-Das einzige Modul des Pakets, das eine Nachricht im Postfach **bewegt**. Es
-steht neben `postfach` und nicht darin, weil dessen Zusage „nur lesend, der
-einzige schreibende Befehl ist `APPEND`" wahr bleiben soll — sie ist in
-`postfach.py`, `tests/test_postfach.py` und `tests/imap_attrappe.py`
-festgehalten.
+Eines von zwei Modulen des Pakets, die eine Nachricht im Postfach **bewegen**;
+das andere ist `entwurfsablage` (ADR 0062). Es steht neben `postfach` und nicht
+darin, weil dessen Zusage „nur lesend, der einzige schreibende Befehl ist
+`APPEND`" wahr bleiben soll — sie ist in `postfach.py`, `tests/test_postfach.py`
+und `tests/imap_attrappe.py` festgehalten.
 
 **Ein ändernder Befehl, und es ist `UID MOVE`.** Kein `COPY`, kein
 `STORE \\Deleted`, kein `EXPUNGE`, kein `DELETE`, kein `CREATE`: Ein

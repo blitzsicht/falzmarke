@@ -113,12 +113,17 @@ Was dabei nicht fehlen darf, weil es gemessen ist:
   `OK  Entwurf liegt in „Entwürfe" von <adresse>: <Betreff>`. Ist in Thunderbird das Add-on
   **Entwurfsbrücke** installiert (`thunderbird/entwurfsbruecke/`, ADR 0054), öffnet es genau
   diesen Entwurf wie „Entwurf bearbeiten", und die nächste Zeile lautet
-  `OK  Entwurf offen in Thunderbird: <Betreff>`. Nach dem Senden räumt Thunderbird ihn dann
-  selbst aus „Entwürfe" weg. Ohne Add-on heißt es `HINWEIS  Es geht kein Fenster auf …` mit dem
+  `OK  Entwurf offen in Thunderbird: <Betreff>`. Nach dem Senden räumt Thunderbird ihn in der
+  Regel selbst aus „Entwürfe" weg, zugesagt ist das nicht (ADR 0062); was liegen bleibt, räumt der
+  nächste `email --oeffnen` weg (`OK  aus „Entwürfe“ … weggeräumt: UID …`). Ohne Add-on heißt es `HINWEIS  Es geht kein Fenster auf …` mit dem
   Grund; dann findet der Mensch den Entwurf unter „Entwürfe". `HINWEIS  Fenster ungewiss` heißt:
   **nicht noch einmal öffnen**, erst nachsehen lassen. Liegt dort schon einer mit demselben
-  Empfänger und Betreff, heißt es `ENTWURF LIEGT SCHON …` — dann **keinen zweiten** anlegen;
-  das Add-on öffnet den vorhandenen. `--noch-ein-entwurf` nur, wenn der Mensch ausdrücklich
+  Empfänger und Betreff und demselben Text, heißt es `ENTWURF LIEGT SCHON …` — dann **keinen
+  zweiten** anlegen; das Add-on öffnet den vorhandenen. Mit geändertem Text ersetzt der neue den
+  alten von selbst (`OK  ersetzt: UID …`), wenn dieser von falzmarke stammt, unverändert und zu
+  ist. Sonst bleibt es bei `ENTWURF LIEGT SCHON`, und `HINWEIS  bleibt liegen: …` nennt den Grund;
+  `--ersetzen` legt den neuen dann trotzdem an und lässt stehen, was nicht weg darf.
+  `--noch-ein-entwurf` nur, wenn der Mensch ausdrücklich
   einen zweiten will. Ist der Proxy nicht da, geht es weiter wie im nächsten Punkt, mit einer
   Zeile `kein Postfach-Entwurf: <Grund>`.
 - Sonst entsteht der Entwurf als Fenster in **Thunderbird** (`-compose`), wenn es installiert
@@ -313,6 +318,22 @@ wird jede einzeln gesucht, und sie gilt erst als erledigt, wenn keine davon im E
 Sah der Lauf nur die jüngsten Mails des Fensters, steht das als `HINWEIS` in Text **und**
 `--json`. Nennen zwei Profile derselben Adresse verschiedene `ablage:`, wird kein Postfach
 geöffnet und nichts bewegt — welcher Ordner gilt, muss im Profil stehen. Braucht den IMAP-Proxy.
+
+**`aufraeumen --entwuerfe` — überholte Entwürfe in den Papierkorb.** Niemand soll einen Entwurf von
+Hand löschen; das geschieht bei jedem `email --oeffnen` von selbst für den eigenen Absender.
+
+```bash
+python3 scripts/falzmarke.py aufraeumen --absender order@example.de --entwuerfe            # nur zeigen
+python3 scripts/falzmarke.py aufraeumen --absender order@example.de --entwuerfe --machen   # verschieben
+```
+
+Weg darf, was belegt ist: dieselbe Fassung ging hinaus (`status` sagt BELEGT), oder eine neuere
+Fassung ging an genau dieselben Empfänger mit demselben Betreff. Alles andere bleibt, und
+`BLEIBT UID …` nennt den Grund: offen im Fenster, keine Fassung, nicht im Entwurfsbuch, in
+Thunderbird gespeichert oder geändert, unlesbarer Beleg. Der Eingang bleibt bei diesem Schalter
+unberührt. `NICHT GEPRÜFT` mit Exit 3 heißt: nicht nachgesehen, nicht „nichts zu tun“. Gelöscht wird
+nichts hart, und ohne `MOVE` oder `\Trash` am Server bewegt sich nichts.
+`FALZMARKE_AUFRAEUMEN=nie` schaltet das Mitaufräumen in `email --oeffnen` ab.
 `--json` für die Weiterarbeit (ADR 0061).
 
 **`xml` — eine Rechnung als reine XML-Datei, ohne PDF.**
