@@ -71,6 +71,9 @@ KANAL_KURZTEXTE = {
     # werden daraus gespeist, test_marke.py hält sie zusammen.
     "docs/marke/texte.yaml": KURZFORM,
     "pyproject.toml": KURZFORM,
+    # Der Eintrag im MCP-Registry ist ein Kanal wie die beiden anderen; sein Text
+    # steht in Verzeichnissen, die kein README zeigen.
+    "server.json": KURZFORM,
 }
 
 # Begriffe, die ohne den Satz oben eine Zusage wären, die niemand geprüft hat.

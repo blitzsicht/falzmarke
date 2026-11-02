@@ -124,6 +124,19 @@ def test_server_json_nennt_dieselbe_version():
         f"server.json/packages sagt {paket['version']}, pyproject.toml {version}")
 
 
+def test_skill_kopf_nennt_dieselbe_version():
+    """Die vierte Stelle: `metadata.version` im SKILL.md-Kopf.
+
+    Die Skill-Spezifikation kennt kein `version` auf oberster Ebene, deshalb
+    steht sie unter `metadata`. Der Wert ist eine Zeichenkette, keine Zahl.
+    """
+    text = (REPO / "skill" / "SKILL.md").read_text(encoding="utf-8")
+    treffer = re.search(r'^metadata:\n  version: "([^"]+)"$', text, re.MULTILINE)
+    assert treffer, 'SKILL.md: kein `metadata:`/`version: "…"` im Kopf'
+    assert treffer.group(1) == version_aus_pyproject(), (
+        f"SKILL.md sagt {treffer.group(1)}, pyproject.toml {version_aus_pyproject()}")
+
+
 def test_server_json_nennt_das_eigene_paket():
     """Ein falscher `identifier` zeigte auf ein fremdes PyPI-Paket.
 

@@ -43,6 +43,11 @@ AUSLOESER = ["Brief", "Anschreiben", "Kündigung", "Mahnung", "Angebot", "Widers
              "Serienbrief", "einlesen",
              # Die Urkunde (ADR 0048). `typ: urkunde` sucht niemand — gesagt wird eines davon.
              "Urkunde", "Vereinbarung", "Vertrag", "Erklärung", "Vollmacht", "Nachweis"]
+#: Dieselbe Pflicht auf Englisch: Das Verzeichnis ist international, und wer dort
+#: „formal letter“ schreibt, löst sonst nichts aus.
+AUSLOESER_EN = ["German business letter", "formal letter", "cover letter", "cancellation",
+                "payment reminder", "quote", "email", "contract", "power of attorney",
+                "mail merge"]
 
 
 def _packer():
@@ -100,6 +105,11 @@ def test_zu_lange_description_bricht_das_packen_ab(tmp_path):
 @pytest.mark.parametrize("wort", AUSLOESER)
 def test_description_nennt_jeden_ausloeser(wort):
     """Kürzen darf Merkmale streichen, keine Auslöser."""
+    assert wort in _beschreibung(), f"„{wort}“ fehlt in der description von SKILL.md"
+
+
+@pytest.mark.parametrize("wort", AUSLOESER_EN)
+def test_description_nennt_jeden_englischen_ausloeser(wort):
     assert wort in _beschreibung(), f"„{wort}“ fehlt in der description von SKILL.md"
 
 

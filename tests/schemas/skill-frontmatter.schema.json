@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SKILL.md-Frontmatter nach agentskills.io/specification",
+  "type": "object",
+  "required": ["name", "description"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^(?!-)(?!.*--)[a-z0-9-]+(?<!-)$"
+    },
+    "description": {"type": "string", "minLength": 1, "maxLength": 1024},
+    "license": {"type": "string", "minLength": 1},
+    "compatibility": {"type": "string", "minLength": 1, "maxLength": 500},
+    "metadata": {"type": "object", "additionalProperties": {"type": "string"}},
+    "allowed-tools": {"type": "string"}
+  }
+}
