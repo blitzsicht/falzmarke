@@ -2571,3 +2571,45 @@ def test_ohne_dereferenzieren_loescht_das_packen_die_quelle(tmp_path):
     quelle, _ = schlankes_paket(tmp_path, sabotiert)
     assert not (quelle / "README.md").exists(), \
         "ohne -L trifft das `rm` die Quelle — sonst hielte -L nichts"
+
+
+# ── #442 N1: Die Teilkette des Servers geht nicht in `UID MOVE` ─────────────
+
+def _teilkette(monkeypatch):
+    """Eine Antwort mit `123`, im Eingang eine fremde Mail, deren Kennung es enthält."""
+    from falzmarke import ablage as _ablage, postfach as _postfach_modul
+    from test_ablage import HEUTE, _antwort, _eingegangen, _postfach
+
+    monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE", _postfach_modul.IMAP_KLASSE, raising=False)
+    _, sitzung = _postfach(eingang=[_eingegangen("<x123y@example.org>")],
+                           gesendet=[_antwort("123")])
+    with sitzung:
+        return _ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+
+
+def test_ohne_nachvergleich_wandert_die_fremde_mail(monkeypatch):
+    from falzmarke import postfach as _postfach_modul
+
+    assert _teilkette(monkeypatch).zuege == (), "Kontrollprobe: unsabotiert kein Zug"
+    monkeypatch.setattr(_postfach_modul, "gleiche_kennung", lambda gesucht, kopfwert: True)
+    bericht = _teilkette(monkeypatch)
+    assert [z.kennung for z in bericht.zuege] == ["123"] and bericht.nicht_im_eingang == 0
+
+
+def test_ohne_message_id_im_fetch_trifft_gar_nichts_mehr(monkeypatch):
+    """Der Nachvergleich braucht die Zeile im `FETCH`, sonst leert er jeden Plan."""
+    from falzmarke import ablage as _ablage, postfach as _postfach_modul
+    from test_ablage import HEUTE, _antwort, _eingegangen, _postfach
+
+    monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE", _postfach_modul.IMAP_KLASSE, raising=False)
+
+    def lauf():
+        _, sitzung = _postfach(eingang=[_eingegangen()], gesendet=[_antwort()])
+        with sitzung:
+            return _ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+
+    assert len(lauf().zuege) == 1, "Kontrollprobe: unsabotiert ein Zug"
+    ohne = tuple(z for z in _postfach_modul.KOPFZEILEN if z != "MESSAGE-ID")
+    assert ohne != _postfach_modul.KOPFZEILEN, "die Sabotage greift nicht"
+    monkeypatch.setattr(_postfach_modul, "KOPFZEILEN", ohne)
+    assert lauf().zuege == ()
