@@ -10,6 +10,8 @@ briefe/
 # Bildverweise im Repo tot, obwohl die Dateien lokal daliegen.
 !docs/renders/*.png
 !docs/assets/**/*.png
+# Das Verzeichnis zeigt es neben dem Plugin (#454).
+!skill/.claude-plugin/icon.png
 # Ausgenommen: die Anlage der Beispielmail. Ohne sie bricht
 # examples/email/email-mahnung.md mit FileNotFoundError ab — beim Test wie bei
 # jedem, der das Beispiel nachvollzieht. Die Datei ist eingefroren, nicht

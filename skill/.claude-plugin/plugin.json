@@ -1,0 +1,19 @@
+{
+  "name": "falzmarke",
+  "description": "Create German DIN 5008 business letters in Claude: you describe the letter, falzmarke typesets PDF/A and measures the finished PDF. A misplaced folding mark ends the run with an error. Also emails and mail merge. MIT. Uses target values from secondary sources; the check against the standard is open.",
+  "author": {
+    "name": "Blitzsicht",
+    "url": "https://falzmarke.com"
+  },
+  "homepage": "https://falzmarke.com",
+  "repository": "https://github.com/blitzsicht/falzmarke",
+  "license": "MIT",
+  "keywords": [
+    "din5008",
+    "business-letter",
+    "pdfa",
+    "typst",
+    "document-generation",
+    "german"
+  ]
+}

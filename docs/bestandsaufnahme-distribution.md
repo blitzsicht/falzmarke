@@ -18,7 +18,7 @@ Sieben Formen existieren und laufen, eine existiert nur im Code, zwei gibt es ni
 | ✓ Docker-Image (Bauanleitung) | wird in der CI gebaut und angesprochen; kein veröffentlichtes Image | `Dockerfile`, CI-Job „MCP-Dienst im Container“ |
 | ✓ GitHub Action | `action.yml` mit `branding` | Eintrag im Marketplace: `?` |
 | ✗ MCP-Referenzdienst | Code da, `mcp.falzmarke.com` löst nicht auf | `mcp-dienst/`, `dig mcp.falzmarke.com` leer |
-| ✗ Claude-Plugin | kein `.claude-plugin/plugin.json`, kein `marketplace.json` | `claude plugin validate ./skill` scheitert, siehe unten |
+| ✓ Claude-Plugin | `skill/.claude-plugin/plugin.json` (#454), kein `marketplace.json` | `claude plugin validate ./skill` ohne Fehler, `plugin details`: ein Skill |
 | ✗ npm | Paket gibt es nicht (404), kein `package.json` im Wurzelverzeichnis | `npm view falzmarke` |
 
 Die Thunderbird-Erweiterung in `thunderbird/` gehört zum Mailweg und ist kein Verzeichnisziel.
@@ -42,19 +42,21 @@ bleibt der veröffentlichte Eintrag kaputt. Das Dockerfile war nie betroffen.
 
 ## Finding 2: Das Anthropic-Plugin-Verzeichnis ist nicht erreichbar
 
+Behoben mit #454. Der Text unten beschreibt den Stand davor, die Tabelle den Stand danach.
+
 Im Verzeichnis gibt es keine Skills als eigene Art, nur Plugin-Bündel. Ein Bündel ist ein Ordner mit
 `.claude-plugin/plugin.json`. Den gibt es nicht, und laut Auftrag ist das ein Befund und kein
 Bauauftrag. Geprüft gegen die Vorab-Checkliste von Anthropic:
 
 | Anforderung | Stand im Repository |
 |---|---|
-| Ordner enthält `.claude-plugin/plugin.json` | ✗ **blockiert**; `claude plugin validate ./skill`: „No manifest found“ |
-| README mit mindestens 40 Wörtern im Plugin-Ordner | ✗ **blockiert**; `skill/` hat keins |
-| `LICENSE` im Plugin-Ordner oder `license` im Manifest | ✗ **blockiert**; das Manifest würde es lösen |
+| Ordner enthält `.claude-plugin/plugin.json` | ✓ `skill/.claude-plugin/plugin.json` |
+| README mit mindestens 40 Wörtern im Plugin-Ordner | ✓ `skill/README.md` |
+| `LICENSE` im Plugin-Ordner oder `license` im Manifest | ✓ `license` im Manifest |
 | Archiv unter 50 MiB, unter 10.000 Dateien | ✓ 18,9 MiB, 507 Dateien |
 | kein `export-ignore`, kein `filter` in `.gitattributes` | ✓ |
 | Dateien außer Bildern und Schriften unter 256 KiB, sonst Prüfer | ✓ größte Python-Datei 132 KiB |
-| höchstens 512 Dateien im Plugin | ✓ 59 unter `skill/` |
+| höchstens 512 Dateien im Plugin | ✓ 63 unter `skill/` |
 | Paket-Starter auf exakte Version festgelegt | offen, gilt für ein künftiges `.mcp.json` |
 
 Gangbar ist der Unterordner `skill/`: Das Portal nimmt einen Plugin-Pfad an und liest nur diesen.

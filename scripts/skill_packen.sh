@@ -51,9 +51,13 @@ rm -rf paket falzmarke.skill falzmarke-offline.skill falzmarke-chatgpt-plugin.zi
 mkdir -p paket
 
 # claude.ai erwartet den Skill-Ordner mit SKILL.md an der Wurzel des Zips.
-cp -r skill paket/falzmarke
+# -L, weil die Tests `skill` als Symlink einhängen: Ohne -L bleibt das Ziel unter
+# GNU cp ein Symlink, und die `rm`-Zeilen darunter träfen die echten Dateien.
+cp -RL skill paket/falzmarke
 rm -rf paket/falzmarke/typst/profiles.local
 rm -rf paket/falzmarke/falzmarke.egg-info
+# Gehört zum Plugin-Bündel für das Anthropic-Verzeichnis (#454), nicht zum Skill.
+rm -rf paket/falzmarke/.claude-plugin paket/falzmarke/README.md
 find paket/falzmarke -name '__pycache__' -type d -prune -exec rm -rf {} +
 
 echo "── 1. falzmarke.skill — schlank, ueberall hochladbar ─────────────────"

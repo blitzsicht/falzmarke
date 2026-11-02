@@ -38,6 +38,9 @@ SCHEMAS = REPO / "tests" / "schemas"
 SERVER_JSON = REPO / "server.json"
 SKILL_MD = REPO / "skill" / "SKILL.md"
 LISTINGS = REPO / "docs" / "listings.md"
+PLUGIN_ORDNER = REPO / "skill"
+CLAUDE_MANIFEST = PLUGIN_ORDNER / ".claude-plugin" / "plugin.json"
+PLUGIN_README = PLUGIN_ORDNER / "README.md"
 HANDSCHLAG = REPO / "scripts" / "mcp_handschlag.py"
 PACKER = REPO / "scripts" / "plugin_packen.py"
 
@@ -325,6 +328,45 @@ def test_gegenprobe_die_textsuche_findet_bloecke():
 
 # ── UTM-Konvention ──────────────────────────────────────────────────────────
 
+# ── Claude-Plugin für das Anthropic-Verzeichnis (#454) ──────────────────────
+
+def _claude_manifest() -> dict:
+    return json.loads(CLAUDE_MANIFEST.read_text(encoding="utf-8"))
+
+
+def test_claude_plugin_traegt_name_lizenz_und_nackte_homepage():
+    mani = _claude_manifest()
+    assert mani["name"] == "falzmarke"
+    assert mani["license"] == "MIT"
+    assert mani["homepage"] == "https://falzmarke.com", "UTM-Link gehört ins README"
+
+
+def test_claude_plugin_beschreibung_ist_der_einreichtext():
+    """Das Portal liest den Text aus dem Manifest, also darf er nicht abweichen."""
+    text = _einreichtexte(_abschnitte()["Anthropic-Plugin-Verzeichnis"])["en"]
+    assert _claude_manifest()["description"] == text
+
+
+def test_claude_plugin_bringt_nur_den_skill():
+    """Ein MCP-Server im Plugin ginge zusätzlich an einen Prüfer."""
+    assert not (PLUGIN_ORDNER / ".mcp.json").exists()
+    assert "mcpServers" not in _claude_manifest()
+
+
+def test_claude_plugin_hat_ein_quadratisches_icon():
+    """`*.png` steht in `.gitignore`: Lokal läge das Icon da, im Repository nicht."""
+    daten = (CLAUDE_MANIFEST.parent / "icon.png").read_bytes()
+    assert daten[:8] == b"\x89PNG\r\n\x1a\n"
+    assert daten[16:20] == daten[20:24], "das Portal verlangt ein quadratisches Icon"
+
+
+def test_plugin_readme_reicht_fuer_das_portal():
+    text = PLUGIN_README.read_text(encoding="utf-8")
+    assert len(text.split()) >= 40, "das Portal verlangt mindestens 40 Wörter"
+    assert VORBEHALT_DE in text and VORBEHALT_EN in text
+    assert not ZUSAGE_ZU_WEIT.search(text)
+
+
 def utm_fehler(url: str) -> list[str]:
     """Was an einem Website-Link gegen die Konvention verstößt."""
     abfrage = parse_qs(urlsplit(url).query)
@@ -338,7 +380,7 @@ def utm_fehler(url: str) -> list[str]:
 
 
 @pytest.mark.parametrize("datei, mindestens", [
-    ("README.md", 2), ("skill/SKILL.md", 0), ("docs/listings.md", 6),
+    ("README.md", 2), ("skill/SKILL.md", 0), ("skill/README.md", 1), ("docs/listings.md", 6),
 ])
 def test_website_links_tragen_die_utm_parameter(datei, mindestens):
     links = WEBSITE_LINK.findall((REPO / datei).read_text(encoding="utf-8"))
