@@ -1651,6 +1651,40 @@ def test_bei_zwei_fenstern_derselben_uid_entscheidet_die_gemeldete_identitaet(mo
     assert gewaehlt[str(uid)]["betreff"] == "mit Meldung"
 
 
+@pytest.mark.parametrize("uri", [
+    "imap-message://fremd%40example.com@imap.other.de/Entwuerfe#{uid}",
+    "imap-message://order%40example.de@127.0.0.1/Templates#{uid}",
+], ids=["fremdes-konto", "anderer-ordner"])
+def test_die_uid_allein_kollidiert_und_die_ausgabe_sagt_es(monkeypatch, uri):
+    """Ohne gemeldeten Absender entscheidet nur die Zahl (#442).
+
+    Festgehalten, nicht gewünscht: Der Entwurf heißt `OFFEN`, obwohl das Fenster
+    zu einem anderen Konto oder Ordner gehört. Das bleibt so, bis #443 den
+    zweiten Anker bringt; ein falsches `WARTET` wäre teurer. Aber die Ausgabe
+    behauptet keine Zuordnung, die nicht gemessen ist.
+    """
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    uid = server.ordner[ENTWUERFE][0].uid
+    _mit_fenstern(monkeypatch, _fenster(uid, uri=uri))
+    bericht = _stand()
+    assert _einziger(bericht).art == "offen"
+    assert "zugeordnet nur über die UID" in " ".join(entwurfsbuch.zeilen(bericht))
+    (zustand,) = entwurfsbuch.als_json(bericht)["entwuerfe"]
+    assert zustand["fenster_nur_uid"] is True
+
+
+def test_ein_gemeldeter_absender_traegt_die_zuordnung_selbst(monkeypatch):
+    """Gegenprobe: Mit `identitaet` steht der Vorbehalt nicht da."""
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    uid = server.ordner[ENTWUERFE][0].uid
+    _mit_fenstern(monkeypatch, _fenster(uid, identitaet=VON))
+    bericht = _stand()
+    assert _einziger(bericht).art == "offen"
+    assert "nur über die UID" not in " ".join(entwurfsbuch.zeilen(bericht))
+    (zustand,) = entwurfsbuch.als_json(bericht)["entwuerfe"]
+    assert zustand["fenster_nur_uid"] is False
+
+
 def test_ein_fenster_ohne_uid_in_der_uri_zaehlt_nicht(monkeypatch):
     """Ohne `#<uid>` ist nicht zu sagen, welcher Entwurf gemeint ist.
 
@@ -1682,6 +1716,7 @@ def _zwei_profile(tmp_path, *, in_a=True, in_b=True) -> tuple[Path, Path, Path]:
     (ordner / "profiles.ini").write_text(
         "[Install1]\nDefault=Profiles/aaa.default-release\n", encoding="utf-8")
     for profil, da, woher in ((a, in_a, "A"), (b, in_b, "B")):
+        (profil / "prefs.js").write_text("", encoding="utf-8")
         if da:
             (profil / entwurfsbuch.TAGEBUCH).write_text(
                 json.dumps({"art": "geoeffnet", "zeit": "2026-10-25T11:00:00.000Z",
@@ -1689,6 +1724,17 @@ def _zwei_profile(tmp_path, *, in_a=True, in_b=True) -> tuple[Path, Path, Path]:
                 encoding="utf-8")
     (b / bruecke.SOCKET_DATEI).write_text("", encoding="utf-8")
     return ordner, a, b
+
+
+def test_ein_socket_ausserhalb_ohne_standardprofil_nennt_das_verzeichnis(monkeypatch, tmp_path):
+    """Kein erfundenes „Profil“: Der Grund sagt, welches Verzeichnis es ist (#442)."""
+    monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER", tmp_path / "nichts")
+    kurz = tmp_path / "s"
+    kurz.mkdir()
+    eintraege, grund = entwurfsbuch.tagebuch(
+        umgebung={"FALZMARKE_BRUECKE_SOCKET": str(kurz / bruecke.SOCKET_DATEI)})
+    assert eintraege == []
+    assert f"der Socket liegt in {kurz}, das ist kein Thunderbird-Profil" in grund
 
 
 def _betreffe(eintraege) -> list[str]:

@@ -2189,6 +2189,7 @@ def _zwei_profile_410(tmp_path, *, in_a=True, in_b=True):
     (ordner / "profiles.ini").write_text(
         "[Install1]\nDefault=Profiles/aaa.default-release\n", encoding="utf-8")
     for profil, da, woher in ((a, in_a, "A"), (b, in_b, "B")):
+        (profil / "prefs.js").write_text("", encoding="utf-8")
         if da:
             (profil / _buch.TAGEBUCH).write_text(
                 _json.dumps({"art": "geoeffnet", "zeit": "2026-10-25T11:00:00.000Z",
@@ -2312,18 +2313,19 @@ def _antwort_438(bezug, *, tage=1):
 
 
 def test_der_umbruch_wird_zweimal_gehalten_und_jede_linie_einzeln_belegt(monkeypatch):
-    """Zwei Filter stehen hier in Reihe, und das verdeckt jede einzelne
-    Sabotage: `postfach.kennungen` zerlegt den Feldwert, danach lehnt
-    `postfach._zitiert` einen Umbruch ohnehin ab. Nur `_zitiert` kaputt zu
-    machen bleibt grün — nicht weil die Prüfung wertlos ist, sondern weil der
-    Fall sie nie erreicht.
+    """Drei Filter stehen hier in Reihe, und das verdeckt jede einzelne
+    Sabotage: `postfach.kennungen` zerlegt den Feldwert, `postfach.sendbar`
+    überspringt, was sich nicht senden lässt (#442), und `postfach._zitiert`
+    lehnt einen Umbruch ohnehin ab. Nur `_zitiert` kaputt zu machen bleibt grün
+    — nicht weil die Prüfung wertlos ist, sondern weil der Fall sie nie erreicht.
 
-    Deshalb drei Stufen in einem Durchgang, mit **drei verschiedenen**
+    Deshalb vier Stufen in einem Durchgang, mit **vier verschiedenen**
     Ergebnissen:
 
     1. unsabotiert — ein Bericht, der gefaltete Bezug ist gefunden;
-    2. ohne das Zerlegen — `PostfachFehler`: die zweite Linie hält;
-    3. ohne beides — `ValueError` aus der Attrappe, mit dem Wortlaut von
+    2. ohne das Zerlegen — ein Bericht mit Hinweis, nichts gefunden: `sendbar` hält;
+    3. auch ohne `sendbar` — `PostfachFehler`: `_zitiert` hält;
+    4. ohne alle drei — `ValueError` aus der Attrappe, mit dem Wortlaut von
        `imaplib.IMAP4._command`. Das ist der Zustand, in dem der Umbruch auf
        die Leitung geht; auf Python 3.12 und 3.13 lehnt `imaplib` ihn **nicht**
        ab, dort wären es zwei Befehle (gemessen 29.10.2026, #438). Die CI
@@ -2347,10 +2349,15 @@ def test_der_umbruch_wird_zweimal_gehalten_und_jede_linie_einzeln_belegt(monkeyp
     # Stufe 2: ohne das Zerlegen trägt der Suchbegriff den Umbruch wieder.
     monkeypatch.setattr(_postfach_modul, "kennungen",
                         lambda wert: (str(wert or "").strip(),) if str(wert or "").strip() else ())
+    bericht = plane_einmal()
+    assert not bericht.zuege and any("übersprungen" in h for h in bericht.hinweise), bericht
+
+    # Stufe 3: ohne `sendbar` erreicht er das Zitieren.
+    monkeypatch.setattr(_postfach_modul, "sendbar", lambda kennung: True)
     with pytest.raises(_postfach_modul.PostfachFehler, match="Umbruch oder Nullbyte"):
         plane_einmal()
 
-    # Stufe 3: und ohne die Ablehnung geht er hinaus.
+    # Stufe 4: und ohne die Ablehnung geht er hinaus.
     def nur_zitieren(name):
         return '"' + name.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
@@ -2359,6 +2366,75 @@ def test_der_umbruch_wird_zweimal_gehalten_und_jede_linie_einzeln_belegt(monkeyp
         plane_einmal()
     assert nur_zitieren("Gesendete Elemente") == '"Gesendete Elemente"', \
         "die Sabotage hat mehr getroffen als die Prüfung — das Zitieren selbst fiel"
+
+
+def _antworten_442(schlecht: str):
+    """Eine unsendbare Kennung und eine gesunde Antwort daneben, wie in #442."""
+    gut = "<gut-442@example.org>"
+    return dict(eingang=[_eingang_438(gut)],
+                gesendet=[_antwort_438(schlecht, tage=2), _antwort_438(gut, tage=1)]), gut
+
+
+@pytest.mark.parametrize("schlecht", ["<a\x01\x00b@example.org>", "<müller@example.org>"],
+                         ids=["nullbyte", "nicht-ascii"])
+def test_ohne_sendbar_kostet_eine_kennung_das_ganze_konto(monkeypatch, schlecht):
+    """Zwillinge, derselbe Aufbau: Mit `sendbar` bleibt die gesunde Antwort.
+
+    Ohne den Filter ist der Stand vor #442 wieder da: `_zitiert` wirft beim
+    Nullbyte, und beim Nicht-ASCII wirft das Kodieren. Beides beendet `plane`,
+    die gesunde Antwort wird nie angesehen.
+    """
+    from falzmarke import ablage as _ablage
+    from falzmarke import postfach as _postfach_modul
+
+    lage, gut = _antworten_442(schlecht)
+    with _ablage_lage(monkeypatch, **lage)[1] as sitzung:
+        bericht = _ablage.plane(sitzung, wunsch="Archiv", heute=_HEUTE_438.date())
+    assert [z.kennung for z in bericht.zuege] == [gut]
+
+    monkeypatch.setattr(_postfach_modul, "sendbar", lambda kennung: True)
+    with pytest.raises((_postfach_modul.PostfachFehler, UnicodeEncodeError)):
+        with _ablage_lage(monkeypatch, **lage)[1] as sitzung:
+            _ablage.plane(sitzung, wunsch="Archiv", heute=_HEUTE_438.date())
+
+
+def test_ohne_kontrolle_auf_prefs_verliert_ein_socket_ausserhalb_das_tagebuch(
+        monkeypatch, tmp_path):
+    """Derselbe Aufbau, zwei Wege, wie in #442 gemessen: 1 Eintrag gegen 0.
+
+    Die Sabotage baut den Code aus #440 nach, `Path(sock).parent` ohne Prüfung.
+    """
+    from falzmarke import bruecke as _bruecke
+    from falzmarke import entwurfsbuch as _buch
+    from falzmarke import oeffnen as _oeff
+
+    ordner, _, _ = _zwei_profile_410(tmp_path)
+    monkeypatch.setattr(_oeff, "THUNDERBIRD_ORDNER", ordner)
+    kurz = tmp_path / "s"
+    kurz.mkdir()
+    umgebung = {"FALZMARKE_BRUECKE_SOCKET": str(kurz / _bruecke.SOCKET_DATEI)}
+
+    eintraege, grund = _buch.tagebuch(umgebung=umgebung)
+    assert (_woher_410(eintraege), grund) == (["aus A"], "")
+
+    monkeypatch.setattr(_buch, "bruecken_profil", lambda profilordner=None, umgebung=None: (
+        Path(_bruecke.socketpfad(umgebung)).parent, ""))
+    eintraege, grund = _buch.tagebuch(umgebung=umgebung)
+    assert eintraege == [] and "Thunderbird-Profil „s“" in grund
+
+
+def test_ohne_kontrolle_auf_prefs_gaelte_ein_profil_nicht_mehr(monkeypatch, tmp_path):
+    """Die Kontrolle darf den Socket im Profil nicht entwerten: Dort liest B, nicht A."""
+    from falzmarke import bruecke as _bruecke
+    from falzmarke import entwurfsbuch as _buch
+    from falzmarke import oeffnen as _oeff
+
+    ordner, _, b = _zwei_profile_410(tmp_path)
+    monkeypatch.setattr(_oeff, "THUNDERBIRD_ORDNER", ordner)
+    umgebung = {"FALZMARKE_BRUECKE_SOCKET": str(b / _bruecke.SOCKET_DATEI)}
+    assert _woher_410(_buch.tagebuch(umgebung=umgebung)[0]) == ["aus B"]
+    (b / "prefs.js").unlink()
+    assert _woher_410(_buch.tagebuch(umgebung=umgebung)[0]) == ["aus A"]
 
 
 def test_ohne_das_zerlegen_fallen_zwei_kennungen_aus_der_zuordnung(monkeypatch):

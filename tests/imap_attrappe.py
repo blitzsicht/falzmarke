@@ -17,11 +17,12 @@ das eine beantwortete Nachricht aus dem Eingang legt, und für
 die Attrappe beides weiter, und `test_postfach.py` prüft genau das: Sonst wäre
 die Erweiterung hier eine Hintertür für jeden anderen Test.
 
-**Sie ist an zwei Stellen strenger als ein bequemer Nachbau** (#438), und beide
-sind gemessen, nicht vorsorglich: Kopfzeilen werden vor dem Vergleich entfaltet,
-weil ein Server den ganzen Feldwert sucht und nicht dessen erste Zeile; und
+**Sie ist an drei Stellen strenger als ein bequemer Nachbau** (#438, #442), und
+alle sind gemessen, nicht vorsorglich: Kopfzeilen werden vor dem Vergleich
+entfaltet, weil ein Server den ganzen Feldwert sucht und nicht dessen erste Zeile;
 Steuerzeichen in Argumenten lehnt sie selbst ab, weil `imaplib` das erst ab
-Python 3.14 tut — die CI fährt 3.12. Ohne diese zwei Strengen wäre hier eine
+Python 3.14 tut — die CI fährt 3.12; und Argumente kodiert sie wie `imaplib` mit
+ASCII. Ohne diese Strengen wäre hier eine
 Attrappe, die jede Zusage bestätigt, die sie nicht prüfen kann.
 """
 
@@ -104,6 +105,10 @@ class ImapAttrappe:
                 continue
             if isinstance(arg, (bytes, bytearray)):
                 arg = bytes(arg).decode("utf-8", "replace")
+            else:
+                # `_command`: `arg = bytes(arg, self._encoding)`, und das ist ASCII
+                # (gelesen auf 3.12.9, #442). Wirft `UnicodeEncodeError`, ein `ValueError`.
+                str(arg).encode("ascii")
             if self._STEUERZEICHEN.search(str(arg)):
                 raise ValueError("NUL, CR and LF not allowed in commands")
 
