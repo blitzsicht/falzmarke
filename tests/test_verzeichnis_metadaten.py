@@ -353,6 +353,13 @@ def test_claude_plugin_bringt_nur_den_skill():
     assert "mcpServers" not in _claude_manifest()
 
 
+def test_claude_plugin_hat_ein_quadratisches_icon():
+    """`*.png` steht in `.gitignore`: Lokal läge das Icon da, im Repository nicht."""
+    daten = (CLAUDE_MANIFEST.parent / "icon.png").read_bytes()
+    assert daten[:8] == b"\x89PNG\r\n\x1a\n"
+    assert daten[16:20] == daten[20:24], "das Portal verlangt ein quadratisches Icon"
+
+
 def test_plugin_readme_reicht_fuer_das_portal():
     text = PLUGIN_README.read_text(encoding="utf-8")
     assert len(text.split()) >= 40, "das Portal verlangt mindestens 40 Wörter"
