@@ -38,7 +38,7 @@ UTF8 = {"PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
 
 #: Wörter, bei denen der Skill auslösen muss. ChatGPT wie Claude lesen vor dem
 #: Laden nur die description — was dort fehlt, löst nicht aus.
-AUSLOESER = ["Brief", "Anschreiben", "Kündigung", "Mahnung", "Angebot", "Widerspruch",
+AUSLOESER = ["Brief", "Briefkopf", "Anschriftfeld", "Anschreiben", "Kündigung", "Mahnung", "Angebot", "Widerspruch",
              "Behördenschreiben", "Mieterschreiben", "E-Mail", "Mail", "Nachricht",
              "Serienbrief", "einlesen",
              # Die Urkunde (ADR 0048). `typ: urkunde` sucht niemand — gesagt wird eines davon.

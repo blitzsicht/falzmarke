@@ -29,7 +29,8 @@ verlangen, und keine Mehrfacheinreichung.
 GitHub-Konto mit Schreibrecht. Das Plugin gehört der Organisation, die zuerst einreicht.
 
 Das Portal liest Name und Kurzbeschreibung aus `plugin.json` und dem README. Der Text gehört also
-ins Manifest; als `homepage` dient der Link unten.
+ins Manifest. `homepage` bleibt die nackte Adresse (siehe UTM-Konvention), der Link unten gehört ins
+README des Plugin-Ordners.
 
 **Link:** https://falzmarke.com/?utm_source=listing&utm_medium=directory&utm_campaign=anthropic-202611
 
@@ -115,13 +116,13 @@ der Maintainer im PR bei awesome-mcp-servers. Glama baut aus dem `Dockerfile` im
 **Text de**
 
 ```text
-Geschäftsbriefe nach DIN 5008 aus Markdown: PDF/A setzen, .eml bauen, fertige Dateien prüfen. Das PDF wird nach dem Setzen nachgemessen, jede Abweichung ist ein Fehler. Läuft lokal über stdio, ohne Konto. MIT-Lizenz. Sollwerte aus Sekundärquellen, Normabgleich steht aus.
+Geschäftsbriefe nach DIN 5008 aus Markdown: PDF/A setzen, .eml bauen, fertige Dateien prüfen. Das PDF wird nach dem Setzen nachgemessen, eine verrutschte Falzmarke ist ein Fehler. Läuft lokal über stdio, ohne Konto. MIT-Lizenz. Sollwerte aus Sekundärquellen, Normabgleich steht aus.
 ```
 
 **Text en**
 
 ```text
-German DIN 5008 business letters from Markdown: render PDF/A, build .eml, verify finished files. The PDF is measured after rendering and any deviation is an error. Runs locally over stdio, no account. MIT. Uses target values from secondary sources; the check against the standard is open.
+German DIN 5008 business letters from Markdown: render PDF/A, build .eml, verify finished files. The PDF is measured after rendering and a misplaced folding mark is an error. Runs locally over stdio, no account. MIT. Uses target values from secondary sources; the check against the standard is open.
 ```
 
 ## awesome-mcp-servers

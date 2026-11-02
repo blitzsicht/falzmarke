@@ -1,16 +1,16 @@
 ---
 name: falzmarke
 description: >
-  Erzeugt Geschäftspost nach DIN 5008:2020: Briefe als PDF mit Falzmarken,
+  Erzeugt Geschäftspost nach DIN 5008:2020: Briefe als PDF mit Falzmarken, Anschriftfeld und Briefkopf,
   E-Mails als .eml mit Signatur, Urkunden mit Unterschriftslinien (eigene Maße, keine Norm).
   Immer verwenden bei Brief, Anschreiben, Schreiben, Kündigung, Mahnung, Angebot,
   Mieterschreiben, Behördenschreiben, Widerspruch, Bestätigung, "etwas zum Ausdrucken oder
-  Verschicken", jeder E-Mail, Mail oder Nachricht zum Verschicken und bei Vereinbarung,
+  Verschicken", jeder E-Mail oder Nachricht zum Verschicken und bei Vereinbarung,
   Vertrag, Erklärung, Vollmacht oder Nachweis zum Unterschreiben, auch ohne Normnennung.
   Also: German business letter, formal letter, cover letter, cancellation, payment
   reminder, quote, email, contract, power of attorney. Nie Brief oder Urkunde als .docx oder
   frei gesetztes PDF bauen, nie E-Mail als selbstgebautes HTML. Auch für Serienbriefe (mail
-  merge) und zum Zurücklesen eines PDF (einlesen).
+  merge); kann PDFs einlesen.
   Die Sollwerte stammen aus Sekundärquellen; der Abgleich mit dem Originaltext der DIN 5008:2020-03 einschließlich Berichtigung 1:2020-07 steht aus, und Regeln aus einzelnen Quellen wirken nur als Warnung.
 license: MIT
 metadata:

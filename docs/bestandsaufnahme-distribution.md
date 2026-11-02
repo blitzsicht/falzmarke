@@ -10,7 +10,7 @@ Sieben Formen existieren und laufen, eine existiert nur im Code, zwei gibt es ni
 | Form | Stand | Beleg |
 |---|---|---|
 | ✓ PyPI-Paket | 0.10.0 liegt oben | `pypi.org/pypi/falzmarke/json` |
-| ✓ CLI | läuft, 15 Unterbefehle | `pyproject.toml` `[project.scripts]`, `skill/falzmarke/cli.py` |
+| ✓ CLI | läuft, 17 Unterbefehle, `check` ist der frühere Name von `verify` | `pyproject.toml` `[project.scripts]`, `skill/falzmarke/cli.py` |
 | ✓ Claude-Skill | `falzmarke.skill` im Release, 7 Downloads; dazu `falzmarke-offline.skill`, 5 Downloads | `skill/SKILL.md`, Release v0.10.0 |
 | ✓ ChatGPT-Plugin (Paket) | `falzmarke-chatgpt-plugin.zip` im Release, 0 Downloads | `scripts/plugin_packen.py` |
 | ? ChatGPT-Plugin (Einreichung) | zuletzt „wartet auf OpenAI“ (Stand 01.10.2026) | nur im OpenAI-Portal sichtbar |
@@ -33,6 +33,8 @@ Die Thunderbird-Erweiterung in `thunderbird/` gehört zum Mailweg und ist kein V
 | `uvx falzmarke` (Stand im Registry) | Exit 2, `the following arguments are required: befehl` |
 | `uvx falzmarke mcp` | bricht ab, das Python-Paket `mcp` fehlt |
 | `uvx --with=mcp>=2,<3 falzmarke==0.10.0 mcp` | Handschlag grün, 4 Werkzeuge, Brief gesetzt, 34/34 |
+| `uvx --with mcp~=2.0 falzmarke==0.10.0 mcp` | Handschlag grün, 4 Werkzeuge; dieselbe Grenze ohne Shell-Metazeichen |
+| `sh -c 'uvx --with mcp>=2,<3 …'` (unquotiert kopiert) | `>` schreibt eine Datei `=2,`, `<3` scheitert |
 
 Behoben in `server.json` über `runtimeArguments` und `packageArguments`. **Wirksam erst mit dem
 nächsten Release:** Das Registry liest die Datei im Job `mcp-registry` am Versions-Tag. Bis dahin

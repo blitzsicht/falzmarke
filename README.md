@@ -119,7 +119,7 @@ gepflegten Vorlage lässt sich vieles davon erreichen.
 |---|---|---|---|
 | Quelle diffbar und versionierbar | teilweise | selten | ja — Markdown und YAML |
 | Layout reproduzierbar | hängt an Vorlage und Umgebung | nicht zugesichert | ja — derselbe Renderer, dieselbe Ausgabe |
-| Fertiges PDF wird nachgemessen | nein | nein | ja — 35 Maße, jede Seite, Abweichung ist ein Fehler |
+| Fertiges PDF wird nachgemessen | nein | nein | ja — 35 Maße, jede Seite; belegte Regeln brechen ab, Einzelquellen warnen |
 | Absenderprofile | von Hand gepflegt | uneinheitlich | ja — einmal anlegen, überall nutzen |
 | Prüfbericht maschinenlesbar | nein | nein | ja — `--json` und Exit-Codes |
 | PDF/A als Voreinstellung | nicht automatisch | nicht zugesichert | ja — ohne zusätzliches Flag |

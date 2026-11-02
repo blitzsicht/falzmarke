@@ -5,8 +5,12 @@ WARUM ES DAS GIBT
 Ein Fehler in `server.json` fällt erst im Release-Lauf auf, nach dem PyPI-Upload
 (#365). Und ein schema-gültiger Eintrag kann trotzdem nicht starten: Bis zum
 02.11.2026 stand im Registry nur das Paket, also `uvx falzmarke`. Das endet mit
-Exit 2, weil der Unterbefehl `mcp` und das optionale SDK fehlen. Der Handschlag
-unten spricht deshalb mit dem Prozess, den der Eintrag beschreibt.
+Exit 2, weil der Unterbefehl `mcp` und das optionale SDK fehlen.
+
+Der Handschlag unten deckt die Paketargumente, im Stand des Repositorys und mit dem
+SDK der Testumgebung. Der echte `uvx`-Lauf braucht Netz und ein veröffentlichtes
+Paket; er läuft von Hand vor dem Tag (`docs/bestandsaufnahme-distribution.md`). Hier
+steht, dass der Eintrag genau diesen Befehl ergibt.
 
 Die Schemas liegen unter `tests/schemas/`; ihre Herkunft steht dort im README.
 Jede Prüfung hat eine Gegenprobe, die rot werden muss.
@@ -28,6 +32,7 @@ import jsonschema
 import pytest
 import yaml
 from conftest import REPO
+from packaging.requirements import Requirement
 
 SCHEMAS = REPO / "tests" / "schemas"
 SERVER_JSON = REPO / "server.json"
@@ -51,15 +56,38 @@ KAMPAGNE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*-20\d{2}(?:0[1-9]|1[0-2])$")
 #: `footer` aus dem Produkt selbst.
 UTM_PAARE = {("listing", "directory"), ("footer", "product")}
 
+#: Regeln aus einer einzelnen Quelle warnen nur (ADR 0032, `geometrie.Bericht.ok`).
+ZUSAGE_ZU_WEIT = re.compile(r"jede Abweichung|any deviation", re.IGNORECASE)
+
+#: Ein Client baut den Befehl auch über `cmd /c` oder als Kopierzeile. Dort ist `>` eine
+#: Umleitung: `mcp>=2,<3` schrieb am 02.11.2026 eine Datei `=2,`, statt das SDK zu holen.
+SHELL_ZEICHEN = re.compile(r"[<>|&;()$`'\"\s]")
+
+#: Versionen, an denen zwei Grenzen gleich entscheiden müssen.
+SDK_PROBEN = ["1.99", "2.0rc1", "2.0", "2.0.1", "2.9", "2.99", "3.0rc1", "3.0"]
+
+FORMATE = jsonschema.FormatChecker()
+
+
+@FORMATE.checks("uri")
+def _ist_uri(wert: object) -> bool:
+    """`jsonschema` prüft `uri` nur mit einem Zusatzpaket; ohne bliebe das Format wirkungslos."""
+    if not isinstance(wert, str):
+        return True
+    teile = urlsplit(wert)
+    return bool(teile.scheme and teile.netloc)
+
 
 def _schema(name: str) -> dict:
     return json.loads((SCHEMAS / name).read_text(encoding="utf-8"))
 
 
-def _pruefer(name: str) -> jsonschema.Draft202012Validator:
+def _pruefer(name: str):
+    """Der Prüfer, den das Schema selbst verlangt: Das MCP-Schema ist draft-07."""
     schema = _schema(name)
-    jsonschema.Draft202012Validator.check_schema(schema)
-    return jsonschema.Draft202012Validator(schema)
+    klasse = jsonschema.validators.validator_for(schema, default=jsonschema.Draft202012Validator)
+    klasse.check_schema(schema)
+    return klasse(schema, format_checker=FORMATE)
 
 
 def _fehler(pruefer, objekt) -> list[str]:
@@ -85,7 +113,7 @@ def _plugin_manifest() -> dict:
 
 def test_server_json_zeigt_auf_das_abgelegte_schema():
     """Sonst prüfte der Test unten gegen ein Schema, das niemand mehr liest."""
-    assert _server()["$schema"].endswith("/2025-12-11/server.schema.json")
+    assert _server()["$schema"] == _schema("mcp-server-2025-12-11.schema.json")["$id"]
 
 
 def test_server_json_gilt_nach_dem_schema():
@@ -97,7 +125,8 @@ def test_server_json_gilt_nach_dem_schema():
     (lambda s: s.update(description="x" * 101), "too long"),
     (lambda s: s.pop("version"), "'version' is a required property"),
     (lambda s: s["packages"][0]["packageArguments"][0].pop("value"), "not valid under any"),
-], ids=["beschreibung-zu-lang", "version-fehlt", "argument-ohne-wert"])
+    (lambda s: s["repository"].update(url="kein uri"), "is not a 'uri'"),
+], ids=["beschreibung-zu-lang", "version-fehlt", "argument-ohne-wert", "keine-uri"])
 def test_gegenprobe_schema_der_mcp_definition(sabotage, erwartet):
     kaputt = copy.deepcopy(_server())
     sabotage(kaputt)
@@ -143,13 +172,51 @@ def test_der_eintrag_zieht_das_sdk_mit_der_pyproject_grenze():
     """`mcp` ist ein Extra. Ohne `--with` fehlt es im Lauf von uvx.
 
     Soll ist `pyproject.toml`, nicht `server.json`: Zieht jemand die Grenze dort
-    nach, wird dieser Test rot, statt mit der Änderung mitzuwandern.
+    nach, wird dieser Test rot, statt mit der Änderung mitzuwandern. Verglichen wird
+    die Wirkung, nicht der Text: `mcp~=2.0` ist `mcp>=2,<3` ohne Shell-Metazeichen.
     """
     extra = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))
     soll = extra["project"]["optional-dependencies"]["mcp"]
     argumente = _server()["packages"][0]["runtimeArguments"]
     ist = [a["value"] for a in argumente if a["name"] == "--with"]
-    assert ist == soll, f"server.json zieht {ist}, pyproject.toml verlangt {soll}"
+    assert len(ist) == len(soll) == 1, f"server.json {ist}, pyproject.toml {soll}"
+    assert _grenze(ist[0]) == _grenze(soll[0]), (
+        f"server.json zieht {ist}, pyproject.toml verlangt {soll}")
+
+
+def _grenze(anforderung: str) -> tuple[str, list[bool]]:
+    """Paketname und Entscheidung je Probeversion."""
+    wert = Requirement(anforderung)
+    return wert.name, [wert.specifier.contains(v, prereleases=True) for v in SDK_PROBEN]
+
+
+@pytest.mark.parametrize("andere", ["mcp>=2", "mcp>=2,<4", "mcp~=2.1", "mpc~=2.0"],
+                         ids=["ohne-deckel", "deckel-zu-hoch", "boden-zu-hoch", "falsches-paket"])
+def test_gegenprobe_grenze_trennt(andere):
+    assert _grenze(andere) != _grenze("mcp>=2,<3")
+
+
+def _uvx_befehl(paket: dict) -> list[str]:
+    """Der Befehl, den ein Client aus dem Eintrag baut, in der Reihenfolge von uvx."""
+    vorn = [teil for a in paket["runtimeArguments"] for teil in (a["name"], a["value"])]
+    hinten = [a["value"] for a in paket["packageArguments"]]
+    return [paket["runtimeHint"], *vorn, f"{paket['identifier']}=={paket['version']}", *hinten]
+
+
+def test_der_eintrag_ergibt_den_von_hand_gefahrenen_befehl():
+    server = _server()
+    assert _uvx_befehl(server["packages"][0]) == [
+        "uvx", "--with", "mcp~=2.0", f"falzmarke=={server['version']}", "mcp"]
+
+
+def test_kein_argument_des_eintrags_braucht_quoting():
+    teile = _uvx_befehl(_server()["packages"][0])
+    assert not [t for t in teile if SHELL_ZEICHEN.search(t)], teile
+
+
+def test_gegenprobe_shell_zeichen_erkennt_die_alte_grenze():
+    assert SHELL_ZEICHEN.search("mcp>=2,<3")
+    assert not SHELL_ZEICHEN.search("mcp~=2.0")
 
 
 # ── Skill-Manifest ──────────────────────────────────────────────────────────
@@ -243,6 +310,11 @@ def test_einreichtexte_tragen_den_vorbehalt():
     fehlend = [(z, s) for z, s, t in _alle_texte()
                if (VORBEHALT_DE if s == "de" else VORBEHALT_EN) not in t]
     assert not fehlend, f"Ohne Vorbehalt geht kein Kanal live (ADR 0032): {fehlend}"
+
+
+def test_einreichtexte_versprechen_nicht_mehr_als_der_lauf():
+    zu_weit = [(z, s) for z, s, t in _alle_texte() if ZUSAGE_ZU_WEIT.search(t)]
+    assert not zu_weit, f"Einzelquellen-Regeln warnen nur: {zu_weit}"
 
 
 def test_gegenprobe_die_textsuche_findet_bloecke():
