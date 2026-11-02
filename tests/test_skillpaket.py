@@ -151,6 +151,43 @@ def test_das_skript_bricht_ab_wenn_kein_wheel_dabei_ist(tmp_path):
     assert "kein Wheel" in lauf.stderr, f"Die Meldung nennt den Grund nicht: {lauf.stderr!r}"
 
 
+def schlankes_paket(tmp_path: Path, skript: str) -> tuple[Path, set[str]]:
+    """Baut `falzmarke.skill` aus einem winzigen Probebaum und liefert Quelle und Zip-Namen.
+
+    `skill` hängt als Symlink, wie in den Tests daneben. Der Download ist
+    ausgehängt, der Lauf endet deshalb am Wheel-Wächter; das schlanke Paket
+    liegt dann schon da. Ein eigener Baum statt `skill/`, weil die Gegenprobe
+    die Quelle beschädigen muss.
+    """
+    quelle = tmp_path / "quelle"
+    (quelle / ".claude-plugin").mkdir(parents=True)
+    (quelle / ".claude-plugin" / "plugin.json").write_text("{}", encoding="utf-8")
+    (quelle / "README.md").write_text("Plugin\n", encoding="utf-8")
+    (quelle / "SKILL.md").write_text("Skill\n", encoding="utf-8")
+    (quelle / "requirements.txt").write_text("typst==0.14.0\n", encoding="utf-8")
+
+    lauf_ort = tmp_path / "lauf"
+    (lauf_ort / "scripts").mkdir(parents=True)
+    (lauf_ort / "skill").symlink_to(quelle, target_is_directory=True)
+    ziel = lauf_ort / "scripts" / "skill_packen.sh"
+    ziel.write_text(skript.replace("python3 -m pip download", "true", 1), encoding="utf-8")
+    subprocess.run(["bash", str(ziel)], capture_output=True, text=True,
+                   encoding="utf-8", cwd=lauf_ort)
+    with zipfile.ZipFile(lauf_ort / "falzmarke.skill") as z:
+        return quelle, set(z.namelist())
+
+
+def test_der_plugin_ordner_bleibt_aus_dem_skill_paket(tmp_path):
+    """`.claude-plugin/` und `README.md` gehören zum Bündel für das Verzeichnis
+    (#454). Im `.skill` wären sie toter Ballast."""
+    if sys.platform.startswith("win"):
+        pytest.skip("bash und Symlinks — der Nachweis läuft auf den anderen beiden Plattformen")
+    quelle, namen = schlankes_paket(tmp_path, SKRIPT.read_text(encoding="utf-8"))
+    assert "falzmarke/SKILL.md" in namen, sorted(namen)
+    assert not {n for n in namen if ".claude-plugin" in n or n.endswith("README.md")}, sorted(namen)
+    assert (quelle / "README.md").is_file(), "das Packen hat die Quelle beschädigt"
+
+
 # ── Der Sollwert: 30 MB Uploadgrenze ────────────────────────────────────────
 
 #: Gemessen am 28.08.2026 am Dialog „Fähigkeit hochladen" von claude.ai. Der

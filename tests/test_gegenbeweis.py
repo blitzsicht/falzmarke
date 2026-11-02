@@ -8,6 +8,7 @@ Testsuite nur, dass sie grün ist, nicht dass sie misst.
 from __future__ import annotations
 
 import re
+import sys
 import shutil
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -2540,3 +2541,33 @@ def test_ohne_den_grund_wandert_die_post_in_den_archive_ordner(monkeypatch, tmp_
     assert eintrag["ablage"] == "Archiv" and eintrag["verschoben"] == 1, \
         "ohne den Grund muss die Post nach `\\Archive` wandern — sonst hält sie etwas anderes"
     assert len(attrappe.ordner["Archiv"]) == 1
+
+
+# ── #454: Der Plugin-Ordner bleibt aus dem Skill-Paket ──────────────────────
+
+def test_ohne_ausschluss_landet_der_plugin_ordner_im_skill_paket(tmp_path):
+    if sys.platform.startswith("win"):
+        pytest.skip("bash und Symlinks — der Nachweis läuft auf den anderen beiden Plattformen")
+    from test_skillpaket import SKRIPT, schlankes_paket
+
+    text = SKRIPT.read_text(encoding="utf-8")
+    sabotiert = text.replace("rm -rf paket/falzmarke/.claude-plugin paket/falzmarke/README.md\n",
+                             "", 1)
+    assert sabotiert != text, "die Sabotage greift nicht"
+    _, namen = schlankes_paket(tmp_path, sabotiert)
+    assert {"falzmarke/README.md", "falzmarke/.claude-plugin/plugin.json"} <= namen, sorted(namen)
+
+
+def test_ohne_dereferenzieren_loescht_das_packen_die_quelle(tmp_path):
+    """`cp -r` bleibt unter macOS eine echte Kopie, unter GNU ein Symlink. `-RP`
+    erzwingt das zweite Verhalten überall, sonst wäre diese Probe lokal grün."""
+    if sys.platform.startswith("win"):
+        pytest.skip("bash und Symlinks — der Nachweis läuft auf den anderen beiden Plattformen")
+    from test_skillpaket import SKRIPT, schlankes_paket
+
+    text = SKRIPT.read_text(encoding="utf-8")
+    sabotiert = text.replace("cp -RL skill", "cp -RP skill", 1)
+    assert sabotiert != text, "die Sabotage greift nicht"
+    quelle, _ = schlankes_paket(tmp_path, sabotiert)
+    assert not (quelle / "README.md").exists(), \
+        "ohne -L trifft das `rm` die Quelle — sonst hielte -L nichts"
