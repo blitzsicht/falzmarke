@@ -38,7 +38,8 @@ auf 105,0 mm, endet der Lauf mit einem Fehler statt mit einem Brief, der nur ung
 **DIN 5008 business letters from Markdown, PDF/A, MCP + CLI.** falzmarke typesets German business
 letters as PDF/A and then measures the finished PDF; a folding mark out of place ends the run with
 an error. It runs as a Claude skill, as a command-line tool (`pipx install falzmarke`) and as an
-MCP server (`falzmarke mcp`). The target values come from secondary sources: the comparison
+MCP server (`pip install 'falzmarke[mcp]'`, then `falzmarke mcp`). The target values come from
+secondary sources: the comparison
 against the original text of DIN 5008:2020-03 including Corrigendum 1:2020-07 is still outstanding,
 and rules backed by a single source act as warnings only.
 [English overview](https://github.com/blitzsicht/falzmarke/blob/main/README.en.md) ·
