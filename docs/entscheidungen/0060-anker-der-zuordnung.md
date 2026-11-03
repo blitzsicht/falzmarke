@@ -219,3 +219,23 @@ vier Sabotagen in `tests/test_gegenbeweis.py`, und nicht durch einen Gerätelauf
 
 Der Nebenbefund aus #410 bleibt offen: `THUNDERBIRD_ORDNER` ist macOS-fest, auf Linux liefert
 `tagebuch()` weiter nur den Hinweis.
+
+## Nachtrag 03.11.2026 — eine fremde Identität schließt nicht mehr aus (#442, N3)
+
+Der Satz „Wo sie dasteht, entscheidet sie allein" im Nachtrag vom 29.10. gilt nur noch für die
+eigene Adresse. `identitaet` ist das `From` des Fensters, nicht das Konto. Wer unter einer
+Alias-Identität desselben Kontos schreibt, meldet für das eigene Fenster eine fremde Adresse.
+`fenster_des_kontos` schloss dieses Fenster aus, und der Entwurf hieß `WARTET`. Seit #447 kann
+`aufraeumen --entwuerfe` einen solchen Entwurf in den Papierkorb ziehen, während er noch im
+offenen Fenster steht. In der Suite ist das gegen den Stand 0.11.0 belegt, an einem Gerät nicht.
+
+**Entschieden: Eine abweichende Meldung zählt wie keine.** Die UID ist dann der Anker, das
+Fenster steht im letzten Rang (eigene Identität vor keiner Meldung vor fremder), und die
+Ausgabe nennt den gemeldeten Absender (`fenster_nur_uid`, im Text „das Fenster meldet …“).
+Das folgt derselben Abwägung wie bei fehlender Meldung: Ein falsches `OFFEN` lässt den Entwurf
+liegen, ein falsches `WARTET` zieht ihn aus einem offenen Fenster.
+
+Hingenommen wird die Gegenrichtung aus #410. Ein Fenster eines anderen Kontos mit derselben UID
+macht den Entwurf `OFFEN`, auch wenn es seinen fremden Absender meldet. Es sperrt ihn damit
+gegen das Wegräumen, und die Ausgabe sagt, dass die Zuordnung nur an der UID hängt. Den zweiten
+Anker, den Ordner aus der URI, bringt erst #443.
