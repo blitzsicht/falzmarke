@@ -59,8 +59,9 @@ MAX_ANTWORT = 1024 * 1024
 
 FRIST_PING_S = 3
 #: Das Add-on lädt den Ordner bis zu 15 s nach, wartet bis zu 20 s auf das
-#: Fenster und noch einmal bis zu 20 s auf den Entwurf darin; dazu kommt der Weg.
-FRIST_OEFFNEN_S = 65
+#: Fenster, noch einmal bis zu 20 s auf den Entwurf darin und bis zu 5 s, bis
+#: das Fenster fertig geladen ist (#464); dazu kommt der Weg.
+FRIST_OEFFNEN_S = 70
 
 #: Was die Fehlerkennungen des Add-ons in einem Satz heißen.
 FEHLERTEXTE = {
@@ -72,7 +73,12 @@ FEHLERTEXTE = {
     "kein_json": "das Add-on hat die Anfrage nicht verstanden",
     "zeile_zu_lang": "die Anfrage war zu lang",
     "intern": "im Add-on ist ein Fehler aufgetreten",
+    "fenster_laedt_noch": "das Fenster lädt noch",
 }
+
+#: Was eine Antwort auf `entwurf_oeffnen` ohne `live` heißt: Das Add-on ist
+#: älter als 0.3.8 und meldet nicht, wohin das Fenster schicken würde (#464).
+OHNE_EMPFAENGER = "das Add-on meldet die Empfänger des Fensters nicht (Fassung vor 0.3.8)"
 
 #: Kein Profil, kein Socket. Beides heißt: Es gibt hier nichts zu rufen.
 OHNE_PROFIL = "Thunderbird hat auf diesem Rechner kein Standardprofil"
@@ -101,11 +107,26 @@ class Oeffnung(NamedTuple):
     - `ungewiss` — angestoßen, aber kein Fenster gesehen, oder die Antwort fehlt
     - `fehler` — nichts angestoßen, `grund` sagt warum
     - `aus` — abgeschaltet (`FALZMARKE_BRUECKE=nie`)
+
+    Ab Add-on 0.3.8 steht dabei, wohin das Fenster schicken würde (#464):
+    `identitaet`, `an`, `kopie`, `blindkopie`, gelesen, nachdem das Fenster
+    fertig geladen war. `gelesen` sagt, ob das Add-on sie geliefert hat; leere
+    Listen bei `gelesen=False` heißen „nicht gelesen“, nicht „niemand“, und
+    `lese_grund` sagt warum. `geprueft` und `abweichung` setzt
+    `oeffnen.empfaenger_pruefen` nach dem Vergleich mit dem Entwurf.
     """
 
     zustand: str
     betreff: str = ""
     grund: str = ""
+    identitaet: str = ""
+    an: tuple[str, ...] = ()
+    kopie: tuple[str, ...] = ()
+    blindkopie: tuple[str, ...] = ()
+    gelesen: bool = False
+    lese_grund: str = ""
+    geprueft: bool = False
+    abweichung: str = ""
 
     @property
     def offen(self) -> bool:
@@ -243,7 +264,10 @@ def offene_entwuerfe(*, umgebung: Mapping[str, str] | None = None) -> list[dict]
 
     Je Fenster Titel, Betreff und `draft_id`, ab Add-on 0.3.0 dazu, was es jetzt
     hinausschicken würde: `identitaet`, `an`, `kopie`, `blindkopie`, `anhaenge`,
-    `text` (ADR 0056). `live` ist falsch, wenn das Add-on das nicht lesen konnte.
+    `text` (ADR 0056). `live` ist falsch, wenn das Add-on das nicht lesen konnte,
+    ab 0.3.8 auch, solange das Fenster noch lädt (`fehler: fenster_laedt_noch`).
+    Bis 0.3.7 las es trotzdem — und leerte dabei An, Cc und Bcc des Fensters,
+    das gerade aufging (#464).
 
     `draft_id` ist die Adresse der Nachricht im Entwürfe-Ordner, auf die das
     Fenster zeigt (`imap-message://…#<UID>`); `falzmarke status` erkennt daran,
@@ -306,9 +330,33 @@ def entwurf_oeffnen(konto: str, uid: str | int, *,
     zustand = str(antwort.get("zustand") or "")
     betreff = _zahm(str(antwort.get("betreff") or ""))
     if zustand in ("geoeffnet", "schon_offen"):
-        return Oeffnung(zustand, betreff=betreff)
+        return Oeffnung(zustand, betreff=betreff, **_empfaenger_aus(antwort))
     if zustand == "fenster_ohne_entwurf":
         return Oeffnung("ungewiss", grund="ein Fenster ging auf, aber der Entwurf kam nicht "
                                           "hinein — in Thunderbird nachsehen")
     return Oeffnung("ungewiss", grund="Thunderbird hat den Auftrag angenommen, ein Fenster "
                                       "war in 20 Sekunden nicht zu sehen")
+
+
+def _empfaenger_aus(antwort: Mapping) -> dict:
+    """Absender und Empfänger aus der Antwort auf `entwurf_oeffnen` (ab 0.3.8, #464).
+
+    Fehlt `live`, ist die Fassung zu alt; ist es falsch, nennt `fehler` den Grund
+    (`fenster_laedt_noch`: die Ladefrist des Add-ons lief ab). In beiden Fällen
+    bleiben die Listen leer und `gelesen` falsch — der Aufrufer unterscheidet
+    „leer“ von „nicht gelesen“ an diesem Feld, nicht an der Liste.
+    """
+    live = antwort.get("live")
+    if live is None:
+        return {"gelesen": False, "lese_grund": OHNE_EMPFAENGER}
+    if live is not True:
+        kennung = _zahm(str(antwort.get("fehler") or "unbekannt"))
+        return {"gelesen": False,
+                "lese_grund": FEHLERTEXTE.get(kennung, f"das Add-on meldet „{kennung}“")}
+
+    def liste(name: str) -> tuple[str, ...]:
+        wert = antwort.get(name)
+        return tuple(_zahm(str(e)) for e in wert) if isinstance(wert, list) else ()
+
+    return {"gelesen": True, "identitaet": _zahm(str(antwort.get("identitaet") or "")),
+            "an": liste("an"), "kopie": liste("kopie"), "blindkopie": liste("blindkopie")}

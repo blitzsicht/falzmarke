@@ -418,6 +418,88 @@ def test_befehl_meldet_das_offene_fenster(befehl, monkeypatch, capsys):
     assert "Es geht kein Fenster auf" not in ausgabe.err
 
 
+def _offen_mit(an=("paula@example.org",), kopie=(), blindkopie=(), **mehr) -> dict:
+    """Die Antwort ab Add-on 0.3.8: Das Fenster steht, und so würde es schicken (#464)."""
+    return {"ok": True, "zustand": "geoeffnet", "betreff": BETREFF, "live": True,
+            "identitaet": ABSENDER, "an": list(an), "kopie": list(kopie),
+            "blindkopie": list(blindkopie), **mehr}
+
+
+def _antworten(oeffnung: dict):
+    """Je Befehl eine Antwort: `entwurf_oeffnen` wie angegeben, `fenster` ohne Fenster."""
+    def antwort(anfrage: dict) -> dict:
+        if anfrage.get("befehl") == "entwurf_oeffnen":
+            return oeffnung
+        if anfrage.get("befehl") == "fenster":
+            return {"ok": True, "fenster": []}
+        return {"ok": True, "name": "entwurfsbruecke", "version": "0.3.8",
+                "thunderbird": "158.0.1"}
+    return antwort
+
+
+def test_befehl_meldet_die_passenden_empfaenger(befehl, monkeypatch, capsys):
+    _server(monkeypatch)
+    _bruecke(monkeypatch, _offen_mit())
+    assert befehl() == 0
+    ausgabe = capsys.readouterr()
+    assert f"OK  Entwurf offen in Thunderbird: {BETREFF}" in ausgabe.out
+    assert "OK  Empfänger im Fenster wie in der Nachricht: An 1, Cc 0, Bcc 0" in ausgabe.out
+    assert "EMPFÄNGER PRÜFEN" not in ausgabe.err
+    assert "NICHT GEPRÜFT  Empfänger" not in ausgabe.err
+
+
+def test_befehl_warnt_wenn_das_fenster_ohne_empfaenger_aufgeht(befehl, monkeypatch, capsys):
+    """ANLASS (03.11.2026): Das Fenster stand ohne An, Cc und Bcc da, und hier
+    stand `OK`. Jetzt steht `EMPFÄNGER PRÜFEN` statt der grünen Zeile; der Exit
+    bleibt 0, der Entwurf liegt ja (ADR 0038)."""
+    _server(monkeypatch)
+    _bruecke(monkeypatch, _offen_mit(an=()))
+    assert befehl() == 0
+    ausgabe = capsys.readouterr()
+    assert "OK  Entwurf offen" not in ausgabe.out
+    assert "EMPFÄNGER PRÜFEN  Entwurf offen in Thunderbird" in ausgabe.err
+    assert "An: fehlt paula@example.org" in ausgabe.err
+
+
+def test_ein_zusaetzlicher_empfaenger_im_fenster_faellt_ebenso_auf(befehl, monkeypatch, capsys):
+    _server(monkeypatch)
+    _bruecke(monkeypatch, _offen_mit(an=("paula@example.org", "fremd@example.net")))
+    assert befehl() == 0
+    assert "An: zusätzlich fremd@example.net" in capsys.readouterr().err
+
+
+def test_befehl_sagt_wenn_das_add_on_die_empfaenger_nicht_meldet(befehl, monkeypatch, capsys):
+    """Die Antwort bis 0.3.7 trägt kein `live`: Das Fenster ist grün, die Empfänger nicht."""
+    _server(monkeypatch)
+    _bruecke(monkeypatch, {"ok": True, "zustand": "geoeffnet", "betreff": BETREFF})
+    assert befehl() == 0
+    ausgabe = capsys.readouterr()
+    assert f"OK  Entwurf offen in Thunderbird: {BETREFF}" in ausgabe.out
+    assert "OK  Empfänger im Fenster" not in ausgabe.out
+    assert ("NICHT GEPRÜFT  Empfänger im Fenster: das Add-on meldet die Empfänger des "
+            "Fensters nicht (Fassung vor 0.3.8)") in ausgabe.err
+
+
+@pytest.mark.parametrize(("oeffnung", "fragt"), [
+    ({"ok": True, "zustand": "geoeffnet", "betreff": BETREFF}, False),
+    ({"ok": True, "zustand": "fenster_ohne_entwurf"}, False),
+    ({"ok": True, "zustand": "ungewiss"}, False),
+    (_offen_mit(), True),
+], ids=["vor_0.3.8", "fenster_ohne_entwurf", "ungewiss", "gelesen"])
+def test_das_aufraeumen_fragt_das_fenster_erst_nach_der_lesung(befehl, monkeypatch, capsys,
+                                                                oeffnung, fragt):
+    """Der Befehl `fenster` an ein noch ladendes Fenster war die Ursache (#464):
+    Sagt das Add-on nicht, dass es fertig geladen hat, bleibt er aus. Auch ein
+    ungewisses Fenster kann eben noch laden: `fenster_ohne_entwurf` war mit 0.3.7
+    eines, dessen Entwurf in 20 Sekunden nicht kam."""
+    _server(monkeypatch)
+    monkeypatch.delenv("FALZMARKE_AUFRAEUMEN", raising=False)
+    tb_bruecke = _bruecke(monkeypatch, _antworten(oeffnung))
+    assert befehl() == 0
+    assert ("fenster" in [a["befehl"] for a in tb_bruecke.anfragen]) is fragt
+    assert ("nicht aufgeräumt" in capsys.readouterr().err) is not fragt
+
+
 def test_befehl_ohne_bruecke_sagt_warum_kein_fenster(befehl, monkeypatch, capsys):
     _server(monkeypatch)
     assert befehl() == 0
@@ -502,6 +584,27 @@ def test_entwurf_oeffnen_nach_betreff(oeffne_befehl, monkeypatch, capsys):
     assert "OK  Entwurf offen in Thunderbird: Vektor S2: Wappen" in capsys.readouterr().out
 
 
+def test_entwurf_oeffnen_vergleicht_das_fenster_mit_dem_entwurf(oeffne_befehl, monkeypatch,
+                                                                 capsys):
+    """Den Maßstab liest der Befehl aus der Nachricht selbst, nicht aus `Kopf.an`:
+    Der wirft An, Cc und Bcc zusammen."""
+    _zwei_entwuerfe(monkeypatch)
+    _bruecke(monkeypatch, _offen_mit(an=("b@example.org",), betreff="Vektor S2: Wappen"))
+    assert oeffne_befehl("--betreff", "wappen") == 0
+    assert ("OK  Empfänger im Fenster wie in der Nachricht: An 1, Cc 0, Bcc 0"
+            in capsys.readouterr().out)
+
+
+def test_entwurf_oeffnen_mit_leerem_fenster_ist_exit_3(oeffne_befehl, monkeypatch, capsys):
+    """Ein Fenster mit anderen Empfängern ist nicht das bestellte — Exit 3 wie ohne Fenster."""
+    _zwei_entwuerfe(monkeypatch)
+    _bruecke(monkeypatch, _offen_mit(an=(), betreff="Vektor S2: Wappen"))
+    assert oeffne_befehl("--betreff", "wappen") == 3
+    ausgabe = capsys.readouterr()
+    assert "EMPFÄNGER PRÜFEN" in ausgabe.err and "An: fehlt b@example.org" in ausgabe.err
+    assert "OK  Entwurf offen" not in ausgabe.out
+
+
 def test_entwurf_oeffnen_bei_mehreren_oeffnet_nichts(oeffne_befehl, monkeypatch, capsys):
     _zwei_entwuerfe(monkeypatch)
     tb_bruecke = _bruecke(monkeypatch)
@@ -570,11 +673,14 @@ def test_der_aufrufer_wartet_laenger_als_das_add_on():
               / "implementation.js").read_text(encoding="utf-8")
     frist = {name: int(wert) / 1000 for name, wert
              in re.findall(r"^const (FRIST_\w+_MS) = (\d+);", quelle, re.M)}
-    # Ordner nachladen, dann zweimal warten: aufs Fenster und auf den Entwurf darin.
+    # Ordner nachladen, dann zweimal warten: aufs Fenster und auf den Entwurf darin,
+    # und seit 0.3.8 noch einmal, bis das Fenster fertig geladen ist (#464).
     # Die Menge ist geschlossen, damit eine neue Frist im Add-on hier auffällt
     # und nicht still an der Rechnung vorbeiläuft.
-    assert set(frist) == {"FRIST_ORDNER_MS", "FRIST_FENSTER_MS", "FRIST_LEERLAUF_MS"}
-    assert bruecke.FRIST_OEFFNEN_S > frist["FRIST_ORDNER_MS"] + 2 * frist["FRIST_FENSTER_MS"]
+    assert set(frist) == {"FRIST_ORDNER_MS", "FRIST_FENSTER_MS", "FRIST_LEERLAUF_MS",
+                          "FRIST_LADEN_MS"}
+    assert bruecke.FRIST_OEFFNEN_S > (frist["FRIST_ORDNER_MS"] + 2 * frist["FRIST_FENSTER_MS"]
+                                      + frist["FRIST_LADEN_MS"])
     # Die Leerlauffrist zählt in dieser Rechnung nicht mit: Sie läuft nur, bis
     # eine vollständige Zeile da ist, und falzmarke schickt sie sofort
     # (`clearTimeout(leerlauf)` beim ersten Zeilenende, ADR 0059). Was sie
