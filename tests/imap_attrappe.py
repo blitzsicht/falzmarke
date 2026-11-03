@@ -167,10 +167,13 @@ class ImapAttrappe:
     # ── erlaubte Befehle ──────────────────────────────────────────────────
     def login(self, user, password):
         self._pruefe(user)
+        # Im Protokoll steht, was auf die Leitung ging, zitiert oder nicht.
+        # `angemeldet` hält den Namen fest, den der Proxy daraus liest:
+        # `emailproxy` nimmt die Anführungszeichen ab (`strip_quotes`).
         self.protokoll.append(("LOGIN", user))
         if self.login_fehler:
             raise imaplib.IMAP4.error(self.login_fehler)
-        self.angemeldet.append((user, password))
+        self.angemeldet.append((self._name(user), password))
         return "OK", [b"LOGIN completed."]
 
     def list(self, directory='""', pattern="*"):

@@ -124,6 +124,40 @@ def test_ein_umbruch_in_der_adresse_meldet_nicht_an(server, adresse):
     assert server.protokoll == []
 
 
+@pytest.mark.parametrize("adresse", ["joe@example.org", "joe {5}@example.org",
+                                     'jo"e@example.org'])
+def test_der_anmeldename_geht_zitiert_auf_die_leitung(server, adresse):
+    """Review von #460: `imaplib.login` zitiert nur das Kennwort.
+
+    Unzitiert wäre `joe {5}@example.org` zwei Argumente, und ein `{5}` am Ende
+    eines Namens kündigte ein Literal an, auf das der Server wartet.
+    """
+    with postfach.verbinde(adresse, umgebung={}):
+        pass
+    (befehl,) = [p for p in server.protokoll if p[0] == "LOGIN"]
+    assert befehl[1] == postfach._zitiert(adresse) and befehl[1].startswith('"')
+    assert server.angemeldet == [(adresse, postfach.KENNWORT)], \
+        "der Proxy liest den Namen ohne Anführungszeichen"
+
+
+def test_ein_valueerror_aus_imaplib_ist_ein_grund_und_meldet_ab(monkeypatch):
+    """Review von #460: `imaplib` wirft ab 3.14 `ValueError` für Steuerzeichen.
+
+    Bis dahin fing `_befehl` davon nur `UnicodeEncodeError`. Jeder andere
+    `ValueError` lief als Traceback hinaus, und `verbinde` meldete nicht ab.
+    """
+    attrappe = ImapAttrappe()
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", attrappe)
+
+    def login(user, password):
+        raise ValueError("NUL, CR and LF not allowed")
+
+    monkeypatch.setattr(attrappe, "login", login)
+    with pytest.raises(postfach.PostfachFehler, match="NUL, CR and LF"):
+        postfach.verbinde("joe@example.org", umgebung={})
+    assert attrappe.abgemeldet == 1, "die halbe Sitzung bleibt offen"
+
+
 # ── Lesen ───────────────────────────────────────────────────────────────────
 
 def test_sonderordner_aus_list(server):
@@ -176,6 +210,19 @@ def test_ohne_date_zaehlt_die_ankunft():
     roh = b"To: a@example.org\r\nSubject: x\r\n\r\n"
     ankunft = datetime(2026, 10, 21, 10, 0, tzinfo=timezone.utc)
     assert postfach.kopf_aus(roh, "1", ankunft).datum == ankunft
+
+
+@pytest.mark.parametrize("gesucht, kopfwert, gleich", [
+    ("<abc@x>", "<abc@x>", True),
+    ("abc@x", "<abc@x>", True),        # ein Programm, das die Klammern weglässt
+    ("abc@x>", "<abc@x>", False),      # eine Klammer allein ist kein Paar
+    ("<abc@x", "<abc@x>", False),
+    ("<<abc@x>>", "<abc@x>", False),   # zwei Paare sind nicht eines
+    ("ABC@x", "<abc@x>", False),       # Groß und klein zählen, Absicht seit #457
+])
+def test_gleiche_kennung_nimmt_genau_ein_klammerpaar_ab(gesucht, kopfwert, gleich):
+    """Review von #457: `strip("<>")` nahm jede Klammer an jedem Ende."""
+    assert postfach.gleiche_kennung(gesucht, kopfwert) is gleich
 
 
 # ── Ablegen: der einzige schreibende Befehl ────────────────────────────────

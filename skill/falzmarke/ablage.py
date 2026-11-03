@@ -70,6 +70,15 @@ class AblageFehler(Exception):
     """Ein Grund in einem Satz — er wandert unverändert in die Ausgabe."""
 
 
+class ZugAbgebrochen(AblageFehler):
+    """`UID MOVE` war gesendet, als der Lauf abbrach.
+
+    Nur dann kann der Server schon etwas bewegt haben. Bricht der Lauf vorher
+    ab — kein MOVE in CAPABILITY, der Eingang nicht wählbar —, ist sicher nichts
+    geschehen, und der Bericht soll das auch so sagen (Review von #459).
+    """
+
+
 class Zug(NamedTuple):
     """Eine Nachricht im Eingang und die Antwort, die sie erledigt hat."""
 
@@ -106,6 +115,9 @@ class Bericht(NamedTuple):
     #: nur lesbar. Steht hier, damit der Zug den Ordner nicht ein zweites Mal
     #: bestimmen muss — zwei Bestimmungen können verschieden ausfallen.
     ziel_server: str | None = None
+    #: War `UID MOVE` schon gesendet, als der Lauf abbrach? Nur dann kann der
+    #: Server einen Teil bewegt haben. Ohne Grund immer `False`.
+    zug_gesendet: bool = False
 
 
 # ── Das Ziel ────────────────────────────────────────────────────────────────
@@ -272,8 +284,11 @@ def verschiebe(sitzung: postfach.Postfach, ziel: str, uids: list[str]) -> int:
     # SELECT, nicht EXAMINE: Aus einem nur lesend geöffneten Ordner bewegt
     # der Server nichts. Gewählt wird allein der Eingang.
     sitzung._befehl(f"Ordner „{EINGANG}“ nicht wählbar", sitzung._v.select, zitiert(EINGANG))
-    sitzung._befehl(f"MOVE nach „{postfach.utf7_dekodieren(ziel)}“",
-                    sitzung._v.uid, "MOVE", ",".join(uids), zitiert(ziel))
+    try:
+        sitzung._befehl(f"MOVE nach „{postfach.utf7_dekodieren(ziel)}“",
+                        sitzung._v.uid, "MOVE", ",".join(uids), zitiert(ziel))
+    except postfach.PostfachFehler as fehler:
+        raise ZugAbgebrochen(str(fehler)) from None
     return len(uids)
 
 
@@ -309,7 +324,8 @@ def raeume_auf(adresse: str, *, wunsch: str | None = None, seit_tagen: int = SEI
             # Server einen Teil bewegt hat, wäre „0 von 0" die stärkste Form
             # von „nichts geschehen" — für den einen Fall, in dem etwas
             # geschehen sein kann (#438).
-            return bericht._replace(grund=str(fehler))
+            return bericht._replace(grund=str(fehler),
+                                    zug_gesendet=isinstance(fehler, ZugAbgebrochen))
 
 
 # ── Ausgabe: ein Bericht, zwei Darstellungen ────────────────────────────────
@@ -324,18 +340,28 @@ def _zugzeilen(bericht: Bericht) -> list[str]:
 
 
 def zeilen(bericht: Bericht) -> list[str]:
-    """Der Bericht als Text. `NICHT GEPRÜFT` gehört auf stderr, der Rest nicht.
+    """Der Bericht als Text. Mit Grund gehört er ganz auf stderr, sonst auf stdout.
 
     Ein Grund *mit* Zügen entsteht nur, wenn der Lauf nach dem Plan abbricht.
-    Dann kann der Server einen Teil schon bewegt haben, und genau dann braucht
-    der Bediener die UIDs. Bis #442 (N2) standen sie nur im JSON.
+    Bis #442 (N2) standen die UIDs dann nur im JSON. Ob der Server schon etwas
+    bewegt haben kann, sagt `zug_gesendet`: Nur wenn `UID MOVE` hinausging,
+    ist das offen. Vorher abgebrochen heißt sicher nichts bewegt, und die
+    Handprüfung des Ablageordners wäre vergeblich (Review von #459).
+
+    Die Zeilen nach dem Grund gehören zu ihm. Die Weiche in `cli.py` schickt
+    deshalb den ganzen Bericht auf stderr, nicht nur die erste Zeile: Ein
+    `2>/dev/null` ließe sonst UIDs ohne Konto und Grund stehen.
     """
     nachspann = [f"HINWEIS  {h}" for h in bericht.hinweise]
     if bericht.grund:
         aus = [f"NICHT GEPRÜFT  {bericht.adresse}: {bericht.grund}"]
         if bericht.zuege:
-            aus.append(f"    {len(bericht.zuege)} Nachrichten für „{bericht.ziel}“ gefunden; "
-                       "ob der Server davon schon etwas bewegt hat, ist nicht geprüft")
+            zahl = len(bericht.zuege)
+            gefunden = (f"    {zahl} {'Nachricht' if zahl == 1 else 'Nachrichten'} "
+                        f"für „{bericht.ziel}“ gefunden; ")
+            aus.append(gefunden + (
+                "ob der Server davon schon etwas bewegt hat, ist nicht geprüft"
+                if bericht.zug_gesendet else "nichts bewegt, der Zug war noch nicht gesendet"))
             aus += _zugzeilen(bericht)
         return aus + nachspann
     aus = [f"OK  {bericht.adresse}: {len(bericht.zuege)} von {bericht.antworten} Antworten "
@@ -361,6 +387,7 @@ def als_json(bericht: Bericht) -> dict:
         "antworten": bericht.antworten,
         "nicht_im_eingang": bericht.nicht_im_eingang,
         "verschoben": bericht.verschoben,
+        "zug_gesendet": bericht.zug_gesendet,
         "hinweise": list(bericht.hinweise),
         "zuege": [{"uid": z.uid, "betreff": z.betreff,
                    "datum": z.datum.isoformat() if z.datum else None,
