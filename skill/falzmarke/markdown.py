@@ -299,6 +299,56 @@ KURZ_URL_DIENSTE = frozenset({
 })
 
 
+#: Eine nackte Adresse im Mailtext (#424). Nur mit Schema: `www.example.de`
+#: bleibt Text, weil daraus eine Adresse zu raten hieße, ein Schema zu
+#: erfinden, das niemand geschrieben hat. Kein `linkify` aus markdown-it — das
+#: zöge eine Abhängigkeit nach und verlinkte `www.` gerade doch.
+#:
+#: Davor darf kein Wortzeichen und kein `/` stehen: `xhttps://…` ist keine
+#: Adresse, die jemand anklicken soll.
+NACKTE_URL = re.compile(r"(?<![\w/])https?://[^\s<>]+", re.IGNORECASE)
+
+#: Was am Ende einer nackten Adresse zum Satz gehört, nicht zur Adresse.
+#: `Mehr unter https://example.de/agb.` meint die Seite ohne Punkt.
+SATZZEICHEN_HINTER_URL = ".,;:!?“”»«›‹'\"’"
+
+
+def _url_spannen(text: str) -> list[tuple[int, int]]:
+    """Anfang und Ende jeder nackten `http(s)://`-Adresse im Text (#424).
+
+    Am Ende fällt ab, was zum Satz gehört: Satzzeichen und Anführungszeichen,
+    und eine schließende Klammer, zu der in der Adresse keine öffnende steht.
+    `https://de.wikipedia.org/wiki/A_(B)` behält so seine Klammer, und in
+    `(siehe https://x.de)` bleibt sie draußen.
+    """
+    spannen = []
+    for treffer in NACKTE_URL.finditer(text):
+        url = treffer.group(0)
+        while url:
+            satzzeichen = url[-1] in SATZZEICHEN_HINTER_URL
+            klammer_ohne_paar = url.endswith(")") and url.count(")") > url.count("(")
+            if not (satzzeichen or klammer_ohne_paar):
+                break
+            url = url[:-1]
+        # Nach dem Abschneiden muss hinter `://` noch etwas stehen.
+        if url.split("://", 1)[1]:
+            spannen.append((treffer.start(), treffer.start() + len(url)))
+    return spannen
+
+
+def _url_stuecke(text: str) -> list[tuple[str, bool]]:
+    """Der Text, an seinen nackten Adressen geteilt: (Stück, ist Adresse)."""
+    stuecke, stelle = [], 0
+    for anfang, ende in _url_spannen(text):
+        if anfang > stelle:
+            stuecke.append((text[stelle:anfang], False))
+        stuecke.append((text[anfang:ende], True))
+        stelle = ende
+    if stelle < len(text) or not stuecke:
+        stuecke.append((text[stelle:], False))
+    return stuecke
+
+
 def _pruefe_link(ziel: str, text: str, zeile: int, lage: Lage) -> None:
     """Ist diese Adresse zulaessig — und faellt an ihr etwas auf?
 
@@ -494,6 +544,11 @@ def _pruefe_felder(roh: str, teile, lage: Lage, zeile: int) -> None:
     bereinigt = roh.replace("\\`", "  ")
     bereinigt = CODESPANNE.sub(lambda t: " " * len(t.group(0)), bereinigt)
     bereinigt = LINKZIEL.sub(lambda t: " " * len(t.group(0)), bereinigt)
+    if lage.ziel == "email":
+        # Nackte Adressen ebenso (#424): `_text` macht aus ihnen kein Feld, und
+        # ohne diese Zeile meldete `https://x.de/a___b` eine Kette ohne Feld.
+        for anfang, ende in _url_spannen(bereinigt):
+            bereinigt = bereinigt[:anfang] + " " * (ende - anfang) + bereinigt[ende:]
     ketten = list(FELD_ROH.finditer(bereinigt))
     gefunden = _zaehle_felder(teile)
     if len(ketten) != gefunden:
@@ -520,13 +575,46 @@ def _pruefe_felder(roh: str, teile, lage: Lage, zeile: int) -> None:
             "(`Betrag: ________ EUR`)")
 
 
-def _inline(knoten, lage: Lage, lauf: list | None = None) -> tuple:
+def _text(inhalt: str, lage: Lage, zeile: int, im_link: bool) -> list:
+    """Ein Textknoten — in einer E-Mail mit seinen nackten Adressen als Link (#424).
+
+    Erst wird an den Adressen geteilt, dann laufen Ausfüllfelder und
+    Typografie-Hinweise nur über die Stücke dazwischen: Eine Adresse mit `___`
+    ist kein Feld, und `z.B.` in einem Pfad ist keine Abkürzung im Satz.
+
+    Steht die Adresse schon in einem Link (`[https://x.de](https://x.de)`,
+    `<https://x.de>`), bleibt sie Text — ein `<a>` im `<a>` ist ungültiges
+    HTML. Im Brief wird gar nicht geteilt: Auf Papier gibt es nichts zum
+    Anklicken, und die Adresse steht dort ausgeschrieben, wie sie geschrieben ist.
+    """
+    stuecke = _url_stuecke(inhalt) if lage.ziel == "email" else [(inhalt, False)]
+    teile = []
+    for stueck, ist_url in stuecke:
+        if not ist_url:
+            teile.extend(_text_mit_feldern(stueck, lage, zeile))
+            _melde_zurueckgehaltenes(stueck, zeile, lage)
+            continue
+        # Die Adresse geht nicht durch die Typografie — aus `--` würde sonst
+        # ein Strich, und der Link zeigte woandershin (wie bei `baum.Link`).
+        adresse = baum.Text(stueck, typografie=False)
+        if im_link:
+            teile.append(adresse)
+        else:
+            _pruefe_link(stueck, stueck, zeile, lage)
+            teile.append(baum.Link(ziel=stueck, kinder=(adresse,)))
+    return teile
+
+
+def _inline(knoten, lage: Lage, lauf: list | None = None, im_link: bool = False) -> tuple:
     """Inline-Inhalt eines Absatzes oder einer Zelle, als Baumknoten.
 
     `lauf` ist die Quellzeile, an der das Lesen gerade steht — eine Liste mit
     einem Eintrag, damit die Verschachtelung (`**fett**`, Link) sie
     weiterzählt. Ein Absatz über mehrere Zeilen meldet so die Zeile der
     Stelle, nicht die des Absatzanfangs.
+
+    `im_link` sagt, dass das Lesen innerhalb eines Links steht. Dort wird eine
+    nackte Adresse nicht noch einmal verlinkt (#424).
     """
     if lauf is None:
         lauf = [_zeile(knoten, lage)]
@@ -534,8 +622,7 @@ def _inline(knoten, lage: Lage, lauf: list | None = None) -> tuple:
     for kind in knoten.children or []:
         typ = kind.type
         if typ == "text":
-            teile.extend(_text_mit_feldern(kind.content, lage, lauf[0]))
-            _melde_zurueckgehaltenes(kind.content, lauf[0], lage)
+            teile.extend(_text(kind.content, lage, lauf[0], im_link))
         elif typ == "softbreak":
             # Ein weicher Umbruch ist ein Leerzeichen und sonst nichts — die
             # typografischen Ersetzungen haben daran nichts zu suchen.
@@ -545,11 +632,11 @@ def _inline(knoten, lage: Lage, lauf: list | None = None) -> tuple:
             teile.append(baum.Umbruch())
             lauf[0] += 1
         elif typ == "strong":
-            teile.append(baum.Stark(_inline(kind, lage, lauf)))
+            teile.append(baum.Stark(_inline(kind, lage, lauf, im_link)))
         elif typ == "em":
-            teile.append(baum.Betont(_inline(kind, lage, lauf)))
+            teile.append(baum.Betont(_inline(kind, lage, lauf, im_link)))
         elif typ == "inline":
-            innen = _inline(kind, lage, lauf)
+            innen = _inline(kind, lage, lauf, im_link)
             _pruefe_felder(kind.content or "", innen, lage, _zeile(kind, lage))
             teile.extend(innen)
         elif typ == "link":
@@ -558,7 +645,7 @@ def _inline(knoten, lage: Lage, lauf: list | None = None) -> tuple:
             if lage.ziel != "email":
                 _lehne_ab(kind, lage)
             ziel = str((kind.attrs or {}).get("href", ""))
-            inhalt = _inline(kind, lage, lauf)
+            inhalt = _inline(kind, lage, lauf, im_link=True)
             _pruefe_link(ziel, _nur_text(inhalt), _zeile(kind, lage), lage)
             teile.append(baum.Link(ziel=ziel, kinder=inhalt))
         elif typ == "code_inline":

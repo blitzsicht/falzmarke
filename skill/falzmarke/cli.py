@@ -2249,8 +2249,11 @@ def befehl_aufraeumen(args) -> int:
                          indent=2))
     else:
         for bericht in berichte:
+            # Ein Bericht mit Grund geht ganz auf stderr: Die Plan- und
+            # UID-Zeilen hinter `NICHT GEPRÜFT` gehören zu ihm (Review von #459).
             for zeile in ablage_modul.zeilen(bericht):
-                ziel = sys.stderr if zeile.startswith(("NICHT GEPRÜFT", "HINWEIS")) else sys.stdout
+                ziel = (sys.stderr if bericht.grund
+                        or zeile.startswith(("NICHT GEPRÜFT", "HINWEIS")) else sys.stdout)
                 print(zeile, file=ziel)
     return EXIT_UMGEBUNG if any(b.grund for b in berichte) else EXIT_OK
 

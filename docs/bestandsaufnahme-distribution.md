@@ -1,6 +1,6 @@
 # Bestandsaufnahme: Wie falzmarke zu den Nutzern kommt
 
-Stand: 02.11.2026, Version 0.10.0, Nachträge zu v0.11.0 sind ausgewiesen. Jede Zeile ist eine Messung von diesem Tag, wenn nichts anderes
+Stand: 02.11.2026, Version 0.10.0, Nachträge zu v0.11.0 und v0.11.1 sind ausgewiesen. Jede Zeile ist eine Messung von diesem Tag, wenn nichts anderes
 dabeisteht. `✓` gelesen oder gelaufen, `✗` geprüft und nicht vorhanden, `?` nicht nachgemessen.
 
 ## Ergebnis
@@ -9,7 +9,7 @@ Sieben Formen existieren und laufen, eine existiert nur im Code, zwei gibt es ni
 
 | Form | Stand | Beleg |
 |---|---|---|
-| ✓ PyPI-Paket | 0.11.0 liegt oben, seit dem Release am 02.11.2026 | `pypi.org/pypi/falzmarke/json` |
+| ✓ PyPI-Paket | 0.11.1 liegt oben, hochgeladen am 03.11.2026 (gemessen am selben Tag) | `pypi.org/pypi/falzmarke/json` |
 | ✓ CLI | läuft, 17 Unterbefehle, `check` ist der frühere Name von `verify` | `pyproject.toml` `[project.scripts]`, `skill/falzmarke/cli.py` |
 | ✓ Claude-Skill | `falzmarke.skill` im Release, 7 Downloads; dazu `falzmarke-offline.skill`, 5 Downloads | `skill/SKILL.md`, Release v0.10.0 |
 | ✓ ChatGPT-Plugin (Paket) | `falzmarke-chatgpt-plugin.zip` im Release, 0 Downloads | `scripts/plugin_packen.py` |
@@ -41,6 +41,10 @@ Datei im Job `mcp-registry` am Versions-Tag. Das Dockerfile war nie betroffen.
 
 **Nachtrag v0.11.0:** Das Registry führt 0.11.0 als `active`. Der Befehl aus dem Eintrag besteht
 den Handschlag samt Brief, 34/34 Maße. Ohne `--with mcp~=2.0` endet er mit Exit 3.
+
+**Nachtrag v0.11.1 (03.11.2026):** Das Registry führt 0.11.1 als `active`. Der Befehl aus dem
+Eintrag besteht `initialize` und `tools/list` mit vier Werkzeugen. Ein Brief ist dabei nicht
+gerendert worden. `serverInfo.version` kommt leer zurück.
 
 ## Finding 2: Das Anthropic-Plugin-Verzeichnis ist nicht erreichbar
 

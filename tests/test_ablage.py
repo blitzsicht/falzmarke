@@ -406,8 +406,36 @@ def test_scheitert_der_zug_stehen_die_uids_auch_im_text():
     assert text[0].startswith("NICHT GEPRÜFT"), "der Grund muss vorn stehen, er geht auf stderr"
     assert any(f"UID {zug.uid} " in z and zug.betreff in z for z in text[1:]), \
         "die gefundene Nachricht fehlt in der Textausgabe"
-    assert any("nicht geprüft" in z for z in text[1:]), \
-        "der Text verschweigt, dass der Server einen Teil bewegt haben kann"
+    # Ohne MOVE in CAPABILITY ging kein ändernder Befehl hinaus. Bis zum Review
+    # von #459 hieß es hier trotzdem „ob der Server … bewegt hat, ist nicht
+    # geprüft“, und der Bediener suchte im Ablageordner nach nichts.
+    assert text[1] == ("    1 Nachricht für „Archiv“ gefunden; "
+                       "nichts bewegt, der Zug war noch nicht gesendet")
+    assert bericht.zug_gesendet is False and ablage.als_json(bericht)["zug_gesendet"] is False
+
+
+def test_bricht_uid_move_selbst_ab_bleibt_offen_was_bewegt_ist(monkeypatch):
+    """Der eine Fall, in dem der Server schon etwas bewegt haben kann.
+
+    Gegenstück zum Test darüber: Dort brach der Lauf vor dem Zug ab, hier im
+    Zug. Nur hier darf der Text sagen, dass es nicht geprüft ist.
+    """
+    attrappe, _ = _postfach(eingang=[_eingegangen()], gesendet=[_antwort()])
+    echtes_uid = attrappe.uid
+
+    def move_bricht_ab(befehl, *args):
+        if befehl.upper() == "MOVE":
+            attrappe.protokoll.append(("UID MOVE", *args))
+            raise OSError("Verbindung getrennt")
+        return echtes_uid(befehl, *args)
+
+    monkeypatch.setattr(attrappe, "uid", move_bricht_ab)
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={})
+    assert "Verbindung getrennt" in bericht.grund
+    assert bericht.zug_gesendet is True and ablage.als_json(bericht)["zug_gesendet"] is True
+    assert ablage.zeilen(bericht)[1] == ("    1 Nachricht für „Archiv“ gefunden; "
+                                         "ob der Server davon schon etwas bewegt hat, "
+                                         "ist nicht geprüft")
 
 
 def test_ein_grund_ohne_plan_bleibt_eine_zeile():
@@ -563,6 +591,26 @@ def test_der_grund_kostet_exit_3_und_der_saubere_lauf_nicht(monkeypatch, capsys)
     ausgabe = capsys.readouterr()
     assert ausgabe.out.startswith("OK  joe@example.org") and "Archiv" in ausgabe.out
     assert attrappe.befehle("UID MOVE") == []
+
+
+def test_ein_abgebrochener_bericht_steht_ganz_auf_stderr(monkeypatch, capsys):
+    """Die Plan- und UID-Zeilen gehören zu ihrem Grund (Review von #459).
+
+    Bis dahin ging nur `NICHT GEPRÜFT` auf stderr, die UIDs darunter auf
+    stdout. Mit `2>/dev/null` blieben sie ohne Konto und ohne Grund stehen.
+    """
+    from falzmarke import cli as falzmarke
+
+    attrappe, _ = _postfach(eingang=[_eingegangen()], gesendet=[_antwort()],
+                            sonder={"INBOX": "", "Gesendete Elemente": "\\Sent",
+                                    "Archiv": "\\Archive"},
+                            faehigkeiten=("IMAP4REV1",))
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", attrappe)
+    assert falzmarke.main(["aufraeumen", "--absender", "joe@example.org",
+                           "--machen"]) == falzmarke.EXIT_UMGEBUNG
+    ausgabe = capsys.readouterr()
+    assert ausgabe.out == "", f"auf stdout gelandet: {ausgabe.out!r}"
+    assert ausgabe.err.startswith("NICHT GEPRÜFT  joe@example.org") and "UID " in ausgabe.err
 
 
 def test_ein_fenster_unter_einem_tag_ist_ein_eingabefehler(capsys):
