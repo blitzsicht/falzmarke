@@ -166,6 +166,38 @@ def test_offen_mit_dem_betreff_aus_dem_fenster(monkeypatch, zustand):
     assert lage.offen and lage.zustand == zustand and lage.betreff == "Nachtrag"
 
 
+_LIVE = {"ok": True, "zustand": "geoeffnet", "betreff": "Nachtrag", "live": True,
+         "identitaet": "a@example.de", "an": ["paula@example.org"], "kopie": [],
+         "blindkopie": ["archiv@example.de"]}
+
+
+def test_die_empfaenger_des_fensters_kommen_mit(monkeypatch):
+    """Ab Add-on 0.3.8 sagt die Antwort, wohin das Fenster schicken würde (#464)."""
+    _mit(monkeypatch, BrueckenAttrappe(_LIVE))
+    lage = bruecke.entwurf_oeffnen("a@example.de", 5, umgebung={})
+    assert lage.gelesen and lage.identitaet == "a@example.de"
+    assert (lage.an, lage.kopie, lage.blindkopie) == (("paula@example.org",), (),
+                                                      ("archiv@example.de",))
+    assert not lage.geprueft and lage.abweichung == "", "verglichen wird erst in oeffnen"
+
+
+def test_ohne_live_ist_nichts_gelesen_und_die_fassung_steht_dabei(monkeypatch):
+    """Die Antwort bis 0.3.7 trägt kein `live`. Leere Listen hießen dann „nicht
+    gelesen“, nicht „niemand“ — darum trägt `gelesen` den Unterschied, nicht die Liste."""
+    _mit(monkeypatch, BrueckenAttrappe({"ok": True, "zustand": "geoeffnet", "betreff": "Nachtrag"}))
+    lage = bruecke.entwurf_oeffnen("a@example.de", 5, umgebung={})
+    assert lage.offen and not lage.gelesen and lage.an == ()
+    assert "0.3.8" in lage.lese_grund
+
+
+def test_ein_fenster_das_noch_laedt_ist_nicht_gelesen(monkeypatch):
+    """`live: false` mit Grund: Die Listen zählen dann nicht, auch wenn welche dastehen."""
+    _mit(monkeypatch, BrueckenAttrappe({**_LIVE, "live": False, "fehler": "fenster_laedt_noch"}))
+    lage = bruecke.entwurf_oeffnen("a@example.de", 5, umgebung={})
+    assert lage.offen and not lage.gelesen and lage.an == ()
+    assert lage.lese_grund == "das Fenster lädt noch"
+
+
 @pytest.mark.parametrize("zustand", ["ungewiss", "fenster_ohne_entwurf", "neu_erfunden"])
 def test_kein_gesehenes_fenster_ist_ungewiss_nicht_fehler(monkeypatch, zustand):
     _mit(monkeypatch, BrueckenAttrappe({"ok": True, "zustand": zustand}))

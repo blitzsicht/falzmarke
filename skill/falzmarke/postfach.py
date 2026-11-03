@@ -275,6 +275,15 @@ def kopf_aus(roh: bytes, uid: str, ankunft: datetime | None) -> Kopf:
                 kennung=str(nachricht.get("Message-ID") or "").strip())
 
 
+def empfaengerfelder(roh: bytes) -> dict[str, tuple[str, ...]]:
+    """An, Cc und Bcc einer Nachricht, getrennt und klein — der Maßstab für das
+    Verfassen-Fenster (#464). `Kopf.an` wirft die drei zusammen; hier bleibt
+    jedes Feld für sich, in derselben Form wie bei `eml.entwurfsfelder`."""
+    nachricht = email.message_from_bytes(roh, policy=policy.compat32)
+    return {"an": _adressen(nachricht, "To"), "kopie": _adressen(nachricht, "Cc"),
+            "blindkopie": _adressen(nachricht, "Bcc")}
+
+
 def _dekodiert(wert) -> str:
     """Eine Kopfzeile mit `=?utf-8?…?=` als Klartext."""
     if wert is None:

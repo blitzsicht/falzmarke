@@ -75,3 +75,32 @@ Thunderbird 158.0.1, `omni.ja`: `MsgComposeCommands.js` (`GetComposeDetails`),
 `ext-compose.js` (Klartext aus dem Editor, `customHeaders`). Gemessen am 25.10.2026: Die
 `message_id` im Tagebuch-Eintrag `gesendet` ist die der Mail in Gesendet; ein zweiter Eintrag
 hat eine andere `message_id` und eine andere Fassung, die Zuordnung trennt also.
+
+## Nachtrag 03.11.2026 (#464)
+
+Punkt 1 war in einem Satz falsch: `GetComposeDetails()` überträgt den Fensterinhalt **nicht**
+„ohne etwas zu ändern“. Es ruft `Recipients2CompFields` und schreibt die Adresszeilen des
+Fensters nach `compFields`. An einem Fenster, das noch lädt, sind diese Zeilen leer; füllt das
+Fenster sie gleich darauf mit `CompFields2Recipients` aus den Feldern, füllt es sie aus den eben
+geleerten. Das Fenster stand dann ohne An, Cc und Bcc da, der Betreff blieb. Ausgelöst hat das
+der Befehl `fenster`, den `email --oeffnen` seit dem Mitaufräumen (ADR 0062) unmittelbar nach dem
+Öffnen schickt; `live: false` „in der ersten Sekunde“ kam nur, wenn der Aufruf *scheiterte*, nicht
+wenn er zu früh *gelang*. Gemessen am 03.11.2026 mit 0.3.7: sechs Fenster, die beim Aufruf noch
+luden, leer; vier, die schon geladen waren, intakt.
+
+Seit 0.3.8 liest das Add-on nur an einem Fenster mit `gLoadingComplete === true`
+(`MsgComposeCommands.js`, gesetzt am Ende von `ComposeFieldsReady()`); vorher steht
+`live: false` mit `fenster_laedt_noch`. `entwurf_oeffnen` wartet bis zu 5 s darauf und meldet
+dann Absender und Empfänger des Fensters mit; dasselbe schreibt `geoeffnet` ins Tagebuch.
+falzmarke vergleicht sie mit An, Cc, Bcc der Nachricht (`oeffnen.empfaenger_pruefen`) und meldet
+`EMPFÄNGER PRÜFEN` statt `OK`, wenn sie abweichen; mit einem älteren Add-on steht
+`NICHT GEPRÜFT  Empfänger im Fenster`, und das Mitaufräumen fragt nicht nach offenen Fenstern,
+solange das eben geöffnete nicht als geladen gemeldet ist oder ungewiss bleibt, ob eines aufging
+(mit 0.3.7 hieß `fenster_ohne_entwurf` ein Fenster, dessen Entwurf in 20 Sekunden nicht kam).
+
+Gemessen am 03.11.2026 mit 0.3.8, zwölf Öffnungen von Testentwürfen (fünf mit Mitaufräumen, fünf
+ohne, zwei im Prozess mit parallel pollendem `fenster`): alle zwölf Fenster mit An und Bcc der
+Nachricht, zwölfmal `geoeffnet` mit Adressen im Tagebuch, zehnmal `OK  Empfänger im Fenster wie
+in der Nachricht` im CLI. Bei den zwei gepollten Öffnungen traf `fenster` das Fenster je einmal
+beim Laden (Antwort `live: false`, `fenster_laedt_noch`, rund 15 s nach dem Zuruf, weil der Ordner
+vorher nachgeladen wird); das Fenster blieb vollständig.

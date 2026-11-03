@@ -108,6 +108,24 @@ function textVon(nachricht) {
   return html ? V.klartextAusHtml(html.body) : "";
 }
 
+// Absender und Empfänger aus den `details` eines Fensters, in derselben Form
+// für `geoeffnet` und `gesendet` (#464): `an`, `kopie`, `blindkopie` als
+// reine Adressen, `identitaet` die Absenderadresse.
+function empfaengerVon(details) {
+  const { from, to, cc, bcc } = details;
+  return {
+    identitaet: [...V.adressen(liste(from))][0] || "",
+    an: [...V.adressen(liste(to))],
+    kopie: [...V.adressen(liste(cc))],
+    blindkopie: [...V.adressen(liste(bcc))],
+  };
+}
+
+// Woher der Entwurf kam, und wohin das Fenster beim Öffnen zeigte.
+// `compose.getComposeDetails` wartet selbst, bis das Fenster geladen ist
+// (ext-compose.js, `composeWindowIsReady`); was hier steht, ist der Stand
+// danach. Zeigt das Fenster keine Empfänger, steht das so im Tagebuch, statt
+// dass die Zeile schweigt (#464).
 async function ursprungVon(tabId) {
   const details = await browser.compose.getComposeDetails(tabId);
   const ursprung = {
@@ -120,7 +138,8 @@ async function ursprungVon(tabId) {
   if (details.type === "draft") {
     await ankern(ursprung, tabId, details.relatedMessageId);
   }
-  return ursprung;
+  const empfaenger = empfaengerVon(details);
+  return { ursprung, empfaenger };
 }
 
 // Setzt UID und Fassung des Entwurfs und hält fest, woher beide kommen
@@ -195,17 +214,21 @@ function fassungAusKette(eintraege, konto, uid) {
 function merken(tabId, neu) {
   let stand = fenster.get(tabId);
   if (!stand) {
-    stand = { ursprung: null, gesendet: false };
+    stand = { ursprung: null, gesendet: false, empfaenger: null };
     stand.bereit = ursprungVon(tabId)
       .then(
-        (ursprung) => {
+        ({ ursprung, empfaenger }) => {
           stand.ursprung = ursprung;
+          stand.empfaenger = empfaenger;
         },
         (fehler) => {
           stand.ursprung = { fehler: String(fehler) };
         }
       )
-      .then(() => (neu ? eintragen("geoeffnet", tabId) : null));
+      // `geoeffnet` trägt An, Cc und Bcc des Fensters (#464). Bis 0.3.7 stand
+      // dort nur, dass es aufging; ob mit den Empfängern des Entwurfs, sah
+      // niemand, und das Fenster vom 03.11.2026 ging ohne sie auf.
+      .then(() => (neu ? eintragen("geoeffnet", tabId, stand.empfaenger || {}) : null));
     fenster.set(tabId, stand);
   }
   return stand.bereit.then(() => stand);
@@ -448,12 +471,7 @@ function frage(fund) {
 // Wohin die Mail geht und was sie mitnimmt, für den Eintrag „gesendet“ (ADR 0056).
 // Scheitert das Lesen der Anhänge, steht das im Eintrag; das Senden hält es nicht auf.
 async function versandVon(tabId, details) {
-  const versand = {
-    identitaet: [...V.adressen(liste(details.from))][0] || "",
-    an: [...V.adressen(liste(details.to))],
-    kopie: [...V.adressen(liste(details.cc))],
-    blindkopie: [...V.adressen(liste(details.bcc))],
-  };
+  const versand = empfaengerVon(details);
   try {
     const anhaenge = await browser.compose.listAttachments(tabId);
     versand.anhaenge = (anhaenge || []).map((a) => String(a.name || ""));

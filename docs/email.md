@@ -245,11 +245,15 @@ ließe ihn immer liegen.
 ```
 OK  Entwurf liegt in „Entwürfe“ von ich@example.de: Nachtrag
 OK  Entwurf offen in Thunderbird: Nachtrag
+OK  Empfänger im Fenster wie in der Nachricht: An 1, Cc 0, Bcc 1
 ```
 
 | Zeile | Was zu tun ist |
 |---|---|
 | `OK  Entwurf offen in Thunderbird` | nichts, das Fenster steht |
+| `OK  Empfänger im Fenster wie in der Nachricht` | nichts, An, Cc und Bcc im Fenster sind die der Nachricht |
+| `EMPFÄNGER PRÜFEN  Entwurf offen in Thunderbird …` statt `OK` | das Fenster zeigt andere Empfänger als die Nachricht, der Befund steht dabei: vor dem Senden richten, oder das Fenster schließen und den Entwurf unter „Entwürfe“ neu öffnen |
+| `NICHT GEPRÜFT  Empfänger im Fenster: <Grund>` | das Add-on konnte sie nicht lesen (Fassung vor 0.3.8, oder das Fenster lud noch): An, Cc und Bcc selbst mit dem Entwurf vergleichen |
 | `HINWEIS  Es geht kein Fenster auf` + `Entwurfsbrücke: <Grund>` | den Entwurf unter „Entwürfe“ öffnen |
 | `HINWEIS  Fenster ungewiss` | in Thunderbird nachsehen, **nicht** noch einmal öffnen |
 

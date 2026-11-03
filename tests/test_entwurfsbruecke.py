@@ -262,6 +262,47 @@ def test_gegenprobe_ein_neuer_befehl_faellt_auf():
     assert befehle(QUELLTEXT + '\n    case "senden":') != befehle(QUELLTEXT)
 
 
+# ── Gelesen wird erst, wenn das Fenster geladen ist (#464) ──────────────────
+#
+# `GetComposeDetails()` an einem Fenster, das noch lädt, ist kein Lesen: Es
+# überträgt die noch leeren Adresszeilen in die Felder, und das Fenster füllt
+# seine Zeilen gleich darauf aus genau diesen Feldern. Gemessen am 03.11.2026
+# mit 0.3.7. Geprüft wird am Quelltext: Der Aufruf steht genau einmal, hinter
+# der Bereitschaftsprobe, und das neue Fenster wartet darauf, bevor es liest.
+
+def details_nur_nach_dem_laden(text: str) -> bool:
+    if _nur_code(text).count("GetComposeDetails()") != 1:
+        return False
+    lesen = _nur_code(_js_funktion(text, "felderVon"))
+    probe = lesen.find("if (!fensterBereit(fenster))")
+    return 0 <= probe < lesen.index("GetComposeDetails()")
+
+
+def test_get_compose_details_laeuft_nur_an_einem_geladenen_fenster():
+    assert details_nur_nach_dem_laden(QUELLTEXT)
+    assert "gLoadingComplete === true" in _nur_code(_js_funktion(QUELLTEXT, "fensterBereit"))
+    assert "felderVon(fenster)" in _js_funktion(QUELLTEXT, "fensterInhalt"), (
+        "auch der Befehl `fenster` liest nur über die Probe — er war der Auslöser")
+
+
+@pytest.mark.parametrize(("alt", "neu"), [
+    ('  if (!fensterBereit(fenster)) {\n    return { fehler: "fenster_laedt_noch" };\n  }\n', ""),
+    ("function fensterStand(fenster) {\n",
+     "function fensterStand(fenster) {\n  fenster.GetComposeDetails();\n"),
+], ids=["ohne_probe", "zweiter_aufruf"])
+def test_gegenprobe_ein_aufruf_vor_dem_laden_faellt_auf(alt, neu):
+    assert QUELLTEXT.count(alt) == 1
+    assert not details_nur_nach_dem_laden(QUELLTEXT.replace(alt, neu))
+
+
+def test_das_neue_fenster_wartet_auf_das_laden_bevor_es_liest():
+    zweig = _abschnitt(QUELLTEXT, ZWEIG_NEUES_FENSTER)
+    warten = zweig.index("await warten(() => fensterBereit(fenster), FRIST_LADEN_MS);")
+    assert warten < zweig.index("fensterEmpfaenger(fenster)")
+    assert "fensterEmpfaenger(fenster)" in _abschnitt(QUELLTEXT, ZWEIG_SCHON_OFFEN), (
+        "ein Fenster, das schon stand, ist geladen und nennt seine Empfänger ohne Warten")
+
+
 def test_der_socket_gehoert_nur_dem_eigenen_konto():
     """Gegenprobe am 25.10.2026: Auf dem Port kam ein fremder Prozess ohne
     jedes Geheimnis an eine vollständige `ping`-Antwort. Am Socket mit 0600

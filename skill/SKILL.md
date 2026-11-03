@@ -14,7 +14,7 @@ description: >
   Die Sollwerte stammen aus Sekundärquellen; der Abgleich mit dem Originaltext der DIN 5008:2020-03 einschließlich Berichtigung 1:2020-07 steht aus, und Regeln aus einzelnen Quellen wirken nur als Warnung.
 license: MIT
 metadata:
-  version: "0.11.1"
+  version: "0.11.2"
 ---
 
 # falzmarke
@@ -113,7 +113,12 @@ Was dabei nicht fehlen darf, weil es gemessen ist:
   `OK  Entwurf liegt in „Entwürfe" von <adresse>: <Betreff>`. Ist in Thunderbird das Add-on
   **Entwurfsbrücke** installiert (`thunderbird/entwurfsbruecke/`, ADR 0054), öffnet es genau
   diesen Entwurf wie „Entwurf bearbeiten", und die nächste Zeile lautet
-  `OK  Entwurf offen in Thunderbird: <Betreff>`. Nach dem Senden räumt Thunderbird ihn in der
+  `OK  Entwurf offen in Thunderbird: <Betreff>`, gefolgt von
+  `OK  Empfänger im Fenster wie in der Nachricht: An n, Cc n, Bcc n`. Steht stattdessen
+  `EMPFÄNGER PRÜFEN …`, zeigt das Fenster andere Empfänger als der Entwurf — das dann **nicht
+  als erledigt melden**, sondern den Befund nennen (An, Cc oder Bcc im Fenster richten, oder
+  Fenster schließen und den Entwurf unter „Entwürfe" neu öffnen). `NICHT GEPRÜFT  Empfänger im
+  Fenster` heißt, das Add-on konnte sie nicht lesen. Nach dem Senden räumt Thunderbird ihn in der
   Regel selbst aus „Entwürfe" weg, zugesagt ist das nicht (ADR 0062); was liegen bleibt, räumt der
   nächste `email --oeffnen` weg (`OK  aus „Entwürfe“ … weggeräumt: UID …`). Ohne Add-on heißt es `HINWEIS  Es geht kein Fenster auf …` mit dem
   Grund; dann findet der Mensch den Entwurf unter „Entwürfe". `HINWEIS  Fenster ungewiss` heißt:
