@@ -394,6 +394,29 @@ def test_scheitert_der_zug_bleiben_die_gefundenen_nachrichten_sichtbar():
     assert bericht.verschoben == 0 and bericht.ziel == "Archiv"
 
 
+def test_scheitert_der_zug_stehen_die_uids_auch_im_text():
+    """Der Test darüber hält den Plan im Bericht fest, dieser hier in der
+    Textausgabe. Bis #442 (N2) ergab derselbe Bericht dort genau eine Zeile,
+    `NICHT GEPRÜFT …`, und die UIDs standen nur im JSON.
+    """
+    _postfach(eingang=[_eingegangen()], gesendet=[_antwort()], faehigkeiten=("IMAP4REV1",))
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={})
+    (zug,) = bericht.zuege
+    text = ablage.zeilen(bericht)
+    assert text[0].startswith("NICHT GEPRÜFT"), "der Grund muss vorn stehen, er geht auf stderr"
+    assert any(f"UID {zug.uid} " in z and zug.betreff in z for z in text[1:]), \
+        "die gefundene Nachricht fehlt in der Textausgabe"
+    assert any("nicht geprüft" in z for z in text[1:]), \
+        "der Text verschweigt, dass der Server einen Teil bewegt haben kann"
+
+
+def test_ein_grund_ohne_plan_bleibt_eine_zeile():
+    """Gegenstück: ohne Züge kein Satz über „gefunden"."""
+    bericht = ablage.Bericht(adresse="joe@example.org", ziel=None, grund="Verbindung abgelehnt",
+                             seit=None, antworten=0, nicht_im_eingang=0, zuege=(), verschoben=0)
+    assert ablage.zeilen(bericht) == ["NICHT GEPRÜFT  joe@example.org: Verbindung abgelehnt"]
+
+
 def test_ein_ziel_das_nach_dem_plan_verschwindet_ist_ein_grund(monkeypatch):
     """Der Ablageordner wird je Lauf **einmal** bestimmt. Vorher bestimmte ihn
     der Zug ein zweites Mal und benutzte das Ergebnis ungeprüft: Fiel der
