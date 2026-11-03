@@ -61,7 +61,8 @@ GRENZE = 500
 
 #: Die Kopfzeilen, die je Nachricht gelesen werden — nie der ganze Inhalt,
 #: bevor feststeht, dass der Empfänger passt.
-KOPFZEILEN = ("DATE", "TO", "CC", "BCC", "SUBJECT", "IN-REPLY-TO", "X-FALZMARKE-FASSUNG")
+KOPFZEILEN = ("DATE", "TO", "CC", "BCC", "SUBJECT", "IN-REPLY-TO", "X-FALZMARKE-FASSUNG",
+              "MESSAGE-ID")
 
 
 class PostfachFehler(Exception):
@@ -190,6 +191,18 @@ def kennungen(wert: str) -> tuple[str, ...]:
     return (eine,) if eine else ()
 
 
+def gleiche_kennung(gesucht: str, kopfwert: str) -> bool:
+    """Trägt die Kopfzeile genau diese Kennung, nicht nur einen Teil von ihr?
+
+    `SEARCH HEADER` ist nach RFC 3501 eine Teilkettensuche: Ohne spitze Klammern
+    trifft `123` jede Message-ID, die `123` enthält, und die Treffer gehen mit
+    `--machen` in `UID MOVE` (#442). Die Klammern zählen nicht mit, damit ein
+    Programm, das sie weglässt, seine eigene Nachricht weiter findet. Groß und
+    klein zählen: Im Zweifel bleibt die Mail im Eingang liegen.
+    """
+    return any(k.strip("<>") == gesucht.strip("<>") for k in kennungen(kopfwert))
+
+
 # ── Ziel ────────────────────────────────────────────────────────────────────
 
 def ziel(umgebung: Mapping[str, str]) -> tuple[str, int]:
@@ -214,6 +227,8 @@ class Kopf(NamedTuple):
     betreff: str
     fassung: str
     antwort_auf: str
+    #: Die `Message-ID` der Nachricht, roh.
+    kennung: str = ""
 
 
 def _adressen(nachricht, *felder: str) -> tuple[str, ...]:
@@ -240,7 +255,8 @@ def kopf_aus(roh: bytes, uid: str, ankunft: datetime | None) -> Kopf:
     betreff = _dekodiert(nachricht.get("Subject"))
     return Kopf(uid=uid, datum=datum or ankunft, an=_adressen(nachricht, "To", "Cc", "Bcc"),
                 betreff=betreff, fassung=str(nachricht.get("X-Falzmarke-Fassung") or "").strip(),
-                antwort_auf=str(nachricht.get("In-Reply-To") or "").strip())
+                antwort_auf=str(nachricht.get("In-Reply-To") or "").strip(),
+                kennung=str(nachricht.get("Message-ID") or "").strip())
 
 
 def _dekodiert(wert) -> str:
@@ -359,7 +375,8 @@ class Postfach:
         an `GRENZE` gekappt, und gerade die ältere Nachricht ist die gesuchte.
         Am Microsoft-Konto gegengeprüft (28.10.2026): dieselben Treffer wie
         ein Kopfvergleich von Hand, und eine erfundene Message-ID findet
-        nichts.
+        nichts. Das Ergebnis ist eine Teilkettensuche: Vor einem Zug gehört es
+        gegen den Kopf nachverglichen (`gleiche_kennung`).
         """
         self._waehle(ordner)
         daten = self._befehl("SEARCH", self._v.uid, "SEARCH", "HEADER", feld, _zitiert(wert))
