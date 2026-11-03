@@ -15,7 +15,7 @@ verlangen, und keine Mehrfacheinreichung.
 | Glama | gelistet, nicht beansprucht | Eintrag beanspruchen |
 | awesome-mcp-servers | PR offen, hängt an Glama | erledigt sich nach Glama |
 | awesome-claude-skills | **gesperrt**, 1 von 10 Sternen | warten |
-| GitHub Topics | 18 von 20 gesetzt | zwei ergänzen |
+| GitHub Topics | 20 von 20 gesetzt | nichts zu tun |
 
 ## Anthropic-Plugin-Verzeichnis
 
@@ -191,17 +191,17 @@ Claude skill for German business mail: DIN 5008 letters as PDF/A, measured on th
 
 ## GitHub Topics
 
-- [ ] `business-letter` und `document-generation` in `scripts/topics.py` ergänzt
-- [ ] `bash scripts/repo-einstellungen.sh` gelaufen
-- [ ] `python3 scripts/repo_pruefung.py --repo blitzsicht/falzmarke` ohne Abweichung
+- [x] `business-letter` und `document-generation` in `scripts/topics.py` ergänzt
+- [x] am Repository gesetzt, mit `gh repo edit --add-topic` (das Skript schriebe auch Rulesets und Environment)
+- [x] `python3 scripts/repo_pruefung.py --repo blitzsicht/falzmarke` ohne Abweichung
 
 **Ziel-URL:** https://github.com/blitzsicht/falzmarke
 
 **Konto:** Admin-Recht am Repository.
 
-Es stehen 18 von 20 Themen. Die Liste lebt in `scripts/topics.py`, die Prüfung vergleicht dagegen;
-von Hand gesetzte Themen stünden dort nicht. Die zwei freien Plätze füllen die englischen Begriffe,
-die noch fehlen. Das Homepage-Feld bleibt ohne UTM: `repo_pruefung.py` hält es auf der nackten
+Es stehen 20 von 20 Themen, ein neues verlangt also, ein altes zu streichen. Die Liste lebt in
+`scripts/topics.py`, die Prüfung vergleicht dagegen; von Hand gesetzte Themen stünden dort nicht.
+Das Homepage-Feld bleibt ohne UTM: `repo_pruefung.py` hält es auf der nackten
 Domain, und die Canonical-URL gehört nicht in ein Metadatenfeld.
 
 ## UTM-Konvention
