@@ -134,6 +134,26 @@ def test_die_beantwortete_nachricht_wird_gefunden():
     assert bericht.verschoben == 0
 
 
+def test_eine_teilkette_der_kennung_ist_kein_treffer():
+    """Der Anlass aus #442: `SEARCH HEADER` findet `123` auch in fremden Kennungen."""
+    attrappe, sitzung = _postfach(eingang=[_eingegangen("<x123y@example.org>")],
+                                  gesendet=[_antwort("123")])
+    with sitzung:
+        assert sitzung.suche_kopfzeile("INBOX", "Message-ID", "123"), \
+            "Kontrollprobe: die Attrappe muss die Teilkette finden wie ein Server"
+        bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+    assert bericht.zuege == () and bericht.nicht_im_eingang == 1
+
+
+def test_eine_kennung_ohne_klammern_findet_ihre_nachricht():
+    _, sitzung = _postfach(eingang=[_eingegangen("<abc@example.org>")],
+                           gesendet=[_antwort("abc@example.org")])
+    with sitzung:
+        bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+    assert [z.betreff for z in bericht.zuege] == ["Angebot S1"]
+    assert bericht.nicht_im_eingang == 0
+
+
 def test_eine_antwort_ohne_nachricht_im_eingang_zaehlt_als_erledigt():
     _, sitzung = _postfach(eingang=[], gesendet=[_antwort()])
     with sitzung:
