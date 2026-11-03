@@ -2613,3 +2613,30 @@ def test_ohne_message_id_im_fetch_trifft_gar_nichts_mehr(monkeypatch):
     assert ohne != _postfach_modul.KOPFZEILEN, "die Sabotage greift nicht"
     monkeypatch.setattr(_postfach_modul, "KOPFZEILEN", ohne)
     assert lauf().zuege == ()
+
+
+def test_ohne_zugzeilen_im_grund_verschweigt_der_text_den_plan(monkeypatch):
+    """#442 (N2): Nachbau des alten `zeilen()` — mit Grund kam nur die eine Zeile.
+
+    Sabotiert wird nur der Zweig mit Grund; der Lauf ohne Grund behält seine
+    UIDs. So ist belegt, dass die Probe am abgebrochenen Zug hängt und nicht
+    an der Ausgabe überhaupt.
+    """
+    from falzmarke import ablage as _ablage, postfach as _postfach_modul
+    from test_ablage import _antwort, _eingegangen, _postfach
+
+    monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE", _postfach_modul.IMAP_KLASSE, raising=False)
+    _postfach(eingang=[_eingegangen()], gesendet=[_antwort()], faehigkeiten=("IMAP4REV1",))
+    bericht = _ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={})
+    (zug,) = bericht.zuege
+    marke = f"UID {zug.uid} "
+
+    def zeigt_uid(b):
+        return any(marke in z for z in _ablage.zeilen(b))
+
+    assert zeigt_uid(bericht), "Kontrollprobe: unsabotiert steht die UID im Text"
+    echte = _ablage._zugzeilen
+    monkeypatch.setattr(_ablage, "_zugzeilen", lambda b: [] if b.grund else echte(b))
+    assert not zeigt_uid(bericht), "die Sabotage greift nicht"
+    assert zeigt_uid(bericht._replace(grund=None)), \
+        "die Sabotage trifft auch den Lauf ohne Grund"

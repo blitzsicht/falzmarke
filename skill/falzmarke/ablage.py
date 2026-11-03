@@ -314,19 +314,35 @@ def raeume_auf(adresse: str, *, wunsch: str | None = None, seit_tagen: int = SEI
 
 # ── Ausgabe: ein Bericht, zwei Darstellungen ────────────────────────────────
 
-def zeilen(bericht: Bericht) -> list[str]:
-    """Der Bericht als Text. `NICHT GEPRÜFT` gehört auf stderr, der Rest nicht."""
-    nachspann = [f"HINWEIS  {h}" for h in bericht.hinweise]
-    if bericht.grund:
-        return [f"NICHT GEPRÜFT  {bericht.adresse}: {bericht.grund}"] + nachspann
-    aus = [f"OK  {bericht.adresse}: {len(bericht.zuege)} von {bericht.antworten} Antworten "
-           f"seit {bericht.seit.strftime('%d.%m.%Y')} haben ihre Nachricht noch im Eingang"
-           + (f" — {bericht.verschoben} nach „{bericht.ziel}“ verschoben"
-              if bericht.verschoben else f" → „{bericht.ziel}“")]
+def _zugzeilen(bericht: Bericht) -> list[str]:
+    aus = []
     for zug in bericht.zuege:
         wann = zug.datum.astimezone().strftime("%d.%m.%Y %H:%M") if zug.datum else "ohne Datum"
         aus.append(f"    UID {zug.uid}  {wann}  „{zug.betreff}“ "
                    f"— beantwortet mit „{zug.antwort_betreff}“")
+    return aus
+
+
+def zeilen(bericht: Bericht) -> list[str]:
+    """Der Bericht als Text. `NICHT GEPRÜFT` gehört auf stderr, der Rest nicht.
+
+    Ein Grund *mit* Zügen entsteht nur, wenn der Lauf nach dem Plan abbricht.
+    Dann kann der Server einen Teil schon bewegt haben, und genau dann braucht
+    der Bediener die UIDs. Bis #442 (N2) standen sie nur im JSON.
+    """
+    nachspann = [f"HINWEIS  {h}" for h in bericht.hinweise]
+    if bericht.grund:
+        aus = [f"NICHT GEPRÜFT  {bericht.adresse}: {bericht.grund}"]
+        if bericht.zuege:
+            aus.append(f"    {len(bericht.zuege)} Nachrichten für „{bericht.ziel}“ gefunden; "
+                       "ob der Server davon schon etwas bewegt hat, ist nicht geprüft")
+            aus += _zugzeilen(bericht)
+        return aus + nachspann
+    aus = [f"OK  {bericht.adresse}: {len(bericht.zuege)} von {bericht.antworten} Antworten "
+           f"seit {bericht.seit.strftime('%d.%m.%Y')} haben ihre Nachricht noch im Eingang"
+           + (f" — {bericht.verschoben} nach „{bericht.ziel}“ verschoben"
+              if bericht.verschoben else f" → „{bericht.ziel}“")]
+    aus += _zugzeilen(bericht)
     if bericht.nicht_im_eingang:
         aus.append(f"    {bericht.nicht_im_eingang} Antworten ohne Nachricht im Eingang "
                    "(längst weggeräumt)")
