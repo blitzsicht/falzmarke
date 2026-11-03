@@ -59,11 +59,16 @@ Lauf der CLI und wird rot, sobald das Bild etwas zeigt, was das Programm nicht m
 
 ```bash
 python3 skill/scripts/bootstrap.py
+python3 -m pip install -e '.[dev]'
 python3 -m pytest -q
 for f in examples/*.md examples/urkunde/*.md; do
   python3 skill/scripts/falzmarke.py render "$f" -o "/tmp/$(basename "$f" .md).pdf"
 done
 ```
+
+`bootstrap.py` installiert nur, was das Werkzeug zur Laufzeit braucht. Das Extra `dev` aus
+`pyproject.toml` bringt die Testwerkzeuge dazu, darunter pytest und jsonschema. Ohne jsonschema
+bricht die Suite schon beim Einsammeln von `tests/test_verzeichnis_metadaten.py` ab.
 
 Alle Tests grün, alle Beispiele ohne `FEHL`-Zeile.
 
