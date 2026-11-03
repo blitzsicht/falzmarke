@@ -166,6 +166,7 @@ class ImapAttrappe:
 
     # ── erlaubte Befehle ──────────────────────────────────────────────────
     def login(self, user, password):
+        self._pruefe(user)
         self.protokoll.append(("LOGIN", user))
         if self.login_fehler:
             raise imaplib.IMAP4.error(self.login_fehler)
