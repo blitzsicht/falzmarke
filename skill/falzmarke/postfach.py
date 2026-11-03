@@ -152,6 +152,11 @@ def _zitiert(name: str) -> str:
     das erst ab Python 3.14 ab; auf 3.12.9 und 3.13.12 gehen zwei Zeilen auf
     die Leitung (gemessen am 29.10.2026 mit abgefangenem `send`, #438), und die
     CI fährt 3.12.
+
+    Gerufen wird es für die frei belegten Argumente von `SELECT`, `UID SEARCH
+    HEADER`, `APPEND` und `UID MOVE`. Nicht hindurch gehen `FETCH` und `LIST`
+    (dort stehen nur UIDs und feste Wörter) und `LOGIN`, das `verbinde` selbst
+    prüft.
     """
     if _STEUERZEICHEN.search(name or ""):
         raise PostfachFehler(
@@ -457,9 +462,19 @@ def verbinde(adresse: str, *, umgebung: Mapping[str, str] | None = None,
 
     Die Frist gilt für die ganze Sitzung: Verbindungsaufbau, Anmeldung und
     jeder Befehl danach ziehen von derselben Zeit ab.
+
+    `LOGIN` läuft nicht durch `_zitiert`: `imaplib` setzt den Anmeldenamen
+    selbst in den Befehl. Die Ablehnung von Umbruch und Nullbyte steht deshalb
+    hier, vor dem Verbindungsaufbau (#442, N4). Die Adresse kommt vom Bediener,
+    nicht aus fremder Post, aber auf 3.12 ginge sie genauso als zweiter Befehl
+    auf die Leitung.
     """
     import os
 
+    if _STEUERZEICHEN.search(adresse or ""):
+        raise PostfachFehler(
+            "die Absenderadresse enthält einen Umbruch oder ein Nullbyte — als Anmeldename "
+            "begänne sie einen zweiten IMAP-Befehl, deshalb wird nicht angemeldet")
     umgebung = os.environ if umgebung is None else umgebung
     host, port = ziel(umgebung)
     wo = f"{host}:{port}"
