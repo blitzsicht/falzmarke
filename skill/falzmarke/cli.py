@@ -1708,6 +1708,7 @@ def _melde_fenster(fenster, ordner: str, betreff: str) -> None:
             print(f"OK  Empfänger im Fenster wie in der Nachricht: An {len(fenster.an)}, "
                   f"Cc {len(fenster.kopie)}, Bcc {len(fenster.blindkopie)}")
         else:
+            sys.stdout.flush()
             print(f"NICHT GEPRÜFT  Empfänger im Fenster: "
                   f"{fenster.lese_grund or 'nicht verglichen'}\n"
                   "         Vor dem Senden An, Cc und Bcc im Fenster mit dem Entwurf "
@@ -1751,18 +1752,25 @@ def _raeume_entwuerfe_mit(adresse: str, *, kein_fenster: bool = False,
     `NICHT GEPRÜFT` gesagt, nicht verschluckt.
 
     `fenster` ist die Öffnung von eben. Ging das Fenster gerade erst auf, ohne
-    dass das Add-on gemeldet hat, es sei fertig geladen, fällt das Aufräumen aus:
-    Es fragt die Brücke nach den offenen Fenstern, und genau dieser Befehl an
-    ein noch ladendes Fenster leerte dessen An, Cc und Bcc (#464, Add-on bis
-    0.3.7). Ein Fenster, das schon offen stand, ist längst geladen.
+    dass das Add-on gemeldet hat, es sei fertig geladen, oder ist ungewiss, ob
+    eines aufging, fällt das Aufräumen aus: Es fragt die Brücke nach den offenen
+    Fenstern, und genau dieser Befehl an ein noch ladendes Fenster leerte dessen
+    An, Cc und Bcc (#464, Add-on bis 0.3.7). `fenster_ohne_entwurf` hieß dort ein
+    Fenster, dessen Entwurf in 20 Sekunden nicht geladen war. Ein Fenster, das
+    schon offen stand, ist längst geladen.
     """
     aus = (os.environ.get("FALZMARKE_AUFRAEUMEN") or "").strip().lower() == "nie"
     if not adresse or kein_fenster or aus:
         return
-    if fenster is not None and fenster.zustand == "geoeffnet" and not fenster.gelesen:
-        print(f"NICHT GEPRÜFT  Entwürfe von {adresse} nicht aufgeräumt: Das Fenster ging eben "
-              f"erst auf, und ob es fertig\n         geladen ist, sagt das Add-on nicht "
-              f"({fenster.lese_grund}). Später von Hand:\n"
+    if (fenster is not None and not fenster.gelesen
+            and fenster.zustand in ("geoeffnet", "ungewiss")):
+        if fenster.zustand == "geoeffnet":
+            warum = (f"Das Fenster ging eben erst auf, und ob es fertig\n         geladen ist, "
+                     f"sagt das Add-on nicht ({fenster.lese_grund}).")
+        else:
+            warum = (f"Ob eben ein Fenster aufging und fertig geladen ist,\n         ist "
+                     f"ungewiss ({fenster.grund}).")
+        print(f"NICHT GEPRÜFT  Entwürfe von {adresse} nicht aufgeräumt: {warum} Später von Hand:\n"
               f"         falzmarke aufraeumen --entwuerfe --absender {adresse} --machen",
               file=sys.stderr)
         return

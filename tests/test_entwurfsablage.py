@@ -1081,18 +1081,25 @@ def test_die_automatik_ist_abschaltbar(monkeypatch):
     assert gerufen == []
 
 
-def test_ein_eben_geoeffnetes_fenster_ohne_lesung_haelt_die_automatik_zurueck(monkeypatch,
+@pytest.mark.parametrize(("fenster", "grund"), [
+    (bruecke.Oeffnung("geoeffnet", lese_grund="zu alt"), "(zu alt)"),
+    (bruecke.Oeffnung("ungewiss", grund="kein Fenster in 20 Sekunden"),
+     "ungewiss (kein Fenster in 20 Sekunden)"),
+], ids=["geoeffnet", "ungewiss"])
+def test_ein_eben_geoeffnetes_fenster_ohne_lesung_haelt_die_automatik_zurueck(fenster, grund,
+                                                                                monkeypatch,
                                                                                 capsys):
     """#464: Der Befehl `fenster` an ein noch ladendes Fenster leerte dessen An, Cc
     und Bcc (Add-on bis 0.3.7). Sagt das Add-on nicht, dass das Fenster fertig
-    geladen ist, fragt niemand — und der Weg von Hand steht da."""
+    geladen ist, fragt niemand — und der Weg von Hand steht da. Dasselbe gilt,
+    wenn ungewiss ist, ob ein Fenster aufging: `fenster_ohne_entwurf` hieß mit
+    0.3.7 ein Fenster, dessen Entwurf in 20 Sekunden nicht geladen war."""
     monkeypatch.delenv("FALZMARKE_AUFRAEUMEN", raising=False)
     gerufen = _mitschrift(monkeypatch)
-    falzmarke._raeume_entwuerfe_mit(VON, fenster=bruecke.Oeffnung("geoeffnet",
-                                                                  lese_grund="zu alt"))
+    falzmarke._raeume_entwuerfe_mit(VON, fenster=fenster)
     assert gerufen == []
     aus = capsys.readouterr().err
-    assert "nicht aufgeräumt" in aus and "(zu alt)" in aus
+    assert "nicht aufgeräumt" in aus and grund in aus
     assert f"falzmarke aufraeumen --entwuerfe --absender {VON} --machen" in aus
 
 

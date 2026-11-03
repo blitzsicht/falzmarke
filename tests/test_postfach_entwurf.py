@@ -482,12 +482,16 @@ def test_befehl_sagt_wenn_das_add_on_die_empfaenger_nicht_meldet(befehl, monkeyp
 
 @pytest.mark.parametrize(("oeffnung", "fragt"), [
     ({"ok": True, "zustand": "geoeffnet", "betreff": BETREFF}, False),
+    ({"ok": True, "zustand": "fenster_ohne_entwurf"}, False),
+    ({"ok": True, "zustand": "ungewiss"}, False),
     (_offen_mit(), True),
-], ids=["vor_0.3.8", "gelesen"])
+], ids=["vor_0.3.8", "fenster_ohne_entwurf", "ungewiss", "gelesen"])
 def test_das_aufraeumen_fragt_das_fenster_erst_nach_der_lesung(befehl, monkeypatch, capsys,
                                                                 oeffnung, fragt):
     """Der Befehl `fenster` an ein noch ladendes Fenster war die Ursache (#464):
-    Sagt das Add-on nicht, dass es fertig geladen hat, bleibt er aus."""
+    Sagt das Add-on nicht, dass es fertig geladen hat, bleibt er aus. Auch ein
+    ungewisses Fenster kann eben noch laden: `fenster_ohne_entwurf` war mit 0.3.7
+    eines, dessen Entwurf in 20 Sekunden nicht kam."""
     _server(monkeypatch)
     monkeypatch.delenv("FALZMARKE_AUFRAEUMEN", raising=False)
     tb_bruecke = _bruecke(monkeypatch, _antworten(oeffnung))

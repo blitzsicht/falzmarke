@@ -94,8 +94,9 @@ Seit 0.3.8 liest das Add-on nur an einem Fenster mit `gLoadingComplete === true`
 dann Absender und Empfänger des Fensters mit; dasselbe schreibt `geoeffnet` ins Tagebuch.
 falzmarke vergleicht sie mit An, Cc, Bcc der Nachricht (`oeffnen.empfaenger_pruefen`) und meldet
 `EMPFÄNGER PRÜFEN` statt `OK`, wenn sie abweichen; mit einem älteren Add-on steht
-`NICHT GEPRÜFT  Empfänger im Fenster`, und das Mitaufräumen lässt das eben geöffnete Fenster in
-Ruhe, statt es anzufragen.
+`NICHT GEPRÜFT  Empfänger im Fenster`, und das Mitaufräumen fragt nicht nach offenen Fenstern,
+solange das eben geöffnete nicht als geladen gemeldet ist oder ungewiss bleibt, ob eines aufging
+(mit 0.3.7 hieß `fenster_ohne_entwurf` ein Fenster, dessen Entwurf in 20 Sekunden nicht kam).
 
 Gemessen am 03.11.2026 mit 0.3.8, zwölf Öffnungen von Testentwürfen (fünf mit Mitaufräumen, fünf
 ohne, zwei im Prozess mit parallel pollendem `fenster`): alle zwölf Fenster mit An und Bcc der
