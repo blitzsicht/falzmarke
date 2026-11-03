@@ -2,6 +2,19 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.11.2 — 03.11.2026
+
+### Behoben
+
+- **`email --oeffnen` prüft, ob das Fenster die Empfänger des Entwurfs zeigt.** Ein Verfassen-Fenster ging ohne An, Cc und Bcc auf, und der Befehl meldete `OK`. Die Ursache saß im Add-on: Der Befehl `fenster`, den das Mitaufräumen (ADR 0062) unmittelbar nach dem Öffnen schickt, rief `GetComposeDetails()` an einem noch ladenden Fenster, und dieser Aufruf überträgt die noch leeren Adresszeilen in die Felder, aus denen sich das Fenster gleich darauf füllt. Entwurfsbrücke 0.3.8 liest erst, wenn das Fenster fertig geladen ist, und meldet beim Öffnen Absender, An, Cc und Bcc des Fensters; falzmarke vergleicht sie mit dem Entwurf und schreibt `OK  Empfänger im Fenster wie in der Nachricht: …`, bei Abweichung `EMPFÄNGER PRÜFEN …` statt der grünen Zeile (`entwurf-oeffnen` endet dann mit Exit 3). Mit einem älteren Add-on steht `NICHT GEPRÜFT  Empfänger im Fenster` da, und das Mitaufräumen fragt nicht nach offenen Fenstern, solange das eben geöffnete nicht als geladen gemeldet ist oder ungewiss bleibt, ob eines aufging. Der Tagebucheintrag `geoeffnet` trägt die Adressen (#464).
+
+- **Eine nackte Adresse im Mailtext ist im HTML-Teil wieder anklickbar.** Aus `https://…` und `http://…` wird beim Lesen ein Link wie bei einem Markdown-Link mit Linktext: im HTML ein `<a href>`, im Textteil die Adresse in spitzen Klammern. Satzzeichen am Ende bleiben draußen, eine schließende Klammer nur, wenn die Adresse keine öffnende trägt. Nicht verlinkt werden `www.` ohne Schema, Adressen in Code und Adressen, die schon Linktext sind; im Brief bleibt die Adresse Text. Die Warnungen zu `http://` und Kurz-URLs gelten auch für die nackte Adresse, und `___` in einer Adresse wird kein Ausfüllfeld mehr und bricht eine Mail mit `dialekt: 1.2` nicht mehr ab (#424).
+
+- **`aufraeumen` sagt nach einem Abbruch, ob überhaupt etwas bewegt sein kann.** Bisher hieß es bei jedem Abbruch, es sei nicht geprüft, ob der Server schon etwas bewegt habe, auch wenn `UID MOVE` nie hinausging, etwa weil der Server kein MOVE kennt. Jetzt steht dort „nichts bewegt“, und nur ein Abbruch im Zug selbst lässt es offen. Im JSON zeigt das das neue Feld `zug_gesendet`. Der ganze Bericht eines abgebrochenen Laufs geht auf stderr, nicht mehr nur seine erste Zeile, und aus „1 Nachrichten“ wird „1 Nachricht“.
+- **Der Anmeldename geht zitiert an den IMAP-Proxy.** `imaplib` zitiert nur das Kennwort. Ein Leerzeichen im Namen oder ein `{5}` am Ende wurde als weiteres Argument oder als Literal gelesen. `emailproxy` nimmt die Anführungszeichen wieder ab. Lehnt `imaplib` ein Argument mit `ValueError` ab, wie Python 3.14 bei Steuerzeichen, gibt es jetzt einen Grund statt eines Tracebacks, und die Sitzung wird abgemeldet.
+- **Eine Message-ID mit einzelner oder doppelter spitzer Klammer gilt nicht mehr als Treffer.** Der Vergleich nimmt genau ein vollständiges Paar `<…>` ab. Bisher galten `abc@x>` und `<<abc@x>>` als `<abc@x>`, und die Mail wäre mit `--machen` verschoben worden.
+- **`fenster_nur_uid` heißt seit 0.11.1 auch: Das Fenster meldet einen anderen Absender.** Das betrifft etwa eine Alias-Identität desselben Kontos. Die Beschreibung bei 0.11.0 nennt nur den Fall ohne Absender.
+
 ## v0.11.1 — 03.11.2026
 
 ### Neu
