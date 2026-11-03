@@ -186,7 +186,7 @@ def test_gegenprobe_ohne_den_satz_in_pruefe_wird_die_meldung_rot(tmp_path, monke
 
     monkeypatch.setattr(changelog_pflicht, "pruefe", _zeile_ersetzt(
         changelog_pflicht, "pruefe", '"\\n" + NEUSTART', '""'))
-    with pytest.raises(AssertionError, match="NEUSTART"):
+    with pytest.raises(AssertionError, match="NEUSTART fehlt in der Meldung"):
         test_die_meldung_sagt_wie_der_check_nach_dem_label_neu_laeuft(tmp_path)
 
 

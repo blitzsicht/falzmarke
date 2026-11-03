@@ -161,7 +161,7 @@ def test_gegenprobe_ohne_den_satz_in_pruefe_wird_die_meldung_rot(monkeypatch):
 
     monkeypatch.setattr(closing_keyword, "pruefe", _zeile_ersetzt(
         closing_keyword, "pruefe", '"\\n" + NEUSTART', '""'))
-    with pytest.raises(AssertionError, match="NEUSTART"):
+    with pytest.raises(AssertionError, match="NEUSTART fehlt in der Meldung"):
         test_die_meldung_sagt_wie_der_check_neu_laeuft()
 
 
@@ -171,6 +171,10 @@ def test_der_hinweis_stimmt_solange_edited_und_labeled_nicht_ausloesen():
     Kommt `edited` oder `labeled` dazu (#437, Weg 1), startet der Check von
     selbst neu, und der Hinweis schickt jeden zu einem Neustart, den es nicht
     mehr braucht. Dann gehört er aus beiden Skripten heraus.
+
+    Reichweite: nur `on.pull_request.types` in ci.yml. Ein eigener Workflow für
+    die beiden Checks (#437, Weg 2) oder `pull_request_target` bleiben hier
+    unsichtbar. Wer so einen baut, nimmt den Satz in demselben Vorgang heraus.
     """
     typen = pull_request_typen(CI.read_text(encoding="utf-8"))
     for typ in ("edited", "labeled"):

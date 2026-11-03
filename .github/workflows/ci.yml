@@ -650,9 +650,10 @@ jobs:
     # NUR_MAIN_MARKER — der Job zaehlt als Pflicht-Check und erscheint dort
     # unter seinem `name:`.
     #
-    # Wirksam wird er erst, wenn ein Maintainer einmal
-    # `bash scripts/repo-einstellungen.sh` faehrt. Bis dahin laeuft er und ist
-    # sichtbar, blockiert aber nicht.
+    # Pflicht-Check im Ruleset `main`, wie „Changelog-Eintrag" (gemessen am
+    # 03.11.2026: `gh api repos/blitzsicht/falzmarke/rules/branches/main`).
+    # Ein roter Lauf sperrt den Merge also, bis er neu laeuft — und eine
+    # korrigierte Beschreibung startet ihn nicht neu (#437).
     name: Closing-Keyword
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest

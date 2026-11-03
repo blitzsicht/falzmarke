@@ -59,8 +59,8 @@ AUSNAHME_LABEL = "ohne-changelog"
 NEUSTART = (
     "Wird stattdessen das Label gesetzt, läuft dieser Check nicht von selbst neu:\n"
     "`labeled` startet ci.yml nicht (#437). Ein Push mit dem Fragment dagegen schon.\n"
-    "Neu starten: „Re-run failed jobs“ im Lauf, oder `gh run rerun --job <id>`\n"
-    "(die Zahl hinter /job/ in der Adresse dieses Laufs)."
+    "Neu starten, sobald der ganze Lauf fertig ist: „Re-run failed jobs“, oder\n"
+    "`gh run rerun --job <id>` (die Zahl hinter /job/ in der Adresse dieser Seite)."
 )
 
 
