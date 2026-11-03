@@ -562,6 +562,22 @@ Maße gemessen wurden, steht in [`docs/normmasse.md`](https://github.com/blitzsi
 
 Die letzten zwei Versionen im Wortlaut. **Erzeugt aus [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md) — dort ändern, dann `python3 scripts/changelog.py`.**
 
+### v0.11.1 — 03.11.2026
+
+#### Neu
+
+- **Plugin-Bündel für das Anthropic-Verzeichnis.** `skill/` trägt jetzt ein Manifest, ein README und ein Icon. Das `.skill`-Paket bleibt, wie es war.
+
+#### Behoben
+
+- **Ein Entwurf in einem Fenster mit Alias-Absender gilt wieder als offen.** Thunderbird meldet als Identität das `From` des Fensters, nicht das Konto. Ein Alias desselben Kontos fiel deshalb aus der Zuordnung, und `aufraeumen --entwuerfe` konnte den Entwurf aus dem offenen Fenster in den Papierkorb ziehen. Jetzt hält das Fenster den Entwurf; `status` sagt dazu, dass die Zuordnung nur an der UID hängt, und nennt den gemeldeten Absender.
+
+- **Eine Absenderadresse mit Umbruch oder Nullbyte meldet sich nicht mehr an.** `LOGIN` lief als einziger Befehl mit frei belegtem Argument an der Prüfung vorbei; auf Python 3.12 wäre der Rest der Adresse als zweiter IMAP-Befehl auf die Leitung gegangen.
+
+- **`aufraeumen` nennt die gefundenen Mails auch dann, wenn der Zug abbricht.** Bisher stand im Text nur `NICHT GEPRÜFT …`, die UIDs standen nur in `--json`, obwohl der Server einen Teil schon bewegt haben kann.
+
+- **`aufraeumen` verschiebt nur noch den exakten Treffer.** Eine Kennung ohne spitze Klammern fand per Teilkette auch fremde Mails, und `--machen` hätte sie verschoben.
+
 ### v0.11.0 — 02.11.2026
 
 #### Neu
@@ -681,55 +697,7 @@ Die letzten zwei Versionen im Wortlaut. **Erzeugt aus [`CHANGELOG.md`](https://g
   SDK im Eintrag. Das Skill-Manifest trägt Lizenz, Version und englische Auslöser, und alle drei
   Manifeste werden gegen ihr Schema geprüft.
 
-### v0.10.0 — 25.10.2026
-
-#### Neu
-
-- **Der Schreibstil des Absenders steht im Profil.** Der neue Abschnitt `email.stil:` nimmt
-  `person:` (`ich` oder `wir`), eigene `floskeln:` und freie `hinweise:` auf. `lint` warnt, wenn
-  der Text die andere Person benutzt oder eine Wendung aus der eigenen Liste enthält — außerhalb
-  wortgetreuer Auszüge. `hinweise:` prüft es nur auf Form: Den Inhalt liest das Modell, das
-  formuliert (`SKILL.md` Schritt 4). falzmarke überträgt die Vorgabe, es erzwingt sie nicht
-  (ADR 0053).
-
-- **Der Entwurf entsteht in Thunderbird.** `falzmarke email … --oeffnen` legt den Entwurf jetzt in Thunderbird an, wenn es installiert ist — über dessen Befehlszeile, mit dem Absender aus dem Profil, Empfängern, Kopie, Blindkopie, Betreff, HTML-Rumpf und allen Anhängen. Outlook kommt nur noch auf Wahl (`--programm outlook`): Es ist oft installiert, aber ohne Lizenz, und das neue Outlook zeigt der Programmsteuerung kein Konto. Thunderbird meldet nichts zurück — Exit 0 heißt „angenommen“, und der Befehl sagt dazu, dass nichts nachgezählt ist. Ein einfaches Anführungszeichen in Betreff, Rumpf oder Dateinamen wird zum Apostroph ’; ein Komma im Dateinamen eines Anhangs ist ein Fehler mit Rückfall auf die Datei. Das Logo der Signatur fährt als Data-URI im Rumpf mit, und ein Befehl über 900 000 Byte wird nicht abgesetzt, sondern mit seiner Länge gemeldet (ADR 0049).
-
-- **`--oeffnen` sieht vorher im Gesendet-Ordner nach, und der Entwurf liegt im Postfach.** Ging in den letzten 24 Stunden eine Mail an denselben Empfänger mit demselben Text, derselben Fassung oder demselben Betreff hinaus, legt `falzmarke email … --oeffnen` keinen Entwurf an. Es meldet `SCHON GESENDET` oder `GEÄNDERTE FASSUNG` und endet mit Exit 4; `--trotz-gesendet` übergeht das. Ist der lokale IMAP-Proxy erreichbar, liegt der Thunderbird-Entwurf jetzt als fertige Nachricht im Ordner „Entwürfe“ des Absenders, mit allen Kopfzeilen und damit auch mit `In-Reply-To`. Ein Fenster geht dann nicht auf. Liegt dort schon ein Entwurf mit demselben Empfänger und Betreff, kommt kein zweiter dazu (`--noch-ein-entwurf`). Im Postfach wird nur dieser eine Entwurf abgelegt, nie etwas gesendet, gelöscht oder verschoben. Jede `.eml` trägt außerdem `X-Falzmarke-Fassung`, eine Prüfsumme der Quelle ohne Pfad oder Dateinamen. Thunderbird verwirft diese Zeile beim Senden, im Gesendet-Ordner zählen deshalb Betreff und Text. Exit 4 stand bisher für „Fehler im Renderer“, wurde aber nie zurückgegeben (ADR 0051).
-
-- **Fünf Nachrichtenlagen und eine Liste, was gestrichen wird.** Die Stilreferenz deckte bisher Brieftypen ab — Angebot, Mahnung, Kündigung, Widerspruch und drei weitere. Jetzt stehen daneben die Lagen, in denen die meisten Mails entstehen: ein Angebot nachfassen, eine Reklamation beantworten, Preis und Nachlass, Lieferant, intern. Dazu ein Abschnitt „Was gestrichen wird" mit neun Mustern, die nach Maschine klingen, und neben jedem der Fall, der ihm ähnlich sieht und bleibt — dieselbe Grenze wie bei den Floskeln: Trägt der Satz etwas oder nicht. Ausdrücklich nicht übernommen sind drei Regeln englischer Humanizer-Anleitungen, die für deutsche Geschäftspost falsch sind (keine Gedankenstriche, gerade Anführungszeichen, keine Dreierfiguren): Den Halbgeviertstrich und die Anführungszeichen „…" setzt der Typografie-Pass absichtlich, und ein Test hält die Begründung gegen ihn.
-
-- **Unsichtbare Zeichen im Entwurf werden gemeldet.** Zero-Width-Marken, weiche Trennstriche,
-  Bidi-Steuerzeichen und Variantenselektoren aus einer Zwischenablage standen bisher ungeprüft in
-  der fertigen `.eml` und im PDF. `lint` nennt jetzt Zeile und Stelle; geändert wird nichts.
-  Geschützte Leerzeichen an den Stellen, an denen falzmarke selbst eines setzt — `z. B.`, `§ 7`,
-  `12 kg` —, bleiben stumm (ADR 0052).
-
-  **Achtung beim Update: `lint` kann jetzt rot werden, wo es vorher grün war.** Ein Zeichen ohne
-  Zweck ist ein Fehler, nicht eine Warnung, und `lint` endet dann mit Exit 1. Gemessen an
-  derselben Datei mit einem U+200B in einer Rechnungsnummer: unter v0.9.15 `0 Fehler`, Exit 0 —
-  jetzt `1 Fehler`, Exit 1. Die Datei war vorher schon defekt; das Zeichen stand unsichtbar in
-  der `.eml` und im PDF. Wer `lint` in einem Skript oder einer CI fährt, sieht das aber erst,
-  nachdem der Lauf steht. Deshalb hebt diese Fassung die zweite Stelle der Versionsnummer an.
-
-#### Geändert
-
-- **Acht Wendungen mehr, die nichts sagen.** `email.floskel` kannte sieben Muster, jetzt sind es fünfzehn: „es ist wichtig zu beachten", „zusammenfassend lässt sich sagen", „in der heutigen schnelllebigen Zeit", „jederzeit gerne zur Verfügung", „an dieser Stelle möchte ich", „wie Sie sicher wissen", „im Voraus vielen Dank" und „wir würden uns freuen". Die Aufnahmebedingung ist unverändert eng: Die Zeile muss sich streichen lassen, ohne dass die Nachricht etwas verliert. Deshalb bleibt „bei Rückfragen stehe ich zur Verfügung" draußen und nur die Fassung mit „jederzeit" drin — der Verstärker ist das Leere, nicht die Erreichbarkeit. Zwei Kandidaten sind ausdrücklich abgelehnt und im Quelltext begründet: „im Rahmen von" und „nicht nur …, sondern auch" tragen manchmal Inhalt, und ein Muster, das das nicht unterscheiden kann, kostet Vertrauen in alle anderen. Es bleibt eine Warnung auf der Ebene Praxis, und geändert wird nichts.
-
-#### Behoben
-
-- **Die Mail erbt ihre Farben vom Mailprogramm.** Im Thunderbird-Entwurf bei dunklem Thema stand der ganze Rumpf fast schwarz auf Dunkelgrau: Jeder Block trug `#1a1a1a`, und der `<style>`-Block, der im dunklen Schema umschaltet, kommt dort nicht an. Jetzt setzt der Rumpf weder Schriftfarbe noch Grund und erscheint in den Farben des Programms, hell auf dunkel oder dunkel auf hell. Nebentext ist nur noch kleiner, nicht grauer. Linien sind ein mittleres Grau, das auf Weiß und auf Dunkel trägt. Eine mitgebrachte Signatur bleibt unverändert. Der Textteil bleibt unverändert.
-
-- **Mail-Adressen, Domains und URLs werden im Brief nicht mehr getrennt.** In versendeten Briefen stand „ser-“ am Zeilenende und „vus@blitzsicht.com“ darunter, ebenso „blitzsicht.com/da-“ und „tenschutz“; wer das abtippt, schreibt ins Leere. Ein Wort mit Adresse wird jetzt als Ganzes in die nächste Zeile gesetzt, samt anhängendem Komma oder Punkt. Der übrige Text wird weiter getrennt. Das gilt bis 60 Zeichen, im Blocksatz einer Urkunde bis 40; in einer Tabellenzelle bekommt die Adresse nur keinen Trennstrich, weil ein unteilbares Wort dort den Text dahinter verschob. `verify` meldet zusätzlich jede Adresse, die im fertigen PDF trotzdem über das Zeilenende läuft, etwa im Betreff, in einer Zelle oder als URL über der Grenze, und paart dabei nur Zeilen derselben Spalte.
-
-- **`falzmarke serie` liest Semikolon-CSV.** Die Excel-Datei mit `;` als Trenner endete mit einem `TypeError`, weil die ganze Kopfzeile eine einzige Spalte war. Der Trenner `,` oder `;` wird jetzt an der Kopfzeile erkannt. Hat eine Datenzeile trotzdem mehr Felder als die Kopfzeile, meldet `serie` das mit dem gelesenen Trennzeichen, statt abzustürzen.
-
-- **Thunderbird fragt nicht mehr wegen der Signatur nach einem vergessenen Anhang.** Beim Senden eines falzmarke-Entwurfs kam jedes Mal „Haben Sie vergessen, einen Anhang anzufügen?“. Grund war das Wort „Anhänge“ im Hinweis der Signatur. Die HTML-Signatur steht jetzt in einem Element mit der Klasse `moz-signature`, und diesen Teil lässt Thunderbirds Anhang-Erinnerung aus. Steht „anbei“ oder „Anhang“ im Text der Nachricht selbst, fragt Thunderbird weiter, und das ist gewollt. Der Textteil trug den Signaturtrenner `-- ` schon (ADR 0051).
-
-- **Die mitgebrachte Signatur erbt ihre Farben wie der Rumpf.** Mit `email.signatur_html` standen Name, E-Mail-Link, Firma und Labels im dunklen Thunderbird-Entwurf dunkel auf dunkel, denn die Dunkelregeln der Signatur stecken in ihrem eigenen `<style>`, und das bekommt der Entwurf nicht. Beim Einsetzen fallen jetzt Schriftfarben und Flächen weg, Linien, die auf hellem oder dunklem Grund nicht tragen, werden mittelgrau. Ein Knopf mit eigener Fläche wird zum Link. Aufbau, Text, Links und Logo bleiben, und die Datei im Profilordner wird nicht verändert.
-
-- **Die Signatur steht im Thunderbird-Entwurf nur noch einmal.** Trägt die Identität mit der Absenderadresse in Thunderbird selbst eine Signatur (angehängte Datei oder Signaturtext), lässt `falzmarke email … --oeffnen` die aus dem Profil im Entwurf weg und nennt in einer Zeile Identität und Datei. Nachgesehen wird in `prefs.js` und `user.js` des Standardprofils, nur lesend; `user.js` gewinnt. Lässt sich die Identität nicht bestimmen, bleibt alles wie bisher, mit Hinweis und Grund. `.eml` und `.html` tragen die Signatur weiter (ADR 0050).
-
-Davor liegen 35 weitere Versionen — der vollständige Verlauf steht in [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md).
+Davor liegen 36 weitere Versionen — der vollständige Verlauf steht in [`CHANGELOG.md`](https://github.com/blitzsicht/falzmarke/blob/main/CHANGELOG.md).
 
 <!-- changelog:ende -->
 

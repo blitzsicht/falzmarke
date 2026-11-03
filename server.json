@@ -3,7 +3,7 @@
   "name": "io.github.blitzsicht/falzmarke",
   "title": "falzmarke",
   "description": "Am fertigen PDF nachgemessen: DIN-5008-Briefe aus Markdown. Sollwerte aus Sekundärquellen.",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "repository": {
     "url": "https://github.com/blitzsicht/falzmarke",
     "source": "github"
@@ -14,7 +14,7 @@
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
       "identifier": "falzmarke",
-      "version": "0.11.0",
+      "version": "0.11.1",
       "runtimeHint": "uvx",
       "runtimeArguments": [
         {

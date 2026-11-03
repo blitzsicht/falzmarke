@@ -2,6 +2,22 @@
 
 Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## v0.11.1 — 03.11.2026
+
+### Neu
+
+- **Plugin-Bündel für das Anthropic-Verzeichnis.** `skill/` trägt jetzt ein Manifest, ein README und ein Icon. Das `.skill`-Paket bleibt, wie es war.
+
+### Behoben
+
+- **Ein Entwurf in einem Fenster mit Alias-Absender gilt wieder als offen.** Thunderbird meldet als Identität das `From` des Fensters, nicht das Konto. Ein Alias desselben Kontos fiel deshalb aus der Zuordnung, und `aufraeumen --entwuerfe` konnte den Entwurf aus dem offenen Fenster in den Papierkorb ziehen. Jetzt hält das Fenster den Entwurf; `status` sagt dazu, dass die Zuordnung nur an der UID hängt, und nennt den gemeldeten Absender.
+
+- **Eine Absenderadresse mit Umbruch oder Nullbyte meldet sich nicht mehr an.** `LOGIN` lief als einziger Befehl mit frei belegtem Argument an der Prüfung vorbei; auf Python 3.12 wäre der Rest der Adresse als zweiter IMAP-Befehl auf die Leitung gegangen.
+
+- **`aufraeumen` nennt die gefundenen Mails auch dann, wenn der Zug abbricht.** Bisher stand im Text nur `NICHT GEPRÜFT …`, die UIDs standen nur in `--json`, obwohl der Server einen Teil schon bewegt haben kann.
+
+- **`aufraeumen` verschiebt nur noch den exakten Treffer.** Eine Kennung ohne spitze Klammern fand per Teilkette auch fremde Mails, und `--machen` hätte sie verschoben.
+
 ## v0.11.0 — 02.11.2026
 
 ### Neu

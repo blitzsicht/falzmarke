@@ -1,1 +1,0 @@
-- **`aufraeumen` verschiebt nur noch den exakten Treffer.** Eine Kennung ohne spitze Klammern fand per Teilkette auch fremde Mails, und `--machen` hätte sie verschoben.
