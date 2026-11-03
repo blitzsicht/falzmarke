@@ -2642,3 +2642,27 @@ def test_ohne_message_id_im_fetch_trifft_gar_nichts_mehr(monkeypatch):
     assert ohne != _postfach_modul.KOPFZEILEN, "die Sabotage greift nicht"
     monkeypatch.setattr(_postfach_modul, "KOPFZEILEN", ohne)
     assert lauf().zuege == ()
+
+
+def test_ohne_pruefung_vor_login_geht_der_umbruch_an_imaplib(monkeypatch):
+    """#442 (N4): Ohne die Prüfung in `verbinde` erreicht der Umbruch `LOGIN`.
+
+    Dort fängt ihn nur die Attrappe ab, so wie `imaplib` ab 3.14 — mit
+    `ValueError`, also als Traceback. Auf 3.12 fängt ihn niemand.
+    """
+    import re
+
+    from falzmarke import postfach as _postfach_modul
+    from imap_attrappe import ImapAttrappe
+
+    adresse = "joe@example.org\r\nA1 DELETE INBOX"
+    attrappe = ImapAttrappe()
+    monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE", attrappe)
+    with pytest.raises(_postfach_modul.PostfachFehler):
+        _postfach_modul.verbinde(adresse, umgebung={})
+    assert attrappe.verbindungen == [], "Kontrollprobe: unsabotiert keine Verbindung"
+
+    monkeypatch.setattr(_postfach_modul, "_STEUERZEICHEN", re.compile(r"(?!)"))
+    with pytest.raises(ValueError, match="NUL, CR and LF"):
+        _postfach_modul.verbinde(adresse, umgebung={})
+    assert len(attrappe.verbindungen) == 1, "die Sabotage greift nicht"

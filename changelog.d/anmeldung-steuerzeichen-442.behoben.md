@@ -1,0 +1,1 @@
+- **Eine Absenderadresse mit Umbruch oder Nullbyte meldet sich nicht mehr an.** `LOGIN` lief als einziger Befehl mit frei belegtem Argument an der Prüfung vorbei; auf Python 3.12 wäre der Rest der Adresse als zweiter IMAP-Befehl auf die Leitung gegangen.

@@ -119,7 +119,11 @@ Kennung. Eine Antwort gilt erst als erledigt, wenn **keine** ihrer Kennungen im 
 zwei Befehle. Der rohe Feldwert einer fremden Nachricht erreichte die Befehlszeile, und `imaplib`
 fängt das erst ab Python 3.14 ab: Auf 3.12.9 und 3.13.12 gingen zwei Zeilen auf die Leitung
 (gemessen mit abgefangenem `send`), und die CI fährt 3.12. `postfach._zitiert` lehnt jetzt selbst
-ab — die engste Stelle, sie liegt vor jedem `SEARCH`, `SELECT` und `FETCH`. Für die Proben folgt
+ab — die engste Stelle, sie liegt vor jedem frei belegten Argument von `SELECT`, `UID SEARCH
+HEADER`, `APPEND` und `UID MOVE`. `FETCH` und `LIST` tragen nur UIDs und feste Wörter. `LOGIN`
+geht nicht durch `_zitiert`; dort prüft `verbinde` selbst, vor dem Verbindungsaufbau. Bis #442
+(N4) stand hier „vor jedem `SEARCH`, `SELECT` und `FETCH`", und die Anmeldung war gar nicht
+geprüft. Für die Proben folgt
 daraus, dass die Attrappe die Ablehnung ebenfalls selbst mitbringen muss; eine Probe, die sich
 auf `imaplib` stützt, wäre lokal rot und auf der CI stumm.
 
