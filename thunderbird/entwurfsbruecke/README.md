@@ -44,7 +44,7 @@ falzmarke entwurf-oeffnen --absender ich@example.de      # braucht den IMAP-Prox
 OK  2 Entwürfe in „Entwürfe“ von ich@example.de
     UID 4711  25.10.2026 12:20  Nachtrag  → du@example.org
     …
-OK  Entwurfsbrücke 0.3.7 in Thunderbird 158.0.1
+OK  Entwurfsbrücke 0.3.8 in Thunderbird 158.0.1
 ```
 
 ## Das Tagebuch
@@ -57,8 +57,12 @@ OK  Entwurfsbrücke 0.3.7 in Thunderbird 158.0.1
  "fassung": "…", "fassung_quelle": "kopf"}, "identitaet": "ich@example.de",
  "an": ["paula@example.org"], "kopie": [], "blindkopie": ["archiv@example.de"],
  "anhaenge": ["Lageplan.pdf"], "modus": "sendNow", "message_id": "…", "zeit": "…",
- "version": "0.3.7"}
+ "version": "0.3.8"}
 ```
+
+Die Zeile `geoeffnet` trägt seit 0.3.8 dieselben vier Felder: `identitaet`, `an`, `kopie`,
+`blindkopie` — wohin das Fenster beim Öffnen schicken würde, gelesen, nachdem es fertig geladen
+war. So steht im Tagebuch, wenn ein Fenster ohne Empfänger aufging (#464).
 
 Ab 0.3.0 stehen bei `gesendet` Absender, Empfänger samt Bcc und die Namen der Anhänge. Das
 Tagebuch enthält damit Adressen; es liegt nur lokal im Profil. Über `message_id` und
@@ -97,7 +101,7 @@ greift das Add-on nicht ein (ADR 0054, ADR 0056).
 
 | `art` | heißt |
 |---|---|
-| `geoeffnet` | ein Verfassen-Fenster ging auf |
+| `geoeffnet` | ein Verfassen-Fenster ging auf; ab 0.3.8 mit Absender, An, Cc, Bcc des Fensters |
 | `gespeichert` | als Entwurf gespeichert, mit der neuen UID |
 | `gesendet` / `senden_fehlgeschlagen` | Thunderbird hat gesendet / es scheiterte |
 | `geschlossen` | ohne Senden zu |
@@ -156,8 +160,8 @@ Eine Zeile JSON an den Socket `bruecke.sock` im Profilordner, eine zurück:
 | Befehl | Antwort |
 |---|---|
 | `ping` | Name, Fassung, Thunderbird-Version |
-| `entwurf_oeffnen` | `geoeffnet`, `schon_offen`, `ungewiss`, `fenster_ohne_entwurf` oder ein Fehler |
-| `fenster` | die offenen Verfassen-Fenster mit Betreff und Entwurf; ab 0.3.0 auch Absender, An, Cc, Bcc, Anhänge, Text (bis 20.000 Zeichen) |
+| `entwurf_oeffnen` | `geoeffnet`, `schon_offen`, `ungewiss`, `fenster_ohne_entwurf` oder ein Fehler; ab 0.3.8 bei `geoeffnet` und `schon_offen` dazu `live` und `identitaet`, `an`, `kopie`, `blindkopie` des Fensters, gelesen erst nach dem Laden (bis 5 s) |
+| `fenster` | die offenen Verfassen-Fenster mit Betreff und Entwurf; ab 0.3.0 auch Absender, An, Cc, Bcc, Anhänge, Text (bis 20.000 Zeichen); ein Fenster, das noch lädt, steht ab 0.3.8 mit `live: false` und `fehler: fenster_laedt_noch` da — bis 0.3.7 las das Add-on trotzdem und leerte dabei dessen An, Cc und Bcc (#464) |
 | `protokoll` | die letzten 60 Vorgänge |
 
 Der Socket heißt `bruecke.sock` und liegt im Profilordner von Thunderbird; das Add-on legt ihn

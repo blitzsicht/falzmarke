@@ -1223,9 +1223,46 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
                         ersetzt_grund=ersetzt_grund, bleibt=bleibt), ""
 
 
+def empfaenger_pruefen(fenster, felder: Mapping | None, *, grund: str = ""):
+    """Zeigt das Fenster die Empfänger der Nachricht? (#464)
+
+    Verglichen werden An, Cc und Bcc je als Menge kleingeschriebener Adressen:
+    `felder` trägt sie ohne Anzeigenamen (`eml.entwurfsfelder`,
+    `postfach.empfaengerfelder`), das Add-on liefert sie ebenso. Reihenfolge
+    und Dubletten zählen nicht. Zurück kommt die Öffnung mit `geprueft` und,
+    wenn etwas fehlt oder zu viel ist, mit `abweichung` als Satz. Ohne Lesung
+    aus dem Fenster (`gelesen` falsch) oder ohne `felder` gibt es nichts zu
+    vergleichen; dann bleibt `geprueft` falsch, und `lese_grund` sagt warum.
+
+    Am 03.11.2026 ging ein Fenster ohne jeden Empfänger auf, und der Befehl
+    meldete `OK`: Das Add-on hatte beim Öffnen gar nicht gelesen, wohin das
+    Fenster schickt, und falzmarke hatte nicht gefragt.
+    """
+    if fenster is None or not fenster.offen or not fenster.gelesen:
+        return fenster
+    if felder is None:
+        return fenster._replace(lese_grund=fenster.lese_grund or grund or "nicht verglichen")
+    befunde = []
+    for name, soll, ist in (("An", felder.get("an"), fenster.an),
+                            ("Cc", felder.get("kopie"), fenster.kopie),
+                            ("Bcc", felder.get("blindkopie"), fenster.blindkopie)):
+        soll_menge = {str(a).strip().lower() for a in (soll or ()) if str(a).strip()}
+        ist_menge = {str(a).strip().lower() for a in (ist or ()) if str(a).strip()}
+        if soll_menge == ist_menge:
+            continue
+        teile = []
+        if soll_menge - ist_menge:
+            teile.append("fehlt " + ", ".join(sorted(soll_menge - ist_menge)))
+        if ist_menge - soll_menge:
+            teile.append("zusätzlich " + ", ".join(sorted(ist_menge - soll_menge)))
+        befunde.append(f"{name}: {'; '.join(teile)}")
+    return fenster._replace(geprueft=True, abweichung=" · ".join(befunde))
+
+
 def _fenster_auf(lage: Entwurfslage, felder: Mapping, umgebung: Mapping[str, str],
                  *, kein_fenster: bool = False) -> Entwurfslage:
-    """Öffnet den Postfach-Entwurf über die Entwurfsbrücke (ADR 0054).
+    """Öffnet den Postfach-Entwurf über die Entwurfsbrücke (ADR 0054) und
+    vergleicht, was das Fenster zeigt, mit der Nachricht (#464).
 
     Nur, wenn feststeht, welcher es ist: der eben abgelegte oder der, der schon
     lag. Ist die Lage ungewiss, bleibt es beim Hinweis — ein Fenster auf einen
@@ -1245,7 +1282,8 @@ def _fenster_auf(lage: Entwurfslage, felder: Mapping, umgebung: Mapping[str, str
         return lage
     from falzmarke import bruecke
 
-    return lage._replace(fenster=bruecke.entwurf_oeffnen(konto, uid, umgebung=umgebung))
+    return lage._replace(fenster=empfaenger_pruefen(
+        bruecke.entwurf_oeffnen(konto, uid, umgebung=umgebung), felder))
 
 
 def _steuere(skript: str, kennung: str, *, laufen=subprocess.run) -> str | None:

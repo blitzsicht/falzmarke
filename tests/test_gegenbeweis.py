@@ -2247,6 +2247,88 @@ def test_ohne_zweiten_rang_gewinnt_die_reihenfolge_der_liste(monkeypatch):
     assert _uids_410(monkeypatch, *fenster)["4711"]["betreff"] == "nur der Login"
 
 
+# ── Die Empfänger im Fenster (#464) ─────────────────────────────────────────
+#
+# ANLASS (03.11.2026): Ein Verfassen-Fenster ging ohne An, Cc und Bcc auf, und
+# `email --oeffnen` meldete `OK  Entwurf offen`. Seitdem vergleicht
+# `oeffnen.empfaenger_pruefen` das Fenster mit der Nachricht. Die Zusage ist
+# zweiseitig: Ein leeres `an` schlägt an, ein passendes bleibt still. Die
+# Sabotage trifft genau die Zeile, die Soll und Ist vergleicht; danach muss der
+# erste Fall kippen und der zweite bleiben — einmal an der Funktion, einmal am
+# Weg, den `email --oeffnen` wirklich geht.
+
+_SOLL_464 = {"an": ("paula@example.org",), "kopie": (), "blindkopie": ()}
+
+
+def _fenster_464(*an: str):
+    from falzmarke import bruecke as _bruecke
+
+    return _bruecke.Oeffnung("geoeffnet", gelesen=True, an=tuple(an))
+
+
+def _durchwinkend():
+    return _zeile_ersetzt(_oeffnen, "empfaenger_pruefen", "if soll_menge == ist_menge:",
+                          "if True:")
+
+
+def test_ein_leeres_an_schlaegt_an_und_ein_passendes_bleibt_still():
+    leer = _oeffnen.empfaenger_pruefen(_fenster_464(), _SOLL_464)
+    passend = _oeffnen.empfaenger_pruefen(_fenster_464("Paula@example.org"), _SOLL_464)
+    assert leer.geprueft and leer.abweichung == "An: fehlt paula@example.org"
+    assert passend.geprueft and passend.abweichung == ""
+
+
+def test_gegenprobe_ein_vergleich_der_alles_durchwinkt_macht_das_leere_fenster_still():
+    sabotiert = _durchwinkend()
+    assert sabotiert(_fenster_464(), _SOLL_464).abweichung == ""
+    assert sabotiert(_fenster_464("paula@example.org"), _SOLL_464).abweichung == "", \
+        "das passende Fenster bleibt still — sonst hätte die Probe oben nichts getrennt"
+
+
+@pytest.fixture
+def _email_oeffnen_464(tmp_path, monkeypatch):
+    """`email --oeffnen` wie in `test_postfach_entwurf.py`, Fenster als Attrappe."""
+    import functools
+
+    from test_oeffnen import THUNDERBIRD_PFAD, Thunderbird
+    from test_postfach_entwurf import MAIL, _bruecke, _server
+
+    monkeypatch.delenv("CI", raising=False)
+    monkeypatch.delenv("FALZMARKE_OEFFNEN", raising=False)
+    monkeypatch.setenv("FALZMARKE_AUFRAEUMEN", "nie")
+    monkeypatch.setenv("DISPLAY", ":0")
+    monkeypatch.setattr(_oeffnen, "entwurf", functools.partial(
+        _oeffnen.entwurf, plattform="darwin", umgebung={"DISPLAY": ":0"}, laufen=Thunderbird(),
+        binaer=lambda: THUNDERBIRD_PFAD))
+    quelle = tmp_path / "antwort.md"
+    quelle.write_text(MAIL, encoding="utf-8")
+    _server(monkeypatch)
+
+    def lauf(antwort: dict) -> int:
+        _bruecke(monkeypatch, antwort)
+        return falzmarke.main(["email", str(quelle), "--profiles", str(PROFILE), "--oeffnen"])
+    return lauf
+
+
+_LEER_464 = {"ok": True, "zustand": "geoeffnet", "betreff": "x", "live": True,
+             "identitaet": "muster@example.de", "an": [], "kopie": [], "blindkopie": []}
+
+
+def test_email_oeffnen_warnt_am_echten_weg_vor_dem_leeren_fenster(_email_oeffnen_464, capsys):
+    assert _email_oeffnen_464(_LEER_464) == falzmarke.EXIT_OK
+    aus = capsys.readouterr()
+    assert "EMPFÄNGER PRÜFEN" in aus.err and "OK  Entwurf offen" not in aus.out
+
+
+def test_gegenprobe_am_echten_weg_macht_die_sabotage_das_leere_fenster_gruen(
+        _email_oeffnen_464, monkeypatch, capsys):
+    """Sonst wäre nicht belegt, dass `email --oeffnen` durch den Vergleich geht."""
+    monkeypatch.setattr(_oeffnen, "empfaenger_pruefen", _durchwinkend())
+    assert _email_oeffnen_464(_LEER_464) == falzmarke.EXIT_OK
+    aus = capsys.readouterr()
+    assert "EMPFÄNGER PRÜFEN" not in aus.err and "OK  Entwurf offen" in aus.out
+
+
 # ── Das Profil, aus dem die Brücke antwortet (#410) ─────────────────────────
 
 def _zwei_profile_410(tmp_path, *, in_a=True, in_b=True):

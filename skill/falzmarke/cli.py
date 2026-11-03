@@ -1680,15 +1680,38 @@ def _setze_email(brief_pfad: Path, ausgabe: Path | None = None, *,
 
 
 def _melde_fenster(fenster, ordner: str, betreff: str) -> None:
-    """Sagt, ob der Postfach-Entwurf als Fenster aufging (ADR 0054).
+    """Sagt, ob der Postfach-Entwurf als Fenster aufging (ADR 0054) und ob das
+    Fenster die Empfänger der Nachricht zeigt (#464).
 
     Drei Fälle, wie beim Entwurf selbst: offen, nicht offen mit Grund, und
     ungewiss — dann steht womöglich schon ein Fenster, und ein zweiter Zuruf
-    öffnete ein zweites.
+    öffnete ein zweites. Ein offenes Fenster ist erst grün, wenn An, Cc und Bcc
+    darin die der Nachricht sind: Am 03.11.2026 ging eines ohne jeden Empfänger
+    auf, und hier stand `OK`. Weicht das Fenster ab, steht `EMPFÄNGER PRÜFEN`
+    statt `OK`; konnte das Add-on nicht lesen (Fassung vor 0.3.8, Fenster lädt
+    noch), steht `NICHT GEPRÜFT` dabei — grün ist dann nur das Fenster.
     """
     if fenster is not None and fenster.offen:
-        print(f"OK  Entwurf offen in Thunderbird: {fenster.betreff or betreff}"
-              + (" (war schon offen)" if fenster.zustand == "schon_offen" else ""))
+        schon = " (war schon offen)" if fenster.zustand == "schon_offen" else ""
+        if fenster.abweichung:
+            sys.stdout.flush()
+            print(f"EMPFÄNGER PRÜFEN  Entwurf offen in Thunderbird: "
+                  f"{fenster.betreff or betreff}{schon},\n"
+                  f"         aber das Fenster zeigt andere Empfänger als die Nachricht: "
+                  f"{fenster.abweichung}\n"
+                  f"         Vor dem Senden An, Cc und Bcc im Fenster richten, oder es "
+                  f"schließen und den\n"
+                  f"         Entwurf unter „{ordner}“ neu öffnen.", file=sys.stderr)
+            return
+        print(f"OK  Entwurf offen in Thunderbird: {fenster.betreff or betreff}{schon}")
+        if fenster.geprueft:
+            print(f"OK  Empfänger im Fenster wie in der Nachricht: An {len(fenster.an)}, "
+                  f"Cc {len(fenster.kopie)}, Bcc {len(fenster.blindkopie)}")
+        else:
+            print(f"NICHT GEPRÜFT  Empfänger im Fenster: "
+                  f"{fenster.lese_grund or 'nicht verglichen'}\n"
+                  "         Vor dem Senden An, Cc und Bcc im Fenster mit dem Entwurf "
+                  "vergleichen.", file=sys.stderr)
         return
     if fenster is not None and fenster.zustand == "ungewiss":
         print(f"HINWEIS  Fenster ungewiss: {fenster.grund}\n"
@@ -1717,7 +1740,7 @@ def _melde_ersetzt(lage) -> None:
 
 
 def _raeume_entwuerfe_mit(adresse: str, *, kein_fenster: bool = False,
-                          ausser: frozenset[str] = frozenset()) -> None:
+                          ausser: frozenset[str] = frozenset(), fenster=None) -> None:
     """Das Wegräumen nebenbei (ADR 0062). Ändert nie den Exit-Code des Befehls.
 
     `FALZMARKE_AUFRAEUMEN=nie` schaltet es ab, `--kein-fenster` lässt es aus:
@@ -1726,9 +1749,22 @@ def _raeume_entwuerfe_mit(adresse: str, *, kein_fenster: bool = False,
     Der Entwurf steht längst, und ein unerwarteter Fehler beim Aufräumen darf
     den Lauf nicht mit einem Traceback beenden (ADR 0038, Punkt 4). Er wird als
     `NICHT GEPRÜFT` gesagt, nicht verschluckt.
+
+    `fenster` ist die Öffnung von eben. Ging das Fenster gerade erst auf, ohne
+    dass das Add-on gemeldet hat, es sei fertig geladen, fällt das Aufräumen aus:
+    Es fragt die Brücke nach den offenen Fenstern, und genau dieser Befehl an
+    ein noch ladendes Fenster leerte dessen An, Cc und Bcc (#464, Add-on bis
+    0.3.7). Ein Fenster, das schon offen stand, ist längst geladen.
     """
     aus = (os.environ.get("FALZMARKE_AUFRAEUMEN") or "").strip().lower() == "nie"
     if not adresse or kein_fenster or aus:
+        return
+    if fenster is not None and fenster.zustand == "geoeffnet" and not fenster.gelesen:
+        print(f"NICHT GEPRÜFT  Entwürfe von {adresse} nicht aufgeräumt: Das Fenster ging eben "
+              f"erst auf, und ob es fertig\n         geladen ist, sagt das Add-on nicht "
+              f"({fenster.lese_grund}). Später von Hand:\n"
+              f"         falzmarke aufraeumen --entwuerfe --absender {adresse} --machen",
+              file=sys.stderr)
         return
     # Erst hier: Die MCP-Dienste laden `cli`, und der Lesepfad soll das Modul
     # mit dem ändernden Befehl nicht mitnehmen.
@@ -1883,7 +1919,8 @@ def befehl_email(args) -> int:
                   "         keine eigene ergänzt, ist vermutlich so — angenommen, nicht "
                   "gemessen.",
                   file=sys.stderr)
-            _raeume_entwuerfe_mit(ablage.adresse, kein_fenster=args.kein_fenster)
+            _raeume_entwuerfe_mit(ablage.adresse, kein_fenster=args.kein_fenster,
+                                  fenster=lage.fenster)
         elif lage.programm:
             if lage.postfach_grund:
                 print(f"HINWEIS  kein Postfach-Entwurf: {lage.postfach_grund}\n"
@@ -1961,7 +1998,7 @@ def befehl_email(args) -> int:
                 _melde_fenster(lage.fenster, "Entwürfe", "")
             _raeume_entwuerfe_mit(str(felder.get("absender") or ""),
                                   kein_fenster=args.kein_fenster,
-                                  ausser=frozenset({lage.schon_da_uid}))
+                                  ausser=frozenset({lage.schon_da_uid}), fenster=lage.fenster)
         elif lage.ungewiss:
             # Der dritte Zustand (#287). Ob ein Fenster offen ist, weiß hier
             # niemand — und „nicht geprüft" ist nicht „nichts da". Die `.eml`
@@ -2090,9 +2127,20 @@ def befehl_entwurf_oeffnen(args) -> int:
     if ohne_fenster:
         print(f"HINWEIS  kein Fenster: {ohne_fenster}\n{zeile(kopf)}", file=sys.stderr)
         return EXIT_UMGEBUNG
-    oeffnung = bruecke.entwurf_oeffnen(adresse, kopf.uid)
+    # Was der Entwurf trägt, getrennt nach An, Cc und Bcc: der Maßstab für das
+    # Fenster (#464). `Kopf.an` wirft die drei zusammen, darum noch einmal die
+    # Nachricht selbst — vor dem Öffnen, damit danach nur noch verglichen wird.
+    soll, soll_grund = None, ""
+    try:
+        with postfach.verbinde(adresse, frist=oeffnen_modul.FRIST_POSTFACH_S) as sitzung:
+            soll = postfach.empfaengerfelder(sitzung.nachricht(ordner, kopf.uid))
+    except postfach.PostfachFehler as fehler:
+        soll_grund = f"der Entwurf ließ sich nicht nachlesen ({fehler})"
+    oeffnung = oeffnen_modul.empfaenger_pruefen(bruecke.entwurf_oeffnen(adresse, kopf.uid),
+                                                soll, grund=soll_grund)
     _melde_fenster(oeffnung, anzeige, kopf.betreff)
-    return EXIT_OK if oeffnung.offen else EXIT_UMGEBUNG
+    # Ein Fenster mit anderen Empfängern ist nicht das bestellte: Exit 3 wie ohne Fenster.
+    return EXIT_OK if oeffnung.offen and not oeffnung.abweichung else EXIT_UMGEBUNG
 
 
 def ablage_aus_profil(adresse: str, zusatz=None) -> tuple[str | None, str | None]:

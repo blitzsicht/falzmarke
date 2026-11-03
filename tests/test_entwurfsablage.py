@@ -1081,6 +1081,35 @@ def test_die_automatik_ist_abschaltbar(monkeypatch):
     assert gerufen == []
 
 
+def test_ein_eben_geoeffnetes_fenster_ohne_lesung_haelt_die_automatik_zurueck(monkeypatch,
+                                                                                capsys):
+    """#464: Der Befehl `fenster` an ein noch ladendes Fenster leerte dessen An, Cc
+    und Bcc (Add-on bis 0.3.7). Sagt das Add-on nicht, dass das Fenster fertig
+    geladen ist, fragt niemand — und der Weg von Hand steht da."""
+    monkeypatch.delenv("FALZMARKE_AUFRAEUMEN", raising=False)
+    gerufen = _mitschrift(monkeypatch)
+    falzmarke._raeume_entwuerfe_mit(VON, fenster=bruecke.Oeffnung("geoeffnet",
+                                                                  lese_grund="zu alt"))
+    assert gerufen == []
+    aus = capsys.readouterr().err
+    assert "nicht aufgeräumt" in aus and "(zu alt)" in aus
+    assert f"falzmarke aufraeumen --entwuerfe --absender {VON} --machen" in aus
+
+
+@pytest.mark.parametrize("fenster", [
+    bruecke.Oeffnung("geoeffnet", gelesen=True),
+    bruecke.Oeffnung("schon_offen"),
+    bruecke.Oeffnung("fehler", grund="zu"),
+    None,
+], ids=["gelesen", "schon_offen", "fehler", "ohne"])
+def test_gegenprobe_jedes_andere_fenster_laesst_die_automatik_laufen(fenster, monkeypatch):
+    """Ein Fenster, das schon stand, ist längst geladen; ohne Fenster gibt es nichts zu schonen."""
+    monkeypatch.delenv("FALZMARKE_AUFRAEUMEN", raising=False)
+    gerufen = _mitschrift(monkeypatch)
+    falzmarke._raeume_entwuerfe_mit(VON, fenster=fenster)
+    assert gerufen == [VON]
+
+
 def test_email_oeffnen_ruft_die_automatik_und_der_exit_bleibt(mail_lauf, monkeypatch, capsys):
     monkeypatch.delenv("FALZMARKE_AUFRAEUMEN", raising=False)
     gerufen = []

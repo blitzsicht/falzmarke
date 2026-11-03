@@ -257,6 +257,22 @@ def test_derselbe_text_an_denselben_empfaenger_haelt_an():
                                     "uid_draft_id": None, "fassung_quelle": "kopf"}
 
 
+def test_geoeffnet_traegt_absender_und_empfaenger():
+    """Die erste Zeile sagt, wohin das Fenster beim Öffnen schicken würde (#464):
+    reine Adressen, je Feld, auch leer. Ohne sie war im Tagebuch nicht zu sehen,
+    dass ein Fenster ohne Empfänger aufging."""
+    fall = _fall()
+    fall["details"].update(cc=["Kopie <kopie@example.com>"], bcc=["archiv@example.de"])
+    geoeffnet = _lauf(fall)["tagebuch"][0]
+    assert geoeffnet["art"] == "geoeffnet"
+    assert {k: geoeffnet[k] for k in ("identitaet", "an", "kopie", "blindkopie")} == {
+        "identitaet": "order@example.de", "an": ["erika@example.com"],
+        "kopie": ["kopie@example.com"], "blindkopie": ["archiv@example.de"]}
+    leer = _fall()
+    leer["details"]["to"] = []
+    assert _lauf(leer)["tagebuch"][0]["an"] == []
+
+
 def test_trotzdem_senden_laesst_hinaus_und_steht_im_tagebuch():
     aus = _lauf(_fall(_gesendet(), trotzdem=True,
                       nach_senden={"mode": "sendNow", "headerMessageId": "<x@example.de>"}))

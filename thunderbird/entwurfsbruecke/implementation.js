@@ -70,6 +70,9 @@ const MAX_ZEILE = 4096;
 const FRIST_ORDNER_MS = 15000;
 // So lange wartet die Brücke auf das neue Verfassen-Fenster.
 const FRIST_FENSTER_MS = 20000;
+// So lange wartet sie danach, bis das Fenster fertig geladen ist
+// (`fensterBereit`). Erst dann liest sie, was es hinausschicken würde (#464).
+const FRIST_LADEN_MS = 5000;
 // So lange bleibt eine Verbindung nach der Antwort offen, damit der Kopierer
 // des Transports die Antwort sicher ausliefert, auch wenn der Aufrufer nicht
 // selbst schließt.
@@ -290,27 +293,75 @@ function klartextVon(fenster) {
   return parserUtils.convertToPlainText(html, Ci.nsIDocumentEncoder.OutputLFLineBreak, 0);
 }
 
-// Was das Fenster jetzt hinausschicken würde: Absender, Empfänger, Anhänge,
-// Text (#407). `GetComposeDetails` überträgt dafür den Fensterinhalt nach
-// `compFields`, dieselbe Funktion, die auch `compose.getComposeDetails`
-// aufruft. Am Fenster selbst ändert das nichts. Geht es nicht, bleibt es bei
-// dem, was `fensterStand` liest, mit `live: false`.
-function fensterInhalt(fenster) {
-  const stand = fensterStand(fenster);
+// Ob das Fenster fertig geladen ist. `gLoadingComplete` setzt Thunderbird am
+// Ende von `ComposeFieldsReady()`, nachdem `CompFields2Recipients` die
+// Adresszeilen aus den Feldern gefüllt hat (MsgComposeCommands.js, 158.0.1).
+function fensterBereit(fenster) {
+  return fenster.gLoadingComplete === true;
+}
+
+// `GetComposeDetails()` nur an einem fertig geladenen Fenster: die Felder,
+// oder der Grund, warum nicht (#464).
+//
+// Vorher ist der Aufruf kein Lesen. Er ruft `Recipients2CompFields` und
+// überträgt die noch **leeren** Adresszeilen nach `compFields`; füllt das
+// Fenster gleich darauf mit `CompFields2Recipients` seine Zeilen, füllt es
+// sie aus genau diesen geleerten Feldern. Das Fenster stand dann ohne An, Cc
+// und Bcc da, nur der Betreff blieb, denn der wird früher gesetzt. Ausgelöst
+// hat das der Befehl `fenster`, den falzmarke seit dem Aufräumen nebenbei
+// (ADR 0062) unmittelbar nach dem Öffnen schickt. Gemessen am 03.11.2026 mit
+// 0.3.7: sechs Fenster, die beim Aufruf noch luden, leer; vier, die da schon
+// geladen waren, intakt.
+function felderVon(fenster) {
+  if (!fensterBereit(fenster)) {
+    return { fehler: "fenster_laedt_noch" };
+  }
   if (typeof fenster.GetComposeDetails !== "function") {
-    return { ...stand, live: false, fehler: "GetComposeDetails fehlt" };
+    return { fehler: "GetComposeDetails fehlt" };
   }
   try {
-    const felder = fenster.GetComposeDetails();
+    return { felder: fenster.GetComposeDetails() };
+  } catch (e) {
+    return { fehler: String(e) };
+  }
+}
+
+function empfaengerAus(felder) {
+  return {
+    identitaet: adressenAus(felder.from)[0] || "",
+    an: adressenAus(felder.to),
+    kopie: adressenAus(felder.cc),
+    blindkopie: adressenAus(felder.bcc),
+  };
+}
+
+// Absender und Empfänger, wie das Fenster sie jetzt hinausschicken würde: für
+// die Antwort auf `entwurf_oeffnen` und den Protokolleintrag `geoeffnet`.
+// Mit `live: false` steht da, warum nicht gelesen wurde; die Listen fehlen dann.
+function fensterEmpfaenger(fenster) {
+  const { felder, fehler } = felderVon(fenster);
+  if (!felder) {
+    return { live: false, fehler };
+  }
+  return { live: true, ...empfaengerAus(felder) };
+}
+
+// Was das Fenster jetzt hinausschicken würde: Absender, Empfänger, Anhänge,
+// Text (#407). Geht es nicht, bleibt es bei dem, was `fensterStand` liest,
+// mit `live: false`. Das gilt auch, solange das Fenster noch lädt.
+function fensterInhalt(fenster) {
+  const stand = fensterStand(fenster);
+  const { felder, fehler } = felderVon(fenster);
+  if (!felder) {
+    return { ...stand, live: false, fehler };
+  }
+  try {
     const text = klartextVon(fenster);
     return {
       ...stand,
       betreff: felder.subject || "",
       live: true,
-      identitaet: adressenAus(felder.from)[0] || "",
-      an: adressenAus(felder.to),
-      kopie: adressenAus(felder.cc),
-      blindkopie: adressenAus(felder.bcc),
+      ...empfaengerAus(felder),
       anhaenge: (felder.attachments || []).map((a) => String(a.name || "")),
       text: text.slice(0, MAX_TEXT),
       text_gekuerzt: text.length > MAX_TEXT,
@@ -384,6 +435,7 @@ async function entwurfOeffnen(anfrage) {
         zustand: "schon_offen",
         betreff: fenster.gMsgCompose.compFields.subject || "",
         nachricht,
+        ...fensterEmpfaenger(fenster),
       };
     }
   }
@@ -425,7 +477,19 @@ async function entwurfOeffnen(anfrage) {
     FRIST_FENSTER_MS
   );
   vorholen(fenster);
-  notiere(felder ? "geoeffnet" : "fenster_ohne_entwurf", { nachricht, ...fensterStand(fenster) });
+  // Erst das fertig geladene Fenster sagt, wohin es schicken würde, und erst an
+  // ihm darf `GetComposeDetails` laufen (#464). Bleibt es in der Frist beim
+  // Laden, steht `live: false` mit `fenster_laedt_noch` in der Antwort; der
+  // Aufrufer meldet die Empfänger dann als nicht geprüft.
+  if (felder) {
+    await warten(() => fensterBereit(fenster), FRIST_LADEN_MS);
+  }
+  const empfaenger = felder ? fensterEmpfaenger(fenster) : {};
+  notiere(felder ? "geoeffnet" : "fenster_ohne_entwurf", {
+    nachricht,
+    ...fensterStand(fenster),
+    ...empfaenger,
+  });
   return {
     ok: true,
     zustand: felder ? "geoeffnet" : "fenster_ohne_entwurf",
@@ -434,6 +498,7 @@ async function entwurfOeffnen(anfrage) {
     kopf_lokal: Boolean(kopf),
     nachgeladen,
     nachricht,
+    ...empfaenger,
   };
 }
 
