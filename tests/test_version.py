@@ -7,9 +7,11 @@ Version wundert, oder bis eine Fehlermeldung die falsche Version nennt.
 
 from __future__ import annotations
 
+import importlib.util
 import re
 import subprocess
 import tomllib
+from pathlib import Path
 
 import pytest
 
@@ -124,17 +126,79 @@ def test_server_json_nennt_dieselbe_version():
         f"server.json/packages sagt {paket['version']}, pyproject.toml {version}")
 
 
+PACKER = REPO / "scripts" / "plugin_packen.py"
+
+
+def _skill_kopf(skill: Path) -> dict:
+    """Der Kopf so, wie ihn das Packskript liest: als YAML, nicht als Textmuster.
+
+    Bis zum Review von #448 suchte ein regulärer Ausdruck `metadata:` und direkt
+    darunter `version:`. Ein gültiger Kopf mit `metadata.author` vor `version`
+    fiel damit als „kein metadata/version“ durch.
+    """
+    spec = importlib.util.spec_from_file_location("falzmarke_plugin_packen", PACKER)
+    modul = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modul)
+    return modul.skill_kopf(skill)
+
+
+def _skill_version(skill: Path) -> str:
+    metadata = _skill_kopf(skill).get("metadata")
+    assert isinstance(metadata, dict) and "version" in metadata, (
+        f"{skill / 'SKILL.md'}: kein `metadata.version` im Kopf")
+    wert = metadata["version"]
+    assert isinstance(wert, str), (
+        f"{skill / 'SKILL.md'}: `metadata.version` ist {type(wert).__name__}, keine Zeichenkette")
+    return wert
+
+
+def _pruefe_skill_version(skill: Path) -> None:
+    ist = _skill_version(skill)
+    assert ist == version_aus_pyproject(), (
+        f"SKILL.md sagt {ist}, pyproject.toml {version_aus_pyproject()}")
+
+
 def test_skill_kopf_nennt_dieselbe_version():
     """Die vierte Stelle: `metadata.version` im SKILL.md-Kopf.
 
     Die Skill-Spezifikation kennt kein `version` auf oberster Ebene, deshalb
     steht sie unter `metadata`. Der Wert ist eine Zeichenkette, keine Zahl.
     """
+    _pruefe_skill_version(REPO / "skill")
+
+
+def _abgewandelter_kopf(tmp_path: Path, alt: str, neu: str) -> Path:
+    """Eine Kopie von SKILL.md mit genau einer Ersetzung im Kopf."""
     text = (REPO / "skill" / "SKILL.md").read_text(encoding="utf-8")
-    treffer = re.search(r'^metadata:\n  version: "([^"]+)"$', text, re.MULTILINE)
-    assert treffer, 'SKILL.md: kein `metadata:`/`version: "…"` im Kopf'
-    assert treffer.group(1) == version_aus_pyproject(), (
-        f"SKILL.md sagt {treffer.group(1)}, pyproject.toml {version_aus_pyproject()}")
+    assert text.count(alt) == 1, f"Ersetzung `{alt}` trifft {text.count(alt)}-mal"
+    (tmp_path / "SKILL.md").write_text(text.replace(alt, neu), encoding="utf-8")
+    return tmp_path
+
+
+def test_gegenprobe_version_hinter_einem_anderen_metadata_schluessel(tmp_path):
+    """Gültiges YAML mit `author` vor `version`: Der Test muss es weiter lesen."""
+    version = version_aus_pyproject()
+    skill = _abgewandelter_kopf(
+        tmp_path, f'metadata:\n  version: "{version}"',
+        f'metadata:\n  author: "Probe"\n  version: "{version}"')
+    assert _skill_kopf(skill)["metadata"]["author"] == "Probe", "Abwandlung griff nicht"
+    _pruefe_skill_version(skill)
+
+
+def test_gegenprobe_falsche_version_im_skill_kopf(tmp_path):
+    """Eine andere Nummer im Kopf muss als Abweichung auffallen."""
+    version = version_aus_pyproject()
+    skill = _abgewandelter_kopf(tmp_path, f'  version: "{version}"', '  version: "0.0.1"')
+    with pytest.raises(AssertionError, match="SKILL.md sagt 0.0.1"):
+        _pruefe_skill_version(skill)
+
+
+def test_gegenprobe_version_als_zahl_im_skill_kopf(tmp_path):
+    """Ohne Anführungszeichen liest YAML eine Zahl; die Spezifikation verlangt Text."""
+    version = version_aus_pyproject()
+    skill = _abgewandelter_kopf(tmp_path, f'  version: "{version}"', "  version: 1.0")
+    with pytest.raises(AssertionError, match="keine Zeichenkette"):
+        _pruefe_skill_version(skill)
 
 
 def test_server_json_nennt_das_eigene_paket():
