@@ -37,8 +37,8 @@ ABGELEHNT = ["javascript:alert(1)", "data:text/html,<b>x", "vbscript:x",
              "file:///etc/passwd", "ftp://example.de", "/seite", "#anker", "seite.html"]
 
 
-def _lies(quelle: str, ziel: str = "email", hinweise=None):
-    return markdown.lies(quelle + "\n", ziel=ziel, hinweise=hinweise)
+def _lies(quelle: str, ziel: str = "email", hinweise=None, dialekt: str = "1.0"):
+    return markdown.lies(quelle + "\n", ziel=ziel, hinweise=hinweise, dialekt=dialekt)
 
 
 # ── Der Brief kennt keinen Link ─────────────────────────────────────────────
@@ -197,6 +197,195 @@ def test_die_klammern_halten_das_satzzeichen_fern():
         _lies("Die [Bedingungen](https://example.de/agb.html), die seit August gelten."))
     assert "<https://example.de/agb.html>," in text, text
     assert "agb.html," not in text.replace("<https://example.de/agb.html>,", ""), text
+
+
+# ── Die nackte Adresse wird ein Link (#424) ─────────────────────────────────
+#
+# Gemessen am 27.10.2026: Aus einer Zeile, die nur eine Adresse trägt, wurde im
+# HTML-Teil ein Absatz mit Text, ohne `<a href>`. Im Thunderbird-Entwurf war der
+# Link zum Unterschreiben deshalb nicht anklickbar, und genau dieser Link war der
+# Zweck der Mail. Verlinkt wird beim Lesen, nicht im Emitter: Danach ist die
+# nackte Adresse ein `baum.Link` wie jeder andere und läuft über dieselben Wege.
+
+def _anker(html: str) -> list[str]:
+    """Die `href`-Werte aller `<a>` im HTML, in Reihenfolge."""
+    import re
+
+    return re.findall(r'<a href="([^"]*)"', html)
+
+
+def test_nackte_url_als_eigener_absatz_wird_ein_link():
+    """Die Reproduktion aus #424, im Kleinen."""
+    html = emit_html.setze(_lies("https://sign.example.de/s/NB76qgP6sbHGFQ"))
+    assert _anker(html) == ["https://sign.example.de/s/NB76qgP6sbHGFQ"], html
+    assert ">https://sign.example.de/s/NB76qgP6sbHGFQ</a>" in html, html
+
+
+def test_der_punkt_am_satzende_steht_ausserhalb_des_links():
+    html = emit_html.setze(_lies("Die Bedingungen stehen unter https://example.de/agb."))
+    assert _anker(html) == ["https://example.de/agb"], html
+    assert "https://example.de/agb</a>." in html, html
+
+
+@pytest.mark.parametrize("zeichen", [",", ";", ":", "!", "?", "“", "»", "›", "'", '"'])
+def test_auch_andere_satzzeichen_gehoeren_zum_satz(zeichen):
+    html = emit_html.setze(_lies(f"Hier: https://example.de/agb{zeichen} danach weiter"))
+    assert _anker(html) == ["https://example.de/agb"], html
+
+
+def test_im_codespan_bleibt_die_adresse_wortlaut():
+    """Code ist Wortlaut — dort wird nichts verlinkt (#424, „Erwartet")."""
+    html = emit_html.setze(_lies("Die Adresse `https://example.de/api` steht so im Code.",
+                                 dialekt="1.1"))
+    assert "<a " not in html, html
+    assert "https://example.de/api" in html, html
+
+
+def test_im_codeblock_ebenso():
+    html = emit_html.setze(_lies("```\nhttps://example.de/api\n```", dialekt="1.1"))
+    assert "<a " not in html, html
+
+
+def test_eine_adresse_als_linktext_wird_nicht_verschachtelt():
+    """`<a>` in `<a>` ist ungültiges HTML, und Mailprogramme lösen es verschieden auf."""
+    knoten = _lies("Mehr unter [https://x.de](https://x.de)")
+    link = knoten[0].kinder[1]
+    assert isinstance(link, baum.Link), knoten
+    assert not any(isinstance(k, baum.Link) for k in link.kinder), link
+    html = emit_html.setze(knoten)
+    assert html.count("<a ") == 1, html
+
+
+def test_eine_autolink_adresse_ebenso():
+    """`<https://x.de>` ist für CommonMark schon ein Link — kein zweiter darum."""
+    html = emit_html.setze(_lies("Mehr unter <https://x.de>."))
+    assert html.count("<a ") == 1, html
+
+
+def test_im_brief_bleibt_die_nackte_adresse_text():
+    """Auf Papier gibt es nichts zum Anklicken — und die Adresse ist dort kein
+    Fehler, sondern ausgeschrieben, wie #103 es für den Brief verlangt."""
+    knoten = _lies("Mehr unter https://example.de/agb.", ziel="brief")
+    assert not any(isinstance(k, baum.Link) for k in knoten[0].kinder), knoten
+    typst = emit.setze(knoten)
+    assert "example.de/agb" in typst, typst
+
+
+def test_im_klartext_steht_die_nackte_adresse_einmal_in_klammern():
+    text = emit_text.falte(_lies("Mehr unter https://example.de/agb."))
+    assert text.count("<https://example.de/agb>") == 1, text
+    assert text.count("https://example.de/agb") == 1, text
+    assert text.strip() == "Mehr unter <https://example.de/agb>.", text
+
+
+def test_die_klammer_in_der_adresse_bleibt_drin():
+    html = emit_html.setze(_lies("Siehe https://de.wikipedia.org/wiki/A_(B) dazu."))
+    assert _anker(html) == ["https://de.wikipedia.org/wiki/A_(B)"], html
+
+
+def test_die_klammer_um_die_adresse_bleibt_draussen():
+    html = emit_html.setze(_lies("Die Bedingungen (siehe https://x.de) gelten."))
+    assert _anker(html) == ["https://x.de"], html
+    assert "https://x.de</a>)" in html, html
+
+
+def test_die_nackte_adresse_geht_nicht_durch_die_typografie():
+    """Aus `--` darf kein Halbgeviertstrich werden — weder im `href` noch im
+    sichtbaren Text, sonst kopiert der Empfänger eine Adresse, die es nicht gibt.
+    Gegenprobe im selben Absatz: `--` außerhalb der Adresse wird ersetzt."""
+    ziel = "https://example.de/agb-fassung-2026--08/seite"
+    html = emit_html.setze(_lies(f"Mehr unter {ziel} und 1--2 sonst nichts"))
+    assert _anker(html) == [ziel], html
+    assert f">{ziel}</a>" in html, html
+    assert "1–2" in html, "Gegenprobe: die Typografie läuft hier gar nicht"
+
+
+def test_unterstriche_in_der_adresse_werden_kein_ausfuellfeld():
+    """Ab Dialekt 1.2 wird `___` im Text ein Feld. In einer Adresse ist es ein
+    Teil der Adresse — und die Zählung in `_pruefe_felder` meldet keinen
+    Fehlalarm, weil sie die Adresse ebenso ausblendet."""
+    ziel = "https://example.de/a___b"
+    knoten = _lies(f"Mehr unter {ziel} dazu.", dialekt="1.2")
+    assert not any(isinstance(k, baum.Ausfuellfeld) for k in knoten[0].kinder), knoten
+    assert _anker(emit_html.setze(knoten)) == [ziel]
+
+
+def test_das_feld_neben_der_adresse_bleibt_ein_feld():
+    """Gegenprobe zum Test darüber: Ausgeblendet wird die Adresse, nicht der Absatz."""
+    knoten = _lies("Unterschrift ____ und https://example.de/a___b", dialekt="1.2")
+    felder = [k for k in knoten[0].kinder if isinstance(k, baum.Ausfuellfeld)]
+    assert len(felder) == 1, knoten
+
+
+def test_aus_der_adresse_kommt_kein_typografie_hinweis():
+    """`z.B.` im Pfad ist Teil der Adresse, keine Abkürzung im Satz.
+
+    Gemessen am 03.11.2026: `typografie.vorschlaege` meldet an
+    `https://x.de/z.B./seite` die Abkürzungsregel. Ein Hinweis, die Adresse mit
+    geschützten Leerzeichen zu schreiben, führte zu einer anderen Adresse.
+    """
+    hinweise: list = []
+    _lies("Mehr unter https://x.de/z.B./seite dazu", hinweise=hinweise)
+    assert not [h for h in hinweise if h.regel == "schreibweise.abkuerzungen"], hinweise
+
+
+def test_im_satz_kommt_der_hinweis_weiter():
+    """Gegenprobe: Ausgenommen ist die Adresse, nicht der Satz um sie herum."""
+    hinweise: list = []
+    _lies("Mehr unter https://x.de/seite, z.B. dazu", hinweise=hinweise)
+    assert [h for h in hinweise if h.regel == "schreibweise.abkuerzungen"], hinweise
+
+
+def test_http_wird_auch_an_der_nackten_adresse_gemeldet():
+    for ziel, erwartet in (("http://example.de", True), ("https://example.de", False)):
+        hinweise: list = []
+        _lies(f"Mehr unter {ziel} dazu.", hinweise=hinweise)
+        gemeldet = bool([h for h in hinweise if h.regel == "email.linkschema"])
+        assert gemeldet is erwartet, f"{ziel}: {hinweise}"
+
+
+def test_ein_kurzdienst_auch():
+    hinweise: list = []
+    _lies("Mehr unter https://bit.ly/xyz dazu.", hinweise=hinweise)
+    assert [h for h in hinweise if h.regel == "email.linkschema"], hinweise
+
+
+@pytest.mark.parametrize("text", ["www.example.de", "https://", "xhttps://example.de",
+                                  "ftp://example.de"])
+def test_was_keine_vollstaendige_http_adresse_ist_bleibt_text(text):
+    """`www.` ohne Schema wird nicht geraten, und ein Schema ohne Rest ist keins."""
+    html = emit_html.setze(_lies(f"Siehe {text} dazu."))
+    assert "<a " not in html, html
+
+
+def test_die_fertige_nachricht_besteht_ihre_eigene_pruefung(tmp_path):
+    """Der Prüfpfad, den `falzmarke email` selbst fährt — mit Quellteil.
+
+    Im HTML steht die Adresse jetzt zweimal (`href` und Linktext), im
+    Klartext einmal in spitzen Klammern. `pruefung_eml._woerter` vergleicht
+    Mengen; das muss gleich bleiben, und die Quelle muss vollständig sein.
+    """
+    from conftest import SKILL
+
+    from falzmarke import cli, pruefung_eml
+
+    quelle = tmp_path / "probe.md"
+    quelle.write_text(
+        "---\ntyp: email\nprofil: example\nan: post@example.de\nbetreff: Probe 424\n---\n"
+        "bitte unterschreiben Sie hier:\n\nhttps://sign.example.de/s/NB76qgP6sbHGFQ\n\n"
+        "Die Bedingungen (siehe https://example.de/agb) gelten.\n",
+        encoding="utf-8")
+    ziel, _ = cli.setze_email(
+        quelle, tmp_path / "probe",
+        profil_verzeichnis=SKILL / "falzmarke" / "typst" / "profiles",
+        mit_quelle=True)
+    roh = ziel.read_text(encoding="utf-8")
+    assert "sign.example.de" in roh
+    bericht = pruefung_eml.pruefe(ziel)
+    gescheitert = [p.name for p in bericht.pruefungen if not p.bestanden]
+    assert not gescheitert, bericht.als_text(ausfuehrlich=True)
+    assert any(p.name.startswith("Quelle vollständig") for p in bericht.pruefungen), \
+        "der Quellteil wurde gar nicht geprüft"
 
 
 # ── Und das Regelwerk kennt sie ─────────────────────────────────────────────

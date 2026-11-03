@@ -359,6 +359,60 @@ def test_ein_grund_am_umschlag_faellt_auf(monkeypatch):
     assert any("bgcolor" in b for b in befunde), befunde
 
 
+# ── Links in der E-Mail: die nackte Adresse (#424) ──────────────────────────
+#
+# Die Tests in `tests/test_links.py` belegen, dass eine nackte Adresse ein Link
+# wird. Hier wird der Leser auf den Stand vor #424 zurückgesetzt, und genau der
+# benannte Test muss rot werden. `_url_spannen` liefert dann nichts mehr: Der
+# Text wird nicht geteilt, `_pruefe_felder` blendet nichts aus — Zeile für
+# Zeile der Code von vorher, kein dritter Zustand.
+
+def test_ohne_teilung_an_der_adresse_wird_test_1_aus_424_rot(monkeypatch):
+    import test_links
+
+    test_links.test_nackte_url_als_eigener_absatz_wird_ein_link()  # Kontrollprobe
+    monkeypatch.setattr(_md, "_url_spannen", lambda text: [])
+    with pytest.raises(AssertionError) as fehler:
+        test_links.test_nackte_url_als_eigener_absatz_wird_ein_link()
+    # Rot an der erwarteten Stelle: Die Meldung trägt das HTML, und darin steht
+    # die Adresse als Text, ohne `<a`. Das ist der Befund aus #424.
+    meldung = str(fehler.value)
+    assert "https://sign.example.de/s/NB76qgP6sbHGFQ" in meldung and "<a " not in meldung, meldung
+
+
+def test_ohne_teilung_kommt_der_fehlalarm_am_ausfuellfeld_zurueck(monkeypatch):
+    """Der Fehlalarm vor #424: `https://x.de/a___b` brach eine 1.2-Mail ab."""
+    import test_links
+
+    test_links.test_unterstriche_in_der_adresse_werden_kein_ausfuellfeld()  # Kontrollprobe
+    monkeypatch.setattr(_md, "_url_spannen", lambda text: [])
+    with pytest.raises(_md.MarkdownFehler, match="Unterstrichkette"):
+        test_links.test_unterstriche_in_der_adresse_werden_kein_ausfuellfeld()
+
+
+def test_ohne_ausblenden_in_pruefe_felder_kommt_der_fehlalarm_zurueck(monkeypatch):
+    """Die Teilung allein reicht nicht: Ohne die eine Zeile in `_pruefe_felder`
+    zählt der Rohtext die Kette in der Adresse weiter mit."""
+    import test_links
+
+    test_links.test_unterstriche_in_der_adresse_werden_kein_ausfuellfeld()  # Kontrollprobe
+    monkeypatch.setattr(_md, "_pruefe_felder", _zeile_ersetzt(
+        _md, "_pruefe_felder", 'if lage.ziel == "email":', "if False:"))
+    with pytest.raises(_md.MarkdownFehler, match="Unterstrichkette"):
+        test_links.test_unterstriche_in_der_adresse_werden_kein_ausfuellfeld()
+
+
+def test_ohne_im_link_wird_die_adresse_im_linktext_verschachtelt(monkeypatch):
+    """`[https://x.de](https://x.de)` — ohne den Schalter `<a>` im `<a>`."""
+    import test_links
+
+    test_links.test_eine_adresse_als_linktext_wird_nicht_verschachtelt()  # Kontrollprobe
+    monkeypatch.setattr(_md, "_inline", _zeile_ersetzt(
+        _md, "_inline", "_inline(kind, lage, lauf, im_link=True)", "_inline(kind, lage, lauf)"))
+    with pytest.raises(AssertionError):
+        test_links.test_eine_adresse_als_linktext_wird_nicht_verschachtelt()
+
+
 # ── Dialekt 1.1: der wortgetreue Auszug ─────────────────────────────────────
 #
 # `tests/test_wortlaut.py` belegt, dass im PDF `#eval("6*7")` steht und nicht
