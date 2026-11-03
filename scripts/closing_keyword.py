@@ -67,6 +67,21 @@ _ENGLISCH = re.compile(
 
 _CODEBLOCK = re.compile(r"^```.*?^```", re.DOTALL | re.MULTILINE)
 
+# Was nach der Korrektur zu tun ist (#437). `on: pull_request` ohne `types:`
+# startet bei `opened`, `synchronize` und `reopened`, nicht bei `edited` oder
+# `labeled`. Wer den Rumpf korrigiert oder das Label setzt, behebt also genau
+# den Befund, und der rote Lauf bleibt trotzdem stehen. Der Job liest den Rumpf
+# zur Laufzeit, ein Neustart sieht den neuen Text. `edited` als Auslöser
+# startete die ganze Matrix bei jeder Textänderung neu (#437, Weg 1 und 2);
+# deshalb vorerst nur dieser Satz. `tests/test_closing_keyword.py` hält ihn an
+# den Trigger in ci.yml gebunden.
+NEUSTART = (
+    "Nach dem Korrigieren des Rumpfs oder dem Setzen des Labels läuft dieser Check\n"
+    "nicht von selbst neu: `edited` und `labeled` starten ci.yml nicht (#437).\n"
+    "Neu starten: „Re-run failed jobs“ im Lauf, oder `gh run rerun --job <id>`\n"
+    "(die Zahl hinter /job/ in der Adresse dieses Laufs)."
+)
+
 
 def ohne_codebloecke(text: str) -> str:
     """Ein Satz in einem Auszug ist ein Beispiel, keine Zusage.
@@ -118,7 +133,8 @@ def pruefe(rumpf: str, labels: tuple[str, ...] = ()) -> tuple[bool, str]:
         "das Issue weiter auf OPEN und musste von Hand geschlossen werden.\n"
         "\n"
         "Soll der Vorgang bewusst offen bleiben, setzt ein Maintainer das Label\n"
-        f"„{AUSNAHME_LABEL}“."
+        f"„{AUSNAHME_LABEL}“.\n"
+        "\n" + NEUSTART
     )
 
 
