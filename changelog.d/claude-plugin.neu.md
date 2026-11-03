@@ -1,1 +1,0 @@
-- **Plugin-Bündel für das Anthropic-Verzeichnis.** `skill/` trägt jetzt ein Manifest, ein README und ein Icon. Das `.skill`-Paket bleibt, wie es war.
