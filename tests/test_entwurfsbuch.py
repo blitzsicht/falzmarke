@@ -1639,16 +1639,35 @@ def test_bei_zwei_fenstern_derselben_uid_entscheidet_die_gemeldete_identitaet(mo
     Konto aussagt. Geprüft am Betreff, nicht an der Zahl der Fenster: Sonst
     stünde hier, wie viele Einträge die Attrappe liefert, und nicht, welcher
     genommen wurde.
+
+    Bis #442 (N5) baute der Test Postfach und Brücke auf und rief dann
+    `fenster_des_kontos` direkt; der Aufbau lief ins Leere. Jetzt geht er den
+    Weg, den `status` geht, und liest das Fenster am Zustand ab.
     """
     server = _postfach(monkeypatch, entwuerfe=[_mail()])
     uid = server.ordner[ENTWUERFE][0].uid
     _mit_fenstern(monkeypatch,
                   _fenster(uid, uri=LOGIN_EIGEN, betreff="ohne Meldung"),
                   _fenster(uid, identitaet=VON, betreff="mit Meldung"))
-    gewaehlt = entwurfsbuch.fenster_des_kontos(
-        [_fenster(uid, uri=LOGIN_EIGEN, betreff="ohne Meldung"),
-         _fenster(uid, identitaet=VON, betreff="mit Meldung")], VON)
-    assert gewaehlt[str(uid)]["betreff"] == "mit Meldung"
+    zustand = _einziger(_stand())
+    assert zustand.art == "offen" and zustand.fenster["betreff"] == "mit Meldung"
+
+
+@pytest.mark.parametrize("reihenfolge", ["fremd-zuerst", "eigen-zuerst"])
+def test_ohne_meldung_entscheidet_die_adresse_in_der_uri(monkeypatch, reihenfolge):
+    """Der zweite Rang des Sortierschlüssels, bis #442 (N5) ungeprüft.
+
+    Keines der beiden Fenster nennt seine Identität. Dann gewinnt das, dessen
+    URI die Adresse trägt — in beiden Reihenfolgen, sonst stünde hier nur der
+    dritte Rang, die Reihenfolge der Liste.
+    """
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    uid = server.ordner[ENTWUERFE][0].uid
+    eigen = _fenster(uid, uri=LOGIN_EIGEN, betreff="Adresse in der URI")
+    fremd = _fenster(uid, uri=LOGIN_FREMD, betreff="nur der Login")
+    _mit_fenstern(monkeypatch, *([fremd, eigen] if reihenfolge == "fremd-zuerst"
+                                 else [eigen, fremd]))
+    assert _einziger(_stand()).fenster["betreff"] == "Adresse in der URI"
 
 
 @pytest.mark.parametrize("uri", [
@@ -1690,12 +1709,18 @@ def test_ein_fenster_ohne_uid_in_der_uri_zaehlt_nicht(monkeypatch):
 
     Gegenprobe zur gelockerten Zuordnung: Dass die Adresse nicht mehr
     ausschließt, heißt nicht, dass jedes Fenster zählt.
+
+    Zwilling: Dasselbe Fenster mit `#<uid>` macht den Entwurf `OFFEN`. Bis #442
+    (N5) stand hier `assert server.ordner[ENTWUERFE]`, und das prüfte nur, dass
+    die Attrappe nicht leer ist.
     """
     server = _postfach(monkeypatch, entwuerfe=[_mail()])
-    _mit_fenstern(monkeypatch, {"titel": "Verfassen", "betreff": "neu",
-                                "draft_id": "", "identitaet": VON})
+    ohne = {"titel": "Verfassen", "betreff": "neu", "draft_id": "", "identitaet": VON}
+    _mit_fenstern(monkeypatch, ohne)
     assert _einziger(_stand()).art == "wartet"
-    assert server.ordner[ENTWUERFE]
+    uid = server.ordner[ENTWUERFE][0].uid
+    _mit_fenstern(monkeypatch, {**ohne, "draft_id": LOGIN_FREMD.format(uid=uid)})
+    assert _einziger(_stand()).art == "offen", "der Aufbau kann gar nicht OFFEN werden"
 
 
 # ── Das Tagebuch kommt aus dem Profil des Sockets (#410) ────────────────────
