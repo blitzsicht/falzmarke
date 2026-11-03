@@ -111,6 +111,19 @@ def test_eine_abgelehnte_anmeldung_nennt_die_meldung(monkeypatch):
     assert attrappe.abgemeldet == 1, "die halbe Sitzung bleibt offen"
 
 
+@pytest.mark.parametrize("adresse", ["joe@example.org\r\nA1 DELETE INBOX",
+                                     "joe@example.org\n", "joe\x00@example.org"])
+def test_ein_umbruch_in_der_adresse_meldet_nicht_an(server, adresse):
+    """`LOGIN` geht nicht durch `_zitiert` (#442, N4). Auf 3.12 setzte `imaplib`
+    den Namen samt `\\r\\n` in die Befehlszeile; die Attrappe lehnt wie 3.14 mit
+    `ValueError` ab, und das wäre ein Traceback statt eines Grundes.
+    """
+    with pytest.raises(postfach.PostfachFehler, match="Umbruch oder ein Nullbyte"):
+        postfach.verbinde(adresse, umgebung={})
+    assert server.verbindungen == [], "abgelehnt wird vor dem Verbindungsaufbau"
+    assert server.protokoll == []
+
+
 # ── Lesen ───────────────────────────────────────────────────────────────────
 
 def test_sonderordner_aus_list(server):
