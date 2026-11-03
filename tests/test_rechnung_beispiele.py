@@ -63,7 +63,8 @@ import pypdf
 import pytest
 
 from falzmarke import cli as falzmarke
-from conftest import REPO, PROFILE, RECHNUNG_BEISPIELE, ohne_typografiehinweise
+from conftest import (GOLDEN_VERSION, REPO, PROFILE, RECHNUNG_BEISPIELE,
+                      ohne_typografiehinweise)
 
 GOLDEN = REPO / "tests" / "golden" / "rechnung"
 
@@ -76,6 +77,7 @@ IDS = dict(ids=lambda p: p.stem)
 @pytest.fixture(autouse=True)
 def _feste_zeit(monkeypatch):
     monkeypatch.setenv("SOURCE_DATE_EPOCH", EPOCH)
+    monkeypatch.setattr(falzmarke, "VERSION", GOLDEN_VERSION)
 
 
 def _setze(beispiel: Path, tmp_path: Path) -> Path:
@@ -200,6 +202,36 @@ def test_ohne_feste_zeit_traegt_das_pdf_die_rechnerzeit(tmp_path, monkeypatch):
     erstellt = re.compile(rb"/CreationDate\s*\(D(?::|\\072)(\d{8})")
     assert erstellt.search(fest)[1] == b"20260831", "das Epoch 1788134400 (31.08.2026) fehlt"
     assert erstellt.search(frei)[1] != b"20260831" and fest != frei
+
+
+def _fassung(pdf: Path) -> tuple[str, str]:
+    meta = pypdf.PdfReader(str(pdf)).metadata
+    return meta["/Producer"], meta["/falzmarke_Version"]
+
+
+@pytest.mark.parametrize("beispiel", RECHNUNG_BEISPIELE, **IDS)
+def test_das_golden_traegt_die_feste_fassung(beispiel):
+    """Bis 0.11.2 stand hier die Paketversion, und jedes Release erzeugte sechs
+    Binär-Diffs ohne inhaltliche Änderung (#467). Wer die durchwinkt, winkt
+    irgendwann auch einen echten durch."""
+    from falzmarke import __version__
+
+    assert GOLDEN_VERSION != __version__, "die feste Fassung darf keine echte sein"
+    assert _fassung(GOLDEN / f"{beispiel.stem}.pdf") == (
+        f"falzmarke {GOLDEN_VERSION}", GOLDEN_VERSION)
+
+
+def test_ohne_feste_fassung_traegt_das_pdf_die_paketversion(tmp_path, monkeypatch):
+    """Gegenprobe zur festen Fassung, wie oben zur festen Zeit: Außerhalb der
+    Goldens schreibt falzmarke weiter die echte Version ins PDF, und genau
+    dieser Unterschied ist es, den die Fixture wegnimmt."""
+    from falzmarke import __version__
+
+    beispiel = RECHNUNG_BEISPIELE[0]
+    monkeypatch.setattr(falzmarke, "VERSION", falzmarke.VERSION_PAKET)
+    pdf = _setze(beispiel, tmp_path)
+    assert _fassung(pdf) == (f"falzmarke {__version__}", __version__)
+    assert pdf.read_bytes() != (GOLDEN / f"{beispiel.stem}.pdf").read_bytes()
 
 
 # ── „Ein Steuersatz nur in der XML“ (Abnahme 2 und 3) ───────────────────────

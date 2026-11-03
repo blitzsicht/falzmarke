@@ -190,6 +190,18 @@ def test_ueber_http_kommen_drei_werkzeuge_mit_annotations(dienst):
             assert feld in hinweise, f"{name}: {feld} fehlt"
 
 
+def test_ueber_http_nennt_initialize_die_version(dienst):
+    """Bis 0.11.2 kam `serverInfo.version` leer zurück, wie beim stdio-Dienst (#467)."""
+    from falzmarke import __version__
+
+    status, antwort = _rpc(dienst, "initialize", {
+        "protocolVersion": "2025-06-18", "capabilities": {},
+        "clientInfo": {"name": "probe", "version": "0"}})
+    assert status == 200
+    info = antwort["result"]["serverInfo"]
+    assert (info["name"], info["version"]) == (rd.NAME, __version__)
+
+
 def test_ueber_http_liefert_ein_aufruf_die_masse(dienst):
     status, antwort = _rpc(dienst, "tools/call",
                            {"name": "sollwerte", "arguments": {"form": "B"}})

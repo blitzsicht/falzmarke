@@ -273,6 +273,38 @@ def test_der_server_meldet_alle_werkzeuge_an():
         assert werkzeug.__doc__, f"{werkzeug.__name__} ohne Beschreibung — der Client zeigt sie an"
 
 
+def _server_info(server):
+    import asyncio
+    from mcp import Client
+
+    async def lies():
+        async with Client(server) as client:
+            return client.server_info
+
+    return asyncio.run(lies())
+
+
+def test_initialize_meldet_die_paketversion():
+    """Bis 0.11.2 kam `serverInfo.version` leer zurück (#467).
+
+    Gelesen über einen echten `initialize`, nicht über ein Attribut des Servers:
+    Was zählt, ist die Antwort, die ein Client bekommt.
+    """
+    pytest.importorskip("mcp", reason="optionales Extra falzmarke[mcp]")
+    from falzmarke import __version__
+
+    info = _server_info(dienst.baue_server())
+    assert (info.name, info.version) == ("falzmarke", __version__)
+
+
+def test_gegenprobe_ohne_versionsangabe_bleibt_sie_leer():
+    """Sonst bewiese der Test darüber nur, dass das SDK selbst eine Nummer einsetzt."""
+    pytest.importorskip("mcp", reason="optionales Extra falzmarke[mcp]")
+    from mcp.server import MCPServer
+
+    assert _server_info(MCPServer(dienst.NAME)).version == ""
+
+
 def test_erwartete_fehler_erreichen_den_client():
     """Ohne Übersetzung bekommt der Client „Error executing tool“ und sonst nichts.
 

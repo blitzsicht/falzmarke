@@ -173,25 +173,12 @@ erzeugt (`python3 scripts/changelog.py`, oder `make changelog`) — ihn nie von 
 ihn stehen lässt, zeigt auf der Produktseite einen Stand, den es nicht mehr gibt, und
 `tests/test_changelog.py` schlägt fehl.
 
-**Die Rechnungs-Goldens tragen die Versionsnummer und müssen nach dem Bump neu erzeugt werden:**
-
-```bash
-python3 scripts/golden_rechnung.py
-```
-
-Ein Rechnungs-PDF führt die Fassung zweimal in seinen Metadaten (`Producer` und
-`/falzmarke_Version`). Nach jedem Versionswechsel werden die Byte-Goldens dadurch rot — bei
-v0.9.9 waren es sechs Tests. Das ist keine inhaltliche Abweichung, und genau das gehört
-nachgesehen: Der Diff darf **nur** die beiden Versionsbytes je Datei enthalten. Die
-eingebetteten XML-Goldens bleiben unberührt; meldet das Skript dort „erneuert“, ist etwas
-anderes passiert.
-
-Das gilt nur, solange die Versionsnummer gleich lang bleibt. Bei v0.9.10 wurde sie ein Zeichen
-länger, und damit verschieben sich alle Byte-Offsets dahinter: `cmp` meldete je Datei über
-1500 abweichende Bytes. Dann wird inhaltlich verglichen, alt gegen neu mit `pypdf`: Die
-Inhaltsströme der Seiten und die Anhänge sind byte-gleich, das XMP ist gleich bis auf die
-Versionsnummer, und in den Metadaten unterscheiden sich nur `/falzmarke_Version` und
-`/Producer`.
+**Die Rechnungs-Goldens bleiben beim Bump unberührt.** Ein Rechnungs-PDF führt die Fassung in
+`/Producer` und `/falzmarke_Version`. Bis 0.11.2 stand dort die Paketversion, und jedes Release
+erzeugte sechs Binär-Diffs ohne inhaltliche Änderung. Seit #467 tragen die Goldens eine feste
+Fassung (`GOLDEN_VERSION` in `tests/conftest.py`), so wie `SOURCE_DATE_EPOCH` die Zeit festhält.
+Wird beim Release ein Rechnungs-Golden rot, hat sich an einer Rechnung etwas geändert. Dann
+gehört der Diff gelesen, bevor `python3 scripts/golden_rechnung.py` ihn überschreibt.
 
 **Vor dem Tag einmal von Hand:**
 

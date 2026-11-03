@@ -137,6 +137,23 @@ def test_skill_kopf_nennt_dieselbe_version():
         f"SKILL.md sagt {treffer.group(1)}, pyproject.toml {version_aus_pyproject()}")
 
 
+PLUGIN_JSON = REPO / "skill" / ".claude-plugin" / "plugin.json"
+
+
+def test_plugin_manifest_nennt_dieselbe_version():
+    """Die fünfte Stelle: das Manifest fürs Anthropic-Plugin-Verzeichnis (#467).
+
+    Bis 0.11.2 hatte es kein Versionsfeld. Das Release hob vier Stellen an, und das
+    Manifest sagte nicht, welche Fassung es beschreibt.
+    """
+    import json
+
+    manifest = json.loads(PLUGIN_JSON.read_text(encoding="utf-8"))
+    assert "version" in manifest, "plugin.json: kein Feld `version`"
+    assert manifest["version"] == version_aus_pyproject(), (
+        f"plugin.json sagt {manifest['version']}, pyproject.toml {version_aus_pyproject()}")
+
+
 def test_server_json_nennt_das_eigene_paket():
     """Ein falscher `identifier` zeigte auf ein fremdes PyPI-Paket.
 
