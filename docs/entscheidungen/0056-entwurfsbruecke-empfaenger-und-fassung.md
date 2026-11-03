@@ -96,3 +96,10 @@ falzmarke vergleicht sie mit An, Cc, Bcc der Nachricht (`oeffnen.empfaenger_prue
 `EMPFÄNGER PRÜFEN` statt `OK`, wenn sie abweichen; mit einem älteren Add-on steht
 `NICHT GEPRÜFT  Empfänger im Fenster`, und das Mitaufräumen lässt das eben geöffnete Fenster in
 Ruhe, statt es anzufragen.
+
+Gemessen am 03.11.2026 mit 0.3.8, zwölf Öffnungen von Testentwürfen (fünf mit Mitaufräumen, fünf
+ohne, zwei im Prozess mit parallel pollendem `fenster`): alle zwölf Fenster mit An und Bcc der
+Nachricht, zwölfmal `geoeffnet` mit Adressen im Tagebuch, zehnmal `OK  Empfänger im Fenster wie
+in der Nachricht` im CLI. Bei den zwei gepollten Öffnungen traf `fenster` das Fenster je einmal
+beim Laden (Antwort `live: false`, `fenster_laedt_noch`, rund 15 s nach dem Zuruf, weil der Ordner
+vorher nachgeladen wird); das Fenster blieb vollständig.
