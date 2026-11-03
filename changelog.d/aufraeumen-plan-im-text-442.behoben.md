@@ -1,0 +1,1 @@
+- **`aufraeumen` nennt die gefundenen Mails auch dann, wenn der Zug abbricht.** Bisher stand im Text nur `NICHT GEPRÜFT …`, die UIDs standen nur in `--json`, obwohl der Server einen Teil schon bewegt haben kann.
