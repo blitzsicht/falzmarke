@@ -2174,6 +2174,51 @@ def test_ohne_pruefung_der_identitaet_bekommt_ein_fremdes_fenster_die_uid(monkey
                          _fenster_410(_URI_EIGEN, identitaet="wer@example.net"))) == {"4711"}
 
 
+# ── Eine Zeile sabotiert, nicht die ganze Funktion (#442, N5) ───────────────
+#
+# Die beiden Sabotagen zu #410 oben ersetzen `fenster_des_kontos` als Ganzes.
+# Das belegt, dass `_offene_uids` über das Modulattribut ruft und dass die
+# Proben einen Nachbau des alten Codes erkennen — nicht, dass sie anschlagen,
+# wenn im heutigen Code eine einzelne Zeile kippt. Dafür wird die Funktion
+# hier aus ihrem eigenen Quelltext neu übersetzt, mit genau einer Änderung.
+
+def _zeile_ersetzt(modul, name: str, alt: str, neu: str):
+    import __future__
+    import inspect
+
+    quelle = inspect.getsource(getattr(modul, name))
+    assert quelle.count(alt) == 1, f"„{alt.strip()}“ steht nicht genau einmal in {name}"
+    raum: dict = {}
+    exec(compile(quelle.replace(alt, neu), inspect.getsourcefile(modul), "exec",
+                 flags=__future__.annotations.compiler_flag, dont_inherit=True),
+         modul.__dict__, raum)
+    return raum[name]
+
+
+def test_kippt_die_zeile_der_identitaet_bekommt_ein_fremdes_fenster_die_uid(monkeypatch):
+    from falzmarke import entwurfsbuch as _buch
+
+    fremd = _fenster_410(_URI_EIGEN, identitaet="wer@example.net")
+    assert _uids_410(monkeypatch, fremd) == {}, "Kontrollprobe: unsabotiert kein Treffer"
+    monkeypatch.setattr(_buch, "fenster_des_kontos", _zeile_ersetzt(
+        _buch, "fenster_des_kontos",
+        "if gemeldet and gemeldet != adresse.strip().lower():", "if False:"))
+    assert set(_uids_410(monkeypatch, fremd)) == {"4711"}
+
+
+def test_ohne_zweiten_rang_gewinnt_die_reihenfolge_der_liste(monkeypatch):
+    """Zwei Fenster ohne Meldung; das fremde steht zuerst in der Liste."""
+    from falzmarke import entwurfsbuch as _buch
+
+    fenster = (_fenster_410(_URI_FREMD, betreff="nur der Login"),
+               _fenster_410(_URI_EIGEN, betreff="Adresse in der URI"))
+    assert _uids_410(monkeypatch, *fenster)["4711"]["betreff"] == "Adresse in der URI", \
+        "Kontrollprobe: unsabotiert gewinnt die Adresse"
+    monkeypatch.setattr(_buch, "fenster_des_kontos", _zeile_ersetzt(
+        _buch, "fenster_des_kontos", "key=lambda e: e[:2]", "key=lambda e: e[:1]"))
+    assert _uids_410(monkeypatch, *fenster)["4711"]["betreff"] == "nur der Login"
+
+
 # ── Das Profil, aus dem die Brücke antwortet (#410) ─────────────────────────
 
 def _zwei_profile_410(tmp_path, *, in_a=True, in_b=True):
@@ -2613,48 +2658,3 @@ def test_ohne_message_id_im_fetch_trifft_gar_nichts_mehr(monkeypatch):
     assert ohne != _postfach_modul.KOPFZEILEN, "die Sabotage greift nicht"
     monkeypatch.setattr(_postfach_modul, "KOPFZEILEN", ohne)
     assert lauf().zuege == ()
-
-
-# ── Eine Zeile sabotiert, nicht die ganze Funktion (#442, N5) ───────────────
-#
-# Die beiden Sabotagen zu #410 oben ersetzen `fenster_des_kontos` als Ganzes.
-# Das belegt, dass `_offene_uids` über das Modulattribut ruft und dass die
-# Proben einen Nachbau des alten Codes erkennen — nicht, dass sie anschlagen,
-# wenn im heutigen Code eine einzelne Zeile kippt. Dafür wird die Funktion
-# hier aus ihrem eigenen Quelltext neu übersetzt, mit genau einer Änderung.
-
-def _zeile_ersetzt(modul, name: str, alt: str, neu: str):
-    import __future__
-    import inspect
-
-    quelle = inspect.getsource(getattr(modul, name))
-    assert quelle.count(alt) == 1, f"„{alt.strip()}“ steht nicht genau einmal in {name}"
-    raum: dict = {}
-    exec(compile(quelle.replace(alt, neu), inspect.getsourcefile(modul), "exec",
-                 flags=__future__.annotations.compiler_flag, dont_inherit=True),
-         modul.__dict__, raum)
-    return raum[name]
-
-
-def test_kippt_die_zeile_der_identitaet_bekommt_ein_fremdes_fenster_die_uid(monkeypatch):
-    from falzmarke import entwurfsbuch as _buch
-
-    fremd = _fenster_410(_URI_EIGEN, identitaet="wer@example.net")
-    assert _uids_410(monkeypatch, fremd) == {}, "Kontrollprobe: unsabotiert kein Treffer"
-    monkeypatch.setattr(_buch, "fenster_des_kontos", _zeile_ersetzt(
-        _buch, "fenster_des_kontos",
-        "if gemeldet and gemeldet != adresse.strip().lower():", "if False:"))
-    assert set(_uids_410(monkeypatch, fremd)) == {"4711"}
-
-
-def test_ohne_zweiten_rang_gewinnt_die_reihenfolge_der_liste(monkeypatch):
-    """Zwei Fenster ohne Meldung; das fremde steht zuerst in der Liste."""
-    from falzmarke import entwurfsbuch as _buch
-
-    fenster = (_fenster_410(_URI_FREMD, betreff="nur der Login"),
-               _fenster_410(_URI_EIGEN, betreff="Adresse in der URI"))
-    assert _uids_410(monkeypatch, *fenster)["4711"]["betreff"] == "Adresse in der URI", \
-        "Kontrollprobe: unsabotiert gewinnt die Adresse"
-    monkeypatch.setattr(_buch, "fenster_des_kontos", _zeile_ersetzt(
-        _buch, "fenster_des_kontos", "key=lambda e: e[:2]", "key=lambda e: e[:1]"))
-    assert _uids_410(monkeypatch, *fenster)["4711"]["betreff"] == "nur der Login"
