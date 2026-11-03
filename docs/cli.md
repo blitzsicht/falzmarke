@@ -204,7 +204,7 @@ Fehler. Für die maschinelle Auswertung gibt es `--json`.
 | 3 | Umgebung unvollständig |
 | 4 | `email --oeffnen`: dieselbe Nachricht ging in den letzten 24 Stunden schon hinaus — kein Entwurf (ADR 0051) |
 
-Bis zum 21.10.2026 stand bei 4 „Fehler im Renderer". Zurückgegeben hat ihn kein Codepfad: Ein
+Bis zum 21.10.2026 stand bei 4 „Fehler im Renderer“. Zurückgegeben hat ihn kein Codepfad: Ein
 Fehler im Renderer endete als Python-Ausnahme mit 1. Der Code war deshalb frei.
 
 Ein gescheitertes `--oeffnen` ändert den Code **nicht**: Die Nachricht ist geschrieben und

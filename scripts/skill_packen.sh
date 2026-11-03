@@ -34,7 +34,7 @@ cd "$(dirname "$0")/.."
 
 # ── Sollwert ──────────────────────────────────────────────────────────────
 # Die Uploadgrenze von claude.ai, gemessen am 28.08.2026 an der Fehlermeldung
-# des Dialogs „Faehigkeit hochladen". Sie gilt fuer .zip UND .skill; die
+# des Dialogs „Faehigkeit hochladen“. Sie gilt fuer .zip UND .skill; die
 # Endung war nie das Problem.
 MAX_MB=30
 
@@ -108,7 +108,7 @@ echo "── 3. falzmarke-chatgpt-plugin.zip — Plugin fuer ChatGPT ───�
 #
 # Der Packer liest den Kopf von SKILL.md mit PyYAML. Die Jobs `skill-paket` in
 # ci.yml und release.yml installieren nichts — ohne diese Zeile brach der
-# Schritt dort mit „No module named 'yaml'" ab (CI, 29.09.2026). Die Fassung
+# Schritt dort mit „No module named 'yaml'“ ab (CI, 29.09.2026). Die Fassung
 # kommt aus skill/requirements.txt, wie beim typst-Wheel oben.
 PYYAML_REQ="$(grep -E '^pyyaml' skill/requirements.txt)"
 python3 -c "import yaml" 2>/dev/null || python3 -m pip install --quiet "$PYYAML_REQ"

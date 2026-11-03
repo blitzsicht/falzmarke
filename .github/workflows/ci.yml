@@ -361,7 +361,7 @@ jobs:
       - name: Eine Datei im PDF — PDF/A-3b gegen dasselbe Werkzeug
         run: |
           # Issue #114: Ohne Einbettung gibt es kein ZUGFeRD, und ohne diesen
-          # Schritt ist „A-3b" eine Aussage, die nie ein fremdes Werkzeug
+          # Schritt ist „A-3b“ eine Aussage, die nie ein fremdes Werkzeug
           # gesehen hat. Das Skript liest die Stufe aus dem XMP und prueft
           # gegen die, die das Dokument behauptet — hier also 3b statt 2b.
           mkdir -p bau-3b
@@ -392,7 +392,7 @@ jobs:
           # Dieselbe Pruefung, andere Dateien: Das Skript liest die deklarierten
           # Standards aus dem XMP und haelt jeden einzeln gegen veraPDF — bei
           # diesen also A-2b UND UA-1. Ohne diesen Schritt war die Aussage
-          # „barrierefrei" im Haus nie von aussen geprueft.
+          # „barrierefrei“ im Haus nie von aussen geprueft.
           python scripts/pdf_konformitaet.py bau-ua/*.pdf
 
       - name: Tests der Prüfung selbst
@@ -546,7 +546,7 @@ jobs:
           # Die eigene Rechnung steht bewusst ZUERST: Fällt sie durch, soll das
           # die erste Zeile der Ausgabe sein und nicht zwischen fremden Dateien
           # stehen. Die beiden Referenzdateien bleiben daneben — sie trennen
-          # „unser Erzeugnis ist falsch" von „das Werkzeug ist kaputt".
+          # „unser Erzeugnis ist falsch“ von „das Werkzeug ist kaputt“.
           #
           # `::BR-DE-15` (#117): Die eigene Gegenprobe muss an genau dieser Regel
           # scheitern. Fiele sie an einem Schemafehler durch, weil das
@@ -630,19 +630,19 @@ jobs:
         run: |
           # Die Angaben kommen in EINEM Stueck als JSON zum Pruefer. Der
           # naheliegende Weg — Labels als Wortliste durch die Shell reichen und
-          # unquoted expandieren — zerlegt „good first issue" in drei Labels.
+          # unquoted expandieren — zerlegt „good first issue“ in drei Labels.
           gh pr view "$NUMMER" --repo "$GITHUB_REPOSITORY" \
             --json files,author,labels > /tmp/pr.json
           python3 scripts/changelog_pflicht.py --pr-json /tmp/pr.json
 
   closing-keyword:
-    # „Schliesst #261" schliesst nichts — GitHub liest nur englische Keywords
+    # „Schliesst #261“ schliesst nichts — GitHub liest nur englische Keywords
     # (Issue #268). Gemessen an PR #262: Der Rumpf trug den Satz, nach dem
     # Squash-Merge stand das Issue weiter auf OPEN.
     #
-    # Eigener Job und kein Schritt im Job „Changelog-Eintrag": Ein Job traegt
+    # Eigener Job und kein Schritt im Job „Changelog-Eintrag“: Ein Job traegt
     # genau eine Aussage. Steckte die Pruefung dort mit drin, meldete der rote
-    # Check „Changelog-Eintrag" einen Vorgang, der seinen Changelog-Eintrag hat.
+    # Check „Changelog-Eintrag“ einen Vorgang, der seinen Changelog-Eintrag hat.
     #
     # Er steht wie jener HIER in ci.yml und nicht in einem eigenen Workflow:
     # scripts/pflicht_checks.py liest nur ci.yml, und ein Job daneben liefe
@@ -650,7 +650,7 @@ jobs:
     # NUR_MAIN_MARKER — der Job zaehlt als Pflicht-Check und erscheint dort
     # unter seinem `name:`.
     #
-    # Pflicht-Check im Ruleset `main`, wie „Changelog-Eintrag" (gemessen am
+    # Pflicht-Check im Ruleset `main`, wie „Changelog-Eintrag“ (gemessen am
     # 03.11.2026: `gh api repos/blitzsicht/falzmarke/rules/branches/main`).
     # Ein roter Lauf sperrt den Merge also, bis er neu laeuft — und eine
     # korrigierte Beschreibung startet ihn nicht neu (#437).

@@ -131,7 +131,7 @@ def test_die_blindkopie_wird_dem_dienst_gemeldet(tmp_path):
     """Der MCP-Dienst ist der Hauptweg dieses Pakets, und er ruft `setze_email`
     direkt auf — der Hinweis aus `befehl_email` erreicht ihn nicht.
 
-    Ohne diese Meldung bekäme der Aufrufer nur „bestanden: true" zurück und
+    Ohne diese Meldung bekäme der Aufrufer nur „bestanden: true“ zurück und
     hielte den Blindverteiler für erledigt. Genau die Lage, die #242 verhindern
     wollte, nur auf dem anderen Aufrufweg (Review-Nachtrag zu v0.9.3).
     """

@@ -124,12 +124,12 @@ def _anzahl_in_der_doku() -> str:
 def test_die_doku_nennt_so_viele_beispiele_wie_es_gibt():
     """Eine Zahl in Prosa altert still.
 
-    `docs/email.md` sagte „Vier Stück", während fünf Dateien dort lagen — von
+    `docs/email.md` sagte „Vier Stück“, während fünf Dateien dort lagen — von
     der Einführung der Beispiele bis zum 07.09.2026, ohne dass es auffiel. Ein
     Dateiglob merkt es; ein Leser merkt es nicht.
     """
     assert _anzahl_in_der_doku() == ZAHLWORT[len(EMAIL_BEISPIELE)], \
-        f"{len(EMAIL_BEISPIELE)} Beispiele, aber docs/email.md sagt „{_anzahl_in_der_doku()}"
+        f"{len(EMAIL_BEISPIELE)} Beispiele, aber docs/email.md sagt „{_anzahl_in_der_doku()}“"
 
 
 def test_die_zahlenpruefung_kann_rot_werden():
@@ -172,7 +172,7 @@ def test_lint_ist_sauber(beispiel):
     bericht = falzmarke.linte(beispiel, None)
     assert bericht.ok, bericht.als_text(beispiel.name)
     # Ohne die Hinweise des Typografie-Passes (#330): Sie sagen, was der Pass
-    # zurückhält, und stehen unten je Beispiel für sich. „Sauber" meint hier die
+    # zurückhält, und stehen unten je Beispiel für sich. „Sauber“ meint hier die
     # Eingabe — jede andere Warnung zählt weiter.
     assert not ohne_typografiehinweise(bericht), bericht.als_text(beispiel.name)
 
@@ -181,10 +181,10 @@ def test_lint_ist_sauber(beispiel):
 #: für eine andere Stelle im Baum: Fließtext, Aufzählung, Tabellenzelle. Ein
 #: Hinweis, der nur im Absatz griffe, ließe die anderen still.
 TYPOGRAFIEHINWEISE = {
-    "email-angebot": "EUR",     # Fließtext: „2.240,00 EUR netto"
-    "email-liste": "Uhr",       # Aufzählung: „ab 8:00 Uhr"
-    "email-tabelle": "EUR",     # Tabellenzelle: „1.240,00 EUR"
-    "email-mahnung": "Nr.",     # Fließtext: „Rechnung Nr. 2026-0815"
+    "email-angebot": "EUR",     # Fließtext: „2.240,00 EUR netto“
+    "email-liste": "Uhr",       # Aufzählung: „ab 8:00 Uhr“
+    "email-tabelle": "EUR",     # Tabellenzelle: „1.240,00 EUR“
+    "email-mahnung": "Nr.",     # Fließtext: „Rechnung Nr. 2026-0815“
 }
 
 

@@ -7,7 +7,7 @@ Vereinbarung, eine einseitige Erklärung, ein Nachweis, eine Vollmacht.
 
 Warum es dafür einen eigenen Typ gibt und keinen Brief mit abschaltbarem Anschriftfeld, steht in
 [ADR 0048](entscheidungen/0048-urkunde-ein-schriftstueck-ohne-anschriftfeld.md); wie die Felder
-aussehen, in [„Urkunde"](../skill/references/frontmatter.md#urkunde). Diese Seite sagt, was am
+aussehen, in [„Urkunde“](../skill/references/frontmatter.md#urkunde). Diese Seite sagt, was am
 fertigen Blatt dabei herauskommt — und was nicht.
 
 ```bash
@@ -19,7 +19,7 @@ falzmarke verify vereinbarung.pdf         # misst die fertige Datei noch einmal
 
 Briefkopf, Fußzeile, Schrift und Farbe kommen aus demselben Profil. Die Ränder sind dieselben
 (links 25 mm, rechts 20 mm), der Text steht auf demselben 12-pt-Raster, und eine Folgeseite
-trägt eine Kopfzeile und „Seite 2 von 3". Zwei Blätter desselben Absenders sehen
+trägt eine Kopfzeile und „Seite 2 von 3“. Zwei Blätter desselben Absenders sehen
 nebeneinandergelegt aus wie aus einer Hand.
 
 ## Was anders ist
@@ -98,7 +98,7 @@ Briefes.
   Ob ein Schriftstück eine gesetzliche Form wahrt, etwas beweist oder wirksam ist, entscheidet
   nicht falzmarke. Die Unterschriftslinie ist Erscheinungsbild, kein Nachweis.
 - **Keine Inhalte.** falzmarke kennt keine Klauseln und keine Muster. Die festen Wörter des
-  Werkzeugs sind „zwischen", „und" und „Ort, Datum"; alles andere schreibt der Verfasser. Die
+  Werkzeugs sind „zwischen“, „und“ und „Ort, Datum“; alles andere schreibt der Verfasser. Die
   Beispiele zeigen die Form — sie sind keine Vorlage für einen Vertrag und keine Rechtsberatung.
 - **Keine Zertifikate.** „Urkunde“ meint hier ein unterschriebenes Schriftstück, keine
   Ehren- oder Teilnahmeurkunde auf Karton oder in A3.

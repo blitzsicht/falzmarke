@@ -59,7 +59,7 @@ def kein_netz_zum_registry(monkeypatch):
     Autouse und nicht nur als Parameter von `_pruefen`: `pruefe()` wird in
     dieser Datei an fünf Stellen auch direkt aufgerufen, und ein Helfer, den man
     an einer Stelle vergessen kann, wird dort vergessen. Die Vorgabe ist
-    „gelistet" — der Normalfall, damit die Tests, die „alles stimmt" erwarten,
+    „gelistet“ — der Normalfall, damit die Tests, die „alles stimmt“ erwarten,
     weiter über alle Werte laufen.
 
     Ein Test, der die Gegenrichtung messen will, injiziert sie über
@@ -625,7 +625,7 @@ def test_ein_fehlender_eintrag_wird_erkannt():
 
 
 def test_ein_nicht_erreichbares_registry_ist_unbekannt_nicht_gruen():
-    """Kein Netz ist nicht dasselbe wie „nicht gelistet".
+    """Kein Netz ist nicht dasselbe wie „nicht gelistet“.
 
     Der Unterschied wiegt hier mehr als bei den GitHub-Werten: Das Registry ist
     ein fremder Dienst, und ein Ausfall dort würde sonst als Befund über dieses
@@ -661,7 +661,7 @@ def test_der_servername_kommt_aus_server_json(tmp_path):
 
 
 def test_eine_unlesbare_server_json_ist_unbekannt(tmp_path):
-    """Auch das ist „nicht geprüft" und nicht „nicht gelistet"."""
+    """Auch das ist „nicht geprüft“ und nicht „nicht gelistet“."""
     fehlt = tmp_path / "gibt-es-nicht.json"
     ergebnisse = repo_pruefung.pruefe(
         REPO_NAME, api=_api(_vollstaendige_antworten()), workflow=CI,

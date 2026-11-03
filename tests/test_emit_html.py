@@ -94,7 +94,7 @@ def _kursiv_im_klassischen_outlook(stapel: str) -> bool:
 
 
 def test_die_schriftfolge_meidet_segoe_ui():
-    """#307: Im klassischen Outlook für Mac setzt der Editor „Segoe UI" durch
+    """#307: Im klassischen Outlook für Mac setzt der Editor „Segoe UI“ durch
     einen kursiven Schnitt — die Schrift ist auf dem Mac nicht installiert.
     Gemessen am 13.09.2026 in einem Entwurf mit vier Schriftfolgen: beide mit
     Segoe kursiv, beide ohne normal."""

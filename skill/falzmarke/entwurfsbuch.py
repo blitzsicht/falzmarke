@@ -486,13 +486,13 @@ def bruecken_profil(profilordner: Path | None = None,
                     umgebung: Mapping[str, str] | None = None) -> tuple[Path | None, str]:
     """Das Thunderbird-Profil, aus dem die Entwurfsbrücke antwortet.
 
-    Nicht blind „das Standardprofil": Liegt der Socket der Brücke in einem
+    Nicht blind „das Standardprofil“: Liegt der Socket der Brücke in einem
     Profil, bestimmt er es, und `FALZMARKE_BRUECKE_SOCKET` sticht dann die
     Auflösung des Standardprofils. Wer
     hier stur das Standardprofil nähme, läse bei gesetztem Schalter eine Datei,
     die niemand schreibt — `BELEGT` könnte nicht entstehen, `gesperrt` und
     `gesendet` blieben unsichtbar, und der einzige Hinweis lautete „kein
-    Tagebuch", was nach einem zu alten Add-on klingt statt nach dem falschen
+    Tagebuch“, was nach einem zu alten Add-on klingt statt nach dem falschen
     Profil (#410).
 
     Der Schalter ist aber auch dafür da, den Socket aus dem Profil **heraus** zu
@@ -536,7 +536,7 @@ def tagebuch(profilordner: Path | None = None,
     pfad = profil / TAGEBUCH
     if not pfad.is_file():
         # Das Profil **beim Namen nennen**: Der Hinweis soll die Frage „welches
-        # Profil wurde gelesen?" beantworten, nicht offenlassen (#410).
+        # Profil wurde gelesen?“ beantworten, nicht offenlassen (#410).
         return [], (f"kein Tagebuch im Thunderbird-Profil „{profil.name}“ — "
                     "die Entwurfsbrücke ab 0.2.0 schreibt es")
     zeilen, unlesbar = _jsonzeilen(pfad)

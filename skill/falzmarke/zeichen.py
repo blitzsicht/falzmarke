@@ -11,7 +11,7 @@ davon. Vor dieser Datei prüfte das nichts: Gesucht wurde in `lint.py`,
 
 Diese Datei **meldet und ändert nie**. Zeichen setzt `typografie.py`, und die
 Trennung ist Absicht: „Ein Werkzeug, das ungefragt in einen Text schreibt,
-schreibt irgendwann den falschen" (`references/stil.md`).
+schreibt irgendwann den falschen“ (`references/stil.md`).
 
 Drei Klassen, nach der Wirkung getrennt:
 

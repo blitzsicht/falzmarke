@@ -74,7 +74,7 @@ def test_ein_zu_langer_wert_im_profil_nennt_das_profil(tmp_path):
 
 
 def test_derselbe_wert_im_brief_nennt_den_brief(tmp_path):
-    """Gegenprobe. Ohne sie wäre eine Herkunft, die immer „Profil" sagt, grün —
+    """Gegenprobe. Ohne sie wäre eine Herkunft, die immer „Profil“ sagt, grün —
     und schickte den Leser genau dann in die falsche Datei, wenn der Wert
     ausnahmsweise doch in seinem Brief steht."""
     ordner = _profil_mit_default(tmp_path, "Erika Muster")

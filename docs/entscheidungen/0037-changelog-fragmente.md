@@ -5,7 +5,7 @@
 ## Entscheidung
 
 Jeder Vorgang, der das Werkzeug ändert, legt seinen Changelog-Punkt als **eigene Datei** unter
-`changelog.d/<vorgang>.<rubrik>.md` ab. Der Pflicht-Check „Changelog-Eintrag" verlangt sie; ohne
+`changelog.d/<vorgang>.<rubrik>.md` ab. Der Pflicht-Check „Changelog-Eintrag“ verlangt sie; ohne
 sie ist der Pull Request nicht mergebar.
 
 Beim Release bündelt `python3 scripts/changelog.py --buendeln v0.9.2` die Fragmente zu einem
@@ -16,7 +16,7 @@ Vier Rubriken: `neu`, `geaendert`, `behoben`, `infrastruktur`. Ausgenommen von d
 Abhängigkeits-Aktualisierungen, Vorgänge, die ausschließlich `docs/`, Markdown im
 Wurzelverzeichnis oder `tests/` anfassen, und Einzelfälle mit dem Label `ohne-changelog`.
 
-**Nachtrag 02.09.2026 (#233):** Der Satz „sie erscheinen beim Release als Sammelpunkt" stand
+**Nachtrag 02.09.2026 (#233):** Der Satz „sie erscheinen beim Release als Sammelpunkt“ stand
 zuerst hier als Absichtserklärung — also als Erwartung ohne Durchsetzung, genau die Bauart, gegen
 die dieser Eintrag geschrieben wurde. Er ist jetzt eingelöst: `--buendeln` liest den git-Verlauf
 seit dem letzten Versions-Tag nach Commits des Abhängigkeits-Bots und erzeugt den Punkt selbst.

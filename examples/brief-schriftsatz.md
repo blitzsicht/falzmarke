@@ -82,7 +82,7 @@ Aus der E-Mail vom 12. Juni 2026, 08:41 Uhr, zitieren wir wörtlich:
 >
 > > Für die Beschriftung brauchen wir noch die Klemmenliste — die kommt von euch.
 
-Der Satz „an der Abnahme ändert das nichts" stammt damit von der Gegenseite selbst. Das
+Der Satz „an der Abnahme ändert das nichts“ stammt damit von der Gegenseite selbst. Das
 Kennzeichen der Nachricht lautet `M-2026-0612-0841`.
 
 # B. Rechtliche Würdigung

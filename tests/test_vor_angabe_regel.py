@@ -5,12 +5,12 @@ WARUM ES DAS GIBT
 `typografie._vor_angabe` setzt ein geschütztes Leerzeichen hinter `Nr.`,
 `Tel.`, `Az.` und ein paar Kürzel mehr. In `regeln/din5008.yaml` hing er an
 `schreibweise.zahlengliederung` — „Zahlen in Dreiergruppen mit geschütztem
-Leerzeichen: 1 234 567,89". Der Schritt gliedert aber keine Zahl. Seit #330
+Leerzeichen: 1 234 567,89“. Der Schritt gliedert aber keine Zahl. Seit #330
 steht die Kennung in jeder Warnung dieses Schritts, und wer sie nachschlägt,
 liest etwas über Dreiergruppen:
 
     WARNUNG brief-mahnung.md:15 schreibweise.zahlengliederung — Leerzeichen
-    schützen: „Rechnung Nr. 2026-0815"
+    schützen: „Rechnung Nr. 2026-0815“
 
 WAS HIER GEMESSEN WIRD
 
@@ -70,7 +70,7 @@ def _eintrag(kennung: str) -> dict | None:
 def _benennt_den_gegenstand(titel: str) -> bool:
     """Sagt der Titel, was `_vor_angabe` tut: geschütztes Leerzeichen hinter Kürzeln?
 
-    „Leerzeichen" nennt die Handlung, ein Kürzel aus `VOR_ANGABE` den Gegenstand.
+    „Leerzeichen“ nennt die Handlung, ein Kürzel aus `VOR_ANGABE` den Gegenstand.
     Von Zahlen in Dreiergruppen darf er nicht reden — das ist ein anderer Schritt.
     """
     unten = titel.lower()

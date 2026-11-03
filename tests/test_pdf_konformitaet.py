@@ -9,7 +9,7 @@ fremde Werkzeug fehlt. Vier Tests, sie laufen in der ganzen Plattform-Matrix.
 **Mit veraPDF** läuft der eigentliche Nachweis. Fehlt es, werden diese Tests
 übersprungen — der Lauf belegt die Konformität dann eben *nicht*. Damit das
 nicht still passiert, prüft `test_verapdf_fehlt_ist_nicht_gruen`, dass das
-Skript in diesem Fall Exit 2 liefert und nicht 0: „nicht geprüft" ist ein
+Skript in diesem Fall Exit 2 liefert und nicht 0: „nicht geprüft“ ist ein
 eigener Zustand, kein Grün. Und der veraPDF-Job in der CI fährt sie alle.
 
 Wer prüft, dass die Aufteilung stimmt? Die CI selbst hat es getan: Drei Tests

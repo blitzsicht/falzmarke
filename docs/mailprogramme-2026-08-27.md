@@ -30,13 +30,13 @@ macOS 26.5.2 (25F84), am 27.08.2026.
 | HTML-Teil wird gezeigt | ja | ja | ja |
 | Tabelle mit Rahmen, Beträge rechtsbündig | ja | ja | nicht geprüft |
 | Signatur | **einmal** | **einmal** | **einmal** |
-| Anlage der Mahnung | ja, inline gerendert | nicht geprüft | ja, „40,6 KB" mit Vorschau |
+| Anlage der Mahnung | ja, inline gerendert | nicht geprüft | ja, „40,6 KB“ mit Vorschau |
 | Öffnet als **Entwurf** | **nein** | **nein** | **nein** |
 
 Die ersten sieben Zeilen sind das, was die Fassung zusagt, und sie halten überall dort, wo
 gemessen wurde. Die letzte ist der Befund.
 
-„Nicht geprüft" heißt genau das und wird nicht zu „ja" aufgerundet: Die Abrechnung mit der
+„Nicht geprüft“ heißt genau das und wird nicht zu „ja“ aufgerundet: Die Abrechnung mit der
 Tabelle lief nicht durch Outlook, und im Thunderbird-Fenster war der untere Rand mit der
 Anhangleiste nicht zu sehen. Dass die Anlage technisch einwandfrei in der Datei steckt, ist
 belegt (`application/pdf`, 41.640 Byte, `disposition=attachment`) — dass Thunderbird sie
@@ -71,7 +71,7 @@ lesbar und vollständig, was sie liefern soll; wer aus ihr eine ausgehende Mail 
 nimmt in jedem der drei Programme **Weiterleiten** — oder kopiert den Text aus der
 `.html`-Vorschau, wofür sie gedacht ist.
 
-Die Abnahme von #59 verlangt in Punkt 4 „öffnet als Entwurf". Nach dieser Messung ist das keine
+Die Abnahme von #59 verlangt in Punkt 4 „öffnet als Entwurf“. Nach dieser Messung ist das keine
 Eigenschaft, die eine `.eml` erzwingen kann. Der Punkt gehört umformuliert; die Entscheidung
 liegt beim Maintainer und steht im Vorgang.
 
@@ -98,7 +98,7 @@ Datum: (null), (null)
 ```
 
 im Rumpf der Weiterleitung, geht also mit raus. Das ist keine Abweichung von den Messungen oben,
-sondern ihre Folge: Weil die `.eml` kein Entwurf ist (Zeile „Öffnet als **Entwurf**": dreimal
+sondern ihre Folge: Weil die `.eml` kein Entwurf ist (Zeile „Öffnet als **Entwurf**“: dreimal
 `nein`), setzt kein Programm das Datum selbst nach; der gangbare Weg ist Weiterleiten, und der
 zitiert.
 

@@ -9,12 +9,12 @@ Originaltext der DIN 5008:2020-03 vorliegt — unter einer Bedingung: Die Quelle
 überall ausgewiesen, wo jemand auf das Werkzeug trifft.
 
 Damit werden die Kanäle frei: Paketveröffentlichung, MCP-Server, Aktion für andere
-Repositories, Website. Der Meilenstein „Vor Verbreitung" sperrt sie nicht mehr.
+Repositories, Website. Der Meilenstein „Vor Verbreitung“ sperrt sie nicht mehr.
 
 ## Warum
 
 ADR 0030 hat einen Kreislauf benannt und ausdrücklich **nicht** entschieden: Der Meilenstein
-„Vor Verbreitung" sperrte die Bewerbung bis zum Normabgleich; der Normabgleich wartete auf 100
+„Vor Verbreitung“ sperrte die Bewerbung bis zum Normabgleich; der Normabgleich wartete auf 100
 Sterne im Repository; Sterne entstehen durch Verbreitung. Stand bei dieser Entscheidung: **0
 Sterne.** Die Bedingung war damit nicht schwer erfüllbar, sondern unerfüllbar — und ein
 Werkzeug, das niemand benutzt, schützt niemanden.
@@ -27,14 +27,14 @@ ist und nicht auf gutem Willen beruht:
 - `tests/test_textkanon.py` verlangt in `README.md` und `docs/recht.md` den Satz, dass der
   Abgleich mit dem Originaltext aussteht, und den Satz, dass Regeln aus einzelnen Quellen nur
   als Warnung wirken.
-- Derselbe Test sperrt die Wörter „normgerecht", „DIN-konform", „normkonform" und
-  „zertifiziert" — auch in gebeugter Form, mit Ausnahme verneinender Verwendungen.
+- Derselbe Test sperrt die Wörter „normgerecht“, „DIN-konform“, „normkonform“ und
+  „zertifiziert“ — auch in gebeugter Form, mit Ausnahme verneinender Verwendungen.
 - `skill/falzmarke/regeln/din5008.yaml` führt zu jeder Regel ihre Herkunft, und
   `tests/test_quellenlage.py` lässt nur mehrfach belegte Regeln als Fehler wirken. Stand heute:
   16 Regeln wirken als Fehler, 19 als Warnung, eine wird nicht geprüft.
 
 Das ist mehr Offenlegung, als ein Nutzer bei vergleichbaren Werkzeugen bekommt. Die Zurückhaltung
-im Wortlaut bleibt zugleich das Unterscheidungsmerkmal: In einem Feld, in dem „DIN-konform"
+im Wortlaut bleibt zugleich das Unterscheidungsmerkmal: In einem Feld, in dem „DIN-konform“
 behauptet wird, ist der Verzicht darauf die Aussage.
 
 ## Was diese Entscheidung nicht ist
@@ -49,7 +49,7 @@ behauptet wird, ist der Verzicht darauf die Aussage.
 
 - **Die 100-Sterne-Bedingung an #12 entfällt.** Sie war die Ursache des Kreislaufs. Wann der
   Abgleich stattfindet, entscheidet der Maintainer ohne diese Schwelle.
-- **Der Meilenstein „Vor Verbreitung" bekommt einen neuen Zuschnitt.** Er hieß so, weil er die
+- **Der Meilenstein „Vor Verbreitung“ bekommt einen neuen Zuschnitt.** Er hieß so, weil er die
   Bewerbung sperrte. Was ihn jetzt füllt, ist Belegarbeit, die vor einer *starken Behauptung*
   stehen muss — nicht vor der Verbreitung.
 - **Die Quellenlage muss dorthin, wo sie ohne README ankommt.** Das ist die schwächste Stelle

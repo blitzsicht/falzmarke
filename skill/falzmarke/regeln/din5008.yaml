@@ -124,7 +124,7 @@ regeln:
         Faltmarke 2 bei 192 mm — alle vier Maße dieser Regel, gemessen von der
         oberen Blattkante.
       dinbrief: >-
-        `\addresshigh` setzt die Längen „entsprechend der Form A der DIN Norm":
+        `\addresshigh` setzt die Längen „entsprechend der Form A der DIN Norm“:
         obere Faltmarke 87 mm, untere 192 mm, Bezugszeichenzeile 80,5 mm,
         untere Fensterecke 72 mm. Beruft sich dabei auf DIN 676 (Ausgabe
         Dezember 1976 und Entwurf Mai 1991), nicht auf DIN 5008 — siehe
@@ -342,10 +342,10 @@ regeln:
     belegt_durch:
       onlineprinters: >-
         SCHWEIGT — „Komma“ kommt auf der Seite nicht vor.
-    # wikipedia am 26.08.2026 entfernt: Der Artikel nennt das Wort „Komma" kein
+    # wikipedia am 26.08.2026 entfernt: Der Artikel nennt das Wort „Komma“ kein
     # einziges Mal — 13.020 Zeichen, ueber die API geholt und vollstaendig
     # durchsucht — und sagt zur Anrede ausdruecklich, ihr Textinhalt sei „hier
-    # nicht geregelt". Die Quelle stand hier, ohne zur Regel etwas beizutragen,
+    # nicht geregelt“. Die Quelle stand hier, ohne zur Regel etwas beizutragen,
     # und hob sie damit auf eine Stufe, die Laeufe scheitern lassen darf.
     wirkung: warnung
     bemerkung: >-
@@ -793,7 +793,7 @@ regeln:
       rechts aus dem Satzspiegel, und `verify` meldet das. Mit einem
       Leerzeichen bricht der Satz sie um — gemessen an einer 81 Zeichen langen
       Protokollzeile, die im PDF auf zwei Zeilen steht, während der Lauf
-      „42/42 Maße eingehalten" meldet. Ein umbrochener Protokolleintrag ist
+      „42/42 Maße eingehalten“ meldet. Ein umbrochener Protokolleintrag ist
       ein anderer Eintrag. Die Prüfung läuft deshalb an der Quelle, wo die
       Zeilennummer noch bekannt ist. Warnung und nicht Fehler: Der Brief soll
       trotzdem entstehen, damit sich das Ergebnis ansehen lässt.
@@ -805,7 +805,7 @@ regeln:
     wirkung: fehler
     bemerkung: >-
       Keine eigene Aussage der Norm, sondern die Folge einer: Die Grundzeile
-      misst 12 pt, und jede „Leerzeile" ist genau eine davon. Daraus ergibt sich
+      misst 12 pt, und jede „Leerzeile“ ist genau eine davon. Daraus ergibt sich
       die Betreffposition, die als `geometrie.betreffabstand` mehrfach belegt
       ist. Ob die Zeilen dazwischen das Raster halten, war bis Issue #140 eine
       Zusage des Satz-Quelltextes und sonst nichts — ein krummer Abstand
@@ -864,7 +864,7 @@ regeln:
     belegt_durch:
       unicode_noncharacters: >-
         Belegt die Liste der Nichtzeichen, nicht die Regel — 66 Codepunkte,
-        „formally immutable".
+        „formally immutable“.
       unicode_tr44: >-
         Belegt die Kategorien `Cf`, `Cc`, `Co` und die Herleitung von
         `Default_Ignorable_Code_Point`, nach der die Fehlerklasse geschnitten
@@ -899,17 +899,17 @@ regeln:
     bemerkung: >-
       Die zweite Hälfte der Zeichenprüfung (ADR 0052), getrennt eingetragen,
       weil die Wirkung sich unterscheidet. Ein geschütztes Leerzeichen ist nicht
-      falsch — falzmarke setzt selbst eines bei „z. B.", „§ 7", „12 kg",
-      „25. August" und „Nr. 4711". Ob eines an einer anderen Stelle gewollt ist,
+      falsch — falzmarke setzt selbst eines bei „z. B.“, „§ 7“, „12 kg“,
+      „25. August“ und „Nr. 4711“. Ob eines an einer anderen Stelle gewollt ist,
       ist Ermessen, und darüber urteilt das Werkzeug nicht. Deshalb
       `deckel: warnung`: Die Herkunft `werkzeug` dürfte Fehler sein, hier soll
       sie es nicht.
 
       Warum `deckel` und nicht `ebene: praxis` in `email.yaml`: `praxis` heißt
-      in diesem Repo „Darstellungsverhalten von Mailprogrammen" (ADR 0035), und
+      in diesem Repo „Darstellungsverhalten von Mailprogrammen“ (ADR 0035), und
       davon redet die Regel nicht. Sie redet über die Eingabe — jeder
       Dokumentart, nicht nur der E-Mail. Mit `ebene: praxis` stünde unter jeder
-      Meldung „Erfahrung mit Mailprogrammen, kein Nachweis"; das wäre ein Grund,
+      Meldung „Erfahrung mit Mailprogrammen, kein Nachweis“; das wäre ein Grund,
       den es nicht gibt.
 
       Die Stellen, an denen ein geschütztes Leerzeichen richtig ist, liest

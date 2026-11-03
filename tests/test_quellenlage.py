@@ -652,7 +652,7 @@ def test_einzeln_belegt_braucht_wenigstens_einen_beleg(tmp_path):
     Die Regel, an der gekippt wird, steht **nicht** fest im Test. Hier stand bis
     zum 24.09.2026 `geometrie.form_a.masse`; mit ihrer Anhebung auf
     `mehrfach_bestaetigt` (#180) hätte dieselbe Sabotage einen anderen Melder
-    ausgelöst — „nur 0 voll zählende Quelle(n)" statt „trägt sie" —, und der Test
+    ausgelöst — „nur 0 voll zählende Quelle(n)“ statt „trägt sie“ —, und der Test
     wäre aus einem Grund rot geworden, den er gar nicht prüft. Derselbe Unfall
     wie am 29.08.2026 eine Prüfung weiter oben, nur umgekehrt herum.
     """
@@ -751,7 +751,7 @@ def test_die_messung_wuerde_eine_verschiebung_bemerken():
 # Befund von Issue #31: Die Validierung prüft, ob eine Regel ihre Zählstufe
 # trägt — nicht, ob die genannte Quelle zur Sache etwas hergibt. Belegt an
 # `text.anrede_komma` (#30): mehrfach bestätigt, Läufe scheiternd, gestützt
-# unter anderem auf einen Wikipedia-Artikel, der das Wort „Komma" kein
+# unter anderem auf einen Wikipedia-Artikel, der das Wort „Komma“ kein
 # einziges Mal enthält.
 #
 # Am 27.08.2026 wurde die für `onlineprinters` ausstehende Prüfung nachgeholt:
@@ -820,7 +820,7 @@ def test_die_zahl_ungeprueffter_paare_steigt_nicht():
 
 
 def test_wer_schweigt_traegt_auch_eine_begruendung():
-    """Ein „SCHWEIGT" ohne Grund wäre so wenig wert wie die Quelle selbst."""
+    """Ein „SCHWEIGT“ ohne Grund wäre so wenig wert wie die Quelle selbst."""
     for regel in regeln.alle():
         for quelle, text in (regel.get("belegt_durch") or {}).items():
             if str(text).startswith(regeln.SCHWEIGT):
@@ -1276,7 +1276,7 @@ def test_es_belegt_form_a_und_sagt_womit():
 
 def test_form_a_steigt_nicht_durch_dinbrief():
     """Abnahmepunkt 3 aus #134, wörtlich: „Keine Regel steigt allein deshalb auf
-    mehrfach_bestaetigt, weil eine Quelle dazugekommen ist."
+    mehrfach_bestaetigt, weil eine Quelle dazugekommen ist.“
 
     Der Grund steht in `quellen.yaml`: dinbrief beruft sich auf DIN 676, wie
     `koma_script`. Zwei Umsetzungen derselben Grundlage sind keine zwei
@@ -1367,7 +1367,7 @@ def test_form_a_steht_auf_zwei_gruppen_und_wirkt_als_fehler():
 def test_form_a_steht_auf_mehr_gruppen_als_jede_form_b_regel():
     """Warum die Anhebung nicht am Vergleich mit Form B scheitert.
 
-    #180 führte als Argument, Form B stehe „auf zwei Zeichnungen" und wirke als
+    #180 führte als Argument, Form B stehe „auf zwei Zeichnungen“ und wirke als
     Fehler. Nachgemessen am 24.09.2026 ist es **eine**: `massskizze_b` und
     `onlineprinters` tragen dieselbe `gruppe:`, weil sie dieselbe Zeichnung sind
     (Befund vom 27.08.2026). Die fünf Form-B-Regeln stehen deshalb in
@@ -1717,7 +1717,7 @@ def test_gegenprobe_verstummt_die_tragende_quelle_wandert_die_meldung_weiter(mon
     `belegt_durch.wikipedia` von `text.vermerke_max_3` wird auf `SCHWEIGT`
     gesetzt. Dann bleibt unter `quellen:` nur `letter_pro` übrig — die einzige,
     zu der niemand `SCHWEIGT` notiert hat —, und die Meldung muss **sie**
-    nennen. Erwartet wird also nicht „irgendetwas ändert sich", sondern ein
+    nennen. Erwartet wird also nicht „irgendetwas ändert sich“, sondern ein
     namentlicher Wert.
 
     `letter_pro` zählt `einzeln` und trägt die Beleglage damit weiter; die

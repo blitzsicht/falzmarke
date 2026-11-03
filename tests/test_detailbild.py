@@ -211,7 +211,7 @@ def test_die_masszahl_im_bild_stimmt_mit_dem_fenster():
     """Gerundete Masszahlen behaupten einen Ausschnitt, den es nicht gibt.
 
     Belegt am 27.08.2026: Nach einer Aenderung des Zuschnitts stand
-    „6 × 5 mm" im Bild, waehrend das Fenster 5,5 mm breit war — `:.0f` hatte
+    „6 × 5 mm“ im Bild, waehrend das Fenster 5,5 mm breit war — `:.0f` hatte
     gerundet. Die Zahl im Bild ist das Einzige, woran ein Leser den Massstab
     festmachen kann.
     """

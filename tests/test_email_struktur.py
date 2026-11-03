@@ -36,7 +36,7 @@ def test_die_ueberschrift_ist_ein_fetter_absatz_kein_h_element():
 
 
 def test_ab_ebene_drei_zusaetzlich_kursiv_wie_im_brief():
-    """Zwei sichtbare Formen, nicht vier — die Vorgabe „höchstens zwei Ebenen"."""
+    """Zwei sichtbare Formen, nicht vier — die Vorgabe „höchstens zwei Ebenen“."""
     zwei = emit_html.setze(_baum("## Zwei\n"))
     drei = emit_html.setze(_baum("### Drei\n"))
     assert "font-style: italic" not in zwei

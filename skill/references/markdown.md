@@ -243,7 +243,7 @@ Gemeldet, aber nicht abgelehnt:
 
 | Warnung | Warum |
 |---|---|
-| Linktexte wie „hier" oder „klicken Sie hier" | Ein Bildschirmleseprogramm liest Links oft als Liste vor, losgelöst vom Satz. „hier" ist dort nichts. |
+| Linktexte wie „hier“ oder „klicken Sie hier“ | Ein Bildschirmleseprogramm liest Links oft als Liste vor, losgelöst vom Satz. „hier“ ist dort nichts. |
 | `http://` statt `https://` | überträgt unverschlüsselt |
 | Kurz-URL-Dienste (`bit.ly` und ähnliche) | Wer eine Geschäftsmail schreibt, verbirgt sein Ziel nicht |
 
@@ -306,7 +306,7 @@ Bedeutung, und die Kopfzeile einer Tabelle war fett gesetzt und sonst nichts (Is
 
 ### Eine Tabelle steht nicht auf dem Zeilenraster
 
-Der Briefkörper steht auf einem 12-pt-Raster: Jede „Leerzeile" der Norm ist genau eine
+Der Briefkörper steht auf einem 12-pt-Raster: Jede „Leerzeile“ der Norm ist genau eine
 Rasterzeile, und seit Issue #140 wird das gemessen. **Tabellen sind davon ausgenommen** — und das ist
 gewollt.
 

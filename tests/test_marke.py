@@ -1,8 +1,8 @@
 """Der Textkanon ist die einzige Quelle — und alle richten sich danach.
 
 Anlass: Am 25.08.2026 trug dasselbe Produkt drei Beschreibungen. Der Banner sagte
-„Briefe schreiben mit KI", der Auftrag „Normbriefe, nachgemessen", `pyproject`
-„Geschaeftsbriefe nach DIN 5008 aus Markdown — mit nachgemessener Geometrie".
+„Briefe schreiben mit KI“, der Auftrag „Normbriefe, nachgemessen“, `pyproject`
+„Geschaeftsbriefe nach DIN 5008 aus Markdown — mit nachgemessener Geometrie“.
 Keine war falsch, keine war die Quelle. Wer eine aenderte, aenderte die anderen
 nicht mit, weil niemand wusste, dass es sie gibt.
 

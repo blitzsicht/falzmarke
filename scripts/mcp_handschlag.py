@@ -4,7 +4,7 @@
 WOFÜR
 
 Ein Verzeichniseintrag verlangt, dass der Server „startet und auf
-Introspektion antwortet". Das allein ist die Prüfung, die nie rot wird: Ein
+Introspektion antwortet“. Das allein ist die Prüfung, die nie rot wird: Ein
 Server, der startet und ein leeres Werkzeugverzeichnis meldet, bestünde sie.
 Dieses Skript verlangt deshalb drei Dinge nacheinander:
 
@@ -13,8 +13,8 @@ Dieses Skript verlangt deshalb drei Dinge nacheinander:
     3. `tools/call brief_rendern` liefert wirklich ein PDF, und der
        mitgelieferte Messbericht endet ohne Fehler
 
-Schritt 3 ist der Unterschied zwischen „der Container läuft" und „der Dienst
-tut, wofür es ihn gibt". Ohne ihn belegte ein grüner Lauf nur, dass Python im
+Schritt 3 ist der Unterschied zwischen „der Container läuft“ und „der Dienst
+tut, wofür es ihn gibt“. Ohne ihn belegte ein grüner Lauf nur, dass Python im
 Container startet.
 
     python3 scripts/mcp_handschlag.py -- docker run --rm -i falzmarke-mcp
@@ -200,7 +200,7 @@ def handschlag(befehl: list[str], *, mit_render: bool = True) -> None:
         print(f"OK    brief_rendern — {len(pdf)} Byte PDF aus dem Container")
 
         # Der Messbericht, an seinen eigenen Feldern gemessen — nicht an einer
-        # Textsuche nach „FEHLER". Ein durchgefallenes Maß meldet `bestanden:
+        # Textsuche nach „FEHLER“. Ein durchgefallenes Maß meldet `bestanden:
         # false` und schreibt das Wort nirgends hin; eine Textsuche bliebe
         # genau dann grün, wenn sie anschlagen müsste.
         bericht = daten.get("bericht") or {}

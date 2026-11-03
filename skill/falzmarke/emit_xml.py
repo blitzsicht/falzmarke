@@ -74,14 +74,14 @@ EINHEITEN = {
     "liter": "LTR", "l": "LTR",
 }
 
-#: Wenn keine Einheit angegeben ist. C62 („eins") steht so in der Referenz.
+#: Wenn keine Einheit angegeben ist. C62 („eins“) steht so in der Referenz.
 EINHEIT_OHNE = "C62"
 
 #: Umsatzsteuer, Regelsatz. Beides in beiden Referenzen belegt.
 STEUER_TYP = "VAT"
 STEUER_KATEGORIE = "S"
 #: Kategorie für die Rechnung eines Kleinunternehmers (ADR 0041): „Exempt from
-#: VAT". So in der XRechnung-Spezifikation 3.0.2, Kap. 13.3, und im FeRD-Beispiel
+#: VAT“. So in der XRechnung-Spezifikation 3.0.2, Kap. 13.3, und im FeRD-Beispiel
 #: E13. Nicht `O` — das verböte die USt-IdNr. des Verkäufers (BR-O-02).
 STEUER_KATEGORIE_KLEINUNTERNEHMER = "E"
 
@@ -192,7 +192,7 @@ def laendercode_gueltig(wert) -> bool:
     """Zwei Großbuchstaben aus der amtlichen ISO-3166-1-Alpha-2-Liste.
 
     Geprüft wird gegen die vergebenen Codes, nicht nur die Form „zwei
-    Buchstaben" — `land: XX` sähe sonst gültig aus. Anders als bei IBAN und
+    Buchstaben“ — `land: XX` sähe sonst gültig aus. Anders als bei IBAN und
     Leitweg-ID gibt es keine Prüfziffer: Die Codeliste selbst ist die einzige
     Quelle der Wahrheit, und sie zu erfinden hieße raten (ADR 0005).
     """
@@ -715,7 +715,7 @@ def _steuer_gesamt(summen: dict) -> tuple:
 
     Bis zum Review vom 13.09.2026 stand hier `sum()` über die Einzelbeträge: die
     einzige Rechenoperation im ganzen Emitter, zwanzig Zeilen unter einem
-    Docstring, der „Gerechnet wird nichts" sagt. Bemerkt hat es keine Prüfung —
+    Docstring, der „Gerechnet wird nichts“ sagt. Bemerkt hat es keine Prüfung —
     die Beispielrechnung hat nur einen Steuersatz, und die Summe eines einzelnen
     Werts ist dieser Wert.
 

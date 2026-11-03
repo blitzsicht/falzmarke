@@ -5,7 +5,7 @@ Rechnung: `falzmarke render` setzt sie wie einen Brief — Anschriftfeld, Betref
 — und bettet ihr zugleich einen Datensatz bei, den kein Mensch liest. Warum es diesen zweiten
 Datenvertrag gibt und was er nicht ist, steht in
 [ADR 0039](entscheidungen/0039-falzmarke-rechnet-nicht.md); wie die Felder aussehen, in
-[„Die Rechnungsfassung"](../skill/references/frontmatter.md#die-rechnungsfassung). Diese Seite
+[„Die Rechnungsfassung“](../skill/references/frontmatter.md#die-rechnungsfassung). Diese Seite
 sagt, was am fertigen Dokument dabei herauskommt — und was nicht.
 
 ## Welche Formatfassung und welches Profil entstehen
@@ -25,7 +25,7 @@ sie nicht ([ADR 0039](entscheidungen/0039-falzmarke-rechnet-nicht.md)).
 
 - **ZUGFeRD** ist die Vorgabe, wenn `erechnung:` im Kopf fehlt oder `en16931` trägt: ein PDF, in
   dem die XML unter `factur-x.xml` eingebettet liegt. Vorgabe ist ZUGFeRD 2.x in einer fest
-  benannten Fassung (2.5.2, Stand 11.09.2026) — keine „jeweils aktuelle", denn eine Fassung, die
+  benannten Fassung (2.5.2, Stand 11.09.2026) — keine „jeweils aktuelle“, denn eine Fassung, die
   sich zur Laufzeit ändert, ist kein Datenvertrag.
 - **XRechnung** entsteht mit `erechnung: xrechnung` im Kopf. Vorgabe ist **XRechnung 3.0** in
   der Syntax CII, mit der Guideline-ID `urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0`.
@@ -128,7 +128,7 @@ Schreiben selbst: Der Abgleich mit dem Originaltext der DIN 5008:2020-03 steht a
 Und keine Rechtsberatung: Ob eine Rechnung in einem Einzelfall als elektronische oder als sonstige
 Rechnung gelten muss, entscheiden Sitz, Unternehmereigenschaft und Umsatz der Beteiligten — nicht
 ein Werkzeug, das diese Tatsachen nicht kennt. Die Rechtslage dazu, mit Fundstellen, steht in
-[„Was falzmarke behauptet — und was nicht"](recht.md#e-rechnung-was-das-umsatzsteuerrecht-verlangt).
+[„Was falzmarke behauptet — und was nicht“](recht.md#e-rechnung-was-das-umsatzsteuerrecht-verlangt).
 
 ## Verwandt
 

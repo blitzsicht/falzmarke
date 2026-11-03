@@ -6,7 +6,7 @@
 
 Der Normabgleich ([#12](https://github.com/blitzsicht/falzmarke/issues/12)) bleibt an die
 selbstgesetzte Schwelle von **100 Sternen** gebunden. ADR 0032 wird in genau einem Punkt
-abgelöst: in ihrer Folgezeile *„Die 100-Sterne-Bedingung an #12 entfällt."*
+abgelöst: in ihrer Folgezeile *„Die 100-Sterne-Bedingung an #12 entfällt.“*
 
 Alles andere aus ADR 0032 bleibt in Kraft — vor allem ihre eigentliche Entscheidung, dass
 falzmarke verbreitet werden darf, bevor der Abgleich vorliegt.
@@ -14,12 +14,12 @@ falzmarke verbreitet werden darf, bevor der Abgleich vorliegt.
 ## Warum diese ADR überhaupt geschrieben wird
 
 Nicht, weil sich etwas ändert, sondern weil etwas **still** geändert worden war. Der Vorgang #12
-trägt seit dem 20.09.2026 einen Abschnitt „Stand der Schwelle" mit dem Satz *„Die Schwelle
-bleibt"*. Das ist das Gegenteil dessen, was ADR 0032 unter „Folgen" festhält, und es stand in
+trägt seit dem 20.09.2026 einen Abschnitt „Stand der Schwelle“ mit dem Satz *„Die Schwelle
+bleibt“*. Das ist das Gegenteil dessen, was ADR 0032 unter „Folgen“ festhält, und es stand in
 keiner Entscheidung.
 
 Das [README der Entscheidungen](README.md) verlangt genau das Gegenteil davon: „Eine Entscheidung
-wird nicht überschrieben — sie wird von einer späteren abgelöst, und beide bleiben lesbar."
+wird nicht überschrieben — sie wird von einer späteren abgelöst, und beide bleiben lesbar.“
 Solange die Ablösung fehlt, widersprechen sich zwei Stellen des Projekts, und wer nur eine liest,
 liest etwas Falsches. Aufgefallen beim Schreiben von [ADR 0042](0042-quellenpruefung-ruht.md).
 
@@ -31,7 +31,7 @@ Werkzeug tatsächlich benutzt wird. Eine Norm zu kaufen, um ein Werkzeug abzusic
 verwendet, ist die falsche Reihenfolge.
 
 ADR 0032 hatte die Schwelle aus einem anderen Grund gestrichen: Sie war damals Teil eines
-Kreislaufs — der Meilenstein „Vor Verbreitung" sperrte die Bewerbung bis zum Normabgleich, der
+Kreislaufs — der Meilenstein „Vor Verbreitung“ sperrte die Bewerbung bis zum Normabgleich, der
 Normabgleich wartete auf Sterne, Sterne entstehen durch Verbreitung. **Dieser Kreislauf ist
 aufgelöst**, und zwar durch den anderen Teil von ADR 0032: Die Verbreitung ist frei, sie hängt
 nicht mehr am Abgleich. Damit ist die Schwelle keine Sperre mehr, sondern nur noch eine
@@ -44,13 +44,13 @@ Die Henne-Ei-Lage ist damit nicht verschwunden, sie ist nur entschärft. Stand *
 in Monaten erreicht.
 
 Das hat eine Folge, die benannt gehört, statt sie zu verschweigen: **Der Meilenstein „Vor
-Verbreitung" ist auf absehbare Zeit nicht abschließbar.** Offen sind dort #12 und
+Verbreitung“ ist auf absehbare Zeit nicht abschließbar.** Offen sind dort #12 und
 [#16](https://github.com/blitzsicht/falzmarke/issues/16) (Quellenlage: vendorte Implementierung
 zählt als unabhängiger Beleg); #16 wartet auf eine Handmessung, #12 auf den gekauften Normtext.
 Ein Meilenstein, der als aktiv geführt wird und es nicht ist, verzerrt jede Planung, die ihn
 ansieht.
 
-Das Repository hat für diesen Fall bereits einen Meilenstein **„Geparkt"** (derzeit #10 und #2).
+Das Repository hat für diesen Fall bereits einen Meilenstein **„Geparkt“** (derzeit #10 und #2).
 Dorthin gehören beide — als eigener Schritt, nicht als Nebenwirkung dieser Entscheidung.
 
 ## Was diese Entscheidung nicht ist

@@ -7,7 +7,7 @@
 ## Worum es geht
 
 falzmarke lehnt heute jede Rechnung ohne Umsatzsteuer ab (`emit_xml.py`, „`summen.steuer` ist
-leer"), weil die Steuerkategorie fest auf `S` steht und eine steuerfreie Rechnung damit falsch
+leer“), weil die Steuerkategorie fest auf `S` steht und eine steuerfreie Rechnung damit falsch
 ausgezeichnet wäre. `skill/references/frontmatter.md` beschreibt diese Lücke. Diese Entscheidung
 legt fest, wie falzmarke die Rechnung eines Kleinunternehmers erzeugt.
 
@@ -22,11 +22,11 @@ Werkzeug gefahren, mit Gegenprobe.
 | Aussage | Quelle | Stärke |
 |---|---|---|
 | Umsätze eines im Inland ansässigen Kleinunternehmers sind steuerfrei (Gesamtumsatz Vorjahr höchstens 25 000 €, laufendes Jahr höchstens 100 000 €) | § 19 Abs. 1 UStG | BELEGT |
-| Mindestangaben: Name und Anschrift beider Seiten, Steuernummer oder USt-IdNr. oder Kleinunternehmer-IdNr., Ausstellungsdatum, Menge und Art, Entgelt in einer Summe **mit Hinweis, dass die Steuerbefreiung für Kleinunternehmer gilt**, bei Gutschrift die Angabe „Gutschrift" | § 34a Satz 1 UStDV | BELEGT |
+| Mindestangaben: Name und Anschrift beider Seiten, Steuernummer oder USt-IdNr. oder Kleinunternehmer-IdNr., Ausstellungsdatum, Menge und Art, Entgelt in einer Summe **mit Hinweis, dass die Steuerbefreiung für Kleinunternehmer gilt**, bei Gutschrift die Angabe „Gutschrift“ | § 34a Satz 1 UStDV | BELEGT |
 | §§ 33 und 34 bleiben unberührt; die Rechnung darf immer als sonstige Rechnung gehen | § 34a Satz 2 und 4 UStDV | BELEGT |
-| Der Hinweis darf umgangssprachlich sein, wenn er eindeutig ist, etwa „steuerfreier Kleinunternehmer" | BMF-Schreiben 18.03.2025, Abschn. 14.7a Abs. 1 UStAE | BELEGT |
+| Der Hinweis darf umgangssprachlich sein, wenn er eindeutig ist, etwa „steuerfreier Kleinunternehmer“ | BMF-Schreiben 18.03.2025, Abschn. 14.7a Abs. 1 UStAE | BELEGT |
 | Eine E-Rechnung eines Kleinunternehmers setzt die Zustimmung des Empfängers voraus (formfrei) | BMF-Schreiben 18.03.2025, Abschn. 14.7a Abs. 3 UStAE | BELEGT |
-| Kategorie **E**, Satz 0, Steuerbetrag 0; der Hinweis in BT-120 **und** BT-33; BT-121 leer | XRechnung-Spezifikation 3.0.2 (20.06.2024), Kap. 13.3; FeRD-Beispiel `E13_01_Kleinunternehmer_ohneUStId.xml` aus dem Paket ZUGFeRD 2.5.2 (Dateikopf: „Version 2.5.0") | BELEGT, zwei Stellen |
+| Kategorie **E**, Satz 0, Steuerbetrag 0; der Hinweis in BT-120 **und** BT-33; BT-121 leer | XRechnung-Spezifikation 3.0.2 (20.06.2024), Kap. 13.3; FeRD-Beispiel `E13_01_Kleinunternehmer_ohneUStId.xml` aus dem Paket ZUGFeRD 2.5.2 (Dateikopf: „Version 2.5.0“) | BELEGT, zwei Stellen |
 | Kein VATEX-Code für die deutsche Regelung; das französische Gegenstück `VATEX-FR-FRANCHISE` ist landesgebunden | CEF-Genericode `VATEX-2026-05-15` | BELEGT |
 | Mit `E` gilt: BT-120 oder BT-121 Pflicht (BR-E-10), Satz 0 (BR-E-05), Steuer 0 (BR-E-09), Verkäufer braucht BT-31, BT-32 oder BT-63 (BR-E-02) | EN-16931-Schematron, Release 1.3.16 | BELEGT |
 | `O` statt `E` verböte die USt-IdNr. des Verkäufers (BR-O-02); § 34a Nr. 2 lässt sie zu | EN-16931-Schematron, § 34a UStDV | BELEGT |
@@ -85,8 +85,8 @@ Empfänger, nicht den Absender. Ein Gültigkeitsdatum bekommt das Feld nicht. We
 überschreitet, stellt sein Profil um; das kann falzmarke ohne Umsatz nicht erkennen.
 
 **Der Hinweis hat keine Vorgabe.** falzmarke druckt keinen selbst formulierten Rechtstext in
-fremde Rechnungen. Der Mustertext der KoSIT stammt aus der Zeit vor 2025 („kein Ausweis") und
-passt nicht mehr zum Wortlaut „steuerfrei". Das gilt wie bei `email.pflichtangaben:`
+fremde Rechnungen. Der Mustertext der KoSIT stammt aus der Zeit vor 2025 („kein Ausweis“) und
+passt nicht mehr zum Wortlaut „steuerfrei“. Das gilt wie bei `email.pflichtangaben:`
 (`docs/recht.md`): Das Feld ist Pflicht, sein Inhalt wird nicht bewertet. Die Doku nennt das
 Beispiel aus dem BMF-Schreiben mit Fundstelle, das Beispielprofil trägt einen Text mit Kommentar.
 
@@ -107,7 +107,7 @@ Dazu kommen zwei Regeln für den Rand: `rechnung.kleinunternehmer` meldet einen 
 `summen.steuer` ohne Status. Diese Meldung verweist auf das Profilfeld.
 
 `rechnung.kleinunternehmer_summe` weicht bewusst vom Muster „eine Summenabweichung ist eine
-Warnung" ab (`rechnung.summen`, ADR 0039). Hier ist kein Rundungsfall denkbar: Bei Steuer 0 wäre
+Warnung“ ab (`rechnung.summen`, ADR 0039). Hier ist kein Rundungsfall denkbar: Bei Steuer 0 wäre
 jede Abweichung ein Verstoß gegen BR-CO-15 in der XML. Die Ausnahme steht als Kommentar in
 `regeln/rechnung.yaml`.
 
@@ -117,7 +117,7 @@ bricht mit `RechnungUnvollstaendig` ab.
 
 ## Entscheidung 3: Der Hinweis steht im PDF und in der XML, mit demselben Wortlaut
 
-Das PDF zeigt unter der Positionstabelle nur den Gesamtbetrag, keine Zeile „Summe netto" mit
+Das PDF zeigt unter der Positionstabelle nur den Gesamtbetrag, keine Zeile „Summe netto“ mit
 demselben Wert und keine Steuerzeile, und darunter den Hinweis. Die XML trägt ihn als BT-120 und
 BT-33. Eine Treue-Prüfung wie bei den Beträgen (`tests/test_rechnung_treue.py`) hält PDF und XML
 gegeneinander.

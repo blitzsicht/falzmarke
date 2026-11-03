@@ -139,7 +139,7 @@ jobs:
             `SHA-256: ${{ steps.hash.outputs.sha256_offline }}`
 
             **falzmarke-chatgpt-plugin.zip** — derselbe Skill samt Typst-Compiler als Plugin
-            fuer ChatGPT („Skills only"). Zum Einreichen bei OpenAI, nicht zum Hochladen im Chat.
+            fuer ChatGPT („Skills only“). Zum Einreichen bei OpenAI, nicht zum Hochladen im Chat.
             `SHA-256: ${{ steps.hash.outputs.sha256_plugin }}`
 
             **${{ steps.hash.outputs.xpi }}** — das Thunderbird-Add-on Entwurfsbruecke. Einmal

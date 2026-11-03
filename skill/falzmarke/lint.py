@@ -3,7 +3,7 @@
 
 Warum eine eigene Stufe: Ein Fehler in der Eingabe ist etwas anderes als ein
 Fehler im Ergebnis. Bis v0.1.2 meldete der Betreff mit Schlusspunkt „das PDF
-hält die Maße aus DIN 5008 nicht ein" — falsche Fehlerklasse, falscher
+hält die Maße aus DIN 5008 nicht ein“ — falsche Fehlerklasse, falscher
 Exit-Code, und ein Render, der umsonst lief.
 
 Befunde haben zwei Schweregrade. **Fehler** halten den Render an; **Warnungen**
@@ -31,7 +31,7 @@ VERMERKE_MAX_ZEILEN = 3
 # Zeichen, die bei 10 pt in die Wertespalte des Informationsblocks passen.
 #
 # Bis #244 stand hier 32, gerechnet aus „43 mm Spaltenbreite, rund 1,24 mm je
-# Zeichen". Beide Zahlen waren zu gross, und der Fehler multiplizierte sich:
+# Zeichen“. Beide Zahlen waren zu gross, und der Fehler multiplizierte sich:
 #
 # * Die Wertespalte ist zwar 43 mm breit — sie beginnt aber bei 125 mm (Leitwort)
 #   plus 30 mm Spalte plus 2 mm Steg, also bei x = 157 mm, und laeuft bis 200 mm.
@@ -42,9 +42,9 @@ VERMERKE_MAX_ZEILEN = 3
 #
 # 33 mm / 1,55 mm ergibt 21. Gegengemessen mit gerenderten Briefen: Bis
 # einschliesslich 21 Zeichen haelt jeder geprufte Name den Rand ein, ab 22
-# reisst ihn schon „Dr. Anna Meyer-Schmidt" (193,15 statt 190,0).
+# reisst ihn schon „Dr. Anna Meyer-Schmidt“ (193,15 statt 190,0).
 #
-# Eine Zeichenzahl bleibt eine Naeherung — eine Kette aus 26 „i" passt, 20 „M"
+# Eine Zeichenzahl bleibt eine Naeherung — eine Kette aus 26 „i“ passt, 20 „M“
 # passen nicht. Sie ist der fruehe Abbruch, damit eine Serie nicht erst nach 200
 # Briefen auffaellt; das letzte Wort hat der Pruefer am fertigen PDF, und der
 # misst die Breite statt sie zu schaetzen.
@@ -170,7 +170,7 @@ POSITION_FELDER = frozenset({
     "bezeichnung", "menge", "einheit", "einzelpreis", "steuersatz", "betrag",
 })
 
-#: Und was er tragen MUSS. „Menge und die Art (handelsübliche Bezeichnung)" nach
+#: Und was er tragen MUSS. „Menge und die Art (handelsübliche Bezeichnung)“ nach
 #: § 14 Absatz 4 Nummer 5 und der Betrag, weil falzmarke ihn nicht bildet
 #: (ADR 0039). Der Steuersatz nach Nummer 8 steht NICHT hier: Beim
 #: Kleinunternehmer entfällt er, und ob der Absender einer ist, steht im Profil,
@@ -283,7 +283,7 @@ EMAIL_BETREFF_VORSCHAU = 60
 #: hier als Bruch und nicht als gerundete Prozentzahl — er ist keine Messung,
 #: sondern die Definition der Kodierung (RFC 2045, Abschnitt 6.8). Microsoft
 #: nennt dieselbe Größe in seiner Grenzentabelle als „an additional 33%
-#: translation encoding increase".
+#: translation encoding increase“.
 #:
 #: Er ist der Grund, warum hier die Nachricht gemessen wird und nicht die
 #: Datei: Eine 9-MB-Datei geht als 12-MB-Nachricht hinaus, und die Grenzen der
@@ -349,7 +349,7 @@ PROFIL_EMAIL_FELDER = frozenset({
 #:             (Liste von Zeichenketten, begrenzte Länge), nie der Inhalt.
 #:
 #: Warum `hinweise` ungeprüft bleibt: falzmarke gibt Profildaten an kein Modell
-#: weiter und versteht keinen Satz. Eine Prüfung, die „Fristen immer als Datum"
+#: weiter und versteht keinen Satz. Eine Prüfung, die „Fristen immer als Datum“
 #: einzuhalten behauptete, wäre genau die Zusage, die das Werkzeug nicht halten
 #: kann. Es überträgt die Vorgabe — `SKILL.md` Schritt 4 sagt, wer sie liest —
 #: und erzwingt sie nicht. Dieselbe Linie wie ADR 0039.
@@ -358,8 +358,8 @@ PROFIL_STIL_FELDER = frozenset({"person", "floskeln", "hinweise"})
 #: Die beiden Formen, die `email.stil.person:` kennt.
 STIL_PERSONEN = ("ich", "wir")
 
-#: Nur die Subjektform, bewusst eng. „unser Angebot" schreibt auch ein
-#: Einzelunternehmer, „mein Eindruck" auch jemand, der sonst „wir" sagt. Eine
+#: Nur die Subjektform, bewusst eng. „unser Angebot“ schreibt auch ein
+#: Einzelunternehmer, „mein Eindruck“ auch jemand, der sonst „wir“ sagt. Eine
 #: Warnung, die bei gültigem Text anschlägt, kostet Vertrauen in alle anderen —
 #: dieselbe Grenze wie bei `SIEZEN`/`DUZEN` (#133).
 STIL_PERSONENMUSTER = {
@@ -368,7 +368,7 @@ STIL_PERSONENMUSTER = {
 }
 
 #: Grenzen des Abschnitts. Keine Normaussage, sondern der Datenvertrag: Eine
-#: Liste mit 500 Einträgen oder ein Absatz als „Floskel" ist ein Tippfehler,
+#: Liste mit 500 Einträgen oder ein Absatz als „Floskel“ ist ein Tippfehler,
 #: und ein Tippfehler soll melden statt stillschweigend nichts zu tun.
 STIL_FLOSKELN_MAX = 20
 STIL_FLOSKEL_ZEICHEN = 60
@@ -434,7 +434,7 @@ def telefon_grund(text: str) -> str:
     """Was an dieser Nummer nicht passt — als Satz, nicht als Musterform.
 
     Die alte Meldung wiederholte nur die Sollform („Vorwahl mit Leerzeichen,
-    Durchwahl mit Bindestrich"). Im Fall, der Issue #133 auslöste, war beides
+    Durchwahl mit Bindestrich“). Im Fall, der Issue #133 auslöste, war beides
     erfüllt; sie nannte also zwei Dinge, die stimmten, und verschwieg das
     Eigentliche. Wer das liest — auch eine Maschine — fügt einen Bindestrich
     ein, der dort nicht hingehört.
@@ -477,8 +477,8 @@ def adresse_grund(eintrag: str, adresse: str) -> str | None:
     schon ab. Wer nur `parseaddr` betrachtet, unterschätzt die eine Hälfte und
     übersieht die andere.
     """
-    # `parseaddr` entfernt Leerzeichen aus der Adresse: „max@firma .de" wird zu
-    # „max@firma.de". Ein Tippfehler würde damit still zu einer ANDEREN, gültigen
+    # `parseaddr` entfernt Leerzeichen aus der Adresse: „max@firma .de“ wird zu
+    # „max@firma.de“. Ein Tippfehler würde damit still zu einer ANDEREN, gültigen
     # Adresse repariert und der Brief ginge dorthin. Genau das darf nicht sein.
     innen = eintrag.strip()
     if innen.endswith(">") and "<" in innen:
@@ -746,7 +746,7 @@ def _pruefe_ausschluss(kopf: dict, typ: str, kopf_roh: str, bericht: Bericht) ->
     """Felder des jeweils anderen Erzeugnisses melden, mit dem gemeinten Namen.
 
     Ohne diese Prüfung liefe der Fall über `_melde_unbekannte` und läse sich als
-    „`empfaenger` ist kein Feld des Datenvertrags" — was in einem Briefwerkzeug
+    „`empfaenger` ist kein Feld des Datenvertrags“ — was in einem Briefwerkzeug
     schlicht falsch klingt. Der Fehler ist nicht, dass es das Feld nicht gibt,
     sondern dass es hier nichts bedeutet.
     """
@@ -819,8 +819,8 @@ def pruefe_email_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> Non
         ort = _feldzeile(kopf_roh, "betreff")
         # Dieselben zwei Regeln wie im Brief. Sie stehen hier noch einmal, weil
         # der E-Mail-Zweig früh zurückkehrt — und weil sie in einer Mail aus
-        # einem anderen Grund gelten: Das Leitwort „Betreff:" steht im
-        # Vorschaufenster neben dem, was der Client ohnehin „Betreff" nennt.
+        # einem anderen Grund gelten: Das Leitwort „Betreff:“ steht im
+        # Vorschaufenster neben dem, was der Client ohnehin „Betreff“ nennt.
         if betreff.lower().startswith(("betreff:", "betreff ")):
             bericht.fehler(ort, "email.betreff_leitwort", "beginnt mit dem Leitwort „Betreff“",
                            "das Leitwort entfällt — der Client schreibt es davor")
@@ -868,7 +868,7 @@ def pruefe_email_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> Non
             "eine Message-ID steht in spitzen Klammern: `<kennung@beispiel.de>`")
 
 
-#: Höflichkeitsformen, großgeschrieben. `Ihr` fehlt bewusst: „Ihr" ist auch
+#: Höflichkeitsformen, großgeschrieben. `Ihr` fehlt bewusst: „Ihr“ ist auch
 #: das Possessiv der dritten Person Plural und am Satzanfang nicht von der
 #: Anrede zu unterscheiden.
 SIEZEN = re.compile(r"(?<![.!?]\s)\b(Sie|Ihnen|Ihre[nmrs]?)\b")
@@ -885,28 +885,28 @@ VERSALIEN = re.compile(r"\b[A-ZÄÖÜ][A-ZÄÖÜ-]{%d,}\b" % (VERSALIEN_AB - 2))
 #:
 #: Jede steht hier, weil sie **leer** ist: Sie liesse sich streichen, ohne dass
 #: die Nachricht etwas verloere. Das ist die Aufnahmebedingung, und sie ist eng
-#: gemeint. „Vielen Dank fuer die Unterlagen" bleibt draussen — der Dank gilt
-#: einer Sache. „Vielen Dank fuer Ihre Zeit" steht drin: Er gilt nichts.
+#: gemeint. „Vielen Dank fuer die Unterlagen“ bleibt draussen — der Dank gilt
+#: einer Sache. „Vielen Dank fuer Ihre Zeit“ steht drin: Er gilt nichts.
 #:
 #: Warum Muster und keine Liste: Dieselbe Floskel kommt in Varianten —
-#: „ich hoffe, es geht Ihnen gut" und „ich hoffe, es geht dir gut". Sie einzeln
+#: „ich hoffe, es geht Ihnen gut“ und „ich hoffe, es geht dir gut“. Sie einzeln
 #: aufzuzaehlen hiesse, beim naechsten Duzen eine zu vergessen.
 #:
-#: Bewusst NICHT dabei: „im Anhang finden Sie", „bei Rueckfragen stehe ich zur
-#: Verfuegung", „mit freundlichen Gruessen". Die ersten beiden tragen eine
+#: Bewusst NICHT dabei: „im Anhang finden Sie“, „bei Rueckfragen stehe ich zur
+#: Verfuegung“, „mit freundlichen Gruessen“. Die ersten beiden tragen eine
 #: Information, die dritte ist die Grussformel. Eine Warnung, die bei
 #: gueltigem Text anschlaegt, kostet Vertrauen in alle anderen (#133).
 #:
 #: Aus demselben Grund abgelehnt, obwohl sie auf jeder Floskelliste stehen:
-#: „im Rahmen von" (traegt in „im Rahmen der Wartung" einen Bezug) und
-#: „nicht nur …, sondern auch" (traegt in „nicht nur die Vorlage, sondern auch
-#: das Logo" zwei Gegenstaende). Beide sind oft Schmuck und manchmal Inhalt —
+#: „im Rahmen von“ (traegt in „im Rahmen der Wartung“ einen Bezug) und
+#: „nicht nur …, sondern auch“ (traegt in „nicht nur die Vorlage, sondern auch
+#: das Logo“ zwei Gegenstaende). Beide sind oft Schmuck und manchmal Inhalt —
 #: und ein Muster, das das nicht unterscheiden kann, gehoert nicht hierher.
-#: Als Prosa stehen sie in `references/stil.md` unter „Was gestrichen wird";
+#: Als Prosa stehen sie in `references/stil.md` unter „Was gestrichen wird“;
 #: dort liest sie ein Mensch, der den Unterschied sieht.
 #:
-#: „jederzeit gerne zur Verfuegung" steht drin, „bei Rueckfragen stehe ich zur
-#: Verfuegung" nicht: Der Verstaerker ist das Leere, nicht die Erreichbarkeit.
+#: „jederzeit gerne zur Verfuegung“ steht drin, „bei Rueckfragen stehe ich zur
+#: Verfuegung“ nicht: Der Verstaerker ist das Leere, nicht die Erreichbarkeit.
 FLOSKELN = [
     (re.compile(r"\bich hoffe,?\s+(?:diese|die)\s+(?:e-?mail|nachricht|zeilen)\b", re.I),
      "„ich hoffe, diese E-Mail …“"),
@@ -1004,7 +1004,7 @@ def _ohne_auszuege(body: str) -> str:
     """Der Text ohne wortgetreue Auszüge — für die Stilprüfungen aus dem Profil.
 
     Ein Auszug ist fremder Wortlaut: eine zitierte Protokollzeile, eine
-    Fehlermeldung, die Antwort eines Kunden. Dass dort „wir" oder „zeitnah"
+    Fehlermeldung, die Antwort eines Kunden. Dass dort „wir“ oder „zeitnah“
     steht, sagt über den Stil des Absenders nichts — es wäre eine Warnung bei
     gültigem Text, und die kostet Vertrauen in alle anderen (#133).
 
@@ -1036,7 +1036,7 @@ def _pruefe_eigenen_stil(stil, body: str, bericht: Bericht) -> None:
     und `email.anrede_ton`.
 
     `hinweise:` kommt hier nicht vor. Das Werkzeug versteht keinen Satz; eine
-    Prüfung, die „Fristen immer als Datum" einzuhalten behauptete, wäre eine
+    Prüfung, die „Fristen immer als Datum“ einzuhalten behauptete, wäre eine
     Zusage ohne Deckung. Wer die Hinweise liest, steht in `SKILL.md` Schritt 4.
     """
     if not isinstance(stil, dict):
@@ -1236,7 +1236,7 @@ def pruefe_rechnung_profil(profil: dict, bericht: Bericht) -> None:
     Was § 14 Absatz 4 Nummer 1 und 2 UStG vom Aussteller verlangt, steht im
     Profil und nicht im einzelnen Schreiben — wie die übrigen Absenderangaben.
     Bis zu diesem Vorgang behauptete der Kommentar zu `RECHNUNG_PFLICHTFELDER`,
-    das werde „dort geprüft"; eine solche Prüfung gab es nicht. Dies ist sie.
+    das werde „dort geprüft“; eine solche Prüfung gab es nicht. Dies ist sie.
 
     Geprüft wird, dass die Angaben DA sind, nicht ob sie gelten. Eine USt-IdNr.
     gegen das Bundeszentralamt abzugleichen hieße Netz (ADR 0005).
@@ -1515,7 +1515,7 @@ def pruefe_anhanggroesse(kopf: dict, basis, kopf_roh: str, bericht: Bericht) -> 
     Standardwert einer lokalen Exchange-Server-Organisation —, aber darüber war
     sofort Schluss, obwohl dieselbe Nachricht bei den meisten Empfängern
     durchgeht. Genau das kritisiert #100 unter „Grenzen sind Wände statt
-    Stufen".
+    Stufen“.
 
     Gemeldet wird die höchste überschrittene Stufe, nicht jede: Wer 40 MB
     anhängt, braucht nicht dreimal dasselbe zu lesen.
@@ -1565,7 +1565,7 @@ def pruefe_email_anlagen(kopf: dict, body: str, kopf_roh: str, bericht: Bericht)
     nirgends auftaucht; was daraus folgt, entscheidet der Absender.
 
     Gesucht wird nach dem Namen **ohne** Endung: Im Fließtext steht „das
-    Angebot 2026-0815", nicht „angebot-2026-0815.pdf".
+    Angebot 2026-0815“, nicht „angebot-2026-0815.pdf“.
     """
     from pathlib import Path as _Pfad
 
@@ -1584,7 +1584,7 @@ def _als_zahl(wert) -> float | None:
     """Eine Zahl aus YAML — oder None, wenn es keine ist.
 
     `bool` ist in Python eine Unterklasse von `int`; `menge: ja` ergäbe sonst 1.
-    Ein Text wie „1.240,00" wird NICHT gelesen: Die Schreibweise mit Tausenderpunkt
+    Ein Text wie „1.240,00“ wird NICHT gelesen: Die Schreibweise mit Tausenderpunkt
     ist die des gesetzten Briefes, nicht die des Datenvertrags. Wer sie in die
     Quelle schreibt, bekommt eine Meldung statt einer stillen Deutung.
     """
@@ -1597,7 +1597,7 @@ def _nachkommastellen(wert) -> int | None:
     """Wie viele Nachkommastellen der Wert in der Quelle trägt — `None`, wenn keine Zahl.
 
     Über die Zeichenfolge, nicht über `float`: `1240.005` und `1240.01` sind als
-    Fließkommazahl beide „irgendwas", als Text sieht man, was dastand.
+    Fließkommazahl beide „irgendwas“, als Text sieht man, was dastand.
     """
     from decimal import Decimal, InvalidOperation
 
@@ -1787,7 +1787,7 @@ def pruefe_rechnungsfelder(kopf: dict, kopf_roh: str, bericht: Bericht) -> None:
 
     positionen = kopf.get("positionen")
     if positionen is None:
-        return                      # „Pflichtfeld fehlt" meldet der Aufrufer
+        return                      # „Pflichtfeld fehlt“ meldet der Aufrufer
     ort = _feldzeile(kopf_roh, "positionen")
     if not isinstance(positionen, list):
         bericht.fehler(ort, "rechnung.position", "`positionen:` ist keine Liste",

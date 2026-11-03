@@ -30,7 +30,7 @@ def test_die_referenz_ist_danach_weg(tmp_path):
 
 
 def test_ohne_referenz_in_der_quelle_entsteht_keine_gegenprobe(tmp_path):
-    """Gäbe es nichts zu entfernen, wäre die „Gegenprobe" ein gültiges Dokument."""
+    """Gäbe es nichts zu entfernen, wäre die „Gegenprobe“ ein gültiges Dokument."""
     ziel = tmp_path / "aus.xml"
     assert eor.main([str(_datei(tmp_path, "")), str(ziel)]) == 1
     assert not ziel.exists()

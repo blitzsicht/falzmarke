@@ -8,10 +8,10 @@ Verbots, in die ausgehende Mail zurückzuschreiben
 
 ## Anlass
 
-`falzmarke status` beantwortet „ist das raus, und ging genau das raus?" aus drei Quellen —
+`falzmarke status` beantwortet „ist das raus, und ging genau das raus?“ aus drei Quellen —
 Entwurfsbuch, Postfach, Tagebuch der Entwurfsbrücke. Die Zuordnung zwischen ihnen hängt an
 **einer** Zahl: `ursprung.uid` im Tagebuch. Fehlt sie, hängt die Versandzeile an keinem Eintrag
-des Entwurfsbuchs: kein „Ging an … · Empfänger wie angelegt", kein `BELEGT`, und die Sendesperre
+des Entwurfsbuchs: kein „Ging an … · Empfänger wie angelegt“, kein `BELEGT`, und die Sendesperre
 erkennt den Entwurf nicht über seine Fassung. Genau das ist #420.
 
 Gezählt am Tagebuch dieses Rechners am 28.10.2026 — 258 Zeilen, geschrieben von den Fassungen
@@ -24,7 +24,7 @@ Gezählt am Tagebuch dieses Rechners am 28.10.2026 — 258 Zeilen, geschrieben v
 | `typ: "draft"` mit UID, aber ohne Fassung | 1 Paar (UID 1172) |
 | `typ: "new"` / `typ: "reply"` — von Natur aus ohne UID | 3 + 3 |
 
-Drei Dinge stehen damit fest. `typ` ist in dem Fall **„draft"**, der Zweig im Hintergrundskript
+Drei Dinge stehen damit fest. `typ` ist in dem Fall **„draft“**, der Zweig im Hintergrundskript
 wird also betreten. `kennung()` scheitert **nicht systematisch**, sonst stünden nicht 117 Zeilen
 mit UID daneben. Und die Kette selbst fehlt nicht: `_kette()` verbindet
 `gespeichert.ursprung.uid` mit `neu_uid` und ist durch Tests gedeckt.
@@ -127,7 +127,7 @@ Empfänger. Die **Form** bleibt die des Tagebuchs — das ist der Punkt, denn nu
 
 ## Nachtrag 28.10.2026 — am Gerät gemessen
 
-Probe „Probe UID-Anker 0.3.7" an die eigene Adresse, acht Tagebuchzeilen:
+Probe „Probe UID-Anker 0.3.7“ an die eigene Adresse, acht Tagebuchzeilen:
 
 | Zeit | `art` | `uid` | `uid_kennung` | `uid_draft_id` | `fassung_quelle` |
 |---|---|---|---|---|---|
@@ -150,7 +150,7 @@ Entwurf zweimal neu an und löschte die alten: Im Postfach lebte danach **nur** 
 Entwurfsbuch kannte 1218. `kennung` meldete weiter 1218, also die Zahl, an der `status` die
 Zeile aufhängt; `draft_id` meldete 1220, die lebende Nachricht. Beide sind über die Kette
 1218 → 1219 → 1220 verbunden. Hätte `draft_id` den Vorrang, müsste `status` die Kette rückwärts
-gehen, um in das Buch zu treffen. **Die Aussage „beide Wege tragen dieselbe Zahl" gilt also nur
+gehen, um in das Buch zu treffen. **Die Aussage „beide Wege tragen dieselbe Zahl“ gilt also nur
 vor der ersten Speicherung** — Punkt 1 ist entsprechend abgeschwächt, und
 `test_am_geraet_gemessen_zeigt_kennung_aufs_buch_und_draft_id_auf_die_lebende` hält den Fall
 fest.
@@ -158,19 +158,19 @@ fest.
 **4. `status` zeigt, was #420 vermisste.** Nach dem Senden:
 
 ```
-GESENDET  28.10. 17:57  „Probe UID-Anker 0.3.7" → servus@blitzsicht.com · 28.10. 18:06,
+GESENDET  28.10. 17:57  „Probe UID-Anker 0.3.7“ → servus@blitzsicht.com · 28.10. 18:06,
           Text unverändert · BELEGT
           Ging an servus@blitzsicht.com · Bcc — · Anhänge — · Empfänger wie angelegt
 ```
 
 **5. Der Hinweis trifft den richtigen Referenten.** `ohne_zuordnung` meldete **2** Einträge, und
 das sind die Zeilen 64 und 65 des Tagebuchs — `geoeffnet` 26.10. 11:03:52 und `gesendet`
-11:04:26, beide „Empfängerprobe – nicht anfassen". Also genau das Paar aus der Diagnose, nicht
+11:04:26, beide „Empfängerprobe – nicht anfassen“. Also genau das Paar aus der Diagnose, nicht
 irgendwelche zwei Zeilen. Nachgezählt von Hand am echten Tagebuch, nicht aus dem Bericht
 abgelesen.
 
 **Drei Grenzen dieser Messung.** Der Fallweg `draft_id` wurde nicht ausgelöst (Punkt 2 unter
-„Was hingenommen wird"). Der Vorrang ist nur hier belegt, nicht in der Suite. Und zwei Läufe
+„Was hingenommen wird“). Der Vorrang ist nur hier belegt, nicht in der Suite. Und zwei Läufe
 meldeten `schon_offen` und schrieben keine Zeile — das Messskript hielt die alte Zeile zunächst
 für die neue, bis es den Tagebuchstand **vor** dem Öffnen nahm und bei ausbleibendem Wachstum
 abbricht. Ein Messaufbau, der nicht wachsen kann, meldet sonst den letzten Fund als neuen.
@@ -204,7 +204,7 @@ dasselbe Muster im Add-on steht und `tests/test_entwurfsbruecke.py` beide Seiten
 **Dazu: ein Profil, nicht zwei.** `tagebuch()` löste stur das Standardprofil auf, während
 `bruecke.socketpfad` `FALZMARKE_BRUECKE_SOCKET` folgte. Bei gesetztem Schalter antwortete das
 Add-on aus Profil B, während Profil A gelesen wurde: `BELEGT` konnte nicht entstehen, `gesperrt`
-und `gesendet` blieben unsichtbar, und der einzige Hinweis lautete „kein Tagebuch" — was den
+und `gesendet` blieben unsichtbar, und der einzige Hinweis lautete „kein Tagebuch“ — was den
 Leser zum Add-on schickt statt zum Profil. Beide Seiten kommen jetzt aus `bruecken_profil`, also
 aus **einer** Quelle; das Paar kann nicht mehr auseinanderlaufen. Fehlt das Tagebuch wirklich,
 nennt der Hinweis das gelesene Profil beim Namen.
@@ -222,7 +222,7 @@ Der Nebenbefund aus #410 bleibt offen: `THUNDERBIRD_ORDNER` ist macOS-fest, auf 
 
 ## Nachtrag 03.11.2026 — eine fremde Identität schließt nicht mehr aus (#442, N3)
 
-Der Satz „Wo sie dasteht, entscheidet sie allein" im Nachtrag vom 29.10. gilt nur noch für die
+Der Satz „Wo sie dasteht, entscheidet sie allein“ im Nachtrag vom 29.10. gilt nur noch für die
 eigene Adresse. `identitaet` ist das `From` des Fensters, nicht das Konto. Wer unter einer
 Alias-Identität desselben Kontos schreibt, meldet für das eigene Fenster eine fremde Adresse.
 `fenster_des_kontos` schloss dieses Fenster aus, und der Entwurf hieß `WARTET`. Seit #447 kann

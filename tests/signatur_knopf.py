@@ -30,7 +30,7 @@ KOPF = {"an": "erika.muster@example.de", "betreff": "Angebot Nr. 2026-0815",
         "anrede": "Sehr geehrte Frau Muster,", "unterzeichner": "Erika Muster"}
 
 #: Jedes Wort steht auch im HTML unten. Die Prüfung „Text und HTML sagen
-#: dasselbe" ist Teil des Berichts — eine Signatur, deren Textfassung Wörter
+#: dasselbe“ ist Teil des Berichts — eine Signatur, deren Textfassung Wörter
 #: trägt, die im HTML fehlen, macht die Kontrolle rot, ohne dass es am Knopf
 #: läge.
 SIGNATUR_TEXT = "Erika Muster\nTermin vereinbaren\nBewertung abgeben\n"

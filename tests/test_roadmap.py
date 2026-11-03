@@ -1,8 +1,8 @@
 """Die Roadmap ist eine Sicht auf die Issues — sie darf nichts verschweigen.
 
 `docs/ROADMAP.md` wird erzeugt, nicht gepflegt. Damit verschiebt sich die
-Fehlerart: Nicht mehr „jemand hat vergessen, die Seite nachzuziehen", sondern
-„die Seite sieht gepflegt aus und lässt etwas weg". Genau darauf zielen die
+Fehlerart: Nicht mehr „jemand hat vergessen, die Seite nachzuziehen“, sondern
+„die Seite sieht gepflegt aus und lässt etwas weg“. Genau darauf zielen die
 Gegenproben hier — jede prüft, dass ein Vorgang, der nirgends hingehört,
 trotzdem sichtbar wird.
 
@@ -117,7 +117,7 @@ def test_ein_issue_ohne_meilenstein_bekommt_eine_eigene_phase():
 
 
 def test_gegenprobe_ohne_phase_bleibt_weg_wenn_alles_zugeordnet_ist():
-    """Ein leerer Abschnitt „Ohne Phase" auf jeder Seite wäre Rauschen und
+    """Ein leerer Abschnitt „Ohne Phase“ auf jeder Seite wäre Rauschen und
     würde beim echten Fall nicht mehr auffallen."""
     assert roadmap.OHNE_PHASE not in roadmap.rendere(_probe())
 

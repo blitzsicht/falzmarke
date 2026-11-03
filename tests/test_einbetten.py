@@ -173,7 +173,7 @@ def test_eine_fehlende_datei_bricht_ab_statt_still_zu_fehlen(tmp_path):
 # ── Die Konformitätsprüfung kennt die neue Stufe ────────────────────────────
 
 def test_die_stufenerkennung_liest_beide(tmp_path):
-    """Bis #114 stand hier fest die 2, und ein A-3b galt als „fehlt"."""
+    """Bis #114 stand hier fest die 2, und ein A-3b galt als „fehlt“."""
     assert geometrie.pdfa_stufe(_rendere(tmp_path)) == "2b"
     assert geometrie.pdfa_stufe(_rendere(tmp_path, MIT)) == "3b"
 

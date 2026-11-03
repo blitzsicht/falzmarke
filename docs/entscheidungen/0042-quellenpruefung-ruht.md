@@ -61,7 +61,7 @@ drei Regeln fielen damals von Fehler auf Warnung.
 
 ## Was diese Entscheidung nicht ist
 
-- Sie ändert **nichts** an den gesperrten Wörtern. Kein „normgerecht", kein „DIN-konform",
+- Sie ändert **nichts** an den gesperrten Wörtern. Kein „normgerecht“, kein „DIN-konform“,
   keine Zertifizierung — `tests/test_textkanon.py` hält das fest.
 - Sie hebt den Normabgleich **nicht** auf. #12 bleibt vorgesehen; er ist der Weg, auf dem die
   Quellenlage abgelöst wird, nicht ergänzt.
@@ -90,13 +90,13 @@ drei Regeln fielen damals von Fehler auf Warnung.
 ## Nebenbefund: ADR 0032 und #12 widersprechen sich
 
 Beim Schreiben dieser Entscheidung aufgefallen und zunächst nur festgehalten:
-[ADR 0032](0032-verbreitung-vor-normabgleich.md) sagt unter „Folgen" ausdrücklich *„Die
-100-Sterne-Bedingung an #12 entfällt."* Der Vorgang #12 trägt dagegen seit dem 20.09.2026 den
-Abschnitt „Stand der Schwelle" mit dem Satz *„Die Schwelle bleibt"*.
+[ADR 0032](0032-verbreitung-vor-normabgleich.md) sagt unter „Folgen“ ausdrücklich *„Die
+100-Sterne-Bedingung an #12 entfällt.“* Der Vorgang #12 trägt dagegen seit dem 20.09.2026 den
+Abschnitt „Stand der Schwelle“ mit dem Satz *„Die Schwelle bleibt“*.
 
 Die Wiedereinführung war in keiner ADR abgelegt. Nach der Regel im
 [README](README.md) — „Eine Entscheidung wird nicht überschrieben — sie wird von einer späteren
-abgelöst" — fehlte die ablösende Entscheidung.
+abgelöst“ — fehlte die ablösende Entscheidung.
 
 **Nachgetragen am selben Tag:** [ADR 0043](0043-sternschwelle-gilt-weiter.md) löst den
 betreffenden Teilsatz aus ADR 0032 ab. Die Schwelle gilt.

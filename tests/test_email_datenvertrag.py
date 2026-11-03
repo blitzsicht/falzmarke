@@ -274,7 +274,7 @@ def test_die_profilfelder_stehen_in_der_doku():
 def test_eine_mail_wird_nicht_als_brief_gesetzt(tmp_path):
     """Die Meldung muss die Ursache nennen, nicht die Folge.
 
-    Vorher meldete der Renderer „Pflichtfelder fehlen: empfaenger, datum" für
+    Vorher meldete der Renderer „Pflichtfelder fehlen: empfaenger, datum“ für
     ein Schreiben, das als E-Mail vollständig ist. Wer daraufhin `empfaenger:`
     ergänzt, bekommt den Ausschluss des Linters — zwei Fehler hintereinander,
     und keiner sagt, was los ist.

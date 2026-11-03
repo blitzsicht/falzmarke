@@ -152,7 +152,7 @@ def test_die_ua_fassung_hat_einen_strukturbaum(getaggt):
     assert "/StructTreeRoot" in wurzel, "kein Strukturbaum — dann sagt das PDF gar nichts über sich"
     # `bool(...)`, nicht `is True`: pypdf gibt ein `BooleanObject` zurueck.
     # Es ist gleich `True`, aber nicht dasselbe Objekt — `is True` schlaegt fehl
-    # und die Meldung lautet dann „assert True is True", was niemandem hilft.
+    # und die Meldung lautet dann „assert True is True“, was niemandem hilft.
     assert bool(wurzel["/MarkInfo"]["/Marked"]) is True
     assert str(wurzel["/Lang"]).startswith("de"), wurzel.get("/Lang")
 
@@ -330,7 +330,7 @@ def _zeilen_je_seite(pdf) -> dict[int, int]:
 
     Über die Objektnummer der Seite, nicht über `id()`: `get_object()` kann
     jedes Mal ein neues Python-Objekt liefern, und der Vergleich ginge dann
-    immer daneben — beim ersten Anlauf hier gemessen, er ergab „?" für jede
+    immer daneben — beim ersten Anlauf hier gemessen, er ergab „?“ für jede
     Zeile.
     """
     leser = pypdf.PdfReader(str(pdf))

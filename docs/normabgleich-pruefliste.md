@@ -6,7 +6,7 @@ DIN 5008:2020-03 in dieses Projekt einfließt.
 ## Regel: kein Wortlaut
 
 Übertragen werden **Fundstellen** und **Zahlenwerte** — nie Text, nie Tabellen, nie Abbildungen.
-In die Spalte „Fundstelle" gehört `Abschnitt 5.2` oder `Tabelle 3`, nicht das, was dort steht.
+In die Spalte „Fundstelle“ gehört `Abschnitt 5.2` oder `Tabelle 3`, nicht das, was dort steht.
 Ein abgetippter Satz aus der Norm im Repository wäre eine Urheberrechtsverletzung und macht die
 Datei unbrauchbar.
 
@@ -63,7 +63,7 @@ sich falzmarke auf eine einzige Implementierung. Hier zuerst nachsehen.
 |---|---|---|---|---|
 | `text.anrede_komma` | Anrede mit Komma, Text darunter klein | | | |
 | `text.gruss_ohne_komma` | Grußformel ohne Komma | | | |
-| `text.anlagen_ohne_doppelpunkt` | „Anlagen" ohne Doppelpunkt | | | |
+| `text.anlagen_ohne_doppelpunkt` | „Anlagen“ ohne Doppelpunkt | | | |
 | `text.folgeseiten` | Seitenzahl, Kopfzeile empfohlen | | | |
 | `text.anschrift_ohne_leerzeilen` | bis 6 Zeilen, keine Leerzeilen | | | |
 | `text.vermerke_max_3` | bis 3 Zeilen | | | |
@@ -92,6 +92,6 @@ Punkte, an denen unsere Sekundärquellen schweigen oder sich widersprechen:
 1. Ist die Mindesthöhe des Informationsblocks (40 mm) eine Vorgabe der Norm oder eine Konvention?
 2. Nennt die Norm eine Länge für Falz- und Lochmarken, oder nur ihre Position?
 3. Gibt es eine Vorgabe zur Zeichenzahl des Betreffs — oder nur die Begrenzung auf zwei Zeilen?
-4. Gilt die Zusammenfassung „Zusatz- und Vermerkzone mit integrierter Rücksendeangabe" (17,7 mm)
+4. Gilt die Zusammenfassung „Zusatz- und Vermerkzone mit integrierter Rücksendeangabe“ (17,7 mm)
    oder die feinere Aufteilung 5 + 12,7 mm?
 5. Wie behandelt die Norm den akademischen Grad — Vorgabe oder Empfehlung?

@@ -2,7 +2,7 @@
 #
 # Sie installiert falzmarke von PyPI statt den Klon nachzubauen — das war die
 # Vorgabe aus Issue #6 („die vorhandene Installationsstrecke wiederverwenden
-# statt eine zweite aufzubauen"). Möglich ist das erst seit v0.7.3; davor gab
+# statt eine zweite aufzubauen“). Möglich ist das erst seit v0.7.3; davor gab
 # es kein Paket, das ein fremdes Repository hätte ziehen können (#7).
 #
 # Verwendung im eigenen Repository:
@@ -41,8 +41,8 @@ inputs:
     default: "briefe-pdf"
   paket:
     description: >
-      Was pip installieren soll. Vorgabe „falzmarke" — die neueste
-      Veröffentlichung. „falzmarke==0.7.3" macht den Lauf nachfahrbar, „."
+      Was pip installieren soll. Vorgabe „falzmarke“ — die neueste
+      Veröffentlichung. „falzmarke==0.7.3“ macht den Lauf nachfahrbar, „.“
       nimmt den Code eines ausgecheckten Repositories.
 
       Die volle pip-Angabe und nicht nur eine Fassungsnummer, weil beides

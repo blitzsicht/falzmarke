@@ -10,14 +10,14 @@ Zustellung, keine Option, die sendet. Das Feld `an:` füllt den Kopf der Datei, 
 
 Das ist die Anwendung von [0029](0029-falzmarke-ist-werkzeug-kein-kanal.md) auf einen Fall, den
 0029 selbst schon nennt: Dort steht, die E-Mail-Fassung bleibe, „sie erzeugt eine Ausgabe und
-versendet nichts". Warum das eine eigene Entscheidung braucht, steht unter [Warum](#warum).
+versendet nichts“. Warum das eine eigene Entscheidung braucht, steht unter [Warum](#warum).
 
 Vier Festlegungen folgen daraus.
 
 ### 1. Ausgabe statt Kanal
 
 Es entsteht kein Versandbefehl. Nicht als Unterbefehl, nicht als Schalter, nicht als „nur für
-den Test". Wer die erzeugte `.eml` versenden will, öffnet sie in seinem Mailprogramm — das ist
+den Test“. Wer die erzeugte `.eml` versenden will, öffnet sie in seinem Mailprogramm — das ist
 der Zweck des Formats, und es ist der Punkt, an dem falzmarkes Zuständigkeit endet.
 
 ### 2. Struktur bleibt, Umbruch nicht
@@ -66,7 +66,7 @@ Datenschutzvorgang, den ein Werkzeug seinem Nutzer nicht unterschieben darf.
 
 #### Ergänzung vom 28.08.2026: ein `<style>`-Block für das dunkle Farbschema
 
-Oben steht „keine externen Stylesheets". Die Prüffunktion `emit_html.verstoesse()` verbot
+Oben steht „keine externen Stylesheets“. Die Prüffunktion `emit_html.verstoesse()` verbot
 darüber hinaus **jeden** `<style>`-Block — eine Verschärfung, die hier nie beschlossen wurde.
 Sie fiel auf, als der dunkle Modus dazukam.
 
@@ -88,7 +88,7 @@ Ausnahme nicht dehnbar, und sie ist geprüft statt zugesichert.
 
 ##### Nachtrag vom 09.09.2026: ein mitgebrachter Teil darf dahinter (#275)
 
-Der Satz „nichts daran wird aus Eingabe oder Profil zusammengesetzt" hielt, solange falzmarke
+Der Satz „nichts daran wird aus Eingabe oder Profil zusammengesetzt“ hielt, solange falzmarke
 die einzige Quelle für Gestaltung war. Seit ein Profil eine **fertige Signatur** mitbringen darf
 (`email.signatur_html`), bringt es auch deren Dunkelregeln mit — und Medienabfragen gehen nicht
 inline, aus demselben Grund wie oben.
@@ -189,11 +189,11 @@ gibt es nicht; ein `style="color:…"`, das als Wortlaut im Text steht, bleibt s
 
 #### Ergänzung vom 07.09.2026: drei Wege für das Logo, und eine Grenze dafür
 
-Oben steht „keine Spalten" und „Bilder nur als eingebettete Ressource". Beides braucht einen
+Oben steht „keine Spalten“ und „Bilder nur als eingebettete Ressource“. Beides braucht einen
 Nachtrag, und beide Male aus demselben Grund: Der Satz beschreibt, was die Regel verhindern
 soll, nicht jeden Fall, auf den er wörtlich passt.
 
-**„Keine Spalten" meint kein mehrspaltiges Textlayout, keine Layouttabelle um ein Logo.** Der
+**„Keine Spalten“ meint kein mehrspaltiges Textlayout, keine Layouttabelle um ein Logo.** Der
 Code führt seit [#104](https://github.com/blitzsicht/falzmarke/issues/104) eine zweispaltige
 Tabelle um das Signaturlogo, und seit #243 trägt sie die ganze Signatur. Das ist kein
 Marketing-Raster, sondern das Mittel, mit dem ein Bild neben Text steht, wenn das klassische
@@ -227,7 +227,7 @@ stand: höchstens ein Bild, nämlich das Logo des Profils. Gemessen hatte das bi
 **niemand**; drei Bilder mit `cid:` wären anstandslos durchgegangen.
 
 Ebenso wandert die Zählpixel-Erkennung zum Emitter. Sie stand nur in `pruefung_eml`, weil ein
-Zählpixel dort ohnehin schon als „Bild von außerhalb" auffiel — mit der Quellenregel fällt
+Zählpixel dort ohnehin schon als „Bild von außerhalb“ auffiel — mit der Quellenregel fällt
 dieser erste Zaun weg, und ein einzelnes externes 1×1-Bild wäre für den Emitter unsichtbar
 geworden.
 
@@ -252,7 +252,7 @@ Der zweite Grund ist die Haftung, und sie ist dieselbe wie in 0029: Wer eine Dat
 haftet für ihren Inhalt; wer sie befördert, für Zustellung und Nachweis. Bei E-Mail kommt hinzu,
 dass Zustellbarkeit von Dingen abhängt, die falzmarke nie kontrollieren kann — SPF, DKIM,
 Reputation der sendenden Adresse, Spamfilter des Empfängers. Ein Werkzeug, das „auf den
-Millimeter geprüft" sagt, kann daneben nicht „kommt an" sagen.
+Millimeter geprüft“ sagt, kann daneben nicht „kommt an“ sagen.
 
 ## Was daraus folgt
 

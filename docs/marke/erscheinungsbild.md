@@ -22,7 +22,7 @@ Vier Farben, dazu eine abgedunkelte Textvariante des Grüns.
 | **Grau** | `#5B6470` | Zweitrangiges: Fußzeilen, Bildunterschriften | 6,00 : 1 | 5,54 : 1 | 5,40 : 1 | 2,80 : 1 |
 
 **Warum vier Flächen und nicht eine.** Bis zum 29.08.2026 stand hier nur „auf
-Papier". Das las sich vollständig und war es nicht: Auf der Website steht grüner
+Papier“. Das las sich vollständig und war es nicht: Auf der Website steht grüner
 Text überwiegend auf `#F4F6F8` und `#EAF6EE`, und dort fiel der alte Wert
 `#2F8642` auf 4,21 : 1 und 4,10 : 1 — unter WCAG AA. Gefunden hat es axe-core,
 nicht diese Tabelle: 57 Verstöße auf zehn Seiten.
@@ -45,7 +45,7 @@ beiden anderen Flächen durch.
 Auf dunklem Grund ist es umgekehrt: Dort trägt `#3EB057` mit 6,03 : 1 und wird für
 Bestätigungszeilen verwendet.
 
-Für ein Werkzeug, das PDF/UA erzeugt und mit „nachgemessen" wirbt, wäre ein Markenton, den
+Für ein Werkzeug, das PDF/UA erzeugt und mit „nachgemessen“ wirbt, wäre ein Markenton, den
 niemand nachgemessen hat, die falsche Pointe.
 
 ### Ausdrücklich nicht zur Marke gehören
@@ -66,7 +66,7 @@ Beide Schriften stehen unter der SIL Open Font License. Montserrat liegt bei den
 Markendateien, **nicht** bei den Produktschriften: `falzmarke pack` kopiert `skill/`
 vollständig ins ausgelieferte `.skill`-Paket, und kein Brief benutzt Montserrat je.
 
-Schreibweise des Namens: `falzmarke`, immer klein, auch am Satzanfang. „Falzmarke" groß nur
+Schreibweise des Namens: `falzmarke`, immer klein, auch am Satzanfang. „Falzmarke“ groß nur
 als Fachbegriff für die Marke auf dem Blatt.
 
 ## Zeichen
@@ -227,11 +227,11 @@ PY
 ## Abweichungen vom Auftrag M2
 
 `docs/auftraege/auftrag-marke-falzmarke.md` legt in M2 ein anderes Erscheinungsbild fest:
-Tinte `#1A1A1A`, Blattschatten `#E6E6E6`, Akzent `#1F5AA8`, „genau diese vier",
-ausschließlich Source Sans 3, und ausdrücklich „kein Häkchen".
+Tinte `#1A1A1A`, Blattschatten `#E6E6E6`, Akzent `#1F5AA8`, „genau diese vier“,
+ausschließlich Source Sans 3, und ausdrücklich „kein Häkchen“.
 
 Das ausgelieferte Zeichen hält sich daran nicht. Der Nachtrag benennt den Widerspruch (E7)
-und verlangt eine Entscheidung, „nicht zwei Wahrheiten". **Die Entscheidung ist zugunsten
+und verlangt eine Entscheidung, „nicht zwei Wahrheiten“. **Die Entscheidung ist zugunsten
 des ausgelieferten Zeichens gefallen** — Häkchen, Grün und Montserrat bleiben, und dieses
 Dokument ist ab jetzt die Quelle. M2 ist insoweit überholt.
 
