@@ -1604,17 +1604,41 @@ def test_ein_konto_mit_fremdem_login_erreicht_offen(monkeypatch):
     assert _einziger(_stand()).art == "offen"
 
 
-def test_ein_fremdes_konto_wird_nicht_offen_weil_die_uri_die_adresse_enthaelt(monkeypatch):
-    """Die andere Richtung desselben Funds, und sie ist die gefährlichere.
+def test_ein_fremd_gemeldetes_fenster_haelt_offen_und_sagt_es(monkeypatch):
+    """Ein Fenster, das einen anderen Absender meldet, ist kein sicherer Treffer.
 
-    Die Teilkette traf auch ein fremdes Konto, dessen URI die eigene Adresse
-    als Teilstück trug. Dann hätte ein Entwurf dieses Kontos `OFFEN` geheißen,
-    obwohl das Fenster einem anderen Absender gehört.
+    Bis 0.11.0 schloss die Meldung es aus, und der Entwurf hieß `WARTET`. Das
+    traf auch den Alias desselben Kontos: `identitaet` ist das `From` des
+    Fensters, nicht das Konto (#442, N3). Seitdem zählt die fremde Meldung wie
+    keine — `OFFEN`, über die UID, und die Ausgabe nennt den gemeldeten Absender.
     """
     server = _postfach(monkeypatch, entwuerfe=[_mail()])
     uid = server.ordner[ENTWUERFE][0].uid
     _mit_fenstern(monkeypatch, _fenster(uid, uri=LOGIN_EIGEN, identitaet="fremd@example.net"))
-    assert _einziger(_stand()).art == "wartet"
+    bericht = _stand()
+    assert _einziger(bericht).art == "offen"
+    text = " ".join(entwurfsbuch.zeilen(bericht))
+    assert "zugeordnet nur über die UID, das Fenster meldet „fremd@example.net“" in text
+    (zustand,) = entwurfsbuch.als_json(bericht)["entwuerfe"]
+    assert zustand["fenster_nur_uid"] is True
+
+
+@pytest.mark.parametrize("anderes, gewinnt", [
+    ({"identitaet": VON, "betreff": "eigene Meldung"}, "eigene Meldung"),
+    ({"betreff": "keine Meldung"}, "keine Meldung"),
+], ids=["eigene-vor-fremder", "keine-vor-fremder"])
+def test_eine_fremde_meldung_steht_im_letzten_rang(monkeypatch, anderes, gewinnt):
+    """Zwei Fenster derselben UID, das fremd gemeldete zuerst in der Liste.
+
+    Beide URIs tragen dieselbe Adresse, damit der zweite Rang nicht mitspielt.
+    """
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    uid = server.ordner[ENTWUERFE][0].uid
+    _mit_fenstern(monkeypatch,
+                  _fenster(uid, uri=LOGIN_EIGEN, identitaet="fremd@example.net",
+                           betreff="fremde Meldung"),
+                  _fenster(uid, uri=LOGIN_EIGEN, **anderes))
+    assert _einziger(_stand()).fenster["betreff"] == gewinnt
 
 
 def test_ohne_gemeldete_identitaet_traegt_die_uid_allein(monkeypatch):

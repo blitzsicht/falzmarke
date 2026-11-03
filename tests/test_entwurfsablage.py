@@ -550,6 +550,36 @@ def test_ein_fenster_das_nach_dem_plan_aufgeht_haelt_den_zug(monkeypatch, tmp_pa
     assert "Fenster" in bericht.bleibt[0].grund
 
 
+def _alias_fenster(uid, identitaet="bestellung@example.de"):
+    return BrueckenAttrappe({"ok": True, "fenster": [
+        {"titel": "Verfassen", "betreff": "Auftrag S1", "identitaet": identitaet,
+         "draft_id": f"imap-message://order%40example.de@127.0.0.1/Entw&APw-rfe#{uid}"}]})
+
+
+def test_ein_fenster_unter_einer_alias_identitaet_haelt_den_entwurf(monkeypatch, tmp_path):
+    """#442 (N3): `identitaet` ist das `From` des Fensters, nicht das Konto.
+
+    Wer unter einem Alias desselben Kontos schreibt, meldet eine fremde
+    Adresse. Bis 0.11.0 fiel das Fenster damit aus der Zuordnung, und der
+    Entwurf ging aus dem offenen Fenster in den Papierkorb.
+    """
+    server, uid, profil = _fall1(monkeypatch, tmp_path)
+    monkeypatch.setattr(bruecke, "VERBINDEN", _alias_fenster(uid))
+    bericht = _lauf(profil)
+    assert bericht.verschoben == () and _uids(server, ENTWUERFE) == [str(uid)]
+    assert "Fenster" in bericht.bleibt[0].grund
+
+
+def test_ein_alias_fenster_das_nach_dem_plan_aufgeht_haelt_den_zug(monkeypatch, tmp_path):
+    """Dieselbe Sperre an der zweiten Stelle: `_ziehe` fragt unmittelbar vor dem Zug."""
+    server, uid, profil = _fall1(monkeypatch, tmp_path)
+    _nach_dem_plan(monkeypatch, lambda: monkeypatch.setattr(
+        bruecke, "VERBINDEN", _alias_fenster(uid)))
+    bericht = _lauf(profil)
+    assert bericht.verschoben == () and _uids(server, ENTWUERFE) == [str(uid)]
+    assert "Fenster" in bericht.bleibt[0].grund
+
+
 def test_faellt_die_bruecke_nach_dem_plan_aus_bleibt_der_entwurf(monkeypatch, tmp_path):
     server, uid, profil = _fall1(monkeypatch, tmp_path)
     _nach_dem_plan(monkeypatch, lambda: monkeypatch.setattr(

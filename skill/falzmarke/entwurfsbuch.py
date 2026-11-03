@@ -700,7 +700,16 @@ def fenster_des_kontos(fenster: list[dict], adresse: str) -> dict[str, dict]:
 
     Gefragt wird stattdessen das Add-on: Es meldet ab 0.3.0 unter `identitaet`
     die Absenderadresse des Fensters (`implementation.js`, aus `from`) — eine
-    Identität, kein Anmeldename. Wo sie dasteht, entscheidet sie allein.
+    Identität, kein Anmeldename. Nennt sie diese Adresse, ist das Fenster
+    sicher zugeordnet.
+
+    Nennt sie eine **andere** Adresse, schließt das das Fenster nicht aus
+    (#442, N3). `from` ist der Absender, nicht das Konto: Wer unter einer
+    Alias-Identität desselben Kontos schreibt, meldet für das eigene Fenster
+    eine fremde Adresse. Bis 0.11.0 fiel dieses Fenster heraus, der Entwurf
+    hieß `WARTET`, und `aufraeumen --entwuerfe` konnte ihn aus dem offenen
+    Fenster ziehen. Jetzt zählt eine abweichende Meldung wie keine: die UID als
+    Anker, der letzte Rang, und die Ausgabe nennt den gemeldeten Absender.
 
     Fehlt sie — älteres Add-on, oder `live: false`, weil sich das Fenster nicht
     lesen ließ —, bleibt die UID der einzige Anker, und der ist schwach:
@@ -715,26 +724,37 @@ def fenster_des_kontos(fenster: list[dict], adresse: str) -> dict[str, dict]:
     einem offenen Fenster. Die Ausgabe nennt den Fall (`nur_uid`). Die Adresse
     in der URI entscheidet nur noch, wenn zwei Fenster dieselbe UID melden.
     """
-    nach_uid: dict[str, list[tuple[bool, bool, dict]]] = {}
+    eigen = adresse.strip().lower()
+    nach_uid: dict[str, list[tuple[int, bool, dict]]] = {}
     for eintrag in fenster:
         ziel = unquote(str(eintrag.get("draft_id") or "").split("?")[0]).lower()
         treffer = UID_AUS_URI.search(ziel)
         if not treffer:
             continue
         gemeldet = str(eintrag.get("identitaet") or "").strip().lower()
-        if gemeldet and gemeldet != adresse.strip().lower():
-            continue
-        nach_uid.setdefault(treffer.group(1), []).append(
-            (not gemeldet, adresse.strip().lower() not in ziel, eintrag))
-    # Je UID das beste Fenster: gemeldete Identität vor Treffer in der URI vor
-    # erstem Fund. `sorted` ist stabil, der letzte Rang ist damit die Reihenfolge
-    # der Liste.
+        rang = 0 if gemeldet == eigen else 1 if not gemeldet else 2
+        nach_uid.setdefault(treffer.group(1), []).append((rang, eigen not in ziel, eintrag))
+    # Je UID das beste Fenster: die eigene Identität vor keiner Meldung vor einer
+    # fremden, darin der Treffer in der URI vor dem ersten Fund. `sorted` ist
+    # stabil, der letzte Rang ist damit die Reihenfolge der Liste.
     return {uid: sorted(liste, key=lambda e: e[:2])[0][2] for uid, liste in nach_uid.items()}
 
 
-def nur_uid(fenster: Mapping | None) -> bool:
-    """Hat allein die UID dieses Fenster dem Konto zugeordnet? Siehe `fenster_des_kontos`."""
-    return fenster is not None and not str(fenster.get("identitaet") or "").strip()
+def nur_uid(fenster: Mapping | None, adresse: str) -> bool:
+    """Hat allein die UID dieses Fenster dem Konto zugeordnet? Siehe `fenster_des_kontos`.
+
+    Ja, wenn das Fenster keinen Absender meldet **oder einen anderen** als
+    `adresse`, etwa eine Alias-Identität (#442, N3).
+    """
+    if fenster is None:
+        return False
+    return str(fenster.get("identitaet") or "").strip().lower() != adresse.strip().lower()
+
+
+def fremde_identitaet(fenster: Mapping | None, adresse: str) -> str:
+    """Der Absender, den das Fenster meldet, wenn er nicht `adresse` ist; sonst leer."""
+    gemeldet = str((fenster or {}).get("identitaet") or "").strip()
+    return gemeldet if gemeldet and gemeldet.lower() != adresse.strip().lower() else ""
 
 
 def _offene_uids(adresse: str, umgebung: Mapping[str, str]) -> tuple[dict[str, dict], str]:
@@ -1226,7 +1246,9 @@ def zeilen(bericht: Bericht, *, zeitzone=None) -> list[str]:
             rest = f"liegt in „{bericht.entwuerfe}“ (UID {z.uid})"
             if z.fenster is not None:
                 rest += ", gerade im Fenster offen"
-                if nur_uid(z.fenster):
+                if fremd := fremde_identitaet(z.fenster, bericht.adresse):
+                    rest += f" (zugeordnet nur über die UID, das Fenster meldet „{fremd}“)"
+                elif nur_uid(z.fenster, bericht.adresse):
                     rest += " (zugeordnet nur über die UID, das Fenster meldet keinen Absender)"
             if z.gesendet:
                 rest += (f" — ging aber {_wann(z.gesendet[-1], zeitzone)} schon raus"
@@ -1289,7 +1311,7 @@ def als_json(bericht: Bericht) -> dict:
             "text_gekappt": z.text_gekappt,
             "im_buch": z.im_buch, "belegt": z.belegt, "nachfolger": z.nachfolger,
             "tagebuch": list(z.tagebuch), "fenster": dict(z.fenster) if z.fenster else None,
-            "fenster_nur_uid": nur_uid(z.fenster),
+            "fenster_nur_uid": nur_uid(z.fenster, bericht.adresse),
             "fenster_text_gleich": z.fenster_text_gleich,
             "versand": dict(z.versand) if z.versand else None,
             "empfaenger_plus": list(z.empfaenger_plus),

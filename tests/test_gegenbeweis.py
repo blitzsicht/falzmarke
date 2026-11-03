@@ -2116,18 +2116,24 @@ def test_die_zuordnung_ist_unsabotiert_gruen(monkeypatch):
 
     Ohne sie wäre an den folgenden Tests nicht zu sehen, ob die Sabotage wirkt
     oder ob der Aufbau von sich aus das erwartete Ergebnis liefert.
+
+    Seit #442 (N3) schließt eine fremde Meldung nicht mehr aus: Auch das
+    zweite Fenster bekommt die UID, aber nur über die UID (`nur_uid`).
     """
+    from falzmarke import entwurfsbuch as _buch
+
     eigen = _uids_410(monkeypatch, _fenster_410(_URI_FREMD, identitaet=_VON_410))
     fremd = _uids_410(monkeypatch, _fenster_410(_URI_EIGEN, identitaet="wer@example.net"))
-    assert set(eigen) == {"4711"} and fremd == {}
+    assert set(eigen) == {"4711"} and set(fremd) == {"4711"}
+    assert not _buch.nur_uid(eigen["4711"], _VON_410) and _buch.nur_uid(fremd["4711"], _VON_410)
 
 
 def test_eine_geratene_zuordnung_verliert_das_konto_mit_fremdem_login(monkeypatch):
     """Sabotage: wieder `adresse in ziel`, die Teilkette der IMAP-URI.
 
-    Genau der Zustand vor #410. Beide Richtungen kippen zugleich, und das ist
-    der Punkt: Der Login `m0123456` verliert sein Fenster, während ein fremdes
-    Konto eines bekommt, nur weil seine URI die Adresse als Teilstück trägt.
+    Genau der Zustand vor #410: Der Login `m0123456` verliert sein Fenster.
+    Die Gegenrichtung (ein fremd gemeldetes Fenster bekommt die UID) trennt
+    seit #442 (N3) nicht mehr, denn das tut es jetzt auch unsabotiert.
     """
     from falzmarke import entwurfsbuch as _buch
 
@@ -2148,16 +2154,20 @@ def test_eine_geratene_zuordnung_verliert_das_konto_mit_fremdem_login(monkeypatc
 
     monkeypatch.setattr(_buch, "fenster_des_kontos", geraten)
     assert _uids_410(monkeypatch, _fenster_410(_URI_FREMD, identitaet=_VON_410)) == {}
-    assert set(_uids_410(monkeypatch,
-                         _fenster_410(_URI_EIGEN, identitaet="wer@example.net"))) == {"4711"}
 
 
-def test_ohne_pruefung_der_identitaet_bekommt_ein_fremdes_fenster_die_uid(monkeypatch):
+def _fremd_und_eigen_410():
+    """Zwei Fenster derselben UID, das fremd gemeldete zuerst in der Liste."""
+    return (_fenster_410(_URI_EIGEN, identitaet="wer@example.net", betreff="fremd"),
+            _fenster_410(_URI_EIGEN, identitaet=_VON_410, betreff="eigen"))
+
+
+def test_ohne_pruefung_der_identitaet_gewinnt_das_fremde_fenster(monkeypatch):
     """Sabotage: nur die UID, die gemeldete Identität wird nicht gelesen.
 
     Die Gegenrichtung zur vorigen Sabotage, und sie trennt den Fix von seiner
-    Lockerung: Dass die Adresse nicht mehr **ausschließt**, darf nicht heißen,
-    dass eine gemeldete Identität nicht mehr **entscheidet**.
+    Lockerung: Dass weder die Adresse noch eine fremde Meldung **ausschließt**,
+    darf nicht heißen, dass die eigene Meldung nicht mehr **vorgeht**.
     """
     from falzmarke import entwurfsbuch as _buch
 
@@ -2166,12 +2176,13 @@ def test_ohne_pruefung_der_identitaet_bekommt_ein_fremdes_fenster_die_uid(monkey
         for eintrag in fenster:
             treffer = _buch.UID_AUS_URI.search(str(eintrag.get("draft_id") or ""))
             if treffer:
-                aus[treffer.group(1)] = eintrag
+                aus.setdefault(treffer.group(1), eintrag)
         return aus
 
+    assert _uids_410(monkeypatch, *_fremd_und_eigen_410())["4711"]["betreff"] == "eigen", \
+        "Kontrollprobe: unsabotiert geht die eigene Meldung vor"
     monkeypatch.setattr(_buch, "fenster_des_kontos", nur_uid)
-    assert set(_uids_410(monkeypatch,
-                         _fenster_410(_URI_EIGEN, identitaet="wer@example.net"))) == {"4711"}
+    assert _uids_410(monkeypatch, *_fremd_und_eigen_410())["4711"]["betreff"] == "fremd"
 
 
 # ── Eine Zeile sabotiert, nicht die ganze Funktion (#442, N5) ───────────────
@@ -2195,15 +2206,32 @@ def _zeile_ersetzt(modul, name: str, alt: str, neu: str):
     return raum[name]
 
 
-def test_kippt_die_zeile_der_identitaet_bekommt_ein_fremdes_fenster_die_uid(monkeypatch):
+def test_kippt_der_rang_der_fremden_meldung_geht_sie_vor_keiner(monkeypatch):
+    """#442 (N3): Eine fremde Meldung steht hinter einem Fenster ohne Meldung."""
+    from falzmarke import entwurfsbuch as _buch
+
+    fenster = (_fenster_410(_URI_FREMD, identitaet="wer@example.net", betreff="fremd"),
+               _fenster_410(_URI_FREMD, betreff="ohne"))
+    assert _uids_410(monkeypatch, *fenster)["4711"]["betreff"] == "ohne", \
+        "Kontrollprobe: unsabotiert geht das Fenster ohne Meldung vor"
+    monkeypatch.setattr(_buch, "fenster_des_kontos", _zeile_ersetzt(
+        _buch, "fenster_des_kontos",
+        "rang = 0 if gemeldet == eigen else 1 if not gemeldet else 2",
+        "rang = 0 if gemeldet == eigen else 1"))
+    assert _uids_410(monkeypatch, *fenster)["4711"]["betreff"] == "fremd"
+
+
+def test_kippt_der_vergleich_in_nur_uid_gilt_der_alias_als_sicher_zugeordnet(monkeypatch):
+    """#442 (N3): `nur_uid` las bis 0.11.0 nur, ob eine Meldung da ist."""
     from falzmarke import entwurfsbuch as _buch
 
     fremd = _fenster_410(_URI_EIGEN, identitaet="wer@example.net")
-    assert _uids_410(monkeypatch, fremd) == {}, "Kontrollprobe: unsabotiert kein Treffer"
-    monkeypatch.setattr(_buch, "fenster_des_kontos", _zeile_ersetzt(
-        _buch, "fenster_des_kontos",
-        "if gemeldet and gemeldet != adresse.strip().lower():", "if False:"))
-    assert set(_uids_410(monkeypatch, fremd)) == {"4711"}
+    assert _buch.nur_uid(fremd, _VON_410), "Kontrollprobe: unsabotiert nur über die UID"
+    monkeypatch.setattr(_buch, "nur_uid", _zeile_ersetzt(
+        _buch, "nur_uid",
+        'return str(fenster.get("identitaet") or "").strip().lower() != adresse.strip().lower()',
+        'return not str(fenster.get("identitaet") or "").strip()'))
+    assert not _buch.nur_uid(fremd, _VON_410)
 
 
 def test_ohne_zweiten_rang_gewinnt_die_reihenfolge_der_liste(monkeypatch):
