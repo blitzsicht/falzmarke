@@ -100,7 +100,7 @@ FRAGMENT_NAME = re.compile(r"^(?P<vorgang>[A-Za-z0-9_-]+)\.(?P<rubrik>[a-z]+)\.m
 # Drei Schreibweisen, weil derselbe Bot je nach Kanal anders heisst: `gh pr view`
 # meldet `app/dependabot`, git-Autor und REST-API `dependabot[bot]`. Wer nur eine
 # eintraegt, baut einen Filter, der nie trifft — und ein nie treffender Filter
-# sieht aus wie „keine Aktualisierungen".
+# sieht aus wie „keine Aktualisierungen“.
 BOT_AUTOREN = ("dependabot[bot]", "app/dependabot", "dependabot-preview[bot]")
 
 
@@ -109,7 +109,7 @@ def bot_vorgaenge(seit: str | None = None, repo: Path | None = None) -> list[str
 
     Liest den git-Verlauf, nicht das Netz. Bricht ab, wenn der Verlauf nicht
     lesbar ist: Eine leere Liste aus einem fehlgeschlagenen Aufruf ist von einer
-    leeren Liste aus „nichts passiert" nicht zu unterscheiden, und der Unterschied
+    leeren Liste aus „nichts passiert“ nicht zu unterscheiden, und der Unterschied
     entscheidet, ob ein Punkt im Changelog fehlt.
     """
     import subprocess
@@ -128,12 +128,12 @@ def bot_vorgaenge(seit: str | None = None, repo: Path | None = None) -> list[str
         return fertig.stdout.strip()
 
     if not seit:
-        # `git describe` scheitert hier mit 128 und „No names found", wenn es
+        # `git describe` scheitert hier mit 128 und „No names found“, wenn es
         # keinen Versions-Tag gibt. Das ist KEIN Lesefehler, sondern ein
         # handhabbarer Zustand — die erste Version hat keinen Vorgaenger, und
         # ein flacher Klon (actions/checkout ohne fetch-tags) hat gar keine.
         # Deshalb hier eine eigene Meldung mit dem Ausweg, statt der grossen
-        # „Verlauf nicht lesbar"-Meldung, die zum Ausweg nichts sagt.
+        # „Verlauf nicht lesbar“-Meldung, die zum Ausweg nichts sagt.
         import subprocess as _sp
         fertig = _sp.run(("git", "-C", str(repo or REPO), "describe", "--tags",
                           "--abbrev=0", "--match", "v*"),
@@ -151,7 +151,7 @@ def bot_vorgaenge(seit: str | None = None, repo: Path | None = None) -> list[str
     for autor in BOT_AUTOREN:
         # -F, sonst ist das Muster ein Regex: In `dependabot[bot]` waere `[bot]`
         # eine Zeichenklasse, und der Filter faende nichts. Die leere Liste sieht
-        # dann aus wie „keine Aktualisierungen" — gemessen am 02.09.2026:
+        # dann aus wie „keine Aktualisierungen“ — gemessen am 02.09.2026:
         # ohne -F null Treffer, mit -F einer (f626515).
         ausgabe = git("log", "-F", f"{seit}..HEAD", f"--author={autor}", "--format=%s")
         zeilen += [z for z in ausgabe.splitlines() if z.strip()]
@@ -321,7 +321,7 @@ def gebuendelt(version: str, datum: str, verzeichnis: Path = FRAGMENTE,
             letzte_rubrik = rubrik
         zeilen += [rumpf, ""]
     if zusatz:
-        # Ans Ende von „Infrastruktur" — der Rubrik, unter der solche Punkte
+        # Ans Ende von „Infrastruktur“ — der Rubrik, unter der solche Punkte
         # seit jeher stehen. Fehlt sie, wird sie hier angelegt; sie ist die
         # letzte im Kanon, also stimmt die Reihenfolge in beiden Faellen.
         if letzte_rubrik != "infrastruktur":
@@ -330,8 +330,8 @@ def gebuendelt(version: str, datum: str, verzeichnis: Path = FRAGMENTE,
     return "\n".join(zeilen)
 
 
-#: Sentinel: „nicht angegeben" ist etwas anderes als „ausdruecklich kein
-#: Sammelpunkt". None waere beides zugleich.
+#: Sentinel: „nicht angegeben“ ist etwas anderes als „ausdruecklich kein
+#: Sammelpunkt“. None waere beides zugleich.
 _AUS_GIT = object()
 
 

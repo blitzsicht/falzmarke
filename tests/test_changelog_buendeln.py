@@ -38,7 +38,7 @@ def changelog_mit(tmp_path, text="## v0.9.1 — 01.09.2026\n\nAlt.\n"):
 
 
 def test_die_rubriken_stehen_in_kanon_reihenfolge(tmp_path):
-    """Nicht alphabetisch: „Neu" gehört nach oben, „Infrastruktur" nach unten."""
+    """Nicht alphabetisch: „Neu“ gehört nach oben, „Infrastruktur“ nach unten."""
     verzeichnis = verzeichnis_mit(
         tmp_path,
         a__infrastruktur__md="- Ein Werkzeug.",
@@ -204,7 +204,7 @@ def test_die_eckigen_klammern_sind_kein_regex(tmp_path):
 
     `git log --author` nimmt einen **Regex**. In `dependabot[bot]` wäre `[bot]`
     eine Zeichenklasse — der Filter fände nichts, und die leere Liste sähe aus
-    wie „keine Aktualisierungen". Erst `-F` macht daraus einen festen Text.
+    wie „keine Aktualisierungen“. Erst `-F` macht daraus einen festen Text.
     Gemessen: ohne `-F` null Treffer, mit `-F` einer.
 
     Ein Autor, den das Regex-Muster fälschlich träfe, gibt es hier nicht — der
@@ -221,7 +221,7 @@ def test_ein_mensch_landet_nicht_im_sammelpunkt(tmp_path):
 
 
 def test_ein_unlesbarer_verlauf_bricht_ab_statt_leer_zu_melden(tmp_path):
-    """„Nicht geprüft" ist kein „nichts passiert" (claim-verification)."""
+    """„Nicht geprüft“ ist kein „nichts passiert“ (claim-verification)."""
     kein_repo = tmp_path / "leer"
     kein_repo.mkdir()
     with pytest.raises(SystemExit, match="nicht lesbar"):
@@ -240,7 +240,7 @@ def test_mehrere_vorgaenge_werden_eine_unterliste():
 
 
 def test_ohne_vorgang_entsteht_kein_punkt():
-    """Sonst stünde in jeder Version eine leere Überschrift „Infrastruktur"."""
+    """Sonst stünde in jeder Version eine leere Überschrift „Infrastruktur“."""
     assert changelog.sammelpunkt([]) is None
 
 
@@ -275,7 +275,7 @@ def test_ein_repo_ohne_tag_nennt_den_ausweg(tmp_path):
     war zweimal falsch — die Tests hingen am git-Verlauf, obwohl sie das Bündeln
     prüfen, und ein Repo ohne Tag (die erste Version!) hatte keinen Ausweg.
 
-    Jetzt nennt die Meldung `--seit`. „Lokal grün" belegt nichts über eine
+    Jetzt nennt die Meldung `--seit`. „Lokal grün“ belegt nichts über eine
     Umgebung, die anders beschaffen ist.
     """
     repo = _bot_repo(tmp_path)          # ein Repo mit Commit, aber ohne v-Tag

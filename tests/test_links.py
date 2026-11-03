@@ -234,7 +234,7 @@ def test_auch_andere_satzzeichen_gehoeren_zum_satz(zeichen):
 
 
 def test_im_codespan_bleibt_die_adresse_wortlaut():
-    """Code ist Wortlaut — dort wird nichts verlinkt (#424, „Erwartet")."""
+    """Code ist Wortlaut — dort wird nichts verlinkt (#424, „Erwartet“)."""
     html = emit_html.setze(_lies("Die Adresse `https://example.de/api` steht so im Code.",
                                  dialekt="1.1"))
     assert "<a " not in html, html

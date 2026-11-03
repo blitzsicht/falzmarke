@@ -256,7 +256,7 @@ def test_externes_stylesheet_faellt_auf(monkeypatch):
 
 
 def test_zaehlpixel_faellt_auf(monkeypatch):
-    """Bis #243 fiel dieser Fall als „Bild von aussen" auf — die Quellenregel
+    """Bis #243 fiel dieser Fall als „Bild von aussen“ auf — die Quellenregel
     war der erste Zaun, die 1×1-Messung der zweite dahinter. Seit `email.logo`
     fremde Adressen annimmt, ist der erste weg, und diese Probe misst wirklich
     die Messung am Empfaenger."""
@@ -465,7 +465,7 @@ def test_ein_emitter_ohne_zeichenkette_wertet_wirklich_aus(tmp_path, monkeypatch
 
     Ohne diesen Nachweis wäre `raw(zeichenkette(...))` eine Vorsichtsmassnahme
     gegen etwas, das vielleicht nie passiert wäre — und niemand wüsste, ob sie
-    nötig ist, wenn jemand sie später „vereinfacht".
+    nötig ist, wenn jemand sie später „vereinfacht“.
     """
     monkeypatch.setattr(_emit, "wortlaut",
                         lambda inhalt, block: f"#codeblock[{inhalt}]")
@@ -627,7 +627,7 @@ def test_verstelltes_iso_datum_faellt_nicht_mehr_auf(tmp_path, monkeypatch):
 # ── Die Signatur-Fixture: sabotierte Quellzeile, nicht sabotiertes Ergebnis ──
 #
 # #221 verlangt: „Eine verfälschte Zeile in `signatur_bloecke()` macht mindestens
-# einen Eintrag rot — eine Fixture, die jede Fassung durchwinkt, wäre keine."
+# einen Eintrag rot — eine Fixture, die jede Fassung durchwinkt, wäre keine.“
 #
 # Verfälscht wird deshalb die **Quellzeile**, nicht das Ergebnis. Ein Wrapper um
 # die echte Funktion, der hinterher etwas anhängt, belegte nur, dass `!=`
@@ -674,7 +674,7 @@ def test_unsabotierte_signatur_passt_zur_fixture():
 
 #: Je Sabotage eine Zeile aus `signatur_bloecke()` und die Fälle, die sie
 #: treffen MUSS. Die Erwartung ist absichtlich namentlich und nicht „mindestens
-#: einer": Eine Sabotage, die plötzlich andere Fälle trifft, hat einen anderen
+#: einer“: Eine Sabotage, die plötzlich andere Fälle trifft, hat einen anderen
 #: Zweig erwischt als gedacht, und das soll auffallen.
 SIGNATUR_SABOTAGEN = [
     # Die trennschärfste der drei: Der Rückgriff auf den **Kopf** entfällt, und
@@ -1012,13 +1012,13 @@ def test_ohne_den_nachlauf_fehlt_das_factur_x_schema(tmp_path, monkeypatch):
     assert "urn:factur-x" not in xmp, \
         "Typst schreibt das Schema offenbar selbst — dann ist der Nachlauf überflüssig"
     # Die Beilage selbst ist trotzdem da: Nur das Schema fehlt, und genau das
-    # macht den Unterschied zwischen „Datei im PDF" und „erkennbare Rechnung".
+    # macht den Unterschied zwischen „Datei im PDF“ und „erkennbare Rechnung“.
     assert _rechnung_anhaenge(pdf) == ["factur-x.xml"]
 
 
 # ── Die Fassungszeile im Messbericht liest die Datei (#117) ─────────────────
 #
-# Bis #117 gab die Zeile „E-Rechnung" Profil und Fassung aus Konstanten aus und
+# Bis #117 gab die Zeile „E-Rechnung“ Profil und Fassung aus Konstanten aus und
 # prüfte nur, ob irgendein Factur-X-Schema im XMP stand. Eine Rechnung mit
 # falscher Guideline-ID hätte dieselbe grüne Zeile bekommen. Jetzt liest sie
 # die eingebettete XML und das XMP — und vergleicht mit einer eigenen Tabelle,
@@ -1306,7 +1306,7 @@ def test_ein_veraenderter_innenabstand_macht_die_messung_rot(tmp_path, monkeypat
     Änderung, die ein Mensch am Ausdruck nicht sähe.
 
     Erwartet wird die Höhe NAMENTLICH — Texthöhe plus zweimal der neue Abstand
-    —, nicht „irgendeine andere". Eine Sabotage, die die Zeilen anders verstellt
+    —, nicht „irgendeine andere“. Eine Sabotage, die die Zeilen anders verstellt
     als gedacht, hat etwas anderes getroffen als den Innenabstand.
     """
     pdf, _ = _tabellen_pdf(tmp_path, monkeypatch, y)
@@ -1335,7 +1335,7 @@ def test_die_rasterpruefung_sieht_den_verstellten_innenabstand_nicht(tmp_path, m
 #
 # Jede Prüfung der Urkundenliste bekommt hier ihre Sabotage: Der Satz wird an
 # genau einer Stelle verstellt, und erwartet wird NAMENTLICH, was daraufhin rot
-# wird — die ganze Menge, nicht „mindestens eine". Eine Sabotage, die mehr oder
+# wird — die ganze Menge, nicht „mindestens eine“. Eine Sabotage, die mehr oder
 # anderes trifft als gedacht, hat etwas anderes verstellt.
 #
 # Jede steht in einem eigenen Test und läuft für sich: Gebündelt ginge eine
@@ -2137,8 +2137,8 @@ def _email_profilregeln(abschnitt: dict) -> set:
 #
 # Vier Sabotagen, jede an genau einer Stelle, jede mit einer eigenen Wirkung.
 # Sie liegen hier und nicht nur in `test_entwurfsbuch.py`, weil die Zusagen
-# **Abwesenheiten** sind: „das Konto wird nicht geraten" und „es wird nicht das
-# falsche Profil gelesen". Eine Probe über eine Abwesenheit bleibt grün, solange
+# **Abwesenheiten** sind: „das Konto wird nicht geraten“ und „es wird nicht das
+# falsche Profil gelesen“. Eine Probe über eine Abwesenheit bleibt grün, solange
 # der geprüfte Weg gar nicht beschritten wird — erst der Zwilling mit anderem
 # Ergebnis zeigt, dass gemessen wurde.
 
@@ -2457,7 +2457,7 @@ def test_ein_standardprofil_statt_des_sockets_liest_die_falsche_datei(monkeypatc
 def test_der_hinweis_nennt_das_gelesene_profil_und_zwar_verschieden(monkeypatch, tmp_path):
     """Zwei Profile ohne Tagebuch, zwei Hinweise — und sie müssen sich unterscheiden.
 
-    Ein fester Text „kein Tagebuch im Thunderbird-Profil" könnte diese Probe
+    Ein fester Text „kein Tagebuch im Thunderbird-Profil“ könnte diese Probe
     nicht bestehen: Sie verlangt nicht, dass ein Name dasteht, sondern dass der
     **richtige** dasteht. Das ist der Unterschied zwischen einer Behauptung und
     einer Messung.
@@ -2489,7 +2489,7 @@ _ZWEITE_438 = "<zweite-kennung@example.org>"
 
 
 def _ablage_lage(monkeypatch, *, eingang, gesendet):
-    """Eine Sitzung über einer Attrappe mit Eingang, Gesendet und „Archiv"."""
+    """Eine Sitzung über einer Attrappe mit Eingang, Gesendet und „Archiv“."""
     from falzmarke import postfach as _postfach_modul
 
     from imap_attrappe import ImapAttrappe
@@ -2652,7 +2652,7 @@ def test_ohne_das_zerlegen_fallen_zwei_kennungen_aus_der_zuordnung(monkeypatch):
     """Sabotage an genau einer Stelle: `kennungen` gibt den rohen Feldwert.
 
     Dann wird `<a@…> <b@…>` als eine Teilkette gesucht, trifft nichts — und die
-    Antwort zählt als „längst weggeräumt", während beide Nachrichten im Eingang
+    Antwort zählt als „längst weggeräumt“, während beide Nachrichten im Eingang
     liegen bleiben. Die Sabotage ist genau die Fassung, die #435 hatte.
     """
     from falzmarke import ablage as _ablage
@@ -2679,7 +2679,7 @@ def test_ohne_das_zerlegen_fallen_zwei_kennungen_aus_der_zuordnung(monkeypatch):
 def test_ohne_den_kappungshinweis_liest_sich_das_fenster_vollstaendig(monkeypatch):
     """Sabotage an genau einer Stelle: `_kappungen` gibt nichts zurück.
 
-    Dann steht in beiden Darstellungen „0 von 2 Antworten seit …", als wäre das
+    Dann steht in beiden Darstellungen „0 von 2 Antworten seit …“, als wäre das
     Fenster ganz gelesen — und die dritte, ältere Antwort wird nie aufgeräumt.
     """
     from falzmarke import ablage as _ablage
@@ -2710,7 +2710,7 @@ def test_ohne_den_grund_wandert_die_post_in_den_archive_ordner(monkeypatch, tmp_
     """Sabotage an genau einer Stelle: `ablage_aus_profil` meldet die
     Mehrdeutigkeit wieder als blankes `None`.
 
-    Dann ist sie für `ablageordner` von „kein Profil nennt das Feld" nicht zu
+    Dann ist sie für `ablageordner` von „kein Profil nennt das Feld“ nicht zu
     unterscheiden, der Lauf nimmt `\\Archive` — und mit `--machen` liegt die
     Post in einem Ordner, den keines der beiden Profile verlangt hat. Genau
     diese Fassung hatte #435.

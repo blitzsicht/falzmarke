@@ -86,7 +86,7 @@ def test_ohne_bcc_steht_keine_da(profil, bloecke):
 
 def test_die_vorschau_zeigt_die_blindkopie_nicht(profil, bloecke):
     """Die `.html` ist zum Ansehen und Herauskopieren da. Stünde dort eine
-    Zeile „Blindkopie: …", ginge sie beim Kopieren mit — und das Feld täte das
+    Zeile „Blindkopie: …“, ginge sie beim Kopieren mit — und das Feld täte das
     Gegenteil dessen, wofür es da ist. `An` und `Kopie` stehen sehr wohl drin;
     ohne diesen Vergleich wüsste man nicht, ob der Kopf überhaupt etwas zeigt.
     """
@@ -99,7 +99,7 @@ def test_die_vorschau_zeigt_die_blindkopie_nicht(profil, bloecke):
 
 def test_date_auch_ohne_source_date_epoch(profil, bloecke, monkeypatch):
     """RFC 5322 führt `orig-date` als Pflichtfeld. Fehlte es, zeigte das
-    Mailprogramm beim Weiterleiten „(null), (null)" im Text an (#236)."""
+    Mailprogramm beim Weiterleiten „(null), (null)“ im Text an (#236)."""
     monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)
     gesetzt = _baue(profil, bloecke)["Date"]
     assert gesetzt is not None

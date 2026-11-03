@@ -27,24 +27,24 @@ ergibt.
 dann aber sagen, dass er nicht rechnet, und zwar dort, wo jemand es liest: in der Dokumentation
 und im Datenvertrag, nicht nur in einem ADR.
 
-Das ist dieselbe Linie wie bei „keine Zertifizierung" (ADR 0032), „kein Versand" (ADR 0034) und
-„falzmarke prüft die Pflichtangaben nicht" (ADR 0005): Das Werkzeug behauptet nur, was es belegen
+Das ist dieselbe Linie wie bei „keine Zertifizierung“ (ADR 0032), „kein Versand“ (ADR 0034) und
+„falzmarke prüft die Pflichtangaben nicht“ (ADR 0005): Das Werkzeug behauptet nur, was es belegen
 kann.
 
 **Was daraus folgt, und es ist unbequem:** Eine Rechnung mit widersprüchlichen Summen geht
-durch. falzmarke darf das **melden** — eine Prüfung „Netto plus Steuer ergibt Brutto" ist eine
+durch. falzmarke darf das **melden** — eine Prüfung „Netto plus Steuer ergibt Brutto“ ist eine
 Rechenprobe über gegebene Werte und kein Bilden eigener — aber sie hält den Lauf nicht an, und
 sie ersetzt keine Buchhaltung. Welche Stufe diese Meldung trägt, entscheidet der Regelkatalog
 nach ADR 0035; eine Prüfung auf der Ebene `werkzeug` darf Fehler sein.
 
-## Entscheidung 2: ZUGFeRD in einer festen Fassung, nicht „dem aktuellen Stand"
+## Entscheidung 2: ZUGFeRD in einer festen Fassung, nicht „dem aktuellen Stand“
 
 **Vorgabe ist ZUGFeRD 2.x, Fassung ausdrücklich benannt.** Gemessen am 11.09.2026 ist
 [2.5.2 die aktuelle Fassung](https://www.ferd-net.de/standards/zugferd) (veröffentlicht
 04.08.2026).
 
 **Begründung.** Jede Fassung schreibt einen Dateinamen für die eingebettete XML, ein
-XMP-Erweiterungsschema und eine Beziehungsangabe im PDF vor. Wer „die jeweils aktuelle" erzeugt,
+XMP-Erweiterungsschema und eine Beziehungsangabe im PDF vor. Wer „die jeweils aktuelle“ erzeugt,
 erzeugt Dokumente, deren Empfängerkreis niemand kennt — und eine Fassung, die sich zur Laufzeit
 ändert, ist kein Datenvertrag.
 
@@ -69,10 +69,10 @@ Die Profilstruktur, belegt über die [FeRD-FAQ](https://www.ferd-net.de/standard
 **Vorgabe ist EN 16931 (COMFORT).** Begründung: Das ist genau der Umfang, den § 14 Absatz 1
 Satz 6 UStG verlangt — Entsprechung zur „europäischen Norm für die elektronische
 Rechnungsstellung … gemäß der Richtlinie
-[2014/55/EU](https://eur-lex.europa.eu/eli/dir/2014/55/oj)". Nicht weniger, und nicht mehr.
+[2014/55/EU](https://eur-lex.europa.eu/eli/dir/2014/55/oj)“. Nicht weniger, und nicht mehr.
 
 **MINIMUM und BASIC WL erzeugt falzmarke nicht.** Sie enthalten keine Rechnungspositionen und
-sind keine Rechnung im umsatzsteuerlichen Sinn. Ein Werkzeug, das „Rechnung" in den Dateinamen
+sind keine Rechnung im umsatzsteuerlichen Sinn. Ein Werkzeug, das „Rechnung“ in den Dateinamen
 schreibt und eine Buchungshilfe erzeugt, behauptet zu viel — und der Unterschied fällt dem
 Absender erst auf, wenn ihn jemand darauf anspricht.
 
@@ -97,7 +97,7 @@ Vorjahresumsatz, Steuerbefreiung. `docs/recht.md` nennt die Fristen; das Werkzeu
 ## Was ohne fremde Prüfung nicht behauptet wird
 
 Solange kein unabhängiges Prüfwerkzeug das Ergebnis durchlässt, sagt falzmarke **nicht**
-„ZUGFeRD-konform". Dieselbe Zurückhaltung wie beim Wort „normgerecht", aus demselben Grund: Eine
+„ZUGFeRD-konform“. Dieselbe Zurückhaltung wie beim Wort „normgerecht“, aus demselben Grund: Eine
 Zusage, die das Werkzeug über sich selbst macht, ist keine.
 
 Die fremde Prüfung ist [#118](https://github.com/blitzsicht/falzmarke/issues/118) und gehört in

@@ -8,19 +8,19 @@ Ein Geschäftsbrief hat ein Anliegen und nennt es. Wer den Brief liest, soll nac
 Absatz wissen, worum es geht, und nach dem letzten, was zu tun ist.
 
 - **Ein Anliegen pro Absatz.** Vier bis sechs Zeilen, dann Absatz.
-- **Kein Vorgeplänkel.** Der erste Satz sagt die Sache. „Hiermit teilen wir Ihnen mit, dass"
+- **Kein Vorgeplänkel.** Der erste Satz sagt die Sache. „Hiermit teilen wir Ihnen mit, dass“
   ist keine Sache.
 - **Handlung und Frist in den letzten Absatz.** Was soll wann geschehen.
-- **Keine Floskeln.** Nicht „Wir würden uns freuen", nicht „Selbstverständlich stehen wir Ihnen
-  jederzeit gerne zur Verfügung", nicht „Im Voraus vielen Dank".
+- **Keine Floskeln.** Nicht „Wir würden uns freuen“, nicht „Selbstverständlich stehen wir Ihnen
+  jederzeit gerne zur Verfügung“, nicht „Im Voraus vielen Dank“.
 - **Keine Ausrufezeichen, keine Emojis, keine Fettung zur Betonung** im Fließtext. Fett ist für
   Zahlen und Fristen, die man wiederfinden muss.
 - **Sie, Ihnen, Ihr** groß. **Wir** nur, wenn wirklich mehrere handeln — sonst ich.
-- Aktiv statt passiv: „Wir liefern am 1. September" statt „Die Lieferung erfolgt".
+- Aktiv statt passiv: „Wir liefern am 1. September“ statt „Die Lieferung erfolgt“.
 
 ## Betreff
 
-Nominalstil, konkret, ohne das Wort „Betreff", ohne Schlusspunkt, höchstens 60 Zeichen.
+Nominalstil, konkret, ohne das Wort „Betreff“, ohne Schlusspunkt, höchstens 60 Zeichen.
 Er enthält das, wonach der Empfänger später sucht: Vorgangsnummer, Vertrag, Datum.
 
 | Gut | Schlecht |
@@ -50,7 +50,7 @@ nächsten Schritte, ohne Drohgebärde. **Dritte Stufe** — letzte Frist, konkre
 oder Frist · Bitte um schriftliche Bestätigung. Kein Grund nötig; wenn einer genannt wird, dann
 sachlich.
 
-**Widerspruch** — Bescheid mit Datum und Aktenzeichen · „lege ich fristgerecht Widerspruch ein" ·
+**Widerspruch** — Bescheid mit Datum und Aktenzeichen · „lege ich fristgerecht Widerspruch ein“ ·
 Begründung mit Belegen · Antrag, was geschehen soll.
 
 **Mieterschreiben** — Objekt und Wohnung eindeutig benennen · Sachverhalt mit Datum · Frist zur
@@ -84,8 +84,8 @@ Satz · Begründung darunter. Was niemand entscheiden muss, ist keine Nachricht.
 Die Regeln zu Datum, Telefonnummern, Beträgen und Anschriften stehen in `din5008.md`. Sie gelten
 auch im Fließtext: `am 1. September 2026`, `unter 0941 620-9800`, `1.234,56 EUR`.
 
-Fristen immer mit Datum, nie nur mit Dauer: „bis zum 15. September 2026", nicht „innerhalb von
-14 Tagen" — der Empfänger soll nicht rechnen müssen.
+Fristen immer mit Datum, nie nur mit Dauer: „bis zum 15. September 2026“, nicht „innerhalb von
+14 Tagen“ — der Empfänger soll nicht rechnen müssen.
 
 **Kopierter Text wird nachgesehen.** Ein Absatz aus einem Browser, einem Chatfenster oder einem
 PDF bringt Zeichen mit, die niemand sieht: Zero-Width-Marken, weiche Trennstriche,
@@ -103,20 +103,20 @@ Frage, ob der Satz etwas trägt.
 
 | Gestrichen | Bleibt |
 |---|---|
-| „Nicht nur ein Angebot, sondern ein Versprechen" | „Das Angebot gilt bis zum 30. November 2026" |
-| Dreierfigur: „schnell, zuverlässig und partnerschaftlich" | „Lieferung in vier Werktagen" |
-| Anlauf: „In einer Zeit, in der Märkte sich wandeln …" | „Zu Ihrer Anfrage vom 14. August" |
-| Ankündigung: „Im Folgenden möchte ich erläutern …" | die Erläuterung selbst |
-| Gestapelt: „könnte unter Umständen möglicherweise" | „voraussichtlich am 1. September" |
-| Aufladung: „ein wichtiger Schritt", „maßgeblich" | „damit ist die Prüfung abgeschlossen" |
-| Werbesprache: „maßgeschneiderte, ganzheitliche Lösung" | „zwei Vorlagen, eine davon mit Logo" |
-| Nacherzählen: „Sie schreiben, die Lieferung fehlt." | „Die Lieferung geht am 3. September raus." |
-| Schlusszeile ohne Folge: „Bei Fragen gerne jederzeit" | „Bitte bestätigen Sie bis 1. September" |
+| „Nicht nur ein Angebot, sondern ein Versprechen“ | „Das Angebot gilt bis zum 30. November 2026“ |
+| Dreierfigur: „schnell, zuverlässig und partnerschaftlich“ | „Lieferung in vier Werktagen“ |
+| Anlauf: „In einer Zeit, in der Märkte sich wandeln …“ | „Zu Ihrer Anfrage vom 14. August“ |
+| Ankündigung: „Im Folgenden möchte ich erläutern …“ | die Erläuterung selbst |
+| Gestapelt: „könnte unter Umständen möglicherweise“ | „voraussichtlich am 1. September“ |
+| Aufladung: „ein wichtiger Schritt“, „maßgeblich“ | „damit ist die Prüfung abgeschlossen“ |
+| Werbesprache: „maßgeschneiderte, ganzheitliche Lösung“ | „zwei Vorlagen, eine davon mit Logo“ |
+| Nacherzählen: „Sie schreiben, die Lieferung fehlt.“ | „Die Lieferung geht am 3. September raus.“ |
+| Schlusszeile ohne Folge: „Bei Fragen gerne jederzeit“ | „Bitte bestätigen Sie bis 1. September“ |
 
-**Was hier ausdrücklich nicht steht.** Englischsprachige Anleitungen zum „Entmaschinisieren" von
+**Was hier ausdrücklich nicht steht.** Englischsprachige Anleitungen zum „Entmaschinisieren“ von
 Text verlangen regelmäßig drei Dinge, die für deutsche Geschäftspost falsch sind: keine
 Gedankenstriche, gerade statt typografischer Anführungszeichen, keine Dreierfiguren überhaupt.
-Der Halbgeviertstrich und die Anführungszeichen „…" sind hier richtig gesetzt — `typografie.py`
+Der Halbgeviertstrich und die Anführungszeichen „…“ sind hier richtig gesetzt — `typografie.py`
 erzeugt sie absichtlich, und wer sie entfernt, verschlechtert den Satz. Auch englische
 Wortlisten (`delve`, `tapestry`, `pivotal`) gelten nicht: Sie beschreiben ein anderes Vokabular.
 
@@ -150,14 +150,14 @@ Punkte tragen, weil er als Ganzes gelesen wird; eine Mail wird überflogen, und 
 geht verloren.
 
 **Kürzer.** Was im Brief drei Absätze braucht, hat in einer Mail zwei. Höflichkeitsschleifen —
-„ich hoffe, es geht Ihnen gut", „vielen Dank für Ihre Zeit" — entfallen ersatzlos.
+„ich hoffe, es geht Ihnen gut“, „vielen Dank für Ihre Zeit“ — entfallen ersatzlos.
 
-**Der Betreff nennt das Thema, nicht die Gattung.** „Angebot Nr. 2026-0815" statt „Angebot",
-„Termin am 3. September verschieben" statt „Terminanfrage". Er steht in einer Liste neben
+**Der Betreff nennt das Thema, nicht die Gattung.** „Angebot Nr. 2026-0815“ statt „Angebot“,
+„Termin am 3. September verschieben“ statt „Terminanfrage“. Er steht in einer Liste neben
 dreißig anderen und muss dort erkennbar sein. Über 60 Zeichen sieht ihn niemand ganz.
 
 **Am Ende steht eine konkrete Bitte**, mit Datum: „Bitte bestätigen Sie den Termin bis zum
-1. September 2026." Nicht „Ich freue mich auf Ihre Rückmeldung" — daraus folgt nichts.
+1. September 2026.“ Nicht „Ich freue mich auf Ihre Rückmeldung“ — daraus folgt nichts.
 
 **Anlagen werden im Text genannt.** Der Empfänger soll wissen, dass etwas dabei ist, bevor er es
 sucht. `lint` erinnert daran, fügt aber keinen Satz ein: Ein Werkzeug, das ungefragt in einen
@@ -167,17 +167,17 @@ Text schreibt, schreibt irgendwann den falschen.
 Punkt kurz aufgegriffen — in eigenen Worten, nicht als eingerückter Block. Ohne `antwort_auf:`
 gibt es nichts zu zitieren.
 
-**Floskeln entfallen.** „Ich hoffe, diese E-Mail erreicht Sie wohlauf", „wollte mich nur kurz
-melden", „vielen Dank für Ihre Zeit" — sie sind nicht falsch, sie sind leer: Die Zeile ließe sich
+**Floskeln entfallen.** „Ich hoffe, diese E-Mail erreicht Sie wohlauf“, „wollte mich nur kurz
+melden“, „vielen Dank für Ihre Zeit“ — sie sind nicht falsch, sie sind leer: Die Zeile ließe sich
 streichen, ohne dass die Nachricht etwas verlöre. `lint` meldet sie als Warnung und ändert
 nichts; wie jemand schreibt, entscheidet er selbst.
 
-Die Grenze verläuft an der Frage, ob der Satz etwas trägt. „Vielen Dank für die Unterlagen"
-bleibt — der Dank gilt einer Sache. „Vielen Dank für Ihre Zeit" gilt nichts.
+Die Grenze verläuft an der Frage, ob der Satz etwas trägt. „Vielen Dank für die Unterlagen“
+bleibt — der Dank gilt einer Sache. „Vielen Dank für Ihre Zeit“ gilt nichts.
 
 **Der Absender kann eigene Vorgaben mitbringen.** Trägt das gewählte Profil einen Abschnitt
 `email.stil:`, gilt er zusätzlich zu dieser Datei und vor dem Schreiben gelesen: `person:` sagt,
-ob dieser Absender „ich" oder „wir" schreibt, `floskeln:` nennt Wendungen, die er nicht lesen
+ob dieser Absender „ich“ oder „wir“ schreibt, `floskeln:` nennt Wendungen, die er nicht lesen
 will, `hinweise:` steht in Prosa da. Diese Datei sagt, wie eine Geschäftsmail aufgebaut ist; das
 Profil sagt, wie **dieser** Absender schreibt. Widersprechen sich die beiden in einer Stilfrage,
 gilt das Profil. `person:` und `floskeln:` meldet `lint` als Warnung — außerhalb wortgetreuer

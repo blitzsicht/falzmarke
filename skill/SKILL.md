@@ -63,7 +63,7 @@ Dasselbe gilt für die E-Mail-Fassung: **keine Nachricht ohne grünen `verify --
    regelt Anrede, Betreffbildung und den Aufbau je Brieftyp.
 
    Trägt das gewählte Profil einen Abschnitt `email.stil:`, **auch den lesen**: `person:` sagt,
-   ob der Absender „ich" oder „wir" schreibt, `floskeln:` nennt Wendungen, die er nicht lesen
+   ob der Absender „ich“ oder „wir“ schreibt, `floskeln:` nennt Wendungen, die er nicht lesen
    will, `hinweise:` steht in Prosa da und gilt. falzmarke überträgt diese Vorgabe, es erzwingt
    sie nicht: `person:` und `floskeln:` prüft `lint` und meldet als Warnung, `hinweise:` prüft
    niemand — es wirkt nur, weil hier steht, dass es gelesen wird (ADR 0053).
@@ -81,7 +81,7 @@ Dasselbe gilt für die E-Mail-Fassung: **keine Nachricht ohne grünen `verify --
 
 ## Eine E-Mail statt eines Briefes
 
-Wer „schreib eine E-Mail an …" sagt, bekommt dieselbe Datei mit `typ: email` im Frontmatter —
+Wer „schreib eine E-Mail an …“ sagt, bekommt dieselbe Datei mit `typ: email` im Frontmatter —
 und `an:` statt `empfaenger:`. Die Felder stehen in `references/frontmatter.md`.
 
 ```bash
@@ -98,7 +98,7 @@ Mail hingehört.
 nur, wenn jemand sie ausdrücklich verlangt — etwa um den Rumpf woandershin zu kopieren. Sie im
 Browser zu öffnen, während die fertige Nachricht danebenliegt, ist der Umweg, den dieser
 Abschnitt bis zum 11.09.2026 selbst empfohlen hat: Hier stand „Diese Vorschau ist das, was
-gezeigt wird". Die Folge war, dass jede Sitzung es anders machte und keine Mail im
+gezeigt wird“. Die Folge war, dass jede Sitzung es anders machte und keine Mail im
 Mailprogramm ankam.
 
 **Ohne `--oeffnen` läuft nur, was nicht abgeschickt werden soll:** eine Serie (dreißig
@@ -108,20 +108,20 @@ Mail schreibt, die ein Mensch senden wird, setzt das Flag.
 Was dabei nicht fehlen darf, weil es gemessen ist:
 
 - **Liegt der IMAP-Proxy bereit (`127.0.0.1:1993`), liegt der Entwurf im Postfach** — die
-  fertige `.eml` mit allen Kopfzeilen im Ordner „Entwürfe" des Absenders, samt `In-Reply-To`
+  fertige `.eml` mit allen Kopfzeilen im Ordner „Entwürfe“ des Absenders, samt `In-Reply-To`
   (ADR 0051). Die erste Zeile lautet
-  `OK  Entwurf liegt in „Entwürfe" von <adresse>: <Betreff>`. Ist in Thunderbird das Add-on
+  `OK  Entwurf liegt in „Entwürfe“ von <adresse>: <Betreff>`. Ist in Thunderbird das Add-on
   **Entwurfsbrücke** installiert (`thunderbird/entwurfsbruecke/`, ADR 0054), öffnet es genau
-  diesen Entwurf wie „Entwurf bearbeiten", und die nächste Zeile lautet
+  diesen Entwurf wie „Entwurf bearbeiten“, und die nächste Zeile lautet
   `OK  Entwurf offen in Thunderbird: <Betreff>`, gefolgt von
   `OK  Empfänger im Fenster wie in der Nachricht: An n, Cc n, Bcc n`. Steht stattdessen
   `EMPFÄNGER PRÜFEN …`, zeigt das Fenster andere Empfänger als der Entwurf — das dann **nicht
   als erledigt melden**, sondern den Befund nennen (An, Cc oder Bcc im Fenster richten, oder
-  Fenster schließen und den Entwurf unter „Entwürfe" neu öffnen). `NICHT GEPRÜFT  Empfänger im
+  Fenster schließen und den Entwurf unter „Entwürfe“ neu öffnen). `NICHT GEPRÜFT  Empfänger im
   Fenster` heißt, das Add-on konnte sie nicht lesen. Nach dem Senden räumt Thunderbird ihn in der
-  Regel selbst aus „Entwürfe" weg, zugesagt ist das nicht (ADR 0062); was liegen bleibt, räumt der
+  Regel selbst aus „Entwürfe“ weg, zugesagt ist das nicht (ADR 0062); was liegen bleibt, räumt der
   nächste `email --oeffnen` weg (`OK  aus „Entwürfe“ … weggeräumt: UID …`). Ohne Add-on heißt es `HINWEIS  Es geht kein Fenster auf …` mit dem
-  Grund; dann findet der Mensch den Entwurf unter „Entwürfe". `HINWEIS  Fenster ungewiss` heißt:
+  Grund; dann findet der Mensch den Entwurf unter „Entwürfe“. `HINWEIS  Fenster ungewiss` heißt:
   **nicht noch einmal öffnen**, erst nachsehen lassen. Liegt dort schon einer mit demselben
   Empfänger und Betreff und demselben Text, heißt es `ENTWURF LIEGT SCHON …` — dann **keinen
   zweiten** anlegen; das Add-on öffnet den vorhandenen. Mit geändertem Text ersetzt der neue den
@@ -133,14 +133,14 @@ Was dabei nicht fehlen darf, weil es gemessen ist:
   Zeile `kein Postfach-Entwurf: <Grund>`.
 - Sonst entsteht der Entwurf als Fenster in **Thunderbird** (`-compose`), wenn es installiert
   ist; `from=` wählt dort die Identität, der Absender stimmt (ADR 0049). Thunderbird meldet nichts zurück — Exit 0 heißt
-  „angenommen", und der Befehl sagt, dass **nichts nachgezählt** ist: Empfänger, Anhänge und
+  „angenommen“, und der Befehl sagt, dass **nichts nachgezählt** ist: Empfänger, Anhänge und
   Absender im Fenster prüfen. Läuft Thunderbird nicht, wird es mit dem Auftrag gestartet und
   der Entwurf als ungewiss gemeldet; dann im Fenster nachsehen, nichts nachschieben.
 - **Outlook für Mac nur auf Wahl:** `--programm outlook` (schließt `--oeffnen` ein). Es ist
   oft installiert, aber ohne Lizenz und im neuen Outlook ohne ein Konto, das die Steuerung
   sähe — deshalb landet niemand mehr ungefragt dort. Auf Windows, unter Linux, in Apple Mail
   und ohne Thunderbird wird die `.eml` übergeben — und die erscheint dort als **Lesefenster,
-  nicht als Entwurf**; der nächste Handgriff heißt dann „Weiterleiten".
+  nicht als Entwurf**; der nächste Handgriff heißt dann „Weiterleiten“.
 - Ein einfaches Anführungszeichen in Betreff, Rumpf oder Dateinamen wird im Thunderbird-Entwurf
   zum Apostroph ’. Ein **Komma im Dateinamen** eines Anhangs ist dort ein Fehler mit Rückfall
   auf die Datei — die Datei vorher umbenennen.
@@ -152,7 +152,7 @@ Was dabei nicht fehlen darf, weil es gemessen ist:
 - **Im Outlook-Weg ist der Absender nur im klassischen Outlook sicher.** Dort legt falzmarke den
   Entwurf auf das Konto aus `email.absender`. Im neuen Outlook geht das nicht; dann lautet die letzte Zeile
   `ABSENDER PRÜFEN: …`, und diese Zeile gehört wörtlich in die Antwort an den Menschen — er muss
-  „Von" von Hand umstellen. Gibt es in Outlook **gar kein Konto** mit der Adresse des Profils,
+  „Von“ von Hand umstellen. Gibt es in Outlook **gar kein Konto** mit der Adresse des Profils,
   sagt die Zeile das eigens: Umstellen geht dann nicht, und die Signatur nennt eine Adresse, von
   der die Mail nicht kommt — dann ein anderes Profil wählen (#315).
 - **Der Entwurf trägt den Bezug zu einer Vorgängernachricht nicht.** Steht `antwort_auf:` im
@@ -173,8 +173,8 @@ oder derselben Fassung (`X-Falzmarke-Fassung`) hinaus, entsteht **kein Entwurf**
 Befehl endet mit **Exit 4**:
 
 ```
-SCHON GESENDET  21.10.2026 18:33 an paula@example.org: „AW: …" (Ordner „Gesendete Elemente" von …)
-GEÄNDERTE FASSUNG  „AW: …" ging 21.10.2026 18:33 an … schon hinaus, mit anderem Text — als Nachtrag schicken?
+SCHON GESENDET  21.10.2026 18:33 an paula@example.org: „AW: …“ (Ordner „Gesendete Elemente“ von …)
+GEÄNDERTE FASSUNG  „AW: …“ ging 21.10.2026 18:33 an … schon hinaus, mit anderem Text — als Nachtrag schicken?
 ```
 
 **Dann nicht selbst `--trotz-gesendet` setzen.** Die Zeile wörtlich an den Menschen geben und
@@ -184,7 +184,7 @@ der 21.10.2026: Das Entwurfsfenster war zu, eine Sitzung sah nur in die Entwürf
 an — die Antwort ging zweimal hinaus.
 
 Lässt sich nicht nachsehen (kein Proxy, keine Antwort in 5 s), sperrt nichts; die **letzte
-Zeile** lautet dann `GESENDET NICHT GEPRÜFT: <Grund>`. Das ist kein „nicht gesendet" — die Zeile
+Zeile** lautet dann `GESENDET NICHT GEPRÜFT: <Grund>`. Das ist kein „nicht gesendet“ — die Zeile
 gehört in die Antwort. Abschalten: `FALZMARKE_GESENDET=nie`; ein anderer Proxy:
 `FALZMARKE_GESENDET_IMAP=host:port`; ein anderes Fenster: `FALZMARKE_GESENDET_STUNDEN`.
 
@@ -227,7 +227,7 @@ Eine Vereinbarung, ein Vertrag, eine Erklärung, eine Vollmacht, ein Nachweis �
 `typ: urkunde`: einen `titel:` statt eines Betreffs, `parteien:` statt eines Empfängers und
 `unterschriften:` mit Linien zum Unterschreiben von Hand. Kein Anschriftfeld, keine Anrede,
 kein Gruß, keine Falzmarken. Briefkopf, Fußzeile und Schrift kommen aus demselben Profil wie
-beim Brief. Die Felder stehen in `references/frontmatter.md`, Abschnitt „Urkunde".
+beim Brief. Die Felder stehen in `references/frontmatter.md`, Abschnitt „Urkunde“.
 
 ```bash
 python3 scripts/falzmarke.py lint   urkunden/2026-10-12_leihe-lastenfahrrad.md
@@ -244,7 +244,7 @@ Was anders ist als beim Brief:
 - **Angaben als Tabelle mit leerer Kopfzeile** (`|   |   |`): Bezeichnung und Wert, ohne Rahmen.
 - **Soll es auf eine Seite passen, `seiten_max: 1` setzen.** Dann ist `render` rot, wenn es
   zwei werden — und sagt es. Passt es nicht, wird das gemeldet und **nicht gekürzt**: Ein
-  gekürzter Vertrag ist ein anderer Vertrag (siehe „Was bei Exit 2 nicht geändert wird").
+  gekürzter Vertrag ist ein anderer Vertrag (siehe „Was bei Exit 2 nicht geändert wird“).
 - **`blocksatz: true`** und, bei mehr als einer Seite, **`paraphen: true`** (Felder für Initialen
   auf jeder Seite außer der letzten) nur setzen, wenn der Nutzer es will.
 - **Nichts erfinden.** falzmarke kennt keine Klauseln und keine Muster. `zusatz:` einer Partei
@@ -294,7 +294,7 @@ python3 scripts/falzmarke.py entwurf-oeffnen --absender order@example.de        
 python3 scripts/falzmarke.py entwurf-oeffnen --absender order@example.de --betreff "Nachtrag"
 ```
 
-Für den Fall „ich finde den Entwurf nicht" oder „mach ihn mir auf". Braucht den IMAP-Proxy und
+Für den Fall „ich finde den Entwurf nicht“ oder „mach ihn mir auf“. Braucht den IMAP-Proxy und
 das Add-on Entwurfsbrücke (ADR 0054). Passen mehrere Entwürfe zum Betreff, wird **keiner**
 geöffnet, und die Liste nennt die UIDs; dann mit `--uid` genau einen wählen. Nennt das
 Thunderbird-Profil keinen eindeutigen Entwürfe-Ordner im eigenen Konto, öffnet der Befehl nichts

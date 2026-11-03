@@ -12,13 +12,13 @@ An, Cc **und** Bcc, `gesendet.py` dagegen aus An und Cc (`mit_bcc=False`). Der U
 nicht theoretisch: Vier Profile tragen eine Archivadresse in Bcc. Damit teilte jede gesendete Mail
 eine Adresse mit jeder neuen, der Vorfilter über die gemeinsamen Empfänger wurde nie leer, und die
 Sperre verglich jede Mail mit allem, was in vierzehn Tagen hinausging. Sie fragt dann bei
-„Rechnung" an zwei verschiedene Kunden am selben Tag — und ihr Dialog sagt dabei „Ist das die
-Korrektur, dann ‚Trotzdem senden'". Wer dreißig Mal umsonst gefragt wird, klickt beim
+„Rechnung“ an zwei verschiedene Kunden am selben Tag — und ihr Dialog sagt dabei „Ist das die
+Korrektur, dann ‚Trotzdem senden'“. Wer dreißig Mal umsonst gefragt wird, klickt beim
 einunddreißigsten weg. So geht die echte Dublette durch: nicht weil die Sperre fehlt, sondern weil
 ihr niemand mehr zuhört.
 
 **Zweitens fehlte die Frist, die ADR 0055 Punkt 5 zusagt.** Dort steht „Eine Prüfung, die hängt,
-darf den Menschen nicht aufhalten." Im Code stand dazu nichts: kein `Promise.race`, kein
+darf den Menschen nicht aufhalten.“ Im Code stand dazu nichts: kein `Promise.race`, kein
 Abbruch. Abgesichert waren nur Ausnahmen und eine Stückzahl. Dazu riss eine einzige unlesbare
 Mail die ganze Prüfung ab, obwohl der echte Treffer zwei Kandidaten später liegen konnte.
 
@@ -27,8 +27,8 @@ Mail die ganze Prüfung ab, obwohl der echte Treffer zwei Kandidaten später lie
 1. **Eigene Empfänger ohne Bcc, fremde mit.** Die neue Mail wird über An und Cc gebildet, die
    gesendete über An, Cc und Bcc. Die zweite Hälfte bleibt, weil sonst eine Mail aus dem Blick
    fällt, die nur per Blindkopie ging.
-2. **Der Eintrag meldet die Blindkopie weiter.** „Nicht verglichen" heißt nicht „nicht
-   aufgeschrieben": `versandVon` schreibt sie nach ADR 0056 ins Tagebuch, nur der Vergleich
+2. **Der Eintrag meldet die Blindkopie weiter.** „Nicht verglichen“ heißt nicht „nicht
+   aufgeschrieben“: `versandVon` schreibt sie nach ADR 0056 ins Tagebuch, nur der Vergleich
    übergeht sie.
 3. **Zehn Sekunden, dann hinaus.** `befund()` läuft in einem `Promise.race` gegen eine harte
    Frist. Läuft sie ab, steht `pruefung_fehlgeschlagen` mit dem Grund `frist_abgelaufen` im
@@ -36,7 +36,7 @@ Mail die ganze Prüfung ab, obwohl der echte Treffer zwei Kandidaten später lie
 4. **Je Kandidat ein eigenes `try`.** Eine Mail, die sich nicht vollständig lesen lässt, wird
    übersprungen und gezählt; die Prüfung läuft weiter. Die Zahl geht als `pruefung_teilweise` ins
    Tagebuch, und zwar auf **jedem** Weg hinaus, auch beim Treffer: „gesperrt, aber nicht alles
-   gesehen" ist eine andere Aussage als „gesperrt".
+   gesehen“ ist eine andere Aussage als „gesperrt“.
 
 ### Was hingenommen wird
 

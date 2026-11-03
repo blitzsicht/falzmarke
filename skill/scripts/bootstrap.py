@@ -16,7 +16,7 @@ damit gar nichts ausgerichtet. Und von PyPI gilt dasselbe: In ChatGPT (26.09.202
 fehlten typst und ein zweites Paket; der Paketspiegel dort hatte das zweite, aber
 nicht typst — gebündelt scheiterten beide (#361).
 
-„Vorhanden" heißt: importierbar **und** in der Version, die `DEPS` verlangt. Eine
+„Vorhanden“ heißt: importierbar **und** in der Version, die `DEPS` verlangt. Eine
 Sandbox bringt einen Teil der Pakete selbst mit, in unbekannter Version (ChatGPT,
 29.09.2026: alle außer typst). Eine zu alte würde sonst still übernommen (#374).
 

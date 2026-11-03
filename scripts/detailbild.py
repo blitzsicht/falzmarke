@@ -81,7 +81,7 @@ FENSTER_MM = (3.0, 104.0, 6.0, 4.0)
 # Bild waeren 7 mm unehrlich gross: Sie zeigten einen Fehler, den man ohne jedes
 # Werkzeug sieht. 2 mm sind das Siebenfache der Toleranz von +/- 0,3 mm und
 # damit sicher ein Fehler — und zugleich so wenig, dass die Frage „faellt das
-# ueberhaupt auf?" ihre Berechtigung behaelt.
+# ueberhaupt auf?“ ihre Berechtigung behaelt.
 SABOTAGE_MM = 107.0
 
 # Wie lange jedes der beiden Bilder im GIF steht. Lang genug, um die Marke zu

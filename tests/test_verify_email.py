@@ -249,7 +249,7 @@ def test_ein_unlesbares_bcc_erzeugt_keine_leere_pass_zeile(tmp_path, roh):
 def test_ein_unlesbares_date_faellt_auf(tmp_path, roh):
     """Getrennt von der Sabotage darüber, weil sie einen anderen Fall trifft:
     Das Feld ist da, nur kann es kein Mailprogramm lesen. Für den Empfänger
-    ist das dasselbe „(null), (null)" wie ein fehlendes."""
+    ist das dasselbe „(null), (null)“ wie ein fehlendes."""
     kaputt = re.sub(r"^Date:.*$", "Date: neulich", roh, count=1, flags=re.M)
     assert kaputt != roh
     gescheitert = _gescheitert(_pruefe(tmp_path, kaputt))
@@ -398,7 +398,7 @@ def test_das_beispiel_mit_links_besteht_vollstaendig(tmp_path):
 
     `mit_quelle=True` steht hier seit #213 und ist kein Beiwerk: Ohne das Flag
     trägt die Nachricht keinen `text/markdown`-Teil, `_pruefe_quellteil` meldet
-    dann „nicht prüfbar" — und das zählt als bestanden. Genau daran lief der
+    dann „nicht prüfbar“ — und das zählt als bestanden. Genau daran lief der
     Fehler vorbei. Von den drei Achsen Links, Quellteil und `pruefe()` deckten
     die Tests je zwei ab, gekreuzt hat sie keiner:
 
@@ -614,7 +614,7 @@ def test_eine_mail_mit_logo_besteht_die_pruefung(tmp_path, profil):
     """Der Befund, mit dem #104 messbar wurde.
 
     Gemessen am 29.08.2026: Jede Nachricht mit `email.logo` im Profil fiel
-    durch `verify --email` — „Tabellen sind Datentabellen: 1 ohne <th>". Der
+    durch `verify --email` — „Tabellen sind Datentabellen: 1 ohne <th>“. Der
     Signaturblock legt das Logo in eine Tabelle, und die trug weder Kopfzellen
     noch eine Kennzeichnung als Layout.
 
@@ -687,7 +687,7 @@ PRUEFUNGEN_VOR_322 = 25
 def _rot(bericht) -> list:
     """Alle Prüfungen, die nicht bestanden haben — Fehler und Warnungen.
 
-    „Rot" heißt hier `not bestanden` und nicht `not bericht.ok`. Ob die Prüfung
+    „Rot“ heißt hier `not bestanden` und nicht `not bericht.ok`. Ob die Prüfung
     ein Fehler oder nur eine Warnung ist, entscheidet der Regelkatalog (ADR 0035:
     Verhalten eines Mailprogramms ist Praxis, und Praxis ist nie ein Fehler).
     Diese Tests legen die Stufe nicht fest — sie verlangen nur, dass der Befund
@@ -701,11 +701,11 @@ def test_die_neue_pruefung_steht_in_der_zaehlung(tmp_path):
 
     Gezählt wird an der grünen Nachricht: Eine Prüfung, die nur im Fehlerfall
     einen Eintrag schriebe, sähe im grünen Lauf aus wie keine (wie beim
-    Quellteil: „nicht prüfbar" steht dort ausdrücklich da).
+    Quellteil: „nicht prüfbar“ steht dort ausdrücklich da).
 
     Dieselbe Nachricht ist die Kontrollprobe für alles Folgende: Sie trägt den
     Knopf im Tabellengerüst und muss ganz grün sein — sonst sähe „die Prüfung
-    schlägt an" weiter unten nach einem Beleg aus, ohne einer zu sein.
+    schlägt an“ weiter unten nach einem Beleg aus, ohne einer zu sein.
     """
     pfad = eml_mit_signatur(tmp_path, signatur(TABELLENKNOPF_TERMIN))
     assert "inline-block" not in html_der_eml(pfad)
@@ -778,7 +778,7 @@ def test_jede_schreibweise_des_ankers_als_kasten_faellt_auf(tmp_path, anker):
 
 #: Die Gegenprobe der Gegenprobe. Jeder dieser Fälle hat ein Merkmal des
 #: schlechten Knopfes — aber nicht die Kombination auf einem Anker. Eine Prüfung,
-#: die nur „irgendwo inline-block" oder „irgendwo padding" sucht, schlüge hier an
+#: die nur „irgendwo inline-block“ oder „irgendwo padding“ sucht, schlüge hier an
 #: und wäre für jede Signatur mit Tabellenknopf ein Fehlalarm.
 ANKER_OHNE_KASTEN = [
     ("inline-block allein",
@@ -812,12 +812,12 @@ def test_ohne_die_kombination_auf_dem_anker_bleibt_es_gruen(tmp_path, anker):
 
 
 def test_die_meldung_nennt_die_stelle_und_den_ersatz(tmp_path):
-    """AC 2: Ein bloßes „unzulässig" hilft niemandem, der die Signatur nicht
+    """AC 2: Ein bloßes „unzulässig“ hilft niemandem, der die Signatur nicht
     geschrieben hat.
 
     Die Signatur trägt zwei Knöpfe, und nur einer ist falsch. Die Meldung muss
     auf **diesen** zeigen — an Linktext oder Ziel erkennbar — und darf nicht
-    den guten mitnennen; sonst sagte sie nur „irgendwo in der Signatur".
+    den guten mitnennen; sonst sagte sie nur „irgendwo in der Signatur“.
     Gelesen wird, was der Mensch sieht: der knappe Bericht.
     """
     pfad = eml_mit_signatur(tmp_path, signatur(ANKERKNOPF_TERMIN))
@@ -843,7 +843,7 @@ def test_die_meldung_nennt_die_stelle_und_den_ersatz(tmp_path):
 
 
 def test_cli_meldet_den_anker_als_knopf(tmp_path):
-    """AC 1 heißt „`verify --email` meldet". Bis hierher lief alles über
+    """AC 1 heißt „`verify --email` meldet“. Bis hierher lief alles über
     `pruefe()`; den Weg, den der Mensch nimmt, geht dieser Test."""
     import subprocess
     import sys

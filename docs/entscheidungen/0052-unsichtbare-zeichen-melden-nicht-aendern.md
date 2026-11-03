@@ -24,7 +24,7 @@ nichts.
 
 Der naheliegende andere Weg wäre, die Zeichen beim Einlesen einfach zu entfernen. Er ist der
 falsche, und zwar aus demselben Grund, der schon in `skill/references/stil.md` steht: „Ein
-Werkzeug, das ungefragt in einen Text schreibt, schreibt irgendwann den falschen." Wer ein
+Werkzeug, das ungefragt in einen Text schreibt, schreibt irgendwann den falschen.“ Wer ein
 arabisches Zitat einfügt, braucht die Bidi-Marken; wer eine Emoji-Folge schreibt, braucht den
 Zero-Width-Joiner. Eine stille Bereinigung wäre in diesen Fällen eine Textänderung, die niemand
 sieht und niemand nachvollziehen kann.
@@ -57,8 +57,8 @@ Ein Zero-Width-Zeichen mitten in einem deutschen Wort hat keinen legitimen Zweck
 
 `zeichen.geschuetzt` steht auf `deckel: warnung`. Der Umweg über die Ebene `praxis` in
 `email.yaml` wäre der naheliegende gewesen und ist falsch: `praxis` heißt in diesem Repository
-„Darstellungsverhalten von Mailprogrammen", und davon redet die Regel nicht. Unter jeder Meldung
-stünde dann „Erfahrung mit Mailprogrammen, kein Nachweis" — ein Grund, den es nicht gibt. Beide
+„Darstellungsverhalten von Mailprogrammen“, und davon redet die Regel nicht. Unter jeder Meldung
+stünde dann „Erfahrung mit Mailprogrammen, kein Nachweis“ — ein Grund, den es nicht gibt. Beide
 Regeln stehen deshalb in `din5008.yaml`: Die Prüfung redet über die **Eingabe jeder Dokumentart**,
 nicht über die E-Mail.
 
@@ -86,7 +86,7 @@ Sechs Fremdrepositorien wurden daraufhin gelesen. Übernommen wurde die **Dreite
 `actionable / contextual / informational` (als Fehler / Warnung / keine Meldung) und die
 Kontextlogik für Bildzeichen. Übernommen wurde **kein Code**, und zwar aus gemessenen Gründen:
 
-* Der eine Kandidat behandelt U+00A0 als „safe: space" und ersetzt es beim Bereinigen — er würde
+* Der eine Kandidat behandelt U+00A0 als „safe: space“ und ersetzt es beim Bereinigen — er würde
   genau das zerstören, was `typografie.py` absichtlich setzt. Derselbe Fehler steckt im zweiten
   Kandidaten als **Standardverhalten** (`normalize_spaces=True`).
 * Eine Confusables-Tabelle bildet U+2013 auf `-` und U+201C/201D auf `"` ab. Das wäre das Ende
@@ -104,7 +104,7 @@ und fällt unter Entscheidung 1.
 der falsche: Sie ist in [UAX #44](https://www.unicode.org/reports/tr44/) der Standardwert für
 alles Unzugewiesene. In einer älteren Python-Fassung trifft sie auch ein neues, gültiges Zeichen —
 ein Fehlalarm, der mit dem Alter des Interpreters kommt und nicht mit dem Text. Die Nichtzeichen
-stehen deshalb wörtlich im Code, belegt aus der Unicode-FAQ: 66 Codepunkte, „formally immutable".
+stehen deshalb wörtlich im Code, belegt aus der Unicode-FAQ: 66 Codepunkte, „formally immutable“.
 
 **Das Wagenrücklaufzeichen** am Zeilenende. Eine unter Windows geschriebene Datei trägt es in
 jeder Zeile; ohne diese Ausnahme meldete die Prüfung jede davon.

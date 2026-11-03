@@ -13,7 +13,7 @@ werden, und keine davon sieht man ihm an:
    dem Millimeterwert passt, den der Bericht meldet — und zur Gegenprobe an
    einem Wert, der absichtlich daneben liegt.
 
-3. **Er wird nie rot.** Ein Film, der auch bei kaputtem Layout „eingehalten"
+3. **Er wird nie rot.** Ein Film, der auch bei kaputtem Layout „eingehalten“
    zeigt, ist Zierde, kein Nachweis. Dagegen wird derselbe Film aus einem
    absichtlich verschobenen Layout gebaut: dort MUSS der betroffene Halt eine
    Abweichung melden.
@@ -121,7 +121,7 @@ def test_bildzeile_folgt_dem_millimeterwert(gebaut):
     """Die gezeichnete Zeile muss der gemessenen Höhe entsprechen.
 
     Gegenprobe im selben Test: derselbe Wert plus 20 mm MUSS auf eine andere
-    Zeile fallen. Ohne sie hieße „stimmt überein" nur, dass zwei Formeln
+    Zeile fallen. Ohne sie hieße „stimmt überein“ nur, dass zwei Formeln
     dieselbe Konstante teilen.
     """
     for stopp in gebaut["stopps"]:
@@ -172,8 +172,8 @@ def test_das_ausgelieferte_layout_haelt_seine_masse(gebaut):
 def test_verschobenes_layout_macht_den_film_rot(gebaut, sabotiert):
     """Der eigentliche Nachweis: 2 mm daneben, und der Halt meldet es.
 
-    Ohne diesen Test hieße „alle Halte eingehalten" nur, dass der Film das Wort
-    „eingehalten" zeichnen kann.
+    Ohne diesen Test hieße „alle Halte eingehalten“ nur, dass der Film das Wort
+    „eingehalten“ zeichnen kann.
     """
     betroffen = [s for s in sabotiert["stopps"] if s["name"] == "Falzmarke 1, y"]
     assert betroffen, (
@@ -256,7 +256,7 @@ def test_alt_text_nennt_die_gemessenen_werte():
 def test_alt_text_nennt_keine_werte_die_es_nicht_gibt():
     """Gegenprobe: eine erfundene Zahl im Alt-Text müsste auffallen.
 
-    Ohne sie hieße der Test oben nur „alle acht Werte kommen vor" — er sähe
+    Ohne sie hieße der Test oben nur „alle acht Werte kommen vor“ — er sähe
     nicht, wenn zusätzlich ein neunter, veralteter Wert dort stehen bliebe.
     """
     import re
@@ -279,8 +279,8 @@ def test_alt_text_nennt_keine_werte_die_es_nicht_gibt():
 #
 # Es gibt es, weil Facebook, Instagram und WhatsApp den Querformat-Film als
 # Video behandeln und auf 9:16 beschneiden — nachgesehen am 29.08.2026 an einer
-# echten Facebook-Vorschau: links fiel „Jedes Maß" weg, rechts
-# „Infoblock, y-Oberkan…".
+# echten Facebook-Vorschau: links fiel „Jedes Maß“ weg, rechts
+# „Infoblock, y-Oberkan…“.
 
 def test_hochformat_hat_das_masz_das_die_dienste_erwarten(gebaut):
     """1080 × 1920. Ein anderes Verhältnis wird wieder beschnitten."""
@@ -314,7 +314,7 @@ def test_hochformat_haelt_an_denselben_hoehen(gebaut):
     """Die Umrechnung mm → Pixel ist im Hochformat eine andere, die Höhen sind dieselben.
 
     Gegenprobe im selben Test: 20 mm weiter unten MUSS eine andere Bildzeile
-    herauskommen. Ohne sie hieße „stimmt überein" nur, dass zwei Formeln
+    herauskommen. Ohne sie hieße „stimmt überein“ nur, dass zwei Formeln
     dieselbe Konstante teilen.
     """
     for stopp in gebaut["stopps"]:

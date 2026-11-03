@@ -116,7 +116,7 @@ def test_das_privatprofil_traegt_bewusst_keinen_abschnitt():
     Angabe und wäre keine.
 
     Der Test steht hier, damit die Lücke als Absicht erkennbar bleibt. Ohne ihn
-    trüge sie irgendwann jemand „der Vollständigkeit halber" nach.
+    trüge sie irgendwann jemand „der Vollständigkeit halber“ nach.
     """
     profil = yaml.safe_load(
         (PROFILE / "example-privat.yaml").read_text(encoding="utf-8"))

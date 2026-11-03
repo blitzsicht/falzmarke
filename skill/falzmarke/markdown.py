@@ -166,7 +166,7 @@ HR_UNTERSTRICHE = (
 # Was nicht gesetzt wird, und was der Schreibende stattdessen tun soll.
 #
 # Kein Eintrag für `heading`: Seit Fassung 1.1 gibt es Überschriften, und die
-# alte Begründung („in einem Brief nicht vorgesehen") wäre falsch. Elemente aus
+# alte Begründung („in einem Brief nicht vorgesehen“) wäre falsch. Elemente aus
 # `ZUSAETZLICH` melden über `_meldung_fassung` — die
 # sagen, WO es geht, statt zu behaupten, es ginge nirgends.
 ABLEHNUNG = {
@@ -184,7 +184,7 @@ ABLEHNUNG = {
 
 #: Wie ein Element heißt, das eine neuere Fassung setzt. Gebraucht für zwei
 #: Meldungen, die die Ablehnung aus 1.0 NICHT wiederholen dürfen: „in einem
-#: Brief nicht vorgesehen" ist falsch, sobald eine Fassung es vorsieht.
+#: Brief nicht vorgesehen“ ist falsch, sobald eine Fassung es vorsieht.
 BENENNUNG = {
     "heading": "Überschriften",
     "blockquote": "Blockzitate",
@@ -283,7 +283,7 @@ def _gesetzt(typ: str, lage: Lage) -> bool:
 LINKSCHEMATA = ("https://", "http://", "mailto:", "tel:")
 
 #: Linktexte, die nichts sagen. Ein Bildschirmleseprogramm liest Links oft als
-#: Liste vor — losgeloest vom Satz drumherum. „hier" ist in dieser Liste nichts.
+#: Liste vor — losgeloest vom Satz drumherum. „hier“ ist in dieser Liste nichts.
 NICHTSSAGENDE_LINKTEXTE = frozenset({
     "hier", "hier klicken", "klicken sie hier", "klick hier", "link", "mehr",
     "weiterlesen", "diesen link", "diese seite", "hier entlang",
@@ -472,7 +472,7 @@ def _pruefe_rohtext(markdown: str, lage: Lage) -> None:
 
 
 def _nur_text(knoten) -> str:
-    """Der reine Text eines Linkinhalts — für die Prüfung auf „hier"."""
+    """Der reine Text eines Linkinhalts — für die Prüfung auf „hier“."""
     stuecke = []
     for k in knoten:
         if isinstance(k, baum.Text):
@@ -693,7 +693,7 @@ def _liste(knoten, lage: Lage, tiefe: int) -> baum.Liste:
             #
             # Die Meldung nennt das Zeichen, das WIRKLICH dasteht (Issue #162).
             # Bis zum 29.08.2026 sprach sie fest von einem „einzelnen Strich am
-            # Zeilenanfang" — auch bei `  * Untereintrag`, wo weder ein Strich
+            # Zeilenanfang“ — auch bei `  * Untereintrag`, wo weder ein Strich
             # steht noch etwas am Zeilenanfang. Wer die gemeinte Stelle sucht,
             # sucht dann nach einem Strich und findet keinen; beim Fund kostete
             # das drei Anläufe, obwohl die Zeilennummer stimmte.
@@ -900,7 +900,7 @@ def konvertiere(markdown: str, zeilenversatz: int = 0, *, dialekt: str = STANDAR
     """falzmarke-Markdown -> Typst.
 
     Der bisherige Weg in einem Aufruf: lesen, dann setzen. Bleibt, weil ihn
-    cli.py und die Tests benutzen — und weil „Markdown zu Typst" für den
+    cli.py und die Tests benutzen — und weil „Markdown zu Typst“ für den
     Brief die richtige Beschreibung ist.
     """
     return emit.setze(lies(markdown, zeilenversatz, dialekt=dialekt, ziel=ziel,

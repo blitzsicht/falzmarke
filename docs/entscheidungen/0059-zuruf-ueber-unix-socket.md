@@ -20,7 +20,7 @@ Betreff und Fehlermeldungen. `entwurf_oeffnen` holt über `nsIMacDockSupport` di
 nach vorn.
 
 Ein Port auf 127.0.0.1 nimmt **jeden Prozess jedes Kontos** dieses Rechners an; die
-Zeilenprüfung („muss mit `{` beginnen") hält nur einen Browser ab, keinen Prozess, der eine
+Zeilenprüfung („muss mit `{` beginnen“) hält nur einen Browser ab, keinen Prozess, der eine
 Zeile schreiben kann. Und wer zuerst lauscht, besitzt den Port: Ein fremder Dienst, der vor
 Thunderbird startet, bekommt die Zurufe und kann sich als Brücke ausgeben.
 

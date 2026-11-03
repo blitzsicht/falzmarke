@@ -8,7 +8,7 @@ festgelegte Exit-Codes liefert.
 
 **Keine Tests mit dem echten Werkzeug.** Sie liefen nirgends: lokal fehlt Java,
 in der Plattform-Matrix fehlt Mustang, und ein übersprungener Test ist kein
-Grün. Den Nachweis erbringt der CI-Job „E-Rechnung (Mustang, fremdes Werkzeug)"
+Grün. Den Nachweis erbringt der CI-Job „E-Rechnung (Mustang, fremdes Werkzeug)“
 — er fährt das Skript gegen echte Dateien, mit Gegenprobe.
 
 Die Exit-Codes, gegen die hier getestet wird (0 gültig, 255 ungültig), sind am
@@ -50,7 +50,7 @@ def _aufrufer(java_exit: int = 0, urteile: dict[str, int] | None = None, standar
             return java_exit, "openjdk version \"21\""
         quelle = befehl[befehl.index("--source") + 1]
         # `Path(...).name` und nicht `rsplit("/")`: Auf Windows trennt `\`, und
-        # der „Name" wäre der ganze Pfad. Genau daran sind zwei Tests dieser
+        # der „Name“ wäre der ganze Pfad. Genau daran sind zwei Tests dieser
         # Datei in der Matrix gefallen, während sie lokal grün waren.
         name = Path(quelle).name
         return urteile.get(name, standard), AUSGABE_GUT
@@ -209,7 +209,7 @@ def test_der_aufrufer_erkennt_den_dateinamen_der_plattform(tmp_path):
     """Der Windows-Fall, der diese Datei rot gemacht hat.
 
     Der erste Entwurf zerlegte den Pfad mit `rsplit("/", 1)`. Auf Windows trennt
-    `\\`, der „Name" war der ganze Pfad, die Urteile griffen nicht — und zwei
+    `\\`, der „Name“ war der ganze Pfad, die Urteile griffen nicht — und zwei
     Tests fielen in der Matrix, während sie auf macOS grün waren.
 
     **Dieser Test trennt lokal nicht**: Auf POSIX liefern beide Wege dasselbe. Er

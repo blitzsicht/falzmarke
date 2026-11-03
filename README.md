@@ -243,7 +243,7 @@ Die beiden Skill-Pakete unterscheiden sich in genau einer Datei: Das Offline-Pak
    ```bash
    ln -s "$PWD/skill" ~/.claude/skills/falzmarke
    ```
-3. „Schreib einen Brief an die Muster GmbH, Angebot über …"
+3. „Schreib einen Brief an die Muster GmbH, Angebot über …“
 
 ### Im Terminal
 

@@ -10,13 +10,13 @@ und jede neue Prüfung trägt eine Gegenprobe, die belegt, dass sie anschlägt.
 Ein Teil der in #119 verlangten Gegenproben existiert bereits aus #116/#118 und
 ist bewusst nicht noch einmal geschrieben:
 
-- **„Ein Betrag nur im PDF"**: `tests/test_rechnung_treue.py::test_ein_betrag_nur_im_pdf_faellt_auf`.
-- **„Eine fehlende Pflichtangabe"**: `scripts/erechnung_ohne_referenz.py` entfernt
+- **„Ein Betrag nur im PDF“**: `tests/test_rechnung_treue.py::test_ein_betrag_nur_im_pdf_faellt_auf`.
+- **„Eine fehlende Pflichtangabe“**: `scripts/erechnung_ohne_referenz.py` entfernt
   die Käuferreferenz (BT-10) aus einer Kopie der XRechnung; `erechnung_pruefen.py`
   und `erechnung_kosit.py` verlangen in der CI, dass Mustang bzw. der
   KoSIT-Validator genau an `BR-DE-15` scheitern (siehe `.github/workflows/ci.yml`,
-  Job „E-Rechnung (Mustang, fremdes Werkzeug)" und „E-Rechnung (KoSIT-Validator)").
-- **„Eine Rechnung mit Leitweg-ID für einen öffentlichen Auftraggeber"**:
+  Job „E-Rechnung (Mustang, fremdes Werkzeug)“ und „E-Rechnung (KoSIT-Validator)“).
+- **„Eine Rechnung mit Leitweg-ID für einen öffentlichen Auftraggeber“**:
   `examples/xrechnung.md`.
 
 ## Was hier neu ist
@@ -24,13 +24,13 @@ ist bewusst nicht noch einmal geschrieben:
 - Zwei Beispiele fehlen noch: eine Rechnung mit mehreren Steuersätzen und eine
   Kleinbetragsrechnung (§ 33 UStDV, Gesamtbetrag höchstens 250 €).
 - Es gibt noch kein byteweises Golden für PDF oder XML einer Rechnung.
-- **„Ein Steuersatz nur in der XML"** und **„ein unzulässiger Codelistenwert"**
+- **„Ein Steuersatz nur in der XML“** und **„ein unzulässiger Codelistenwert“**
   waren bis #119 echte, unsabotierte Lücken — kein Monkeypatch nötig, um sie
   zu zeigen:
 
   - Die Positionstabelle im PDF zeigt nie den Steuersatz einer einzelnen
     Position (`cli.py:_positionstabelle`, Spalten Position/Menge/Einzelpreis/
-    Betrag) — nur die Sammelzeilen aus `summen.steuer` als „Umsatzsteuer NN %".
+    Betrag) — nur die Sammelzeilen aus `summen.steuer` als „Umsatzsteuer NN %“.
     Trägt eine Position einen Satz, für den `summen.steuer` keine Zeile hat,
     verlässt dieser Satz die Quelle nur in Richtung XML. Vor #119 meldete
     `falzmarke.linte()` für eine Rechnung mit Positionen zu 19 % und 7 %, aber
@@ -46,7 +46,7 @@ ist bewusst nicht noch einmal geschrieben:
 ## Der PDF-Golden-Vorbehalt (Abnahme 1, #119)
 
 „Beim PDF gilt dieselbe Vorsicht wie bei der Mahnungs-Mail mit Anlage: Ein
-zweiter Renderlauf derselben Quelle liefert andere Bytes." Das trifft zu:
+zweiter Renderlauf derselben Quelle liefert andere Bytes.“ Das trifft zu:
 Gemessen am 13.09.2026 tragen zwei Läufe über `examples/rechnung.md` im Abstand
 von zwei Sekunden verschiedene `/CreationDate`. Eingefroren wird deshalb wie bei
 der `.eml` über `SOURCE_DATE_EPOCH`; alles andere am PDF entsteht bei jedem Lauf
@@ -122,7 +122,7 @@ def _kopf(beispiel: Path) -> dict:
 
 def test_ein_beispiel_hat_mehrere_positionen_und_steuersaetze():
     """Die Abnahme verlangt ausdrücklich „mehrere Positionen und verschiedene
-    Steuersätze" — nicht nur mehrere Positionen. `rechnung.md` und
+    Steuersätze“ — nicht nur mehrere Positionen. `rechnung.md` und
     `xrechnung.md` haben zwei Positionen, beide zu 19 %."""
     treffer = [
         b for b in RECHNUNG_BEISPIELE
@@ -202,10 +202,10 @@ def test_ohne_feste_zeit_traegt_das_pdf_die_rechnerzeit(tmp_path, monkeypatch):
     assert erstellt.search(frei)[1] != b"20260831" and fest != frei
 
 
-# ── „Ein Steuersatz nur in der XML" (Abnahme 2 und 3) ───────────────────────
+# ── „Ein Steuersatz nur in der XML“ (Abnahme 2 und 3) ───────────────────────
 #
 # Die Positionstabelle im PDF zeigt nie den Steuersatz einer einzelnen Position
-# — nur `summen.steuer` als Sammelzeile „Umsatzsteuer NN %". Ein Positions-Satz
+# — nur `summen.steuer` als Sammelzeile „Umsatzsteuer NN %“. Ein Positions-Satz
 # ohne passende Sammelzeile verließe die Quelle nur Richtung XML.
 
 STEUERSATZ_OHNE_SUMMENZEILE = """---
@@ -254,7 +254,7 @@ def test_ein_uebereinstimmender_steuersatz_ist_kein_befund():
     Summe stimmen überein. Ohne sie belegte die Gegenprobe unten nur, dass der
     Linter IRGENDETWAS meldet."""
     bericht = falzmarke.linte(REPO / "examples" / "rechnung.md", profil_verzeichnis=PROFILE)
-    # Ohne die Hinweise des Typografie-Passes (#330): „am 3. Oktober" trägt
+    # Ohne die Hinweise des Typografie-Passes (#330): „am 3. Oktober“ trägt
     # einen — das Beispiel meint die Steuersätze, nicht die Schreibweise.
     befunde = ohne_typografiehinweise(bericht)
     assert not befunde, [b.als_zeile("rechnung.md") for b in befunde]
@@ -263,7 +263,7 @@ def test_ein_uebereinstimmender_steuersatz_ist_kein_befund():
 def test_ein_steuersatz_ohne_summenzeile_wird_gemeldet(tmp_path):
     """Der teure Fall aus #119: Ein Positions-Steuersatz, der in `summen.steuer`
     keine Entsprechung hat, blieb stumm — im PDF steht nur „Umsatzsteuer
-    19 %", in der XML zusätzlich `RateApplicablePercent` 7.00.
+    19 %“, in der XML zusätzlich `RateApplicablePercent` 7.00.
     """
     pfad = tmp_path / "gemischt.md"
     pfad.write_text(STEUERSATZ_OHNE_SUMMENZEILE, encoding="utf-8")
@@ -273,7 +273,7 @@ def test_ein_steuersatz_ohne_summenzeile_wird_gemeldet(tmp_path):
         "bleibt unbeanstandet — genau der stille Fall aus #119")
 
 
-# ── „Ein unzulässiger Codelistenwert" (Abnahme 2 und 3) ─────────────────────
+# ── „Ein unzulässiger Codelistenwert“ (Abnahme 2 und 3) ─────────────────────
 #
 # `land:` wurde bis #119 nur auf Vorhandensein geprüft, nie auf einen gültigen
 # ISO-3166-1-Alpha-2-Code — weder im Profil (`rechnung.land`) noch am Empfänger

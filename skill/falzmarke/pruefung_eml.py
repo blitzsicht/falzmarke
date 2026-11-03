@@ -52,8 +52,8 @@ def _wahr(bericht: Bericht, regel: str, name: str, bedingung: bool,
     **Warum nicht direkt `bericht.wahr`:** Bis #292 wirkte jede Prüfung als
     Fehler, weil es die Zuordnung nicht gab. Für die technischen ist das richtig
     — sie stehen auf RFCs. Für eine Regel auf der Ebene `praxis` ist es falsch:
-    „Praxis ist nie ein Fehler" steht in ADR 0035, und ohne diese Weiche gab es
-    nur „Fehler" oder „gar nicht prüfen". Genau daran ist die Lesebreite in #289
+    „Praxis ist nie ein Fehler“ steht in ADR 0035, und ohne diese Weiche gab es
+    nur „Fehler“ oder „gar nicht prüfen“. Genau daran ist die Lesebreite in #289
     gestorben.
 
     Ein unbekannter Regelname ergibt `fehler` — dieselbe Vorsicht wie in
@@ -212,7 +212,7 @@ def _woerter(text: str) -> set[str]:
       HTML gar nichts. Beides ist Markup, kein Wortlaut; es zu vergleichen
       meldet einen Unterschied, der keiner ist.
     * **Mengenvergleich, kein Substring.** `wort in text` findet auch, was nur
-      Teil eines anderen Wortes ist — `-` etwa in „620-9800". Der Test wäre
+      Teil eines anderen Wortes ist — `-` etwa in „620-9800“. Der Test wäre
       dann fast immer grün, und zwar aus dem falschen Grund.
     * **Zeichensetzung am Rand fällt weg** (`RANDZEICHEN`). Sie steht in den
       beiden Fassungen an verschiedenen Stellen, ohne dass der Wortlaut sich
@@ -250,7 +250,7 @@ def anker_als_knopf(dokument: str) -> list[tuple[str, str]]:
     Gefunden wird `display:inline-block` **zusammen mit** `padding*` oder
     `margin*` im `style` desselben `<a>`. Jedes Merkmal allein ist harmlos, und
     ein Kasten an einem `<span>` mit unauffälligem Anker darin ist genau das
-    Gerüst, das hält — eine Prüfung über „irgendwo inline-block" wäre für jede
+    Gerüst, das hält — eine Prüfung über „irgendwo inline-block“ wäre für jede
     Signatur mit Tabellenknopf ein Fehlalarm.
     """
     funde = []
@@ -307,9 +307,9 @@ def _pruefe_aufbau(nachricht, bericht: Bericht) -> None:
         _wahr(bericht, "kopfzeilen", f"Kopfzeile {name}", bool(nachricht.get(name)),
                      "gesetzt", nachricht.get(name) or "fehlt")
 
-    # Date steht eigens da, weil „vorhanden" hier nicht reicht: Ein Wert, den
+    # Date steht eigens da, weil „vorhanden“ hier nicht reicht: Ein Wert, den
     # kein Mailprogramm parst, ist so gut wie keiner — er erscheint dann als
-    # „(null), (null)" im weitergeleiteten Text, genau wie ein fehlender (#236).
+    # „(null), (null)“ im weitergeleiteten Text, genau wie ein fehlender (#236).
     datum = nachricht.get("Date")
     _wahr(bericht, "date", "Kopfzeile Date", bool(datum), "gesetzt", datum or "fehlt")
     if datum:
@@ -395,7 +395,7 @@ def _pruefe_htmlteil(teil, bericht: Bericht) -> None:
     # Diese Zeile hat ihre Richtung zweimal gewechselt, und beide Male aus
     # demselben Grund: Die Breite wurde dort gemessen, wo sie nicht hingehört.
     #
-    # Bis #264 hieß sie „Breite begrenzt" und suchte irgendein `max-width` im
+    # Bis #264 hieß sie „Breite begrenzt“ und suchte irgendein `max-width` im
     # Dokument — der Deckel saß am Umschlag und quetschte Datentabellen, und ein
     # Dokument ohne jeden Absatz bestand ebenso. Bis #289 verlangte sie den
     # Deckel am Fließtext. Die Zahl dahinter (640 px) hatte aber keine Quelle,

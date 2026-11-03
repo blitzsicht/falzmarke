@@ -39,7 +39,7 @@ leiten die Stufe daraus ab. [`skill/falzmarke/geometrie.py`](../skill/falzmarke/
 tut das nicht: Es kennt den Regelkatalog nicht und lädt ihn auch nicht; jede Abweichung dort ist
 ein Fehler, gleich was die Regel für eine Stufe trägt.
 
-Bis zum 25.09.2026 klaffte damit eine Lücke: Drei Geometrie-Regeln standen auf „einzeln belegt"
+Bis zum 25.09.2026 klaffte damit eine Lücke: Drei Geometrie-Regeln standen auf „einzeln belegt“
 und hätten nur warnen dürfen, wirkten am PDF aber als Fehler ([#355]). Aufgelöst ist das nicht,
 indem die Nachmessung die Stufe liest, sondern indem jede Regel, die dort gemessen wird, ihre
 Stufe auch trägt: Die Mindesthöhe des Informationsblocks und die Heftrandgrenze der Marken sind
@@ -63,7 +63,7 @@ Die Meldung nach einer gescheiterten Messung nennt die DIN 5008 dort deshalb nic
 - **`typst-letter-pro`.** Die Layoutbasis ist unter `skill/falzmarke/typst/vendor/` eingebettet;
   falzmarke *setzt* damit. Ein Sollwert von dort würde gegen ein PDF geprüft, das dieselbe Quelle
   erzeugt hat — die Prüfung könnte nicht rot werden. Als Hinweis darauf, wie jemand anders die
-  Norm gelesen hat, bleibt der Eintrag wertvoll; eine Regel auf „mehrfach bestätigt" hebt er nie.
+  Norm gelesen hat, bleibt der Eintrag wertvoll; eine Regel auf „mehrfach bestätigt“ hebt er nie.
 
 Bis v0.5.0 stand diese Zählung nur in einem Kommentar und wurde von Hand gesetzt. Am 25.08.2026
 nachgezählt: **alle vierzehn** als mehrfach bestätigt geführten Regeln verfehlten die damals
@@ -116,7 +116,7 @@ bei der Warnung. Was sich ändert, ist die Begründung — die Meldung nennt jet
 Quelle statt des Werkzeugs ([ADR 0044](entscheidungen/0044-woertlicher-beleg-schlaegt-werkzeugeinstufung.md)).
 
 **Schweigen kostet nicht mehr automatisch die Stufe.** Zwei der betroffenen Regeln stehen seit
-dem 25.09.2026 auf „mehrfach bestätigt": `geometrie.infoblock_mindesthoehe` und
+dem 25.09.2026 auf „mehrfach bestätigt“: `geometrie.infoblock_mindesthoehe` und
 `geometrie.marken_heftrand`. Bei beiden schweigt die Onlineprinters-Zeichnung — sie zählt nicht
 mit, widerlegt aber auch nichts, was zwei andere Quellen tragen. Bis dahin galt die Umkehrung
 ausnahmslos, weil jede betroffene Regel auf genau dieser einen Quelle stand.
@@ -125,7 +125,7 @@ ausnahmslos, weil jede betroffene Regel auf genau dieser einen Quelle stand.
 
 | | |
 |---|---|
-| 14 | Regeln stehen auf „mehrfach bestätigt" und dürfen einen Lauf scheitern lassen |
+| 14 | Regeln stehen auf „mehrfach bestätigt“ und dürfen einen Lauf scheitern lassen |
 | 8 | davon stützen sich auf zwei Quellen, die **dieselbe Zeichnung** sind ([Befund](quellenunabhaengigkeit-2026-08-27.md)) |
 | 6 | davon Quellen verschiedener Träger, Unabhängigkeit **ungeprüft**: `geometrie.seitenformat` und `geometrie.seitenraender` (Zeichnung und Artikel, beide unter der Wikimedia Foundation), seit dem 24.09.2026 `geometrie.form_a.masse` (Zeichnung im Onlineprinters-Magazin gegen Fließtext bei Federwerk), seit dem 25.09.2026 `geometrie.infoblock_mindesthoehe`, `geometrie.marken_heftrand` und `geometrie.schriftgroessen` |
 
@@ -147,7 +147,7 @@ oben für eine Zusage hält, die sie im Einzelfall nicht einlöst: Der Normabgle
 |---|---|
 | 24 | Quelle-Regel-Paare sind ungeprüft: Bei ihnen steht nicht fest, ob die Quelle die Regel trägt oder zu ihr schweigt |
 
-Das ist nicht „kein Beleg", sondern „nicht nachgesehen", und diese beiden Zustände werden nicht
+Das ist nicht „kein Beleg“, sondern „nicht nachgesehen“, und diese beiden Zustände werden nicht
 verwechselt. Die Paare betreffen überwiegend Maßzeichnungen und Quelltexte. Bei einer Zeichnung
 reicht keine Stichwortsuche: Sie zeigt ein Beispieldatum, ohne die Regel zu sagen. Es bleibt
 Handarbeit — Quelle ansehen, Maß gegen Regel halten, das Ergebnis unter `belegt_durch:` in der
@@ -189,7 +189,7 @@ Die DIN 5008 sagt nichts darüber, was in einem Geschäftsbrief stehen **muss** 
 Handelsrecht, und es gilt für E-Mails genauso wie für Papier. Seit dem [EHUG](https://www.buzer.de/gesetz/7443/index.htm) (Gesetz über
 elektronische Handelsregister und Genossenschaftsregister sowie das Unternehmensregister, in
 Kraft am 1. Januar 2007) sind die Vorschriften über Geschäftsbriefe ausdrücklich auf
-Geschäftsbriefe „gleichviel welcher Form" gefasst; eine geschäftliche E-Mail ist damit erfasst.
+Geschäftsbriefe „gleichviel welcher Form“ gefasst; eine geschäftliche E-Mail ist damit erfasst.
 
 Wo das steht, hängt an der Rechtsform: [§ 37a HGB](https://www.gesetze-im-internet.de/hgb/__37a.html) (eingetragener
 Kaufmann), [§ 125 HGB](https://www.gesetze-im-internet.de/hgb/__125.html) (OHG und KG), [§ 35a GmbHG](https://www.gesetze-im-internet.de/gmbhg/__35a.html),
@@ -228,9 +228,9 @@ Dinge, und der Unterschied ist für ein Werkzeug wie dieses der entscheidende:
 
 | Begriff | Was die Norm sagt |
 |---|---|
-| **Rechnung** | „jedes Dokument, mit dem über eine Lieferung oder sonstige Leistung abgerechnet wird, gleichgültig, wie dieses Dokument im Geschäftsverkehr bezeichnet wird" |
-| **elektronische Rechnung** | „in einem **strukturierten elektronischen Format** ausgestellt, übermittelt und empfangen" und „eine elektronische Verarbeitung ermöglicht" |
-| **sonstige Rechnung** | „in einem anderen elektronischen Format oder auf Papier übermittelt" |
+| **Rechnung** | „jedes Dokument, mit dem über eine Lieferung oder sonstige Leistung abgerechnet wird, gleichgültig, wie dieses Dokument im Geschäftsverkehr bezeichnet wird“ |
+| **elektronische Rechnung** | „in einem **strukturierten elektronischen Format** ausgestellt, übermittelt und empfangen“ und „eine elektronische Verarbeitung ermöglicht“ |
+| **sonstige Rechnung** | „in einem anderen elektronischen Format oder auf Papier übermittelt“ |
 
 **Ein PDF ohne strukturierte Daten ist damit keine elektronische Rechnung, sondern eine sonstige.**
 Das ist die Antwort auf die Frage, die #113 gestellt hat — und sie entscheidet, was falzmarke
@@ -238,7 +238,7 @@ heute erzeugt: sonstige Rechnungen.
 
 Welches Format als strukturiert gilt, sagt § 14 Absatz 1 Satz 6: Es muss „der europäischen Norm
 für die elektronische Rechnungsstellung und der Liste der entsprechenden Syntaxen gemäß der
-Richtlinie 2014/55/EU" entsprechen — oder zwischen Aussteller und Empfänger vereinbart sein,
+Richtlinie 2014/55/EU“ entsprechen — oder zwischen Aussteller und Empfänger vereinbart sein,
 sofern sich die erforderlichen Angaben verlustfrei in ein solches Format überführen lassen.
 
 ### Ausstellen: Pflicht, und ab wann
@@ -246,7 +246,7 @@ sofern sich die erforderlichen Angaben verlustfrei in ein solches Format überf�
 Die Pflicht steht in [§ 14 Absatz 2 Satz 2 Nummer 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__14.html):
 Für eine Leistung an einen anderen Unternehmer für dessen Unternehmen ist die Rechnung „als
 elektronische Rechnung nach Absatz 1 Satz 3 und 6 auszustellen, wenn der leistende Unternehmer
-und der Leistungsempfänger im Inland … ansässig sind". Frist: innerhalb von sechs Monaten nach
+und der Leistungsempfänger im Inland … ansässig sind“. Frist: innerhalb von sechs Monaten nach
 Ausführung der Leistung.
 
 Die Übergangsregelung steht in [§ 27 Absatz 38 UStG](https://www.gesetze-im-internet.de/ustg_1980/__27.html)
@@ -258,14 +258,14 @@ und ist gestaffelt:
 | 01.01.2027 – 31.12.2027 | **31.12.2027** | Gesamtumsatz des Ausstellers im Vorjahr **höchstens 800 000 €** (§ 19 Absatz 2) |
 | 01.01.2027 – 31.12.2027 | **31.12.2027** | oder Übermittlung per EDI nach Empfehlung 94/820/EG |
 
-Beides braucht „vorbehaltlich der Zustimmung des Empfängers", wo es um ein elektronisches Format
+Beides braucht „vorbehaltlich der Zustimmung des Empfängers“, wo es um ein elektronisches Format
 geht. Ab dem 01.01.2028 nennt die Vorschrift keine Ausnahme mehr.
 
 ### Empfangen: es gibt keine eigene Pflicht — und genau das ist der Punkt
 
-Eine Norm „Unternehmen müssen E-Rechnungen empfangen können" existiert nicht. Die Wirkung
+Eine Norm „Unternehmen müssen E-Rechnungen empfangen können“ existiert nicht. Die Wirkung
 entsteht durch einen **Wegfall**: § 14 Absatz 1 Satz 5 verlangt die Zustimmung des Empfängers
-für die Übermittlung „soweit keine Verpflichtung nach Absatz 2 Satz 2 Nummer 1 besteht".
+für die Übermittlung „soweit keine Verpflichtung nach Absatz 2 Satz 2 Nummer 1 besteht“.
 
 Wo die Ausstellungspflicht greift — inländisches B2B —, entfällt das Zustimmungserfordernis
 also. Der Empfänger kann eine elektronische Rechnung nicht mehr ablehnen, und das wirkt wie eine
@@ -278,7 +278,7 @@ ob und wie die Verwaltung sie auslegt, steht hier nicht.
 auf — Name und Anschrift beider Seiten, Steuernummer oder USt-IdNr., Ausstellungsdatum,
 fortlaufende Rechnungsnummer, Menge und Art, Leistungszeitpunkt, nach Steuersätzen
 aufgeschlüsseltes Entgelt, Steuersatz und Steuerbetrag, gegebenenfalls Hinweis auf die
-Aufbewahrungspflicht und bei Gutschriften die Angabe „Gutschrift". Das Format ändert daran
+Aufbewahrungspflicht und bei Gutschriften die Angabe „Gutschrift“. Das Format ändert daran
 nichts.
 
 ### Die Ausnahmen, die ein PDF erlauben
@@ -292,7 +292,7 @@ Drei Fälle dürfen **immer** als sonstige Rechnung übermittelt werden, auch im
 | Rechnung eines Kleinunternehmers | [§ 34a UStDV](https://www.gesetze-im-internet.de/ustdv_1980/__34a.html) | Umsätze nach [§ 19 Absatz 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html) steuerfrei |
 
 Jede dieser drei Vorschriften endet mit demselben Satz: „kann abweichend von § 14 Absatz 2
-Satz 2 des Gesetzes **immer** als sonstige Rechnung … übermittelt werden."
+Satz 2 des Gesetzes **immer** als sonstige Rechnung … übermittelt werden.“
 
 ### Was das für falzmarke bedeutet
 
@@ -332,7 +332,7 @@ Bewertungen außerhalb des Werkzeugs.
 
 - **Keine Zertifizierung.** falzmarke ist kein Produkt des DIN, steht in keiner Verbindung zum
   DIN und ist von niemandem geprüft worden.
-- **Kein „normgerecht", kein „DIN-konform"** ohne den Satz oben. „nach DIN 5008" bleibt als
+- **Kein „normgerecht“, kein „DIN-konform“** ohne den Satz oben. „nach DIN 5008“ bleibt als
   beschreibende Nennung dessen, woran sich das Werkzeug orientiert.
 - **Keine Rechtssicherheit.** Ob ein Brief formwirksam ist, entscheidet nicht die DIN 5008.
   Dasselbe gilt für die Urkunde, und dort erst recht: `typ: urkunde` beschreibt, wie das Blatt
@@ -343,7 +343,7 @@ Bewertungen außerhalb des Werkzeugs.
 
 Durch den Abgleich mit dem gekauften Normtext — siehe
 [`docs/normabgleich-pruefliste.md`](normabgleich-pruefliste.md) und das zugehörige Issue. Danach
-tritt an die Stelle jeder Herkunftsangabe eine Fundstelle („DIN 5008:2020-03, Abschnitt …"), die
+tritt an die Stelle jeder Herkunftsangabe eine Fundstelle („DIN 5008:2020-03, Abschnitt …“), die
 Quellenliste entfällt, und der Satz oben verschwindet aus README und dieser Seite.
 
 Bis dahin gilt er.

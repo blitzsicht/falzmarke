@@ -72,7 +72,7 @@ RAHMEN = "#7e7e7e"
 #
 # Nur hatte die Zahl **keine Quelle**. Nicht in der DIN 5008, nicht in
 # `regeln/email.yaml`, kein Eintrag in `quellen.yaml` — eine Setzung im Code,
-# Ebene „Praxis" nach ADR 0035. Und sie wirkte trotzdem als Fehler, weil
+# Ebene „Praxis“ nach ADR 0035. Und sie wirkte trotzdem als Fehler, weil
 # `Bericht` keine Warnstufe kennt: `verify-email` endete mit Code 2, wenn sie
 # fehlte. Dasselbe Muster wie bei ADR 0034, nur umgekehrt — die Prüfung war
 # strenger als die Entscheidung, die es nie gab.
@@ -84,7 +84,7 @@ RAHMEN = "#7e7e7e"
 #
 # **Wer den Deckel wieder einbauen will, braucht zuerst eine Quelle** — und
 # dann einen Weg, ihn als Warnung statt als Fehler zu melden. Die Prüfung
-# „Fließtext ohne Breitendeckel" in `pruefung_eml.py` hält diese Richtung fest,
+# „Fließtext ohne Breitendeckel“ in `pruefung_eml.py` hält diese Richtung fest,
 # damit er nicht still zurückkommt. Der Klartextteil ist etwas anderes: Dort
 # faltet `emit_text.BREITE` nach RFC 3676 weich, und der Empfänger darf neu
 # umbrechen.
@@ -218,7 +218,7 @@ def fremdstil_verstoesse(stil: str) -> list[str]:
 # wie für den Rumpf. Übernommen werden Aufbau und Inhalt; Schriftfarben und
 # Gründe fallen weg, eine Linie unter 3:1 wird zu `RAHMEN`. Sonst ändert sich
 # kein Byte — die Funktionen schneiden nur in Attributwerten, deren Stelle der
-# Parser bestimmt hat (ADR 0034, Nachtrag „Die Signatur erbt ihre Farben").
+# Parser bestimmt hat (ADR 0034, Nachtrag „Die Signatur erbt ihre Farben“).
 
 #: Werte, die keine eigene Farbe setzen. Sie bleiben stehen.
 ERBT = {"inherit", "currentcolor", "transparent", "initial", "unset", "none"}
@@ -475,7 +475,7 @@ def liste(punkte: list[str], nummeriert: bool = False, start: int = 1) -> str:
     """`<ul>`/`<ol>`; verschachtelte Listen stecken schon in den Punkten.
 
     Die Hülle trägt `KLASSE_TEXT` wie jeder andere Block — bis #289 war sie der
-    einzige ohne. Für die Darstellung ändert das nichts, aber die Prüfung „Fließtext ohne Breitendeckel" erkennt an der
+    einzige ohne. Für die Darstellung ändert das nichts, aber die Prüfung „Fließtext ohne Breitendeckel“ erkennt an der
     Klasse, was von hier stammt und was aus einer mitgebrachten Signatur. Ohne
     die Marke wäre die Liste die eine Stelle, an der ein Deckel unbemerkt
     zurückkommen könnte.
@@ -524,14 +524,14 @@ def tabelle(zeilen: list[list[str]], ausrichtungen: list[str | None]) -> str:
             )
             # `word-break: normal` steht hier, obwohl es der Vorgabewert der
             # Sprache ist: Gemessen am 08.09.2026 trennte Outlook für Mac die
-            # Kopfzelle „Datum" mitten im Wort, sobald die Spalte schmaler war
+            # Kopfzelle „Datum“ mitten im Wort, sobald die Spalte schmaler war
             # als ihr Inhalt. Ein Client, der `break-word` von sich aus setzt,
             # wird damit überstimmt — lieber eine Spalte, die breiter wird, als
             # ein Wort, das entzweigeht.
             #
             # Rechtsbündig heißt in einer Datentabelle nach DIN 5008: Zahlen.
             # Die brechen nicht zwischen Wert und Einheit. Das ist bewusst
-            # KEINE Ersetzung im Text — das geschützte Leerzeichen vor „EUR"
+            # KEINE Ersetzung im Text — das geschützte Leerzeichen vor „EUR“
             # steht auf einer Einzelquelle und darf deshalb nicht automatisch
             # gesetzt werden (`regeln.darf_automatisch_ersetzen`). Was hier
             # steht, ändert die Darstellung, nicht die Zeichen.
@@ -836,7 +836,7 @@ def dokument(rumpf: str, sprache: str = "de", vorspann: str = "",
 #: Die Regel steht in ADR 0034, Punkt 4 — hier steht ihre Messung.
 #:
 #: `<style>` stand bis zum 28.08.2026 in dieser Liste. ADR 0034 verlangt das
-#: nicht: Dort steht „keine externen Stylesheets", also `<link>`. Der pauschale
+#: nicht: Dort steht „keine externen Stylesheets“, also `<link>`. Der pauschale
 #: Ausschluss war eine Verschaerfung, die nie beschlossen wurde — und er machte
 #: das dunkle Farbschema unmoeglich. Was jetzt gilt, steht in `_stilbloecke_pruefen`
 #: und als Ergaenzung in ADR 0034.
@@ -857,7 +857,7 @@ VERBOTEN = (
 #: Wie viele Bilder eine erzeugte Mail tragen darf.
 #:
 #: ADR 0034, Punkt 4: „Bilder nur als eingebettete Ressource mit Alt-Text, und
-#: auch das nur für das Logo des Profils." Gemessen hat das bis #243 **niemand**
+#: auch das nur für das Logo des Profils.“ Gemessen hat das bis #243 **niemand**
 #: — drei Bilder mit `cid:` wären anstandslos durchgegangen.
 #:
 #: Die Zahl steht hier, seit die Quellenregel gefallen ist. Bis dahin hielt
@@ -869,7 +869,7 @@ BILDER_MAX = 1
 
 #: Ein 1×1-Bild ist keine Abbildung, sondern eine Messung am Empfänger.
 #:
-#: Der Wert muss GANZ „1" sein. Bis Issue #104 stand hier `["\']?1["\']?` ohne
+#: Der Wert muss GANZ „1“ sein. Bis Issue #104 stand hier `["\']?1["\']?` ohne
 #: Abschluss, und das traf die führende Ziffer jeder Breite, die mit 1 beginnt:
 #: `width="120"` galt als Zählpixel. Aufgefallen ist es erst, als das Logo Maße
 #: bekam — vorher trug kein erzeugtes Bild eine Breite, und die Prüfung konnte
@@ -883,7 +883,7 @@ def zaehlpixel(html: str) -> list[str]:
 
     Steht seit #243 hier statt nur in `pruefung_eml`: Solange `verstoesse()`
     fremde Bildquellen pauschal ablehnte, fiel ein Zählpixel dort schon als
-    „Bild von außerhalb" auf — die 1×1-Messung war der zweite Zaun hinter dem
+    „Bild von außerhalb“ auf — die 1×1-Messung war der zweite Zaun hinter dem
     ersten. Mit der Quellenregel ist der erste Zaun weg, und ein einzelnes
     externes 1×1-Bild wäre für den Emitter unsichtbar geworden.
 

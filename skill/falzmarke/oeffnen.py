@@ -8,7 +8,7 @@ Aufrufer, *womit* es geöffnet wird, das Betriebssystem.
 27.08.2026 — `docs/mailprogramme-2026-08-27.md` — erscheint eine `.eml` in
 Apple Mail, Thunderbird und Outlook für Mac als *Lesefenster*: kein
 Senden-Knopf, keine editierbaren Empfängerfelder. Der Weg zur ausgehenden Mail
-heißt dort „Weiterleiten", und ihn geht ein Mensch. Dieses Modul sagt deshalb
+heißt dort „Weiterleiten“, und ihn geht ein Mensch. Dieses Modul sagt deshalb
 zu, dass die Datei im Programm ankommt — nicht, dass sie dort ein Entwurf ist.
 
 Warum das ein eigenes Modul ist und nicht drei Zeilen in `cli.py`: `dienst.py`
@@ -199,7 +199,7 @@ FRIST_ENTWURF_S = 90
 #: angenommen und zurückgelesen, das Fenster zeigt trotzdem ein anderes Konto.
 #:
 #: `open` steht **nach** dem Auslesen, und das ist gemessen: Danach meldet
-#: Outlook „outgoing message id … kann nicht gelesen werden" (-1728). Wer erst
+#: Outlook „outgoing message id … kann nicht gelesen werden“ (-1728). Wer erst
 #: öffnet und dann nachsieht, bekommt einen Fehler statt eines Nachweises.
 SKRIPT_OUTLOOK = """\
 on run argv
@@ -307,7 +307,7 @@ end run
 #:
 #: Über die `id`, nicht über eine Schleife: `delete m` in einem
 #: `repeat with m in (every outgoing message)` greift nicht — gemessen am
-#: 11.09.2026, „geloescht: 0 von 3"; über die Kennung danach „3 von 3".
+#: 11.09.2026, „geloescht: 0 von 3“; über die Kennung danach „3 von 3“.
 #:
 #: Gelöscht wird ausschließlich, was dieser Lauf Sekunden zuvor selbst angelegt
 #: hat und was nie ein Fenster hatte. Eine Nachricht, die jemand sehen konnte,
@@ -1023,7 +1023,7 @@ class Entwurfslage(NamedTuple):
     zurückgekehrt, also weiß niemand, ob eine Nachricht entstand und ob ein
     Fenster offen ist. Wer in diesem Fall die `.eml` nachschiebt, bekommt
     womöglich ein zweites Fenster — und das zweite ist ein Lesefenster ohne
-    Senden-Knopf. „Nicht geprüft" ist eben nicht dasselbe wie „nichts da".
+    Senden-Knopf. „Nicht geprüft“ ist eben nicht dasselbe wie „nichts da“.
     """
 
     programm: str | None

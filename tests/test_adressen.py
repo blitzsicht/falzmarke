@@ -1,6 +1,6 @@
 """Die Formprüfung von `an` und `cc` (Issue #125).
 
-Die Regeln `email.an` und `email.cc` behaupten „ist eine E-Mail-Adresse". Der
+Die Regeln `email.an` und `email.cc` behaupten „ist eine E-Mail-Adresse“. Der
 Vorgang meldete, `parseaddr` prüfe fast nichts — das stimmt, aber danach greift
 `EMAIL_MUSTER`, und das fängt schon einiges ab.
 
@@ -128,7 +128,7 @@ def test_wird_jetzt_gemeldet(tmp_path, adresse, teil):
 
 
 def test_das_stille_reparieren_wird_gemeldet(tmp_path):
-    """`parseaddr` entfernt Leerzeichen: „max@firma .de" wird zu „max@firma.de".
+    """`parseaddr` entfernt Leerzeichen: „max@firma .de“ wird zu „max@firma.de“.
 
     Ohne diese Prüfung ginge der Brief an eine Adresse, die niemand geschrieben
     hat — die teuerste Art von Fehler, die dieses Werkzeug kennt.

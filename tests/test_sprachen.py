@@ -6,10 +6,10 @@ Seitenzählung und `text.lang`. Anschriftfeld, Informationsblock, Falzmarken und
 
 Genau das prüft `test_die_masse_haengen_nicht_an_der_sprache`: derselbe Brief zweimal,
 einmal deutsch und einmal englisch, und beide Messberichte müssen dieselben Zahlen
-tragen. Ohne diese Prüfung wäre „die Geometrie bleibt unverändert" eine Behauptung.
+tragen. Ohne diese Prüfung wäre „die Geometrie bleibt unverändert“ eine Behauptung.
 
-Was hier NICHT geprüft wird, weil es nicht prüfbar ist: ob „Your reference" die richtige
-Entsprechung für „Ihr Zeichen" ist. DIN 5008 kennt keine englischen Leitwörter — das ist
+Was hier NICHT geprüft wird, weil es nicht prüfbar ist: ob „Your reference“ die richtige
+Entsprechung für „Ihr Zeichen“ ist. DIN 5008 kennt keine englischen Leitwörter — das ist
 eine Konvention ohne Fundstelle, und das steht so in sprachen.py und in der Doku.
 """
 

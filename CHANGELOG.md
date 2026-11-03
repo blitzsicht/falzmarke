@@ -89,7 +89,7 @@ Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 - **Ein von Thunderbird gespeicherter Entwurf verliert seine Zuordnung nicht mehr.** Die ganze
   Zuordnung zwischen Entwurfsbuch, Postfach und Tagebuch hing an einer Zahl, und die entstand aus
   genau einem Aufruf: Blieb er leer, hing die Versandzeile an keinem Entwurf — kein „Ging an … ·
-  Empfänger wie angelegt", kein `BELEGT`, und die Sendesperre erkannte den Entwurf nicht über
+  Empfänger wie angelegt“, kein `BELEGT`, und die Sendesperre erkannte den Entwurf nicht über
   seine Fassung. Jetzt löst das Add-on die UID über **zwei** Wege auf (`messageKey` und die
   Entwurfsadresse des Verfassen-Fensters), holt sie vor dem Senden noch einmal nach, falls sie
   beim Öffnen leer blieb, und schreibt bei jedem Öffnen **beide** Ergebnisse ins Tagebuch samt
@@ -99,7 +99,7 @@ Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
   bleibt verboten. Entwurfsbrücke 0.3.7, ADR 0060 (#420).
 - **`falzmarke status` meldet einen Tagebuch-Eintrag, der an keinem Entwurf hängt**, statt ihn
   stillschweigend zu übergehen: „1 Tagebuch-Eintrag zu einem Entwurf trägt weder UID noch
-  Fassung". Neue Mails und Antworten haben von Natur aus keine UID und zählen nicht mit. Die
+  Fassung“. Neue Mails und Antworten haben von Natur aus keine UID und zählen nicht mit. Die
   Zahl steht auch in `--json` (#420).
 
 - **Die Prüfungen am Add-on halten jetzt, was ADR 0055 über sie sagt.** Die Rechte der Entwurfsbrücke werden als Positivliste über das ganze Manifest gelesen (`optional_permissions`, `content_scripts`, `cloud_file` und ein zweites Experiment fielen vorher nicht auf), die Namensliste der Sendewege vergleicht ohne Rücksicht auf die Schreibweise und kennt `goDoCommand("cmd_sendNow")`, und die Dateiliste des Pakets liest `scripts/xpi_packen.py` am Manifest statt sie daneben zu führen. Am Add-on selbst ändert sich nichts: Die `.xpi` ist Byte für Byte dieselbe (#412).
@@ -142,7 +142,7 @@ Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
   zwischen zwei Fenstern derselben UID. Das Tagebuch kommt aus dem Thunderbird-Profil, in dem der
   Socket der Brücke liegt, nicht länger blind aus dem Standardprofil — bei gesetztem
   `FALZMARKE_BRUECKE_SOCKET` las `status` sonst eine Datei, die niemand schreibt, und meldete
-  „kein Tagebuch", was nach einem zu alten Add-on klingt. Fehlt es wirklich, nennt der Hinweis
+  „kein Tagebuch“, was nach einem zu alten Add-on klingt. Fehlt es wirklich, nennt der Hinweis
   jetzt das gelesene Profil. (#410)
 
 - **Der Eintrag im MCP-Registry startet den Dienst.** `server.json` nannte nur das Paket; ein Client
@@ -165,7 +165,7 @@ Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 - **`--oeffnen` sieht vorher im Gesendet-Ordner nach, und der Entwurf liegt im Postfach.** Ging in den letzten 24 Stunden eine Mail an denselben Empfänger mit demselben Text, derselben Fassung oder demselben Betreff hinaus, legt `falzmarke email … --oeffnen` keinen Entwurf an. Es meldet `SCHON GESENDET` oder `GEÄNDERTE FASSUNG` und endet mit Exit 4; `--trotz-gesendet` übergeht das. Ist der lokale IMAP-Proxy erreichbar, liegt der Thunderbird-Entwurf jetzt als fertige Nachricht im Ordner „Entwürfe“ des Absenders, mit allen Kopfzeilen und damit auch mit `In-Reply-To`. Ein Fenster geht dann nicht auf. Liegt dort schon ein Entwurf mit demselben Empfänger und Betreff, kommt kein zweiter dazu (`--noch-ein-entwurf`). Im Postfach wird nur dieser eine Entwurf abgelegt, nie etwas gesendet, gelöscht oder verschoben. Jede `.eml` trägt außerdem `X-Falzmarke-Fassung`, eine Prüfsumme der Quelle ohne Pfad oder Dateinamen. Thunderbird verwirft diese Zeile beim Senden, im Gesendet-Ordner zählen deshalb Betreff und Text. Exit 4 stand bisher für „Fehler im Renderer“, wurde aber nie zurückgegeben (ADR 0051).
 
-- **Fünf Nachrichtenlagen und eine Liste, was gestrichen wird.** Die Stilreferenz deckte bisher Brieftypen ab — Angebot, Mahnung, Kündigung, Widerspruch und drei weitere. Jetzt stehen daneben die Lagen, in denen die meisten Mails entstehen: ein Angebot nachfassen, eine Reklamation beantworten, Preis und Nachlass, Lieferant, intern. Dazu ein Abschnitt „Was gestrichen wird" mit neun Mustern, die nach Maschine klingen, und neben jedem der Fall, der ihm ähnlich sieht und bleibt — dieselbe Grenze wie bei den Floskeln: Trägt der Satz etwas oder nicht. Ausdrücklich nicht übernommen sind drei Regeln englischer Humanizer-Anleitungen, die für deutsche Geschäftspost falsch sind (keine Gedankenstriche, gerade Anführungszeichen, keine Dreierfiguren): Den Halbgeviertstrich und die Anführungszeichen „…" setzt der Typografie-Pass absichtlich, und ein Test hält die Begründung gegen ihn.
+- **Fünf Nachrichtenlagen und eine Liste, was gestrichen wird.** Die Stilreferenz deckte bisher Brieftypen ab — Angebot, Mahnung, Kündigung, Widerspruch und drei weitere. Jetzt stehen daneben die Lagen, in denen die meisten Mails entstehen: ein Angebot nachfassen, eine Reklamation beantworten, Preis und Nachlass, Lieferant, intern. Dazu ein Abschnitt „Was gestrichen wird“ mit neun Mustern, die nach Maschine klingen, und neben jedem der Fall, der ihm ähnlich sieht und bleibt — dieselbe Grenze wie bei den Floskeln: Trägt der Satz etwas oder nicht. Ausdrücklich nicht übernommen sind drei Regeln englischer Humanizer-Anleitungen, die für deutsche Geschäftspost falsch sind (keine Gedankenstriche, gerade Anführungszeichen, keine Dreierfiguren): Den Halbgeviertstrich und die Anführungszeichen „…“ setzt der Typografie-Pass absichtlich, und ein Test hält die Begründung gegen ihn.
 
 - **Unsichtbare Zeichen im Entwurf werden gemeldet.** Zero-Width-Marken, weiche Trennstriche,
   Bidi-Steuerzeichen und Variantenselektoren aus einer Zwischenablage standen bisher ungeprüft in
@@ -182,7 +182,7 @@ Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ### Geändert
 
-- **Acht Wendungen mehr, die nichts sagen.** `email.floskel` kannte sieben Muster, jetzt sind es fünfzehn: „es ist wichtig zu beachten", „zusammenfassend lässt sich sagen", „in der heutigen schnelllebigen Zeit", „jederzeit gerne zur Verfügung", „an dieser Stelle möchte ich", „wie Sie sicher wissen", „im Voraus vielen Dank" und „wir würden uns freuen". Die Aufnahmebedingung ist unverändert eng: Die Zeile muss sich streichen lassen, ohne dass die Nachricht etwas verliert. Deshalb bleibt „bei Rückfragen stehe ich zur Verfügung" draußen und nur die Fassung mit „jederzeit" drin — der Verstärker ist das Leere, nicht die Erreichbarkeit. Zwei Kandidaten sind ausdrücklich abgelehnt und im Quelltext begründet: „im Rahmen von" und „nicht nur …, sondern auch" tragen manchmal Inhalt, und ein Muster, das das nicht unterscheiden kann, kostet Vertrauen in alle anderen. Es bleibt eine Warnung auf der Ebene Praxis, und geändert wird nichts.
+- **Acht Wendungen mehr, die nichts sagen.** `email.floskel` kannte sieben Muster, jetzt sind es fünfzehn: „es ist wichtig zu beachten“, „zusammenfassend lässt sich sagen“, „in der heutigen schnelllebigen Zeit“, „jederzeit gerne zur Verfügung“, „an dieser Stelle möchte ich“, „wie Sie sicher wissen“, „im Voraus vielen Dank“ und „wir würden uns freuen“. Die Aufnahmebedingung ist unverändert eng: Die Zeile muss sich streichen lassen, ohne dass die Nachricht etwas verliert. Deshalb bleibt „bei Rückfragen stehe ich zur Verfügung“ draußen und nur die Fassung mit „jederzeit“ drin — der Verstärker ist das Leere, nicht die Erreichbarkeit. Zwei Kandidaten sind ausdrücklich abgelehnt und im Quelltext begründet: „im Rahmen von“ und „nicht nur …, sondern auch“ tragen manchmal Inhalt, und ein Muster, das das nicht unterscheiden kann, kostet Vertrauen in alle anderen. Es bleibt eine Warnung auf der Ebene Praxis, und geändert wird nichts.
 
 ### Behoben
 
@@ -256,7 +256,7 @@ Das Format folgt lose [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 Das Werkzeug überträgt, was ihm gegeben wurde — es summiert keine Positionen, bildet keine
 Steuerbeträge und prüft nicht, ob Netto plus Steuer den Bruttobetrag ergibt. Wer rechnet, haftet
 für das Ergebnis; wer überträgt, muss sagen, dass er nicht rechnet. Dieselbe Linie wie bei „keine
-Zertifizierung", „kein Versand" und „falzmarke prüft die Pflichtangaben nicht".
+Zertifizierung“, „kein Versand“ und „falzmarke prüft die Pflichtangaben nicht“.
 
 Dazu die beiden Festlegungen, die erst nach der Erhebung aus #113 entscheidbar waren: **ZUGFeRD in
 einer ausdrücklich benannten Fassung** (gemessen am 11.09.2026 ist 2.5.2 die aktuelle) — eine
@@ -265,11 +265,11 @@ XMP-Schema und Beziehungsangabe im PDF vor. Und **Profil EN 16931 (COMFORT) als 
 das genau der Umfang ist, den § 14 Absatz 1 Satz 6 UStG verlangt.
 
 MINIMUM und BASIC WL erzeugt falzmarke **nicht**: Sie enthalten keine Rechnungspositionen und sind
-keine Rechnung im umsatzsteuerlichen Sinn. Ein Werkzeug, das „Rechnung" in den Dateinamen schreibt
+keine Rechnung im umsatzsteuerlichen Sinn. Ein Werkzeug, das „Rechnung“ in den Dateinamen schreibt
 und eine Buchungshilfe erzeugt, behauptet zu viel.
 
 Und die Zurückhaltung bleibt: Solange kein unabhängiges Prüfwerkzeug das Ergebnis durchlässt, sagt
-falzmarke nicht „ZUGFeRD-konform" — dieselbe Regel wie beim Wort „normgerecht".
+falzmarke nicht „ZUGFeRD-konform“ — dieselbe Regel wie beim Wort „normgerecht“.
 
 **Was das Umsatzsteuerrecht bei Rechnungen verlangt — erhoben, mit Fundstelle.** `docs/recht.md`
 führte bisher keine einzige Frist zur E-Rechnung. Jetzt steht dort, was § 14 UStG als
@@ -285,7 +285,7 @@ und die drei Fälle, die **dauerhaft** als sonstige Rechnung gehen dürfen: Klei
 
 Ein Befund, der keine eigene Norm hat: Eine **Empfangspflicht** ist nirgends formuliert. Sie
 entsteht durch einen Wegfall — § 14 Absatz 1 Satz 5 verlangt die Zustimmung des Empfängers nur
-„soweit keine Verpflichtung nach Absatz 2 Satz 2 Nummer 1 besteht". Wo die Ausstellungspflicht
+„soweit keine Verpflichtung nach Absatz 2 Satz 2 Nummer 1 besteht“. Wo die Ausstellungspflicht
 greift, kann der Empfänger nicht mehr ablehnen.
 
 Erhoben aus dem Volltext, nicht aus dem Gedächtnis: UStG und UStDV liegen seit heute im lokalen
@@ -440,12 +440,12 @@ Die Umsatzgrenzen prüft falzmarke nicht (ADR 0041).
 
 **Die Form-A-Maße stehen jetzt auf zwei unabhängigen Quellen — mehr als die Form-B-Maße.** `geometrie.form_a.masse` trägt `mehrfach_bestaetigt` statt `einzeln_belegt`, getragen von der Form-A-Zeichnung im Onlineprinters-Magazin und dem Federwerk-Artikel: zwei voll zählende Quellen aus zwei Gruppen. Die fünf Form-B-Regeln stehen dagegen auf zwei Ansichten derselben Zeichnung, also auf einer Gruppe. An der Prüfung ändert sich nichts — die Maße am fertigen PDF wirkten seit jeher als Fehler, weil die Nachmessung den Regelkatalog gar nicht kennt; nachgemessen an einem Form-A-Brief, dessen Bericht mit alter und neuer Stufe byte-gleich ist. Was sich ändert, ist die Auskunft des Werkzeugs über die eigene Beleglage, und die war falsch. Die Entscheidung steht in ADR 0046; `docs/recht.md` sagt jetzt dazu, dass die Herkunftstabelle für die Briefmaße nicht gilt.
 
-**Das Regelwerk sagt jetzt auch für GmbH, AG und eG, welche Angaben die Vorschrift aufzählt.** Bei `email.pflichtangaben` nannten `hgb_37a` und `hgb_125` den Inhalt der Pflicht, `gmbhg_35a`, `aktg_80` und `geng_25a` dagegen nur die Wendung „gleichviel welcher Form" — also den Grund, aus dem die Pflicht auch für E-Mails gilt. Für die häufigste Rechtsform überhaupt stand damit nirgends, was zu nennen ist. Die drei Belege führen die Aufzählung jetzt mit: Rechtsform, Sitz, Registergericht, Registernummer, die vertretungsberechtigten Personen mit ausgeschriebenem Vornamen, dazu die Unterschiede zwischen den drei Vorschriften (Grundkapital statt Stammkapital, der Vorstandsvorsitzende als solcher zu bezeichnen, keine Kapitalangaben im GenG). Am Werkzeug ändert das nichts — Stufe, Ebene und Wirkung der Regel sind unverändert, und der Inhalt von `pflichtangaben` wird weiterhin nicht geprüft (ADR 0005). Sichtbar wird es dort, wo die Daten gelesen werden: im Signatur-Baukasten auf falzmarke.com.
+**Das Regelwerk sagt jetzt auch für GmbH, AG und eG, welche Angaben die Vorschrift aufzählt.** Bei `email.pflichtangaben` nannten `hgb_37a` und `hgb_125` den Inhalt der Pflicht, `gmbhg_35a`, `aktg_80` und `geng_25a` dagegen nur die Wendung „gleichviel welcher Form“ — also den Grund, aus dem die Pflicht auch für E-Mails gilt. Für die häufigste Rechtsform überhaupt stand damit nirgends, was zu nennen ist. Die drei Belege führen die Aufzählung jetzt mit: Rechtsform, Sitz, Registergericht, Registernummer, die vertretungsberechtigten Personen mit ausgeschriebenem Vornamen, dazu die Unterschiede zwischen den drei Vorschriften (Grundkapital statt Stammkapital, der Vorstandsvorsitzende als solcher zu bezeichnen, keine Kapitalangaben im GenG). Am Werkzeug ändert das nichts — Stufe, Ebene und Wirkung der Regel sind unverändert, und der Inhalt von `pflichtangaben` wird weiterhin nicht geprüft (ADR 0005). Sichtbar wird es dort, wo die Daten gelesen werden: im Signatur-Baukasten auf falzmarke.com.
 
 **Eine Mail geht ins Mailprogramm, nicht in den Browser.** `SKILL.md` hat den Umweg bis dahin
-selbst empfohlen: „Diese Vorschau ist das, was gezeigt wird — nicht die `.eml`" machte die
+selbst empfohlen: „Diese Vorschau ist das, was gezeigt wird — nicht die `.eml`“ machte die
 HTML-Vorschau zum Regelfall, und „`--oeffnen` gehört im Gespräch dazu, sobald ein Mensch die
-Nachricht wirklich abschicken will" überließ den Rest der Auslegung. Die Folge war, dass jede
+Nachricht wirklich abschicken will“ überließ den Rest der Auslegung. Die Folge war, dass jede
 Sitzung es anders machte und die fertige `.eml` unbenutzt neben der Vorschau lag. Jetzt ist
 `--oeffnen` der Regelfall und legt den Entwurf im Mailprogramm an; die `.html` entsteht nur auf
 ausdrückliche Nachfrage und wird nicht mehr von selbst gezeigt. Ohne das Flag laufen nur Serien,
@@ -465,7 +465,7 @@ und lange Zeilen lesen sich schlechter —, nur hatte die Zahl keine Quelle: nic
 nicht im Regelkatalog, kein Eintrag in `quellen.yaml`. Eine Setzung auf Ebene *Praxis* nach
 ADR 0035, und Praxis ist nie ein Fehler — wirkte hier aber als einer, weil `Bericht` keine
 Warnstufe kennt und `verify --email` mit Code 2 endete. Der Deckel fällt deshalb weg, und die
-Prüfung steht in der Gegenrichtung: „Fließtext ohne Breitendeckel" schlägt an, wenn er
+Prüfung steht in der Gegenrichtung: „Fließtext ohne Breitendeckel“ schlägt an, wenn er
 zurückkommt. Sie misst nur die eigenen Absätze — eine mitgebrachte Signatur behält ihre Breite,
 sonst wäre es der Fehler aus #279 noch einmal. Die Gegenprobe setzt den Deckel wieder ein und ist
 einzeln gegen eine wirkungslose Prüfung gefahren. Der Klartextteil bleibt, wie er war: Dort
@@ -475,7 +475,7 @@ faltet `format=flowed` nach RFC 3676 weich, und der Empfänger bricht neu um.
 alle 24 Prüfungen in `pruefung_eml.py` als Fehler — nicht aus Absicht, sondern weil keine einen
 Regelnamen trug und `regeln.deckel(None)` vorsichtshalber `fehler` zurückgibt. Damit lief ADR 0035
 an der halben Kette vorbei: Im Linter wird eine Regel auf der Ebene *Praxis* längst herabgestuft,
-an der fertigen Datei gab es nur „Fehler" oder „gar nicht prüfen". Genau daran ist die Lesebreite
+an der fertigen Datei gab es nur „Fehler“ oder „gar nicht prüfen“. Genau daran ist die Lesebreite
 in #289 gestorben — eine Setzung ohne Quelle, die als harter Befund wirkte, und der einzige Ausweg
 war, sie zu entfernen.
 
@@ -515,7 +515,7 @@ Die Regeldatei sagt jetzt, warum der Wikipedia-Artikel für das Anschriftfeld 32
 dazwischen liegen die 5 mm der Rücksendeangabe. Kein Widerspruch und keine geänderte Prüfung.
 
 Die Maße, die falzmarke am fertigen PDF nachmisst, tragen jetzt die Stufe, mit der sie wirken.
-Drei Geometrie-Regeln standen auf „einzeln belegt" und hätten nur warnen dürfen, ließen einen
+Drei Geometrie-Regeln standen auf „einzeln belegt“ und hätten nur warnen dürfen, ließen einen
 Lauf aber scheitern — die Nachmessung kennt den Regelkatalog nicht. Aufgelöst über die
 Beleglage: Die Mindesthöhe des Informationsblocks (40 mm) und die Heftrandgrenze der Marken
 (20 mm) sind aus zwei neuen, unabhängigen Quellen belegt, die Schriftgrößen aus zwei weiteren.
@@ -542,7 +542,7 @@ im Mailprogramm nachzusehen ist. Der Rückfall sagt außerdem dazu, dass die Dat
 erscheint und nicht als Entwurf.
 
 **Der Outlook-Entwurf kommt vom Konto des Profils.** `--oeffnen` legte den Entwurf ohne Konto an,
-und Outlook nahm sein Standardkonto — wer mehrere Postfächer hat, musste „Von" bei jeder Mail von
+und Outlook nahm sein Standardkonto — wer mehrere Postfächer hat, musste „Von“ bei jeder Mail von
 Hand umstellen und verschickte vom falschen, wenn er es vergaß. Jetzt sucht das Steuerskript das
 Konto mit der Adresse aus `email.absender` und legt den Entwurf darauf an; welches Konto er
 tatsächlich trägt, wird am fertigen Objekt zurückgelesen. Passt es nicht oder bietet Outlook keins
@@ -565,12 +565,12 @@ steht damit Arial statt Segoe UI.
 
 **Ohne Outlook-Konto zur Profiladresse sagt die Warnzeile, was wirklich los ist.** Nannte das Profil
 eine Adresse, für die Outlook kein Konto hat, lag der Entwurf auf dem Standardkonto, die Signatur im
-Rumpf nannte trotzdem die Profiladresse, und die letzte Zeile riet „unter Von umstellen" — dort stand
+Rumpf nannte trotzdem die Profiladresse, und die letzte Zeile riet „unter Von umstellen“ — dort stand
 die Adresse gar nicht zur Wahl. Das Steuerskript meldet jetzt in einer dritten Nachweiszeile, ob die
 Suche das Konto gefunden hat (`gefunden`), ob Outlook Konten zeigte, aber keins mit dieser Adresse
 (`fehlt`), oder ob es gar keine zeigte (`-`, nicht geprüft). Bei `fehlt` nennt die Warnzeile die
 abweichende Signatur und rät zu einem anderen Profil oder einem eingerichteten Konto; ohne lesbare
-Konten steht „nicht geprüft" da statt einer Behauptung.
+Konten steht „nicht geprüft“ da statt einer Behauptung.
 
 **Rechnung aus einem Profil ohne USt-IdNr.** Trug das Profil nur `rechnung.steuernummer:`, fiel die eingebettete XML bei einem Prüfprogramm an der Regel BR-CO-26 durch: EN 16931 verlangt eine Verkäuferkennung, eine Registerkennung oder die USt-IdNr., und die Steuernummer zählt dafür nicht. falzmarke schreibt die Steuernummer in diesem Fall zusätzlich als Verkäuferkennung, wie es das Beispiel des FeRD vormacht. Mit USt-IdNr. bleibt die Datei, wie sie war. Mustang und der KoSIT-Validator prüfen den Fall jetzt in der CI, mit einer Gegenprobe, die an BR-CO-26 scheitern muss.
 
@@ -581,7 +581,7 @@ Knopf war ein `<a style="display:inline-block;padding:…">`; der Google-Knopf d
 stand in einem `<table><td>`-Gerüst und hielt seine Form. Die eingebettete Signatur wurde bis dahin
 nicht angesehen.
 
-Neu ist die Prüfung „Kein Anker als Knopf": Sie findet `display:inline-block` zusammen mit `padding`
+Neu ist die Prüfung „Kein Anker als Knopf“: Sie findet `display:inline-block` zusammen mit `padding`
 oder `margin` im `style` desselben `<a>` — in jeder Attributreihenfolge, mit einfachen oder doppelten
 Anführungszeichen, über mehrere Zeilen. Jedes Merkmal allein und ein Kasten am `<span>` bleiben
 unbeanstandet. Die Meldung nennt Linktext und Ziel und sagt, dass ein `<table><td>`-Gerüst an die
@@ -592,7 +592,7 @@ gemessen. Jede Nachricht trägt eine Prüfung mehr. Die Signatur selbst ändert 
 Der letzte Punkt einer Liste trägt keinen unteren Abstand mehr, den setzt die Liste. Gemessen im
 gesetzten HTML: Unter dem Listenende standen 16 px (Punkt 4 px plus Liste 12 px), unter einem Absatz
 12 px. Ein Browser fasst die Ränder zusammen, die Word-Engine von Outlook addiert sie vermutlich —
-ungeprüft, hier steht kein Outlook. Die 16 px erklären die beobachteten „etwa zwei Leerzeilen" allein
+ungeprüft, hier steht kein Outlook. Die 16 px erklären die beobachteten „etwa zwei Leerzeilen“ allein
 nicht; belegt ist nur, dass der Emitter unter dem Listenende nicht mehr Platz lässt als unter einem
 Absatz.
 
@@ -603,7 +603,7 @@ Absatz.
 **Die Doku sagt, was der Typografie-Pass tatsächlich setzt.** SKILL.md, README und `references/markdown.md` behaupteten, der Pass setze geschützte Leerzeichen bei `10 %`, `5 kg` und `Nr.` von selbst. Das stimmt nur für Abkürzungen (`z. B.`), Datum (`25. August`) und `§ 5`; Einheiten und Kürzel vor einer Angabe stehen auf einer einzeln belegten Regel, der Pass lässt sie unverändert, und `lint` meldet sie seit #330 als Warnung. Alle drei Stellen sagen das jetzt mit dem Grund und mit dem Handgriff (`5&nbsp;km`). Ein Test liest die zurückgehaltenen Schritte aus den Regeldaten und lässt die Doku rot werden, sobald ein einzelner Schritt seine Stufe erhält oder verliert, statt sie von Hand altern zu lassen. (#331)
 
 **Die Meldung nennt keine Quelle mehr, die zur Regel schweigt.** Der Zusatz „Quelle: sekundär,
-einzeln belegt — …" nahm die erste Quelle unter `quellen:`, ohne zu lesen, ob sie zur Sache
+einzeln belegt — …“ nahm die erste Quelle unter `quellen:`, ohne zu lesen, ob sie zur Sache
 etwas hergibt. Bei `text.vermerke_max_3` (Zusatz- und Vermerkzone fasst 3 Zeilen) stand dort die
 Maßzeichnung zur Form B, und die ist in den Regeldaten ausdrücklich als schweigend vermerkt —
 sie bemaßt die Zone, zählt aber keine Zeilen. Die Meldung führte damit als Beleg an, was keiner
@@ -691,7 +691,7 @@ jetzt ausdrücklich ihre Lücke, etwa bei `geometrie.form_b.zonen`: Die Zeichnun
 
 Ein Fund verbessert die Beleglage: `text.vermerke_max_3` hing nach der Zeichnungsprüfung nur noch
 an einer Implementierung, weil beide Sekundärquellen zur Zeilenzahl schweigen. Der
-Wikipedia-Artikel nennt sie wörtlich („3 Zeilen für die Zusatz- und Vermerkzone") und war dort nie
+Wikipedia-Artikel nennt sie wörtlich („3 Zeilen für die Zusatz- und Vermerkzone“) und war dort nie
 als Quelle eingetragen.
 
 Die verbleibenden 27 Paare werden nicht weiter geprüft (ADR 0042). Der Grund steht in der
@@ -780,7 +780,7 @@ möglichen Wege samt ihrem gemeinsamen Haken.
 
   Gemessen wird jetzt die **äußerste** Layouttabelle. Die Gegenprobe hält: Ein `max-width` am
   Umschlag selbst wird weiterhin rot — das ist der Fall aus #264, und er darf nicht mit
-  durchrutschen. Die Prüfung heißt entsprechend „Umschlag ohne Breitendeckel". (#279)
+  durchrutschen. Die Prüfung heißt entsprechend „Umschlag ohne Breitendeckel“. (#279)
 
 ### Infrastruktur
 
@@ -835,7 +835,7 @@ möglichen Wege samt ihrem gemeinsamen Haken.
   standen bis hierher nur in `docs/cli.md` — und `docs/` liegt nicht im Skill-Paket
   (`scripts/skill_packen.sh` kopiert `skill/`). Wer den Skill hochlud, sah fünf Befehle
   nirgends, darunter den einzigen Weg von einem fremden PDF zurück in die Quelle. Der neue
-  Abschnitt „Weitere Befehle" beschreibt sie; die Beschreibung im Kopf nennt zusätzlich den
+  Abschnitt „Weitere Befehle“ beschreibt sie; die Beschreibung im Kopf nennt zusätzlich den
   Serienbrief und das Zurücklesen, weil beide einen eigenen Anlass haben, bei dem niemand von
   sich aus an einen DIN-Skill denkt.
 
@@ -854,7 +854,7 @@ möglichen Wege samt ihrem gemeinsamen Haken.
   Der Grund für die Änderung steht in der eigenen Messung: Eine `.eml` ist nach RFC 5322 eine
   Nachricht und kein Entwurf. Apple Mail, Thunderbird und Outlook für Mac zeigen sie als
   **Lesefenster**, und die Gegenprobe mit `X-Unsent: 1` ergab keinen Unterschied. Wer die
-  Nachricht abschicken wollte, musste „Weiterleiten" nehmen — mit dem zitierten Kopf, den das
+  Nachricht abschicken wollte, musste „Weiterleiten“ nehmen — mit dem zitierten Kopf, den das
   mit sich bringt.
 
   **Entwurf ja, Senden nie.** ADR 0038 verbot Programmsteuerung bisher ganz; die Begründung ist
@@ -882,7 +882,7 @@ möglichen Wege samt ihrem gemeinsamen Haken.
   `align="center"` bei fester Breite — ein Newsletter-Idiom, das nie begründet wurde. Sichtbar
   wurde das am 08.09.2026 in Outlook für Mac: Die Nachricht saß mittig im Fenster, während die
   Signatur, die das Mailprogramm darunter anfügt, am linken Rand begann, und eine vierspaltige
-  Rechnungstabelle wurde so weit in den Deckel gepresst, dass die Kopfzelle „Datum" **mitten im
+  Rechnungstabelle wurde so weit in den Deckel gepresst, dass die Kopfzelle „Datum“ **mitten im
   Wort** brach und Beträge zwischen Zahl und Währung. Das Fenster war dabei mehr als doppelt so
   breit wie die Spalte.
 
@@ -890,13 +890,13 @@ möglichen Wege samt ihrem gemeinsamen Haken.
   Absätzen und Listen, deren Zeilen sonst zu lang zum Lesen würden. Tabellen tragen sie nicht —
   eine Tabelle ist so breit, wie ihre Spalten es verlangen. Rechtsbündige Zellen brechen
   zusätzlich nicht mehr zwischen Zahl und Einheit; das ist eine Anweisung an die Darstellung und
-  ausdrücklich **keine** Ersetzung im Text, denn das geschützte Leerzeichen vor „EUR" steht auf
+  ausdrücklich **keine** Ersetzung im Text, denn das geschützte Leerzeichen vor „EUR“ steht auf
   einer Einzelquelle und darf nach der Quellenlage nicht automatisch gesetzt werden.
 
-  Dabei fiel die Prüfung auf, die das hätte melden sollen: „Breite begrenzt" suchte irgendein
+  Dabei fiel die Prüfung auf, die das hätte melden sollen: „Breite begrenzt“ suchte irgendein
   `max-width` im Dokument und konnte an der entscheidenden Stelle nie rot werden — sie war
   erfüllt, gerade weil der Deckel am Umschlag saß. An ihrer Stelle stehen zwei Prüfungen, die es
-  können: „Lesebreite am Fließtext" und „Layouttabellen ohne Breitendeckel", jede mit ihrer
+  können: „Lesebreite am Fließtext“ und „Layouttabellen ohne Breitendeckel“, jede mit ihrer
   eigenen Sabotage. (#264)
 
 - **`preview` prüft die Eingabe jetzt vorweg — und schreibt bei einem Fehler kein Bild.** Es war
@@ -905,19 +905,19 @@ möglichen Wege samt ihrem gemeinsamen Haken.
   Frontmatter-Feld endete unter `render` mit Code 1 und unter `preview` mit einem fertigen PNG.
 
   Das Bild sieht aus wie das Ergebnis. Wer es weitergibt, gibt einen Brief weiter, dessen
-  Ablehnungsgrund darin nicht zu sehen ist — Regel 0 („kein PDF ohne grünen `check`") hatte
+  Ablehnungsgrund darin nicht zu sehen ist — Regel 0 („kein PDF ohne grünen `check`“) hatte
   damit eine Tür, die niemand für eine hielt. `preview` übernimmt jetzt denselben Block wie
   `render`: Vorprüfung, bei einem Fehler Code 1 und kein Bild, Warnungen weiterhin nur gedruckt.
 
   **Nachgemessen wird weiterhin nichts**, und das bleibt so: Es entsteht kein PDF, also gibt es
   keine Geometrie zu messen. Eine Vorschau ist ein Blick, kein Beleg — nur stand das bis hierher
-  nirgends. Der Wechsel steht unter „Behoben", betrifft aber ein Verhalten, auf das sich jemand
+  nirgends. Der Wechsel steht unter „Behoben“, betrifft aber ein Verhalten, auf das sich jemand
   außerhalb des Repos verlassen haben könnte: Wer `preview` bisher auf einem unfertigen Entwurf
   laufen ließ, bekommt jetzt den Befund statt eines Bildes. (#267)
 
 ### Infrastruktur
 
-- **Die CI meldet einen deutschen Schließsatz, den GitHub nicht liest.** „Schließt #261" im
+- **Die CI meldet einen deutschen Schließsatz, den GitHub nicht liest.** „Schließt #261“ im
   PR-Rumpf sieht aus wie eine Zusage und ist keine: GitHub wertet beim Merge ausschließlich
   englische Keywords aus. Gemessen an PR #262 — der Rumpf trug den Satz, nach dem Squash-Merge
   stand das Issue weiter offen und musste von Hand geschlossen werden. Aufgefallen ist es nur,
@@ -926,7 +926,7 @@ möglichen Wege samt ihrem gemeinsamen Haken.
   `scripts/closing_keyword.py` prüft den Rumpf **je Nummer**, nicht als Menge: Ein englisches
   Keyword auf einen anderen Vorgang deckt den deutschen Satz nicht. Sätze in Auszügen zählen
   nicht mit — ein Prüfer, der an seiner eigenen Beschreibung anschlägt, ist keiner. Der neue
-  Job „Closing-Keyword" in `ci.yml` ruft ihn auf; soll ein Vorgang bewusst offen bleiben, gibt
+  Job „Closing-Keyword“ in `ci.yml` ruft ihn auf; soll ein Vorgang bewusst offen bleiben, gibt
   ein Maintainer dem Pull Request das Label `ohne-autoschluss`.
 
   Die Meldung bleibt dabei unter Windows lesbar: Dort schreibt Python in cp1252, und die
@@ -1011,7 +1011,7 @@ möglichen Wege samt ihrem gemeinsamen Haken.
   nannte weder die drei Formen von `email.logo` noch den Hinweis, den `email` dazu druckt — und
   eine Fähigkeit, die nur im Code steht, löst niemand aus: Ein Assistent wählt den Skill über
   Name und Beschreibung vor und liest den Rumpf erst danach. Der neue Abschnitt „Signatur und
-  Logo" sagt außerdem, dass der Hinweis und die Warnung `email.logo_kontrast` weiterzugeben sind
+  Logo“ sagt außerdem, dass der Hinweis und die Warnung `email.logo_kontrast` weiterzugeben sind
   — sonst hält jemand ein Logo für zugestellt, das bei einem Teil der Empfänger ein leerer
   Kasten bleibt. (#243)
 
@@ -1039,16 +1039,16 @@ möglichen Wege samt ihrem gemeinsamen Haken.
   Der Regelkatalog `regeln/email.yaml` behauptete weiter, den Zeitpunkt setze der Mailclient —
   dieselbe Aussage, die kurz zuvor an fünf anderen Stellen korrigiert worden war. Von dort
   wanderte sie über den Generator in die Referenz. `references/frontmatter.md` und `README.md`
-  nannten „höchstens 32 Zeichen" für Werte im Informationsblock, während die Grenze auf 21
+  nannten „höchstens 32 Zeichen“ für Werte im Informationsblock, während die Grenze auf 21
   steht: Wer sich danach richtete, lief in einen harten Abbruch. Und der Docstring von
-  `eml.baue()` sagte „ohne Date", zwanzig Zeilen unter dem Modulkopf, der das Gegenteil erklärt.
+  `eml.baue()` sagte „ohne Date“, zwanzig Zeilen unter dem Modulkopf, der das Gegenteil erklärt.
 
   Zwei funktionale Befunde dazu. Der Hinweis auf eine gesetzte Blindkopie erreichte nur die
-  Kommandozeile — der MCP-Dienst ruft `setze_email` direkt auf und gab nur „bestanden: true"
+  Kommandozeile — der MCP-Dienst ruft `setze_email` direkt auf und gab nur „bestanden: true“
   zurück, also genau die Lage, die der Hinweis verhindern sollte, auf dem Hauptweg des Pakets.
   Er steht jetzt an einer einzigen Stelle (`eml.blindkopie_hinweis`) und wird von beiden Wegen
   benutzt. Außerdem meldete `verify --email` bei einem unlesbaren `Bcc` „steht nicht im
-  sichtbaren Teil" — geprüft wurde dabei eine leere Adressmenge gegen den Text, also nichts.
+  sichtbaren Teil“ — geprüft wurde dabei eine leere Adressmenge gegen den Text, also nichts.
 
   Damit die beiden Textbefunde nicht wiederkehren, hält `tests/test_textkanon.py` sie jetzt
   fest: eine Prüfung gegen die zurückgenommene `Date`-Behauptung über **alle** Textquellen
@@ -1067,7 +1067,7 @@ möglichen Wege samt ihrem gemeinsamen Haken.
   kein Mailprogramm. Übergeben wird erst nach bestandener Prüfung, ohne Flag öffnet nichts, und
   ein Fehlschlag beim Öffnen lässt den Exit-Code bei 0 — die Nachricht ist ja geschrieben und
   gemessen. Dass sie im Mailprogramm als Lesefenster erscheint und nicht als Entwurf, bleibt
-  wahr und steht in der Doku; der nächste Handgriff heißt weiterhin „Weiterleiten"
+  wahr und steht in der Doku; der nächste Handgriff heißt weiterhin „Weiterleiten“
   ([ADR 0038](https://github.com/blitzsicht/falzmarke/blob/main/docs/entscheidungen/0038-oeffnen-ist-kein-versand.md)). (#239)
 
 - **`bcc:` im Frontmatter einer E-Mail.** Ein verbreitetes Muster in der Geschäftskorrespondenz
@@ -1079,7 +1079,7 @@ möglichen Wege samt ihrem gemeinsamen Haken.
 
   Die Adresse steht jetzt als `Bcc:` in der `.eml` und wird wie `an:` und `cc:` auf ihre Form
   geprüft. **In der `.html`-Vorschau erscheint sie nicht:** Die ist zum Ansehen und
-  Herauskopieren da, und eine sichtbare Zeile „Blindkopie" ginge beim Kopieren mit — das Feld
+  Herauskopieren da, und eine sichtbare Zeile „Blindkopie“ ginge beim Kopieren mit — das Feld
   täte dann das Gegenteil dessen, wofür es da ist. `verify --email` misst eigens, dass keine
   ihrer Adressen im Text- oder HTML-Teil vorkommt.
 
@@ -1095,10 +1095,10 @@ möglichen Wege samt ihrem gemeinsamen Haken.
 ### Geändert
 
 - **Der Skill löst jetzt auch bei E-Mails aus.** Seine Beschreibung nannte ausschließlich
-  Papier — Brief, Kündigung, Mahnung, „etwas zum Ausdrucken oder Verschicken" — und kein
+  Papier — Brief, Kündigung, Mahnung, „etwas zum Ausdrucken oder Verschicken“ — und kein
   einziges E-Mail-Wort. Da ein Assistent den Skill allein über Name und Beschreibung
   vorauswählt, war die seit v0.8.0 fertige E-Mail-Fassung im Auslösepfad unsichtbar: Wer
-  „schreib eine E-Mail an …" sagte, bekam eine frei getippte Nachricht statt einer geprüften
+  „schreib eine E-Mail an …“ sagte, bekam eine frei getippte Nachricht statt einer geprüften
   `.eml`. Die Beschreibung nennt jetzt beide Ausgaben, führt die Auslöser für Mails mit und
   verbietet die selbstgebaute Nachricht so ausdrücklich, wie sie den frei gesetzten Brief
   schon verbot. (#238)
@@ -1117,7 +1117,7 @@ möglichen Wege samt ihrem gemeinsamen Haken.
   `SOURCE_DATE_EPOCH` —, weil das Datum beim Versand entstehen sollte. Diese Begründung setzte
   voraus, dass das Mailprogramm die `.eml` als Entwurf übernimmt und den Zeitpunkt selbst
   einsetzt; nach der eigenen Messung in `docs/mailprogramme-2026-08-27.md` tut das keines der
-  drei geprüften Programme. Der gangbare Weg ist „Weiterleiten", und dabei baut das Programm
+  drei geprüften Programme. Der gangbare Weg ist „Weiterleiten“, und dabei baut das Programm
   den zitierten Kopf aus den Feldern der Quelle: Das fehlende Feld erschien dort als
   `Datum: (null), (null)` und ging mit raus. RFC 5322, Abschnitt 3.6, führt `orig-date`
   ohnehin als Pflichtfeld. `SOURCE_DATE_EPOCH` behält den Vorrang und bleibt der Weg zum
@@ -1143,15 +1143,15 @@ möglichen Wege samt ihrem gemeinsamen Haken.
   Prüfer am fertigen PDF durch, ordnet der den Überlauf der Wertespalte zu.
 
   Beim Nachmessen stellte sich heraus, dass die Grenze selbst zu hoch war: **21 Zeichen statt
-  32.** Die alte Zahl kam aus „43 mm Spaltenbreite, 1,24 mm je Zeichen", und beides war zu groß
+  32.** Die alte Zahl kam aus „43 mm Spaltenbreite, 1,24 mm je Zeichen“, und beides war zu groß
   — die Spalte beginnt bei 157 mm und der Satzspiegel endet bei 190, nutzbar sind also 33 mm,
-  und ein Name braucht rund 1,55 mm je Zeichen statt 1,24. Schon „Dr. Anna Meyer-Schmidt" (22
+  und ein Name braucht rund 1,55 mm je Zeichen statt 1,24. Schon „Dr. Anna Meyer-Schmidt“ (22
   Zeichen) riss den Rand, ohne beanstandet zu werden. Beide Kopien der Konstanten sind dabei zu
   einer zusammengeführt; sie standen unabhängig in `cli.py` und `lint.py`, ohne dass ein Test
   sie zusammenhielt. (#244)
 
 - **Die Warnung zu `datum:` in einer E-Mail erklärte das Gegenteil dessen, was geschieht.** Sie
-  sagte „der Mailclient setzt es beim Versand" — seit der `Date`-Kopfzeile (#236) setzt
+  sagte „der Mailclient setzt es beim Versand“ — seit der `Date`-Kopfzeile (#236) setzt
   falzmarke den Zeitpunkt selbst. Der Hinweis, dass das Feld in einer Mail nichts bewirkt,
   bleibt richtig; nur seine Begründung stimmte nicht mehr. Betroffen waren neben dem Nutzertext
   vier weitere Stellen mit derselben Aussage, darunter `references/frontmatter.md`, aus dem auch
@@ -1170,13 +1170,13 @@ möglichen Wege samt ihrem gemeinsamen Haken.
   39 Einträgen von Hand waren es bei den nächsten vier wieder null. Der Grund war strukturell:
   Es gab keinen Ort für einen Eintrag ohne Version. Den gibt es jetzt — je Vorgang eine Datei
   in `changelog.d/`, die beim Release zu einem Versionsabschnitt gebündelt wird
-  (`scripts/changelog.py --buendeln`). Der Pflicht-Check „Changelog-Eintrag" verlangt sie;
+  (`scripts/changelog.py --buendeln`). Der Pflicht-Check „Changelog-Eintrag“ verlangt sie;
   ausgenommen sind Abhängigkeits-Aktualisierungen, reine Doku, reine Tests und Vorgänge mit
   dem Label `ohne-changelog`. (#229)
 
 - **Der Sammelpunkt für Abhängigkeits-Aktualisierungen entsteht von selbst.** Sie sind vom
   Changelog-Eintrag ausgenommen, und ADR 0037 versprach, sie erschienen beim Release „als
-  Sammelpunkt" — den aber niemand schrieb: Er stand in keiner Anleitung, kein Werkzeug verlangte
+  Sammelpunkt“ — den aber niemand schrieb: Er stand in keiner Anleitung, kein Werkzeug verlangte
   ihn. Damit war die Bauart wiederhergestellt, gegen die #229 gebaut wurde. Jetzt liest
   `scripts/changelog.py --buendeln` den git-Verlauf seit dem letzten Versions-Tag und erzeugt den
   Punkt selbst. Ist der Verlauf nicht lesbar, bricht es ab, statt stillschweigend nichts zu
@@ -1199,12 +1199,12 @@ gültig.
 - **`verify --email` schlug bei jeder nummerierten Liste fehl.** Der HTML-Teil setzt die Liste
   als `<ol><li>`; die Ziffern erzeugt der Browser über CSS-Counter und stehen deshalb **nicht im
   Textstrom**. Der Textteil schreibt sie aus (`1. `, `2. `). Die Prüfung „Text und HTML sagen
-  dasselbe" zählte sie als fehlende Wörter — einen je Listenpunkt. (#216)
+  dasselbe“ zählte sie als fehlende Wörter — einen je Listenpunkt. (#216)
 - **`verify --mit-quelle` schlug bei jedem Markdown-Link fehl.** Verglichen wurde die rohe
   Quelle Token für Token gegen den gesetzten Text, und die Markdown-Schreibweise für Links
   überlebt das nicht:
   Gemeldet wurden Syntaxreste wie `Blitzsicht](https://…`, während inhaltlich nichts fehlte.
-  Damit war Regel 0 — „kein Versand ohne grünen `verify --email`" — für jede Mail mit Link
+  Damit war Regel 0 — „kein Versand ohne grünen `verify --email`“ — für jede Mail mit Link
   unerfüllbar. Das ist die schlechtere Sorte Fehlalarm: Sie trainiert darauf, ein rotes `verify`
   zu übergehen. (#213)
 
@@ -1265,7 +1265,7 @@ mit Überschriften und Zitaten — und ein Weg zurück aus einem bestehenden Bri
 - **Adressen werden auf Form geprüft, nicht nur zerlegt.** `email.utils.parseaddr` aus der
   Standardbibliothek ließ vier von acht ungültigen Adressen durch. (#125)
 - **Das 12-pt-Zeilenraster wird gemessen.** Der Briefsatz rechnet in einer Grundzeile von
-  4,2333 mm, und jede „Leerzeile" der Norm ist genau eine Rasterzeile. Darauf beruhen alle
+  4,2333 mm, und jede „Leerzeile“ der Norm ist genau eine Rasterzeile. Darauf beruhen alle
   Abstände zwischen Betreff, Anrede, Text und Gruß — geprüft wurde bisher alles außer dem
   Raster selbst. (#140)
 - **Zitieren, ohne den Wortlaut anzufassen**, und ein Auszug, der über den Seitenwechsel läuft.
@@ -1287,7 +1287,7 @@ mit Überschriften und Zitaten — und ein Weg zurück aus einem bestehenden Bri
 - **Eine zu lange Auszugszeile wird gemeldet, bevor sie gesetzt wird** — vorher fiel sie erst
   im fertigen PDF auf. (#173)
 - **Die Meldung nennt das Zeichen, das wirklich dasteht.** Eine einelementige Liste wurde als
-  „einzelner Strich" gemeldet, auch wenn dort ein Stern stand. (#162)
+  „einzelner Strich“ gemeldet, auch wenn dort ein Stern stand. (#162)
 - **Ein Befund nennt die Stelle in der Eingabe, nicht nur das Maß.** (#163)
 - **`pillow` fehlte in `requirements.txt` und im Bootstrap** — es war nur transitiv vorhanden
   und hätte mit der nächsten Abhängigkeitsänderung still verschwinden können. (#194)
@@ -1346,7 +1346,7 @@ Das Skill-Paket ließ sich nicht mehr hochladen. Es gibt jetzt zwei.
 
 - **`falzmarke.skill` war zu groß für claude.ai.** Mit dem `typst`-Wheel aus v0.8.1 wog die
   Datei 34,71 MB; der Upload-Dialog nimmt höchstens 30 MB und meldet wörtlich „Zip file must be
-  less than 30MB". Der Fehler fiel erst beim Einspielen auf — das Bauen gelang. Damit war der in
+  less than 30MB“. Der Fehler fiel erst beim Einspielen auf — das Bauen gelang. Damit war der in
   der README beschriebene Hauptweg seit v0.8.1 unbrauchbar.
 
   Das Release trägt jetzt **zwei Pakete**: `falzmarke.skill` (~0,8 MB, überall einspielbar, der
@@ -1422,7 +1422,7 @@ Repositories.
   wird dabei keine Konformität, die die Anlage nicht hat: Mit veraPDF gemessen, welche Aussage
   nach dem Zusammenführen noch trägt. (#1)
 - **Englische Beschriftung.** `sprache: en` im Brief oder im Profil setzt Leitwörter,
-  Monatsnamen, „Anlagen", „Verteiler" und die Seitenzählung auf Englisch; der Brief schlägt das
+  Monatsnamen, „Anlagen“, „Verteiler“ und die Seitenzählung auf Englisch; der Brief schlägt das
   Profil, wie bei `form`. Von 32 Prüfwerten sind 31 in beiden Sprachen bitgleich — die eine
   Abweichung steht namentlich im Test, damit sie kein Freibrief wird. (#11)
 - **falzmarke spricht MCP.** `falzmarke mcp` startet einen stdio-Dienst mit vier Werkzeugen:
@@ -1468,7 +1468,7 @@ Repositories.
 ## v0.7.3 — 26.08.2026
 
 ### Behoben
-- **Der Schritt „Prüfsummen ausgeben" hat den Upload verhindert.** Er schrieb die Summen mit
+- **Der Schritt „Prüfsummen ausgeben“ hat den Upload verhindert.** Er schrieb die Summen mit
   `| tee dist/SHA256SUMS` in genau das Verzeichnis, das die Publish-Action vollständig
   hochlädt. Sie prüft vorher jede Datei darin und bricht an der ersten ab, die kein
   Distributions-Format ist — Lauf 32966455275:
@@ -1511,7 +1511,7 @@ braucht deshalb eine neue Versionsnummer — v0.7.2 ist verbraucht.
   laeuft als Docker-Container und zieht ihr Image mit dem `action_ref` als Tag. Beim
   SHA-Pinning ist das der Commit-SHA — und dafuer existiert im Registry kein Image, sie werden
   nur fuer Release-Tags gebaut (`manifest unknown`). Die Action ist damit die eine Stelle, an
-  der die Hausregel „Actions auf Commit-SHAs pinnen" nicht anwendbar ist; sie steht jetzt als
+  der die Hausregel „Actions auf Commit-SHAs pinnen“ nicht anwendbar ist; sie steht jetzt als
   begruendete Ausnahme auf `v1.14.2`, der auf denselben Commit zeigt.
 
 Auch dieser Lauf brach **vor** dem Upload ab. Auf PyPI ist weiterhin nichts gelandet.
@@ -1544,8 +1544,8 @@ falsche Weg gewesen; ein neuer Tag ist der richtige.
   Lauf mit Exit 2 und `NICHT GEPRÜFT` statt mit 0. (#34)
 - **Der Briefkörper wird auf jeder Seite gemessen.** Die Textprüfung lief auf `pages[0]`; ein
   mehrseitiger Brief konnte ab Seite 2 aus dem Satzspiegel laufen und trotzdem „Maße
-  eingehalten" melden. Jetzt drei Messungen je Seite, und der Bericht nennt Seite **und**
-  Element: `Seite 2, rechter Rand — 190.88 bei „1234567"`. (#35)
+  eingehalten“ melden. Jetzt drei Messungen je Seite, und der Bericht nennt Seite **und**
+  Element: `Seite 2, rechter Rand — 190.88 bei „1234567“`. (#35)
 - **Die Quellenlage steht dort, wo kein README gelesen wird.** Paketbeschreibung,
   GitHub-Beschreibung und Skill-Beschreibung tragen den Vorbehalt jetzt selbst — testgesichert,
   mit Gegenprobe je Ort. Wer über einen Paketindex oder einen Prompt kommt, sieht kein README;
@@ -1554,7 +1554,7 @@ falsche Weg gewesen; ein neuer Tag ist der richtige.
 ### Geändert
 - **Die Paketbeschreibung wurde umgebaut, nicht ergänzt.** Sie belegte 107 Zeichen, GitHub
   schneidet bei 120 ab und die Paketsuche bei rund 100 — für einen Zusatz war kein Platz. Aus
-  „auf den Millimeter geprüft" wurde „am fertigen PDF nachgemessen": dieselbe Leistung, keine
+  „auf den Millimeter geprüft“ wurde „am fertigen PDF nachgemessen“: dieselbe Leistung, keine
   Normaussage, und der Vorbehalt steht als eigener Satz dahinter. 90 Zeichen, also vor beiden
   Abschneidepunkten.
 - **Das README ist als Projektseite lesbar.** Es wird als Langbeschreibung nach PyPI
@@ -1562,8 +1562,8 @@ falsche Weg gewesen; ein neuer Tag ist der richtige.
   Banner in Zeile 3. Alle auf absolute URLs umgestellt, Bilder über `/raw/`, Dokumente über
   `/blob/`. `twine check` fängt das nicht: Es prüft, ob die Beschreibung rendert, nicht ob die
   Ziele existieren.
-- **Die Maßzahl im README altert nicht mehr still.** Dort stand „30 Maße je PDF" — schon vorher
-  ungenau. Jetzt „33 Maße je Seite", an einen echten Lauf gebunden: Wer eine Prüfung hinzufügt,
+- **Die Maßzahl im README altert nicht mehr still.** Dort stand „30 Maße je PDF“ — schon vorher
+  ungenau. Jetzt „33 Maße je Seite“, an einen echten Lauf gebunden: Wer eine Prüfung hinzufügt,
   sieht Rot statt einer stillen Abweichung.
 - Trove-Classifier und vier zusätzliche Projekt-Adressen in `pyproject.toml`; ohne sie wäre das
   Paket auf PyPI praktisch unauffindbar. (#33)
@@ -1609,8 +1609,8 @@ nicht beteiligt und wird nicht mitgeliefert. Die fertigen MP4-Dateien sind Ergeb
 Software, und stehen wie das übrige Repository unter MIT; wer den Film selbst neu rendert,
 braucht ab vier Beschäftigten eine Company License. Deshalb wird lokal gerendert und das
 Ergebnis eingecheckt, statt in CI zu bauen. Einzelheiten in `THIRD_PARTY_LICENSES.md`,
-Abschnitt „Nur für die Videoerzeugung". Die Aussage „Alle Abhängigkeiten sind permissiv
-lizenziert" heißt entsprechend jetzt „Alle Abhängigkeiten **des Programms**".
+Abschnitt „Nur für die Videoerzeugung“. Die Aussage „Alle Abhängigkeiten sind permissiv
+lizenziert“ heißt entsprechend jetzt „Alle Abhängigkeiten **des Programms**“.
 ## v0.5.2 — 25.08.2026
 
 ### Geändert
@@ -1628,11 +1628,11 @@ lizenziert" heißt entsprechend jetzt „Alle Abhängigkeiten **des Programms**"
   Beweisleiste aus belegten Angaben, ein Vergleich mit dem typischen Arbeitsablauf (nicht mit
   Produkten), Funktionen als Nutzen statt als Komponentenliste, und eine Beweissektion **vor**
   der Installation — an ihr entscheidet sich das Versprechen, also steht sie nicht am Ende.
-- **Ein Abschnitt „Sicherheit"**, der ausschließlich nennt, was im Code steht und geprüft ist:
+- **Ein Abschnitt „Sicherheit“**, der ausschließlich nennt, was im Code steht und geprüft ist:
   `safe_load` durchgängig, Markdown-Positivliste, Brieftext als maskierte Zeichenkette statt
   Typst-Code, Ordnergrenze für Datei-Angaben samt Symlink-Auflösung, begrenztes
   Typst-Wurzelverzeichnis, abgeschaltete Systemschriften, keine Netzwerkbibliothek im
-  Renderpfad. Ausdrücklich **nicht** „sicher", „gehärtet" oder „auditiert" — ein unabhängiges
+  Renderpfad. Ausdrücklich **nicht** „sicher“, „gehärtet“ oder „auditiert“ — ein unabhängiges
   Audit gibt es nicht.
 - **Referenzteile ausgelagert**: [`docs/cli.md`](docs/cli.md) (Befehle, Exit-Codes, was geprüft
   wird), [`docs/profiles.md`](docs/profiles.md) (Profil anlegen, Suchreihenfolge, eigener
@@ -1649,8 +1649,8 @@ lizenziert" heißt entsprechend jetzt „Alle Abhängigkeiten **des Programms**"
   belegt **Herkunft und Bauweg, nicht Fehlerfreiheit** — genau so ist es dort formuliert.
 
 ### Behoben
-- **Drei veraltete Zähler.** Die README nannte „alle sieben Beispiele" (es sind acht) und
-  „28 Prüfungen" (es sind 30). Genau die Sorte Zahl, die bei jeder Änderung altert, ohne dass
+- **Drei veraltete Zähler.** Die README nannte „alle sieben Beispiele“ (es sind acht) und
+  „28 Prüfungen“ (es sind 30). Genau die Sorte Zahl, die bei jeder Änderung altert, ohne dass
   ein Test anschlägt — sie ist jetzt raus oder aus der Wirklichkeit abgeleitet.
 - **Ein toter Verweis** in `docs/normmasse.md`: `skill/scripts/geometrie.py` gibt es nicht, die
   Datei liegt unter `skill/falzmarke/`. Gefunden beim Prüfen aller 66 internen Verweise.
@@ -1717,7 +1717,7 @@ lizenziert" heißt entsprechend jetzt „Alle Abhängigkeiten **des Programms**"
   war — eine zweite Kopie hätte das wiederholt.
 - **Die Grenzprüfung läuft jetzt vor der Existenzprüfung.** Andersherum verriet die Meldung, ob
   eine Datei außerhalb liegt: `../../../etc/shadow` antwortete mit „nicht gefunden“ oder „muss
-  im Profilordner liegen" — je nachdem, und das ist ein Existenz-Orakel gegenüber einem Brief
+  im Profilordner liegen“ — je nachdem, und das ist ein Existenz-Orakel gegenüber einem Brief
   aus fremder Hand.
 - **`INFOBLOCK_REIHENFOLGE` und `PFLICHTFELDER`** stehen jetzt in `lint.py` statt in `cli.py`;
   `cli` bezieht sie von dort. Zwei Listen für denselben Datenvertrag wären eine Kopie, die bei

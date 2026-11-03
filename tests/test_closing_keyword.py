@@ -2,7 +2,7 @@
 
 WARUM ES DAS GIBT
 
-PR #262 trug im Rumpf „Schließt #261." Nach dem Squash-Merge auf `main` meldete
+PR #262 trug im Rumpf „Schließt #261.“ Nach dem Squash-Merge auf `main` meldete
 `gh issue view 261` weiterhin `OPEN`; das Issue musste von Hand geschlossen
 werden. GitHub wertet ausschließlich englische Keywords aus — `close`, `fix`,
 `resolve` in ihren Beugungen. Dieses Repository schreibt deutsch, die Falle
@@ -64,7 +64,7 @@ def test_englisches_keyword_allein_geht_durch():
 
 
 def test_deutscher_satz_ohne_nummer_geht_durch():
-    """„Schließt die Lücke" ist Prosa, keine Zusage an einen Vorgang."""
+    """„Schließt die Lücke“ ist Prosa, keine Zusage an einen Vorgang."""
     gut, _ = closing_keyword.pruefe("Schließt die Lücke im Prüfer und behebt den Rest.")
     assert gut
 
@@ -85,8 +85,8 @@ def test_leerer_rumpf_geht_durch():
 def test_keyword_auf_eine_andere_nummer_deckt_nichts():
     """Je Nummer, nicht als Menge.
 
-    „Closes #99" neben „Schließt #261" ist kein Beleg für #261. Eine Prüfung,
-    die nur fragt „steht irgendwo ein englisches Keyword?", ließe genau den
+    „Closes #99“ neben „Schließt #261“ ist kein Beleg für #261. Eine Prüfung,
+    die nur fragt „steht irgendwo ein englisches Keyword?“, ließe genau den
     Rumpf durch, der zwei Vorgänge nennt und einen davon vergisst.
     """
     gut, grund = closing_keyword.pruefe("Schließt #261. Closes #99")
@@ -112,7 +112,7 @@ def test_ausgeschriebene_adresse_zaehlt():
 CI = REPO / ".github" / "workflows" / "ci.yml"
 
 # Was GitHub für `pull_request` ohne `types:` einsetzt (Dokumentation „Events
-# that trigger workflows", Abschnitt pull_request; an PR #432 bestätigt: nach
+# that trigger workflows“, Abschnitt pull_request; an PR #432 bestätigt: nach
 # `gh pr edit` lief nichts neu).
 VORGABE_TYPEN = ("opened", "synchronize", "reopened")
 
@@ -220,7 +220,7 @@ def test_die_meldung_bleibt_unter_cp1252_lesbar(tmp_path):
 
     Der Test erzwingt cp1252 ueber PYTHONIOENCODING und laeuft damit auf jedem
     System. Ohne `_ausgabe_auf_utf8()` endet er mit genau der Meldung aus der
-    CI: „'utf-8' codec can't decode byte 0xdf".
+    CI: „'utf-8' codec can't decode byte 0xdf“.
     """
     datei = tmp_path / "pr.json"
     datei.write_text('{"body": "Schließt #261.", "labels": []}', encoding="utf-8")

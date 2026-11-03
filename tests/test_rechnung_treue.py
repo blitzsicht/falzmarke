@@ -2,7 +2,7 @@
 
 Dass beide Ausgaben aus einer Quelle entstehen, ist ein Bauprinzip und kein
 Nachweis. Abnahme 2 verlangt ausdrücklich, die Übereinstimmung zu **prüfen**,
-„nicht durch Zusicherung": Der Mensch liest das PDF, die Maschine die XML, und
+„nicht durch Zusicherung“: Der Mensch liest das PDF, die Maschine die XML, und
 eine Abweichung fällt genau dann niemandem auf, wenn beide für sich stimmig
 aussehen. Ein PDF mit 1.190,00 € neben einer XML mit 1.109,00 € ist der teure
 Fall (#119).
@@ -14,7 +14,7 @@ voneinander abweichen.
 
 **Die Zahlen stehen verschieden da, und das ist die Falle.** Im PDF steht
 `1.240,00 EUR`, in der XML `1240.00`. Ein Vergleich der Zeichenketten fände nie
-eine Übereinstimmung — und eine Prüfung, die „keine Abweichung" meldet, weil sie
+eine Übereinstimmung — und eine Prüfung, die „keine Abweichung“ meldet, weil sie
 nichts findet, wäre grün, ohne je etwas gemessen zu haben. Deshalb die
 Gegenprobe unten: Ein verfälschter Betrag MUSS auffallen.
 """
@@ -89,7 +89,7 @@ def gesetzt(tmp_path_factory):
 # ── Abnahme 2: dieselben Angaben in beiden Wegen ────────────────────────────
 
 def test_die_rechnungsnummer_steht_in_beiden(gesetzt):
-    """Gezielt aus `ExchangedDocument`, nicht „die erste ID im Baum".
+    """Gezielt aus `ExchangedDocument`, nicht „die erste ID im Baum“.
 
     Der erste Entwurf nahm `[k for k in baum.iter() if k.tag.endswith('}ID')][0]`
     — das ist die Guideline-ID `urn:cen.eu:en16931:2017`. Der Test hätte damit
@@ -174,7 +174,7 @@ def test_ein_betrag_nur_im_pdf_faellt_auf(tmp_path, monkeypatch):
 # Alle drei hat dort ein strengerer Prüfer gefunden, nachdem Mustang sie
 # durchgelassen hatte (#435, #283/#303, #165). Bei uns sind sie am 13.09.2026
 # nicht aufgetreten — diese Tests halten fest, dass es so bleibt. Jeder trägt
-# seine Vorbedingung: Ohne sie wäre „nichts gefunden" kein Befund.
+# seine Vorbedingung: Ohne sie wäre „nichts gefunden“ kein Befund.
 
 def test_das_xmp_traegt_umlaute_unversehrt(gesetzt):
     """e-invoice-eu #435: Nicht-ASCII-Zeichen im XMP zerstört."""

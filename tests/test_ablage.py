@@ -53,7 +53,7 @@ def _antwort(auf=QUELLE, betreff="AW: Angebot S1", tage=1):
 
 def test_ohne_profilzeile_und_ohne_archive_wandert_nichts():
     """Der gemessene Normalfall an den Konten des Betreibers: Es gibt einen
-    Ordner „Archiv", und `\\Archive` kennzeichnet ihn keiner."""
+    Ordner „Archiv“, und `\\Archive` kennzeichnet ihn keiner."""
     _, sitzung = _postfach()
     with sitzung:
         ordner, grund = ablage.ablageordner(sitzung, None)
@@ -63,7 +63,7 @@ def test_ohne_profilzeile_und_ohne_archive_wandert_nichts():
 
 def test_mit_archive_kennzeichen_wird_es_genommen():
     """Die Gegenprobe zum Test darüber: Ist der Ordner gekennzeichnet, trägt
-    der Weg — sonst belegte „wandert nichts" nur, dass nie etwas wandert."""
+    der Weg — sonst belegte „wandert nichts“ nur, dass nie etwas wandert."""
     _, sitzung = _postfach(sonder={"INBOX": "", "Gesendete Elemente": "\\Sent",
                                    "Archiv": "\\Archive"})
     with sitzung:
@@ -280,7 +280,7 @@ def test_eine_unsendbare_kennung_ist_kein_laengst_weggeraeumt():
 def test_zwei_kennungen_in_einer_zeile_finden_beide_nachrichten():
     """Als **eine** Teilkette gesucht, trifft `<a@x> <b@y>` keine der beiden
     Message-IDs. Beide Nachrichten blieben im Eingang und würden trotzdem als
-    „längst weggeräumt" gezählt, also als erledigt gemeldet, ohne es zu sein.
+    „längst weggeräumt“ gezählt, also als erledigt gemeldet, ohne es zu sein.
     """
     erste, zweite = "<a@example.org>", "<b@example.org>"
     _, sitzung = _postfach(eingang=[_eingegangen(kennung=erste, betreff="Erstes"),
@@ -294,7 +294,7 @@ def test_zwei_kennungen_in_einer_zeile_finden_beide_nachrichten():
 
 def test_eine_antwort_zaehlt_erst_als_erledigt_wenn_keine_kennung_traf():
     """Die Gegenrichtung: Nennt eine Antwort zwei Kennungen und liegt nur eine
-    im Eingang, ist sie nicht „ohne Nachricht im Eingang" — sonst zählte
+    im Eingang, ist sie nicht „ohne Nachricht im Eingang“ — sonst zählte
     dieselbe Antwort gleichzeitig als Zug und als längst erledigt.
     """
     _, sitzung = _postfach(eingang=[_eingegangen(kennung="<a@example.org>")],
@@ -306,7 +306,7 @@ def test_eine_antwort_zaehlt_erst_als_erledigt_wenn_keine_kennung_traf():
 
 def test_eine_gekappte_suche_im_gesendet_ordner_wird_gemeldet(monkeypatch):
     """Über `postfach.GRENZE` sieht `koepfe` nur die jüngsten Mails. Ohne
-    Hinweis liest sich „0 von 2 Antworten seit …" wie ein vollständiges
+    Hinweis liest sich „0 von 2 Antworten seit …“ wie ein vollständiges
     Fenster, und was davor liegt, wird nie aufgeräumt. `entwurfsbuch` meldet
     das für dieselben Ordner längst (ADR 0055).
     """
@@ -336,7 +336,7 @@ def test_gegenprobe_ohne_kappung_steht_kein_hinweis_da():
 # ── Der Zug ─────────────────────────────────────────────────────────────────
 
 def test_ohne_machen_bewegt_der_lauf_nichts():
-    """Die Abnahmezeile „ein Lauf ohne --machen verändert kein Postfach"."""
+    """Die Abnahmezeile „ein Lauf ohne --machen verändert kein Postfach“."""
     attrappe, _ = _postfach(eingang=[_eingegangen()], gesendet=[_antwort()])
     vorher = len(attrappe.ordner["INBOX"]), len(attrappe.ordner["Archiv"])
     bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", umgebung={})
@@ -381,7 +381,7 @@ def test_ohne_move_in_capability_wird_nichts_nachgebaut():
 
 
 def test_scheitert_der_zug_bleiben_die_gefundenen_nachrichten_sichtbar():
-    """„0 von 0 Antworten" ist die stärkste Form von „nichts geschehen" — und
+    """„0 von 0 Antworten“ ist die stärkste Form von „nichts geschehen“ — und
     stand bisher genau dort, wo etwas geschehen sein kann: Bricht `UID MOVE`
     ab, nachdem der Server einen Teil des Satzes bewegt hat, verwarf der
     `except` den fertigen Plan samt UIDs (#438).
@@ -439,7 +439,7 @@ def test_bricht_uid_move_selbst_ab_bleibt_offen_was_bewegt_ist(monkeypatch):
 
 
 def test_ein_grund_ohne_plan_bleibt_eine_zeile():
-    """Gegenstück: ohne Züge kein Satz über „gefunden"."""
+    """Gegenstück: ohne Züge kein Satz über „gefunden“."""
     bericht = ablage.Bericht(adresse="joe@example.org", ziel=None, grund="Verbindung abgelehnt",
                              seit=None, antworten=0, nicht_im_eingang=0, zuege=(), verschoben=0)
     assert ablage.zeilen(bericht) == ["NICHT GEPRÜFT  joe@example.org: Verbindung abgelehnt"]
@@ -479,7 +479,7 @@ def test_ein_unerreichbares_postfach_ist_ein_grund(monkeypatch):
 
 
 def test_der_trockenlauf_haelt_auch_an_einer_sperrenden_attrappe():
-    """Die scharfe Fassung der Zusage „ohne --machen wird nichts bewegt".
+    """Die scharfe Fassung der Zusage „ohne --machen wird nichts bewegt“.
 
     Hier verbietet die Attrappe `SELECT` und `UID MOVE` wie überall sonst im
     Bestand. Der Lauf ist nur grün, wenn er beides nicht einmal versucht —
@@ -512,7 +512,7 @@ def _profilbefunde(ablage_wert) -> set[str]:
 
 
 def test_ein_leeres_feld_meldet():
-    """`ablage: ""` soll melden, nicht stillschweigend „verschiebe nichts"
+    """`ablage: ""` soll melden, nicht stillschweigend „verschiebe nichts“
     bedeuten — derselbe Grund wie bei `email.stil.person`."""
     assert "email.ablage" in _profilbefunde("")
     assert "email.ablage" in _profilbefunde(["Archiv"])
@@ -650,7 +650,7 @@ def test_gegenprobe_zehn_jahre_passieren_die_eingabepruefung(monkeypatch, capsys
 
 def test_zwei_profile_mit_verschiedener_ablage_sind_ein_grund(tmp_path, monkeypatch, capsys):
     """Dasselbe Konto, zwei Profile, verschiedenes `email.ablage`. Der Hinweis
-    sagte „keines wird genommen" — genommen wurde `\\Archive`, und mit
+    sagte „keines wird genommen“ — genommen wurde `\\Archive`, und mit
     `--machen` wanderte die Post dorthin. Unter `--json` stand das auf keinem
     Kanal (#438).
     """
@@ -714,7 +714,7 @@ def _befehlswoerter(baum) -> set[str]:
     Prosa statt aus Code erfüllt werden.
 
     Verglichen wird auf Gleichheit, nicht auf Vorkommen: Der Satz „falzmarke
-    baut es nicht aus COPY, STORE und EXPUNGE nach" ist kein Befehl.
+    baut es nicht aus COPY, STORE und EXPUNGE nach“ ist kein Befehl.
     """
     import ast
 

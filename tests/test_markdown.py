@@ -113,7 +113,7 @@ def test_einzelne_nummer_wird_gesetzt_und_gemeldet(eingabe, start, erwartet):
     # Der Startwert bleibt erhalten: Es wird nichts still umnummeriert.
     assert erwartet in ergebnis, f"{erwartet!r} fehlt in:\n{ergebnis}"
     # Nach Regel filtern, nicht zählen: Seit #330 meldet derselbe Text zusätzlich,
-    # was der Typografie-Pass zurückhält („Rechnung 4711" braucht ein geschütztes
+    # was der Typografie-Pass zurückhält („Rechnung 4711“ braucht ein geschütztes
     # Leerzeichen). Das ist eine andere Aussage unter einer anderen Regel — die
     # Markdown-Meldung muss trotzdem genau einmal kommen.
     eigene = [h for h in hinweise if h.regel == "markdown"]
@@ -247,7 +247,7 @@ def test_was_markdown_md_als_fehler_listet_bricht_auch_ab(tmp_path):
 # ── Die Meldung nennt das Zeichen, das dasteht (#162) ───────────────────────
 #
 # Bis zum 29.08.2026 sprach sie fest von einem „einzelnen Strich am
-# Zeilenanfang" — auch bei `  * Untereintrag`, wo weder ein Strich steht noch
+# Zeilenanfang“ — auch bei `  * Untereintrag`, wo weder ein Strich steht noch
 # etwas am Zeilenanfang. Der Vorschlag zum Schützen lautete `\- 5 °C` und passte
 # auf keinen der beiden Punkte.
 #

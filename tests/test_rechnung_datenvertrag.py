@@ -87,7 +87,7 @@ def _regeln(bericht, schwere: str | None = None) -> list[str]:
 
 def test_eine_vollstaendige_rechnung_ist_sauber(tmp_path):
     bericht = _bericht(tmp_path)
-    # Ungefiltert: Der Füllsatz „unsere Rechnung für …" trug bis #386 einen
+    # Ungefiltert: Der Füllsatz „unsere Rechnung für …“ trug bis #386 einen
     # Typografie-Hinweis, obwohl er nichts zusammenzuhalten hat. Jetzt ist er still.
     befunde = bericht.befunde
     assert not befunde, [b.als_zeile("rechnung.md") for b in befunde]
@@ -95,7 +95,7 @@ def test_eine_vollstaendige_rechnung_ist_sauber(tmp_path):
 
 def test_der_typ_ist_bekannt(tmp_path):
     """Die Vorbedingung aller anderen: Ohne `rechnung` in TYPEN fiele die Datei
-    mit „typ ist unbekannt" auf den Brief zurück, und die Rechnungsprüfungen
+    mit „typ ist unbekannt“ auf den Brief zurück, und die Rechnungsprüfungen
     liefen nie."""
     assert "typ" not in _regeln(_bericht(tmp_path))
 
@@ -178,7 +178,7 @@ def test_positionen_muessen_eine_liste_sein(tmp_path):
 
 def test_ein_betrag_mit_tausenderpunkt_ist_keine_zahl(tmp_path):
     """Die Schreibweise des gesetzten Briefes gehört nicht in die Quelle — dort
-    wäre „1.240,00" mehrdeutig. Gemeldet statt still gedeutet."""
+    wäre „1.240,00“ mehrdeutig. Gemeldet statt still gedeutet."""
     bericht = _bericht(tmp_path, _ersetzt("    betrag: 1240.00", '    betrag: "1.240,00"'))
     assert any("ist keine Zahl" in b.meldung for b in bericht.befunde)
 
@@ -280,7 +280,7 @@ def test_der_steuerbetrag_wird_nicht_nachgerechnet(tmp_path):
 # ── Eine Rechnung ist ein Schreiben ──────────────────────────────────────────
 
 def test_die_briefpruefungen_gelten_weiter(tmp_path):
-    """#115: „Der Brieftext bleibt." Die Rechnung läuft durch den Briefzweig,
+    """#115: „Der Brieftext bleibt.“ Die Rechnung läuft durch den Briefzweig,
     und seine Prüfungen — hier die Anschriftzone — gelten dort genauso."""
     zu_viel = "empfaenger:\n" + "".join(f"  - Zeile {i}\n" for i in range(1, 9))
     kopf = _ersetzt(
@@ -421,7 +421,7 @@ def test_die_kommandozeile_setzt_die_beispielrechnung(tmp_path):
 
     ziel = tmp_path / "rechnung.pdf"
     # `--verbose`, weil der Bericht bestandene Prüfungen sonst nicht einzeln
-    # zeigt: Ohne den Schalter stünde hier nur „35/35 Maße eingehalten". Das
+    # zeigt: Ohne den Schalter stünde hier nur „35/35 Maße eingehalten“. Das
     # war der erste Entwurf dieses Tests, und er prüfte damit nichts von dem,
     # was er zu prüfen vorgab.
     lauf = subprocess.run(
@@ -514,7 +514,7 @@ def test_gegenprobe_ohne_empfaengeradresse_unter_en16931_still(tmp_path):
     """Die Pflicht gilt nur für XRechnung. Unter EN 16931 bleibt die Adresse freiwillig."""
     # Beides entfernen: die Ausprägung UND die Adresse. Nur die Ausprägung zu
     # streichen ließ nichts fehlen — der Test blieb auch mit der Pflicht unter
-    # EN 16931 grün (Sabotage am 13.09.2026, „Testfall an der falschen Stelle").
+    # EN 16931 grün (Sabotage am 13.09.2026, „Testfall an der falschen Stelle“).
     pfad_text = XRECHNUNG.read_text(encoding="utf-8").replace("erechnung: xrechnung\n", "") \
         .replace("  adresse: einkauf@example.de\n", "")
     assert "erechnung:" not in pfad_text and "einkauf@example.de" not in pfad_text

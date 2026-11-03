@@ -150,7 +150,7 @@ def test_brieffeld_ohne_ersatz_wird_abgelehnt(feld):
 
 
 def test_ein_ausgeschlossenes_feld_wird_einmal_gemeldet_nicht_zweimal():
-    """Ohne den Filter stünde `betreff` zusätzlich als „kein Feld des Datenvertrags" da."""
+    """Ohne den Filter stünde `betreff` zusätzlich als „kein Feld des Datenvertrags“ da."""
     assert _regeln(_mit("betreff: Leihe")) == ["typ"]
 
 

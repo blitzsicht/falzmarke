@@ -3,7 +3,7 @@
 Eines von zwei Modulen des Pakets, die eine Nachricht im Postfach **bewegen**;
 das andere ist `entwurfsablage` (ADR 0062). Es steht neben `postfach` und nicht
 darin, weil dessen Zusage „nur lesend, der einzige schreibende Befehl ist
-`APPEND`" wahr bleiben soll — sie ist in `postfach.py`, `tests/test_postfach.py`
+`APPEND`“ wahr bleiben soll — sie ist in `postfach.py`, `tests/test_postfach.py`
 und `tests/imap_attrappe.py` festgehalten.
 
 **Ein ändernder Befehl, und es ist `UID MOVE`.** Kein `COPY`, kein
@@ -13,7 +13,7 @@ lässt die Nachricht dann zweimal oder nirgends liegen. Nennt `CAPABILITY` kein
 `MOVE`, wird nichts verschoben und das gesagt — ein Nachbau wird nicht
 gewagt. `tests/test_ablage.py` liest das am Syntaxbaum nach, mit Gegenprobe.
 
-**Woraus „erledigt" folgt.** Jede gesendete Antwort trägt `In-Reply-To` mit der
+**Woraus „erledigt“ folgt.** Jede gesendete Antwort trägt `In-Reply-To` mit der
 `Message-ID` der Nachricht, die sie beantwortet. Liegt diese Nachricht noch im
 Eingang, ist sie bearbeitet. Das Tagebuch der Entwurfsbrücke taugt dafür nicht:
 Es benennt bei einer Antwort die Quelle nicht (`ursprung.uid` ist dort `null`,
@@ -55,8 +55,8 @@ SEIT_MAX = 3650
 FRIST_S = 60.0
 
 #: Ordner, die nie eine Ablage sind — Kennzeichen (RFC 6154) auf den Grund.
-#: Kennzeichen statt Namen, weil „Gesendete Elemente", „Sent Items" und
-#: „Éléments envoyés" dasselbe sind und eine Namensliste immer eine Sprache
+#: Kennzeichen statt Namen, weil „Gesendete Elemente“, „Sent Items“ und
+#: „Éléments envoyés“ dasselbe sind und eine Namensliste immer eine Sprache
 #: zu wenig kennt.
 VERBOTENE_ZIELE = {
     "\\sent": "er ist Datenquelle der Sendesperre und von `status` (ADR 0051), keine Ablage",
@@ -221,7 +221,7 @@ def plane(sitzung: postfach.Postfach, *, wunsch: str | None = None,
                                          kennung=kennung,
                                          antwort_betreff=antwort.betreff,
                                          antwort_datum=antwort.datum)
-        # Ohne Suche ist nichts über den Eingang bekannt: „längst weggeräumt" wäre erfunden.
+        # Ohne Suche ist nichts über den Eingang bekannt: „längst weggeräumt“ wäre erfunden.
         if gesucht and not traf:
             nicht_im_eingang += 1
     zuege = tuple(sorted(gefunden.values(), key=lambda z: int(z.uid)))
@@ -321,8 +321,8 @@ def raeume_auf(adresse: str, *, wunsch: str | None = None, seit_tagen: int = SEI
             return bericht._replace(verschoben=anzahl)
         except (postfach.PostfachFehler, AblageFehler) as fehler:
             # `_replace`, kein frischer Bericht: Bricht der Zug ab, nachdem der
-            # Server einen Teil bewegt hat, wäre „0 von 0" die stärkste Form
-            # von „nichts geschehen" — für den einen Fall, in dem etwas
+            # Server einen Teil bewegt hat, wäre „0 von 0“ die stärkste Form
+            # von „nichts geschehen“ — für den einen Fall, in dem etwas
             # geschehen sein kann (#438).
             return bericht._replace(grund=str(fehler),
                                     zug_gesendet=isinstance(fehler, ZugAbgebrochen))

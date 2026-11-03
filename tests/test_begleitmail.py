@@ -135,8 +135,8 @@ def test_die_mailadresse_wird_nicht_geerbt(tmp_path):
 def test_und_das_briefdatum_auch_nicht(tmp_path):
     """`Date` beschreibt die Nachricht, nicht den Brief, der ihr anhängt.
 
-    Der Vergleich lief bis #236 gegen die Zeichenkette „2026-08-29" — die ein
-    RFC-5322-Datum („Fri, 04 Sep 2026 …") gar nicht enthalten kann. Der Test
+    Der Vergleich lief bis #236 gegen die Zeichenkette „2026-08-29“ — die ein
+    RFC-5322-Datum („Fri, 04 Sep 2026 …“) gar nicht enthalten kann. Der Test
     war doppelt wirkungslos: Damals stand ohnehin kein `Date` in der Datei, und
     selbst mit einem geerbten Briefdatum wäre er grün geblieben.
 
@@ -155,7 +155,7 @@ def test_und_das_briefdatum_auch_nicht(tmp_path):
 
 def test_ein_geaenderter_brief_aendert_den_anhang(tmp_path):
     """Der Kern von #78: „ein veraltetes PDF in einer frischen Mail muss
-    auffallen und nicht stillschweigend mitreisen."
+    auffallen und nicht stillschweigend mitreisen.“
 
     Es kann gar nicht veralten — es entsteht bei jedem Aufruf neu.
     """
@@ -224,7 +224,7 @@ def test_ein_leeres_feld_ebenso(tmp_path):
 # ── Beide Zusagen bleiben gültig ────────────────────────────────────────────
 
 def test_verify_email_misst_die_nachricht_weiter(tmp_path):
-    """Aus #78: „keine wird durch die Kopplung schwächer."""
+    """Aus #78: „keine wird durch die Kopplung schwächer.“"""
     from falzmarke import pruefung_eml
 
     pfad = _aufbau(tmp_path)

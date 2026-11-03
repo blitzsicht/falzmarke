@@ -57,7 +57,7 @@ belegt als jede Sekundärquelle zur Norm. Eine Technik-Regel nennt künftig ihre
 behaupten, sie habe keinen.
 
 Warum nicht eine einzige Skala: Die Herkunftsskala misst Belegstärke **innerhalb einer
-Quellenwelt**. Bei E-Mail sind es vier, und eine RFC-Regel ist nicht „schwächer belegt" als eine
+Quellenwelt**. Bei E-Mail sind es vier, und eine RFC-Regel ist nicht „schwächer belegt“ als eine
 Normregel — sie redet über etwas anderes. Wer beides in eine Reihenfolge zwingt, muss eine
 Rangfolge zwischen DIN und RFC behaupten, die niemand aufstellen kann.
 
@@ -81,7 +81,7 @@ In `typ: email` sind `https`, `http`, `mailto` und `tel` zugelassen. `javascript
 Programm des Empfängers.
 
 **Im Brief ändert sich nichts.** Die heutige Begründung von `werkzeug.url_im_text` — „Auf Papier
-gibt es nichts zum Anklicken" — ist richtig und gilt genau dort. Sie auf die E-Mail zu übertragen
+gibt es nichts zum Anklicken“ — ist richtig und gilt genau dort. Sie auf die E-Mail zu übertragen
 war ein Fehler der Herkunft, nicht der Absicht: Eine Regel wurde mitgenommen, ihre Begründung
 blieb beim Brief zurück.
 
@@ -119,7 +119,7 @@ Alt-Text. `data:`-URIs werden zum **Fehler**; heute sind sie erlaubt.
 Der Grund ist nicht Ästhetik. Ein `data:`-Bild ist für den Empfänger nicht von einem
 nachgeladenen zu unterscheiden, es umgeht die Zählpixel-Prüfung, und mehrere Mailprogramme
 blockieren es ohnehin. Die Regel aus [ADR 0034](0034-email-ist-ausgabe.md) — „Bilder nur als
-eingebettete Ressource mit Alt-Text" — war so gemeint; die Umsetzung hat `data:` durchgelassen.
+eingebettete Ressource mit Alt-Text“ — war so gemeint; die Umsetzung hat `data:` durchgelassen.
 
 ### 8. Keine Werbemails
 
@@ -170,7 +170,7 @@ verfehlten **alle vierzehn** als mehrfach bestätigt geführten Regeln die eigen
 niemandem war es aufgefallen, weil nichts nachzählte. Die E-Mail-Regeln sind heute an derselben
 Stelle — nur früher, bevor jemand sie zitiert hat.
 
-Eine Meldung, die „DIN" sagt, wo Outlook-Praxis gemeint ist, sieht genauso aus wie eine, die ihr
+Eine Meldung, die „DIN“ sagt, wo Outlook-Praxis gemeint ist, sieht genauso aus wie eine, die ihr
 Versprechen einlöst. Der Unterschied ist für den Empfänger der Meldung unsichtbar, und genau
 deshalb muss ihn das Werkzeug aussprechen.
 
@@ -193,7 +193,7 @@ deshalb muss ihn das Werkzeug aussprechen.
 - **[#109](https://github.com/blitzsicht/falzmarke/issues/109)** wartet auf den erweiterten
   Dialekt und ändert an diesem Eintrag nichts.
 - **Zwei Seiten widersprechen ab jetzt.** `docs/email.md` führt Betreff und Anhänge unter
-  „Grenzen" als Wände und erlaubt `data:`-Bilder; `docs/recht.md` kennt weder § 7 UWG noch die
+  „Grenzen“ als Wände und erlaubt `data:`-Bilder; `docs/recht.md` kennt weder § 7 UWG noch die
   Absender-Authentifizierung. Beides wird von #102 und #106 nachgezogen. Der Widerspruch steht
   hier, damit er nicht still bleibt.
 
@@ -214,7 +214,7 @@ hier nicht neu verhandelt.
 ## Nachtrag 11.09.2026: Die Ebenen wirken jetzt auch auf die fertige Datei (#292)
 
 Diese Entscheidung war bis hierher nur halb umgesetzt. `lint.Bericht.fehler()` stuft einen Befund
-anhand von `herkunft` und `ebene` herab — „Praxis ist nie ein Fehler" gilt dort seit v0.8.1. Die
+anhand von `herkunft` und `ebene` herab — „Praxis ist nie ein Fehler“ gilt dort seit v0.8.1. Die
 Prüfungen der fertigen `.eml` in `pruefung_eml.py` liefen daran vorbei: Sie nutzen
 `geometrie.Bericht`, und der kannte nur `bestanden: bool`. Ein Regelname fehlte, also gab
 `regeln.deckel(None)` vorsichtshalber `fehler` zurück — für **jede** der 24 Prüfungen.

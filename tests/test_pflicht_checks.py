@@ -65,14 +65,14 @@ ERWARTET = [
     # `analysiere()` nur diese Datei liest — daneben wäre er gelaufen, aber nie
     # im Ruleset gelandet.
     "Changelog-Eintrag",
-    # Seit Issue #268: „Schließt #N" schließt bei GitHub nichts. Derselbe Ort
+    # Seit Issue #268: „Schließt #N“ schließt bei GitHub nichts. Derselbe Ort
     # aus demselben Grund — ein Job daneben liefe, landete aber nie im Ruleset.
     "Closing-Keyword",
 ]
 
 
 def test_die_checks_aus_dem_echten_ci_yml():
-    """Keine Zahl im Namen: Sie stand bis #237 auf „acht" und war mit dem
+    """Keine Zahl im Namen: Sie stand bis #237 auf „acht“ und war mit dem
     neunten Check falsch, ohne dass jemand den Namen gelesen hätte."""
     assert pflicht_checks.pflicht_checks(CI) == ERWARTET
 

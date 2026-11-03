@@ -8,7 +8,7 @@
 # Portiert aus customer-blitzsicht/marketing/campaigns/2026-08-bsfz-siegel/_video/
 # pruefe-reel.sh. Der Gegenprobe-Modus ist der Grund, warum es dieses Skript in
 # dieser Form gibt: eine Pruefung, die nie rot wird, ist kein Nachweis
-# (CLAUDE.md, „Messen statt behaupten"). --gegenprobe baut absichtlich kaputte
+# (CLAUDE.md, „Messen statt behaupten“). --gegenprobe baut absichtlich kaputte
 # Dateien und erwartet, dass jede Pruefung anschlaegt. Schlaegt eine nicht an,
 # ist die Pruefung kaputt — nicht das Video gut.
 set -uo pipefail

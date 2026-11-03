@@ -33,11 +33,11 @@ QUELLENLAGE = (
 WARNSTUFE = "Regeln aus einzelnen Quellen wirken nur als Warnung"
 
 #: Dieselbe Zusage auf Englisch (#237). Nicht übersetzt, sondern eigens
-#: geschrieben: „steht aus" heißt hier „is still outstanding", und die
-#: Berichtigung 1:2020-07 heißt im englischen Normwesen „Corrigendum". Wer die
+#: geschrieben: „steht aus“ heißt hier „is still outstanding“, und die
+#: Berichtigung 1:2020-07 heißt im englischen Normwesen „Corrigendum“. Wer die
 #: englische Fassung liest, sieht sonst ein Werkzeug ohne Vorbehalt — und
 #: genau dorthin, wo kein deutsches README gelesen wird, gehört er
-#: (ADR 0032, „Folgen").
+#: (ADR 0032, „Folgen“).
 QUELLENLAGE_EN = (
     "the comparison against the original text of DIN 5008:2020-03 "
     "including Corrigendum 1:2020-07 is still outstanding"
@@ -86,13 +86,13 @@ VERBOTEN = re.compile(r"\b(normgerecht|DIN-konform|normkonform|zertifiziert"
 
 # Wo diese Begriffe zulässig sind, weil sie etwas anderes verneinen oder
 # beschreiben. Der Regelfall ist die Selbstauskunft: falzmarke sagt über die
-# eigene Ausgabe ausdrücklich *nicht* „normgerecht", solange der Normabgleich
+# eigene Ausgabe ausdrücklich *nicht* „normgerecht“, solange der Normabgleich
 # aussteht.
 #
 # Hier stand bis zum 27.08.2026: „die Word-Vorlage ist nachweislich *nicht*
-# normgerecht". Das war genau die Behauptung, die docs/normmasse.md inzwischen
+# normgerecht“. Das war genau die Behauptung, die docs/normmasse.md inzwischen
 # zurückgenommen hat — gemessen wurde dort gegen die Maßzeichnungen, nicht
-# gegen den Normtext, und „nachweislich" trug die Messung nie. Eine Rücknahme
+# gegen den Normtext, und „nachweislich“ trug die Messung nie. Eine Rücknahme
 # ist erst fertig, wenn sie überall steht, auch im Kommentar eines Tests.
 _BEGRIFFE = r"(normgerecht|DIN-konform|normkonform|zertifiziert|XRechnung-konform|ZUGFeRD-konform|Factur-X-konform)"
 AUSNAHMEN = re.compile(r"(nicht|kein[e]?|keine[rms]?)\s+\S*\s*" + _BEGRIFFE
@@ -101,13 +101,13 @@ AUSNAHMEN = re.compile(r"(nicht|kein[e]?|keine[rms]?)\s+\S*\s*" + _BEGRIFFE
 
 #: Die englischen Gegenstücke zu VERBOTEN. Ohne sie greift die Sperre aus
 #: ADR 0032 auf Englisch nicht — ausgerechnet dort, wo das Werkzeug neu vor
-#: Publikum steht. „compliant" deckt „DIN-compliant" und „standard-compliant"
+#: Publikum steht. „compliant“ deckt „DIN-compliant“ und „standard-compliant“
 #: mit ab; einzeln aufgezählt wüchse die Lücke beim nächsten Wort von selbst
 #: nach (dieselbe Begründung wie bei NENNUNG in test_fundstellen.py).
 VERBOTEN_EN = re.compile(r"\b(compliant|conformant|certified|conformity)\w*", re.I)
 
 #: Wo die Wörter zulässig sind, weil sie verneint oder beschrieben werden.
-#: „no claim of conformity" ist der Satz, der die Zusage überhaupt erst
+#: „no claim of conformity“ ist der Satz, der die Zusage überhaupt erst
 #: ausspricht — er darf nicht an sich selbst scheitern.
 AUSNAHMEN_EN = re.compile(
     r"\b(no|not|never|without|neither)\b[^.]{0,40}?"
@@ -164,7 +164,7 @@ def test_keine_ungedeckte_konformitaetsbehauptung_auf_englisch():
     Wörter nicht. Ein englisches README ohne eigene Sperre wäre die Lücke, an
     der ADR 0032 seine Bedingung verlöre."""
     # Satzweise auf dem Fließtext, nicht zeilenweise: Markdown bricht frei um,
-    # und der Satz „You will find no claim of conformity …" stand im ersten
+    # und der Satz „You will find no claim of conformity …“ stand im ersten
     # Anlauf über zwei Zeilen. Die Verneinung lag in der einen, das Wort in der
     # anderen — die Prüfung meldete ausgerechnet den Satz, der die
     # Zurückhaltung ausspricht. Ein zeilenweiser Test misst hier den Umbruch.
@@ -256,8 +256,8 @@ TEXTQUELLEN = sorted(
 )
 
 #: Die Aussage, die #236 widerlegt hat: falzmarke setzt `Date` selbst.
-#: Beide Wortstellungen, weil beide im Repo vorkamen („der Mailclient setzt es"
-#: und „das setzt der Mailclient").
+#: Beide Wortstellungen, weil beide im Repo vorkamen („der Mailclient setzt es“
+#: und „das setzt der Mailclient“).
 DATUM_ZURUECKGENOMMEN = re.compile(
     r"(?:(?:Mailclient|Mailprogramm|Client)\s+setzt\s+(?:es|ihn|das\s+Datum)"
     r"|setzt\s+(?:der|das)\s+(?:Mailclient|Mailprogramm))", re.I)
@@ -305,7 +305,7 @@ def test_gegenprobe_der_datumspruefung():
         "Die Kopfzeile `Date` entsteht beim Setzen der Nachricht.")
     # Und der Verlauf bleibt unangetastet: Im Changelog steht die alte Aussage
     # als Zitat, und die Prüfung darf ihn nicht mitnehmen.
-    assert DATUM_ZURUECKGENOMMEN.search('sagte „der Mailclient setzt es beim Versand"')
+    assert DATUM_ZURUECKGENOMMEN.search('sagte „der Mailclient setzt es beim Versand“')
     assert "Mailclient" not in _ohne_verlauf(REPO / "README.md")
 
 
@@ -460,7 +460,7 @@ def _gemessen() -> dict[str, tuple[int, str]]:
         #: angetreten ist. Fiele `geometrie.seitenformat` auf `einzeln_belegt`,
         #: wären beide Zahlen falsch.
         #:
-        #: Die Gesamtzahl „auf mehrfach bestätigt" steht bewusst NICHT hier: Sie
+        #: Die Gesamtzahl „auf mehrfach bestätigt“ steht bewusst NICHT hier: Sie
         #: ist zurzeit ebenfalls 10 wie die schweigenden Quellen, und zwei gleiche
         #: Zahlen kann die Nähe-Suche nicht trennen (siehe der Test darunter).
         #: Gedeckt ist sie trotzdem — sie ist die Summe dieser beiden.

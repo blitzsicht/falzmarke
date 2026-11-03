@@ -7,7 +7,7 @@ könnten zwei verschiedene Dinge messen, und die Gegenprobe belegte dann nichts
 über den Test, zu dem sie gehört.
 
 **Der Sollwert steht hier als Zahl, nicht als Rechnung.** Er ist der Beschluss
-vom 20.09.2026 („die Lesbarkeit gewinnt", Innenabstand 1,4 mm), gemessen am
+vom 20.09.2026 („die Lesbarkeit gewinnt“, Innenabstand 1,4 mm), gemessen am
 Beispiel mit Tabelle. Gelesen wird er nicht aus `emit.py`: Ein Sollwert, der
 aus derselben Konstante stammt, gegen die er prüft, bleibt grün, wenn jemand
 sie ändert, und misst nichts. Dieses Modul importiert `falzmarke.emit`

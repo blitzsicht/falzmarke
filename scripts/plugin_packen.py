@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Packt den Skill als Plugin für ChatGPT („Skills only").
+"""Packt den Skill als Plugin für ChatGPT („Skills only“).
 
 Warum es das gibt: Eigene Skills nimmt ChatGPT nur in der Desktop-App und in
 Business-, Enterprise- und Edu-Tarifen an. Im Browser und auf dem Handy mit
@@ -39,7 +39,7 @@ REPO = Path(__file__).resolve().parent.parent
 # https://developers.openai.com/plugins/deploy/submission-errors.md
 # Die Grenze je Skill nennt OpenAI nur im Fehlertext des Portals; sie ist
 # deshalb hier nicht geprüft, sondern bis zur ersten Einreichung offen.
-#: ZIP „100 MB or less". Per Umgebungsvariable absenkbar, damit die
+#: ZIP „100 MB or less“. Per Umgebungsvariable absenkbar, damit die
 #: Gegenprobe den Abbruch auslösen kann, ohne 100 MB zu bauen.
 MAX_ZIP_BYTES = int(os.environ.get("FALZMARKE_PLUGIN_MAX_BYTES", "100000000"))
 MAX_EINTRAEGE = 5000
@@ -48,7 +48,7 @@ MAX_PFADSEGMENTE = 20
 MAX_DESCRIPTION = 1024
 #: `plugin-name:skill-name` höchstens 64 Zeichen.
 MAX_QUALIFIZIERT = 64
-#: Listing, „Final directory submission": Anzeigename und Kurzbeschreibung je
+#: Listing, „Final directory submission“: Anzeigename und Kurzbeschreibung je
 #: höchstens 30 Zeichen, lange Beschreibung höchstens 4000, höchstens drei
 #: Startprompts zu je höchstens 128 Zeichen. Diese Regeln greifen erst bei der
 #: Einreichung, nicht beim Hochladen — ein Paket kann den Upload bestehen und

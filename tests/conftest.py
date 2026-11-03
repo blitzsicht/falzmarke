@@ -48,7 +48,7 @@ def _typ(pfad: Path) -> str:
 #: Die Rechnungsbeispiele unter `examples/*.md` — am Frontmatter erkannt, nicht an
 #: einem eigenen Unterordner wie bei `EMAIL_BEISPIELE`: `rechnung.md` und
 #: `xrechnung.md` liegen bewusst neben den Briefen, weil sie in der CI auch als
-#: Briefe der Kategorie „Rechnung" laufen (#119).
+#: Briefe der Kategorie „Rechnung“ laufen (#119).
 RECHNUNG_BEISPIELE = sorted(p for p in BEISPIELE if _typ(p) == "rechnung")
 
 #: Die ausgelieferten Profile. Ein Beispiel darf sein Profil auch neben sich
@@ -80,9 +80,9 @@ def ohne_typografiehinweise(bericht) -> list:
 
     Seit #330 meldet der Linter, was der Typografie-Pass zurückhält: eine
     Warnung je Schritt, dessen Regel nur einzeln belegt ist, unter der Kennung
-    dieser Regel (`schreibweise.einheiten`, …). Ein Test, der „keine Befunde"
+    dieser Regel (`schreibweise.einheiten`, …). Ein Test, der „keine Befunde“
     fordert, meint damit die Eingabe — nicht die Frage, ob das Beispiel ein
-    „5 kg" oder ein „Rechnung Nr." enthält.
+    „5 kg“ oder ein „Rechnung Nr.“ enthält.
 
     Die Ausnahme ist eng: nur Befunde unter der Kennung einer Regel mit
     `typografie:`-Zuordnung. Jede andere Warnung zählt weiter. Lazy importiert,

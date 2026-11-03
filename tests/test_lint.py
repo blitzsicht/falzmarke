@@ -131,7 +131,7 @@ def test_anrede_ohne_komma(tmp_path):
 
     Bis v0.6.0 galt sie als mehrfach bestätigt und durfte Läufe scheitern
     lassen — gestützt auch auf den Wikipedia-Artikel. Der nennt das Wort
-    „Komma" jedoch kein einziges Mal und sagt zur Anrede ausdrücklich, ihr
+    „Komma“ jedoch kein einziges Mal und sagt zur Anrede ausdrücklich, ihr
     Textinhalt sei dort nicht geregelt. Eine Quelle, die zur Regel schweigt,
     trägt sie nicht.
     """
@@ -375,7 +375,7 @@ def test_eine_fehlende_anlage_meldet_hier_nichts(tmp_path):
 
 
 def test_die_meldung_nennt_die_ebene(tmp_path):
-    """ADR 0035: Eine Meldung, die „DIN" sagt, wo Mailprogramm-Praxis gemeint
+    """ADR 0035: Eine Meldung, die „DIN“ sagt, wo Mailprogramm-Praxis gemeint
     ist, ist von einer, die ihr Versprechen einlöst, nicht zu unterscheiden.
     Der Hinweis kommt aus der Deckelung — er belegt zugleich, dass die Meldung
     wirklich durch sie läuft."""

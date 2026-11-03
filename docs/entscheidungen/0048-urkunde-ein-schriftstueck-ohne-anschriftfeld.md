@@ -19,7 +19,7 @@ Der naheliegende andere Weg wäre ein Brief gewesen, dessen Anschriftfeld sich a
 Er scheitert an [ADR 0047](0047-geometrie-regeln-tragen-ihre-stufe.md): Die Maße des Briefes
 sind Maße. Ein Brief ohne Anschrift, ohne Rücksendeangabe oder ohne Falzmarken ist rot, ohne
 Wenn. Ein Schalter machte aus jeder dieser Prüfungen eine bedingte — und aus der Zusage „hält
-alle Briefmaße" die Zusage „hält die Briefmaße, die gerade gelten".
+alle Briefmaße“ die Zusage „hält die Briefmaße, die gerade gelten“.
 
 Dazu kommt der Satz selbst: Die Seitenfunktion des Briefes reserviert das Anschriftfeld immer.
 Ein Blatt ohne braucht eine eigene.
@@ -37,12 +37,12 @@ sie messen.
 
 Der Typ heißt `urkunde`. Zur Wahl standen auch `vertrag` und `vereinbarung`; beide sind für eine
 einseitige Erklärung falsch. `schriftstueck` und `dokument` wären für alles richtig und sagten
-deshalb nichts — „Schreiben" ist in diesem Repository der Oberbegriff über alle Typen.
+deshalb nichts — „Schreiben“ ist in diesem Repository der Oberbegriff über alle Typen.
 
 `urkunde` meint hier genau das: ein unterschriebenes Schriftstück, das für sich steht. **Über
 Beweiskraft, Schriftform oder Wirksamkeit sagt der Name nichts**, und das Werkzeug auch nicht.
 Die Unterschriftslinie ist Erscheinungsbild und kein Nachweis; ob ein Papier eine Form wahrt,
-entscheidet nicht falzmarke ([`docs/recht.md`](../recht.md), „Keine Rechtssicherheit"). Wer
+entscheidet nicht falzmarke ([`docs/recht.md`](../recht.md), „Keine Rechtssicherheit“). Wer
 `typ: vertrag` oder `typ: vereinbarung` schreibt, erfährt vom Linter, wie der Typ heißt.
 
 ## Entscheidung 3: Jede Regel ist eine Setzung des Werkzeugs
@@ -59,7 +59,7 @@ dieses Blatt verlangte. [ADR 0044](0044-woertlicher-beleg-schlaegt-werkzeugeinst
 davon nicht berührt: Dort geht es um Regeln, die eine Quelle wörtlich trägt.
 
 Daraus folgt für jede Ausgabe: Schlägt die Messung einer Urkunde fehl, heißt es nicht „hält die
-Maße aus DIN 5008 nicht ein". Die Norm hat dazu nichts gesagt. Und die Zahl der Maße, mit der
+Maße aus DIN 5008 nicht ein“. Die Norm hat dazu nichts gesagt. Und die Zahl der Maße, mit der
 das Werkzeug für den Brief wirbt, gilt für die Urkunde nicht.
 
 Dass eine Werkzeugregel ein Fehler sein darf, ist seit dem Nachtrag zu
@@ -95,7 +95,7 @@ Zwei Elemente kommen in den Text, additiv wie Dialekt 1.1 und für alle Typen:
 
 **Eine geschützte Kette ist ab 1.2 ebenfalls ein Feld.** `\_\_\_` und `___` sind nach dem Parsen
 nicht zu unterscheiden. Die Dokumentation des Dialekts nennt `\_` „das Zeichen selbst, ohne
-Bedeutung"; für eine Kette ab drei Zeichen gilt das in 1.2 nicht mehr. Wer Unterstriche als
+Bedeutung“; für eine Kette ab drei Zeichen gilt das in 1.2 nicht mehr. Wer Unterstriche als
 Zeichen braucht, setzt sie in einen wortgetreuen Auszug.
 
 CommonMark liest Unterstriche als Auszeichnung, sobald sie an einem Buchstaben oder Satzzeichen
@@ -126,14 +126,14 @@ Dialekt. Geparkt wird sie nicht, weil sie keine Frage beantwortet, die niemand g
 der Anlass waren Schriftstücke, die gesetzt werden mussten.
 
 [ADR 0029](0029-falzmarke-ist-werkzeug-kein-kanal.md) nennt falzmarke „ein Werkzeug, das Briefe
-setzt und prüft". Der Satz wird hiermit weiter: Es setzt und prüft Schriftstücke eines
+setzt und prüft“. Der Satz wird hiermit weiter: Es setzt und prüft Schriftstücke eines
 Absenders — Briefe, deren Fassung als E-Mail, Rechnungen und Urkunden. Was er ausschließt,
 bleibt ausgeschlossen: Das Werkzeug versendet nichts.
 
 ## Was diese Entscheidung nicht ist
 
 - **Kein Vertragswerkzeug.** falzmarke kennt keine Klauseln und keine Muster. Die festen Wörter
-  des Werkzeugs sind „zwischen", „und" und „Ort, Datum"; der Zusatz einer Partei wird wörtlich
+  des Werkzeugs sind „zwischen“, „und“ und „Ort, Datum“; der Zusatz einer Partei wird wörtlich
   gesetzt, wie er geschrieben ist.
 - **Keine Aussage über Form oder Wirksamkeit.** Siehe Entscheidung 2.
 - **Keine digitale Signatur.** Das bleibt [#14](https://github.com/blitzsicht/falzmarke/issues/14)

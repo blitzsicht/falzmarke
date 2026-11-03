@@ -13,8 +13,8 @@ er meldet, und prüfen dann, was hinter dem Namen im Katalog steht. Ein Name,
 den der Test vorgäbe, prüfte die Namenswahl statt der Sache.
 
 Nicht festgelegt ist hier die Schärfe der beiden **E-Mail**-Regeln. Der
-Entscheidungstext sagt „Wirkung bleibt, wie sie heute ist" und im selben Satz
-„Warnung in der Mail über Ebene praxis"; gemessen ist die Mail-Wirkung heute
+Entscheidungstext sagt „Wirkung bleibt, wie sie heute ist“ und im selben Satz
+„Warnung in der Mail über Ebene praxis“; gemessen ist die Mail-Wirkung heute
 ein Fehler. Beides zugleich stimmt nicht; der Umsetzer wählt, und beide Wege
 (`ebene: praxis` oder `ebene: werkzeug`) bestehen diese Tests.
 """
@@ -214,7 +214,7 @@ def test_unter_den_laengennamen_meldet_nur_noch_die_laenge(tmp_path, art):
 #
 # Heute tut sie es — das ist der Beleg, dass die Änderung etwas bewirkt. Jede
 # Probe prüft ZUERST, dass die Sabotage die Länge tatsächlich verändert; sonst
-# bewiese „Leitwort unverändert" nichts, weil die Sabotage gar nicht gegriffen
+# bewiese „Leitwort unverändert“ nichts, weil die Sabotage gar nicht gegriffen
 # hätte.
 
 @pytest.mark.parametrize("art, herkunft", [
@@ -251,7 +251,7 @@ def test_herabgestufter_eigener_eintrag_beruehrt_die_anderen_nicht(
         tmp_path, monkeypatch, art, herabgestuft, unberuehrt):
     """Die Gegenrichtung: Der eigene Eintrag steuert seine Meldung — und nur sie.
 
-    Ohne diese Probe könnte „eigener Name" auch heißen, dass der Eintrag zwar
+    Ohne diese Probe könnte „eigener Name“ auch heißen, dass der Eintrag zwar
     angelegt ist, die Meldung aber weiter woanders hängt.
     """
     vorher = _rollen(_linte(tmp_path, art))

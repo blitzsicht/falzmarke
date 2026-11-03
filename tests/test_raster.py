@@ -81,7 +81,7 @@ def test_die_pruefung_misst_ueberhaupt_etwas(gerendert):
     bericht = geometrie.pruefe(pdf, form)
     raster = [p for p in bericht.pruefungen if "Zeilenraster" in p.name]
     assert raster, "keine Rasterprüfung im Bericht"
-    # Der Bericht sagt „15× eingehalten". Die Zahl davor ist die Zahl der
+    # Der Bericht sagt „15× eingehalten“. Die Zahl davor ist die Zahl der
     # gemessenen Abstände; die Formulierung wurde gekürzt, damit die Zeile in
     # das Terminal der GIF-Aufnahme passt (tests/test_tape.py).
     treffer = re.search(r"(\d+)×", raster[0].ist)
@@ -189,8 +189,8 @@ def test_die_tabellenausnahme_steht_in_der_referenz():
 
     Ein Nutzer, der die Referenz liest, erfuhr nichts davon — und wunderte sich,
     warum unterhalb seiner Tabelle alles verschoben ist. #151 verlangt für den
-    Fall „bleibt wie es ist" ausdrücklich, dass es dokumentiert steht „statt
-    still zu gelten". Die Messwerte stehen dort nicht mehr, siehe unten.
+    Fall „bleibt wie es ist“ ausdrücklich, dass es dokumentiert steht „statt
+    still zu gelten“. Die Messwerte stehen dort nicht mehr, siehe unten.
     """
     text = REFERENZ.read_text(encoding="utf-8")
     assert "Tabellen sind davon ausgenommen" in text
@@ -198,7 +198,7 @@ def test_die_tabellenausnahme_steht_in_der_referenz():
 
 def test_die_referenz_nennt_die_frage_nicht_mehr_als_offen():
     """Die Abwägung ist getroffen. Stünde dort weiter „ob es dabei bleibt, ist
-    offen", widerspräche die Referenz dem Beschluss — und läse sich wie ein
+    offen“, widerspräche die Referenz dem Beschluss — und läse sich wie ein
     Zwischenstand, den niemand mehr abschließt."""
     text = REFERENZ.read_text(encoding="utf-8")
     assert "Ob es dabei bleibt" not in text
@@ -216,7 +216,7 @@ def test_der_docstring_traegt_die_entscheidung():
 
 def test_der_docstring_nennt_die_frage_nicht_mehr_als_offen():
     """Bis zum Beschluss stand dort: „gehört entschieden, nicht von einer
-    Prüfung erzwungen". Nach dem Beschluss ist der Satz falsch."""
+    Prüfung erzwungen“. Nach dem Beschluss ist der Satz falsch."""
     doc = _docstring()
     assert "gehört entschieden" not in doc
     assert "ist offen" not in doc
@@ -249,7 +249,7 @@ def test_die_dokumentierten_zahlen_sind_die_gemessenen(gerendert):
 
 
 def test_die_messwerte_stehen_an_einer_stelle():
-    """AC 1: „An einer Stelle, nicht an zweien." Zwei Fassungen derselben Zahl
+    """AC 1: „An einer Stelle, nicht an zweien.“ Zwei Fassungen derselben Zahl
     laufen auseinander — die Referenz trug 1,58 schon, und der Docstring soll
     sie bekommen, ohne dass sie danach an zwei Orten stehen.
 

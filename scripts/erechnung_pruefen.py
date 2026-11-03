@@ -14,7 +14,7 @@ die Schematron-Regeln des Formats. Es teilt keine Zeile Code mit falzmarke.
 
 ES RECHNET NACH, UND DAS BLEIBT SO
 
-Mustang prüft die Summen einer Rechnung nach („arithmetic recalculation check",
+Mustang prüft die Summen einer Rechnung nach („arithmetic recalculation check“,
 abschaltbar mit `--no-arithmetic-check`). Das Skript schaltet ihn **nicht** ab.
 falzmarke rechnet nicht (ADR 0039) — der fremde Prüfer schon, und genau das ist
 die Arbeitsteilung: Wer überträgt, lässt nachrechnen.
@@ -32,12 +32,12 @@ NICHT GEPRÜFT. Die Textausgabe wird nur für die Meldung gelesen: Wer sie
 auswertet, statt den Exit-Code zu nehmen, baut sich einen Check, der bei jeder
 Formatänderung still grün wird. Ein Beispiel dafür steht in der Ausgabe selbst:
 `validateExpectInvalid` meldet bei erfüllter Erwartung „Overall test result:
-valid" — gemeint ist „wie erwartet", nicht „die Datei ist gültig".
+valid“ — gemeint ist „wie erwartet“, nicht „die Datei ist gültig“.
 
 JAVA, DAS KEINES IST
 
 Auf macOS liegt unter `/usr/bin/java` ein Platzhalter, der „Unable to locate a
-Java Runtime" meldet. `shutil.which("java")` findet ihn trotzdem. Deshalb wird
+Java Runtime“ meldet. `shutil.which("java")` findet ihn trotzdem. Deshalb wird
 `java -version` **ausgeführt**, nicht nur gesucht — sonst wäre die Prüfung auf
 Existenz genau dann grün, wenn gar kein Java da ist.
 
@@ -54,7 +54,7 @@ DIE GEGENPROBE IST PFLICHT
 Ohne `--schlecht` ist der Lauf ein Befund. Eine Prüfung, die nur gültige Dateien
 sieht, belegt nur, dass Mustang gestartet ist. Die schlechte Datei muss
 **inhaltlich** falsch sein, nicht bloß kaputt: Eine Datei von 15 Byte fällt aus
-dem banalsten Grund durch („File too small") und sagt nichts über die
+dem banalsten Grund durch („File too small“) und sagt nichts über die
 Schematron-Prüfung. `invalidXRechnung.pdf` dagegen ist ein intaktes PDF mit
 einem XML, das eine Regel verletzt.
 

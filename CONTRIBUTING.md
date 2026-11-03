@@ -49,7 +49,7 @@ Wenn deine Änderung das Layout oder eine Ausgabezeile der CLI berührt:
 | Was | Woher |
 |---|---|
 | die Briefbilder | Artefakt `renders-ubuntu-latest` an jedem CI-Lauf — oder lokal `falzmarke preview` |
-| `demo.gif`, `demo.mp4`, `demo.ascii` | Artefakt `aufzeichnung` des Workflows „Video" — oder lokal mit [`vhs`](https://github.com/charmbracelet/vhs) über `docs/marke/video/readme.tape` |
+| `demo.gif`, `demo.mp4`, `demo.ascii` | Artefakt `aufzeichnung` des Workflows „Video“ — oder lokal mit [`vhs`](https://github.com/charmbracelet/vhs) über `docs/marke/video/readme.tape` |
 | `docs/ROADMAP.md` | Artefakt `roadmap` des wöchentlichen Laufs |
 
 Das altert nicht still: `tests/test_tape.py` hält `docs/renders/demo.ascii` gegen einen frischen
@@ -72,7 +72,7 @@ bricht die Suite schon beim Einsammeln von `tests/test_verzeichnis_metadaten.py`
 
 Alle Tests grün, alle Beispiele ohne `FEHL`-Zeile.
 
-Dazu der Changelog-Eintrag — eine Datei in `changelog.d/`, siehe „Den Changelog ändern" weiter
+Dazu der Changelog-Eintrag — eine Datei in `changelog.d/`, siehe „Den Changelog ändern“ weiter
 unten. Er ist Pflicht, nicht Kür: Ohne ihn ist der Vorgang nicht mergebar.
 
 ## Herkunft der Beiträge (DCO)
@@ -103,7 +103,7 @@ einreicht, merkt es spätestens an der Beweispflicht.
 
 Die Sollwerte und ihre Herkunft stehen an **einer** Stelle:
 [`skill/falzmarke/regeln/din5008.yaml`](skill/falzmarke/regeln/din5008.yaml). Daraus wird der
-Abschnitt „Quellenlage je Regel" in
+Abschnitt „Quellenlage je Regel“ in
 [`skill/references/din5008.md`](skill/references/din5008.md) erzeugt
 (`python3 scripts/quellenlage.py`) — diesen Abschnitt nie von Hand ändern. Die geometrischen
 Konstanten liegen in [`skill/falzmarke/geometrie.py`](skill/falzmarke/geometrie.py) und gehören
@@ -121,7 +121,7 @@ nie Wortlaut, Tabellen oder Abbildungen — siehe [`CLAUDE.md`](CLAUDE.md) und
 ## Den Changelog ändern
 
 **Jeder Pull Request, der das Werkzeug ändert, legt eine Datei in `changelog.d/` ab.** Ohne sie
-wird der Pflicht-Check „Changelog-Eintrag" rot und der Vorgang lässt sich nicht mergen.
+wird der Pflicht-Check „Changelog-Eintrag“ rot und der Vorgang lässt sich nicht mergen.
 
 ```
 changelog.d/229.infrastruktur.md
@@ -161,7 +161,7 @@ python3 scripts/changelog.py --buendeln v0.9.2
 ```
 
 Das sammelt die Fragmente, schreibt sie als Versionsabschnitt nach `CHANGELOG.md`, leert
-`changelog.d/` und erneuert den Abschnitt „Was sich zuletzt getan hat" in der README. Kurz:
+`changelog.d/` und erneuert den Abschnitt „Was sich zuletzt getan hat“ in der README. Kurz:
 `make buendeln VERSION=v0.9.2`.
 
 Vergessen geht nicht: `release.yml` bricht ab, solange `changelog.d/` beim Tag nicht leer ist —
@@ -183,7 +183,7 @@ Ein Rechnungs-PDF führt die Fassung zweimal in seinen Metadaten (`Producer` und
 `/falzmarke_Version`). Nach jedem Versionswechsel werden die Byte-Goldens dadurch rot — bei
 v0.9.9 waren es sechs Tests. Das ist keine inhaltliche Abweichung, und genau das gehört
 nachgesehen: Der Diff darf **nur** die beiden Versionsbytes je Datei enthalten. Die
-eingebetteten XML-Goldens bleiben unberührt; meldet das Skript dort „erneuert", ist etwas
+eingebetteten XML-Goldens bleiben unberührt; meldet das Skript dort „erneuert“, ist etwas
 anderes passiert.
 
 Das gilt nur, solange die Versionsnummer gleich lang bleibt. Bei v0.9.10 wurde sie ein Zeichen
@@ -213,7 +213,7 @@ mehr ändern.
 
 ### Warum das Paket nur auf PyPI liegt
 
-GitHub blendet im Repository „Publish your first package" ein. Für dieses Projekt führt der
+GitHub blendet im Repository „Publish your first package“ ein. Für dieses Projekt führt der
 Hinweis ins Leere: GitHub Packages führt npm, Container-Images, Maven, NuGet und RubyGems —
 **kein PyPI-Format**. Ein Python-Paket gehört auf PyPI, und dort liegt falzmarke seit v0.7.3.
 
@@ -229,7 +229,7 @@ jede Änderung nach `skill/falzmarke/typst/vendor/CHANGES.md` (anzulegen) und di
 Test angepasst — beides im selben Commit.
 
 Beachte: In dieser Datei steht das Wort `normbrief`, in einer URL der Deutschen Post. Das ist
-kein Überbleibsel des früheren Projektnamens; nicht „korrigieren". Eine Ersetzung würde eine
+kein Überbleibsel des früheren Projektnamens; nicht „korrigieren“. Eine Ersetzung würde eine
 fremde Quelle verfälschen und die Prüfsumme brechen.
 
 ## Musterbriefe beitragen

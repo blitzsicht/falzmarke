@@ -26,11 +26,11 @@ infoblock:                       # optional; Leitwörter erscheinen in der Reihe
   ihre_nachricht_vom: 2026-08-20
   unser_zeichen: EM
   unsere_nachricht_vom: 2026-08-22
-  ansprechpartner: Erika Muster  # erscheint als „Name"
+  ansprechpartner: Erika Muster  # erscheint als „Name“
   telefon: 0941 620-9800
   fax: 0941 620-9801
   email: muster@example.de
-anrede: Sehr geehrte Frau Muster,       # endet mit Komma. Ohne Angabe: „Sehr geehrte Damen und Herren,"
+anrede: Sehr geehrte Frau Muster,       # endet mit Komma. Ohne Angabe: „Sehr geehrte Damen und Herren,“
 gruss: Mit freundlichen Grüßen          # ohne Komma. Ohne Angabe: Wert aus dem Profil
 unterzeichner: i. A. Erika Muster       # ohne Angabe: Wert aus dem Profil
 signatur: keine                         # `keine` = von Hand unterschreiben;
@@ -49,7 +49,7 @@ verteiler:                              # optional
 ---
 ```
 
-Das Datum wird als ISO-Datum angegeben und vom Renderer ausgeschrieben („25. August 2026").
+Das Datum wird als ISO-Datum angegeben und vom Renderer ausgeschrieben („25. August 2026“).
 Steht dort bereits ein ausformulierter Text, bleibt er unverändert.
 
 ## Grenzen, die abbrechen statt still zu verrutschen
@@ -106,7 +106,7 @@ ohne dass jemand sie abtippt — ein verbreitetes Muster ist die Archivadresse, 
 ausgehende Mail im Dokumentenmanagement landet. Zwei Dinge dazu:
 
 * **In der `.html`-Vorschau erscheint sie nicht.** Die Vorschau ist zum Ansehen und
-  Herauskopieren da; eine sichtbare Zeile „Blindkopie" ginge beim Kopieren mit, und das Feld
+  Herauskopieren da; eine sichtbare Zeile „Blindkopie“ ginge beim Kopieren mit, und das Feld
   täte das Gegenteil dessen, wofür es da ist. `verify --email` prüft eigens, dass die Adresse
   weder im Text- noch im HTML-Teil vorkommt.
 * **Ob dein Mailprogramm die Kopfzeile beim Weiterleiten übernimmt, entscheidet das Programm.**
@@ -196,11 +196,11 @@ Zusage des Werkzeugs:
 `hinweise:` wirkt nicht, weil das Paket es versteht, sondern weil `SKILL.md` Schritt 4 sagt, dass
 der Abschnitt vor dem Formulieren gelesen wird. **falzmarke überträgt die Stilvorgabe, es erzwingt
 sie nicht** — es gibt Profildaten an kein Modell weiter und versteht keinen Satz. Eine Prüfung,
-die „Fristen immer als Datum" einzuhalten behauptete, wäre eine Zusage ohne Deckung
+die „Fristen immer als Datum“ einzuhalten behauptete, wäre eine Zusage ohne Deckung
 ([ADR 0053](../../docs/entscheidungen/0053-email-stil-im-profil.md)).
 
 Gesucht wird bei `floskeln:` als **ganzes Wort**, nicht als Ausdruck: `zeitnah` trifft
-„zeitnah", nicht „Zeitnahme". Ein Regex im Profil wäre eine Fläche, die niemand prüft.
+„zeitnah“, nicht „Zeitnahme“. Ein Regex im Profil wäre eine Fläche, die niemand prüft.
 
 Was in einem wortgetreuen Auszug steht — Backticks oder ein Codeblock — zählt bei beiden
 Prüfungen nicht mit: Was ein Kunde geschrieben hat, ist nicht der Stil des Absenders.
@@ -390,7 +390,7 @@ als Regelsatz auszuzeichnen.
 
 § 34a Nr. 5 UStDV verlangt einen Hinweis, dass die Steuerbefreiung für Kleinunternehmer gilt.
 Welche Formulierung genügt, bewertet falzmarke nicht. Das BMF-Schreiben vom 18.03.2025
-(Abschn. 14.7a Abs. 1 UStAE) nennt als Beispiel „steuerfreier Kleinunternehmer". Ob die
+(Abschn. 14.7a Abs. 1 UStAE) nennt als Beispiel „steuerfreier Kleinunternehmer“. Ob die
 Umsatzgrenzen eingehalten sind, kann falzmarke nicht wissen.
 
 **Bankverbindung, Steuernummer und USt-IdNr. stehen im Profil**, nicht im einzelnen Schreiben —
@@ -472,8 +472,8 @@ eine Behörde die XML erwartet.
 |---|---|---|
 | `rechnungsnummer` | ja | `lint` meldet einen Fehler. Eine Nummer aus reinem Leerraum ebenso. |
 | `positionen` | ja | `lint` meldet einen Fehler — eine Rechnung ohne Positionen ist keine. |
-| `positionen[].bezeichnung` | ja | Fehler — § 14 Abs. 4 Nr. 5 verlangt „die Art". |
-| `positionen[].menge` | ja | Fehler — ebenda, „die Menge". |
+| `positionen[].bezeichnung` | ja | Fehler — § 14 Abs. 4 Nr. 5 verlangt „die Art“. |
+| `positionen[].menge` | ja | Fehler — ebenda, „die Menge“. |
 | `positionen[].steuersatz` | ja, außer beim Kleinunternehmer | Fehler — § 14 Abs. 4 Nr. 8. Außerhalb 0 bis 99 ebenso. Beim Kleinunternehmer ist er umgekehrt ein Fehler. |
 | `positionen[].betrag` | ja | Fehler — falzmarke bildet den Betrag nicht aus Menge und Preis. |
 | `positionen[].einheit`, `einzelpreis` | nein | Nichts. Sie stehen dann nicht auf der Rechnung. |
@@ -559,7 +559,7 @@ Ohne Anführungszeichen bricht der Renderer mit einer entsprechenden Meldung ab.
 ## Sprache
 
 `sprache: en` setzt die Beschriftung eines Briefes auf Englisch: die Leitwörter des
-Informationsblocks, die Monatsnamen, „Anlagen", „Verteiler" und die Seitenzählung. Dazu
+Informationsblocks, die Monatsnamen, „Anlagen“, „Verteiler“ und die Seitenzählung. Dazu
 `text.lang`, wovon die Silbentrennung abhängt — ohne das bräche englischer Text nach
 deutschen Regeln um.
 
@@ -568,7 +568,7 @@ deutschen Regeln um.
 Zonen und Abstände, keine Wörter; ein englischer Brief besteht dieselben Prüfungen.
 
 **Die englischen Wörter sind nicht normbelegt.** DIN 5008 ist eine deutsche Norm und
-kennt kein „Your reference". Was `falzmarke` dort einsetzt, ist die im Geschäftsverkehr
+kennt kein „Your reference“. Was `falzmarke` dort einsetzt, ist die im Geschäftsverkehr
 übliche Entsprechung — eine Konvention, keine Fundstelle. Wer so einen Brief setzt,
 bekommt ein Blatt, dessen Maße belegt sind und dessen Beschriftung es nicht ist.
 
@@ -679,7 +679,7 @@ Der Name beschreibt die Form, nicht die Wirkung: Ob ein Papier damit eine Schrif
 oder etwas beweist, entscheidet nicht falzmarke. Die Unterschriftslinie ist Erscheinungsbild,
 kein Nachweis ([ADR 0048](../../docs/entscheidungen/0048-urkunde-ein-schriftstueck-ohne-anschriftfeld.md)).
 
-Die Urkunde steht nicht unter „Brief" oben, weil sie kein Brief mit weniger Feldern ist. Der
+Die Urkunde steht nicht unter „Brief“ oben, weil sie kein Brief mit weniger Feldern ist. Der
 Block dort bleibt der Datenvertrag des Briefes; dieser hier ist ein eigener.
 
 ```yaml
@@ -723,9 +723,9 @@ Die Verleiherin überlässt dem Entleiher …
 | Feld | Wirkung | Ohne das Feld |
 |---|---|---|
 | `titel` | steht fett über dem Text und in der Kopfzeile jeder Folgeseite | Fehler |
-| `parteien` | zwei Parteien stehen nebeneinander unter „zwischen" und „und"; eine einzelne steht ohne diese Wörter | kein Parteienblock |
+| `parteien` | zwei Parteien stehen nebeneinander unter „zwischen“ und „und“; eine einzelne steht ohne diese Wörter | kein Parteienblock |
 | `name`, `anschrift`, `zusatz` | je Partei: Name fett, Anschrift zeilenweise, Zusatz wörtlich darunter | `name` ist Pflicht |
-| `ort_datum` | die Zeile über den Unterschriften, wie sie dasteht | eine leere Linie mit „Ort, Datum" darunter |
+| `ort_datum` | die Zeile über den Unterschriften, wie sie dasteht | eine leere Linie mit „Ort, Datum“ darunter |
 | `unterschriften` | je Eintrag eine Linie von 65 mm mit drei Zeilen Raum darüber, darunter `name` und `rolle` | jede Partei unterschreibt; ohne Parteien gibt es keinen Unterschriftsblock |
 | `anlagen` | Vermerk unter den Unterschriften | kein Vermerk |
 | `seiten_max` | das Schriftstück darf höchstens so viele Seiten haben | keine Grenze; der Bericht nennt die Seitenzahl |

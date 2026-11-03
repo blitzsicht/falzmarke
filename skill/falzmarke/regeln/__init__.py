@@ -83,7 +83,7 @@ EBENENHINWEIS = {
 }
 
 # Wie weit eine Quelle trägt. Siehe Kopfkommentar von din5008.yaml.
-ZAEHLT_VOLL = "voll"        # externer Beleg, zählt auch für „mehrfach"
+ZAEHLT_VOLL = "voll"        # externer Beleg, zählt auch für „mehrfach“
 ZAEHLT_EINZELN = "einzeln"  # Beleg, aber keine unabhängige Bestätigung
 ZAEHLT_NIE = "nie"          # zählt gar nicht
 ZAEHLSTUFEN = {ZAEHLT_VOLL, ZAEHLT_EINZELN, ZAEHLT_NIE}
@@ -354,8 +354,8 @@ def schweigende_quellen() -> list[tuple[str, str]]:
 def ohne_belegpruefung() -> list[tuple[str, str]]:
     """Paare (Regel, Quelle), bei denen niemand nachgelesen hat.
 
-    Das ist der Rest von #31: `belegt_durch` fehlt. Nicht „kein Beleg" —
-    sondern „nicht geprüft", und die beiden dürfen nicht verwechselt werden.
+    Das ist der Rest von #31: `belegt_durch` fehlt. Nicht „kein Beleg“ —
+    sondern „nicht geprüft“, und die beiden dürfen nicht verwechselt werden.
     """
     ergebnis = []
     for regel in alle():
@@ -500,7 +500,7 @@ def quellenhinweis(regelname: str) -> str:
         return ""
     # Dieselbe Erkennung wie in `_pruefe_beleglage` und `unabhaengige_belege()`:
     # `_schweigt` ist die eine Zugriffsstelle für „diese Quelle sagt zur Regel
-    # nichts". Eine zweite Lesart des Wortes `SCHWEIGT` wäre eine zweite
+    # nichts“. Eine zweite Lesart des Wortes `SCHWEIGT` wäre eine zweite
     # Wahrheit, die still auseinanderlaufen könnte.
     namen = [n for n in _quellennamen(regel) if not _schweigt(regel, n)]
     if not namen:

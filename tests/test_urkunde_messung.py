@@ -74,7 +74,7 @@ def muster(tmp_path_factory) -> dict[str, Path]:
 def test_musterdokument_haelt_alle_masse(muster, beispiel):
     bericht = geometrie.pruefe(muster[beispiel.stem], "")
     assert bericht.ok, bericht.als_text()
-    # Zählwert statt bloßer Fehlerfreiheit: Ein leerer Bericht wäre auch „ok".
+    # Zählwert statt bloßer Fehlerfreiheit: Ein leerer Bericht wäre auch „ok“.
     assert len(bericht.pruefungen) >= 18, [p.name for p in bericht.pruefungen]
 
 

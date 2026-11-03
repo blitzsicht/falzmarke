@@ -10,8 +10,8 @@ zusammenkommen) — auch dann, wenn ihr Meldetext daraufhin wieder eine Quelle n
 
 Der Anlass ist `text.anschrift_ohne_leerzeilen`. Sie stand seit [#31] auf `herkunft: werkzeug`,
 weil `onlineprinters` zu ihr schweigt. Der Wikipedia-Artikel trägt beide Hälften der Regel — den
-Aufbau des Anschriftfelds („6 Zeilen für die Anschriftzone (AZ)") und das Leerzeilenverbot
-(„Leerzeilen innerhalb der Anschrift sind nicht vorgesehen") — in einem Satz. Er war hier nur
+Aufbau des Anschriftfelds („6 Zeilen für die Anschriftzone (AZ)“) und das Leerzeilenverbot
+(„Leerzeilen innerhalb der Anschrift sind nicht vorgesehen“) — in einem Satz. Er war hier nur
 nie als Quelle eingetragen.
 
 [#31]: https://github.com/blitzsicht/falzmarke/issues/31
@@ -19,21 +19,21 @@ nie als Quelle eingetragen.
 ## Warum
 
 **`herkunft: werkzeug` ist eine Behauptung, keine Verlegenheitslösung.** Sie sagt: „keine
-Aussage der Norm, sondern eine Prüfung des Werkzeugs". Bei dieser Regel ist das nachweislich
+Aussage der Norm, sondern eine Prüfung des Werkzeugs“. Bei dieser Regel ist das nachweislich
 falsch — eine Quelle, die das Repository an fünf anderen Regeln mit `zaehlt: voll` führt, sagt
 die Regel wörtlich. Die Einstufung stehen zu lassen hieße, in der Regeldatei etwas zu behaupten,
 von dem am selben Ort das Gegenteil belegt ist.
 
 **Für den Nutzer ändert sich nichts.** `einzeln_belegt` steht nicht in `DARF_FEHLER_SEIN`; die
 Regel warnt weiter und lässt keinen Lauf scheitern. Was sich ändert, ist die Begründung in der
-Meldung: Statt „das Werkzeug hält …" nennt sie wieder die Quelle. Genau das ist der Punkt — die
+Meldung: Statt „das Werkzeug hält …“ nennt sie wieder die Quelle. Genau das ist der Punkt — die
 Stufe soll sagen, worauf die Regel steht.
 
 **Es ist kein Rückbau von [#328].** Dessen Zuschnitt sagt wörtlich: *„Dieser Vorgang stellt nur
-um, was durch #31 quellenlos wurde."* Diese Regel war nie quellenlos; die tragende Quelle war nur
+um, was durch #31 quellenlos wurde.“* Diese Regel war nie quellenlos; die tragende Quelle war nur
 nie eingetragen. Korrigiert wird eine Eingangsannahme von #328, nicht dessen Entscheidung.
 Nachgemessen am Artikel (22.09.2026): Zu `text.anrede_komma` sagt er ausdrücklich, der
-Textinhalt der Anrede sei „hier nicht geregelt"; zu `text.gruss_ohne_komma` nennt er nur
+Textinhalt der Anrede sei „hier nicht geregelt“; zu `text.gruss_ohne_komma` nennt er nur
 Fluchtlinie und Leerzeilenabstand. **Beide bleiben `werkzeug`** — #328 gilt für zwei von drei
 Regeln unverändert weiter.
 
@@ -41,8 +41,8 @@ Regeln unverändert weiter.
 
 ## Was hier abgelöst wird
 
-[ADR 0042](0042-quellenpruefung-ruht.md) sagt unter „Was diese Entscheidung nicht ist"
-ausdrücklich: *„Sie stuft **keine Regel** um."* Dieser Teilsatz gilt nicht mehr.
+[ADR 0042](0042-quellenpruefung-ruht.md) sagt unter „Was diese Entscheidung nicht ist“
+ausdrücklich: *„Sie stuft **keine Regel** um.“* Dieser Teilsatz gilt nicht mehr.
 
 Der Widerspruch ist nur ein scheinbarer, und die Auflösung steht in ADR 0042 selbst: Seine
 Begründung ruht darauf, dass **ein ungeprüftes Paar bereits mitgezählt wird** — Nachlesen kann
@@ -50,7 +50,7 @@ eine Regel deshalb nur bestätigen oder herabstufen, aufwerten nie. Das gilt fü
 eingetragen **sind**. Eine Quelle, die nie eingetragen war, wurde auch nie mitgezählt; sie ist
 der einzige Weg, auf dem eine Regel aufsteigen kann. ADR 0042 hat über das Abarbeiten der Liste
 entschieden, nicht über neue Einträge — und hält dazu selbst fest: *„wer eine Quelle neu
-einträgt, sagt weiterhin, wo sie die Regel hergibt."*
+einträgt, sagt weiterhin, wo sie die Regel hergibt.“*
 
 ## Die Grenze: ein Satz, keine Rechnung
 
@@ -83,10 +83,10 @@ eingetragen werden sie trotzdem nicht: Eine Subtraktion ist keine Nennung, und b
   schweigen alle, nennt die Meldung keine. Die Reihenfolge unter `quellen:` ist damit wieder
   Lesbarkeit, und die Zusicherung im Test ist mit ihrem Grund entfallen. `wikipedia` steht hier
   weiter vorn — das hängt jetzt an nichts mehr.
-- Die Meldung sagt wieder „die Norm sieht im Anschriftfeld keine Leerzeilen vor", mit dem
-  Zusatz „Quelle: sekundär, einzeln belegt". Gesperrt bleiben „normgerecht", „DIN-konform",
-  „normkonform" und „zertifiziert" — daran ändert sich nichts.
-- Die Zählung in `docs/recht.md` heißt jetzt „stehen auf `einzeln belegt`" statt „fielen von
-  Fehler auf Warnung". Der alte Name stimmte, solange jede solche Regel gefallen war; diese ist
+- Die Meldung sagt wieder „die Norm sieht im Anschriftfeld keine Leerzeilen vor“, mit dem
+  Zusatz „Quelle: sekundär, einzeln belegt“. Gesperrt bleiben „normgerecht“, „DIN-konform“,
+  „normkonform“ und „zertifiziert“ — daran ändert sich nichts.
+- Die Zählung in `docs/recht.md` heißt jetzt „stehen auf `einzeln belegt`“ statt „fielen von
+  Fehler auf Warnung“. Der alte Name stimmte, solange jede solche Regel gefallen war; diese ist
   die erste, die gestiegen ist.
 - `UNGEPRUEFTE_PAARE` bleibt **27**. Das neue Paar kam mit Fundstelle und war nie ungeprüft.

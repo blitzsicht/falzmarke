@@ -57,7 +57,7 @@ stehen wie das übrige Repository unter der MIT-Lizenz.
 **Wer den Film selbst neu rendert, benutzt Remotion und braucht ab vier Beschäftigten eine
 Company License.** Einzelheiten in
 [`THIRD_PARTY_LICENSES.md`](../../../../THIRD_PARTY_LICENSES.md), Abschnitt „Nur für die
-Videoerzeugung". Maßgeblich ist der Hersteller, nicht diese Datei.
+Videoerzeugung“. Maßgeblich ist der Hersteller, nicht diese Datei.
 
 Sollte die Lizenz je im Weg stehen, ist [Motion Canvas](https://motioncanvas.io) (MIT) der
 vorgesehene Ersatz. Die Szenen hängen an `src/brand.ts` und `src/texte.json`, nicht an

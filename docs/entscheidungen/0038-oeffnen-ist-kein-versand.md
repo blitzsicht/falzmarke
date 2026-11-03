@@ -25,7 +25,7 @@ kein Ausfüllen von Feldern, kein Auslösen von Aktionen. Und kein Versand, wie 
 
 Das ist die Einlösung eines Satzes, der in 0034 bereits steht: „Wer die erzeugte `.eml`
 versenden will, **öffnet sie in seinem Mailprogramm** — das ist der Punkt, an dem falzmarkes
-Zuständigkeit endet." Bis jetzt musste der Mensch diesen Satz selbst ausführen. Jetzt darf das
+Zuständigkeit endet.“ Bis jetzt musste der Mensch diesen Satz selbst ausführen. Jetzt darf das
 Werkzeug ihn zu Ende sprechen — und keine Silbe weiter.
 
 Fünf Festlegungen folgen daraus.
@@ -56,7 +56,7 @@ nach außen wird verlangt, nicht stillschweigend geliefert.
 ### 3. Erst messen, dann öffnen
 
 Der Aufruf steht **hinter** der Prüfung. Was `verify --email` nicht besteht, wird niemandem ins
-Mailprogramm gelegt, wo der nächste Handgriff „Weiterleiten" heißt.
+Mailprogramm gelegt, wo der nächste Handgriff „Weiterleiten“ heißt.
 
 Das ist Regel 0 des Skills, angewandt auf den einzigen Schritt, der den Prozess verlässt.
 
@@ -96,7 +96,7 @@ Als eingestreuter Code in `cli.py` wäre keiner der beiden Sätze formulierbar.
 
 0034 begründet selbst, warum diese Grenze eine geschriebene Fassung braucht: Der Senden-Knopf
 „liegt als Bibliotheksaufruf herum, ist in zwanzig Zeilen erledigt und wird bei jedem zweiten
-Vorschlag mitgedacht".
+Vorschlag mitgedacht“.
 
 Für das Öffnen gilt dasselbe eine Stufe früher. Sobald das Werkzeug ein fremdes Programm starten
 darf, steht die nächste Frage im Raum, und sie klingt jedes Mal vernünftig: *Wenn es Outlook
@@ -119,7 +119,7 @@ Daraus folgt für dieses Flag eine Zusage und eine Nicht-Zusage:
 - **Zugesagt:** Die Nachricht ist danach im Mailprogramm, mit Empfänger, Betreff, beiden Teilen
   und den Anhängen.
 - **Nicht zugesagt:** dass sie dort als Entwurf erscheint. Der Weg zur ausgehenden Mail heißt
-  weiterhin „Weiterleiten", und ihn geht ein Mensch.
+  weiterhin „Weiterleiten“, und ihn geht ein Mensch.
 
 Ein Werkzeug kann nicht zusagen, was das Programm des Nutzers entscheidet. Diese Grenze gehört
 in die Doku, nicht in eine Hoffnung.
@@ -147,7 +147,7 @@ allein, dass der letzte Handgriff vor dem Mailprogramm nicht mehr von Hand getan
 
 Sie sagt auch nicht, dass Programmsteuerung technisch unmöglich wäre. Sie ist es nicht: Ein
 Entwurf ließe sich per AppleScript anlegen. Sie sagt, dass ein Werkzeug, das die eigene Ausgabe
-„auf den Millimeter geprüft" nennt, nicht nebenbei in fremden Programmen Zustand herstellen
+„auf den Millimeter geprüft“ nennt, nicht nebenbei in fremden Programmen Zustand herstellen
 sollte, den es nicht messen kann.
 
 ---
@@ -183,7 +183,7 @@ danach geschieht, entscheidet ein Mensch am Senden-Knopf.
 
 ### Wo die Kette jetzt durchtrennt wird
 
-Die alte Fassung fürchtete die Kette „öffnen → Entwurf → senden", weil jedes Glied klein
+Die alte Fassung fürchtete die Kette „öffnen → Entwurf → senden“, weil jedes Glied klein
 aussieht. Sie hat recht behalten: Das zweite Glied wurde verlangt, keine fünf Tage nach dem
 ersten. Es liegt jetzt auf der anderen Seite der Grenze, und die Grenze liegt am dritten Glied.
 

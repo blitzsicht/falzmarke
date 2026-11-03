@@ -109,7 +109,7 @@ AUSZUG_ZEICHEN = 68
 #: Anders als beim abgesetzten Auszug ist der Wert nur eine **obere** Schranke:
 #: Ein Inline-Auszug beginnt mitten in einer Zeile, und was vor ihm steht,
 #: nimmt ihm Platz. Gemessen am 29.08.2026 brach ein 90 Zeichen langer Auszug
-#: hinter „Und im Satz: " nach 55 Zeichen um. Was hier durchgeht, kann also
+#: hinter „Und im Satz: “ nach 55 Zeichen um. Was hier durchgeht, kann also
 #: trotzdem umbrechen — sicher ist nur, dass alles darueber nirgends passt.
 AUSZUG_ZEICHEN_INLINE = 70
 INFOBLOCK_X = 125.0
@@ -192,8 +192,8 @@ class Pruefung:
     #: hing an `all(bestanden)`. Für die Briefmaße ist das richtig — das sind
     #: Maße. Für die Prüfungen der fertigen E-Mail widersprach es ADR 0035:
     #: Eine Regel auf der Ebene `praxis` ist Erfahrung und keine Vorschrift,
-    #: und „Praxis ist nie ein Fehler" steht dort wörtlich. Ohne dritte Stufe
-    #: gab es nur „Fehler" oder „gar nicht prüfen" — und genau daran ist die
+    #: und „Praxis ist nie ein Fehler“ steht dort wörtlich. Ohne dritte Stufe
+    #: gab es nur „Fehler“ oder „gar nicht prüfen“ — und genau daran ist die
     #: Lesebreite in #289 gestorben, eine Setzung ohne Quelle, die als Fehler
     #: wirkte.
     #:
@@ -206,7 +206,7 @@ class Pruefung:
     #: Was in der EINGABE den Befund verursacht — und was daran zu tun waere.
     #:
     #: `soll/ist/toleranz` beschreibt das Symptom: „190,88 statt hoechstens
-    #: 190,00". Damit kann niemand etwas anfangen, der den Brief geschrieben hat
+    #: 190,00“. Damit kann niemand etwas anfangen, der den Brief geschrieben hat
     #: und nicht das Werkzeug. Die Ursache benennt das Element und den Weg
     #: heraus (Issue #145).
     #:
@@ -380,7 +380,7 @@ def _satzspiegel(dokument, bericht: Bericht, briefseiten: int | None = None) -> 
     190,00 mm — Briefkopf und Fusszeile eingeschlossen. Eine Ausnahmeliste waere
     ein zweiter Ort, an dem ein Layoutfehler sich verstecken koennte.
 
-    Der Bericht nennt Seite UND Element: „ausserhalb" allein sagt niemandem, wo
+    Der Bericht nennt Seite UND Element: „ausserhalb“ allein sagt niemandem, wo
     er suchen soll.
     """
     for nummer, seite in enumerate(dokument.pages[:briefseiten], start=1):
@@ -568,9 +568,9 @@ def _ursache_ueberlauf(span: Span, tabellen: list[tuple[float, float]],
                        spans: list[Span] | None = None) -> str:
     """Warum dieser Text nach rechts hinausragt — oder "" , wenn unklar.
 
-    `soll/ist` sagt „190,88 statt hoechstens 190,00". Das ist das Symptom. Wer
+    `soll/ist` sagt „190,88 statt hoechstens 190,00“. Das ist das Symptom. Wer
     den Brief geschrieben hat, sucht danach die Stelle in seiner Datei, und
-    „190,88" hilft ihm dabei nicht (Issue #145).
+    „190,88“ hilft ihm dabei nicht (Issue #145).
 
     Gemessen am 29.08.2026 an allen vier Faellen, die `verify` heute ueberhaupt
     zum Anschlagen bringen (`tests/fixtures/satzspiegel/`): Alle vier sind
@@ -661,7 +661,7 @@ def _tabellenbereiche(seite) -> list[tuple[float, float]]:
 def _raster(dokument, bericht: Bericht, briefseiten: int | None = None) -> None:
     """Der Briefkörper steht auf einem 12-pt-Raster — oder es fällt auf.
 
-    Jede „Leerzeile" der Norm ist genau eine Rasterzeile; darauf beruhen die
+    Jede „Leerzeile“ der Norm ist genau eine Rasterzeile; darauf beruhen die
     Abstände zwischen Betreff, Anrede, Text und Gruß. Bis Issue #140 war das
     eine Zusage von `falzmarke.typ` und sonst nichts: Ein krummer Abstand
     veränderte das PDF messbar, und alle 40 Prüfungen blieben grün.
@@ -704,7 +704,7 @@ def _raster(dokument, bericht: Bericht, briefseiten: int | None = None) -> None:
             # Kurz gehalten: Diese Zeile stand mit 112 Zeichen an der Spitze
             # aller Berichtszeilen (die naechstlange misst 87) und brach im
             # Mitschnitt fuer das README-GIF um — der Terminal dort fasst 111.
-            # Dass alle Abstaende passen, sagt bereits das „OK" davor.
+            # Dass alle Abstaende passen, sagt bereits das „OK“ davor.
             ist = f"{gemessen}× eingehalten"
         bericht.add(
             f"Seite {nummer}, Zeilenraster", "Vielfaches von 4,2333",
@@ -983,7 +983,7 @@ def _pruefe_urkunde(pdf_pfad: Path, briefseiten: int | None = None) -> Bericht:
     # Die Trennlinie zwischen Kopf und Text: die oberste Linie über die
     # Satzbreite unter dem Titel — und unter ihr muss Text stehen, sonst ist es
     # die Linie über der Fußzeile. Gesucht wird nicht „bis zur ersten
-    # Textzeile": Steht der Titel selbst in Textgröße, wäre er diese Zeile, und
+    # Textzeile“: Steht der Titel selbst in Textgröße, wäre er diese Zeile, und
     # die Prüfung meldete eine fehlende Linie statt des falschen Titels
     # (gefunden von der Gegenprobe zur Titelgröße).
     if titel_unten is not None:
@@ -1464,7 +1464,7 @@ def pdfa_geprueft(pdf_pfad: Path) -> tuple[bool, str]:
     """Trägt die Datei eine der Stufen, die falzmarke erzeugt?
 
     Bis Issue #114 stand hier fest die 2. Ein Brief mit eingebetteter Datei ist
-    A-3b, und die Prüfung meldete ihn als „fehlt" — sie prüfte gegen eine Stufe
+    A-3b, und die Prüfung meldete ihn als „fehlt“ — sie prüfte gegen eine Stufe
     statt gegen die, die das Dokument behauptet.
     """
     return pdfa_stufe(pdf_pfad) is not None, xmp_lesen(pdf_pfad)[:200]

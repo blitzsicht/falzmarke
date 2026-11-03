@@ -739,7 +739,7 @@ def test_das_buch_ist_nur_fuer_das_eigene_konto_lesbar(monkeypatch, felder, umas
 
     `conftest.py` legt das Buch in einen Ordner, den pytest schon angelegt hat
     — und der steht auf 0700. Gegen ihn gemessen wäre die Probe erfüllt,
-    bevor `mkdir(mode=…)` überhaupt läuft: Die Sabotage „mkdir ohne Modus"
+    bevor `mkdir(mode=…)` überhaupt läuft: Die Sabotage „mkdir ohne Modus“
     ließ am 25.10.2026 alle 63 Tests grün. Deshalb zeigt `BUCH_VORGABE` hier
     auf einen Pfad, den es noch nicht gibt.
     """
@@ -1753,7 +1753,7 @@ def test_ein_fenster_ohne_uid_in_der_uri_zaehlt_nicht(monkeypatch):
 # `FALZMARKE_BRUECKE_SOCKET` folgte. Bei gesetztem Schalter antwortete das
 # Add-on damit aus Profil B, während hier Profil A gelesen wurde: `BELEGT`
 # konnte nicht entstehen, `gesperrt` und `gesendet` blieben unsichtbar, und der
-# einzige Hinweis lautete „kein Tagebuch" — was nach einem zu alten Add-on
+# einzige Hinweis lautete „kein Tagebuch“ — was nach einem zu alten Add-on
 # klingt, nicht nach dem falschen Profil.
 
 def _zwei_profile(tmp_path, *, in_a=True, in_b=True) -> tuple[Path, Path, Path]:
@@ -1818,7 +1818,7 @@ def test_fehlt_das_tagebuch_nennt_der_hinweis_das_gelesene_profil(monkeypatch, t
     """Liegt im Profil des Sockets keines, muss der Hinweis das Profil nennen.
 
     Sonst beantwortet er die Frage nicht, die er aufwirft: Es gibt hier zwei
-    Profile, und eines trägt ein Tagebuch. „Kein Tagebuch" allein schickt den
+    Profile, und eines trägt ein Tagebuch. „Kein Tagebuch“ allein schickt den
     Leser zum Add-on, statt zum Profil.
     """
     ordner, _, b = _zwei_profile(tmp_path, in_b=False)
@@ -1830,7 +1830,7 @@ def test_fehlt_das_tagebuch_nennt_der_hinweis_das_gelesene_profil(monkeypatch, t
 
 
 def test_ohne_profil_bleibt_der_grund_bei_der_alten_aussage(monkeypatch, tmp_path):
-    """Kein Profil heißt weiter „kein Standardprofil", nicht „kein Socket".
+    """Kein Profil heißt weiter „kein Standardprofil“, nicht „kein Socket“.
 
     Für den Leser ist das Profil die Sache, die fehlt; der Socket ist nur der
     Weg, auf dem es bestimmt wird.

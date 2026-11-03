@@ -14,20 +14,20 @@ und `letter_pro` zählen weiter nur `einzeln` und bewegen nichts.
 ## Warum
 
 **Die Folge, um derentwillen #180 zögerte, gibt es nicht.** Das Issue hielt fest, die Anhebung
-mache „aus der Warnung einen Fehler", und ein Form-A-Brief mit abweichenden Maßen bräche dann ab.
+mache „aus der Warnung einen Fehler“, und ein Form-A-Brief mit abweichenden Maßen bräche dann ab.
 Nachgemessen am 24.09.2026: Keine der vierzehn Geometrie-Regeln trägt `lint:`, `typografie:` oder
 `pruefung:`, und `skill/falzmarke/geometrie.py` importiert den Regelkatalog nicht. Die Maße am
 fertigen PDF werden mit der Vorgabe `STUFE_FEHLER` gemessen und entscheiden über `Bericht.ok` und
 den Exit-Code — seit jeher, unabhängig von der Stufe in der Regeldatei. Gegenprobe im selben
 Durchgang: Mit der **alten** Stufe (`einzeln_belegt` / `warnung`) und einem um 3 mm verschobenen
 Sollwert der Form-A-Falzmarke meldet der Lauf `FEHL  Falzmarke 1, y`, schreibt „FEHLGESCHLAGEN —
-das PDF hält die Maße aus DIN 5008 nicht ein" und endet mit Exit 2. Daneben stand im selben Lauf
+das PDF hält die Maße aus DIN 5008 nicht ein“ und endet mit Exit 2. Daneben stand im selben Lauf
 eine echte Warnung (`schreibweise.datum`) — der Bericht kann also beides, er tut es hier nur nicht.
 
 Für die Geometrie sagt die Stufe also etwas über die Beleglage und nichts über die Wirkung. Was
 diese Entscheidung ändert, ist die Auskunft des Werkzeugs über sich selbst — und die war falsch.
 
-**Der Vergleich mit Form B trägt umgekehrt.** #180 führte an, Form B stehe „auf zwei Zeichnungen"
+**Der Vergleich mit Form B trägt umgekehrt.** #180 führte an, Form B stehe „auf zwei Zeichnungen“
 und wirke als Fehler, Form A stehe nun ebenso auf zwei Quellen. Es ist eine Zeichnung: `massskizze_b`
 und `onlineprinters` tragen dieselbe `gruppe:`, weil sie bis in den Fußtext deckungsgleich sind
 ([Befund vom 27.08.2026](../quellenunabhaengigkeit-2026-08-27.md)). Alle fünf `geometrie.form_b.*`
@@ -59,7 +59,7 @@ des Umtragens, nicht die einer Wiederaufnahme.
 in #180, und er bleibt stehen. Die beiden liegen bei verschiedenen Betreibern, haben verschiedene
 Darstellungsformen (Zeichnung gegen Fließtext) und berufen sich auf verschiedene Ausgaben (2020
 gegen 2011) — das spricht für Unabhängigkeit, misst sie aber nicht. `docs/recht.md` führt die Regel
-deshalb unter „Unabhängigkeit ungeprüft", zusammen mit `geometrie.seitenformat` und
+deshalb unter „Unabhängigkeit ungeprüft“, zusammen mit `geometrie.seitenformat` und
 `geometrie.seitenraender`. Das ist die schwächere Aussage, und sie steht dort, wo sie zu lesen ist.
 
 Einwand 1 aus #180 — `federwerk` beruft sich auf die Ausgabe 2011 — wiegt nicht mehr als bei Form B:
@@ -73,7 +73,7 @@ Herkunftsstufe durch eine Fundstelle.
 
 - `geometrie.form_a.masse`: `herkunft: mehrfach_bestaetigt`, `wirkung: fehler`,
   `belegt_durch.massskizze_a` mit Fundstelle.
-- Regeln auf „mehrfach bestätigt": 10 → **11**; davon mit ungeprüfter Unabhängigkeit 2 → **3**.
+- Regeln auf „mehrfach bestätigt“: 10 → **11**; davon mit ungeprüfter Unabhängigkeit 2 → **3**.
   Die 8, die auf derselben Zeichnung stehen, bleiben 8.
 - Ungeprüfte Quelle-Regel-Paare: 27 → **26**. Die Aufteilung in `docs/recht.md` (16 bei Quellen
   ohne Belegsgruppe, 10 bei `onlineprinters`) geht damit wieder auf; mit den 27 tat sie es nicht.
