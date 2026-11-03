@@ -2399,12 +2399,13 @@ def test_der_umbruch_wird_zweimal_gehalten_und_jede_linie_einzeln_belegt(monkeyp
     1. unsabotiert — ein Bericht, der gefaltete Bezug ist gefunden;
     2. ohne das Zerlegen — ein Bericht mit Hinweis, nichts gefunden: `sendbar` hält;
     3. auch ohne `sendbar` — `PostfachFehler`: `_zitiert` hält;
-    4. ohne alle drei — `ValueError` aus der Attrappe, mit dem Wortlaut von
-       `imaplib.IMAP4._command`. Das ist der Zustand, in dem der Umbruch auf
-       die Leitung geht; auf Python 3.12 und 3.13 lehnt `imaplib` ihn **nicht**
-       ab, dort wären es zwei Befehle (gemessen 29.10.2026, #438). Die CI
-       fährt 3.12 — ohne die Ablehnung in der Attrappe wäre diese Stufe dort
-       stumm.
+    4. ohne alle drei — der `ValueError` der Attrappe mit dem Wortlaut von
+       `imaplib.IMAP4._command`, von `_befehl` seit dem Review von #460 als
+       `PostfachFehler` weitergereicht. Von Stufe 3 trennt ihn der Wortlaut.
+       Das ist der Zustand, in dem der Umbruch auf die Leitung geht; auf
+       Python 3.12 und 3.13 lehnt `imaplib` ihn **nicht** ab, dort wären es
+       zwei Befehle (gemessen 29.10.2026, #438). Die CI fährt 3.12 — ohne die
+       Ablehnung in der Attrappe wäre diese Stufe dort stumm.
     """
     from falzmarke import ablage as _ablage
     from falzmarke import postfach as _postfach_modul
@@ -2436,7 +2437,7 @@ def test_der_umbruch_wird_zweimal_gehalten_und_jede_linie_einzeln_belegt(monkeyp
         return '"' + name.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
     monkeypatch.setattr(_postfach_modul, "_zitiert", nur_zitieren)
-    with pytest.raises(ValueError, match="NUL, CR and LF"):
+    with pytest.raises(_postfach_modul.PostfachFehler, match="NUL, CR and LF"):
         plane_einmal()
     assert nur_zitieren("Gesendete Elemente") == '"Gesendete Elemente"', \
         "die Sabotage hat mehr getroffen als die Prüfung — das Zitieren selbst fiel"
@@ -2675,6 +2676,35 @@ def test_ohne_zugzeilen_im_grund_verschweigt_der_text_den_plan(monkeypatch):
         "die Sabotage trifft auch den Lauf ohne Grund"
 
 
+def test_haelt_jeder_abbruch_fuer_einen_gesendeten_zug_luegt_der_text(monkeypatch):
+    """Review von #459: Nachbau des alten Verhaltens, jeder Abbruch zählt als Zug.
+
+    Bis dahin stand „ob der Server … bewegt hat, ist nicht geprüft“ auch dort,
+    wo `UID MOVE` nie hinausging. `ZugAbgebrochen` auf die Oberklasse gelegt,
+    macht genau das: Jeder `AblageFehler` gilt dann als gesendeter Zug.
+    """
+    from falzmarke import ablage as _ablage
+    from test_ablage import test_scheitert_der_zug_stehen_die_uids_auch_im_text as probe
+
+    probe()  # Kontrollprobe: unsabotiert grün
+    monkeypatch.setattr(_ablage, "ZugAbgebrochen", _ablage.AblageFehler)
+    with pytest.raises(AssertionError, match="nichts bewegt"):
+        probe()
+
+
+def test_geht_nur_die_erste_zeile_auf_stderr_stehen_die_uids_allein(monkeypatch, capsys):
+    """Review von #459: Nachbau der alten Weiche, die nur nach dem Zeilenanfang ging."""
+    from falzmarke import cli as _cli
+    from test_ablage import test_ein_abgebrochener_bericht_steht_ganz_auf_stderr as probe
+
+    probe(monkeypatch, capsys)  # Kontrollprobe: unsabotiert grün
+    monkeypatch.setattr(_cli, "befehl_aufraeumen", _zeile_ersetzt(
+        _cli, "befehl_aufraeumen", "sys.stderr if bericht.grund\n                        or ",
+        "sys.stderr if "))
+    with pytest.raises(AssertionError, match="auf stdout gelandet"):
+        probe(monkeypatch, capsys)
+
+
 # ── #442 N1: Die Teilkette des Servers geht nicht in `UID MOVE` ─────────────
 
 def _teilkette(monkeypatch):
@@ -2717,11 +2747,27 @@ def test_ohne_message_id_im_fetch_trifft_gar_nichts_mehr(monkeypatch):
     assert lauf().zuege == ()
 
 
+def test_mit_strip_gilt_eine_einzelne_klammer_als_paar(monkeypatch):
+    """Review von #457: Nachbau des alten Vergleichs mit `strip("<>")`."""
+    from falzmarke import postfach as _postfach_modul
+    from test_postfach import test_gleiche_kennung_nimmt_genau_ein_klammerpaar_ab as probe
+
+    faelle = [("abc@x>", "<abc@x>", False), ("<<abc@x>>", "<abc@x>", False)]
+    for fall in faelle:
+        probe(*fall)  # Kontrollprobe: unsabotiert grün
+    monkeypatch.setattr(_postfach_modul, "_ohne_klammerpaar", lambda k: k.strip("<>"))
+    for fall in faelle:
+        with pytest.raises(AssertionError):
+            probe(*fall)
+    probe("abc@x", "<abc@x>", True)  # die Sabotage trifft nicht den gewollten Fall
+
+
 def test_ohne_pruefung_vor_login_geht_der_umbruch_an_imaplib(monkeypatch):
     """#442 (N4): Ohne die Prüfung in `verbinde` erreicht der Umbruch `LOGIN`.
 
-    Dort fängt ihn nur die Attrappe ab, so wie `imaplib` ab 3.14 — mit
-    `ValueError`, also als Traceback. Auf 3.12 fängt ihn niemand.
+    Dort fängt ihn nur die Attrappe ab, so wie `imaplib` ab 3.14, mit
+    `ValueError`. Den macht `_befehl` seit dem Review von #460 zu einem Grund.
+    Auf 3.12 fängt ihn niemand, und der Umbruch ginge auf die Leitung.
     """
     import re
 
@@ -2731,11 +2777,51 @@ def test_ohne_pruefung_vor_login_geht_der_umbruch_an_imaplib(monkeypatch):
     adresse = "joe@example.org\r\nA1 DELETE INBOX"
     attrappe = ImapAttrappe()
     monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE", attrappe)
-    with pytest.raises(_postfach_modul.PostfachFehler):
+    with pytest.raises(_postfach_modul.PostfachFehler, match="Umbruch oder ein Nullbyte"):
         _postfach_modul.verbinde(adresse, umgebung={})
     assert attrappe.verbindungen == [], "Kontrollprobe: unsabotiert keine Verbindung"
 
     monkeypatch.setattr(_postfach_modul, "_STEUERZEICHEN", re.compile(r"(?!)"))
-    with pytest.raises(ValueError, match="NUL, CR and LF"):
+    with pytest.raises(_postfach_modul.PostfachFehler, match="NUL, CR and LF"):
         _postfach_modul.verbinde(adresse, umgebung={})
     assert len(attrappe.verbindungen) == 1, "die Sabotage greift nicht"
+    assert attrappe.abgemeldet == 1
+
+
+def test_ohne_zitat_geht_der_anmeldename_roh_an_login(monkeypatch):
+    """Review von #460: Nachbau des alten `verbinde`, der Name ging unzitiert."""
+    from falzmarke import postfach as _postfach_modul
+    from imap_attrappe import ImapAttrappe
+
+    def probe():
+        attrappe = ImapAttrappe()
+        monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE", attrappe)
+        _postfach_modul.verbinde("joe {5}@example.org", umgebung={}).abmelden()
+        (befehl,) = [p for p in attrappe.protokoll if p[0] == "LOGIN"]
+        return befehl[1]
+
+    assert probe() == '"joe {5}@example.org"', "Kontrollprobe: unsabotiert zitiert"
+    monkeypatch.setattr(_postfach_modul, "verbinde", _zeile_ersetzt(
+        _postfach_modul, "verbinde", "anmeldename = _zitiert(adresse)",
+        "anmeldename = adresse"))
+    assert probe() == "joe {5}@example.org", "die Sabotage greift nicht"
+
+
+def test_faengt_befehl_nur_unicodeencodeerror_entkommt_der_valueerror(monkeypatch):
+    """Review von #460: Nachbau des alten `_befehl` mit dem engen `except`."""
+    import inspect
+    import textwrap
+
+    from falzmarke import postfach as _postfach_modul
+    from test_postfach import test_ein_valueerror_aus_imaplib_ist_ein_grund_und_meldet_ab as probe
+
+    probe(monkeypatch)  # Kontrollprobe: unsabotiert grün
+    quelle = textwrap.dedent(inspect.getsource(_postfach_modul.Postfach._befehl))
+    alt, neu = "OSError, ValueError)", "OSError, UnicodeEncodeError)"
+    assert quelle.count(alt) == 1, "die Sabotage greift nicht"
+    raum: dict = {}
+    exec(compile(quelle.replace(alt, neu), inspect.getsourcefile(_postfach_modul), "exec"),
+         _postfach_modul.__dict__, raum)
+    monkeypatch.setattr(_postfach_modul.Postfach, "_befehl", raum["_befehl"])
+    with pytest.raises(ValueError, match="NUL, CR and LF"):
+        probe(monkeypatch)

@@ -153,10 +153,9 @@ def _zitiert(name: str) -> str:
     die Leitung (gemessen am 29.10.2026 mit abgefangenem `send`, #438), und die
     CI fährt 3.12.
 
-    Gerufen wird es für die frei belegten Argumente von `SELECT`, `UID SEARCH
-    HEADER`, `APPEND` und `UID MOVE`. Nicht hindurch gehen `FETCH` und `LIST`
-    (dort stehen nur UIDs und feste Wörter) und `LOGIN`, das `verbinde` selbst
-    prüft.
+    Gerufen wird es für die frei belegten Argumente von `LOGIN`, `SELECT`,
+    `UID SEARCH HEADER`, `APPEND` und `UID MOVE`. Nicht hindurch gehen `FETCH`
+    und `LIST`: Dort stehen nur UIDs und feste Wörter.
     """
     if _STEUERZEICHEN.search(name or ""):
         raise PostfachFehler(
@@ -204,8 +203,20 @@ def gleiche_kennung(gesucht: str, kopfwert: str) -> bool:
     `--machen` in `UID MOVE` (#442). Die Klammern zählen nicht mit, damit ein
     Programm, das sie weglässt, seine eigene Nachricht weiter findet. Groß und
     klein zählen: Im Zweifel bleibt die Mail im Eingang liegen.
+
+    Abgenommen wird genau **ein** Paar, und nur ein vollständiges. `strip("<>")`
+    nahm jede Klammer an jedem Ende, auch einzeln und doppelt: `abc@x>` oder
+    `<<abc@x>>` galten als `<abc@x>`, und das in der Richtung, in der zu viel
+    verschoben wird (Review von #457).
     """
-    return any(k.strip("<>") == gesucht.strip("<>") for k in kennungen(kopfwert))
+    return any(_ohne_klammerpaar(k) == _ohne_klammerpaar(gesucht) for k in kennungen(kopfwert))
+
+
+def _ohne_klammerpaar(kennung: str) -> str:
+    """`<abc@x>` → `abc@x`; alles andere bleibt, wie es ist."""
+    if len(kennung) >= 2 and kennung.startswith("<") and kennung.endswith(">"):
+        return kennung[1:-1]
+    return kennung
 
 
 # ── Ziel ────────────────────────────────────────────────────────────────────
@@ -322,9 +333,12 @@ class Postfach:
         self._rest()
         try:
             typ, daten = aufruf(*args, **kwargs)
-        except (imaplib.IMAP4.error, OSError, UnicodeEncodeError) as fehler:
-            # `UnicodeEncodeError`: `imaplib` kodiert Argumente mit ASCII und wirft,
-            # bevor etwas gesendet ist. Das ist ein `ValueError`, kein IMAP-Fehler.
+        except (imaplib.IMAP4.error, OSError, ValueError) as fehler:
+            # `ValueError`: `imaplib` kodiert Argumente mit ASCII
+            # (`UnicodeEncodeError`) und lehnt ab 3.14 Umbruch und Nullbyte ab
+            # („NUL, CR and LF not allowed“). Beides wirft, bevor etwas gesendet
+            # ist, und ist kein IMAP-Fehler. Entkäme es hier, stünde ein
+            # Traceback da, und `verbinde` meldete nicht ab (Review von #460).
             raise PostfachFehler(f"{was}: {_kurz(fehler)}") from None
         if typ != "OK":
             raise PostfachFehler(f"{was}: {_kurz(daten)}")
@@ -463,18 +477,22 @@ def verbinde(adresse: str, *, umgebung: Mapping[str, str] | None = None,
     Die Frist gilt für die ganze Sitzung: Verbindungsaufbau, Anmeldung und
     jeder Befehl danach ziehen von derselben Zeit ab.
 
-    `LOGIN` läuft nicht durch `_zitiert`: `imaplib` setzt den Anmeldenamen
-    selbst in den Befehl. Die Ablehnung von Umbruch und Nullbyte steht deshalb
-    hier, vor dem Verbindungsaufbau (#442, N4). Die Adresse kommt vom Bediener,
-    nicht aus fremder Post, aber auf 3.12 ginge sie genauso als zweiter Befehl
-    auf die Leitung.
+    Der Anmeldename geht durch `_zitiert`, vor dem Verbindungsaufbau.
+    `imaplib.login` zitiert nur das Kennwort, den Namen setzt es roh in den
+    Befehl. Ein Umbruch begänne dort einen zweiten Befehl (#442, N4), und ein
+    Leerzeichen oder ein `{5}` am Ende würde als weiteres Argument oder als
+    Literal gelesen (Review von #460). `emailproxy` nimmt die
+    Anführungszeichen wieder ab (`OAuth2Helper.strip_quotes`, gelesen am
+    03.11.2026 in der Fassung, die der laufende Proxy lädt).
     """
     import os
 
-    if _STEUERZEICHEN.search(adresse or ""):
+    try:
+        anmeldename = _zitiert(adresse)
+    except PostfachFehler:
         raise PostfachFehler(
             "die Absenderadresse enthält einen Umbruch oder ein Nullbyte — als Anmeldename "
-            "begänne sie einen zweiten IMAP-Befehl, deshalb wird nicht angemeldet")
+            "begänne sie einen zweiten IMAP-Befehl, deshalb wird nicht angemeldet") from None
     umgebung = os.environ if umgebung is None else umgebung
     host, port = ziel(umgebung)
     wo = f"{host}:{port}"
@@ -489,7 +507,7 @@ def verbinde(adresse: str, *, umgebung: Mapping[str, str] | None = None,
     postfach = Postfach(verbindung, adresse, frist)
     try:
         postfach._befehl(f"Anmeldung als {adresse} an {wo} abgelehnt",
-                         verbindung.login, adresse, KENNWORT)
+                         verbindung.login, anmeldename, KENNWORT)
     except PostfachFehler:
         postfach.abmelden()
         raise

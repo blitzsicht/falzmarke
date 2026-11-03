@@ -13,7 +13,7 @@ braucht. Es ist bewusst eine Bestandsliste und keine Anleitung zum Bewerben. Die
 
 | Verzeichnis | Wie der Eintrag entsteht | Stand |
 |---|---|---|
-| **Offizielles MCP-Registry** | `server.json` + Job `mcp-registry` im Release-Lauf, OIDC | gelistet, v0.11.0; Startbefehl aus dem Eintrag gefahren, 34/34 ([Finding 1](bestandsaufnahme-distribution.md)) |
+| **Offizielles MCP-Registry** | `server.json` + Job `mcp-registry` im Release-Lauf, OIDC | gelistet, v0.11.1 (03.11.2026); Startbefehl aus dem Eintrag gefahren, Handschlag und vier Werkzeuge; Brief mit 34/34 zuletzt an v0.11.0 ([Finding 1](bestandsaufnahme-distribution.md)) |
 | **Glama** | Konto nötig, „Add Server" in der Weboberfläche | gelistet, noch nicht beansprucht |
 | **awesome-mcp-servers** | PR [punkpeye/awesome-mcp-servers#13221](https://github.com/punkpeye/awesome-mcp-servers/pull/13221) | offen; der Maintainer verlangt Anspruch und Quality Score auf Glama |
 | Repo-Themen (`mcp`, `mcp-server`, `model-context-protocol`) | `scripts/topics.py`, Wächter `repo_pruefung.py` | erledigt |
