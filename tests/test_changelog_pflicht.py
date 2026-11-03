@@ -30,6 +30,8 @@ sys.path.insert(0, str(REPO / "scripts"))
 
 import changelog                                                 # noqa: E402
 import changelog_pflicht                                         # noqa: E402
+import pytest                                                    # noqa: E402
+from test_closing_keyword import CI, ci_mit_typen, pull_request_typen  # noqa: E402
 
 CODE = "skill/falzmarke/geometrie.py"
 EINTRAG = "changelog.d/230.behoben.md"
@@ -164,6 +166,56 @@ def test_die_meldung_nennt_die_datei_die_den_eintrag_verlangt(tmp_path):
     _, grund = pruefe([CODE, "docs/cli.md"], tmp_path)
     assert CODE in grund
     assert "docs/cli.md" not in grund
+
+
+def test_die_meldung_sagt_wie_der_check_nach_dem_label_neu_laeuft(tmp_path):
+    """#437: Das Label setzt ein Maintainer nachträglich, und der Lauf bleibt rot."""
+    gut, grund = pruefe([CODE], tmp_path)
+    assert not gut
+    assert "gh run rerun --job" in changelog_pflicht.NEUSTART
+    assert changelog_pflicht.NEUSTART in grund, "NEUSTART fehlt in der Meldung"
+
+
+def test_gegenprobe_mit_eintrag_kein_hinweis_auf_den_neustart(tmp_path):
+    _, grund = pruefe([CODE, EINTRAG], tmp_path)
+    assert changelog_pflicht.NEUSTART not in grund
+
+
+def test_gegenprobe_ohne_den_satz_in_pruefe_wird_die_meldung_rot(tmp_path, monkeypatch):
+    from test_gegenbeweis import _zeile_ersetzt
+
+    monkeypatch.setattr(changelog_pflicht, "pruefe", _zeile_ersetzt(
+        changelog_pflicht, "pruefe", '"\\n" + NEUSTART', '""'))
+    with pytest.raises(AssertionError, match="NEUSTART fehlt in der Meldung"):
+        test_die_meldung_sagt_wie_der_check_nach_dem_label_neu_laeuft(tmp_path)
+
+
+def test_der_hinweis_stimmt_solange_labeled_nicht_ausloest_ein_push_aber_schon():
+    """Der Satz sagt zweierlei über ci.yml, und beides muss stimmen.
+
+    `labeled` startet nichts, darum der Hinweis. Ein Push (`synchronize`) startet
+    neu, darum gilt er nur für das Label und nicht für das nachgereichte Fragment.
+    """
+    typen = pull_request_typen(CI.read_text(encoding="utf-8"))
+    assert "labeled" not in typen, (
+        f"ci.yml startet jetzt bei „labeled“ ({', '.join(typen)}): "
+        "NEUSTART in scripts/changelog_pflicht.py ist überholt")
+    assert "synchronize" in typen, (
+        f"ci.yml startet nicht mehr bei „synchronize“ ({', '.join(typen)}): "
+        "dann läuft auch nach dem Push mit dem Fragment nichts neu")
+
+
+@pytest.mark.parametrize("typen, erwartet", [
+    ("opened, synchronize, reopened, labeled", "bei „labeled“"),
+    ("opened, reopened", "nicht mehr bei „synchronize“"),
+])
+def test_gegenprobe_mit_anderem_trigger_wird_der_hinweis_rot(typen, erwartet, tmp_path,
+                                                             monkeypatch):
+    """Jede Sabotage einzeln, je eine der beiden Aussagen des Satzes."""
+    test_der_hinweis_stimmt_solange_labeled_nicht_ausloest_ein_push_aber_schon()  # Kontrolle
+    monkeypatch.setattr(sys.modules[__name__], "CI", ci_mit_typen(tmp_path, typen))
+    with pytest.raises(AssertionError, match=erwartet):
+        test_der_hinweis_stimmt_solange_labeled_nicht_ausloest_ein_push_aber_schon()
 
 
 # --- die Angaben, wie `gh` sie wirklich liefert ----------------------------
