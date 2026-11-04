@@ -580,6 +580,39 @@ def test_ein_alias_fenster_das_nach_dem_plan_aufgeht_haelt_den_zug(monkeypatch, 
     assert "Fenster" in bericht.bleibt[0].grund
 
 
+def _konto_ohne_den_alias(monkeypatch, tmp_path) -> None:
+    """Das Profil kennt das Konto, aber den Alias noch nicht: der Fall
+    „Identität noch nicht in `prefs.js`“ aus ADR 0060."""
+    from test_thunderbird_signatur import _attrappe
+
+    monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER", _attrappe(tmp_path / "tb", {
+        "mail.accountmanager.accounts": "account1",
+        "mail.account.account1.identities": "id1",
+        "mail.identity.id1.useremail": VON}))
+
+
+def test_die_letzte_sperre_haelt_auch_ein_fenster_ausserhalb_des_kontos(monkeypatch, tmp_path):
+    """Nachreview #488, Nr. 2: `_ziehe` sperrt nachsichtig, jedes Fenster mit
+    dieser UID hält den Entwurf. Am Zug ist ein falsches „offen“ der billige
+    Irrtum; ein eigenes Alias-Fenster, das nicht hält, verlöre den Entwurf.
+
+    Zwilling: Die strenge Zuordnung, die `status` und die Planung nehmen,
+    lässt dasselbe Fenster heraus. Ohne ihn bewiese die Probe nicht, dass das
+    Profil das Fenster überhaupt ausschließen würde."""
+    server, uid, _profil_pfad = _fall1(monkeypatch, tmp_path)
+    _konto_ohne_den_alias(monkeypatch, tmp_path)
+    monkeypatch.setattr(bruecke, "VERBINDEN", _alias_fenster(uid))
+    assert entwurfsbuch._offene_uids(VON, {}) == ({}, ""), "Kontrolle: streng fällt es heraus"
+    zug = entwurfsablage.Zug(str(uid), "Auftrag S1", (AN,), ALT, ANGELEGT,
+                             entwurfsablage.SCHON_RAUS, frozenset({str(uid)}))
+    with postfach.verbinde(VON, umgebung={}) as sitzung:
+        grund = entwurfsablage._ziehe(sitzung, ENTWUERFE, PAPIERKORB, zug, adresse=VON,
+                                      umgebung={}, machen=True)
+    assert grund == "gerade in einem Fenster offen", \
+        f"das Fenster außerhalb des Kontos hält den Zug nicht: {grund!r}"
+    assert not server.befehle("UID MOVE")
+
+
 def test_faellt_die_bruecke_nach_dem_plan_aus_bleibt_der_entwurf(monkeypatch, tmp_path):
     server, uid, profil = _fall1(monkeypatch, tmp_path)
     _nach_dem_plan(monkeypatch, lambda: monkeypatch.setattr(
