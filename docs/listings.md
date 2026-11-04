@@ -32,8 +32,9 @@ Das Portal liest Name und Kurzbeschreibung aus `plugin.json` und dem README. Der
 ins Manifest. `homepage` bleibt die nackte Adresse (siehe UTM-Konvention), der Link unten gehört ins
 README des Plugin-Ordners.
 
-Das Manifest nennt bewusst keine `version`: Sie wäre die fünfte Stelle, die bei jedem Release
-mitwandern müsste. Der Validator warnt deshalb einmal, das ändert sein Ergebnis nicht.
+Seit #467 nennt das Manifest eine `version`, die fünfte Stelle, die bei jedem Release mitwandert.
+`tests/test_version.py` hält sie gegen `pyproject.toml` (siehe CONTRIBUTING.md, Abschnitt zum
+Bump).
 
 **Link:** https://falzmarke.com/?utm_source=listing&utm_medium=directory&utm_campaign=anthropic-202611
 
