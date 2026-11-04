@@ -666,6 +666,8 @@ class Bericht(NamedTuple):
     gesendet: str = ""
     papierkorb: str = ""
     angesehen: int = 0
+    #: Davon übergangen, weil ihr Absender keine Identität des Kontos ist (#434).
+    fremde: int = 0
     tage: int = TAGE_VORGABE
     im_buch: int = 0
     tagebuch: int = 0
@@ -778,15 +780,47 @@ def fremde_identitaet(fenster: Mapping | None, adresse: str) -> str:
     return gemeldet if gemeldet and gemeldet.lower() != adresse.strip().lower() else ""
 
 
+def kontoadressen(adresse: str, umgebung: Mapping[str, str] | None = None,
+                  profilordner: Path | None = None) -> tuple[frozenset[str] | None, str]:
+    """Die Identitäten des Kontos aus dem Profil, aus dem die Brücke antwortet.
+
+    `oeffnen.kontoadressen` am Profil von `bruecken_profil`: Liegt der Socket
+    der Brücke in einem anderen Profil als dem Standardprofil, kennt nur dieses
+    die Aliasse (Nachreview #488, Nr. 1). Gibt `(adressen, "")` oder
+    `(None, grund)`. Der Maßstab für die Fenster (`_offene_uids`).
+    """
+    from falzmarke import oeffnen
+
+    profil, grund = bruecken_profil(profilordner, umgebung)
+    if profil is None:
+        return None, grund
+    return oeffnen.kontoadressen(adresse, profil=profil)
+
+
+def profiladressen(umgebung: Mapping[str, str] | None = None,
+                   profilordner: Path | None = None) -> tuple[frozenset[str] | None, str]:
+    """Die Adressen aller Identitäten im Profil, aus dem die Brücke antwortet (#434).
+
+    `oeffnen.profiladressen` am Profil von `bruecken_profil`, wie
+    `kontoadressen`. Der Maßstab für den Absender einer Mail im
+    Gesendet-Ordner (`gesendet.fremder_absender`): Fremd ist, was von keiner
+    Adresse kommt, von der dieses Thunderbird senden kann.
+    """
+    from falzmarke import oeffnen
+
+    profil, grund = bruecken_profil(profilordner, umgebung)
+    if profil is None:
+        return None, grund
+    return oeffnen.profiladressen(profil=profil)
+
+
 def _offene_uids(adresse: str, umgebung: Mapping[str, str], profilordner: Path | None = None,
                  *, streng: bool = True,
                  hinweise: list[str] | None = None) -> tuple[dict[str, dict], str]:
     """UID → was die Brücke über das Fenster meldet, in dem dieser Entwurf offen ist.
 
     Die Identitäten des Kontos kommen aus dem Thunderbird-Profil (#466), und
-    zwar aus dem, aus dem die Brücke antwortet (`bruecken_profil`): Liegt ihr
-    Socket in einem anderen Profil als dem Standardprofil, kennt nur dieses
-    die Aliasse ihrer Fenster (Nachreview #488, Nr. 1).
+    zwar aus dem, aus dem die Brücke antwortet (`kontoadressen`).
 
     `streng=False` lässt die Identitäten weg, und jedes Fenster mit dieser UID
     zählt. So sperrt die letzte Prüfung vor dem Zug (`entwurfsablage._ziehe`):
@@ -799,7 +833,7 @@ def _offene_uids(adresse: str, umgebung: Mapping[str, str], profilordner: Path |
     in den Rückgabegrund: Der ist eine Sperre (`fenster_grund`), und hier wurde
     ja geprüft, nur nachsichtig.
     """
-    from falzmarke import bruecke, oeffnen
+    from falzmarke import bruecke
 
     try:
         fenster = bruecke.offene_entwuerfe(umgebung=umgebung)
@@ -807,9 +841,7 @@ def _offene_uids(adresse: str, umgebung: Mapping[str, str], profilordner: Path |
         return {}, f"offene Fenster nicht geprüft: {fehler}"
     if not streng:
         return fenster_des_kontos(fenster, adresse), ""
-    profil, grund = bruecken_profil(profilordner, umgebung)
-    adressen, grund = (None, grund) if profil is None else oeffnen.kontoadressen(
-        adresse, profil=profil)
+    adressen, grund = kontoadressen(adresse, umgebung, profilordner)
     if adressen is None and hinweise is not None and any(
             fremde_identitaet(f, adresse) for f in fenster):
         hinweise.append(f"Identitäten des Kontos nicht gelesen ({grund}): ein Fenster mit "
@@ -1022,6 +1054,19 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
             raus = [k for k in sitzung.koepfe(ordner_g, seit=grenze.date(),
                                                  grenze=GRENZE_GESENDET)
                     if k.datum is None or k.datum >= grenze]
+            # Was von außerhalb des Profils kommt, ging nicht von hier hinaus: eingegangene
+            # Post, die eine Regel oder eine Hand nach „Gesendet“ gelegt hat (#434).
+            eigene, eigene_grund = profiladressen(umgebung, profilordner)
+            fremde = [k for k in raus if gesendet.fremder_absender(k, eigene)]
+            raus = [k for k in raus if not gesendet.fremder_absender(k, eigene)]
+            if eigene is None:
+                andere = sum(bool(k.von) and k.von != adresse for k in raus)
+                if andere:
+                    hinweise.append(
+                        f"Identitäten des Profils nicht gelesen ({eigene_grund}): "
+                        f"{andere} Mail{'s' if andere != 1 else ''} in "
+                        f"„{postfach.utf7_dekodieren(ordner_g)}“ mit anderem Absender "
+                        f"{'zählen' if andere != 1 else 'zählt'} als gesendet")
             weg = (sitzung.koepfe(ordner_p, seit=grenze.date(), grenze=GRENZE_GESENDET)
                    if ordner_p else [])
             if not ordner_p:
@@ -1201,8 +1246,8 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
     return Bericht(adresse, tuple(zustaende), entwuerfe=postfach.utf7_dekodieren(ordner_e),
                    gesendet=postfach.utf7_dekodieren(ordner_g),
                    papierkorb=postfach.utf7_dekodieren(ordner_p) if ordner_p else "",
-                   angesehen=len(raus), tage=tage, im_buch=len(buch),
-                   tagebuch=tagebuch_eigene, hinweise=tuple(hinweise),
+                   angesehen=len(raus) + len(fremde), fremde=len(fremde), tage=tage,
+                   im_buch=len(buch), tagebuch=tagebuch_eigene, hinweise=tuple(hinweise),
                    unlesbar=stand.unlesbar, ungewiss=ungewiss, ohne_zuordnung=verwaist,
                    entwuerfe_server=ordner_e, papierkorb_server=ordner_p or "",
                    beleg_grund=beleg_grund, fenster_grund=offen_grund)
@@ -1285,9 +1330,10 @@ def zeilen(bericht: Bericht, *, zeitzone=None) -> list[str]:
         return ([f"NICHT GEPRÜFT  {bericht.adresse}: {bericht.grund}"]
                 + _hinweiszeilen(bericht, zeitzone))
     liegen = sum(z.art in ("wartet", "offen", "schon_raus") for z in bericht.zustaende)
+    fremde = (f" ({bericht.fremde} mit fremdem Absender übergangen)" if bericht.fremde else "")
     aus = [(f"OK  {bericht.adresse}: {liegen} in „{bericht.entwuerfe}“, {bericht.im_buch} im "
             f"Entwurfsbuch, {bericht.angesehen} Mails der letzten {bericht.tage} Tage in "
-            f"„{bericht.gesendet}“ angesehen, {bericht.tagebuch} Tagebucheinträge")]
+            f"„{bericht.gesendet}“ angesehen{fremde}, {bericht.tagebuch} Tagebucheinträge")]
     for z in bericht.zustaende:
         an = ", ".join(z.an) or "—"
         kopf = f"{KOPF[z.art]:<13}{_wann(z.angelegt, zeitzone)}  „{z.betreff}“ → {an}"
@@ -1352,7 +1398,8 @@ def als_json(bericht: Bericht) -> dict:
 
     return {
         "adresse": bericht.adresse, "geprueft": not bericht.grund, "grund": bericht.grund,
-        "tage": bericht.tage, "angesehen": bericht.angesehen, "hinweise": list(bericht.hinweise),
+        "tage": bericht.tage, "angesehen": bericht.angesehen, "fremde": bericht.fremde,
+        "hinweise": list(bericht.hinweise),
         "unlesbar": bericht.unlesbar, "ohne_zuordnung": bericht.ohne_zuordnung,
         "ungewiss": [{"zeit": zeit(e.zeit), "betreff": e.betreff, "an": list(e.an),
                       "ordner": e.ordner, "grund": e.ungewiss} for e in bericht.ungewiss],

@@ -236,17 +236,40 @@ function merken(tabId, neu) {
 
 // ── Die Sperre ──────────────────────────────────────────────────────────────
 
-async function gesendetOrdner(identitaet) {
-  const konten = await browser.accounts.list(false);
+function kontoVon(konten, identitaet) {
   const konto = konten.find((k) => (k.identities || []).some((i) => i.id === identitaet));
   if (!konto) {
     throw new Error(`kein Konto zur Identität ${identitaet}`);
   }
+  return konto;
+}
+
+async function gesendetOrdner(konto) {
   const ordner = await browser.folders.query({ accountId: konto.id, specialUse: ["sent"] });
   if (!ordner.length) {
     throw new Error(`kein Ordner „Gesendet“ im Konto ${konto.name}`);
   }
   return ordner;
+}
+
+// Die Adressen aller Identitäten aller Konten: der Maßstab dafür, ob eine Mail
+// in „Gesendet“ von hier hinausging. Nicht nur das eine Konto: Odoo verschickt
+// von buchhaltung@ über das Postfach von order@, und die Mail liegt dann in
+// dessen „Gesendet“ mit fremdem `From` (gemessen 04.11.2026, 651 von 3000).
+// Leer, wenn Thunderbird keine Adressen nennt — dann zählt jede Mail (#434,
+// wie `gesendet.fremder_absender` in falzmarke).
+function eigeneAdressen(konten) {
+  return V.adressen(konten.flatMap((k) => (k.identities || []).map((i) => i.email || "")));
+}
+
+// Eine Mail von außerhalb ist eingegangene Post, die eine Regel oder eine Hand
+// nach „Gesendet“ gelegt hat; sie teilt mit dem Entwurf vielleicht Empfänger
+// und Betreff, ging aber nie von hier hinaus. Ohne Absender oder ohne bekannte
+// Adressen zählt sie weiter: Die übersehene eigene Mail wäre der teure Irrtum,
+// die übersehene fremde kostet eine Rückfrage.
+function fremderAbsender(kopf, eigene) {
+  const von = V.adressen([kopf.author || ""]);
+  return eigene.size > 0 && von.size > 0 && ![...von].some((adresse) => eigene.has(adresse));
 }
 
 async function gesendeteSeit(ordner, seit) {
@@ -401,9 +424,14 @@ async function befund(details, eigen, tabId) {
     }
   }
   const bekannt = fassungenAus(await auszug());
-  const ordner = await gesendetOrdner(details.identityId);
+  const konten = await browser.accounts.list(false);
+  const ordner = await gesendetOrdner(kontoVon(konten, details.identityId));
+  const eigene = eigeneAdressen(konten);
   const gesendete = await gesendeteSeit(ordner, new Date(jetzt - FRIST_GLEICH_MS));
   for (const kopf of gesendete) {
+    if (fremderAbsender(kopf, eigene)) {
+      continue;
+    }
     const an = V.adressen([
       ...liste(kopf.recipients),
       ...liste(kopf.ccList),

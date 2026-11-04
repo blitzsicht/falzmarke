@@ -761,6 +761,38 @@ def kontoadressen(adresse: str, ordner: Path | None = None, *,
     return frozenset(adressen), ""
 
 
+def profiladressen(ordner: Path | None = None, *,
+                   profil: Path | None = None) -> tuple[frozenset[str] | None, str]:
+    """Die Adressen aller Identitäten des Profils, über alle Konten (#434).
+
+    Der Maßstab dafür, ob eine Mail im Gesendet-Ordner von hier hinausging.
+    Nicht nur das Konto (`kontoadressen`): Odoo verschickt von buchhaltung@
+    über das Postfach von order@, beides Konten desselben Profils — die Mail
+    liegt in „Gesendete Elemente“ von order@ und trägt `From: buchhaltung@`.
+    Gemessen am 04.11.2026: 651 von 3000 Mails dort. Nur das Konto zu nehmen
+    hieße, sie zu übergehen, und sie gingen hinaus.
+
+    `_identitaeten` liefert die Kennungen; fehlt die Kontoliste, zählen dort
+    alle, und das ist hier das Richtige: Jede Adresse, von der dieses
+    Thunderbird senden kann, ist „wir“. Gibt `(adressen, "")` oder
+    `(None, grund)`; `profil` geht vor `ordner`, wie bei `kontoadressen`.
+    """
+    if profil is None:
+        ordner = THUNDERBIRD_ORDNER if ordner is None else Path(ordner)
+        profil = thunderbird_standardprofil(ordner)
+        if profil is None or not profil.is_dir():
+            return None, f"kein Thunderbird-Profil unter {ordner}"
+    elif not Path(profil).is_dir():
+        return None, f"das Thunderbird-Profil {profil} fehlt"
+    profil = Path(profil)
+    werte = thunderbird_einstellungen(profil)
+    adressen = {str(werte.get(f"mail.identity.{kennung}.useremail") or "").strip().lower()
+                for kennung in _identitaeten(werte)} - {""}
+    if not adressen:
+        return None, f"das Profil {profil.name} nennt keine Identität mit Adresse"
+    return frozenset(adressen), ""
+
+
 def ohne_signatur(html: str, unterschrift: str) -> str | None:
     """Der HTML-Teil ohne das Signaturstück — oder None, wenn es nicht genau einmal dasteht.
 

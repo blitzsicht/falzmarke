@@ -44,7 +44,7 @@ falzmarke entwurf-oeffnen --absender ich@example.de      # braucht den IMAP-Prox
 OK  2 Entwürfe in „Entwürfe“ von ich@example.de
     UID 4711  25.10.2026 12:20  Nachtrag  → du@example.org
     …
-OK  Entwurfsbrücke 0.3.8 in Thunderbird 158.0.1
+OK  Entwurfsbrücke 0.3.9 in Thunderbird 158.0.1
 ```
 
 ## Das Tagebuch
@@ -57,7 +57,7 @@ OK  Entwurfsbrücke 0.3.8 in Thunderbird 158.0.1
  "fassung": "…", "fassung_quelle": "kopf"}, "identitaet": "ich@example.de",
  "an": ["paula@example.org"], "kopie": [], "blindkopie": ["archiv@example.de"],
  "anhaenge": ["Lageplan.pdf"], "modus": "sendNow", "message_id": "…", "zeit": "…",
- "version": "0.3.8"}
+ "version": "0.3.9"}
 ```
 
 Die Zeile `geoeffnet` trägt seit 0.3.8 dieselben vier Felder: `identitaet`, `an`, `kopie`,
@@ -143,6 +143,12 @@ Vor dem Senden sieht das Add-on zuerst nach, was in dieser Sitzung schon hinausg
 Die Sitzung zählt mit, weil der Ordner „Gesendet“ eine Mail erst Sekunden später kennt: Zwei
 Fenster, kurz hintereinander gesendet, kamen sonst beide ungefragt durch (#413). Eine Sendung,
 die scheitert, wird wieder vergessen.
+
+Eine Mail in „Gesendet“, deren Absender keine Identität dieses Thunderbird ist, zählt seit 0.3.9
+nicht mit. Das ist eingegangene Post, die eine Regel oder eine Hand dort abgelegt hat, und sie
+ging nie von hier hinaus (#434). Verglichen wird mit den Identitäten aller Konten, nicht nur des
+sendenden: Odoo verschickt von buchhaltung@ über das Postfach von order@, und diese Mails sind
+eigene. Steht kein Absender in der Mail oder kennt kein Konto eine Adresse, zählt sie wie bisher.
 
 Vorgewählt ist „Nicht senden“; Escape und Schließen zählen ebenso. Verglichen wird wie in
 falzmarke (`vergleich.js` ist das Gegenstück zu `gesendet.py`). Kann das Add-on nicht prüfen,

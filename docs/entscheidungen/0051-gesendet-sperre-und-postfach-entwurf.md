@@ -232,3 +232,50 @@ Postfach-Entwurf (`oeffnen.FRIST_POSTFACH_S`, 30 s) laufen nacheinander, jede in
 Ein hängender Proxy kann `--oeffnen` also im schlimmsten Fall rund 120 s aufhalten. Das ist aus
 dem Quelltext abgeleitet, nicht gemessen. Ob der Abholer in siluri-angebote mit seinem
 180-s-Takt das verträgt, ist eine eigene Frage.
+
+## Nachtrag 04.11.2026 — Der Absender der gefundenen Mail (#434)
+
+Die Sperre fragte nur, an wen eine Mail im Gesendet-Ordner ging und welchen Betreff und Text sie
+trug. Von wem sie kam, prüfte sie nicht. Eingegangene Post, die eine Regel oder eine Hand nach
+„Gesendet“ legt, sah damit aus wie eine eigene Sendung: Eine Antwort des Kunden mit Paula in Cc
+und demselben Betreffkern ergab `GEÄNDERTE FASSUNG`, und `status` meldete den Entwurf als
+`SCHON RAUS`.
+
+**Entscheidung.** Eine Mail im Gesendet-Ordner zählt nur, wenn ihr From eine Identität des
+Thunderbird-Profils ist, über **alle Konten** hinweg. Gelesen wird `prefs.js` des Profils, in dem
+der Socket der Brücke liegt (`entwurfsbuch.profiladressen`), nicht geraten. Das gilt an drei
+Stellen gleich: `gesendet.pruefe` (Sperre bei `email --oeffnen`), `entwurfsbuch.abgleich`
+(`status`) und `befund` in der Entwurfsbrücke ab 0.3.9, dort über `browser.accounts.list`.
+
+**Warum alle Identitäten, nicht nur die des Kontos.** Die Zählung zeigte, dass der Konto-Maßstab
+echte Sendungen übergangen hätte. Gemessen am 04.11.2026, 13:03 UTC, nur lesend über den Proxy,
+die letzten 90 Tage, höchstens 3000 Mails je Ordner:
+
+| Konto | Mails in „Gesendet“ | davon From ≠ Konto | woher |
+|---|---|---|---|
+| joe@ | 370 | 7 | order@ (Kalendermails) |
+| servus@ | 171 | 0 | |
+| order@ | 3000 (gekappt, 3409 im Fenster) | 651 | 406 buchhaltung@, 245 info@: Odoo verschickt über das Postfach von order@ |
+| info@ | 234 | 0 | |
+| buchhaltung@ | 450 | 0 | |
+| drei weitere Konten | 209 | 1 | eine eingegangene Mail von außen |
+
+Mails ohne From: keine. Das Gmail-Konto läuft nicht über den Proxy und blieb ungezählt. Von 659
+Mails mit fremdem From kamen 658 von einer Identität desselben Profils. Ein Filter am Konto hätte
+sie alle als eingegangen übergangen, darunter 651 Odoo-Sendungen an Kunden. Der Maßstab „alle
+Identitäten des Profils“ übergeht genau die eine echte eingegangene Mail.
+
+**Wo der Filter nachgibt.** Ohne From oder ohne lesbare Identitäten zählt die Mail wie bisher.
+Die übersehene eigene Sendung ist der teure Irrtum, die übersehene fremde kostet eine Rückfrage.
+`status` nennt den Fall: `HINWEIS  Identitäten des Profils nicht gelesen (…)` mit der Zahl der
+Mails, die einen anderen Absender tragen und trotzdem zählen. Die OK-Zeilen beider Befehle
+nennen, wie viele Mails übergangen wurden, `status --json` im Feld `fremde`.
+
+**Restrisiko.** Eine Mail, die über ein anderes Programm von einer Adresse hinausging, die in
+diesem Thunderbird keine Identität hat, zählt nicht mehr. Die Messung fand keine. `vergleich.js`
+bleibt unverändert; der Absender wird vor dem Vergleich ausgesiebt, in `background.js`.
+
+Gegenproben in `tests/test_gegenbeweis.py`, Abschnitt ADR 0051: Ohne den Filter ergibt die
+eingegangene Mail wieder `GEÄNDERTE FASSUNG` beziehungsweise `SCHON RAUS`; die eigene Mail als
+Kontrolle sperrt vorher wie nachher. Für das Add-on steht die Sabotage in
+`tests/test_entwurfsbruecke_hintergrund.py`.

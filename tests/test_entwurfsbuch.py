@@ -1912,6 +1912,71 @@ def test_ein_fenster_ohne_uid_in_der_uri_zaehlt_nicht(monkeypatch, identitaet):
     assert entwurfsbuch.nur_uid(zwilling.fenster, VON) is (identitaet is None)
 
 
+# ── Der Absender der gefundenen Mail (#434) ─────────────────────────────────
+#
+# Gemessen am 04.11.2026 (Abschnitt gleichen Namens in `test_gesendet.py`): Im
+# Gesendet-Ordner von order@ kommen 651 von 3000 Mails von zwei anderen Konten
+# desselben Profils, über die Odoo hier verschickt — sie gingen hinaus und
+# bleiben `SCHON RAUS`. Was von keiner Identität des Profils kommt, ist
+# eingegangene Post und wird übergangen; die Kopfzeile von `status` zählt sie.
+
+KUNDE = "kunde@example.net"
+
+
+def _eingegangen(*, von=KUNDE, text=TEXT, zeit=JETZT - timedelta(hours=1)):
+    """Vom Kunden an VON, Erika in Cc — gemeinsamer Empfänger, derselbe Betreffkern."""
+    return nachricht(an=VON, betreff="AW: Auftrag S1", text=text, datum=zeit, von=von,
+                     kopf={"Cc": AN}), zeit
+
+
+def test_eine_eingegangene_mail_in_gesendet_ist_nicht_schon_raus(monkeypatch, tmp_path):
+    _profil_des_kontos(monkeypatch, tmp_path)
+    _postfach(monkeypatch, entwuerfe=[_mail()], gesendet=[_eingegangen()])
+    bericht = _stand()
+    assert _einziger(bericht).art == "wartet"
+    assert (bericht.angesehen, bericht.fremde) == (1, 1)
+    assert "angesehen (1 mit fremdem Absender übergangen)," in entwurfsbuch.zeilen(bericht)[0]
+    assert entwurfsbuch.als_json(bericht)["fremde"] == 1
+
+
+def test_ohne_profil_zaehlt_die_eingegangene_mail_und_status_sagt_es(monkeypatch):
+    """Sagt kein Profil, wer „wir“ sind, wird nicht geraten: `SCHON RAUS` wie bisher,
+    und ein Hinweis nennt den Grund — nur, wenn so eine Mail überhaupt da ist."""
+    _postfach(monkeypatch, entwuerfe=[_mail()], gesendet=[_eingegangen()])
+    bericht = _stand()
+    assert _einziger(bericht).art == "schon_raus"
+    assert bericht.fremde == 0 and "übergangen" not in entwurfsbuch.zeilen(bericht)[0]
+    (hinweis,) = [h for h in bericht.hinweise if h.startswith("Identitäten des Profils")]
+    assert "1 Mail in „Gesendete Elemente“ mit anderem Absender zählt als gesendet" in hinweis
+    _postfach(monkeypatch, entwuerfe=[_mail()], gesendet=[_mail(zeit=JETZT - timedelta(hours=1))])
+    bericht = _stand()
+    assert _einziger(bericht).art == "schon_raus"
+    assert not [h for h in bericht.hinweise if h.startswith("Identitäten des Profils")]
+
+
+@pytest.mark.parametrize("von", [VON, ALIAS, ANDERES_KONTO],
+                         ids=["konto", "alias", "anderes-konto-im-profil"])
+def test_eine_mail_von_einer_identitaet_des_profils_bleibt_schon_raus(monkeypatch, tmp_path,
+                                                                     von):
+    """Auch das andere Konto: So schickt Odoo von buchhaltung@ über das Postfach von order@."""
+    _profil_des_kontos(monkeypatch, tmp_path)
+    _postfach(monkeypatch, entwuerfe=[_mail()], gesendet=[_eingegangen(von=von)])
+    bericht = _stand()
+    assert _einziger(bericht).art == "schon_raus", f"die Mail von {von} gilt als fremd"
+    assert bericht.fremde == 0
+
+
+def test_aus_dem_buch_ist_eine_eingegangene_mail_kein_gesendet(monkeypatch, tmp_path):
+    """Der Entwurf liegt nicht mehr, im Gesendet-Ordner nur die Mail des Kunden mit
+    demselben Text: Das belegt kein Senden. Kontrolle: von VON ist es eines."""
+    _profil_des_kontos(monkeypatch, tmp_path)
+    _buch(_eintrag(150))
+    _postfach(monkeypatch, gesendet=[_eingegangen()])
+    assert _einziger(_stand()).art == "verschwunden"
+    _postfach(monkeypatch, gesendet=[_eingegangen(von=VON)])
+    assert _einziger(_stand()).art == "gesendet"
+
+
 # ── Das Tagebuch kommt aus dem Profil des Sockets (#410) ────────────────────
 #
 # Vorher las `tagebuch()` stur das Standardprofil, während `bruecke.socketpfad`

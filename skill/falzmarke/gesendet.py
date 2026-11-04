@@ -226,6 +226,27 @@ def vergleiche(eigen: Merkmale, fremd: Merkmale) -> str:
     return "frei"
 
 
+def fremder_absender(kopf, eigene: frozenset[str] | None) -> bool:
+    """Kommt die Mail im Gesendet-Ordner von außerhalb des Kontos? (#434)
+
+    Dort liegt nicht nur, was hinausging: Eine Serverregel, Handarbeit oder
+    eine Migration legt auch **eingegangene** Post hinein. Schreibt ein Kunde
+    „AW: Rechnung“ an mich und in Cc an Y, teilt diese Mail mit einem Entwurf
+    „Rechnung“ an Y den Empfänger und den Betreffkern, und die Sperre meldete
+    `GEÄNDERTE FASSUNG`, `status` ein `SCHON RAUS`.
+
+    `eigene` sind die Adressen aller Identitäten des Thunderbird-Profils
+    (`oeffnen.profiladressen`), nicht nur die des Kontos: Gemessen am
+    04.11.2026 trugen 651 von 3000 Mails in „Gesendete Elemente“ von order@
+    ein anderes `From`, alle von zwei weiteren Konten desselben Profils, unter
+    denen Odoo über dieses Postfach verschickt. Die gingen hinaus und sperren
+    weiter. `None` heißt: Kein Profil sagt, wer „wir“ sind, und dann zählt
+    jede Mail — ein übersehener Fremdabsender kostet eine Rückfrage, eine
+    übersehene eigene Mail eine zweite Sendung. Ohne `From` zählt sie ebenso.
+    """
+    return eigene is not None and bool(kopf.von) and kopf.von not in eigene
+
+
 # ── Prüfen ──────────────────────────────────────────────────────────────────
 
 class Befund(NamedTuple):
@@ -247,6 +268,8 @@ class Befund(NamedTuple):
     #: 0 bei einem Ordner, der sonst voll ist, wäre selbst ein Befund.
     angesehen: int = 0
     stunden: float = STUNDEN_VORGABE
+    #: Davon übergangen, weil ihr Absender keine Identität des Kontos ist (#434).
+    fremde: int = 0
 
     @property
     def sperrt(self) -> bool:
@@ -264,13 +287,16 @@ def _stunden(umgebung: Mapping[str, str]) -> float:
 def pruefe(eigen: Merkmale, absender: str, *, verbindung=None, ordner: str | None = None,
            jetzt: datetime | None = None, stunden: float = STUNDEN_VORGABE,
            umgebung: Mapping[str, str] | None = None,
-           fassungen: Mapping[str, str] | None = None) -> Befund:
+           fassungen: Mapping[str, str] | None = None,
+           eigene: frozenset[str] | None = None) -> Befund:
     """Sieht im Gesendet-Ordner nach. Wirft nichts — ein Fehlschlag ist ein Befund.
 
     `verbindung` ist eine offene `postfach.Postfach`-Sitzung; ohne sie wird
     eine aufgebaut und danach wieder abgemeldet. `ordner` ist der IMAP-Name
     des Gesendet-Ordners; ohne ihn das Kennzeichen `\\Sent`, sonst
-    „Gesendete Elemente“. `fassungen` wie bei `merkmale`.
+    „Gesendete Elemente“. `fassungen` wie bei `merkmale`. `eigene` sind die
+    Adressen der Identitäten im Thunderbird-Profil; eine Mail von außerhalb
+    zählt dann nicht (`fremder_absender`, #434).
     """
     from falzmarke import postfach
 
@@ -290,7 +316,11 @@ def pruefe(eigen: Merkmale, absender: str, *, verbindung=None, ordner: str | Non
         koepfe = [k for k in verbindung.koepfe(ordner, seit=grenze.date())
                   if k.datum is None or k.datum >= grenze]
         geaendert = None
+        fremde = 0
         for kopf in sorted(koepfe, key=lambda k: k.datum or jetzt, reverse=True):
+            if fremder_absender(kopf, eigene):
+                fremde += 1
+                continue
             if not eigen.empfaenger & set(kopf.an):
                 continue
             roh = verbindung.nachricht(ordner, kopf.uid)
@@ -302,14 +332,14 @@ def pruefe(eigen: Merkmale, absender: str, *, verbindung=None, ordner: str | Non
             befund = Befund(urteil, datum=kopf.datum, an=", ".join(sorted(eigen.empfaenger
                                                                            & set(kopf.an))),
                             betreff=kopf.betreff, ordner=anzeige, adresse=absender,
-                            angesehen=len(koepfe), stunden=stunden)
+                            angesehen=len(koepfe), stunden=stunden, fremde=fremde)
             if urteil == "gesendet":
                 return befund
             geaendert = geaendert or befund
         if geaendert is not None:
-            return geaendert
+            return geaendert._replace(fremde=fremde)
         return Befund("frei", ordner=anzeige, adresse=absender, angesehen=len(koepfe),
-                      stunden=stunden)
+                      stunden=stunden, fremde=fremde)
     except postfach.PostfachFehler as fehler:
         return Befund("nicht_geprueft", str(fehler), adresse=absender, stunden=stunden)
     finally:
@@ -325,7 +355,10 @@ def pruefe_datei(eml_pfad, *, umgebung: Mapping[str, str] | None = None, verbind
     oder verengt das Fenster (Vorgabe 24). Den Gesendet-Ordner nennt, wenn
     vorhanden, Thunderbird (`fcc_folder` der Identität, ADR 0050 liest
     dieselben Dateien). Die Fassungen gesendeter Mails kommen aus dem
-    Tagebuch der Entwurfsbrücke im selben Thunderbird-Profil (ADR 0056).
+    Tagebuch der Entwurfsbrücke im selben Thunderbird-Profil (ADR 0056), die
+    Identitäten ebenfalls von dort (`entwurfsbuch.profiladressen`, #434):
+    Liegt der Socket der Brücke in einem anderen Profil als dem
+    Standardprofil, kennt nur dieses die Adressen (Nachreview #488, Nr. 1).
     """
     umgebung = os.environ if umgebung is None else umgebung
     if (umgebung.get("FALZMARKE_GESENDET") or "").strip().lower() == "nie":
@@ -333,21 +366,22 @@ def pruefe_datei(eml_pfad, *, umgebung: Mapping[str, str] | None = None, verbind
     nachricht = email.message_from_bytes(Path(eml_pfad).read_bytes(), policy=policy.default)
     from email.utils import parseaddr
 
+    from falzmarke import entwurfsbuch
+
     absender = parseaddr(str(nachricht.get("From") or ""))[1].strip()
-    ordner = None
+    ordner, eigene = None, None
     if absender:
         from falzmarke import oeffnen
 
         ordner = oeffnen.thunderbird_ordner(absender, "fcc_folder", thunderbird_ordner)
-    from falzmarke import entwurfsbuch
-
+        eigene = entwurfsbuch.profiladressen(umgebung, thunderbird_ordner)[0]
     # `umgebung` mit: Sie bestimmt über `FALZMARKE_BRUECKE_SOCKET`, aus welchem
     # Thunderbird-Profil das Tagebuch kommt (#410).
     fassungen = entwurfsbuch.fassungen(
         entwurfsbuch.tagebuch(thunderbird_ordner, umgebung)[0])
     return pruefe(merkmale(nachricht), absender, verbindung=verbindung, ordner=ordner,
                   jetzt=jetzt, stunden=_stunden(umgebung), umgebung=umgebung,
-                  fassungen=fassungen)
+                  fassungen=fassungen, eigene=eigene)
 
 
 # ── Melden ──────────────────────────────────────────────────────────────────
@@ -376,6 +410,9 @@ def meldung(befund: Befund, *, zeitzone=None) -> str:
         return f"GESENDET NICHT GEPRÜFT: {befund.grund}"
     if befund.zustand == "frei":
         anzahl = "1 Mail" if befund.angesehen == 1 else f"{befund.angesehen} Mails"
+        # Die Übergangenen stehen dabei: Sonst bliebe unsichtbar, dass eine Mail mit
+        # gemeinsamem Empfänger im Ordner lag und nicht zählte (#434).
+        fremde = f", {befund.fremde} mit fremdem Absender übergangen" if befund.fremde else ""
         return (f"OK  nicht gesendet: {anzahl} der letzten {befund.stunden:g} h in "
-                f"„{befund.ordner}“ von {befund.adresse} angesehen")
+                f"„{befund.ordner}“ von {befund.adresse} angesehen{fremde}")
     return f"HINWEIS  Gesendet nicht geprüft: {befund.grund}"
