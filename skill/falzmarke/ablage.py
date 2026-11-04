@@ -307,13 +307,21 @@ def _ziele_zuordnen(sitzung: postfach.Postfach, wunsch: str | None, zuege: list[
 #: Das Ende des Satzes, wenn der Zug am SELECT abbricht. Nicht „verschoben wird
 #: nichts“: Bei `{jahr}` kann eine frühere Gruppe schon gewandert sein, und die
 #: Zeile darunter sagt dann „1 davon verschoben“ (Nachreview #502, Befund 4).
-_SCHLUSS_AM_ZUG = "kein weiterer Zug geht hinaus, erst ohne --machen neu anzeigen lassen"
+#: Am Zug läuft immer `--machen`; der Satz nennt deshalb beides, was für die Neuanzeige wegfällt.
+_SCHLUSS_AM_ZUG = ("kein weiterer Zug geht hinaus, erst ohne --machen und ohne --uidvalidity "
+                   "neu anzeigen lassen")
 
 
-def _uidvalidity_grund(vorher: str, ist: str | None, *,
-                       quelle: str = "die Anzeige nannte",
-                       schluss: str = "verschoben wird nichts, erst ohne --machen neu "
-                                      "anzeigen lassen") -> str:
+def _schluss_der_anzeige(machen: bool) -> str:
+    """Das Ende des Wechselgrundes in der Planung: passt zum Lauf (#504, Befund 8)."""
+    if machen:
+        return ("verschoben wird nichts, erst ohne --machen und ohne --uidvalidity neu "
+                "anzeigen lassen")
+    return "verschoben wird nichts, erst mit --uid ohne --uidvalidity neu anzeigen lassen"
+
+
+def _uidvalidity_grund(vorher: str, ist: str | None, *, schluss: str,
+                       quelle: str = "die Anzeige nannte") -> str:
     """Der Satz, wenn die UIDs nicht mehr sicher dieselben Mails meinen (#495)."""
     if ist is None:
         return (f"der Server nennt für den Eingang keine UIDVALIDITY, {quelle} {vorher} — "
@@ -324,7 +332,8 @@ def _uidvalidity_grund(vorher: str, ist: str | None, *,
 
 
 def plane_benannt(sitzung: postfach.Postfach, uids: list[str], *, wunsch: str | None = None,
-                  trotz_faehnchen: bool = False, uidvalidity: str | None = None) -> Bericht:
+                  trotz_faehnchen: bool = False, uidvalidity: str | None = None,
+                  machen: bool = False) -> Bericht:
     """Genau diese Eingangsmails, auch ohne Antwort (`--uid`, #478) — rein lesend.
 
     `uidvalidity` ist der Wert, den die Anzeige nannte (#495). Weicht der des
@@ -339,20 +348,23 @@ def plane_benannt(sitzung: postfach.Postfach, uids: list[str], *, wunsch: str | 
         return leer._replace(grund=grund)
     gefunden = {k.uid: k for k in sitzung.koepfe(EINGANG, uids=uids, grenze=len(uids))}
     ist = sitzung.uidvalidity.get(EINGANG)
+    gewechselt = uidvalidity is not None and ist != uidvalidity
+    # Nach einem Wechsel meinen die gefundenen Mails nicht die der Anzeige: Das LIST zum
+    # Jahresordner entfällt, sein Ergebnis würde ohnehin verworfen (#504, Befund 9).
     zuege = [_als_zug(gefunden[u], ziel=ziel, ziel_server=ziel_server)
              for u in uids if u in gefunden]
-    zuege, liegen, jahr_grund = _ziele_zuordnen(sitzung, wunsch, zuege,
-                                                trotz_faehnchen=trotz_faehnchen)
+    zuege, liegen, jahr_grund = ((zuege, (), None) if gewechselt else
+                                 _ziele_zuordnen(sitzung, wunsch, zuege,
+                                                 trotz_faehnchen=trotz_faehnchen))
     fehlen = [u for u in uids if u not in gefunden]
     grund = None
-    gewechselt = uidvalidity is not None and ist != uidvalidity
     if gewechselt:
         # Vor allem anderen und allein: Nach einem Wechsel sagt weder eine
         # fehlende noch eine gefundene UID etwas über die Mail, die gemeint war.
-        grund = _uidvalidity_grund(uidvalidity, ist)
         # Was unter der neuen Nummerierung gefunden wurde, ist nicht die Mail, die
         # die Anzeige meinte. Als „gefunden für …“ gezeigt, sähe der Bediener eine
         # fremde Mail unter seiner UID (Nachreview #502, Befund 3).
+        grund = _uidvalidity_grund(uidvalidity, ist, schluss=_schluss_der_anzeige(machen))
         zuege, liegen = [], ()
     elif fehlen:
         # Vor dem Grund des Jahresordners: Eine Liste, die nicht stimmt, ist der
@@ -371,10 +383,14 @@ def plane_benannt(sitzung: postfach.Postfach, uids: list[str], *, wunsch: str | 
         # und der Rat nennte einen Schalter, der schon gesetzt ist (Review von #496).
         if not trotz_faehnchen and any(l.zug.fahnen is None or FAEHNCHEN in l.zug.fahnen
                                        for l in bleiben):
-            grund += "; --trotz-faehnchen hebt das Fähnchen für diesen Lauf auf"
-    if jahr_grund and not gewechselt:
-        # Ein fehlender Jahresordner kommt dazu, statt zu verschwinden: Sonst
-        # erführe der Bediener erst im nächsten Lauf davon (Review von #496).
+            # Mit der UIDVALIDITY der Anzeige: `--uid` und `--machen` verlangen sie, sonst
+            # endete der Befehl aus dem Rat auf Exit 1 (#504, Befund 1).
+            wert = f" --uidvalidity {ist}" if ist is not None else ""
+            grund += f"; mit --trotz-faehnchen{wert} hebt das Fähnchen für diesen Lauf auf"
+    if jahr_grund:
+        # Der Grund des Jahresordners wird angehängt, nicht vorangestellt: Ein fehlender
+        # Jahresordner kommt dazu, statt zu verschwinden. Sonst erführe der Bediener
+        # erst im nächsten Lauf davon (Review von #496).
         grund = f"{grund}; {jahr_grund}" if grund else jahr_grund
     return leer._replace(ziel=ziel, ziel_server=ziel_server, grund=grund,
                          zuege=tuple(sorted(zuege, key=lambda z: int(z.uid))), liegen=liegen,
@@ -585,7 +601,7 @@ def raeume_auf(adresse: str, *, wunsch: str | None = None, seit_tagen: int = SEI
             if uids is not None:
                 bericht = plane_benannt(sitzung, uids, wunsch=wunsch,
                                         trotz_faehnchen=trotz_faehnchen,
-                                        uidvalidity=uidvalidity)
+                                        uidvalidity=uidvalidity, machen=machen)
             else:
                 bericht = plane(sitzung, wunsch=wunsch, seit_tagen=seit_tagen,
                                 trotz_faehnchen=trotz_faehnchen)

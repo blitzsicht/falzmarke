@@ -236,3 +236,17 @@ den Antwortcode durchreicht, ist im PR zu #495 gemessen.
 Dazu kommen zwei Befunde aus dem Review von #496, beide in `plane_benannt`: Ein fehlender
 Jahresordner steht jetzt **neben** „UID … bliebe liegen“ und verschwindet nicht mehr dahinter.
 Der Rat zu `--trotz-faehnchen` kommt nur noch, wenn der Schalter nicht schon gesetzt ist.
+
+## Nachtrag (04.11.2026, #504)
+
+**Entschieden: Die UIDVALIDITY-Zusage gilt nur für den Eingang.** `aufraeumen --entwuerfe`
+(`entwurfsablage.verschiebe`) vergleicht keine UIDVALIDITY. Den Entwurf prüft `_noch_derselbe`
+unmittelbar vorher an Betreff, Empfängern und Fassung; die UID allein entscheidet dort nicht. Eine
+Neunummerierung des Entwürfe-Ordners ließe unter der alten UID eine andere Nachricht liegen, und
+genau die fängt diese Prüfung ab. Ein zweiter Vergleich brächte nur etwas, wenn zwei Entwürfe mit
+gleichem Betreff, Empfänger und gleicher Fassung ihre UIDs tauschten.
+
+Dazu drei Korrekturen am Text: Der Rat zu `--trotz-faehnchen` nennt jetzt `--uidvalidity V` mit,
+sonst endete der Befehl auf Exit 1. Der Wechselgrund sagt nur noch „ohne --machen“, wenn der Lauf
+`--machen` hatte, und nennt, dass `--uidvalidity` für die Neuanzeige wegfällt. Bei einem Wechsel
+geht kein LIST mehr zum Jahresordner.
