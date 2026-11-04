@@ -686,7 +686,13 @@ class Bericht(NamedTuple):
     fenster_grund: str = ""
 
 
-def fenster_des_kontos(fenster: list[dict], adresse: str) -> dict[str, dict]:
+#: Setzt `fenster_des_kontos` an ein Fenster, dessen gemeldeter Absender eine
+#: andere Identität desselben Kontos ist (#466). Das Add-on meldet den Schlüssel nie.
+ALIAS_DES_KONTOS = "alias_des_kontos"
+
+
+def fenster_des_kontos(fenster: list[dict], adresse: str,
+                       kontoadressen: frozenset[str] | None = None) -> dict[str, dict]:
     """UID → das Fenster, in dem ein Entwurf dieses Kontos offen steht.
 
     Das Konto wird **nicht** aus der `draft_id` geraten. Deren Autoritätsteil
@@ -723,6 +729,14 @@ def fenster_des_kontos(fenster: list[dict], adresse: str) -> dict[str, dict]:
     Ein falsches `OFFEN` lässt ihn liegen, ein falsches `WARTET` zöge ihn aus
     einem offenen Fenster. Die Ausgabe nennt den Fall (`nur_uid`). Die Adresse
     in der URI entscheidet nur noch, wenn zwei Fenster dieselbe UID melden.
+
+    Kennt der Aufrufer die Identitäten des Kontos (`kontoadressen`, aus
+    `oeffnen.kontoadressen`), trennt das die beiden Fälle einer fremden Meldung
+    (#466): Ein Alias darin ist so sicher zugeordnet wie die eigene Adresse und
+    trägt `ALIAS_DES_KONTOS`. Eine Adresse außerhalb ist ein Fenster eines
+    anderen Kontos, das nur die UID-Zahl teilt, und fällt heraus. Ohne dieses
+    Wissen (`None`: kein Profil, oder das Profil nennt das Konto nicht) bleibt
+    es beim nachsichtigen Weg darüber.
     """
     eigen = adresse.strip().lower()
     nach_uid: dict[str, list[tuple[int, bool, dict]]] = {}
@@ -732,6 +746,10 @@ def fenster_des_kontos(fenster: list[dict], adresse: str) -> dict[str, dict]:
         if not treffer:
             continue
         gemeldet = str(eintrag.get("identitaet") or "").strip().lower()
+        if gemeldet and gemeldet != eigen and kontoadressen is not None:
+            if gemeldet not in kontoadressen:
+                continue
+            eintrag, gemeldet = {**eintrag, ALIAS_DES_KONTOS: True}, eigen
         rang = 0 if gemeldet == eigen else 1 if not gemeldet else 2
         nach_uid.setdefault(treffer.group(1), []).append((rang, eigen not in ziel, eintrag))
     # Je UID das beste Fenster: die eigene Identität vor keiner Meldung vor einer
@@ -744,9 +762,12 @@ def nur_uid(fenster: Mapping | None, adresse: str) -> bool:
     """Hat allein die UID dieses Fenster dem Konto zugeordnet? Siehe `fenster_des_kontos`.
 
     Ja, wenn das Fenster keinen Absender meldet **oder einen anderen** als
-    `adresse`, etwa eine Alias-Identität (#442, N3).
+    `adresse`, etwa eine Alias-Identität (#442, N3). Nein, wenn das Profil den
+    Alias als Identität des Kontos ausweist (`ALIAS_DES_KONTOS`, #466).
     """
     if fenster is None:
+        return False
+    if fenster.get(ALIAS_DES_KONTOS):
         return False
     return str(fenster.get("identitaet") or "").strip().lower() != adresse.strip().lower()
 
@@ -758,14 +779,18 @@ def fremde_identitaet(fenster: Mapping | None, adresse: str) -> str:
 
 
 def _offene_uids(adresse: str, umgebung: Mapping[str, str]) -> tuple[dict[str, dict], str]:
-    """UID → was die Brücke über das Fenster meldet, in dem dieser Entwurf offen ist."""
-    from falzmarke import bruecke
+    """UID → was die Brücke über das Fenster meldet, in dem dieser Entwurf offen ist.
+
+    Die Identitäten des Kontos kommen aus dem Thunderbird-Profil (#466).
+    """
+    from falzmarke import bruecke, oeffnen
 
     try:
         fenster = bruecke.offene_entwuerfe(umgebung=umgebung)
     except bruecke.BrueckenFehler as fehler:
         return {}, f"offene Fenster nicht geprüft: {fehler}"
-    return fenster_des_kontos(fenster, adresse), ""
+    adressen, _ = oeffnen.kontoadressen(adresse)
+    return fenster_des_kontos(fenster, adresse, adressen), ""
 
 
 def tagebuch_fassungen(kopf, eintraege: list[dict], adresse: str) -> frozenset[str]:
@@ -1246,7 +1271,10 @@ def zeilen(bericht: Bericht, *, zeitzone=None) -> list[str]:
             rest = f"liegt in „{bericht.entwuerfe}“ (UID {z.uid})"
             if z.fenster is not None:
                 rest += ", gerade im Fenster offen"
-                if fremd := fremde_identitaet(z.fenster, bericht.adresse):
+                if z.fenster.get(ALIAS_DES_KONTOS):
+                    rest += (f" (unter „{z.fenster.get('identitaet')}“, einer Identität "
+                             "desselben Kontos)")
+                elif fremd := fremde_identitaet(z.fenster, bericht.adresse):
                     rest += f" (zugeordnet nur über die UID, das Fenster meldet „{fremd}“)"
                 elif nur_uid(z.fenster, bericht.adresse):
                     rest += " (zugeordnet nur über die UID, das Fenster meldet keinen Absender)"
