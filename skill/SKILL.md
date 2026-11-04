@@ -326,6 +326,11 @@ wird jede einzeln gesucht, und sie gilt erst als erledigt, wenn keine davon im E
 Sah der Lauf nur die jüngsten Mails des Fensters, steht das als `HINWEIS` in Text **und**
 `--json`. Nennen zwei Profile derselben Adresse verschiedene `ablage:`, wird kein Postfach
 geöffnet und nichts bewegt — welcher Ordner gilt, muss im Profil stehen. Braucht den IMAP-Proxy.
+**Eine Mail mit Fähnchen bleibt im Eingang** („liegt, Fähnchen“), auch wenn sie beantwortet ist;
+`--trotz-faehnchen` hebt das für einen Lauf auf. Erledigt ohne Antwort: `--uid N [N …]` legt genau
+diese Mails eines Kontos ab und nennt je UID Datum, Absender und Betreff. Fehlt eine davon im
+Eingang, wandert keine. `ablage: Archiv/{jahr}` legt nach dem Jahr der Ankunft ab; fehlt ein
+Jahresordner, wandert keine Mail des Laufs.
 
 **`aufraeumen --entwuerfe` — überholte Entwürfe in den Papierkorb.** Niemand soll einen Entwurf von
 Hand löschen; das geschieht bei jedem `email --oeffnen` von selbst für den eigenen Absender.

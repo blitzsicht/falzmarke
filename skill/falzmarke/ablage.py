@@ -26,6 +26,22 @@ kennzeichnet an den Microsoft-Konten des Betreibers keiner. Dann wandert
 nichts. Ausgeschlossen sind der Gesendet-Ordner, die Entwürfe, der Papierkorb,
 der Spam-Ordner und der Eingang selbst — geprüft an den Kennzeichen des
 Servers, nicht an Namen in einer Liste.
+
+**Was liegen bleibt, auch wenn es beantwortet ist** (#478). Eine Mail mit
+Fähnchen (`\\Flagged`) wartet auf etwas und gehört in den Eingang. Nennt der
+Server ihre Flags nicht, ist das Fähnchen unbekannt, und auch dann bleibt sie
+liegen. `--trotz-faehnchen` hebt beides auf, ausdrücklich und nur für diesen
+Lauf.
+
+**Benannte Mails** (`--uid`, #478) sind erledigt, weil der Bediener es sagt,
+nicht wegen einer Antwort. Es bleibt bei denselben Sperren und demselben einen
+`UID MOVE`. Fehlt eine der genannten UIDs im Eingang, wandert keine: Eine
+Liste, die nicht mehr stimmt, ist kein Auftrag für den Rest.
+
+**`{jahr}` im Ziel** (#478) wird je Mail zum Jahr ihrer Ankunft im Postfach
+(INTERNALDATE, Ortszeit), so wie Thunderbird mit `archive_granularity 1`
+ablegt. Fehlt einer der Jahresordner, wandert keine Mail des Laufs: Sonst
+wäre die eine Hälfte abgelegt und die andere still nicht.
 """
 
 from __future__ import annotations
@@ -65,6 +81,12 @@ VERBOTENE_ZIELE = {
     "\\junk": "der Spam-Ordner ist keine Ablage",
 }
 
+#: Das Fähnchen, wie `postfach.Kopf.fahnen` es führt (klein).
+FAEHNCHEN = "\\flagged"
+
+#: Der eine Platzhalter in `email.ablage`: das Jahr der Ankunft (#478).
+JAHR = "{jahr}"
+
 
 class AblageFehler(Exception):
     """Ein Grund in einem Satz — er wandert unverändert in die Ausgabe."""
@@ -80,7 +102,10 @@ class ZugAbgebrochen(AblageFehler):
 
 
 class Zug(NamedTuple):
-    """Eine Nachricht im Eingang und die Antwort, die sie erledigt hat."""
+    """Eine Nachricht im Eingang und die Antwort, die sie erledigt hat.
+
+    Bei `--uid` gibt es keine Antwort: `antwort_betreff` ist dann leer.
+    """
 
     uid: str
     betreff: str
@@ -89,6 +114,23 @@ class Zug(NamedTuple):
     kennung: str
     antwort_betreff: str
     antwort_datum: datetime | None
+    #: Der Absender der Nachricht im Eingang.
+    von: str = ""
+    #: Ankunft im Postfach (INTERNALDATE) — sie bestimmt `{jahr}`.
+    ankunft: datetime | None = None
+    #: Die Flags, klein; `None`, wenn der Server sie nicht nannte.
+    fahnen: tuple[str, ...] | None = None
+    #: Das Ziel dieser Nachricht, lesbar und wie der Server es führt. Bei
+    #: `{jahr}` je Nachricht verschieden, sonst das eine Ziel des Laufs.
+    ziel: str | None = None
+    ziel_server: str | None = None
+
+
+class Liegt(NamedTuple):
+    """Eine Nachricht, die erledigt wäre und trotzdem im Eingang bleibt."""
+
+    zug: Zug
+    grund: str
 
 
 class Bericht(NamedTuple):
@@ -118,6 +160,10 @@ class Bericht(NamedTuple):
     #: War `UID MOVE` schon gesendet, als der Lauf abbrach? Nur dann kann der
     #: Server einen Teil bewegt haben. Ohne Grund immer `False`.
     zug_gesendet: bool = False
+    #: Was erledigt wäre und bleibt — Fähnchen, unbekannte Flags, kein Jahr.
+    liegen: tuple[Liegt, ...] = ()
+    #: Kamen die Nachrichten aus `--uid` statt aus Antworten?
+    benannt: bool = False
 
 
 # ── Das Ziel ────────────────────────────────────────────────────────────────
@@ -159,8 +205,101 @@ def ablageordner(sitzung: postfach.Postfach, wunsch: str | None) -> tuple[str | 
 
 # ── Der Plan ────────────────────────────────────────────────────────────────
 
+def _ziel_vorab(sitzung: postfach.Postfach,
+                wunsch: str | None) -> tuple[str | None, str | None, str | None]:
+    """`(lesbar, server, grund)` — das Ziel des Laufs, bevor gelesen wird.
+
+    Mit `{jahr}` steht der Ordner erst je Nachricht fest. Dann ist `server`
+    leer, und `_ziele_zuordnen` prüft jeden Jahresordner einzeln — mit
+    denselben Sperren wie hier.
+    """
+    if wunsch and JAHR in wunsch:
+        return wunsch, None, None
+    ziel, grund = ablageordner(sitzung, wunsch)
+    if ziel is None:
+        return None, None, grund
+    return postfach.utf7_dekodieren(ziel), ziel, None
+
+
+def _als_zug(kopf: postfach.Kopf, *, kennung: str = "", antwort: postfach.Kopf | None = None,
+             ziel: str | None = None, ziel_server: str | None = None) -> Zug:
+    return Zug(uid=kopf.uid, betreff=kopf.betreff, datum=kopf.datum, kennung=kennung,
+               antwort_betreff=antwort.betreff if antwort else "",
+               antwort_datum=antwort.datum if antwort else None,
+               von=kopf.von, ankunft=kopf.ankunft, fahnen=kopf.fahnen,
+               ziel=ziel, ziel_server=ziel_server)
+
+
+def _ziele_zuordnen(sitzung: postfach.Postfach, wunsch: str | None, zuege: list[Zug], *,
+                    trotz_faehnchen: bool) -> tuple[tuple[Zug, ...], tuple[Liegt, ...],
+                                                    str | None]:
+    """`(zuege, liegen, grund)` — wer wandert, wer bleibt, und ob der Lauf steht.
+
+    Erst das Fähnchen, dann das Jahr: Eine Mail mit Fähnchen bleibt, auch
+    wenn ihr Jahresordner fehlt, und soll dann nicht den Lauf anhalten.
+    """
+    gehen: list[Zug] = []
+    liegen: list[Liegt] = []
+    for zug in zuege:
+        if not trotz_faehnchen and zug.fahnen is None:
+            liegen.append(Liegt(zug, "Fähnchen unbekannt, der Server nannte keine Flags"))
+        elif not trotz_faehnchen and FAEHNCHEN in zug.fahnen:
+            liegen.append(Liegt(zug, "Fähnchen"))
+        else:
+            gehen.append(zug)
+    if not (wunsch and JAHR in wunsch):
+        return tuple(gehen), tuple(liegen), None
+
+    geprueft: dict[str, tuple[str | None, str | None]] = {}
+    zugeordnet: list[Zug] = []
+    fehlend: list[str] = []
+    for zug in gehen:
+        if zug.ankunft is None:
+            liegen.append(Liegt(zug, f"ohne Ankunftsdatum, das Jahr für „{wunsch}“ fehlt"))
+            continue
+        name = wunsch.replace(JAHR, str(zug.ankunft.astimezone().year))
+        if name not in geprueft:
+            geprueft[name] = ablageordner(sitzung, name)
+        ordner, grund = geprueft[name]
+        if ordner is None and grund not in fehlend:
+            fehlend.append(grund)
+        zugeordnet.append(zug._replace(ziel=name, ziel_server=ordner))
+    grund = None
+    if fehlend:
+        grund = ("; ".join(fehlend) + " — keine Mail dieses Laufs wandert, auch nicht "
+                 "die mit vorhandenem Jahresordner")
+    return tuple(zugeordnet), tuple(liegen), grund
+
+
+def plane_benannt(sitzung: postfach.Postfach, uids: list[str], *, wunsch: str | None = None,
+                  trotz_faehnchen: bool = False) -> Bericht:
+    """Genau diese Eingangsmails, auch ohne Antwort (`--uid`, #478) — rein lesend."""
+    uids = list(dict.fromkeys(str(u) for u in uids))
+    leer = Bericht(adresse=sitzung.adresse, ziel=None, grund=None, seit=None, antworten=0,
+                   nicht_im_eingang=0, zuege=(), verschoben=0, benannt=True)
+    ziel, ziel_server, grund = _ziel_vorab(sitzung, wunsch)
+    if grund:
+        return leer._replace(grund=grund)
+    gefunden = {k.uid: k for k in sitzung.koepfe(EINGANG, uids=uids, grenze=len(uids))}
+    zuege = [_als_zug(gefunden[u], ziel=ziel, ziel_server=ziel_server)
+             for u in uids if u in gefunden]
+    zuege, liegen, grund = _ziele_zuordnen(sitzung, wunsch, zuege,
+                                           trotz_faehnchen=trotz_faehnchen)
+    fehlen = [u for u in uids if u not in gefunden]
+    if fehlen:
+        # Vor dem Grund des Jahresordners: Eine Liste, die nicht stimmt, ist der
+        # schwerere Befund — sie sagt, dass der Bediener etwas anderes meinte.
+        grund = (f"{'UID' if len(fehlen) == 1 else 'die UIDs'} {', '.join(fehlen)} "
+                 f"{'liegt' if len(fehlen) == 1 else 'liegen'} nicht im Eingang — "
+                 "verschoben wird nur, wenn jede genannte UID da ist")
+    return leer._replace(ziel=ziel, ziel_server=ziel_server, grund=grund,
+                         zuege=tuple(sorted(zuege, key=lambda z: int(z.uid))), liegen=liegen,
+                         hinweise=_kappungen(sitzung))
+
+
 def plane(sitzung: postfach.Postfach, *, wunsch: str | None = None,
-          seit_tagen: int = SEIT_TAGEN, heute: date | None = None) -> Bericht:
+          seit_tagen: int = SEIT_TAGEN, heute: date | None = None,
+          trotz_faehnchen: bool = False) -> Bericht:
     """Welche Nachricht im Eingang ist beantwortet — rein lesend.
 
     Reihenfolge: Ziel klären, dann die gesendeten Antworten des Fensters lesen,
@@ -169,21 +308,21 @@ def plane(sitzung: postfach.Postfach, *, wunsch: str | None = None,
     """
     leer = Bericht(adresse=sitzung.adresse, ziel=None, grund=None, seit=None, antworten=0,
                    nicht_im_eingang=0, zuege=(), verschoben=0)
-    ziel, grund = ablageordner(sitzung, wunsch)
-    if ziel is None:
+    lesbar, ziel, grund = _ziel_vorab(sitzung, wunsch)
+    if grund:
         return leer._replace(grund=grund)
 
     gesendet = sitzung.sonderordner("\\Sent")
     if not gesendet:
         return leer._replace(
-            ziel=postfach.utf7_dekodieren(ziel),
+            ziel=lesbar,
             grund="das Postfach kennzeichnet keinen Ordner mit `\\Sent` — ohne die "
                   "gesendeten Antworten ist nicht zu sagen, was beantwortet wurde")
 
     heute = heute or datetime.now(timezone.utc).date()
     if not 1 <= seit_tagen <= SEIT_MAX:
         return leer._replace(
-            ziel=postfach.utf7_dekodieren(ziel), ziel_server=ziel,
+            ziel=lesbar, ziel_server=ziel,
             grund=f"ein Fenster von {seit_tagen} Tagen liegt außerhalb von 1 bis {SEIT_MAX}")
     seit = heute - timedelta(days=seit_tagen)
     grenze = datetime.combine(seit, datetime.min.time(), tzinfo=timezone.utc)
@@ -213,17 +352,17 @@ def plane(sitzung: postfach.Postfach, *, wunsch: str | None = None,
                 vorher = gefunden.get(kopf.uid)
                 if vorher is not None and _spaeter(vorher.antwort_datum, antwort.datum):
                     continue
-                gefunden[kopf.uid] = Zug(uid=kopf.uid, betreff=kopf.betreff, datum=kopf.datum,
-                                         kennung=kennung,
-                                         antwort_betreff=antwort.betreff,
-                                         antwort_datum=antwort.datum)
+                gefunden[kopf.uid] = _als_zug(kopf, kennung=kennung, antwort=antwort,
+                                              ziel=lesbar, ziel_server=ziel)
         # Ohne Suche ist nichts über den Eingang bekannt: „längst weggeräumt“ wäre erfunden.
         if gesucht and not traf:
             nicht_im_eingang += 1
-    zuege = tuple(sorted(gefunden.values(), key=lambda z: int(z.uid)))
-    return Bericht(adresse=sitzung.adresse, ziel=postfach.utf7_dekodieren(ziel), grund=None,
+    zuege, liegen, grund = _ziele_zuordnen(
+        sitzung, wunsch, sorted(gefunden.values(), key=lambda z: int(z.uid)),
+        trotz_faehnchen=trotz_faehnchen)
+    return Bericht(adresse=sitzung.adresse, ziel=lesbar, grund=grund,
                    seit=seit, antworten=len(antworten), nicht_im_eingang=nicht_im_eingang,
-                   zuege=zuege, verschoben=0, ziel_server=ziel,
+                   zuege=zuege, verschoben=0, ziel_server=ziel, liegen=liegen,
                    hinweise=_kappungen(sitzung) + _unsendbare(unsendbar))
 
 
@@ -296,42 +435,73 @@ def _kann_verschieben(sitzung: postfach.Postfach) -> bool:
 
 # ── Der Lauf ────────────────────────────────────────────────────────────────
 
+def _je_ziel(zuege: tuple[Zug, ...]) -> list[tuple[str, list[str]]]:
+    """Die UIDs je Zielordner, in fester Reihenfolge — bei `{jahr}` mehrere Züge."""
+    gruppen: dict[str, list[str]] = {}
+    for zug in zuege:
+        gruppen.setdefault(zug.ziel_server or "", []).append(zug.uid)
+    return sorted(gruppen.items())
+
+
 def raeume_auf(adresse: str, *, wunsch: str | None = None, seit_tagen: int = SEIT_TAGEN,
                machen: bool = False, umgebung: Mapping[str, str] | None = None,
-               frist: float = FRIST_S) -> Bericht:
-    """Ein Absender, von der Anmeldung bis zum Zug. Ohne `machen` wird nur gelesen."""
+               frist: float = FRIST_S, uids: list[str] | None = None,
+               trotz_faehnchen: bool = False) -> Bericht:
+    """Ein Absender, von der Anmeldung bis zum Zug. Ohne `machen` wird nur gelesen.
+
+    Mit `uids` sind es genau diese Eingangsmails statt der beantworteten.
+    """
     bericht = Bericht(adresse=adresse, ziel=None, grund=None, seit=None, antworten=0,
-                      nicht_im_eingang=0, zuege=(), verschoben=0)
+                      nicht_im_eingang=0, zuege=(), verschoben=0, benannt=uids is not None)
     try:
         sitzung = postfach.verbinde(adresse, umgebung=umgebung, frist=frist)
     except postfach.PostfachFehler as fehler:
         return bericht._replace(grund=str(fehler))
+    verschoben = 0
     with sitzung:
         try:
-            bericht = plane(sitzung, wunsch=wunsch, seit_tagen=seit_tagen)
+            if uids is not None:
+                bericht = plane_benannt(sitzung, uids, wunsch=wunsch,
+                                        trotz_faehnchen=trotz_faehnchen)
+            else:
+                bericht = plane(sitzung, wunsch=wunsch, seit_tagen=seit_tagen,
+                                trotz_faehnchen=trotz_faehnchen)
             if not machen or bericht.grund or not bericht.zuege:
                 return bericht
-            # Das Ziel steht im Bericht. Ein zweites `ablageordner` wäre eine
+            # Das Ziel steht an jedem Zug. Ein zweites `ablageordner` wäre eine
             # zweite Bestimmung, und die kann anders ausfallen als die erste.
-            anzahl = verschiebe(sitzung, bericht.ziel_server, [z.uid for z in bericht.zuege])
-            return bericht._replace(verschoben=anzahl)
+            for ziel, gruppe in _je_ziel(bericht.zuege):
+                verschoben += verschiebe(sitzung, ziel, gruppe)
+            return bericht._replace(verschoben=verschoben)
         except (postfach.PostfachFehler, AblageFehler) as fehler:
             # `_replace`, kein frischer Bericht: Bricht der Zug ab, nachdem der
             # Server einen Teil bewegt hat, wäre „0 von 0“ die stärkste Form
             # von „nichts geschehen“ — für den einen Fall, in dem etwas
-            # geschehen sein kann (#438).
-            return bericht._replace(grund=str(fehler),
-                                    zug_gesendet=isinstance(fehler, ZugAbgebrochen))
+            # geschehen sein kann (#438). Bei `{jahr}` kann ein früherer Zug
+            # schon durch sein, wenn ein späterer abbricht (#478).
+            return bericht._replace(grund=str(fehler), verschoben=verschoben,
+                                    zug_gesendet=isinstance(fehler, ZugAbgebrochen)
+                                    or verschoben > 0)
 
 
 # ── Ausgabe: ein Bericht, zwei Darstellungen ────────────────────────────────
 
+def _kopfzeile(zug: Zug) -> str:
+    wann = zug.datum.astimezone().strftime("%d.%m.%Y %H:%M") if zug.datum else "ohne Datum"
+    von = f"{zug.von}  " if zug.von else ""
+    return f"    UID {zug.uid}  {wann}  {von}„{zug.betreff}“"
+
+
 def _zugzeilen(bericht: Bericht) -> list[str]:
     aus = []
     for zug in bericht.zuege:
-        wann = zug.datum.astimezone().strftime("%d.%m.%Y %H:%M") if zug.datum else "ohne Datum"
-        aus.append(f"    UID {zug.uid}  {wann}  „{zug.betreff}“ "
-                   f"— beantwortet mit „{zug.antwort_betreff}“")
+        zeile = _kopfzeile(zug)
+        if zug.antwort_betreff:
+            zeile += f" — beantwortet mit „{zug.antwort_betreff}“"
+        if zug.ziel and zug.ziel != bericht.ziel:
+            zeile += f" → „{zug.ziel}“"
+        aus.append(zeile)
+    aus += [f"{_kopfzeile(liegt.zug)} — liegt, {liegt.grund}" for liegt in bericht.liegen]
     return aus
 
 
@@ -355,15 +525,33 @@ def zeilen(bericht: Bericht) -> list[str]:
             zahl = len(bericht.zuege)
             gefunden = (f"    {zahl} {'Nachricht' if zahl == 1 else 'Nachrichten'} "
                         f"für „{bericht.ziel}“ gefunden; ")
-            aus.append(gefunden + (
-                "ob der Server davon schon etwas bewegt hat, ist nicht geprüft"
-                if bericht.zug_gesendet else "nichts bewegt, der Zug war noch nicht gesendet"))
+            if bericht.verschoben:
+                stand = (f"{bericht.verschoben} davon verschoben, ob der Server vom Rest "
+                         "schon etwas bewegt hat, ist nicht geprüft")
+            elif bericht.zug_gesendet:
+                stand = "ob der Server davon schon etwas bewegt hat, ist nicht geprüft"
+            else:
+                stand = "nichts bewegt, der Zug war noch nicht gesendet"
+            aus.append(gefunden + stand)
+        if bericht.zuege or bericht.liegen:
             aus += _zugzeilen(bericht)
         return aus + nachspann
-    aus = [f"OK  {bericht.adresse}: {len(bericht.zuege)} von {bericht.antworten} Antworten "
+    wohin = (f" — {bericht.verschoben} nach „{bericht.ziel}“ verschoben"
+             if bericht.verschoben else f" → „{bericht.ziel}“")
+    if bericht.benannt:
+        zahl = len(bericht.zuege) + len(bericht.liegen)
+        aus = [f"OK  {bericht.adresse}: {zahl} benannte "
+               f"{'Nachricht' if zahl == 1 else 'Nachrichten'} im Eingang, "
+               f"{len(bericht.zuege)} zum Ablegen" + wohin]
+        aus += _zugzeilen(bericht)
+        if bericht.zuege and not bericht.verschoben:
+            aus.append("    nichts bewegt — mit --machen verschieben")
+        return aus + nachspann
+    im_eingang = len(bericht.zuege) + len(bericht.liegen)
+    aus = [f"OK  {bericht.adresse}: {im_eingang} von {bericht.antworten} Antworten "
            f"seit {bericht.seit.strftime('%d.%m.%Y')} haben ihre Nachricht noch im Eingang"
-           + (f" — {bericht.verschoben} nach „{bericht.ziel}“ verschoben"
-              if bericht.verschoben else f" → „{bericht.ziel}“")]
+           + (f", {len(bericht.liegen)} davon bleiben liegen" if bericht.liegen else "")
+           + wohin]
     aus += _zugzeilen(bericht)
     if bericht.nicht_im_eingang:
         aus.append(f"    {bericht.nicht_im_eingang} Antworten ohne Nachricht im Eingang "
@@ -384,10 +572,16 @@ def als_json(bericht: Bericht) -> dict:
         "nicht_im_eingang": bericht.nicht_im_eingang,
         "verschoben": bericht.verschoben,
         "zug_gesendet": bericht.zug_gesendet,
+        "benannt": bericht.benannt,
         "hinweise": list(bericht.hinweise),
         "zuege": [{"uid": z.uid, "betreff": z.betreff,
                    "datum": z.datum.isoformat() if z.datum else None,
+                   "von": z.von, "ziel": z.ziel,
                    "kennung": z.kennung, "antwort_betreff": z.antwort_betreff,
                    "antwort_datum": z.antwort_datum.isoformat() if z.antwort_datum else None}
                   for z in bericht.zuege],
+        "liegen": [{"uid": liegt.zug.uid, "betreff": liegt.zug.betreff,
+                    "datum": liegt.zug.datum.isoformat() if liegt.zug.datum else None,
+                    "von": liegt.zug.von, "grund": liegt.grund}
+                   for liegt in bericht.liegen],
     }

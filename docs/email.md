@@ -368,6 +368,36 @@ zurück angesehen werden (Vorgabe 30 Tage).
 | `… Antworten ohne Nachricht im Eingang` | längst weggeräumt, von Hand oder von einem früheren Lauf |
 | `HINWEIS …` (stderr) | der Befund ist eingeschränkt, etwa weil der Gesendet-Ordner gekappt wurde |
 | `NICHT GEPRÜFT` (Exit 3) | kein Ziel, kein Gesendet-Ordner oder Postfach nicht erreichbar — der Grund steht dabei |
+| `… — liegt, Fähnchen` | beantwortet, aber mit Fähnchen: bleibt im Eingang |
+| `… — liegt, Fähnchen unbekannt …` | der Server nannte keine Flags: bleibt im Eingang |
+
+**Das Fähnchen hält eine Mail im Eingang.** Eine Mail mit `\Flagged` wartet auf etwas, auch wenn
+sie beantwortet ist. Sie bleibt liegen, und die Ausgabe nennt sie mit „liegt, Fähnchen“. Nennt der
+Server keine Flags, bleibt sie ebenfalls. `--trotz-faehnchen` legt sie für diesen einen Lauf
+trotzdem ab.
+
+**Erledigt ohne Antwort: `--uid`.** Eine Abschlussmail, die keine Antwort braucht, legt man über
+ihre UID aus der Liste ab:
+
+```bash
+falzmarke aufraeumen --absender ich@example.de --uid 1183 1207            # nur zeigen
+falzmarke aufraeumen --absender ich@example.de --uid 1183 1207 --machen   # verschieben
+```
+
+```
+OK  ich@example.de: 2 benannte Nachrichten im Eingang, 2 zum Ablegen → „Archiv“
+    UID 1183  12.10.2026 09:14  amt@example.org  „Eingereichte Fassung“
+    UID 1207  19.10.2026 16:02  kunde@example.org  „Danke, passt so“
+    nichts bewegt — mit --machen verschieben
+```
+
+Es gelten dasselbe Ziel und dieselben Sperren, `--seit` spielt keine Rolle. **Fehlt eine der
+genannten UIDs im Eingang, wandert keine**, und `NICHT GEPRÜFT` nennt sie. `--uid` gilt für genau
+ein `--absender`, denn dieselbe UID ist in einem anderen Postfach eine andere Mail.
+
+**Jahresordner: `ablage: Archiv/{jahr}`.** `{jahr}` wird je Mail zum Jahr ihrer Ankunft im
+Postfach, so wie Thunderbirds Taste A mit `archive_granularity 1` ablegt. Fehlt einer der
+Jahresordner, wandert keine Mail des Laufs, und `NICHT GEPRÜFT` nennt den fehlenden Ordner.
 
 **Eine Antwort darf mehrere Nachrichten erledigen.** `In-Reply-To` trägt nach RFC 5322 eine
 Liste, und ein langer Wert liegt über mehrere Zeilen gefaltet in der Nachricht. Gesucht wird

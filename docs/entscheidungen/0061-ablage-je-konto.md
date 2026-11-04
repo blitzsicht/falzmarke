@@ -138,3 +138,36 @@ Dazu zwei kleinere Festlegungen: Der Ablageordner wird je Lauf **einmal** bestim
 Bericht an den Zug gegeben (zwei Bestimmungen können verschieden ausfallen), und ein Fehler beim
 Zug lässt den gefundenen Plan stehen, statt ihn durch Nullen zu ersetzen — „0 von 0“ wäre die
 stärkste Form von „nichts geschehen“ für den einen Fall, in dem etwas geschehen sein kann.
+
+## Nachtrag (04.11.2026, #478)
+
+Am Arbeitskonto des Betreibers gemessen (03.11.2026): Von 60 Eingangsmails wären 13 abgelegt
+worden. Zwei erledigte Mails derselben Korrespondenz blieben liegen, die eine braucht keine
+Antwort, die andere wurde außerhalb des Fadens beantwortet. Der Beschluss oben bleibt; drei
+Ergänzungen kommen dazu.
+
+**Benannte Mails: `--uid N [N …]`.** Erledigt, weil der Bediener es sagt, nicht wegen einer
+Antwort. Ziel, Sperren und der eine `UID MOVE` bleiben dieselben, ohne `--machen` wird nur
+gezeigt, je UID mit Datum, Absender und Betreff. **Fehlt eine der genannten UIDs im Eingang,
+wandert keine.** Eine Liste, die nicht mehr stimmt, sagt, dass der Bediener etwas anderes meinte
+als das, was jetzt dort liegt; der Rest ist dann kein Auftrag. `--uid` gilt für genau ein Konto:
+Dieselbe Zahl ist in einem zweiten Postfach eine fremde Mail.
+
+**Das Fähnchen hält im Eingang.** Im Mailkonzept des Betreibers heißt `\Flagged` „wartet auf
+etwas“. Eine beantwortete Mail mit Fähnchen bleibt deshalb liegen, die Ausgabe sagt „liegt,
+Fähnchen“. Nennt der Server die Flags nicht, ist das Fähnchen **unbekannt** und nicht „nicht
+gesetzt“; auch dann bleibt die Mail. Das gilt ebenso für `--uid`. `--trotz-faehnchen` hebt beides
+für einen Lauf auf. `postfach.koepfe` holt dafür `FLAGS` mit, ein lesender Teil von `FETCH`. Die
+Flags werden vor und hinter dem Literal gesucht, denn RFC 3501 legt die Reihenfolge nicht fest.
+
+**`{jahr}` in `email.ablage`.** `Archiv/{jahr}` wird je Mail zum Jahr ihrer Ankunft im Postfach
+(INTERNALDATE, Ortszeit), derselbe Ordner wie Thunderbirds Taste A mit `archive_granularity 1`.
+Angelegt wird weiterhin nichts, und jeder Jahresordner geht durch dieselben Sperren wie ein fester
+Name. **Fehlt einer der Jahresordner, wandert keine Mail des Laufs**, auch nicht die mit
+vorhandenem Ordner. Die naheliegende Fassung, die Mail ohne Ordner zu übergehen und den Rest zu
+verschieben, legte die eine Hälfte ab und die andere still nicht. Am Jahreswechsel steht dann ein
+`NICHT GEPRÜFT`, bis der neue Ordner angelegt ist. Das ist gewollt, denn genau dort fiele das
+Fehlen sonst niemandem auf.
+
+Bei mehreren Jahresordnern gibt es einen `UID MOVE` je Ordner. Bricht ein späterer ab, steht im
+Bericht, wie viele der frühere schon bewegt hat (`verschoben`), und `zug_gesendet` ist gesetzt.
