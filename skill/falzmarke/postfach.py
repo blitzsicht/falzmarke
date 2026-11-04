@@ -62,6 +62,13 @@ KENNWORT = "dummy"
 #: Ein Entwürfe-Ordner mit Jahren an Resten soll die Prüfung nicht ausbremsen.
 GRENZE = 500
 
+#: So viele Teiltreffer holt `suche_kennung` höchstens nach. Eine Message-ID in
+#: spitzen Klammern trifft eine Nachricht; eine ohne (die `kennungen` roh
+#: durchreicht) ist eine Teilkette und kann in einem alten Eingang tausendfach
+#: treffen. Ohne Grenze holte der kopflose `aufraeumen`-Lauf dann jeden dieser
+#: Köpfe (Nachreview von #479). Die Kappung steht wie bei `koepfe` in `gekappt`.
+SUCHGRENZE = 4 * GRENZE
+
 #: Die Kopfzeilen, die je Nachricht gelesen werden — nie der ganze Inhalt,
 #: bevor feststeht, dass der Empfänger passt.
 KOPFZEILEN = ("DATE", "FROM", "TO", "CC", "BCC", "SUBJECT", "IN-REPLY-TO", "X-FALZMARKE-FASSUNG",
@@ -260,9 +267,9 @@ class Kopf(NamedTuple):
     antwort_auf: str
     #: Die `Message-ID` der Nachricht, roh.
     kennung: str = ""
-    #: Dieselben Adressen wie `an`, aber nach Feldern getrennt (#481). `None`
-    #: heißt: nicht aus Kopfzeilen gelesen, sondern von Hand gebaut. Das ist
-    #: etwas anderes als ein Entwurf ohne Empfänger.
+    #: To, Cc und Bcc getrennt (#481); `an` ist ihre Vereinigung ohne Doppelte.
+    #: `None` heißt: nicht aus Kopfzeilen gelesen, sondern von Hand gebaut. Das
+    #: ist etwas anderes als ein Entwurf ohne Empfänger.
     empfaenger: Empfaenger | None = None
     #: Die Adresse aus `From`, klein, ohne Anzeigenamen; leer, wenn keine dasteht.
     #: Der Maßstab für den Absender im Verfassen-Fenster (#482).
@@ -299,13 +306,13 @@ def kopf_aus(roh: bytes, uid: str, ankunft: datetime | None,
         if datum is not None and datum.tzinfo is None:
             datum = datum.replace(tzinfo=timezone.utc)
     betreff = _dekodiert(nachricht.get("Subject"))
-    return Kopf(uid=uid, datum=datum or ankunft, an=_adressen(nachricht, "To", "Cc", "Bcc"),
+    empfaenger = Empfaenger(*(_adressen(nachricht, feld) for feld in ("To", "Cc", "Bcc")))
+    return Kopf(uid=uid, datum=datum or ankunft,
+                an=tuple(dict.fromkeys(empfaenger.an + empfaenger.kopie + empfaenger.blindkopie)),
                 betreff=betreff, fassung=str(nachricht.get("X-Falzmarke-Fassung") or "").strip(),
                 antwort_auf=str(nachricht.get("In-Reply-To") or "").strip(),
                 kennung=str(nachricht.get("Message-ID") or "").strip(),
-                empfaenger=Empfaenger(an=_adressen(nachricht, "To"),
-                                      kopie=_adressen(nachricht, "Cc"),
-                                      blindkopie=_adressen(nachricht, "Bcc")),
+                empfaenger=empfaenger,
                 von=next(iter(_adressen(nachricht, "From")), ""),
                 ankunft=ankunft, fahnen=fahnen)
 
@@ -460,16 +467,17 @@ class Postfach:
         """Die Köpfe im Ordner, deren Message-ID genau `kennung` ist (#442, #468).
 
         Suche, Abruf und exakter Vergleich in einem Schritt. Die Teiltreffer des
-        Servers werden **alle** geholt, nicht die neuesten `GRENZE`: Bei einer
-        kurzen Kennung können es mehr sein, und gekappt vor dem Vergleich fiele
-        gerade die ältere, echte Nachricht heraus. Der Grenz-Hinweis erschiene
-        dann obendrein, ausgelöst nur von fremden Treffern. `koepfe` holt sie in
-        Stücken zu höchstens `GRENZE` UIDs je Befehl.
+        Servers werden bis `SUCHGRENZE` **alle** geholt, nicht die neuesten
+        `GRENZE`: Bei einer kurzen Kennung können es mehr sein, und gekappt vor
+        dem Vergleich fiele gerade die ältere, echte Nachricht heraus. Der
+        Grenz-Hinweis erschiene dann obendrein, ausgelöst nur von fremden
+        Treffern. `koepfe` holt sie in Stücken zu höchstens `GRENZE` UIDs je
+        Befehl.
         """
         uids = self._suche_kopfzeile(ordner, "Message-ID", kennung)
         if not uids:
             return []
-        return [kopf for kopf in self.koepfe(ordner, uids=uids, grenze=len(uids))
+        return [kopf for kopf in self.koepfe(ordner, uids=uids, grenze=SUCHGRENZE)
                 if gleiche_kennung(kennung, kopf.kennung)]
 
     def koepfe(self, ordner: str, seit: date | None = None, *,

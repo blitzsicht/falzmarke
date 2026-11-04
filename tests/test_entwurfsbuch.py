@@ -1693,7 +1693,10 @@ def test_ohne_meldung_entscheidet_die_adresse_in_der_uri(monkeypatch, reihenfolg
                                  else [eigen, fremd]))
     zustand = _einziger(_stand())
     # Auch `art`: Das Fenster hängt am Zustand, ob er nun OFFEN heißt oder nicht (#468).
-    assert zustand.art == "offen" and zustand.fenster["betreff"] == "Adresse in der URI"
+    # Zwei Zusicherungen mit eigener Meldung, damit die Gegenproben in
+    # test_gegenbeweis.py namentlich sagen, welche fiel (Nachreview von #479).
+    assert zustand.art == "offen", f"nicht OFFEN, sondern {zustand.art}"
+    assert zustand.fenster["betreff"] == "Adresse in der URI", "das falsche Fenster gewann"
 
 
 @pytest.mark.parametrize("uri", [

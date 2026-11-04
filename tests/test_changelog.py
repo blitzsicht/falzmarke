@@ -239,6 +239,8 @@ OFFENE_BACKTICKS = {
                     "docs/a.md", "Ein Backtick verband zwei Listenpunkte."),
     "absatz": ("Ein Absatz mit `offen\n\n[B](docs/b.md) und ein spätes ` zu.\n",
                "docs/b.md", "Ein Backtick verband zwei Absätze."),
+    "zaun": ("- Ein ` offen und [Z](docs/z.md) bleibt\n```\ncode ` mit Backtick\n```\n",
+             "docs/z.md", "Ein Backtick verband Listenpunkt und Codezaun."),
 }
 
 
@@ -260,6 +262,30 @@ def test_ein_backtick_lauf_schliesst_nur_mit_einem_gleich_langen(tmp_path, monke
     """``` ``x` [C](c.md) `y`` ``` ist ein einziger Code-Span, der Verweis darin Text."""
     auszug = _auszug_aus(tmp_path, monkeypatch, "- Ungleich lang: ``x` [C](docs/c.md) `y``\n")
     assert "``x` [C](docs/c.md) `y``" in auszug, "Ein Lauf aus zwei Backticks schloss mit einem."
+
+
+def test_eine_raute_ohne_leerzeichen_beendet_keinen_code_span(tmp_path, monkeypatch):
+    """`#480` am Zeilenanfang ist keine Überschrift, `# Titel` schon (Nachreview von #484).
+
+    Bis dahin endete der Span an jeder Raute, und der Verweis darin — ein
+    Beispiel, kein Verweis — ging umgeschrieben in die README.
+    """
+    span = "`code\n#480 noch [I](docs/i.md)`"
+    auszug = _auszug_aus(tmp_path, monkeypatch, f"- {span} und [H](docs/h.md)\n")
+    assert span in auszug, "Der Span endete an #480, der Verweis darin wurde umgeschrieben."
+    assert f"]({changelog.BASIS_URL}/blob/main/docs/h.md)" in auszug
+    # Die echte Überschrift beendet ihn weiterhin.
+    auszug = _auszug_aus(tmp_path, monkeypatch, "- Ein ` offen\n# Titel [T](docs/t.md) `\n")
+    assert f"]({changelog.BASIS_URL}/blob/main/docs/t.md)" in auszug, \
+        "Ein Backtick verband Listenpunkt und Überschrift."
+
+
+def test_eine_raute_im_codeblock_bleibt_eine_raute(tmp_path, monkeypatch):
+    """`_tiefer` rückt Überschriften, nicht Shell-Kommentare (Nachreview von #484)."""
+    block = "```sh\n# Kommentar\n```\n"
+    auszug = _auszug_aus(tmp_path, monkeypatch, "- Ein Beispiel:\n\n" + block + "\n### Tiefer\n")
+    assert block in auszug, "Aus dem Kommentar wurde eine Überschrift."
+    assert "\n#### Tiefer\n" in auszug
 
 
 # ── Jedes Fragment am eigenen PR nachgemessen (#480) ──────────────────────
@@ -289,14 +315,15 @@ def code_stellen(text: str) -> list[str]:
 
 
 def umschreibung_befunde(text: str) -> list[str]:
-    """Was `_absolut` an diesem Text falsch machte, gemessen mit einem Parser.
+    """Was der Weg in die README an diesem Text falsch machte, gemessen mit einem Parser.
 
     Der Parser ist der Schiedsrichter, nicht die Regex in `changelog.py`: Er
     entscheidet, was Code ist und was ein Verweis. Ändert die Umschreibung Code,
     stimmt der Auszug nicht mehr mit CHANGELOG.md überein. Lässt sie einen
-    Verweis relativ, zeigt er auf PyPI ins Leere.
+    Verweis relativ, zeigt er auf PyPI ins Leere. Gemessen wird `readme_fassung`,
+    derselbe Weg wie in `abschnitt()`, nicht nur `_absolut` (Nachreview von #484).
     """
-    neu = changelog._absolut(text)
+    neu = changelog.readme_fassung(text)
     befunde = []
     if code_stellen(neu) != code_stellen(text):
         befunde.append("Code verändert")

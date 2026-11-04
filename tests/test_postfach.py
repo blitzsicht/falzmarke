@@ -244,11 +244,14 @@ def aufrufe_der_teilkettensuche(quellen: dict[str, str]) -> list[str]:
             if isinstance(knoten, ast.Attribute) and knoten.attr in TEILKETTENSUCHE]
 
 
-def _paketquellen() -> dict[str, str]:
+def _paketquellen(ordner=None) -> dict[str, str]:
+    """Jede Python-Datei des Pakets, auch in Unterpaketen, unter ihrem Pfad relativ
+    zum Paket (POSIX-Schreibweise, damit der Test auf Windows dasselbe sagt)."""
     from pathlib import Path
 
-    ordner = Path(postfach.__file__).parent
-    return {p.name: p.read_text(encoding="utf-8") for p in ordner.glob("*.py")}
+    ordner = Path(ordner) if ordner else Path(postfach.__file__).parent
+    return {p.relative_to(ordner).as_posix(): p.read_text(encoding="utf-8")
+            for p in sorted(ordner.rglob("*.py"))}
 
 
 def test_nur_postfach_ruft_die_teilkettensuche():
@@ -271,6 +274,16 @@ def test_gegenprobe_der_alte_aufruf_in_ablage_wird_gemeldet():
         neu, 'sitzung.suche_kopfzeile(EINGANG, "Message-ID", kennung)')
     (fund,) = aufrufe_der_teilkettensuche(quellen)
     assert fund.startswith("ablage.py:")
+
+
+def test_die_quellen_reichen_in_die_unterpakete(tmp_path):
+    """Nachreview von #479: `glob("*.py")` sah `regeln/` nicht. Ein Aufruf in
+    einem Unterpaket wäre an der Prüfung oben vorbeigegangen."""
+    assert "regeln/__init__.py" in _paketquellen(), "Unterpakete fehlen"
+    (tmp_path / "unter").mkdir(parents=True)
+    (tmp_path / "unter" / "x.py").write_text(
+        's._suche_kopfzeile("INBOX", "Message-ID", k)\n', encoding="utf-8")
+    assert aufrufe_der_teilkettensuche(_paketquellen(tmp_path)) == ["unter/x.py:1"]
 
 
 # ── Ablegen: der einzige schreibende Befehl ────────────────────────────────

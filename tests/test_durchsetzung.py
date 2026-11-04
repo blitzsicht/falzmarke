@@ -204,8 +204,16 @@ def test_die_pruef_richtung_folgt_der_quelle(tmp_path, monkeypatch):
         # Die echten Module zurueck in den Cache, sonst erbt der naechste Test
         # die verstellte Fassung. Eine Sabotage, die ueberlebt, ist schlimmer
         # als keine — sie macht fremde Tests gruen oder rot aus falschem Grund.
+        # Dazu jedes Modul, das der verstellte Import aus der Werkstatt mitbrachte
+        # (pflicht_checks, homepage, topics): Lag eines davon noch nicht im Cache,
+        # kam es von dort, und ein spaeterer `import test_repo_pruefung` las die
+        # Workflows unter tmp_path (Nachreview vom 04.11.2026, nur in einem
+        # Teil-Lauf ohne test_pflicht_checks sichtbar).
         for modul in ("durchsetzung", "repo_pruefung"):
             sys.modules.pop(modul, None)
+        for name, modul in list(sys.modules.items()):
+            if str(getattr(modul, "__file__", None) or "").startswith(str(tmp_path)):
+                sys.modules.pop(name, None)
 
 
 @ohne_bash

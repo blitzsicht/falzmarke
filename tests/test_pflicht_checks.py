@@ -325,6 +325,32 @@ def test_ein_workflow_ohne_synchronize_ist_ein_fehler(tmp_path):
     assert pflicht_checks.pflicht_checks(voll) == ["tests"]   # Gegenstück: mit ihm gültig
 
 
+def test_ein_workflow_mit_filter_ist_ein_fehler(tmp_path):
+    """Nachreview von #483: Ein `paths`- oder `branches`-Filter am `pull_request`
+    lässt einen PR außerhalb des Filters ohne Checks, und main wartete auf sie."""
+    pfade = _workflow(tmp_path, "gefiltert.yml", "on:\n  pull_request:\n    paths: ['src/**']\n")
+    with pytest.raises(pflicht_checks.Workflowfehler,
+                       match="gefiltert.yml startet bei pull_request nur mit paths"):
+        pflicht_checks.pflicht_checks(pfade)
+    zweige = _workflow(tmp_path, "zweige.yml",
+                       "on:\n  pull_request:\n    branches-ignore: [docs]\n")
+    with pytest.raises(pflicht_checks.Workflowfehler, match="nur mit branches-ignore"):
+        pflicht_checks.pflicht_checks(zweige)
+    frei = _workflow(tmp_path, "frei.yml", "on:\n  pull_request:\n")
+    assert pflicht_checks.pflicht_checks(frei) == ["tests"]   # Gegenstück: ohne Filter gültig
+
+
+def test_das_skript_meldet_einen_unbrauchbaren_workflow_statt_abzustuerzen(tmp_path, monkeypatch,
+                                                                             capsys):
+    """Nachreview von #483: Exit 1 mit einer Zeile, kein Traceback — das Skript
+    wird aus repo-einstellungen.sh gerufen, und dort zählt der Exit-Code."""
+    pfad = _workflow(tmp_path, "nur-push.yml", "on:\n  push:\n")
+    monkeypatch.setattr(sys, "argv", ["pflicht_checks.py", "--workflow", str(pfad)])
+    assert pflicht_checks.main() == 1
+    aus = capsys.readouterr()
+    assert "FEHLER  nur-push.yml startet nicht bei pull_request" in aus.err and aus.out == ""
+
+
 # ── Das Skript ruft keinen CI-Lauf mehr ab ──────────────────────────────────
 
 @pytest.mark.parametrize("verbotenes_muster", [

@@ -226,11 +226,6 @@ def versionen(text: str) -> list[tuple[str, str]]:
     return abschnitte
 
 
-def _tiefer(rumpf: str) -> str:
-    """Jede Überschrift eine Ebene tiefer — sonst zerschneidet der Auszug die README."""
-    return re.sub(r"^(#{1,5}) ", r"#\1 ", rumpf, flags=re.MULTILINE)
-
-
 #: `](ziel)` ohne Protokoll, Anker oder mailto — dieselbe Form, die
 #: tests/test_readme_auf_pypi.py im fertigen README verbietet.
 RELATIV = re.compile(r"\]\((?!https?:|#|mailto:)([^)]+)\)")
@@ -239,17 +234,39 @@ RELATIV = re.compile(r"\]\((?!https?:|#|mailto:)([^)]+)\)")
 #: Darin ist `](ziel)` Text, kein Verweis, und muss wörtlich bleiben (#480).
 #: Ein Code-Span schließt mit genau so vielen Backticks, wie er öffnet, und
 #: reicht nicht über den Anfang eines Blocks (Leerzeile, Listenpunkt,
-#: Überschrift, Zitat). Sonst verbände ein einzelner, nie geschlossener
+#: Überschrift, Zitat, Codezaun). Sonst verbände ein einzelner, nie geschlossener
 #: Backtick zwei Punkte und nähme den echten Verweis dazwischen aus der
 #: Umschreibung. tests/test_changelog.py misst jedes Fragment mit einem
 #: Markdown-Parser nach, damit beide Fehlrichtungen am Fragment auffallen.
+#:
+#: Eine Überschrift ist eine Raute mit Leerzeichen dahinter, wie bei CommonMark.
+#: Bis zum Nachreview von #484 endete ein Span schon an `#480` am Zeilenanfang,
+#: und der Verweis darin ging umgeschrieben nach PyPI.
 CODE = re.compile(
     r"^[ \t]*(?P<zaun>`{3,}|~{3,})[^\n]*\n[\s\S]*?^[ \t]*(?P=zaun)[`~]*[ \t]*$"
     r"|(?<![`\\])(?P<lauf>`+)(?!`)"
-    r"(?:(?!\n[ \t]*(?:\n|[-*+][ \t]|\d+[.)][ \t]|#|>))[\s\S])*?"
+    r"(?:(?!\n[ \t]*(?:\n|[-*+][ \t]|\d+[.)][ \t]|#{1,6}(?:[ \t]|$)|>|`{3,}|~{3,}))[\s\S])*?"
     r"(?<!`)(?P=lauf)(?!`)",
     re.MULTILINE,
 )
+
+UEBERSCHRIFT = re.compile(r"^#{1,5} ", re.MULTILINE)
+
+
+def _tiefer(rumpf: str) -> str:
+    """Jede Überschrift eine Ebene tiefer — sonst zerschneidet der Auszug die README.
+
+    Nur außerhalb von Code: `# Kommentar` in einem Shell-Block ist keine
+    Überschrift und bekäme sonst eine zweite Raute (Nachreview von #484).
+    """
+    code = [(treffer.start(), treffer.end()) for treffer in CODE.finditer(rumpf)]
+
+    def ersetzen(treffer: re.Match) -> str:
+        if any(anfang <= treffer.start() < ende for anfang, ende in code):
+            return treffer.group(0)
+        return "#" + treffer.group(0)
+
+    return UEBERSCHRIFT.sub(ersetzen, rumpf)
 
 
 def _absolut(rumpf: str) -> str:
@@ -282,6 +299,15 @@ def _absolut(rumpf: str) -> str:
     return "".join(stuecke)
 
 
+def readme_fassung(rumpf: str) -> str:
+    """Ein Versionsrumpf, wie er in die README geht: Überschriften tiefer, Verweise absolut.
+
+    Die eine Stelle für beides — tests/test_changelog.py misst denselben Weg,
+    nicht nur `_absolut` (Nachreview von #484).
+    """
+    return _absolut(_tiefer(rumpf))
+
+
 def abschnitt() -> str:
     alle = versionen(QUELLE.read_text(encoding="utf-8"))
     gezeigt = alle[:VERSIONEN]
@@ -296,7 +322,7 @@ def abschnitt() -> str:
         "",
     ]
     for kopf, rumpf in gezeigt:
-        zeilen += [f"### {kopf}", "", _absolut(_tiefer(rumpf)), ""]
+        zeilen += [f"### {kopf}", "", readme_fassung(rumpf), ""]
     aeltere = len(alle) - len(gezeigt)
     if aeltere:
         zeilen += [

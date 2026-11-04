@@ -52,20 +52,37 @@ class Workflowfehler(ValueError):
     """Ein Pflicht-Workflow, aus dem sich keine verlässliche Liste ableiten lässt."""
 
 
+#: Ein `pull_request`-Auslöser mit einem dieser Filter startet nicht bei jedem
+#: PR. Ein PR außerhalb des Filters bekäme seine Checks nie, und main wartete auf
+#: sie — dieselbe Falle wie ein fehlendes `synchronize` (Nachreview von #483).
+FILTER = ("branches", "branches-ignore", "paths", "paths-ignore")
+
+
+def ausloeser(daten: dict) -> dict[str, dict]:
+    """Der `on:`-Block als Wörterbuch Ereignis → Einstellungen, in jeder Schreibweise.
+
+    GitHub erlaubt `on: push`, `on: [push, pull_request]` und den Block; PyYAML
+    liest den Schlüssel `on` nach YAML 1.1 obendrein als True.
+    """
+    block = daten["on"] if "on" in daten else daten.get(True)
+    if isinstance(block, str):
+        block = {block: None}
+    elif isinstance(block, list):
+        block = dict.fromkeys(block)
+    if not isinstance(block, dict):
+        return {}
+    return {str(ereignis): (einstellungen or {}) for ereignis, einstellungen in block.items()}
+
+
 def pull_request_typen(daten: dict) -> tuple[str, ...] | None:
     """Die Ereignisarten, bei denen der Workflow für einen Pull Request startet.
 
     `None`, wenn er bei `pull_request` gar nicht startet.
     """
-    # PyYAML liest den Schlüssel `on` nach YAML 1.1 als True.
-    ausloeser = daten["on"] if "on" in daten else daten.get(True)
-    if isinstance(ausloeser, str):
-        ausloeser = {ausloeser: None}
-    elif isinstance(ausloeser, list):
-        ausloeser = dict.fromkeys(ausloeser)
-    if not isinstance(ausloeser, dict) or "pull_request" not in ausloeser:
+    pull_request = ausloeser(daten).get("pull_request")
+    if pull_request is None:
         return None
-    typen = (ausloeser["pull_request"] or {}).get("types")
+    typen = pull_request.get("types")
     if typen is None:
         return VORGABE_TYPEN
     return (typen,) if isinstance(typen, str) else tuple(typen)
@@ -162,6 +179,11 @@ def _analysiere_einen(workflow: Path) -> tuple[list[str], list[str]]:
     if fehlend:
         raise Workflowfehler(f"{workflow.name} startet nicht bei {', '.join(fehlend)}: "
                              "ein PR bekäme seine Checks dann nicht für jeden Commit")
+    filter = [f for f in FILTER if f in ausloeser(daten).get("pull_request", {})]
+    if filter:
+        raise Workflowfehler(f"{workflow.name} startet bei pull_request nur mit "
+                             f"{', '.join(filter)}: ein PR außerhalb des Filters bekäme "
+                             "seine Checks nie")
     checks: list[str] = []
     ausgeschlossen: list[str] = []
     for job_id, job in (daten.get("jobs") or {}).items():
@@ -200,7 +222,13 @@ def main() -> int:
     parser.add_argument("--workflow", type=Path, action="append",
                         help="statt der Standard-Workflows, mehrfach möglich")
     args = parser.parse_args()
-    checks, ausgeschlossen = analysiere(args.workflow or STANDARD_WORKFLOWS)
+    try:
+        checks, ausgeschlossen = analysiere(args.workflow or STANDARD_WORKFLOWS)
+    except Workflowfehler as fehler:
+        # Eine Meldung statt eines Tracebacks: Das Skript wird aus
+        # repo-einstellungen.sh gerufen, und dort zählt der Exit-Code.
+        print(f"FEHLER  {fehler}", file=sys.stderr)
+        return 1
     for job_id in ausgeschlossen:
         print(f"  übersprungen (läuft nur auf main): {job_id}", file=sys.stderr)
     for check in checks:

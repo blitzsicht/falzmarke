@@ -22,6 +22,7 @@ from falzmarke import oeffnen as _oeffnen
 from falzmarke import regeln as _regeln
 from conftest import PROFILE, REPO
 from sabotage import zeile_ersetzt as _zeile_ersetzt
+from test_postfach_entwurf import oeffne_befehl                 # noqa: F401 — Fixture, siehe #481
 
 BEISPIEL = REPO / "examples" / "brief-form-b.md"
 
@@ -2460,7 +2461,7 @@ def test_ohne_zweiten_rang_wird_die_probe_fremd_zuerst_rot(monkeypatch):
     probe(monkeypatch, "fremd-zuerst")  # Kontrollprobe: unsabotiert grün
     monkeypatch.setattr(_buch, "fenster_des_kontos", _zeile_ersetzt(
         _buch, "fenster_des_kontos", "key=lambda e: e[:2]", "key=lambda e: e[:1]"))
-    with pytest.raises(AssertionError):
+    with pytest.raises(AssertionError, match="das falsche Fenster gewann"):
         probe(monkeypatch, "fremd-zuerst")
     probe(monkeypatch, "eigen-zuerst")  # deshalb gibt es die zweite Reihenfolge
 
@@ -2506,7 +2507,7 @@ def test_heisst_der_zustand_nicht_offen_wird_die_probe_zum_zweiten_rang_rot(monk
         _buch, "abgleich",
         'art = ("schon_raus" if gleich else "offen" if fenster is not None else "wartet")',
         'art = ("schon_raus" if gleich else "wartet")'))
-    with pytest.raises(AssertionError):
+    with pytest.raises(AssertionError, match="nicht OFFEN, sondern wartet"):
         probe(monkeypatch, "eigen-zuerst")
 
 
@@ -2595,19 +2596,9 @@ def test_gegenprobe_am_echten_weg_macht_die_sabotage_das_leere_fenster_gruen(
 # #481: Den Maßstab für `entwurf-oeffnen` liefert die erste Sitzung, aus den
 # Kopfzeilen, die `koepfe` ohnehin holt. Zwei Rückbauten, je eine Zusage.
 
-@pytest.fixture
-def _entwurf_oeffnen_481(monkeypatch, tmp_path):
-    """Wie `oeffne_befehl` in `test_postfach_entwurf.py`: Fixtures eines anderen
-    Testmoduls sind hier nicht zu haben, die Probe selbst wird importiert."""
-    import test_postfach_entwurf as tpe
-
-    for name in ("CI", "FALZMARKE_OEFFNEN", "FALZMARKE_BRUECKE"):
-        monkeypatch.delenv(name, raising=False)
-    monkeypatch.setenv("DISPLAY", ":0")
-    tpe._profil_mit_entwuerfen(monkeypatch, tmp_path,
-                               "imap://muster%40example.de@outlook.office365.com/Entw&APw-rfe")
-    return lambda *argumente: falzmarke.main(["entwurf-oeffnen", "--absender", tpe.ABSENDER,
-                                              *argumente])
+# Die Fixture `oeffne_befehl` kommt aus test_postfach_entwurf.py (Import oben):
+# Eine importierte Fixture ist in diesem Modul nutzbar, eine Kopie war es bis zum
+# Nachreview von #479.
 
 
 @pytest.mark.parametrize("alt, neu, erwartet", [
@@ -2623,75 +2614,77 @@ def _entwurf_oeffnen_481(monkeypatch, tmp_path):
      "            [sitzung.nachricht(ordner, k.uid) for k in koepfe]",
      "ein Abruf ohne Feldliste holt die ganze Nachricht"),
 ], ids=["zweite-sitzung", "ganze-nachricht"])
-def test_mit_dem_alten_abruf_wird_die_probe_rot(alt, neu, erwartet, _entwurf_oeffnen_481,
+def test_mit_dem_alten_abruf_wird_die_probe_rot(alt, neu, erwartet, oeffne_befehl,
                                                 monkeypatch, capsys):
     from falzmarke import cli as _cli
     from test_postfach_entwurf import (
         test_entwurf_oeffnen_meldet_sich_einmal_an_und_holt_nur_kopfzeilen as probe)
 
-    probe(_entwurf_oeffnen_481, monkeypatch, capsys)                               # Kontrolle
+    probe(oeffne_befehl, monkeypatch, capsys)                               # Kontrolle
     monkeypatch.setattr(_cli, "befehl_entwurf_oeffnen",
                         _zeile_ersetzt(_cli, "befehl_entwurf_oeffnen", alt, neu))
     with pytest.raises(AssertionError, match=erwartet):
-        probe(_entwurf_oeffnen_481, monkeypatch, capsys)
+        probe(oeffne_befehl, monkeypatch, capsys)
 
 
-def test_mit_zusammengeworfenem_an_steht_die_kopie_unter_an(_entwurf_oeffnen_481, monkeypatch,
+def test_mit_zusammengeworfenem_an_steht_die_kopie_unter_an(oeffne_befehl, monkeypatch,
                                                             capsys):
     """`Kopf.empfaenger.an` aus To, Cc und Bcc gebaut, wie `Kopf.an`."""
     from falzmarke import postfach as _postfach
     from test_postfach_entwurf import test_entwurf_oeffnen_sieht_ein_fehlendes_cc as probe
 
-    probe(_entwurf_oeffnen_481, monkeypatch, capsys)                               # Kontrolle
+    probe(oeffne_befehl, monkeypatch, capsys)                               # Kontrolle
     monkeypatch.setattr(_postfach, "kopf_aus", _zeile_ersetzt(
-        _postfach, "kopf_aus", 'empfaenger=Empfaenger(an=_adressen(nachricht, "To"),',
-        'empfaenger=Empfaenger(an=_adressen(nachricht, "To", "Cc", "Bcc"),'))
+        _postfach, "kopf_aus",
+        'empfaenger = Empfaenger(*(_adressen(nachricht, feld) for feld in ("To", "Cc", "Bcc")))',
+        'empfaenger = Empfaenger(_adressen(nachricht, "To", "Cc", "Bcc"), '
+        '_adressen(nachricht, "Cc"), _adressen(nachricht, "Bcc"))'))
     with pytest.raises(AssertionError, match=r"An: fehlt archiv@example\.de, c@example\.org"):
-        probe(_entwurf_oeffnen_481, monkeypatch, capsys)
+        probe(oeffne_befehl, monkeypatch, capsys)
 
 
 # #482: Der Absender im Fenster gegen den `From` des Entwurfs. Je eine Sabotage
 # für den Vergleich, das Alias-Wissen aus dem Profil und jeden der beiden Aufrufer.
 
-def test_ohne_vergleich_geht_die_fremde_identitaet_durch(_entwurf_oeffnen_481, monkeypatch,
+def test_ohne_vergleich_geht_die_fremde_identitaet_durch(oeffne_befehl, monkeypatch,
                                                          capsys, tmp_path):
     """Die Alias-Probe bleibt dabei grün: Sie darf den Fall nicht tragen."""
     from test_postfach_entwurf import (
         test_entwurf_oeffnen_unter_einem_alias_ist_gruen as alias,
         test_entwurf_oeffnen_unter_fremder_identitaet_ist_exit_3 as fremd)
 
-    fremd(_entwurf_oeffnen_481, monkeypatch, capsys, tmp_path / "k")             # Kontrolle
+    fremd(oeffne_befehl, monkeypatch, capsys, tmp_path / "k")             # Kontrolle
     monkeypatch.setattr(_oeffnen, "absender_pruefen", _zeile_ersetzt(
         _oeffnen, "absender_pruefen", "if ist in adressen:", "if True:"))
     with pytest.raises(AssertionError, match=r"assert 0 == 3"):
-        fremd(_entwurf_oeffnen_481, monkeypatch, capsys, tmp_path / "s")
-    alias(_entwurf_oeffnen_481, monkeypatch, capsys, tmp_path / "a")
+        fremd(oeffne_befehl, monkeypatch, capsys, tmp_path / "s")
+    alias(oeffne_befehl, monkeypatch, capsys, tmp_path / "a")
 
 
-def test_ohne_aliasse_aus_dem_profil_wird_der_alias_rot(_entwurf_oeffnen_481, monkeypatch,
+def test_ohne_aliasse_aus_dem_profil_wird_der_alias_rot(oeffne_befehl, monkeypatch,
                                                         capsys, tmp_path):
     """`kontoadressen` nur mit der eigenen Adresse: der Fehlalarm aus #462."""
     from test_postfach_entwurf import test_entwurf_oeffnen_unter_einem_alias_ist_gruen as alias
 
-    alias(_entwurf_oeffnen_481, monkeypatch, capsys, tmp_path / "k")             # Kontrolle
+    alias(oeffne_befehl, monkeypatch, capsys, tmp_path / "k")             # Kontrolle
     monkeypatch.setattr(_oeffnen, "kontoadressen", _zeile_ersetzt(
         _oeffnen, "kontoadressen", "adressen |= im_konto", "adressen |= im_konto & {adresse}"))
     with pytest.raises(AssertionError, match=r"assert 3 == 0"):
-        alias(_entwurf_oeffnen_481, monkeypatch, capsys, tmp_path / "s")
+        alias(oeffne_befehl, monkeypatch, capsys, tmp_path / "s")
 
 
 def test_ohne_aufruf_meldet_entwurf_oeffnen_die_fremde_identitaet_nicht(
-        _entwurf_oeffnen_481, monkeypatch, capsys, tmp_path):
+        oeffne_befehl, monkeypatch, capsys, tmp_path):
     from falzmarke import cli as _cli
     from test_postfach_entwurf import (
         test_entwurf_oeffnen_unter_fremder_identitaet_ist_exit_3 as fremd)
 
-    fremd(_entwurf_oeffnen_481, monkeypatch, capsys, tmp_path / "k")             # Kontrolle
+    fremd(oeffne_befehl, monkeypatch, capsys, tmp_path / "k")             # Kontrolle
     monkeypatch.setattr(_cli, "befehl_entwurf_oeffnen", _zeile_ersetzt(
         _cli, "befehl_entwurf_oeffnen",
         "oeffnung = oeffnen_modul.absender_pruefen(oeffnung, kopf.von)", "pass"))
     with pytest.raises(AssertionError, match=r"assert 0 == 3"):
-        fremd(_entwurf_oeffnen_481, monkeypatch, capsys, tmp_path / "s")
+        fremd(oeffne_befehl, monkeypatch, capsys, tmp_path / "s")
 
 
 def test_ohne_aufruf_meldet_email_oeffnen_die_fremde_identitaet_nicht(
@@ -3366,7 +3359,8 @@ def test_mit_edited_in_ci_yml_wird_die_gegenseite_rot(tmp_path, monkeypatch):
      "test_ein_workflow_ohne_synchronize_ist_ein_fehler"),
     ("    typen = pull_request_typen(daten)\n", "    typen = pull_request_typen(daten) or VORGABE_TYPEN\n",
      "test_ein_workflow_ohne_pull_request_ist_ein_fehler"),
-], ids=["doppelt", "ohne-synchronize", "ohne-pull-request"])
+    ("    if filter:\n", "    if False:\n", "test_ein_workflow_mit_filter_ist_ein_fehler"),
+], ids=["doppelt", "ohne-synchronize", "ohne-pull-request", "filter"])
 def test_ohne_die_pruefung_in_pflicht_checks_wird_die_probe_rot(alt, neu, probe, tmp_path,
                                                                  monkeypatch):
     """Je eine Prüfung in `analysiere` zurückgebaut auf den Stand vor #437, der
@@ -3384,8 +3378,8 @@ def test_ohne_die_pruefung_in_pflicht_checks_wird_die_probe_rot(alt, neu, probe,
 # ── #480: Code im Changelog bleibt auf dem Weg ins README Code ──────────────
 
 def _changelog():
-    sys.path.insert(0, str(REPO / "scripts"))
-    import changelog
+    """Das Modul, wie test_changelog.py es geladen hat — der Pfad nach `scripts/` steht dort."""
+    from test_changelog import changelog
 
     return changelog
 
@@ -3425,13 +3419,19 @@ def test_ohne_umschreibung_meldet_der_fragment_test_den_relativen_verweis(tmp_pa
 
 
 @pytest.mark.parametrize("alt, neu, probe, erwartet", [
-    (r"|[-*+][ \t]|\d+[.)][ \t]|#|>", "", "listenpunkt", "zwei Listenpunkte"),
+    (r"|[-*+][ \t]", "", "listenpunkt", "zwei Listenpunkte"),
     (r"(?:\n|[-*+]", r"(?:[-*+]", "absatz", "zwei Absätze"),
-    (r"(?<!`)(?P=lauf)(?!`)", "`+", None, "schloss mit einem"),
-], ids=["listenpunkt", "leerzeile", "gleich-lang"])
+    (r"(?<!`)(?P=lauf)(?!`)", "`+", "test_ein_backtick_lauf_schliesst_nur_mit_einem_gleich_langen",
+     "schloss mit einem"),
+    (r"|`{3,}|~{3,}", "", "zaun", "Codezaun"),
+    (r"#{1,6}(?:[ \t]|$)", "#", "test_eine_raute_ohne_leerzeichen_beendet_keinen_code_span",
+     "endete an #480"),
+], ids=["listenpunkt", "leerzeile", "gleich-lang", "zaun", "rautenzeile"])
 def test_jede_grenze_des_code_spans_traegt(alt, neu, probe, erwartet, tmp_path, monkeypatch):
     """Je eine Grenze aus `CODE` genommen. Jede schützt einen echten Verweis
-    davor, für Code gehalten zu werden und relativ nach PyPI zu gehen."""
+    davor, für Code gehalten zu werden und relativ nach PyPI zu gehen — oder,
+    bei der Rautenzeile, Code davor, für eine Überschrift gehalten zu werden.
+    `probe` ist ein Fall aus `OFFENE_BACKTICKS` oder der Name eines Tests."""
     changelog = _changelog()
     import test_changelog
 
@@ -3439,12 +3439,11 @@ def test_jede_grenze_des_code_spans_traegt(alt, neu, probe, erwartet, tmp_path, 
     assert muster.count(alt) == 1, f"„{alt}“ steht nicht genau einmal in CODE"
 
     def lauf():
-        if probe:
+        if probe in test_changelog.OFFENE_BACKTICKS:
             test_changelog.test_ein_offener_backtick_schuetzt_keinen_verweis(
                 *test_changelog.OFFENE_BACKTICKS[probe], tmp_path, monkeypatch)
         else:
-            test_changelog.test_ein_backtick_lauf_schliesst_nur_mit_einem_gleich_langen(
-                tmp_path, monkeypatch)
+            getattr(test_changelog, probe)(tmp_path, monkeypatch)
 
     lauf()                                                                         # Kontrolle
     monkeypatch.setattr(changelog, "CODE", re.compile(muster.replace(alt, neu), re.MULTILINE))
@@ -3476,10 +3475,9 @@ def test_ohne_zugzeilen_im_grund_verschweigt_der_text_den_plan(monkeypatch):
     UIDs. So ist belegt, dass die Probe am abgebrochenen Zug hängt und nicht
     an der Ausgabe überhaupt.
     """
-    from falzmarke import ablage as _ablage, postfach as _postfach_modul
+    from falzmarke import ablage as _ablage
     from test_ablage import _antwort, _eingegangen, _postfach
 
-    monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE", _postfach_modul.IMAP_KLASSE, raising=False)
     _postfach(eingang=[_eingegangen()], gesendet=[_antwort()], faehigkeiten=("IMAP4REV1",))
     bericht = _ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={})
     (zug,) = bericht.zuege
@@ -3529,10 +3527,9 @@ def test_geht_nur_die_erste_zeile_auf_stderr_stehen_die_uids_allein(monkeypatch,
 
 def _teilkette(monkeypatch):
     """Eine Antwort mit `123`, im Eingang eine fremde Mail, deren Kennung es enthält."""
-    from falzmarke import ablage as _ablage, postfach as _postfach_modul
+    from falzmarke import ablage as _ablage
     from test_ablage import HEUTE, _antwort, _eingegangen, _postfach
 
-    monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE", _postfach_modul.IMAP_KLASSE, raising=False)
     _, sitzung = _postfach(eingang=[_eingegangen("<x123y@example.org>")],
                            gesendet=[_antwort("123")])
     with sitzung:
@@ -3553,7 +3550,6 @@ def test_ohne_message_id_im_fetch_trifft_gar_nichts_mehr(monkeypatch):
     from falzmarke import ablage as _ablage, postfach as _postfach_modul
     from test_ablage import HEUTE, _antwort, _eingegangen, _postfach
 
-    monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE", _postfach_modul.IMAP_KLASSE, raising=False)
 
     def lauf():
         _, sitzung = _postfach(eingang=[_eingegangen()], gesendet=[_antwort()])
@@ -3583,16 +3579,15 @@ def test_mit_strip_gilt_eine_einzelne_klammer_als_paar(monkeypatch):
 
 
 def test_vor_dem_vergleich_gekappt_faellt_die_echte_nachricht_heraus(monkeypatch):
-    """#468: `suche_kennung` holt alle Teiltreffer. Ohne `grenze=len(uids)` gilt
-    wieder `GRENZE`, und die ältere, echte Nachricht geht vor dem Vergleich verloren."""
+    """#468: `suche_kennung` holt alle Teiltreffer bis `SUCHGRENZE`. Ohne das Argument
+    gilt wieder `GRENZE`, und die ältere, echte Nachricht geht vor dem Vergleich verloren."""
     from falzmarke import postfach as _postfach_modul
     from test_ablage import test_viele_teiltreffer_verdraengen_die_echte_nachricht_nicht as probe
 
-    monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE", _postfach_modul.IMAP_KLASSE, raising=False)
     probe(monkeypatch)  # Kontrollprobe: unsabotiert grün
     monkeypatch.setattr(_postfach_modul.Postfach, "suche_kennung", _zeile_ersetzt(
         _postfach_modul, "Postfach.suche_kennung",
-        "uids=uids, grenze=len(uids))", "uids=uids)"))
+        "uids=uids, grenze=SUCHGRENZE)", "uids=uids)"))
     with pytest.raises(AssertionError, match=r"\['echt'\]"):
         probe(monkeypatch)
 
@@ -3603,7 +3598,6 @@ def test_ohne_filter_liefert_suche_kennung_die_teilkette(monkeypatch):
     from falzmarke import postfach as _postfach_modul
     from test_ablage import test_eine_teilkette_der_kennung_ist_kein_treffer as probe
 
-    monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE", _postfach_modul.IMAP_KLASSE, raising=False)
     probe()  # Kontrollprobe: unsabotiert grün
     monkeypatch.setattr(_postfach_modul.Postfach, "suche_kennung", _zeile_ersetzt(
         _postfach_modul, "Postfach.suche_kennung",
@@ -3679,3 +3673,94 @@ def test_faengt_befehl_nur_unicodeencodeerror_entkommt_der_valueerror(monkeypatc
     monkeypatch.setattr(_postfach_modul.Postfach, "_befehl", raum["_befehl"])
     with pytest.raises(ValueError, match="NUL, CR and LF"):
         probe(monkeypatch)
+
+
+# ── Nachreview vom 04.11.2026: #479, #483, #484 ──────────────────────────────
+
+def test_mit_dem_alten_tiefer_wird_der_kommentar_im_codeblock_zur_ueberschrift(tmp_path,
+                                                                                monkeypatch):
+    """`_tiefer` wie vor dem Nachreview von #484: `re.sub` über den ganzen Rumpf, Code
+    eingeschlossen."""
+    changelog = _changelog()
+    import test_changelog
+
+    test_changelog.test_eine_raute_im_codeblock_bleibt_eine_raute(tmp_path, monkeypatch)  # Kontrolle
+    monkeypatch.setattr(changelog, "_tiefer", lambda rumpf: re.sub(
+        r"^(#{1,5}) ", r"#\1 ", rumpf, flags=re.MULTILINE))
+    with pytest.raises(AssertionError, match="Aus dem Kommentar wurde eine Überschrift"):
+        test_changelog.test_eine_raute_im_codeblock_bleibt_eine_raute(tmp_path, monkeypatch)
+
+
+@pytest.mark.parametrize("name, alt, erwartet", [
+    ("HTML_ZIEL", re.compile(r'(?:src|href)="([^"]*)"'), "einfachen Anführungszeichen"),
+    ("OHNE_HERKUNFT", re.compile(r"(?!https?:|#|mailto:)"), "groß geschriebenes Protokoll"),
+], ids=["anfuehrungszeichen", "grossschreibung"])
+def test_die_alten_muster_der_readme_pruefung_werden_namentlich_rot(name, alt, erwartet,
+                                                                    monkeypatch):
+    """Je ein Muster aus test_readme_auf_pypi.py auf den Stand vor dem Nachreview
+    von #484 zurückgesetzt: nur doppelte Anführungszeichen, nur Kleinschreibung."""
+    import test_readme_auf_pypi as trp
+
+    trp.test_gegenprobe_die_pruefung_faengt_einen_relativen_verweis()           # Kontrolle
+    monkeypatch.setattr(trp, name, alt)
+    with pytest.raises(AssertionError, match=erwartet):
+        trp.test_gegenprobe_die_pruefung_faengt_einen_relativen_verweis()
+
+
+def test_ohne_rglob_fehlen_die_unterpakete(monkeypatch, tmp_path):
+    """`_paketquellen` wie vor dem Nachreview von #479: nur die oberste Ebene."""
+    import test_postfach as tp
+
+    tp.test_die_quellen_reichen_in_die_unterpakete(tmp_path / "k")               # Kontrolle
+    monkeypatch.setattr(tp, "_paketquellen", _zeile_ersetzt(
+        tp, "_paketquellen", "ordner.rglob(", "ordner.glob("))
+    with pytest.raises(AssertionError, match="Unterpakete fehlen"):
+        tp.test_die_quellen_reichen_in_die_unterpakete(tmp_path / "s")
+
+
+def test_ohne_suchgrenze_holt_suche_kennung_jeden_teiltreffer(monkeypatch):
+    """`suche_kennung` wie vor dem Nachreview von #479: `grenze=len(uids)`, nie gekappt."""
+    from falzmarke import postfach as _postfach_modul
+    from test_ablage import (
+        test_mehr_teiltreffer_als_die_suchgrenze_werden_gekappt_und_gemeldet as probe)
+
+    probe(monkeypatch)                                                            # Kontrolle
+    monkeypatch.setattr(_postfach_modul.Postfach, "suche_kennung", _zeile_ersetzt(
+        _postfach_modul, "Postfach.suche_kennung", "grenze=SUCHGRENZE)", "grenze=len(uids))"))
+    with pytest.raises(AssertionError, match="nicht gekappt"):
+        probe(monkeypatch)
+
+
+def test_ohne_das_abfangen_reisst_der_workflowfehler_den_waechter_ab(tmp_path, monkeypatch):
+    """`_pruefe_pflicht_checks` wie vor dem Nachreview von #483: der Fehler geht durch.
+
+    Das Modul kommt aus `trp`, nicht per `import`: `test_durchsetzung` wirft
+    `repo_pruefung` aus `sys.modules`, danach liefert ein neuer Import ein zweites
+    Modulobjekt, und die Sabotage träfe das falsche (gemessen am 04.11.2026, nur
+    in der ganzen Suite rot).
+    """
+    import test_repo_pruefung as trp
+    import pflicht_checks
+    repo_pruefung = trp.repo_pruefung
+
+    monkeypatch.setattr(repo_pruefung, "registry_namen", lambda name, **_: [name])  # kein Netz
+    trp.test_ein_unbrauchbarer_pflicht_workflow_ist_ein_befund_kein_absturz(tmp_path)  # Kontrolle
+    monkeypatch.setattr(repo_pruefung, "_pruefe_pflicht_checks", _zeile_ersetzt(
+        repo_pruefung, "_pruefe_pflicht_checks",
+        "except pflicht_checks.Workflowfehler as fehler:", "except () as fehler:"))
+    with pytest.raises(pflicht_checks.Workflowfehler, match="startet nicht bei pull_request"):
+        trp.test_ein_unbrauchbarer_pflicht_workflow_ist_ein_befund_kein_absturz(tmp_path)
+
+
+def test_ohne_das_abfangen_endet_das_skript_mit_traceback(tmp_path, monkeypatch, capsys):
+    """`main` wie vor dem Nachreview von #483: `Workflowfehler` statt Exit 1."""
+    import test_pflicht_checks as tpc                      # legt scripts/ auf den Pfad
+    import pflicht_checks
+
+    tpc.test_das_skript_meldet_einen_unbrauchbaren_workflow_statt_abzustuerzen(
+        tmp_path, monkeypatch, capsys)                                            # Kontrolle
+    monkeypatch.setattr(pflicht_checks, "main", _zeile_ersetzt(
+        pflicht_checks, "main", "except Workflowfehler as fehler:", "except () as fehler:"))
+    with pytest.raises(pflicht_checks.Workflowfehler):
+        tpc.test_das_skript_meldet_einen_unbrauchbaren_workflow_statt_abzustuerzen(
+            tmp_path, monkeypatch, capsys)
