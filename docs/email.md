@@ -228,11 +228,18 @@ Vier Eigenschaften, die dazugehören:
   Pfad und lässt den Exit-Code bei 0. Ausnahme `--kein-fenster` (#441): Dort gibt es nur den
   Postfach-Entwurf. Liegt keiner, heißt es `KEIN ENTWURF  <Grund>` mit Exit 3, und weder
   `-compose` noch die Datei gehen auf. Eine Schleife soll sehen, dass nichts liegt.
+  `--kein-fenster` geht nicht mit `--programm outlook` (Exit 1): Outlook legt einen Entwurf nur
+  mit Fenster an. Bleibt das Ablegen ungewiss (`HINWEIS … das Ablegen blieb ungewiss`), endet der
+  Befehl auch mit `--kein-fenster` mit Exit 0, aber ohne `OK  Entwurf liegt in`. Ein erneuter
+  Aufruf ist dann nicht nötig, ein Blick in „Entwürfe“ schon. Wer nur den Exit-Code liest, hält den
+  Lauf für erledigt; der Abholer in siluri-angebote prüft deshalb auf die `OK`-Zeile, legt die
+  Datei ohne sie nach `_fehler/` und versucht es nie von selbst neu (siluri-angebote#206).
 
 Auf einem Rechner ohne Bildschirm — gesetztes `CI`, unter Linux fehlendes `DISPLAY` — wird gar
 nicht erst gestartet. `FALZMARKE_ENTWURF=nie` schaltet **nur den Entwurf** ab und lässt die
 Dateiübergabe stehen; `FALZMARKE_OEFFNEN=nie` schaltet beides ab, `=immer` überstimmt die
-Erkennung.
+Erkennung. Mit `--kein-fenster` gibt es keine Dateiübergabe: Ein abgeschalteter Entwurf, `CI` oder
+ein fehlendes `DISPLAY` enden dort mit `KEIN ENTWURF  <Grund>` und Exit 3.
 
 **Kein Versand.** Es gibt im Paket keinen Weg, eine Nachricht abzuschicken — auch nicht im
 Steuerskript. ADR 0034 gilt unverändert, und ein Test misst es am ganzen Paket.
@@ -408,13 +415,20 @@ OK  ich@example.de: 2 benannte Nachrichten im Eingang, 2 zum Ablegen → „Arch
     nichts bewegt — mit --machen verschieben
 ```
 
-Es gelten dasselbe Ziel und dieselben Sperren, `--seit` spielt keine Rolle. **Fehlt eine der
-genannten UIDs im Eingang, wandert keine**, und `NICHT GEPRÜFT` nennt sie. `--uid` gilt für genau
-ein `--absender`, denn dieselbe UID ist in einem anderen Postfach eine andere Mail.
+Es gelten dasselbe Ziel und dieselben Sperren. `--seit` gibt es dabei nicht; zusammen mit
+`--uid` endet es mit Exit 1, statt still übergangen zu werden. **Fehlt eine der genannten UIDs im
+Eingang, wandert keine**, und `NICHT GEPRÜFT` nennt sie (Exit 3). Dasselbe gilt, wenn eine
+genannte Mail liegen bliebe, etwa wegen eines Fähnchens oder unbekannter Flags: Dann wandert
+keine, und der Grund nennt `--trotz-faehnchen`. Wer eine UID nennt, hat das Fähnchen vermutlich
+übersehen. `--uid` gilt für genau ein `--absender`, denn dieselbe UID ist in einem anderen
+Postfach eine andere Mail.
 
 **Jahresordner: `ablage: Archiv/{jahr}`.** `{jahr}` wird je Mail zum Jahr ihrer Ankunft im
-Postfach, so wie Thunderbirds Taste A mit `archive_granularity 1` ablegt. Fehlt einer der
-Jahresordner, wandert keine Mail des Laufs, und `NICHT GEPRÜFT` nennt den fehlenden Ordner.
+Postfach (INTERNALDATE, Ortszeit). Thunderbirds Taste A mit `archive_granularity 1` nimmt dagegen
+`msgHdr.date`. falzmarke bleibt bei der Ankunft, weil der Absender sie nicht fälschen kann und
+der Server sie zu jeder Nachricht führt. Eine Mail vom 31.12. um 23:50, die erst am 01.01.
+ankommt, liegt deshalb im neuen Jahr. Fehlt einer der Jahresordner, wandert keine Mail des
+Laufs, und `NICHT GEPRÜFT` nennt den fehlenden Ordner.
 
 **Eine Antwort darf mehrere Nachrichten erledigen.** `In-Reply-To` trägt nach RFC 5322 eine
 Liste, und ein langer Wert liegt über mehrere Zeilen gefaltet in der Nachricht. Gesucht wird

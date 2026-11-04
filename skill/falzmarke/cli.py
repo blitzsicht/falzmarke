@@ -1831,6 +1831,13 @@ def befehl_email(args) -> int:
     brief = Path(args.brief)
     profile = Path(args.profiles) if args.profiles else None
 
+    # Nachreview #491, Befund 1: Outlook öffnet jeden Entwurf als Fenster. Wer
+    # beides verlangt, bekäme sonst ein Fenster oder gar nichts, je nachdem.
+    if args.kein_fenster and args.programm == "outlook":
+        print("FEHLER  --kein-fenster geht nicht mit --programm outlook: Outlook legt "
+              "einen Entwurf nur mit Fenster an", file=sys.stderr)
+        return EXIT_EINGABE
+
     # Dieselbe Reihenfolge wie beim Brief: Ein Eingabefehler soll Exit 1
     # ergeben und kein Setzen kosten.
     vorpruefung = linte(brief, profile)
@@ -2278,6 +2285,15 @@ def befehl_aufraeumen(args) -> int:
 
     from falzmarke import ablage as ablage_modul
 
+    if args.uid is not None and args.seit is not None:
+        # Nachreview von #494, Befund 6: Mit `--uid` gibt es kein Fenster. Ein
+        # gesetztes `--seit` würde still übergangen, also wird es abgewiesen —
+        # und ein unsinniger Wert nicht an einer Grenze gemessen, die nicht gilt.
+        print("FEHLER  --seit gilt nicht mit --uid: die genannten Mails werden ohne "
+              "Zeitfenster gesucht", file=sys.stderr)
+        return EXIT_EINGABE
+    if args.seit is None:
+        args.seit = ablage_modul.SEIT_TAGEN
     if not 1 <= args.seit <= ablage_modul.SEIT_MAX:
         print(f"FEHLER  --seit braucht 1 bis {ablage_modul.SEIT_MAX} Tage — zehn Jahre, "
               "darüber bricht die Datumsrechnung", file=sys.stderr)
@@ -2906,7 +2922,8 @@ def main(argv: list[str] | None = None) -> int:
                    help="den Entwurf ablegen, aber kein Verfassen-Fenster öffnen und "
                         "Thunderbird nicht nach vorn holen (für Schleifen über viele Briefe). "
                         "Lässt sich der Entwurf nicht im Postfach ablegen, geht weder "
-                        "-compose noch die Datei auf: KEIN ENTWURF mit Grund, Exit 3")
+                        "-compose noch die Datei auf: KEIN ENTWURF mit Grund, Exit 3. "
+                        "Nicht mit --programm outlook")
     p.add_argument("--programm", choices=["thunderbird", "outlook"],
                    help="Mailprogramm für den Entwurf (ohne Angabe Thunderbird; "
                         "Outlook nur auf Wahl); schließt --oeffnen ein")
@@ -2949,15 +2966,17 @@ def main(argv: list[str] | None = None) -> int:
              "überholte Entwürfe in den Papierkorb")
     p.add_argument("--absender", required=True, action="append",
                    help="die Adresse des Kontos; mehrfach für mehrere Konten")
-    p.add_argument("--seit", type=int, default=30,
+    # `default=None`, nicht 30: Nur so ist „gesetzt“ von „Vorgabe“ zu trennen,
+    # und mit `--uid` ist ein gesetztes `--seit` ein Fehler (Nachreview #494).
+    p.add_argument("--seit", type=int, default=None,
                    help="so weit zurück werden gesendete Antworten angesehen "
-                        "(Vorgabe 30 Tage, höchstens 3650)")
+                        "(Vorgabe 30 Tage, höchstens 3650); nicht mit --uid")
     p.add_argument("--entwuerfe", action="store_true",
                    help="statt des Eingangs „Entwürfe“ aufräumen: was belegt überholt ist, "
                         "geht in den Papierkorb, jeder andere Entwurf bleibt mit Grund")
     p.add_argument("--uid", type=int, nargs="+", metavar="UID",
-                   help="genau diese Mails im Eingang ablegen, auch ohne Antwort; fehlt eine, "
-                        "wandert keine. --seit gilt dann nicht")
+                   help="genau diese Mails im Eingang ablegen, auch ohne Antwort; fehlt eine "
+                        "oder bliebe eine liegen, wandert keine. Nicht mit --seit")
     p.add_argument("--trotz-faehnchen", action="store_true",
                    help="auch Mails mit Fähnchen ablegen; ohne diesen Schalter bleiben sie "
                         "im Eingang")
