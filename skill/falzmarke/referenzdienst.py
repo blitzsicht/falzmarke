@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import os
 
-from falzmarke import geometrie, regeln
+from falzmarke import __version__, geometrie, regeln
 
 NAME = "falzmarke-referenz"
 
@@ -170,6 +170,8 @@ def baue_server():
                       "und B, die geprüften Regeln und ihre Quellen. Gesetzt wird "
                       "nicht hier, sondern mit dem Skill falzmarke. " + QUELLENLAGE),
         website_url="https://falzmarke.com",
+        # Wie in dienst.py: ohne Angabe meldet `initialize` eine leere Version (#467).
+        version=__version__,
     )
     for werkzeug in WERKZEUGE:
         server.tool(annotations=ToolAnnotations(**ANNOTATIONEN))(

@@ -10,6 +10,11 @@ Wie bei der `.eml` wird mit `SOURCE_DATE_EPOCH` gesetzt: Ohne die Variable
 trägt das PDF die Rechnerzeit als `/CreationDate`, und zwei Läufe ergeben andere
 Bytes (gemessen am 13.09.2026). Die eingebettete XML hängt nicht daran.
 
+Ebenso fest ist die Fassung in `/Producer` und `/falzmarke_Version`
+(`conftest.GOLDEN_VERSION`, #467). Ein Versionssprung ändert deshalb kein
+Golden mehr. Meldet das Skript nach einem Release „erneuert“, hat sich etwas
+anderes geändert.
+
     python3 scripts/golden_rechnung.py            # schreibt Goldens neu
     python3 scripts/golden_rechnung.py --pruefen  # meldet nur Abweichungen
 
@@ -30,7 +35,7 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "skill"))
 sys.path.insert(0, str(REPO / "tests"))
 
-from conftest import RECHNUNG_BEISPIELE, PROFILE  # noqa: E402
+from conftest import GOLDEN_VERSION, RECHNUNG_BEISPIELE, PROFILE  # noqa: E402
 
 #: Derselbe Zeitpunkt wie in `scripts/golden_email.py` und in den Tests.
 EPOCH = "1788134400"
@@ -53,11 +58,13 @@ def erzeuge(quelle: Path) -> tuple[bytes, bytes]:
 
     alt = os.environ.get("SOURCE_DATE_EPOCH")
     os.environ["SOURCE_DATE_EPOCH"] = EPOCH
+    alte_version, cli.VERSION = cli.VERSION, GOLDEN_VERSION
     arbeit = Path(tempfile.mkdtemp(prefix="falzmarke-golden-"))
     try:
         pdf, _ = cli.rendere(quelle, arbeit / f"{quelle.stem}.pdf", profil_verzeichnis=PROFILE)
         return pdf.read_bytes(), _xml_bytes(pdf)
     finally:
+        cli.VERSION = alte_version
         shutil.rmtree(arbeit, ignore_errors=True)
         if alt is None:
             del os.environ["SOURCE_DATE_EPOCH"]
