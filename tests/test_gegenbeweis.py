@@ -2226,6 +2226,48 @@ def test_ohne_die_eigene_adresse_ist_die_eigene_sendung_im_abgleich_fremd(monkey
     assert _einziger(_stand()).art == "wartet"
 
 
+def test_nur_der_erste_autor_laesst_die_zweite_sendung_durch(tmp_path, monkeypatch):
+    """#506, Befund 4: `From` nennt den Kunden zuerst, die eigene Adresse danach. Mit allen
+    Autoren sperrt die Mail, mit dem ersten allein (der Stand vor #506) gilt sie als fremd."""
+    from falzmarke import gesendet as _gesendet_modul
+    from test_gesendet import KUNDE, _gesendet, _profil, _pruefe, _server
+
+    eml_pfad = _eigene_mail(tmp_path)
+    ordner = _profil(tmp_path)
+    _server(monkeypatch, _gesendet(von=f"{KUNDE}, muster@example.de"))
+    assert _pruefe(eml_pfad, thunderbird_ordner=ordner).zustand == "gesendet"
+    monkeypatch.setattr(_gesendet_modul, "fremder_absender", _zeile_ersetzt(
+        _gesendet_modul, "fremder_absender",
+        "    adressen = kopf.absender or ((kopf.von,) if kopf.von else ())\n",
+        "    adressen = (kopf.von,) if kopf.von else ()\n"))
+    assert _pruefe(eml_pfad, thunderbird_ordner=ordner).zustand == "frei"
+
+
+def test_in_der_schleife_gezaehlt_fehlt_die_fremde_hinter_dem_treffer(tmp_path, monkeypatch):
+    """#506, Befund 5: die Zählung vor #506, nachgebaut. Die ältere fremde Mail liegt hinter
+    dem Treffer, die Schleife endet vorher, und die Zahl fällt von 1 auf 0."""
+    from falzmarke import gesendet as _gesendet_modul
+    from test_gesendet import _eingegangen, _gesendet, _profil, _pruefe, _server
+
+    eml_pfad = _eigene_mail(tmp_path)
+    ordner = _profil(tmp_path)
+    _server(monkeypatch, _eingegangen(vor=timedelta(minutes=30)), _gesendet())
+    assert _pruefe(eml_pfad, thunderbird_ordner=ordner).fremde == 1
+    monkeypatch.setattr(_gesendet_modul, "pruefe", _zeile_ersetzt(
+        _gesendet_modul, "pruefe",
+        "        fremde = sum(fremder_absender(kopf, eigene) for kopf in koepfe)\n"
+        "        for kopf in sorted(koepfe, key=lambda k: k.datum or jetzt, reverse=True):\n"
+        "            if fremder_absender(kopf, eigene):\n"
+        "                continue\n",
+        "        fremde = 0\n"
+        "        for kopf in sorted(koepfe, key=lambda k: k.datum or jetzt, reverse=True):\n"
+        "            if fremder_absender(kopf, eigene):\n"
+        "                fremde += 1\n"
+        "                continue\n"))
+    befund = _pruefe(eml_pfad, thunderbird_ordner=ordner)
+    assert (befund.zustand, befund.fremde) == ("gesendet", 0)
+
+
 # ── Die Ablage je Konto (#431, ADR 0061) ───────────────────────────────────
 #
 # `tests/test_ablage.py` hält fest, was der Befehl tut. Hier steht die Frage,

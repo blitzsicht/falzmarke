@@ -243,8 +243,14 @@ def fremder_absender(kopf, eigene: frozenset[str] | None) -> bool:
     weiter. `None` heißt: Kein Profil sagt, wer „wir“ sind, und dann zählt
     jede Mail — ein übersehener Fremdabsender kostet eine Rückfrage, eine
     übersehene eigene Mail eine zweite Sendung. Ohne `From` zählt sie ebenso.
+
+    Nennt `From` mehrere Autoren, ist die Mail eigen, sobald einer davon eigen
+    ist — wie `fremderAbsender` in der Entwurfsbrücke. Bis #506 sah falzmarke
+    nur den ersten, und die beiden Sperren urteilten über dieselbe Mail
+    verschieden. Ein von Hand gebauter `Kopf` ohne `absender` gilt mit `von`.
     """
-    return eigene is not None and bool(kopf.von) and kopf.von not in eigene
+    adressen = kopf.absender or ((kopf.von,) if kopf.von else ())
+    return eigene is not None and bool(adressen) and not any(a in eigene for a in adressen)
 
 
 # ── Prüfen ──────────────────────────────────────────────────────────────────
@@ -326,10 +332,11 @@ def pruefe(eigen: Merkmale, absender: str, *, verbindung=None, ordner: str | Non
         koepfe = [k for k in verbindung.koepfe(ordner, seit=grenze.date())
                   if k.datum is None or k.datum >= grenze]
         geaendert = None
-        fremde = 0
+        # Vorab über alle gezählt: Ein Treffer bricht die Schleife ab, und eine
+        # ältere fremde Mail dahinter fehlte sonst in der Zahl (#506, Befund 5).
+        fremde = sum(fremder_absender(kopf, eigene) for kopf in koepfe)
         for kopf in sorted(koepfe, key=lambda k: k.datum or jetzt, reverse=True):
             if fremder_absender(kopf, eigene):
-                fremde += 1
                 continue
             if not eigen.empfaenger & set(kopf.an):
                 continue
@@ -347,7 +354,7 @@ def pruefe(eigen: Merkmale, absender: str, *, verbindung=None, ordner: str | Non
                 return befund
             geaendert = geaendert or befund
         if geaendert is not None:
-            return geaendert._replace(fremde=fremde)
+            return geaendert
         return Befund("frei", ordner=anzeige, adresse=absender, angesehen=len(koepfe),
                       stunden=stunden, fremde=fremde)
     except postfach.PostfachFehler as fehler:
