@@ -2192,7 +2192,7 @@ def test_eine_geratene_zuordnung_verliert_das_konto_mit_fremdem_login(monkeypatc
     """
     from falzmarke import entwurfsbuch as _buch
 
-    def geraten(fenster, adresse):
+    def geraten(fenster, adresse, kontoadressen=None):
         # `unquote` gehört dazu: Die URI trägt die Adresse prozentcodiert
         # (`order%40example.de`), und ohne das Entpacken träfe die Teilkette
         # auch im alten Code nie — der Nachbau wäre dann milder als das
@@ -2226,7 +2226,7 @@ def test_ohne_pruefung_der_identitaet_gewinnt_das_fremde_fenster(monkeypatch):
     """
     from falzmarke import entwurfsbuch as _buch
 
-    def nur_uid(fenster, adresse):
+    def nur_uid(fenster, adresse, kontoadressen=None):
         aus = {}
         for eintrag in fenster:
             treffer = _buch.UID_AUS_URI.search(str(eintrag.get("draft_id") or ""))
@@ -2292,6 +2292,56 @@ def test_kippt_der_vergleich_in_nur_uid_gilt_der_alias_als_sicher_zugeordnet(mon
         'return str(fenster.get("identitaet") or "").strip().lower() != adresse.strip().lower()',
         'return not str(fenster.get("identitaet") or "").strip()'))
     assert not _buch.nur_uid(fremd, _VON_410)
+
+
+# #466: Die Identitäten des Kontos aus dem Profil trennen Alias und fremdes
+# Konto. Die Probe der einen Seite bleibt unter der Sabotage der anderen grün.
+
+@pytest.mark.parametrize("identitaet", ["andere@example.org", "fremd@example.net"],
+                         ids=["anderes-konto", "in-keinem-konto"])
+def test_ohne_kontoadressen_haelt_ein_fremdes_fenster_wieder_offen(monkeypatch, tmp_path,
+                                                                   identitaet):
+    from falzmarke import entwurfsbuch as _buch
+    from test_entwurfsbuch import (
+        test_mit_profil_faellt_ein_fremdes_fenster_derselben_uid_heraus as probe,
+        test_mit_profil_ist_der_alias_sicher_zugeordnet as alias)
+
+    probe(monkeypatch, tmp_path / "k", identitaet)                         # Kontrolle
+    monkeypatch.setattr(_buch, "_offene_uids", _zeile_ersetzt(
+        _buch, "_offene_uids", 'return fenster_des_kontos(fenster, adresse, adressen), ""',
+        'return fenster_des_kontos(fenster, adresse), ""'))
+    with pytest.raises(AssertionError, match=f"ein Fenster von {identitaet} hält den "
+                                             "Entwurf offen"):
+        probe(monkeypatch, tmp_path / "s", identitaet)
+    # Der Alias fällt auf den nachsichtigen Weg zurück: OFFEN, aber ohne Zuordnung.
+    with pytest.raises(AssertionError, match="einer Identität desselben Kontos"):
+        alias(monkeypatch, tmp_path / "a")
+
+
+def test_ohne_alias_ausnahme_wartet_auch_der_alias(monkeypatch, tmp_path):
+    from falzmarke import entwurfsbuch as _buch
+    from test_entwurfsbuch import (
+        test_mit_profil_faellt_ein_fremdes_fenster_derselben_uid_heraus as fremd,
+        test_mit_profil_ist_der_alias_sicher_zugeordnet as alias)
+
+    alias(monkeypatch, tmp_path / "k")                                     # Kontrolle
+    monkeypatch.setattr(_buch, "fenster_des_kontos", _zeile_ersetzt(
+        _buch, "fenster_des_kontos", "if gemeldet not in kontoadressen:", "if True:"))
+    with pytest.raises(AssertionError, match="der Alias hält den Entwurf nicht offen"):
+        alias(monkeypatch, tmp_path / "s")
+    fremd(monkeypatch, tmp_path / "f", "andere@example.org")  # trägt den Fall nicht
+
+
+def test_ohne_alias_marke_in_nur_uid_meldet_json_den_alias_als_uid_treffer(monkeypatch,
+                                                                         tmp_path):
+    from falzmarke import entwurfsbuch as _buch
+    from test_entwurfsbuch import test_mit_profil_ist_der_alias_sicher_zugeordnet as alias
+
+    alias(monkeypatch, tmp_path / "k")                                     # Kontrolle
+    monkeypatch.setattr(_buch, "nur_uid", _zeile_ersetzt(
+        _buch, "nur_uid", "if fenster.get(ALIAS_DES_KONTOS):", "if False:"))
+    with pytest.raises(AssertionError, match="fenster_nur_uid am Alias"):
+        alias(monkeypatch, tmp_path / "s")
 
 
 def test_ohne_zweiten_rang_gewinnt_die_reihenfolge_der_liste(monkeypatch):
