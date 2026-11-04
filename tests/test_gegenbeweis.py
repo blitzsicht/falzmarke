@@ -3346,7 +3346,7 @@ def test_ohne_die_sperre_fuer_fehlende_uids_wandert_der_rest(monkeypatch):
 
     probe()
     monkeypatch.setattr(_ablage, "plane_benannt", _zeile_ersetzt(
-        _ablage, "plane_benannt", "    if fehlen:", "    if False:"))
+        _ablage, "plane_benannt", "    elif fehlen:", "    elif False:"))
     with pytest.raises(AssertionError, match="UID MOVE gesendet"):
         probe()
 
@@ -3558,6 +3558,75 @@ def test_ohne_dekodieren_steht_das_ziel_je_zug_in_server_schreibweise_im_json(mo
         _ablage, "_ziele_zuordnen", "ziel=_lesbar(name)", "ziel=name"))
     with pytest.raises(AssertionError, match=r"Ziele im JSON: \['Gesch&AOQ-ft/2025'"):
         probe()
+
+
+# #495: Eine UID gilt nur mit der UIDVALIDITY des Eingangs. Jede Sabotage baut
+# den Stand vor #495 an genau einer Stelle nach, dazu die beiden Befunde aus
+# dem Review von #496, die in `plane_benannt` lagen.
+
+def test_ohne_den_vergleich_mit_der_anzeige_wandert_die_fremde_mail(monkeypatch):
+    """Der Stand vor #495: `plane_benannt` sah nur die Zahl."""
+    from falzmarke import ablage as _ablage
+    from test_ablage import test_wechselt_die_uidvalidity_nach_der_anzeige_wandert_keine as probe
+
+    probe()                                                                # Kontrolle
+    monkeypatch.setattr(_ablage, "plane_benannt", _zeile_ersetzt(
+        _ablage, "plane_benannt", "    if gewechselt:", "    if False:"))
+    with pytest.raises(AssertionError, match="UID MOVE gesendet"):
+        probe()
+
+
+@pytest.mark.parametrize("benannt", [True, False], ids=["uid", "beantwortet"])
+def test_ohne_den_vergleich_am_select_geht_das_move_trotz_wechsel_hinaus(monkeypatch, benannt):
+    """Der Stand vor #495: `verschiebe` wählte den Eingang und schob."""
+    from falzmarke import ablage as _ablage
+    from test_ablage import (
+        test_wechselt_die_uidvalidity_zwischen_plan_und_select_geht_kein_move_hinaus as probe)
+
+    probe(benannt)                                                         # Kontrolle
+    monkeypatch.setattr(_ablage, "verschiebe", _zeile_ersetzt(
+        _ablage, "verschiebe", "    if uidvalidity is not None and jetzt != uidvalidity:",
+        "    if False:"))
+    with pytest.raises(AssertionError, match="UID MOVE gesendet"):
+        probe(benannt)
+
+
+def test_ohne_die_pflicht_laeuft_uid_mit_machen_ohne_uidvalidity_durch(monkeypatch, capsys):
+    """Der Stand vor #495: `--uid … --machen` ohne Wert der Anzeige."""
+    from test_ablage import test_uid_mit_machen_verlangt_uidvalidity as probe
+
+    probe(monkeypatch, capsys)                                             # Kontrolle
+    monkeypatch.setattr(falzmarke, "befehl_aufraeumen", _zeile_ersetzt(
+        falzmarke, "befehl_aufraeumen",
+        "        if args.machen and args.uidvalidity is None:", "        if False:"))
+    with pytest.raises(AssertionError, match="ohne --uidvalidity nicht abgewiesen"):
+        probe(monkeypatch, capsys)
+
+
+def test_mit_der_alten_regel_verschwindet_der_grund_zum_jahresordner(monkeypatch):
+    """Review von #496, Befund 1: Der Grund „bliebe liegen“ ersetzte den zum Jahresordner."""
+    from falzmarke import ablage as _ablage
+    from test_ablage import (
+        test_fehlt_ein_jahresordner_steht_er_neben_der_liegenden_benannten_mail as probe)
+
+    probe()                                                                # Kontrolle
+    monkeypatch.setattr(_ablage, "plane_benannt", _zeile_ersetzt(
+        _ablage, "plane_benannt", 'grund = f"{grund}; {jahr_grund}" if grund else jahr_grund',
+        "grund = grund or jahr_grund"))
+    with pytest.raises(AssertionError, match="Jahresordner fehlt im Grund"):
+        probe()
+
+
+def test_mit_der_alten_regel_raet_der_grund_zum_schon_gesetzten_schalter(monkeypatch):
+    """Review von #496, Befund 2: der Rat ohne Blick auf `trotz_faehnchen`."""
+    from falzmarke import ablage as _ablage
+    from test_ablage import test_mit_trotz_faehnchen_raet_der_grund_nicht_zu_trotz_faehnchen as probe
+
+    probe(monkeypatch)                                                     # Kontrolle
+    monkeypatch.setattr(_ablage, "plane_benannt", _zeile_ersetzt(
+        _ablage, "plane_benannt", "        if not trotz_faehnchen and any(", "        if any("))
+    with pytest.raises(AssertionError, match="Rat trotz Schalter"):
+        probe(monkeypatch)
 
 
 # ── #454: Der Plugin-Ordner bleibt aus dem Skill-Paket ──────────────────────

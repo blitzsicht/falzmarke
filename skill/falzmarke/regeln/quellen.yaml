@@ -375,6 +375,17 @@ quellen:
       Grob- und Feinadressierung, Prüfziffer, Trennzeichen). Das Beispiel
       `04011000-1234512345-06` aus Abschnitt 2.4 steht in den Tests.
 
+  rfc3501:
+    titel: "RFC 3501 — Internet Message Access Protocol, Version 4rev1"
+    url: https://www.rfc-editor.org/rfc/rfc3501
+    art: primaerquelle
+    gruppe: rfc3501
+    zaehlt: voll
+    abgerufen: 2026-11-04
+    bemerkung: >-
+      Abschnitt 2.3.1.1: Die UID bildet nur zusammen mit dem Wert, den der
+      Antwortcode UIDVALIDITY nennt, einen eindeutigen Schlüssel. Auf diesen
+      Abschnitt stützt sich `aufraeumen --uid` (#495).
   rfc6154:
     titel: "RFC 6154 — IMAP LIST Extension for Special-Use Mailboxes"
     url: https://www.rfc-editor.org/rfc/rfc6154
