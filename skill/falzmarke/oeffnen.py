@@ -693,6 +693,45 @@ def thunderbird_ordner(adresse: str, art: str, ordner: Path | None = None) -> st
     return gefunden.pop() if len(gefunden) == 1 else None
 
 
+def kontoadressen(adresse: str, ordner: Path | None = None) -> tuple[frozenset[str] | None, str]:
+    """Die Adressen aller Identitäten in dem Konto, zu dem `adresse` gehört (#482).
+
+    Ein Alias ist eine weitere Identität desselben Kontos. Thunderbird führt
+    die Zuordnung in `prefs.js` (`mail.account.<konto>.identities`). Das ist
+    dieselbe Datei, aus der schon Ordner und Signatur kommen, und dieselbe
+    Kontoliste wie in `_identitaeten`. Gibt `(adressen, "")` oder `(None,
+    grund)`, wenn das Profil es nicht sagt: kein Profil, keine Kontoliste,
+    oder kein Konto mit dieser Adresse.
+
+    Führen zwei Konten eine Identität mit derselben Adresse, zählen die
+    Adressen beider. Das ist die nachsichtige Richtung: ein übersehener
+    Fremdabsender statt eines Fehlalarms am eigenen Alias. Gemessen ist der
+    Fall nicht.
+    """
+    adresse = (adresse or "").strip().lower()
+    if not adresse:
+        return None, "ohne Absenderadresse kein Konto"
+    ordner = THUNDERBIRD_ORDNER if ordner is None else Path(ordner)
+    profil = thunderbird_standardprofil(ordner)
+    if profil is None or not profil.is_dir():
+        return None, f"kein Thunderbird-Profil unter {ordner}"
+    werte = thunderbird_einstellungen(profil)
+    konten = [k.strip() for k in str(werte.get("mail.accountmanager.accounts") or "").split(",")
+              if k.strip()]
+    if not konten:
+        return None, f"das Profil {profil.name} nennt keine Konten"
+    adressen: set[str] = set()
+    for konto in konten:
+        kennungen = str(werte.get(f"mail.account.{konto}.identities") or "").split(",")
+        im_konto = {str(werte.get(f"mail.identity.{k.strip()}.useremail") or "").strip().lower()
+                    for k in kennungen if k.strip()} - {""}
+        if adresse in im_konto:
+            adressen |= im_konto
+    if not adressen:
+        return None, f"kein Konto mit {adresse} im Profil {profil.name}"
+    return frozenset(adressen), ""
+
+
 def ohne_signatur(html: str, unterschrift: str) -> str | None:
     """Der HTML-Teil ohne das Signaturstück — oder None, wenn es nicht genau einmal dasteht.
 
@@ -1259,10 +1298,49 @@ def empfaenger_pruefen(fenster, felder: Mapping | None, *, grund: str = ""):
     return fenster._replace(geprueft=True, abweichung=" · ".join(befunde))
 
 
+def absender_pruefen(fenster, soll: str, *, ordner: Path | None = None):
+    """Schickt das Fenster von der Adresse der Nachricht? (#482)
+
+    `soll` ist der `From` des Entwurfs. Das Add-on meldet unter `identitaet`,
+    von welcher Adresse das Fenster schicken würde. Eine andere Adresse ist
+    nicht schon ein Fehler: Unter einer Alias-Identität desselben Kontos meldet
+    auch das richtige Fenster eine andere (#462). Deshalb entscheidet das Konto
+    (`kontoadressen`). Gehört die gemeldete Adresse zu einer Identität darin,
+    ist der Absender geprüft, und `absender_hinweis` nennt den Alias. Sonst
+    steht der Unterschied in `absender_abweichung`. Weiß das Profil nichts über
+    das Konto, wird nicht geraten: `absender_geprueft` bleibt falsch, und
+    `absender_hinweis` sagt warum.
+
+    Ohne Lesung aus dem Fenster gibt es nichts zu vergleichen, wie bei den
+    Empfängern.
+    """
+    if fenster is None or not fenster.offen or not fenster.gelesen:
+        return fenster
+    soll = (soll or "").strip().lower()
+    ist = (fenster.identitaet or "").strip().lower()
+    if not soll:
+        return fenster._replace(absender_hinweis="die Nachricht nennt keinen Absender")
+    if not ist:
+        return fenster._replace(absender_hinweis="das Add-on meldet keinen Absender des Fensters")
+    if ist == soll:
+        return fenster._replace(absender_geprueft=True)
+    adressen, grund = kontoadressen(soll, ordner)
+    if adressen is None:
+        return fenster._replace(absender_hinweis=(
+            f"das Fenster schickt von {ist}, die Nachricht von {soll}; ob beide "
+            f"zu einem Konto gehören, sagt Thunderbird nicht ({grund})"))
+    if ist in adressen:
+        return fenster._replace(absender_geprueft=True, absender_hinweis=(
+            f"{ist} ist eine Identität im selben Konto wie {soll}"))
+    return fenster._replace(absender_geprueft=True,
+                            absender_abweichung=f"Fenster: {ist}, Nachricht: {soll}")
+
+
 def _fenster_auf(lage: Entwurfslage, felder: Mapping, umgebung: Mapping[str, str],
                  *, kein_fenster: bool = False) -> Entwurfslage:
     """Öffnet den Postfach-Entwurf über die Entwurfsbrücke (ADR 0054) und
-    vergleicht, was das Fenster zeigt, mit der Nachricht (#464).
+    vergleicht, was das Fenster zeigt, mit der Nachricht: Empfänger (#464)
+    und Absender (#482).
 
     Nur, wenn feststeht, welcher es ist: der eben abgelegte oder der, der schon
     lag. Ist die Lage ungewiss, bleibt es beim Hinweis — ein Fenster auf einen
@@ -1282,8 +1360,8 @@ def _fenster_auf(lage: Entwurfslage, felder: Mapping, umgebung: Mapping[str, str
         return lage
     from falzmarke import bruecke
 
-    return lage._replace(fenster=empfaenger_pruefen(
-        bruecke.entwurf_oeffnen(konto, uid, umgebung=umgebung), felder))
+    fenster = empfaenger_pruefen(bruecke.entwurf_oeffnen(konto, uid, umgebung=umgebung), felder)
+    return lage._replace(fenster=absender_pruefen(fenster, str(felder.get("absender") or "")))
 
 
 def _steuere(skript: str, kennung: str, *, laufen=subprocess.run) -> str | None:

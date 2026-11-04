@@ -114,6 +114,10 @@ class Oeffnung(NamedTuple):
     Listen bei `gelesen=False` heißen „nicht gelesen“, nicht „niemand“, und
     `lese_grund` sagt warum. `geprueft` und `abweichung` setzt
     `oeffnen.empfaenger_pruefen` nach dem Vergleich mit dem Entwurf.
+
+    Den Absender vergleicht `oeffnen.absender_pruefen` (#482): `absender_geprueft`,
+    `absender_abweichung` bei einer fremden Identität, `absender_hinweis` für
+    einen Alias desselben Kontos oder den Grund, warum nicht verglichen wurde.
     """
 
     zustand: str
@@ -127,6 +131,9 @@ class Oeffnung(NamedTuple):
     lese_grund: str = ""
     geprueft: bool = False
     abweichung: str = ""
+    absender_geprueft: bool = False
+    absender_abweichung: str = ""
+    absender_hinweis: str = ""
 
     @property
     def offen(self) -> bool:

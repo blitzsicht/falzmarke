@@ -1690,20 +1690,32 @@ def _melde_fenster(fenster, ordner: str, betreff: str) -> None:
     auf, und hier stand `OK`. Weicht das Fenster ab, steht `EMPFÄNGER PRÜFEN`
     statt `OK`; konnte das Add-on nicht lesen (Fassung vor 0.3.8, Fenster lädt
     noch), steht `NICHT GEPRÜFT` dabei — grün ist dann nur das Fenster.
+
+    Für den Absender gilt dasselbe (#482): Schickt das Fenster von einer
+    Identität, die nicht zum Konto der Nachricht gehört, steht `ABSENDER
+    PRÜFEN` statt `OK`. Ein Alias desselben Kontos ist grün und wird genannt.
     """
     if fenster is not None and fenster.offen:
         schon = " (war schon offen)" if fenster.zustand == "schon_offen" else ""
-        if fenster.abweichung:
+        titel = f"{fenster.betreff or betreff}{schon}"
+        if fenster.abweichung or fenster.absender_abweichung:
             sys.stdout.flush()
-            print(f"EMPFÄNGER PRÜFEN  Entwurf offen in Thunderbird: "
-                  f"{fenster.betreff or betreff}{schon},\n"
-                  f"         aber das Fenster zeigt andere Empfänger als die Nachricht: "
-                  f"{fenster.abweichung}\n"
-                  f"         Vor dem Senden An, Cc und Bcc im Fenster richten, oder es "
-                  f"schließen und den\n"
-                  f"         Entwurf unter „{ordner}“ neu öffnen.", file=sys.stderr)
+            if fenster.abweichung:
+                print(f"EMPFÄNGER PRÜFEN  Entwurf offen in Thunderbird: {titel},\n"
+                      f"         aber das Fenster zeigt andere Empfänger als die Nachricht: "
+                      f"{fenster.abweichung}\n"
+                      f"         Vor dem Senden An, Cc und Bcc im Fenster richten, oder es "
+                      f"schließen und den\n"
+                      f"         Entwurf unter „{ordner}“ neu öffnen.", file=sys.stderr)
+            if fenster.absender_abweichung:
+                print(f"ABSENDER PRÜFEN  Entwurf offen in Thunderbird: {titel},\n"
+                      f"         aber das Fenster schickt von einer Identität außerhalb des "
+                      f"Kontos: {fenster.absender_abweichung}\n"
+                      f"         Vor dem Senden den Absender im Fenster richten, oder es "
+                      f"schließen und den\n"
+                      f"         Entwurf unter „{ordner}“ neu öffnen.", file=sys.stderr)
             return
-        print(f"OK  Entwurf offen in Thunderbird: {fenster.betreff or betreff}{schon}")
+        print(f"OK  Entwurf offen in Thunderbird: {titel}")
         if fenster.geprueft:
             print(f"OK  Empfänger im Fenster wie in der Nachricht: An {len(fenster.an)}, "
                   f"Cc {len(fenster.kopie)}, Bcc {len(fenster.blindkopie)}")
@@ -1712,6 +1724,14 @@ def _melde_fenster(fenster, ordner: str, betreff: str) -> None:
             print(f"NICHT GEPRÜFT  Empfänger im Fenster: "
                   f"{fenster.lese_grund or 'nicht verglichen'}\n"
                   "         Vor dem Senden An, Cc und Bcc im Fenster mit dem Entwurf "
+                  "vergleichen.", file=sys.stderr)
+        if fenster.absender_geprueft:
+            zusatz = f" ({fenster.absender_hinweis})" if fenster.absender_hinweis else ""
+            print(f"OK  Absender im Fenster: {fenster.identitaet.strip().lower()}{zusatz}")
+        elif fenster.absender_hinweis:
+            sys.stdout.flush()
+            print(f"NICHT GEPRÜFT  Absender im Fenster: {fenster.absender_hinweis}\n"
+                  "         Vor dem Senden den Absender im Fenster mit dem Entwurf "
                   "vergleichen.", file=sys.stderr)
         return
     if fenster is not None and fenster.zustand == "ungewiss":
@@ -2143,9 +2163,14 @@ def befehl_entwurf_oeffnen(args) -> int:
     oeffnung = oeffnen_modul.empfaenger_pruefen(bruecke.entwurf_oeffnen(adresse, kopf.uid),
                                                 soll, grund="die Empfänger des Entwurfs "
                                                 "wurden nicht gelesen")
+    # Der Absender gegen den `From` des Entwurfs, nicht gegen `--absender`: Der
+    # nennt das Postfach, und ein Entwurf darin darf von einem Alias stammen (#482).
+    oeffnung = oeffnen_modul.absender_pruefen(oeffnung, kopf.von)
     _melde_fenster(oeffnung, anzeige, kopf.betreff)
-    # Ein Fenster mit anderen Empfängern ist nicht das bestellte: Exit 3 wie ohne Fenster.
-    return EXIT_OK if oeffnung.offen and not oeffnung.abweichung else EXIT_UMGEBUNG
+    # Ein Fenster mit anderen Empfängern oder einem fremden Absender ist nicht das
+    # bestellte: Exit 3 wie ohne Fenster.
+    stimmt = not oeffnung.abweichung and not oeffnung.absender_abweichung
+    return EXIT_OK if oeffnung.offen and stimmt else EXIT_UMGEBUNG
 
 
 def ablage_aus_profil(adresse: str, zusatz=None) -> tuple[str | None, str | None]:

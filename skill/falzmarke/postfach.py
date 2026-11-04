@@ -61,7 +61,7 @@ GRENZE = 500
 
 #: Die Kopfzeilen, die je Nachricht gelesen werden — nie der ganze Inhalt,
 #: bevor feststeht, dass der Empfänger passt.
-KOPFZEILEN = ("DATE", "TO", "CC", "BCC", "SUBJECT", "IN-REPLY-TO", "X-FALZMARKE-FASSUNG",
+KOPFZEILEN = ("DATE", "FROM", "TO", "CC", "BCC", "SUBJECT", "IN-REPLY-TO", "X-FALZMARKE-FASSUNG",
               "MESSAGE-ID")
 
 
@@ -261,6 +261,9 @@ class Kopf(NamedTuple):
     #: heißt: nicht aus Kopfzeilen gelesen, sondern von Hand gebaut. Das ist
     #: etwas anderes als ein Entwurf ohne Empfänger.
     empfaenger: Empfaenger | None = None
+    #: Die Adresse aus `From`, klein, ohne Anzeigenamen; leer, wenn keine dasteht.
+    #: Der Maßstab für den Absender im Verfassen-Fenster (#482).
+    von: str = ""
 
 
 def _adressen(nachricht, *felder: str) -> tuple[str, ...]:
@@ -291,7 +294,8 @@ def kopf_aus(roh: bytes, uid: str, ankunft: datetime | None) -> Kopf:
                 kennung=str(nachricht.get("Message-ID") or "").strip(),
                 empfaenger=Empfaenger(an=_adressen(nachricht, "To"),
                                       kopie=_adressen(nachricht, "Cc"),
-                                      blindkopie=_adressen(nachricht, "Bcc")))
+                                      blindkopie=_adressen(nachricht, "Bcc")),
+                von=next(iter(_adressen(nachricht, "From")), ""))
 
 
 def _dekodiert(wert) -> str:
