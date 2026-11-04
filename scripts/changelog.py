@@ -227,8 +227,11 @@ def versionen(text: str) -> list[tuple[str, str]]:
 
 
 #: `](ziel)` ohne Protokoll, Anker oder mailto — dieselbe Form, die
-#: tests/test_readme_auf_pypi.py im fertigen README verbietet.
-RELATIV = re.compile(r"\]\((?!https?:|#|mailto:)([^)]+)\)")
+#: tests/test_readme_auf_pypi.py im fertigen README verbietet, und wie dort
+#: schreibungsunabhängig: `HTTPS://…` ist ein Protokoll, kein Pfad. Bis zum
+#: Nachreview von #492 wurde es zu einem toten GitHub-Link umgeschrieben, und
+#: die README-Prüfung sah darin ein `https:`-Ziel.
+RELATIV = re.compile(r"\]\((?!https?:|#|mailto:)([^)]+)\)", re.IGNORECASE)
 
 #: Code im Markdown: ein Codeblock zwischen Zaunzeilen oder ein Code-Span.
 #: Darin ist `](ziel)` Text, kein Verweis, und muss wörtlich bleiben (#480).

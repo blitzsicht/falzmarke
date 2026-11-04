@@ -442,6 +442,20 @@ def test_ein_unbrauchbarer_pflicht_workflow_ist_ein_befund_kein_absturz(tmp_path
     assert len(ergebnisse) == len(_pruefen()), "die anderen Abgleiche fehlen"
 
 
+def test_eine_nicht_lesbare_pflicht_workflow_datei_ist_ein_befund_kein_absturz(tmp_path):
+    """Nachreview von #492: Auch eine Datei, die sich nicht lesen lässt, ist der
+    dritte Zustand und lässt die anderen Abgleiche stehen."""
+    kaputt = tmp_path / "ci.yml"
+    kaputt.write_text("on:\n  pull_request:\n   types: [opened\n", encoding="utf-8")
+    ergebnisse = repo_pruefung.pruefe(
+        REPO_NAME, api=_api(_vollstaendige_antworten()), workflows=(kaputt,),
+        domain_pruefen=lambda _: True, umgebung={})
+    befund = _finde(ergebnisse, "Pflicht-Check")
+    assert befund.ist is None and befund.fehler is not None
+    assert "ci.yml nicht lesbar" in befund.fehler
+    assert len(ergebnisse) == len(_pruefen()), "die anderen Abgleiche fehlen"
+
+
 def test_api_fehler_bei_der_homepage_ergibt_unbekannt_nicht_gruen():
     antworten = _vollstaendige_antworten()
     antworten[f"repos/{REPO_NAME}"] = RuntimeError("kein Netz")
