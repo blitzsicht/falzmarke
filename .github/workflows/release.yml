@@ -246,7 +246,7 @@ jobs:
       # aber vor jedem Upload. Der Tag v1.14.2 zeigt auf denselben Commit
       # a892a5a; wer das SHA-Pinning wiederherstellen will, muss vorher pruefen,
       # ob die Action ihr Image inzwischen unter dem SHA ablegt.
-      - uses: pypa/gh-action-pypi-publish@v1.14.2
+      - uses: pypa/gh-action-pypi-publish@v1.14.3
         with:
           print-hash: true
 
