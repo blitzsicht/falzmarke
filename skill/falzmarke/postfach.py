@@ -398,6 +398,11 @@ class Postfach:
         #: der Ordner selbst wurde dabei nicht gekappt, und ein zweiter Eintrag
         #: unter demselben Ordnernamen überschriebe eine echte Ordnerkappung.
         self.suchkappungen: list[tuple[str, str, int, int]] = []
+        #: Die UIDVALIDITY je Ordner, wie das **erste** `EXAMINE` der Sitzung
+        #: sie nannte; `None`, wenn der Server keine nannte (#495). Die erste,
+        #: weil die UIDs eines Laufs ab dort gesammelt werden: Wechselt der Wert
+        #: später, weicht er von diesem ab, und `ablage.verschiebe` sieht es.
+        self.uidvalidity: dict[str, str | None] = {}
 
     def __enter__(self) -> "Postfach":
         return self
@@ -470,6 +475,29 @@ class Postfach:
         """`EXAMINE` — nur lesend. Ein `SELECT` gibt es in diesem Modul nicht."""
         self._befehl(f"Ordner „{utf7_dekodieren(ordner)}“ nicht lesbar",
                      self._v.select, _zitiert(ordner), readonly=True)
+        self.uidvalidity.setdefault(ordner, self._lies_uidvalidity())
+
+    def _lies_uidvalidity(self) -> str | None:
+        """Die UIDVALIDITY aus der Antwort auf das letzte `EXAMINE` oder `SELECT`.
+
+        Eine UID gilt nur zusammen mit diesem Wert (RFC 3501, 2.3.1.1). Der
+        Server nennt ihn als Antwortcode `[UIDVALIDITY n]`, `imaplib` legt ihn
+        unter `untagged_responses` ab, und `response()` liest ihn aus. Nennt der
+        Server keinen oder keinen ganzzahligen, kommt `None` zurück: unbekannt,
+        nicht „gleich“ (#495).
+        """
+        lesen = getattr(self._v, "response", None)
+        if lesen is None:
+            return None
+        _, werte = lesen("UIDVALIDITY")
+        wert = next((w for w in reversed(werte or []) if w is not None), None)
+        if isinstance(wert, bytes):
+            wert = wert.decode("ascii", "replace")
+        try:
+            zahl = int(str(wert).strip())
+        except (TypeError, ValueError):
+            return None
+        return str(zahl) if zahl > 0 else None
 
     def _suche_kopfzeile(self, ordner: str, feld: str, wert: str) -> list[str]:
         """Die UIDs im Ordner, deren Kopfzeile `feld` den `wert` **enthält**.

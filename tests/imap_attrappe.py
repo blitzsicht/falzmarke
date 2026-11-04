@@ -121,7 +121,8 @@ class ImapAttrappe:
                  verschieben_erlaubt: bool = False,
                  faehigkeiten: tuple[str, ...] = ("IMAP4REV1", "UIDPLUS", "MOVE"),
                  flags_hinten: bool = False, ohne_flags: bool = False,
-                 uid_hinten: bool = False):
+                 uid_hinten: bool = False, uidvalidity: str | None = "1",
+                 uidvalidity_select: str | None = None):
         self.ordner: dict[str, list[Eintrag]] = {}
         self._naechste_uid = 100
         for name, nachrichten in (ordner or {}).items():
@@ -152,6 +153,14 @@ class ImapAttrappe:
         #: `UID` und `INTERNALDATE` hinter das Literal statt davor — ebenso
         #: erlaubt wie `flags_hinten` (Nachreview #494, Befund 2).
         self.uid_hinten = uid_hinten
+        #: Der Antwortcode `[UIDVALIDITY n]` auf EXAMINE und SELECT (#495).
+        #: `None`: Der Server nennt keinen. Zwischen zwei Läufen änderbar, so
+        #: wie ein Server den Eingang neu nummeriert.
+        self.uidvalidity = uidvalidity
+        #: Was das SELECT nennt, falls es vom EXAMINE davor abweichen soll —
+        #: der Wechsel mitten im Lauf. `None`: dasselbe wie `uidvalidity`.
+        self.uidvalidity_select = uidvalidity_select
+        self._antwortcodes: dict[str, list[bytes]] = {}
         #: Jeder Befehl mit seinen Argumenten, in Reihenfolge.
         self.protokoll: list[tuple] = []
         self.verbindungen: list[tuple] = []
@@ -205,10 +214,21 @@ class ImapAttrappe:
         self.protokoll.append(("EXAMINE" if readonly else "SELECT", name))
         if not readonly and not self.verschieben_erlaubt:
             raise AssertionError(f"SELECT ohne readonly auf {name} — das Postfach wird nur gelesen")
+        # Wie `imaplib`: Jedes SELECT/EXAMINE verwirft die alten Antwortcodes.
+        self._antwortcodes = {}
         if name not in self.ordner:
             return "NO", [b"Folder not found."]
         self.ausgewaehlt = name
+        wert = self.uidvalidity
+        if not readonly and self.uidvalidity_select is not None:
+            wert = self.uidvalidity_select
+        if wert is not None:
+            self._antwortcodes["UIDVALIDITY"] = [str(wert).encode()]
         return "OK", [str(len(self.ordner[name])).encode()]
+
+    def response(self, code):
+        """Wie `imaplib.IMAP4.response`: `(code, [wert])` oder `(code, [None])`, und weg damit."""
+        return code, self._antwortcodes.pop(code.upper(), [None])
 
     def uid(self, befehl, *args):
         self._pruefe(befehl, *args)

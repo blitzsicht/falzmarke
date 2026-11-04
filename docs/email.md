@@ -404,16 +404,25 @@ trotzdem ab.
 ihre UID aus der Liste ab:
 
 ```bash
-falzmarke aufraeumen --absender ich@example.de --uid 1183 1207            # nur zeigen
-falzmarke aufraeumen --absender ich@example.de --uid 1183 1207 --machen   # verschieben
+falzmarke aufraeumen --absender ich@example.de --uid 1183 1207                               # nur zeigen
+falzmarke aufraeumen --absender ich@example.de --uid 1183 1207 --machen --uidvalidity 4711   # verschieben
 ```
 
 ```
 OK  ich@example.de: 2 benannte Nachrichten im Eingang, 2 zum Ablegen → „Archiv“
     UID 1183  12.10.2026 09:14  amt@example.org  „Eingereichte Fassung“
     UID 1207  19.10.2026 16:02  kunde@example.org  „Danke, passt so“
-    nichts bewegt — mit --machen verschieben
+    nichts bewegt — mit --machen --uidvalidity 4711 verschieben
 ```
+
+**`--machen` braucht `--uidvalidity`.** Eine UID gilt nur zusammen mit der UIDVALIDITY des
+Eingangs ([RFC 3501](https://www.rfc-editor.org/rfc/rfc3501), Abschnitt 2.3.1.1). Vergibt der Server den Eingang zwischen Anzeige und `--machen` neu, meint
+dieselbe Zahl eine andere Mail. Die Anzeige nennt den Wert deshalb im Folgebefehl, unter `--json`
+steht er im Feld `uidvalidity`. Fehlt er, endet `--uid … --machen` mit Exit 1, und kein Postfach
+wird geöffnet. Weicht der Wert beim Lauf ab, wandert keine Mail, `NICHT GEPRÜFT` nennt beide Werte
+(Exit 3), und es heißt: ohne `--machen` neu anzeigen lassen. Nennt der Server gar keine
+UIDVALIDITY, kann `--uid` nicht verschieben. Am SELECT vor dem Zug wird der Wert noch einmal
+verglichen, auch ohne `--uid`.
 
 Es gelten dasselbe Ziel und dieselben Sperren. `--seit` gibt es dabei nicht; zusammen mit
 `--uid` endet es mit Exit 1, statt still übergangen zu werden. **Fehlt eine der genannten UIDs im
