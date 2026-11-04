@@ -204,4 +204,35 @@ trotzdem an seiner Grenze gemessen. Jetzt endet es zusammen mit `--uid` mit Exit
 
 **Bekannte Grenze:** `--uid` erkennt eine Mail nur an der UID, nicht an der UIDVALIDITY des
 Eingangs. Vergibt der Server die UIDs zwischen Anzeige und `--machen` neu, trifft dieselbe Zahl
-eine andere Mail. Offen in #495.
+eine andere Mail. Geschlossen mit #495, siehe den Nachtrag unten.
+
+## Nachtrag (04.11.2026, #495)
+
+**Entschieden: Die UIDVALIDITY geht mit.** #495 ließ zwei Wege offen: den Wert der Anzeige
+mitgeben oder je Mail die angezeigte Message-ID vergleichen. Gewählt ist der erste. Eine Zahl
+aus der Anzeige lässt sich abschreiben, eine Liste von Kennungen auf der Befehlszeile nicht. Außerdem
+ist die UIDVALIDITY genau der Wert, an den RFC 3501 die Gültigkeit einer UID bindet.
+
+- Die Anzeige nennt den Wert im Folgebefehl („mit --machen --uidvalidity V verschieben“), unter
+  `--json` steht er im Feld `uidvalidity`. Gelesen wird er aus dem Antwortcode
+  `[UIDVALIDITY n]` des ersten `EXAMINE` auf den Eingang.
+- **`--uid … --machen` ohne `--uidvalidity` endet mit Exit 1**, bevor ein Postfach aufgeht. Ein
+  freiwilliger Schalter hätte die Abnahme („nur wenn die Mail noch dieselbe ist wie in der
+  Anzeige“) nicht erfüllt. Außerhalb von falzmarke rief zu diesem Zeitpunkt niemand
+  `aufraeumen --uid` auf (gesucht in siluri-angebote).
+- Weicht der Wert ab, wandert keine Mail. `NICHT GEPRÜFT` nennt beide Werte (Exit 3). Dieser Grund
+  geht allen anderen vor und steht allein: Nach einem Wechsel sagt weder eine fehlende noch eine
+  gefundene UID etwas über die gemeinte Mail.
+- Nennt der Server keine UIDVALIDITY, ist der Vergleich nicht möglich, und mit `--uid` wandert
+  nichts. Unbekannt ist kein Freigabezustand.
+- **Zweiter Vergleich am `SELECT`**, vor jedem `UID MOVE`, auch ohne `--uid`. Zwischen dem
+  `EXAMINE` des Plans und dem `SELECT` kann der Server den Eingang neu nummeriert haben. Auch die
+  Züge aus Antworten tragen nur UIDs. Verglichen wird mit dem Wert des ersten `EXAMINE` der
+  Sitzung, denn ab dort werden die UIDs gesammelt.
+
+Am Arbeitskonto (Exchange über den emailproxy) ist ein Wechsel nie beobachtet worden. Ob der Proxy
+den Antwortcode durchreicht, ist im PR zu #495 gemessen.
+
+Dazu kommen zwei Befunde aus dem Review von #496, beide in `plane_benannt`: Ein fehlender
+Jahresordner steht jetzt **neben** „UID … bliebe liegen“ und verschwindet nicht mehr dahinter.
+Der Rat zu `--trotz-faehnchen` kommt nur noch, wenn der Schalter nicht schon gesetzt ist.

@@ -2309,6 +2309,22 @@ def befehl_aufraeumen(args) -> int:
             print("FEHLER  --uid braucht UIDs ab 1, wie die Liste von aufraeumen sie zeigt",
                   file=sys.stderr)
             return EXIT_EINGABE
+        if args.machen and args.uidvalidity is None:
+            # #495: Eine UID gilt nur zusammen mit der UIDVALIDITY des Eingangs.
+            # Ohne den Wert der Anzeige ist nicht zu prüfen, ob dieselbe Zahl
+            # noch dieselbe Mail meint.
+            print("FEHLER  --uid mit --machen braucht --uidvalidity: den Wert nennt "
+                  "die Anzeige ohne --machen. Ohne ihn ist nicht zu prüfen, ob die UIDs "
+                  "noch dieselben Mails meinen", file=sys.stderr)
+            return EXIT_EINGABE
+    if args.uidvalidity is not None:
+        if args.uid is None:
+            print("FEHLER  --uidvalidity gilt nur mit --uid", file=sys.stderr)
+            return EXIT_EINGABE
+        if args.uidvalidity < 1:
+            print("FEHLER  --uidvalidity braucht eine Zahl ab 1, wie die Anzeige sie nennt",
+                  file=sys.stderr)
+            return EXIT_EINGABE
     if args.entwuerfe:
         if args.trotz_faehnchen:
             print("FEHLER  --trotz-faehnchen gilt für den Eingang, nicht für --entwuerfe",
@@ -2331,7 +2347,8 @@ def befehl_aufraeumen(args) -> int:
         berichte.append(ablage_modul.raeume_auf(
             adresse, wunsch=wunsch, seit_tagen=args.seit, machen=args.machen,
             uids=[str(u) for u in args.uid] if args.uid is not None else None,
-            trotz_faehnchen=args.trotz_faehnchen))
+            trotz_faehnchen=args.trotz_faehnchen,
+            uidvalidity=str(args.uidvalidity) if args.uidvalidity is not None else None))
     if args.json:
         print(json.dumps([ablage_modul.als_json(b) for b in berichte], ensure_ascii=False,
                          indent=2))
@@ -2977,6 +2994,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--uid", type=int, nargs="+", metavar="UID",
                    help="genau diese Mails im Eingang ablegen, auch ohne Antwort; fehlt eine "
                         "oder bliebe eine liegen, wandert keine. Nicht mit --seit")
+    p.add_argument("--uidvalidity", type=int, metavar="V",
+                   help="mit --uid --machen Pflicht: der Wert aus der Anzeige; weicht der "
+                        "des Eingangs ab, wandert keine")
     p.add_argument("--trotz-faehnchen", action="store_true",
                    help="auch Mails mit Fähnchen ablegen; ohne diesen Schalter bleiben sie "
                         "im Eingang")

@@ -39,7 +39,10 @@ nicht wegen einer Antwort. Es bleibt bei denselben Sperren und demselben einen
 Liste, die nicht mehr stimmt, ist kein Auftrag für den Rest. Dasselbe gilt,
 wenn eine genannte Mail liegen bliebe, etwa wegen eines Fähnchens
 (Nachreview von #494, Befund 5): Wer die UID nannte, hat das Fähnchen
-vermutlich übersehen.
+vermutlich übersehen. Eine UID gilt nur zusammen mit der UIDVALIDITY des
+Eingangs (#495). `--machen` nimmt deshalb den Wert der Anzeige mit, und
+weicht er ab, wandert keine. Vor jedem `UID MOVE` wird er am `SELECT` noch
+einmal verglichen.
 
 **`{jahr}` im Ziel** (#478) wird je Mail zum Jahr ihrer Ankunft im Postfach
 (INTERNALDATE, Ortszeit). Thunderbird legt mit `archive_granularity 1` anders
@@ -174,6 +177,10 @@ class Bericht(NamedTuple):
     liegen: tuple[Liegt, ...] = ()
     #: Kamen die Nachrichten aus `--uid` statt aus Antworten?
     benannt: bool = False
+    #: Die UIDVALIDITY des Eingangs beim Planen; `None`, wenn der Server keine
+    #: nannte oder der Eingang nicht gelesen wurde. Die UIDs der Züge gelten
+    #: nur zusammen mit ihr, und `verschiebe` vergleicht sie am SELECT (#495).
+    uidvalidity: str | None = None
 
 
 # ── Das Ziel ────────────────────────────────────────────────────────────────
@@ -297,9 +304,26 @@ def _ziele_zuordnen(sitzung: postfach.Postfach, wunsch: str | None, zuege: list[
     return tuple(zugeordnet), tuple(liegen), grund
 
 
+def _uidvalidity_grund(vorher: str, ist: str | None, *,
+                       quelle: str = "die Anzeige nannte") -> str:
+    """Der Satz, wenn die UIDs nicht mehr sicher dieselben Mails meinen (#495)."""
+    if ist is None:
+        return (f"der Server nennt für den Eingang keine UIDVALIDITY, {quelle} {vorher} — "
+                "ob die UIDs noch dieselben Mails meinen, ist nicht zu prüfen; "
+                "verschoben wird nichts")
+    return (f"die UIDVALIDITY des Eingangs ist jetzt {ist}, {quelle} {vorher} — "
+            "der Server hat die UIDs neu vergeben, dieselbe Zahl kann eine andere Mail sein; "
+            "verschoben wird nichts, erst ohne --machen neu anzeigen lassen")
+
+
 def plane_benannt(sitzung: postfach.Postfach, uids: list[str], *, wunsch: str | None = None,
-                  trotz_faehnchen: bool = False) -> Bericht:
-    """Genau diese Eingangsmails, auch ohne Antwort (`--uid`, #478) — rein lesend."""
+                  trotz_faehnchen: bool = False, uidvalidity: str | None = None) -> Bericht:
+    """Genau diese Eingangsmails, auch ohne Antwort (`--uid`, #478) — rein lesend.
+
+    `uidvalidity` ist der Wert, den die Anzeige nannte (#495). Weicht der des
+    Eingangs ab oder nennt der Server keinen, wandert keine: Eine UID gilt nur
+    zusammen mit ihm, und dieselbe Zahl kann dann eine fremde Mail sein.
+    """
     uids = list(dict.fromkeys(str(u) for u in uids))
     leer = Bericht(adresse=sitzung.adresse, ziel=None, grund=None, seit=None, antworten=0,
                    nicht_im_eingang=0, zuege=(), verschoben=0, benannt=True)
@@ -307,12 +331,19 @@ def plane_benannt(sitzung: postfach.Postfach, uids: list[str], *, wunsch: str | 
     if grund:
         return leer._replace(grund=grund)
     gefunden = {k.uid: k for k in sitzung.koepfe(EINGANG, uids=uids, grenze=len(uids))}
+    ist = sitzung.uidvalidity.get(EINGANG)
     zuege = [_als_zug(gefunden[u], ziel=ziel, ziel_server=ziel_server)
              for u in uids if u in gefunden]
-    zuege, liegen, grund = _ziele_zuordnen(sitzung, wunsch, zuege,
-                                           trotz_faehnchen=trotz_faehnchen)
+    zuege, liegen, jahr_grund = _ziele_zuordnen(sitzung, wunsch, zuege,
+                                                trotz_faehnchen=trotz_faehnchen)
     fehlen = [u for u in uids if u not in gefunden]
-    if fehlen:
+    grund = None
+    gewechselt = uidvalidity is not None and ist != uidvalidity
+    if gewechselt:
+        # Vor allem anderen und allein: Nach einem Wechsel sagt weder eine
+        # fehlende noch eine gefundene UID etwas über die Mail, die gemeint war.
+        grund = _uidvalidity_grund(uidvalidity, ist)
+    elif fehlen:
         # Vor dem Grund des Jahresordners: Eine Liste, die nicht stimmt, ist der
         # schwerere Befund — sie sagt, dass der Bediener etwas anderes meinte.
         grund = (f"{'UID' if len(fehlen) == 1 else 'die UIDs'} {', '.join(fehlen)} "
@@ -325,11 +356,18 @@ def plane_benannt(sitzung: postfach.Postfach, uids: list[str], *, wunsch: str | 
         bleiben = sorted(liegen, key=lambda l: int(l.zug.uid))
         grund = ("; ".join(f"UID {l.zug.uid} bliebe liegen ({l.grund})" for l in bleiben)
                  + " — verschoben wird nur, wenn jede genannte UID wandern kann")
-        if any(l.zug.fahnen is None or FAEHNCHEN in l.zug.fahnen for l in bleiben):
+        # Nur ohne den Schalter: Mit ihm liegt keine Mail mehr wegen ihrer Flags,
+        # und der Rat nennte einen Schalter, der schon gesetzt ist (Review von #496).
+        if not trotz_faehnchen and any(l.zug.fahnen is None or FAEHNCHEN in l.zug.fahnen
+                                       for l in bleiben):
             grund += "; --trotz-faehnchen hebt das Fähnchen für diesen Lauf auf"
+    if jahr_grund and not gewechselt:
+        # Ein fehlender Jahresordner kommt dazu, statt zu verschwinden: Sonst
+        # erführe der Bediener erst im nächsten Lauf davon (Review von #496).
+        grund = f"{grund}; {jahr_grund}" if grund else jahr_grund
     return leer._replace(ziel=ziel, ziel_server=ziel_server, grund=grund,
                          zuege=tuple(sorted(zuege, key=lambda z: int(z.uid))), liegen=liegen,
-                         hinweise=_kappungen(sitzung))
+                         hinweise=_kappungen(sitzung), uidvalidity=ist)
 
 
 def plane(sitzung: postfach.Postfach, *, wunsch: str | None = None,
@@ -398,7 +436,8 @@ def plane(sitzung: postfach.Postfach, *, wunsch: str | None = None,
     return Bericht(adresse=sitzung.adresse, ziel=lesbar, grund=grund,
                    seit=seit, antworten=len(antworten), nicht_im_eingang=nicht_im_eingang,
                    zuege=zuege, verschoben=0, ziel_server=ziel, liegen=liegen,
-                   hinweise=_kappungen(sitzung) + _unsendbare(unsendbar))
+                   hinweise=_kappungen(sitzung) + _unsendbare(unsendbar),
+                   uidvalidity=sitzung.uidvalidity.get(EINGANG))
 
 
 def _kappungen(sitzung: postfach.Postfach) -> tuple[str, ...]:
@@ -440,7 +479,8 @@ def _spaeter(a: datetime | None, b: datetime | None) -> bool:
 
 # ── Der eine ändernde Befehl ────────────────────────────────────────────────
 
-def verschiebe(sitzung: postfach.Postfach, ziel: str, uids: list[str]) -> int:
+def verschiebe(sitzung: postfach.Postfach, ziel: str, uids: list[str], *,
+               uidvalidity: str | None = None) -> int:
     """`UID MOVE` aus dem Eingang in den Ablageordner. Gibt die Anzahl zurück.
 
     Hier greift das Modul auf `postfach.Postfach._v` und `._befehl` zu, also
@@ -449,6 +489,11 @@ def verschiebe(sitzung: postfach.Postfach, ziel: str, uids: list[str]) -> int:
     `tests/test_ablage.py` ihn sieht — und nicht in `postfach`, dessen Zusage
     sonst fiele. Zeitlimit und Form der Fehlermeldung bleiben dabei die
     gemeinsamen.
+
+    `uidvalidity` ist der Wert, unter dem die UIDs geplant wurden. Nennt das
+    SELECT einen anderen, geht kein MOVE hinaus (#495): Zwischen dem EXAMINE
+    des Plans und diesem SELECT kann der Server den Eingang neu nummeriert
+    haben. Ohne Planwert gibt es nichts zu vergleichen.
     """
     if not uids:
         return 0
@@ -463,6 +508,10 @@ def verschiebe(sitzung: postfach.Postfach, ziel: str, uids: list[str]) -> int:
     # SELECT, nicht EXAMINE: Aus einem nur lesend geöffneten Ordner bewegt
     # der Server nichts. Gewählt wird allein der Eingang.
     sitzung._befehl(f"Ordner „{EINGANG}“ nicht wählbar", sitzung._v.select, zitiert(EINGANG))
+    jetzt = sitzung._lies_uidvalidity()
+    if uidvalidity is not None and jetzt != uidvalidity:
+        raise AblageFehler(_uidvalidity_grund(uidvalidity, jetzt,
+                                              quelle="der Plan dieses Laufs las"))
     try:
         sitzung._befehl(f"MOVE nach „{postfach.utf7_dekodieren(ziel)}“",
                         sitzung._v.uid, "MOVE", ",".join(uids), zitiert(ziel))
@@ -490,10 +539,11 @@ def _je_ziel(zuege: tuple[Zug, ...]) -> list[tuple[str, list[str]]]:
 def raeume_auf(adresse: str, *, wunsch: str | None = None, seit_tagen: int = SEIT_TAGEN,
                machen: bool = False, umgebung: Mapping[str, str] | None = None,
                frist: float = FRIST_S, uids: list[str] | None = None,
-               trotz_faehnchen: bool = False) -> Bericht:
+               trotz_faehnchen: bool = False, uidvalidity: str | None = None) -> Bericht:
     """Ein Absender, von der Anmeldung bis zum Zug. Ohne `machen` wird nur gelesen.
 
-    Mit `uids` sind es genau diese Eingangsmails statt der beantworteten.
+    Mit `uids` sind es genau diese Eingangsmails statt der beantworteten, und
+    `uidvalidity` ist dann der Wert, den die Anzeige nannte (#495).
     """
     bericht = Bericht(adresse=adresse, ziel=None, grund=None, seit=None, antworten=0,
                       nicht_im_eingang=0, zuege=(), verschoben=0, benannt=uids is not None)
@@ -506,7 +556,8 @@ def raeume_auf(adresse: str, *, wunsch: str | None = None, seit_tagen: int = SEI
         try:
             if uids is not None:
                 bericht = plane_benannt(sitzung, uids, wunsch=wunsch,
-                                        trotz_faehnchen=trotz_faehnchen)
+                                        trotz_faehnchen=trotz_faehnchen,
+                                        uidvalidity=uidvalidity)
             else:
                 bericht = plane(sitzung, wunsch=wunsch, seit_tagen=seit_tagen,
                                 trotz_faehnchen=trotz_faehnchen)
@@ -515,7 +566,8 @@ def raeume_auf(adresse: str, *, wunsch: str | None = None, seit_tagen: int = SEI
             # Das Ziel steht an jedem Zug. Ein zweites `ablageordner` wäre eine
             # zweite Bestimmung, und die kann anders ausfallen als die erste.
             for ziel, gruppe in _je_ziel(bericht.zuege):
-                verschoben += verschiebe(sitzung, ziel, gruppe)
+                verschoben += verschiebe(sitzung, ziel, gruppe,
+                                         uidvalidity=bericht.uidvalidity)
             return bericht._replace(verschoben=verschoben)
         except (postfach.PostfachFehler, AblageFehler) as fehler:
             # `_replace`, kein frischer Bericht: Bricht der Zug ab, nachdem der
@@ -594,7 +646,14 @@ def zeilen(bericht: Bericht) -> list[str]:
                f"{len(bericht.zuege)} zum Ablegen" + wohin]
         aus += _zugzeilen(bericht)
         if bericht.zuege and not bericht.verschoben:
-            aus.append("    nichts bewegt — mit --machen verschieben")
+            # Der Folgebefehl trägt den Wert, unter dem die UIDs eben galten:
+            # `--uid … --machen` verlangt ihn (#495).
+            if bericht.uidvalidity:
+                aus.append(f"    nichts bewegt — mit --machen --uidvalidity "
+                           f"{bericht.uidvalidity} verschieben")
+            else:
+                aus.append("    nichts bewegt — der Server nennt für den Eingang keine "
+                           "UIDVALIDITY, mit --uid lässt sich deshalb nicht verschieben")
         return aus + nachspann
     im_eingang = len(bericht.zuege) + len(bericht.liegen)
     aus = [f"OK  {bericht.adresse}: {im_eingang} von {bericht.antworten} Antworten "
@@ -622,6 +681,7 @@ def als_json(bericht: Bericht) -> dict:
         "verschoben": bericht.verschoben,
         "zug_gesendet": bericht.zug_gesendet,
         "benannt": bericht.benannt,
+        "uidvalidity": bericht.uidvalidity,
         "hinweise": list(bericht.hinweise),
         "zuege": [{"uid": z.uid, "betreff": z.betreff,
                    "datum": z.datum.isoformat() if z.datum else None,

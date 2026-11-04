@@ -614,7 +614,8 @@ def test_mit_uid_ohne_machen_bewegt_nichts_und_nennt_datum_absender_betreff():
     datum = (HEUTE - timedelta(days=3)).astimezone().strftime("%d.%m.%Y")
     assert datum in zeile and "amt@example.org" in zeile and "„Eingereichte Fassung“" in zeile
     assert "beantwortet" not in zeile, "eine benannte Mail hat keine Antwort"
-    assert "    nichts bewegt — mit --machen verschieben" in text
+    # Der Folgebefehl trägt die UIDVALIDITY, unter der die UIDs eben galten (#495).
+    assert "    nichts bewegt — mit --machen --uidvalidity 1 verschieben" in text
 
 
 def test_fehlt_eine_genannte_uid_wandert_keine():
@@ -627,6 +628,117 @@ def test_fehlt_eine_genannte_uid_wandert_keine():
     assert _uids(attrappe) == [101]
     assert [z.uid for z in bericht.zuege] == ["101"], "die gefundene steht trotzdem da"
     assert ablage.zeilen(bericht)[0].startswith("NICHT GEPRÜFT  joe@example.org: UID 999")
+
+
+# ── #495: Eine UID gilt nur mit der UIDVALIDITY des Eingangs ────────────────
+
+def _neu_nummeriert(attrappe, uidvalidity="2"):
+    """Der Server vergibt den Eingang neu: Unter UID 101 liegt jetzt eine fremde Mail."""
+    from imap_attrappe import Eintrag
+
+    roh, zeit = _offen("Fremde Mail", "<fremd@example.org>")
+    attrappe.ordner["INBOX"] = [Eintrag(101, roh, zeit)]
+    attrappe.uidvalidity = uidvalidity
+
+
+def _nichts_bewegt(attrappe, bericht):
+    assert not attrappe.befehle("UID MOVE"), f"UID MOVE gesendet: {attrappe.befehle('UID MOVE')}"
+    assert bericht.verschoben == 0 and _uids(attrappe, "Archiv") == []
+
+
+def test_wechselt_die_uidvalidity_nach_der_anzeige_wandert_keine():
+    """Abnahme aus #495: Dieselbe Zahl meint nach dem Wechsel eine andere Mail."""
+    attrappe, _ = _postfach(eingang=[_offen("Gemeinte Mail", "<gemeint@example.org>")])
+    anzeige = ablage.raeume_auf("joe@example.org", wunsch="Archiv", umgebung={}, uids=["101"])
+    assert anzeige.uidvalidity == "1" and ablage.als_json(anzeige)["uidvalidity"] == "1"
+
+    _neu_nummeriert(attrappe)
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
+                                uids=["101"], uidvalidity=anzeige.uidvalidity)
+    _nichts_bewegt(attrappe, bericht)
+    assert "die UIDVALIDITY des Eingangs ist jetzt 2, die Anzeige nannte 1" in bericht.grund
+    assert ablage.zeilen(bericht)[0].startswith("NICHT GEPRÜFT  joe@example.org: die UIDVALIDITY")
+    assert not attrappe.befehle("SELECT"), "der Eingang wurde nicht einmal zum Schreiben gewählt"
+
+
+def test_gegenprobe_gleiche_uidvalidity_laesst_die_genannte_mail_wandern():
+    """Ohne sie belegte die Probe darüber nichts: Eine Sperre, die jedes
+    `--uidvalidity` abweist, wäre dort auch grün."""
+    attrappe, _ = _postfach(eingang=[_offen()])
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
+                                uids=["101"], uidvalidity="1")
+    assert bericht.grund is None and bericht.verschoben == 1
+    assert _uids(attrappe, "Archiv") == [101]
+
+
+def test_nennt_der_server_keine_uidvalidity_wandert_keine_benannte_mail():
+    """Unbekannt ist nicht „gleich“: Ohne Wert ist nichts zu vergleichen."""
+    attrappe, _ = _postfach(eingang=[_offen()], uidvalidity=None)
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
+                                uids=["101"], uidvalidity="1")
+    _nichts_bewegt(attrappe, bericht)
+    assert "der Server nennt für den Eingang keine UIDVALIDITY" in bericht.grund
+    assert bericht.uidvalidity is None and ablage.als_json(bericht)["uidvalidity"] is None
+
+
+def test_ohne_uidvalidity_vom_server_sagt_die_anzeige_dass_uid_nicht_verschiebt():
+    _, sitzung = _postfach(eingang=[_offen()], uidvalidity=None)
+    with sitzung:
+        bericht = ablage.plane_benannt(sitzung, ["101"], wunsch="Archiv")
+    assert any("keine UIDVALIDITY, mit --uid lässt sich deshalb nicht verschieben" in z
+               for z in ablage.zeilen(bericht))
+
+
+@pytest.mark.parametrize("benannt", [True, False], ids=["uid", "beantwortet"])
+def test_wechselt_die_uidvalidity_zwischen_plan_und_select_geht_kein_move_hinaus(benannt):
+    """Der Wechsel mitten im Lauf, zwischen dem EXAMINE des Plans und dem
+    SELECT vor dem Zug. Gilt auch ohne `--uid`: Dort tragen die Züge ebenso
+    nur UIDs."""
+    if benannt:
+        attrappe, _ = _postfach(eingang=[_offen()], uidvalidity_select="2")
+        optionen = {"uids": ["101"], "uidvalidity": "1"}
+    else:
+        attrappe, _ = _postfach(eingang=[_eingegangen()], gesendet=[_antwort()],
+                                uidvalidity_select="2")
+        optionen = {}
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
+                                **optionen)
+    _nichts_bewegt(attrappe, bericht)
+    assert attrappe.befehle("SELECT"), "der Lauf kam bis zum SELECT"
+    assert "ist jetzt 2, der Plan dieses Laufs las 1" in bericht.grund
+    assert not bericht.zug_gesendet
+
+
+def test_fehlt_ein_jahresordner_steht_er_neben_der_liegenden_benannten_mail():
+    """Review von #496, Befund 1: Bis dahin ersetzte der Grund „bliebe liegen“
+    den Grund zum fehlenden Jahresordner, und der Bediener erfuhr erst im
+    nächsten Lauf, nach `--trotz-faehnchen`, davon."""
+    alt = datetime(2025, 12, 10, 12, 0, tzinfo=timezone.utc)
+    attrappe, _ = _postfach(
+        eingang=[_mit_fahnen(_offen("Mit Fähnchen", "<f@example.org>"), "\\Flagged"),
+                 (nachricht(an="joe@example.org", betreff="Von 2025", datum=alt,
+                            kennung="<alt@example.org>"), alt)],
+        sonder={"INBOX": "", "Gesendete Elemente": "\\Sent", "Archiv/2026": ""})
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv/{jahr}", machen=True,
+                                umgebung={}, uids=["101", "102"], uidvalidity="1")
+    assert not attrappe.befehle("UID MOVE") and bericht.verschoben == 0
+    assert "UID 101 bliebe liegen (Fähnchen)" in bericht.grund
+    assert "„Archiv/2025“" in bericht.grund, f"Jahresordner fehlt im Grund: {bericht.grund}"
+
+
+def test_mit_trotz_faehnchen_raet_der_grund_nicht_zu_trotz_faehnchen(monkeypatch):
+    """Review von #496, Befund 2: Eine Mail mit Fähnchen, die ohne Ankunft
+    liegen bleibt, bekam den Rat, einen Schalter zu setzen, der schon gesetzt war."""
+    monkeypatch.setattr(postfach, "_ankunft", lambda *teile: None)
+    attrappe, _ = _postfach(eingang=[_mit_fahnen(_offen(), "\\Flagged")],
+                            sonder={"INBOX": "", "Gesendete Elemente": "\\Sent",
+                                    "Archiv/2026": ""})
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv/{jahr}", machen=True,
+                                umgebung={}, uids=["101"], uidvalidity="1",
+                                trotz_faehnchen=True)
+    assert not attrappe.befehle("UID MOVE") and bericht.verschoben == 0
+    assert "UID 101 bliebe liegen (ohne Ankunftsdatum" in bericht.grund
+    assert "--trotz-faehnchen" not in bericht.grund, f"Rat trotz Schalter: {bericht.grund}"
 
 
 def test_eine_beantwortete_mail_mit_faehnchen_bleibt_liegen():
@@ -741,7 +853,7 @@ def test_eine_benannte_mail_mit_faehnchen_endet_ueber_die_cli_mit_exit_3(monkeyp
                                     "Archiv": "\\Archive"})
     monkeypatch.setattr(postfach, "IMAP_KLASSE", attrappe)
     assert falzmarke.main(["aufraeumen", "--absender", "joe@example.org", "--uid", "101",
-                           "--machen"]) == falzmarke.EXIT_UMGEBUNG
+                           "--uidvalidity", "1", "--machen"]) == falzmarke.EXIT_UMGEBUNG
     fehler = capsys.readouterr().err
     assert fehler.startswith("NICHT GEPRÜFT  joe@example.org: UID 101 bliebe liegen")
     assert "--trotz-faehnchen" in fehler
@@ -913,6 +1025,48 @@ def test_uid_verlangt_genau_ein_konto(capsys):
     assert "--uid" in capsys.readouterr().err
 
 
+def test_uid_mit_machen_verlangt_uidvalidity(monkeypatch, capsys):
+    """#495: Ohne den Wert der Anzeige ist nicht zu prüfen, ob die UIDs noch
+    dieselben Mails meinen. Abgewiesen wird, bevor ein Postfach aufgeht."""
+    from falzmarke import cli as falzmarke
+
+    attrappe, _ = _postfach(eingang=[_offen()])
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", attrappe)
+    attrappe.verbindungen.clear()
+    code = falzmarke.main(["aufraeumen", "--absender", "joe@example.org", "--uid", "101",
+                           "--machen"])
+    fehler = capsys.readouterr().err
+    assert fehler.startswith("FEHLER  --uid mit --machen braucht --uidvalidity"), \
+        f"--uid --machen ohne --uidvalidity nicht abgewiesen: Exit {code}, {fehler}"
+    assert code == falzmarke.EXIT_EINGABE
+    assert not attrappe.verbindungen and _uids(attrappe) == [101]
+
+
+@pytest.mark.parametrize("argumente,anfang", [
+    (["--uidvalidity", "1"], "FEHLER  --uidvalidity gilt nur mit --uid"),
+    (["--uid", "101", "--uidvalidity", "0"], "FEHLER  --uidvalidity braucht eine Zahl ab 1"),
+], ids=["ohne-uid", "null"])
+def test_uidvalidity_ohne_uid_oder_unter_eins_wird_abgewiesen(argumente, anfang, capsys):
+    from falzmarke import cli as falzmarke
+
+    code = falzmarke.main(["aufraeumen", "--absender", "a@example.org", *argumente])
+    assert capsys.readouterr().err.startswith(anfang)
+    assert code == falzmarke.EXIT_EINGABE
+
+
+def test_wechselt_die_uidvalidity_endet_die_cli_mit_exit_3(monkeypatch, capsys):
+    from falzmarke import cli as falzmarke
+
+    attrappe, _ = _postfach(eingang=[_offen()], sonder={
+        "INBOX": "", "Gesendete Elemente": "\\Sent", "Archiv": "\\Archive"})
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", attrappe)
+    assert falzmarke.main(["aufraeumen", "--absender", "joe@example.org", "--uid", "101",
+                           "--uidvalidity", "7", "--machen"]) == falzmarke.EXIT_UMGEBUNG
+    fehler = capsys.readouterr().err
+    assert "UIDVALIDITY des Eingangs ist jetzt 1, die Anzeige nannte 7" in fehler
+    assert not attrappe.befehle("UID MOVE")
+
+
 @pytest.mark.parametrize("seit", ["30", "0"], ids=["gueltig", "ausserhalb"])
 def test_uid_und_seit_schliessen_sich_aus(seit, capsys):
     """Nachreview von #494, Befund 6: Mit `--uid` gibt es kein Fenster. Ein
@@ -964,7 +1118,7 @@ def test_gegenprobe_uid_mit_einem_konto_verschiebt_ueber_die_cli(monkeypatch, ca
                                     "Archiv": "\\Archive"})
     monkeypatch.setattr(postfach, "IMAP_KLASSE", attrappe)
     assert falzmarke.main(["aufraeumen", "--absender", "joe@example.org", "--uid", "101",
-                           "--machen"]) == falzmarke.EXIT_OK
+                           "--uidvalidity", "1", "--machen"]) == falzmarke.EXIT_OK
     assert "1 nach „Archiv“ verschoben" in capsys.readouterr().out
     assert _uids(attrappe, "Archiv") == [101]
 

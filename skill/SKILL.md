@@ -335,6 +335,8 @@ geöffnet und nichts bewegt — welcher Ordner gilt, muss im Profil stehen. Brau
 `--trotz-faehnchen` hebt das für einen Lauf auf. Erledigt ohne Antwort: `--uid N [N …]` legt genau
 diese Mails eines Kontos ab und nennt je UID Datum, Absender und Betreff. Fehlt eine davon im
 Eingang oder bliebe eine liegen (Fähnchen), wandert keine; `--seit` gibt es dabei nicht.
+`--machen` braucht dabei `--uidvalidity V` mit dem Wert aus der Anzeige; weicht er ab, hat der
+Server die UIDs neu vergeben, und es wandert keine.
 `ablage: Archiv/{jahr}` legt nach dem Jahr der Ankunft ab; fehlt ein Jahresordner, wandert keine
 Mail des Laufs.
 
