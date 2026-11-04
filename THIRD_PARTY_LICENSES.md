@@ -69,6 +69,17 @@ Für dieses Repository heißt das:
   vorgesehene Ersatz. Die Szenen hängen an `src/brand.ts` und `src/texte.json`, nicht an
   Remotion-Eigenheiten.
 
+## Nur für die Tests
+
+Diese Dateien liegen unter [`tests/schemas/`](tests/schemas/), damit die Metadaten-Prüfung ohne
+Netz läuft. Sie gehören nicht zum Programm und gehen weder ins Wheel noch ins `.skill`-Paket.
+Herkunft und Prüfung im Einzelnen stehen im [README dort](tests/schemas/README.md).
+
+| Komponente | Urheber | Lizenz | Verwendung |
+|---|---|---|---|
+| [MCP-Schema für `server.json`](https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json), Fassung 2025-12-11 | Model Context Protocol ([modelcontextprotocol/static](https://github.com/modelcontextprotocol/static)) | MIT | Prüfung von `server.json`; unverändert, abgerufen 02.11.2026 |
+| [Agent-Plugins-Schema für `plugin.json`](https://agent-plugins.org/schemas/1.0.0/plugin.schema.json) 1.0.0 | Agent Plugins ([agentplugins/agent-plugins-spec](https://github.com/agentplugins/agent-plugins-spec)) | Apache-2.0 | Prüfung des Manifests im ChatGPT-Plugin; unverändert, abgerufen 02.11.2026 |
+
 ## Normen
 
 DIN 5008 ist eine Norm des DIN Deutsches Institut für Normung e. V. Die Maße in diesem Projekt

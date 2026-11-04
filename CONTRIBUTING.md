@@ -173,6 +173,19 @@ erzeugt (`python3 scripts/changelog.py`, oder `make changelog`) — ihn nie von 
 ihn stehen lässt, zeigt auf der Produktseite einen Stand, den es nicht mehr gibt, und
 `tests/test_changelog.py` schlägt fehl.
 
+**Die Versionsnummer steht an fünf Stellen**, und beim Bump wandern alle mit:
+
+| Datei | Schlüssel |
+|---|---|
+| `pyproject.toml` | `project.version` (die Quelle, gegen die alle anderen geprüft werden) |
+| `skill/falzmarke/__init__.py` | `__version__` |
+| `server.json` | `version` und `packages[0].version` |
+| `skill/SKILL.md` | `metadata.version`, als Zeichenkette in Anführungszeichen |
+| `skill/.claude-plugin/plugin.json` | `version` |
+
+`tests/test_version.py` hält jede davon gegen `pyproject.toml`. Das ChatGPT-Paket übernimmt
+die Version beim Packen aus `pyproject.toml` (`scripts/plugin_packen.py`).
+
 **Die Rechnungs-Goldens bleiben beim Bump unberührt.** Ein Rechnungs-PDF führt die Fassung in
 `/Producer` und `/falzmarke_Version`. Bis 0.11.2 stand dort die Paketversion, und jedes Release
 erzeugte sechs Binär-Diffs ohne inhaltliche Änderung. Seit #467 tragen die Goldens eine feste

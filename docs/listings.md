@@ -14,7 +14,7 @@ verlangen, und keine Mehrfacheinreichung.
 | Smithery | **abgeschaltet** am 31.10.2026 | nichts tun |
 | Glama | gelistet, nicht beansprucht | Eintrag beanspruchen |
 | awesome-mcp-servers | PR offen, hängt an Glama | erledigt sich nach Glama |
-| awesome-claude-skills | **gesperrt**, 1 von 10 Sternen | warten |
+| awesome-claude-skills | **gesperrt**, 1 von 10 Sternen | Default: nicht verfolgen; `travisvn` bei 10 Sternen neu bewerten |
 | GitHub Topics | 20 von 20 gesetzt | nichts zu tun |
 
 ## Anthropic-Plugin-Verzeichnis
@@ -32,8 +32,9 @@ Das Portal liest Name und Kurzbeschreibung aus `plugin.json` und dem README. Der
 ins Manifest. `homepage` bleibt die nackte Adresse (siehe UTM-Konvention), der Link unten gehört ins
 README des Plugin-Ordners.
 
-Das Manifest nennt bewusst keine `version`: Sie wäre die fünfte Stelle, die bei jedem Release
-mitwandern müsste. Der Validator warnt deshalb einmal, das ändert sein Ergebnis nicht.
+Seit #467 nennt das Manifest eine `version`, die fünfte Stelle, die bei jedem Release mitwandert.
+`tests/test_version.py` hält sie gegen `pyproject.toml` (siehe CONTRIBUTING.md, Abschnitt zum
+Bump).
 
 **Link:** https://falzmarke.com/?utm_source=listing&utm_medium=directory&utm_campaign=anthropic-202611
 
@@ -157,7 +158,7 @@ German business letters (DIN 5008) from Markdown as PDF/A via Typst. Four tools:
 
 ## awesome-claude-skills
 
-- [ ] `travisvn`: ab 10 Sternen einreichen
+- [ ] Entscheidung `travisvn`: bei 10 Sternen neu bewerten, Default nicht verfolgen
 - [ ] Entscheidung `ComposioHQ`: Default nicht verfolgen
 
 **Ziel-URL:** https://github.com/travisvn/awesome-claude-skills
