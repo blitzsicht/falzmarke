@@ -11,12 +11,12 @@ Der Pruefer liest eine Dateiliste, nie ein Repository und nie das Netz. Damit
 haengt sein Ergebnis allein von seiner Eingabe ab, nie vom Zeitpunkt des Aufrufs
 — dieselbe Entscheidung wie in scripts/pflicht_checks.py, und aus demselben
 Grund (#196). Der Preis ist, dass der Aufrufer die Liste beschaffen muss; das
-tut der Job „Changelog-Eintrag“ in .github/workflows/ci.yml.
+tut der Job „Changelog-Eintrag“ in .github/workflows/pr-angaben.yml.
 
     gh pr view 42 --json files --jq '.files[].path' \\
       | python3 scripts/changelog_pflicht.py --autor siluri --label P1
 
-Verwendet von .github/workflows/ci.yml.
+Verwendet von .github/workflows/pr-angaben.yml.
 """
 
 from __future__ import annotations
@@ -49,19 +49,6 @@ AUSNAHME_AUTOREN = frozenset({
 # Die ausdrueckliche Einzelfall-Ausnahme. Sie steht am Vorgang und ist damit
 # sichtbar und begruendbar — anders als ein stiller Sonderweg im Code.
 AUSNAHME_LABEL = "ohne-changelog"
-
-# Was nach dem Setzen des Labels zu tun ist (#437). Enger als der Satz in
-# scripts/closing_keyword.py: Das fehlende Fragment wird per Push nachgereicht,
-# und ein Push startet ci.yml neu. Stehen bleibt nur das Label, denn `labeled`
-# ist kein Auslöser von `on: pull_request` ohne `types:`. Der Job liest Labels
-# zur Laufzeit (`gh pr view`), ein Neustart sieht das neue. Gebunden an den
-# Trigger in ci.yml durch tests/test_changelog_pflicht.py.
-NEUSTART = (
-    "Wird stattdessen das Label gesetzt, läuft dieser Check nicht von selbst neu:\n"
-    "`labeled` startet ci.yml nicht (#437). Ein Push mit dem Fragment dagegen schon.\n"
-    "Neu starten, sobald der ganze Lauf fertig ist: „Re-run failed jobs“, oder\n"
-    "`gh run rerun --job <id>` (die Zahl hinter /job/ in der Adresse dieser Seite)."
-)
 
 
 def ist_fragment(pfad: str) -> bool:
@@ -144,8 +131,7 @@ def pruefe(pfade: list[str], autor: str = "", labels: tuple[str, ...] = (),
         "    - **Kurz, was sich ändert.** Ein, zwei Sätze warum. (#229)\n"
         "\n"
         "Trägt der Vorgang wirklich nichts zum Verlauf bei, setzt ein Maintainer\n"
-        f"das Label „{AUSNAHME_LABEL}“.\n"
-        "\n" + NEUSTART
+        f"das Label „{AUSNAHME_LABEL}“."
     )
 
 

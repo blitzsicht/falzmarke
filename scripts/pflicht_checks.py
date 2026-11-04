@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pflicht-Checks für das Ruleset `main` — aus .github/workflows/ci.yml, nicht aus einem Lauf.
+"""Pflicht-Checks für das Ruleset `main` — aus den Workflow-Dateien, nicht aus einem Lauf.
 
 Ein Check, der aus dem letzten CI-Lauf abgeleitet wird, kommt bei jedem Aufruf
 anders heraus: Ein Job, der zum Zeitpunkt der Ableitung noch läuft, fehlt in
@@ -8,8 +8,12 @@ der Liste, ohne dass sich am Workflow etwas geändert hätte — genau das ist a
 Workflow-Definition. Das Ergebnis hängt ausschließlich vom Dateiinhalt ab, nie
 vom Zeitpunkt des Aufrufs oder vom Stand eines laufenden CI-Laufs.
 
+Gelesen werden genau die Dateien in `STANDARD_WORKFLOWS`, seit #437 zwei. Ein
+Job in einem dritten Workflow liefe zwar, landete aber nie im Ruleset und
+verhinderte nichts. Wer einen Pflicht-Workflow ergänzt, trägt ihn dort ein.
+
     python3 scripts/pflicht_checks.py                       # eine Zeile je Check
-    python3 scripts/pflicht_checks.py --workflow pfad.yml    # anderer Workflow
+    python3 scripts/pflicht_checks.py --workflow pfad.yml    # andere Workflows (mehrfach)
 
 Verwendet von scripts/repo-einstellungen.sh.
 """
@@ -19,12 +23,52 @@ from __future__ import annotations
 import argparse
 import itertools
 import sys
+from collections import Counter
+from collections.abc import Iterable
 from pathlib import Path
 
 import yaml
 
 REPO = Path(__file__).resolve().parent.parent
-STANDARD_WORKFLOW = REPO / ".github" / "workflows" / "ci.yml"
+WORKFLOWS = REPO / ".github" / "workflows"
+
+#: Die Workflows, deren Jobs Pflicht-Checks sind. `ci.yml` prüft den Code und
+#: startet nur bei neuem Code. `pr-angaben.yml` prüft, was am Pull Request steht
+#: (Rumpf, Labels, Dateiliste), und startet darum auch bei `edited` und
+#: `labeled` (#437). Beides in einer Datei hieße: jede korrigierte Beschreibung
+#: startet die ganze Testmatrix, oder die teuren Jobs melden `skipped`, und ein
+#: übersprungener Job gilt GitHub als erfüllt.
+STANDARD_WORKFLOWS = (WORKFLOWS / "ci.yml", WORKFLOWS / "pr-angaben.yml")
+
+#: Was GitHub für `pull_request` ohne `types:` einsetzt (Dokumentation „Events
+#: that trigger workflows“, Abschnitt pull_request; an PR #432 bestätigt: nach
+#: `gh pr edit` lief nichts neu). Ein Pflicht-Workflow muss mindestens bei diesen
+#: starten: Ohne `synchronize` bekäme ein neuer Commit seinen Check nie, und
+#: main wartete auf etwas, das nicht kommt.
+VORGABE_TYPEN = ("opened", "synchronize", "reopened")
+
+
+class Workflowfehler(ValueError):
+    """Ein Pflicht-Workflow, aus dem sich keine verlässliche Liste ableiten lässt."""
+
+
+def pull_request_typen(daten: dict) -> tuple[str, ...] | None:
+    """Die Ereignisarten, bei denen der Workflow für einen Pull Request startet.
+
+    `None`, wenn er bei `pull_request` gar nicht startet.
+    """
+    # PyYAML liest den Schlüssel `on` nach YAML 1.1 als True.
+    ausloeser = daten["on"] if "on" in daten else daten.get(True)
+    if isinstance(ausloeser, str):
+        ausloeser = {ausloeser: None}
+    elif isinstance(ausloeser, list):
+        ausloeser = dict.fromkeys(ausloeser)
+    if not isinstance(ausloeser, dict) or "pull_request" not in ausloeser:
+        return None
+    typen = (ausloeser["pull_request"] or {}).get("types")
+    if typen is None:
+        return VORGABE_TYPEN
+    return (typen,) if isinstance(typen, str) else tuple(typen)
 
 # Ein Job mit einer dieser Bedingungen läuft bei einem Pull Request nie — als
 # Pflicht-Check würde er jeden PR unbegrenzt warten lassen. Das ist der
@@ -85,9 +129,39 @@ def _durch_exclude_ausgeschlossen(kombi: dict, ausschluesse: list[dict]) -> bool
     )
 
 
-def analysiere(workflow: Path = STANDARD_WORKFLOW) -> tuple[list[str], list[str]]:
-    """(Pflicht-Checks, wegen `if:` ausgeschlossene Jobs) — nur aus der Datei."""
+def analysiere(workflows: Path | Iterable[Path] = STANDARD_WORKFLOWS,
+               ) -> tuple[list[str], list[str]]:
+    """(Pflicht-Checks, wegen `if:` ausgeschlossene Jobs) — nur aus den Dateien.
+
+    Wirft `Workflowfehler`, wenn ein Workflow nicht bei jedem Pull Request
+    startet oder ein Checkname zweimal vorkommt. Zwei Jobs gleichen Namens
+    melden zwei Check-Runs, und für das Ruleset zählt der jüngste: Ein grüner
+    Lauf des einen überdeckte dann einen roten des anderen.
+    """
+    if isinstance(workflows, Path):
+        workflows = (workflows,)
+    checks: list[str] = []
+    ausgeschlossen: list[str] = []
+    for workflow in workflows:
+        c, a = _analysiere_einen(workflow)
+        checks += c
+        ausgeschlossen += a
+    doppelt = sorted(name for name, n in Counter(checks).items() if n > 1)
+    if doppelt:
+        raise Workflowfehler("Checkname mehrfach vergeben: " + ", ".join(doppelt))
+    return checks, ausgeschlossen
+
+
+def _analysiere_einen(workflow: Path) -> tuple[list[str], list[str]]:
     daten = yaml.safe_load(workflow.read_text(encoding="utf-8")) or {}
+    typen = pull_request_typen(daten)
+    if typen is None:
+        raise Workflowfehler(f"{workflow.name} startet nicht bei pull_request: "
+                             "seine Jobs kämen in keinem PR, das Ruleset wartete ewig")
+    fehlend = [t for t in VORGABE_TYPEN if t not in typen]
+    if fehlend:
+        raise Workflowfehler(f"{workflow.name} startet nicht bei {', '.join(fehlend)}: "
+                             "ein PR bekäme seine Checks dann nicht für jeden Commit")
     checks: list[str] = []
     ausgeschlossen: list[str] = []
     for job_id, job in (daten.get("jobs") or {}).items():
@@ -117,15 +191,16 @@ def analysiere(workflow: Path = STANDARD_WORKFLOW) -> tuple[list[str], list[str]
     return checks, ausgeschlossen
 
 
-def pflicht_checks(workflow: Path = STANDARD_WORKFLOW) -> list[str]:
-    return analysiere(workflow)[0]
+def pflicht_checks(workflows: Path | Iterable[Path] = STANDARD_WORKFLOWS) -> list[str]:
+    return analysiere(workflows)[0]
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--workflow", type=Path, default=STANDARD_WORKFLOW)
+    parser.add_argument("--workflow", type=Path, action="append",
+                        help="statt der Standard-Workflows, mehrfach möglich")
     args = parser.parse_args()
-    checks, ausgeschlossen = analysiere(args.workflow)
+    checks, ausgeschlossen = analysiere(args.workflow or STANDARD_WORKFLOWS)
     for job_id in ausgeschlossen:
         print(f"  übersprungen (läuft nur auf main): {job_id}", file=sys.stderr)
     for check in checks:

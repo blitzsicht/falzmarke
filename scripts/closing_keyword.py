@@ -19,7 +19,7 @@ nie vom Zeitpunkt des Aufrufs.
     gh pr view 42 --repo blitzsicht/falzmarke --json body,labels > pr.json
     python3 scripts/closing_keyword.py --pr-json pr.json
 
-Verwendet von .github/workflows/ci.yml.
+Verwendet von .github/workflows/pr-angaben.yml.
 """
 
 from __future__ import annotations
@@ -66,25 +66,6 @@ _ENGLISCH = re.compile(
 )
 
 _CODEBLOCK = re.compile(r"^```.*?^```", re.DOTALL | re.MULTILINE)
-
-# Was nach der Korrektur zu tun ist (#437). `on: pull_request` ohne `types:`
-# startet bei `opened`, `synchronize` und `reopened`, nicht bei `edited` oder
-# `labeled`. Wer den Rumpf korrigiert oder das Label setzt, behebt also genau
-# den Befund, und der rote Lauf bleibt trotzdem stehen. Der Job liest den Rumpf
-# zur Laufzeit, ein Neustart sieht den neuen Text. `edited` als Auslöser in
-# ci.yml startete die ganze Matrix bei jeder Textänderung neu (#437, Weg 1);
-# ein eigener Workflow (Weg 2) steht noch aus. Bis dahin nur dieser Satz.
-# `tests/test_closing_keyword.py` hält ihn an den Trigger in ci.yml gebunden.
-#
-# Die Zahl hinter /job/ in der Adresse der Job-Seite ist die `databaseId`, die
-# `--job` verlangt (gemessen am 03.11.2026, PR #471: 126048932784 hier wie dort).
-# `gh run rerun --help` warnt vor einer anderen Form, `/jobs/<number>`.
-NEUSTART = (
-    "Nach dem Korrigieren des Rumpfs oder dem Setzen des Labels läuft dieser Check\n"
-    "nicht von selbst neu: `edited` und `labeled` starten ci.yml nicht (#437).\n"
-    "Neu starten, sobald der ganze Lauf fertig ist: „Re-run failed jobs“, oder\n"
-    "`gh run rerun --job <id>` (die Zahl hinter /job/ in der Adresse dieser Seite)."
-)
 
 
 def ohne_codebloecke(text: str) -> str:
@@ -137,8 +118,7 @@ def pruefe(rumpf: str, labels: tuple[str, ...] = ()) -> tuple[bool, str]:
         "das Issue weiter auf OPEN und musste von Hand geschlossen werden.\n"
         "\n"
         "Soll der Vorgang bewusst offen bleiben, setzt ein Maintainer das Label\n"
-        f"„{AUSNAHME_LABEL}“.\n"
-        "\n" + NEUSTART
+        f"„{AUSNAHME_LABEL}“."
     )
 
 

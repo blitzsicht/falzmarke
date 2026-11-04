@@ -1,0 +1,111 @@
+name: PR-Angaben
+
+# Zwei Pflicht-Checks, die nicht den Code prüfen, sondern was am Pull Request
+# steht: Dateiliste, Rumpf und Labels. Bis #437 standen sie in ci.yml und
+# starteten nur bei neuem Code (`opened`, `synchronize`, `reopened`). Wer genau
+# das korrigierte, was sie beanstandeten — den Rumpf, das Label —, behob den
+# Befund, und der rote Lauf blieb trotzdem stehen. Gemessen an PR #432: nach
+# `gh pr edit` lief nichts neu, grün wurde es erst mit `gh run rerun --job`.
+#
+# Darum ein eigener Workflow mit eigenem Trigger. `edited` in ci.yml hätte bei
+# jeder Textänderung die ganze Matrix neu gestartet (macOS kostet Faktor 10),
+# oder die teuren Jobs hätten bei `edited` `skipped` gemeldet. Für das Ruleset
+# zählt der jüngste Check-Run je Name, und ein übersprungener gilt als erfüllt:
+# Ein `skipped` hätte einen roten `tests (macos-latest)` überdeckt.
+#
+# Die Jobs lesen alle Angaben zur Laufzeit (`gh pr view`), ein Lauf sieht also
+# den Stand, bei dem er startet. Je Angabe das Ereignis, das sie ändert:
+#
+#   Dateiliste  synchronize (neuer Commit)
+#   Rumpf       edited
+#   Labels      labeled, unlabeled
+#
+# `edited` meldet auch einen geänderten Titel oder Zielbranch; das kostet je
+# zwei Läufe von unter einer Minute. tests/test_pr_angaben.py hält die Liste an
+# dem fest, was die Jobs lesen.
+#
+# Pflicht-Checks im Ruleset `main` unter ihrem `name:`. Das Ruleset nennt sie
+# nur beim Namen, ohne App-Bindung (gemessen am 04.11.2026,
+# `gh api repos/blitzsicht/falzmarke/rules/branches/main`): Der Umzug aus
+# ci.yml ändert an ihm nichts. scripts/pflicht_checks.py liest diese Datei mit
+# (`STANDARD_WORKFLOWS`) — ohne den Eintrag dort liefen die Jobs zwar, landeten
+# aber nie im Ruleset.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+  # KEIN `push`, KEIN `workflow_dispatch`, und kein Job trägt ein `if:`. Ein
+  # Job, der bei irgendeinem Ereignis übersprungen wird, meldet `skipped`, und
+  # GitHub wertet das als erfüllt: Ein `gh workflow run` auf den PR-Branch
+  # hätte ein rotes Gate durch ein grünes `skipped` ersetzt, ohne dass es je
+  # gelaufen wäre. tests/test_pr_angaben.py prüft beides.
+
+permissions:
+  contents: read
+
+jobs:
+  changelog:
+    # Ein Vorgang, der das Werkzeug aendert, traegt einen Punkt in den Verlauf
+    # ein — sonst laesst er sich nicht mergen (Issue #229).
+    #
+    # Zweimal fiel die Nacharbeit fuer ein halbes Hundert Vorgaenge auf einmal
+    # an: Von 46 Vorgaengen zwischen v0.8.2 und v0.9.0 hat einer CHANGELOG.md
+    # angefasst, und nach dem Nachtragen von 39 Eintraegen von Hand waren es bei
+    # den naechsten vier wieder null. Der Grund war strukturell — es gab keinen
+    # Ort fuer einen Eintrag ohne Version. Den gibt es jetzt: changelog.d/.
+    name: Changelog-Eintrag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read       # `gh pr view` liest Dateien, Autor und Labels
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Einen Punkt im Verlauf verlangen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NUMMER: ${{ github.event.pull_request.number }}
+        run: |
+          # Die Angaben kommen in EINEM Stueck als JSON zum Pruefer. Der
+          # naheliegende Weg — Labels als Wortliste durch die Shell reichen und
+          # unquoted expandieren — zerlegt „good first issue“ in drei Labels.
+          gh pr view "$NUMMER" --repo "$GITHUB_REPOSITORY" \
+            --json files,author,labels > /tmp/pr.json
+          python3 scripts/changelog_pflicht.py --pr-json /tmp/pr.json
+
+  closing-keyword:
+    # „Schliesst #261“ schliesst nichts — GitHub liest nur englische Keywords
+    # (Issue #268). Gemessen an PR #262: Der Rumpf trug den Satz, nach dem
+    # Squash-Merge stand das Issue weiter auf OPEN.
+    #
+    # Eigener Job und kein Schritt im Job „Changelog-Eintrag“: Ein Job traegt
+    # genau eine Aussage. Steckte die Pruefung dort mit drin, meldete der rote
+    # Check „Changelog-Eintrag“ einen Vorgang, der seinen Changelog-Eintrag hat.
+    name: Closing-Keyword
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read       # `gh pr view` liest Rumpf und Labels
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Deutschen Schliesssatz ohne englisches Keyword melden
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NUMMER: ${{ github.event.pull_request.number }}
+        run: |
+          # Rumpf und Labels in EINEM Stueck als JSON — aus demselben Grund wie
+          # beim Changelog-Job: Ein Label darf Leerzeichen tragen, und ein
+          # Rumpf traegt Zeilenumbrueche.
+          gh pr view "$NUMMER" --repo "$GITHUB_REPOSITORY" \
+            --json body,labels > /tmp/pr-rumpf.json
+          python3 scripts/closing_keyword.py --pr-json /tmp/pr-rumpf.json

@@ -2874,6 +2874,91 @@ def test_ein_server_ohne_version_faellt_beim_handschlag_durch(tmp_path):
     assert "meldet keine Version" in ausgabe and "tools/list" not in ausgabe, ausgabe
 
 
+# ── #437: Die Checks auf die PR-Angaben starten, wenn die Angabe sich ändert ──
+
+def _pr_angaben_mit(tmp_path, monkeypatch, alt: str, neu: str):
+    """pr-angaben.yml mit genau einer Ersetzung, als PR_ANGABEN in test_pr_angaben."""
+    import test_pr_angaben
+
+    text = test_pr_angaben.PR_ANGABEN.read_text(encoding="utf-8")
+    assert text.count(alt) == 1, f"„{alt.strip()}“ steht nicht genau einmal in pr-angaben.yml"
+    datei = tmp_path / "pr-angaben.yml"
+    datei.write_text(text.replace(alt, neu), encoding="utf-8")
+    monkeypatch.setattr(test_pr_angaben, "PR_ANGABEN", datei)
+    return test_pr_angaben
+
+
+@pytest.mark.parametrize("typ, erwartet", [
+    ("edited", "body ändert sich bei „edited“"),
+    ("labeled", "labels ändert sich bei „labeled“"),
+    ("unlabeled", "labels ändert sich bei „unlabeled“"),
+    ("synchronize", "files ändert sich bei „synchronize“"),
+], ids=["edited", "labeled", "unlabeled", "synchronize"])
+def test_fehlt_ein_ausloeser_wird_die_angabe_gemeldet(typ, erwartet, tmp_path, monkeypatch):
+    """Jedes Ereignis einzeln aus dem Trigger genommen. Ohne `synchronize`
+    schlüge zuerst `pflicht_checks` an; hier zählt, dass auch die Probe es sieht."""
+    alt = "types: [opened, synchronize, reopened, edited, labeled, unlabeled]"
+    typen = [t for t in alt[len("types: ["):-1].split(", ") if t != typ]
+    pa = _pr_angaben_mit(tmp_path, monkeypatch, alt, f"types: [{', '.join(typen)}]")
+    with pytest.raises(AssertionError, match=erwartet):
+        pa.test_jede_gelesene_angabe_hat_ihren_ausloeser()
+
+
+def test_ein_unbekanntes_feld_wird_nicht_fuer_unveraenderlich_gehalten(tmp_path, monkeypatch):
+    pa = _pr_angaben_mit(tmp_path, monkeypatch, "--json body,labels", "--json body,labels,title")
+    with pytest.raises(AssertionError, match="liest „title“, AUSLOESER kennt das Feld nicht"):
+        pa.test_jede_gelesene_angabe_hat_ihren_ausloeser()
+
+
+@pytest.mark.parametrize("alt, neu, erwartet", [
+    ("  pull_request:\n    types:", "  workflow_dispatch:\n  pull_request:\n    types:",
+     "Auslöser „workflow_dispatch“"),
+    ("    name: Closing-Keyword\n", "    name: Closing-Keyword\n    if: github.event.action != 'edited'\n",
+     "closing-keyword trägt if"),
+], ids=["workflow-dispatch", "if"])
+def test_ein_weg_zum_skipped_wird_gemeldet(alt, neu, erwartet, tmp_path, monkeypatch):
+    pa = _pr_angaben_mit(tmp_path, monkeypatch, alt, neu)
+    with pytest.raises(AssertionError, match=erwartet):
+        pa.test_kein_job_laesst_sich_ueberspringen()
+
+
+def test_mit_edited_in_ci_yml_wird_die_gegenseite_rot(tmp_path, monkeypatch):
+    """Weg 1 aus #437, der verworfen ist: die ganze Matrix bei jeder Textänderung."""
+    import test_pr_angaben
+
+    text = test_pr_angaben.CI.read_text(encoding="utf-8")
+    alt = "\n  pull_request:\n"
+    assert text.count(alt) == 1
+    datei = tmp_path / "ci.yml"
+    datei.write_text(text.replace(alt, f"{alt}    types: [opened, synchronize, reopened, edited]\n"),
+                     encoding="utf-8")
+    test_pr_angaben.test_ci_yml_startet_weiter_nur_bei_neuem_code()   # Kontrolle
+    monkeypatch.setattr(test_pr_angaben, "CI", datei)
+    with pytest.raises(AssertionError, match="edited"):
+        test_pr_angaben.test_ci_yml_startet_weiter_nur_bei_neuem_code()
+
+
+@pytest.mark.parametrize("alt, neu, probe", [
+    ("    if doppelt:\n", "    if False:\n", "test_ein_checkname_in_zwei_workflows_ist_ein_fehler"),
+    ("    fehlend = [t for t in VORGABE_TYPEN if t not in typen]\n", "    fehlend = []\n",
+     "test_ein_workflow_ohne_synchronize_ist_ein_fehler"),
+    ("    typen = pull_request_typen(daten)\n", "    typen = pull_request_typen(daten) or VORGABE_TYPEN\n",
+     "test_ein_workflow_ohne_pull_request_ist_ein_fehler"),
+], ids=["doppelt", "ohne-synchronize", "ohne-pull-request"])
+def test_ohne_die_pruefung_in_pflicht_checks_wird_die_probe_rot(alt, neu, probe, tmp_path,
+                                                                 monkeypatch):
+    """Je eine Prüfung in `analysiere` zurückgebaut auf den Stand vor #437, der
+    keine davon kannte: Die Liste kam dann ohne Fehler heraus."""
+    sys.path.insert(0, str(REPO / "scripts"))
+    import pflicht_checks
+    import test_pflicht_checks
+
+    name = "analysiere" if "doppelt" in alt else "_analysiere_einen"
+    monkeypatch.setattr(pflicht_checks, name, _zeile_ersetzt(pflicht_checks, name, alt, neu))
+    with pytest.raises(pytest.fail.Exception, match="DID NOT RAISE"):
+        getattr(test_pflicht_checks, probe)(tmp_path)
+
+
 # ── #442 N2: Der abgebrochene Zug zeigt seinen Plan auch im Text ────────────
 
 def test_ohne_zugzeilen_im_grund_verschweigt_der_text_den_plan(monkeypatch):
