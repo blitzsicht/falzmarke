@@ -2043,6 +2043,19 @@ def befehl_email(args) -> int:
             if lage.buch_grund:
                 print(f"HINWEIS  nicht im Entwurfsbuch: {lage.buch_grund} — `falzmarke "
                       "status` nennt diesen Lauf später nicht.", file=sys.stderr)
+        elif args.kein_fenster:
+            # #441: Wer `--kein-fenster` setzt, läuft in einer Schleife und will
+            # wissen, ob der Entwurf liegt. Die Datei aufzumachen wäre auch ein
+            # Fenster, ein Lesefenster. Deshalb Exit 3 statt der Zusage aus
+            # ADR 0038, Punkt 4 (Nachtrag in ADR 0054).
+            sys.stdout.flush()
+            print(f"KEIN ENTWURF  {lage.grund}\n"
+                  "         Mit --kein-fenster geht weder ein Verfassen-Fenster noch die "
+                  "Datei auf.\n"
+                  f"         Die geprüfte Nachricht liegt hier: {eml_pfad}", file=sys.stderr)
+            if befund.zustand == "nicht_geprueft":
+                print(gesendet_modul.meldung(befund), file=sys.stderr)
+            return EXIT_UMGEBUNG
         else:
             # Kein anderer Exit-Code: Die Datei ist geschrieben und gemessen,
             # das ist die Zusage des Befehls (ADR 0038, Punkt 4). Der Rückfall
@@ -2854,7 +2867,9 @@ def main(argv: list[str] | None = None) -> int:
                         "FALZMARKE_BRUECKE=nie nur das Fenster)")
     p.add_argument("--kein-fenster", dest="kein_fenster", action="store_true",
                    help="den Entwurf ablegen, aber kein Verfassen-Fenster öffnen und "
-                        "Thunderbird nicht nach vorn holen (für Schleifen über viele Briefe)")
+                        "Thunderbird nicht nach vorn holen (für Schleifen über viele Briefe). "
+                        "Lässt sich der Entwurf nicht im Postfach ablegen, geht weder "
+                        "-compose noch die Datei auf: KEIN ENTWURF mit Grund, Exit 3")
     p.add_argument("--programm", choices=["thunderbird", "outlook"],
                    help="Mailprogramm für den Entwurf (ohne Angabe Thunderbird; "
                         "Outlook nur auf Wahl); schließt --oeffnen ein")

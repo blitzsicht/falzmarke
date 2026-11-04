@@ -142,3 +142,19 @@ Das Add-on sieht als Einziges, ob ein Entwurf gesendet, verworfen oder geändert
 Rückmeldung darüber und eine Warnung vor dem zweiten Senden derselben Mail sind die nächsten
 Schritte; senden wird das Add-on auch dann nicht. Beides beschreibt
 [ADR 0055](0055-entwurfsbuch-status-und-sperre.md).
+
+## Nachtrag 04.11.2026 — `--kein-fenster` ohne Postfach (#441)
+
+`--kein-fenster` hielt nur die Brücke heraus. Scheiterte der Postfach-Entwurf, folgte trotzdem
+`-compose`, also ein Fenster, und scheiterte auch das, ging die Datei als Lesefenster auf. Der
+Abholer in siluri-angebote ruft `email --oeffnen --kein-fenster` alle 180 s kopflos auf. Bei
+ausgefallenem Proxy hätte jeder Takt ein Fenster geöffnet. Er fängt das bisher selbst ab.
+
+**Entschieden:** Mit `--kein-fenster` gibt es nur den Postfach-Entwurf. Liegt danach keiner (und
+auch kein passender von vorher), steht `KEIN ENTWURF  <Grund>` da, mit dem Pfad der geprüften
+Datei. Der Befehl endet mit Exit 3, und weder `-compose` noch die Datei gehen auf.
+
+Das bricht ADR 0038, Punkt 4 (ein gescheitertes Öffnen ändert den Exit-Code nicht) für diesen
+Schalter. Begründung: Wer `--kein-fenster` setzt, ist eine Schleife und kein Mensch vor dem
+Bildschirm. Den Entwurf sucht dort niemand von Hand. Ohne Exit-Code ungleich 0 sieht die Schleife
+nicht, dass nichts liegt. Ohne den Schalter gilt Punkt 4 unverändert.
