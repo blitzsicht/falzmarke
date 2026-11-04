@@ -1057,8 +1057,15 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
             # Was von außerhalb des Profils kommt, ging nicht von hier hinaus: eingegangene
             # Post, die eine Regel oder eine Hand nach „Gesendet“ gelegt hat (#434).
             eigene, eigene_grund = profiladressen(umgebung, profilordner)
-            fremde = [k for k in raus if gesendet.fremder_absender(k, eigene)]
-            raus = [k for k in raus if not gesendet.fremder_absender(k, eigene)]
+            if eigene is not None:
+                # Die geprüfte Adresse zählt immer, auch wenn das Profil der Brücke sie
+                # nicht nennt: Sonst stünde jede eigene Sendung unter `fremde`, und ein
+                # Entwurf, der schon draußen ist, hieße „wartet“ (#506, Befund 2).
+                eigene = eigene | {adresse.strip().lower()}
+            fremde, behalten = [], []
+            for kopf in raus:
+                (fremde if gesendet.fremder_absender(kopf, eigene) else behalten).append(kopf)
+            raus = behalten
             if eigene is None:
                 andere = sum(bool(k.von) and k.von != adresse for k in raus)
                 if andere:

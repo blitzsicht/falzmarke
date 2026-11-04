@@ -565,6 +565,48 @@ def test_die_identitaeten_kommen_aus_dem_profil_der_bruecke(eigene, monkeypatch,
     assert befund.zustand == "frei" and befund.fremde == 1
 
 
+def _profil_ohne_absender(tmp_path) -> Path:
+    """Das Profil kennt nur Konto 2 (andere@), nicht muster@, den Absender des Entwurfs."""
+    from test_thunderbird_signatur import _attrappe, _grundwerte
+
+    werte = _grundwerte()
+    werte["mail.accountmanager.accounts"] = "account2"
+    return _attrappe(tmp_path, werte)
+
+
+def test_der_absender_zaehlt_auch_wenn_das_profil_ihn_nicht_nennt(eigene, monkeypatch, tmp_path):
+    """#506, Befund 1: Nennt das Profil den Absender nicht, war jede eigene Mail fremd,
+    und die Sperre ließ eine zweite Sendung durch. Zwilling: Die Mail des Kunden wird
+    weiter übergangen, der Filter ist also an."""
+    ordner = _profil_ohne_absender(tmp_path)
+    _server(monkeypatch, _gesendet())
+    befund = _pruefe(eigene, thunderbird_ordner=ordner)
+    assert befund.zustand == "gesendet" and befund.fremde == 0, befund
+    _server(monkeypatch, _eingegangen())
+    befund = _pruefe(eigene, thunderbird_ordner=ordner)
+    assert befund.zustand == "frei" and befund.fremde == 1, befund
+
+
+def test_ohne_profil_sagt_die_meldung_dass_der_absender_nicht_geprueft_ist(eigene, monkeypatch,
+                                                                          tmp_path):
+    """#506, Befund 3: Ohne Identitäten zählt jede Mail. Das steht jetzt in der Meldung,
+    beim OK wie bei der Sperre, sonst sähe es aus wie „geprüft, nichts Fremdes“.
+    Zwilling: Mit Profil fehlt die Zeile."""
+    zeile = "Absender der Mails im Ordner nicht geprüft"
+    _server(monkeypatch, _gesendet(betreff="Termin Montag", text=ANDERER_TEXT, von=KUNDE))
+    befund = _pruefe(eigene)
+    assert befund.zustand == "frei" and befund.absender_grund, befund
+    assert zeile in gesendet.meldung(befund)
+    _server(monkeypatch, _eingegangen())
+    befund = _pruefe(eigene)
+    assert befund.zustand == "geaendert" and zeile in gesendet.meldung(befund)
+    assert gesendet.meldung(befund).splitlines()[0].startswith("GEÄNDERTE FASSUNG")
+    _server(monkeypatch, _gesendet(betreff="Termin Montag", text=ANDERER_TEXT, von=KUNDE))
+    befund = _pruefe(eigene, thunderbird_ordner=_profil(tmp_path))
+    assert befund.zustand == "frei" and not befund.absender_grund, befund
+    assert zeile not in gesendet.meldung(befund)
+
+
 # ── Fassung aus dem Tagebuch (ADR 0056) ─────────────────────────────────────
 
 def _thunderbird_mit_tagebuch(tmp_path, eintraege) -> Path:

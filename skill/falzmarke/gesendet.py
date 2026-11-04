@@ -270,6 +270,11 @@ class Befund(NamedTuple):
     stunden: float = STUNDEN_VORGABE
     #: Davon übergangen, weil ihr Absender keine Identität des Kontos ist (#434).
     fremde: int = 0
+    #: Warum der Absender der gefundenen Mails nicht geprüft wurde; leer, wenn er
+    #: es wurde. Dann zählt jede Mail, und eine Sperre kann eingegangene Post sein
+    #: (#434). Ohne diese Angabe sähe „nicht geprüft“ aus wie „geprüft, nichts Fremdes“
+    #: (#506, Befund 3).
+    absender_grund: str = ""
 
     @property
     def sperrt(self) -> bool:
@@ -304,6 +309,11 @@ def pruefe(eigen: Merkmale, absender: str, *, verbindung=None, ordner: str | Non
     grenze = jetzt - timedelta(hours=stunden)
     if not absender:
         return Befund("nicht_geprueft", "die Nachricht hat keinen Absender", stunden=stunden)
+    if eigene is not None:
+        # Die eigene Adresse zählt immer, auch wenn das Profil sie nicht nennt (Socket
+        # in einem anderen Profil, Konto nur im Standardprofil). Sonst wäre jede eigene
+        # Mail fremd, und die Sperre ließe eine zweite Sendung durch (#506, Befund 1).
+        eigene = eigene | {absender.strip().lower()}
     eigene_sitzung = verbindung is None
     try:
         if eigene_sitzung:
@@ -369,19 +379,22 @@ def pruefe_datei(eml_pfad, *, umgebung: Mapping[str, str] | None = None, verbind
     from falzmarke import entwurfsbuch
 
     absender = parseaddr(str(nachricht.get("From") or ""))[1].strip()
-    ordner, eigene = None, None
+    ordner, eigene, eigene_grund = None, None, ""
     if absender:
         from falzmarke import oeffnen
 
         ordner = oeffnen.thunderbird_ordner(absender, "fcc_folder", thunderbird_ordner)
-        eigene = entwurfsbuch.profiladressen(umgebung, thunderbird_ordner)[0]
+        eigene, eigene_grund = entwurfsbuch.profiladressen(umgebung, thunderbird_ordner)
     # `umgebung` mit: Sie bestimmt über `FALZMARKE_BRUECKE_SOCKET`, aus welchem
     # Thunderbird-Profil das Tagebuch kommt (#410).
     fassungen = entwurfsbuch.fassungen(
         entwurfsbuch.tagebuch(thunderbird_ordner, umgebung)[0])
-    return pruefe(merkmale(nachricht), absender, verbindung=verbindung, ordner=ordner,
-                  jetzt=jetzt, stunden=_stunden(umgebung), umgebung=umgebung,
-                  fassungen=fassungen, eigene=eigene)
+    befund = pruefe(merkmale(nachricht), absender, verbindung=verbindung, ordner=ordner,
+                    jetzt=jetzt, stunden=_stunden(umgebung), umgebung=umgebung,
+                    fassungen=fassungen, eigene=eigene)
+    if absender and eigene is None and befund.zustand in ("frei", "gesendet", "geaendert"):
+        befund = befund._replace(absender_grund=eigene_grund or "kein Profil gelesen")
+    return befund
 
 
 # ── Melden ──────────────────────────────────────────────────────────────────
@@ -392,6 +405,14 @@ def _zeit(datum: datetime | None, zeitzone) -> str:
     return datum.astimezone(zeitzone).strftime("%d.%m.%Y %H:%M")
 
 
+def _absender_zeile(befund: Befund, kopf: str) -> str:
+    """Die eingerückte Zeile „Absender nicht geprüft“, oder nichts (#506, Befund 3)."""
+    if not befund.absender_grund:
+        return ""
+    return (f"\n{' ' * len(kopf)}Absender der Mails im Ordner nicht geprüft "
+            f"({befund.absender_grund}): auch eingegangene Post zählt")
+
+
 def meldung(befund: Befund, *, zeitzone=None) -> str:
     """Die Zeilen für die Ausgabe. Sperrt der Befund, beginnt die erste mit dem Urteil."""
     if befund.zustand == "gesendet":
@@ -399,12 +420,13 @@ def meldung(befund: Befund, *, zeitzone=None) -> str:
         zeile = (f"{kopf}{_zeit(befund.datum, zeitzone)} an {befund.an}: „{befund.betreff}“"
                  f" (Ordner „{befund.ordner}“ von {befund.adresse})" if befund.ordner else
                  f"{kopf}{_zeit(befund.datum, zeitzone)} an {befund.an}: „{befund.betreff}“")
-        return (zeile + "\n" + " " * len(kopf)
+        return (zeile + _absender_zeile(befund, kopf) + "\n" + " " * len(kopf)
                 + "Kein Entwurf angelegt. Trotzdem öffnen: --trotz-gesendet")
     if befund.zustand == "geaendert":
         kopf = "GEÄNDERTE FASSUNG  "
         return (f"{kopf}„{befund.betreff}“ ging {_zeit(befund.datum, zeitzone)} an "
-                f"{befund.an} schon hinaus, mit anderem Text — als Nachtrag schicken?\n"
+                f"{befund.an} schon hinaus, mit anderem Text — als Nachtrag schicken?"
+                + _absender_zeile(befund, kopf) + "\n"
                 + " " * len(kopf) + "Kein Entwurf angelegt. Trotzdem öffnen: --trotz-gesendet")
     if befund.zustand == "nicht_geprueft":
         return f"GESENDET NICHT GEPRÜFT: {befund.grund}"
@@ -414,5 +436,6 @@ def meldung(befund: Befund, *, zeitzone=None) -> str:
         # gemeinsamem Empfänger im Ordner lag und nicht zählte (#434).
         fremde = f", {befund.fremde} mit fremdem Absender übergangen" if befund.fremde else ""
         return (f"OK  nicht gesendet: {anzahl} der letzten {befund.stunden:g} h in "
-                f"„{befund.ordner}“ von {befund.adresse} angesehen{fremde}")
+                f"„{befund.ordner}“ von {befund.adresse} angesehen{fremde}"
+                + _absender_zeile(befund, "OK  "))
     return f"HINWEIS  Gesendet nicht geprüft: {befund.grund}"

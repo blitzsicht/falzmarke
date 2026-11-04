@@ -2188,9 +2188,42 @@ def test_ohne_den_absenderfilter_im_abgleich_ist_die_eingegangene_mail_schon_rau
     assert _einziger(_stand()).art == "wartet"
     monkeypatch.setattr(_buch, "abgleich", _zeile_ersetzt(
         _buch, "abgleich",
-        "            raus = [k for k in raus if not gesendet.fremder_absender(k, eigene)]\n",
+        "            raus = behalten\n",
         "            raus = list(raus)\n"))
     assert _einziger(_stand()).art == "schon_raus"
+
+
+def test_ohne_die_eigene_adresse_laesst_die_sperre_die_zweite_sendung_durch(tmp_path,
+                                                                           monkeypatch):
+    """#506, Befund 1: Das Profil nennt den Absender nicht. Mit der Ergänzung sperrt die
+    eigene Mail, ohne sie gilt sie als fremd, und die Sperre meldet frei."""
+    from falzmarke import gesendet as _gesendet_modul
+    from test_gesendet import _gesendet, _profil_ohne_absender, _pruefe, _server
+
+    eml_pfad = _eigene_mail(tmp_path)
+    ordner = _profil_ohne_absender(tmp_path)
+    _server(monkeypatch, _gesendet())
+    assert _pruefe(eml_pfad, thunderbird_ordner=ordner).zustand == "gesendet"
+    monkeypatch.setattr(_gesendet_modul, "pruefe", _zeile_ersetzt(
+        _gesendet_modul, "pruefe",
+        "        eigene = eigene | {absender.strip().lower()}\n", "        eigene = eigene\n"))
+    assert _pruefe(eml_pfad, thunderbird_ordner=ordner).zustand == "frei"
+
+
+def test_ohne_die_eigene_adresse_ist_die_eigene_sendung_im_abgleich_fremd(monkeypatch, tmp_path):
+    """#506, Befund 2, dieselbe Zusage für `status`."""
+    from falzmarke import entwurfsbuch as _buch
+    from test_entwurfsbuch import (VON, _eingegangen, _einziger, _mail, _postfach,
+                                   _profil_des_kontos, _stand)
+
+    _profil_des_kontos(monkeypatch, tmp_path, mit_konto=False)
+    _postfach(monkeypatch, entwuerfe=[_mail()], gesendet=[_eingegangen(von=VON)])
+    assert _einziger(_stand()).art == "schon_raus"
+    monkeypatch.setattr(_buch, "abgleich", _zeile_ersetzt(
+        _buch, "abgleich",
+        "                eigene = eigene | {adresse.strip().lower()}\n",
+        "                eigene = eigene\n"))
+    assert _einziger(_stand()).art == "wartet"
 
 
 # ── Die Ablage je Konto (#431, ADR 0061) ───────────────────────────────────
