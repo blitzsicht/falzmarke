@@ -595,7 +595,7 @@ def test_mit_uid_wandert_genau_die_genannte_mail_auch_ohne_antwort():
                                      _offen("Zweite", "<e2@example.org>"),
                                      _offen("Dritte", "<e3@example.org>")])
     bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
-                                uids=["101", "103"])
+                                uidvalidity="1", uids=["101", "103"])
     assert bericht.grund is None and bericht.benannt and bericht.verschoben == 2
     (zug,) = attrappe.befehle("UID MOVE")
     assert zug[1:] == ("101,103", '"Archiv"'), "es bleibt beim einen UID MOVE"
@@ -622,7 +622,7 @@ def test_fehlt_eine_genannte_uid_wandert_keine():
     """Eine Liste, die nicht mehr stimmt, ist kein Auftrag für den Rest."""
     attrappe, _ = _postfach(eingang=[_offen()])
     bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
-                                uids=["101", "999"])
+                                uidvalidity="1", uids=["101", "999"])
     assert "UID 999 liegt nicht im Eingang" in bericht.grund
     assert bericht.verschoben == 0 and not attrappe.befehle("UID MOVE")
     assert _uids(attrappe) == [101]
@@ -707,6 +707,77 @@ def test_wechselt_die_uidvalidity_zwischen_plan_und_select_geht_kein_move_hinaus
     assert attrappe.befehle("SELECT"), "der Lauf kam bis zum SELECT"
     assert "ist jetzt 2, der Plan dieses Laufs las 1" in bericht.grund
     assert not bericht.zug_gesendet
+
+
+def test_ohne_uidvalidity_im_plan_geht_kein_move_hinaus():
+    """Nachreview #502, Befund 1: Nennt der Server beim EXAMINE keinen Wert, ging
+    `UID MOVE` ungeprüft hinaus, auch ohne `--uid`. Jetzt nicht einmal das SELECT.
+    Zwilling: Mit Wert wandert dieselbe beantwortete Mail."""
+    attrappe, _ = _postfach(eingang=[_eingegangen()], gesendet=[_antwort()], uidvalidity=None)
+    anzeige = ablage.raeume_auf("joe@example.org", wunsch="Archiv", umgebung={})
+    assert anzeige.zuege and anzeige.uidvalidity is None
+    assert "auch mit --machen wird deshalb nicht verschoben" in ablage.zeilen(anzeige)[-1]
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={})
+    _nichts_bewegt(attrappe, bericht)
+    assert "der Plan dieses Laufs las für den Eingang keine UIDVALIDITY" in bericht.grund
+    assert not attrappe.befehle("SELECT"), "der Eingang wurde zum Schreiben gewählt"
+
+    attrappe, _ = _postfach(eingang=[_eingegangen()], gesendet=[_antwort()])
+    anzeige = ablage.raeume_auf("joe@example.org", wunsch="Archiv", umgebung={})
+    assert ablage.zeilen(anzeige)[-1] == "    nichts bewegt — mit --machen verschieben"
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={})
+    assert bericht.grund is None and bericht.verschoben == 1
+
+
+def test_mit_uids_und_machen_verlangt_auch_die_funktion_die_uidvalidity():
+    """Nachreview #502, Befund 2: Die Pflicht stand nur in `cli.py`. Ein direkter
+    Aufrufer ohne Wert verglich die neue Nummerierung mit sich selbst, und die fremde
+    Mail wanderte. Zwilling: `test_gegenprobe_gleiche_uidvalidity_laesst_…` darüber."""
+    attrappe, _ = _postfach(eingang=[_offen("Gemeinte Mail", "<gemeint@example.org>")])
+    _neu_nummeriert(attrappe)
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
+                                uids=["101"])
+    _nichts_bewegt(attrappe, bericht)
+    assert bericht.grund.startswith("mit UIDs und machen fehlt die UIDVALIDITY"), bericht.grund
+    assert not attrappe.befehle("EXAMINE"), "das Postfach wurde trotzdem gelesen"
+
+
+def test_nach_einem_wechsel_zeigt_der_bericht_die_fremde_mail_nicht():
+    """Nachreview #502, Befund 3: Unter „1 Nachricht gefunden“ stand die Mail der neuen
+    Nummerierung, als wäre sie die genannte. Zwilling: Ohne Wechsel steht die
+    gemeinte Mail in der Anzeige."""
+    attrappe, _ = _postfach(eingang=[_offen("Gemeinte Mail", "<gemeint@example.org>")])
+    anzeige = ablage.raeume_auf("joe@example.org", wunsch="Archiv", umgebung={}, uids=["101"])
+    assert any("„Gemeinte Mail“" in z for z in ablage.zeilen(anzeige))
+    _neu_nummeriert(attrappe)
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
+                                uids=["101"], uidvalidity="1")
+    assert bericht.zuege == () and bericht.liegen == ()
+    text = "\n".join(ablage.zeilen(bericht))
+    assert "Fremde Mail" not in text and "gefunden" not in text, text
+
+
+def test_wechselt_die_uidvalidity_vor_der_zweiten_jahresgruppe_stimmt_der_satz():
+    """Nachreview #502, Befund 4: Die erste Gruppe ist gewandert, am SELECT der
+    zweiten weicht der Wert ab. Der Grund sagte „verschoben wird nichts“, die Zeile
+    darunter „1 davon verschoben“."""
+    attrappe, _ = _postfach(**_jahr_lage())
+    echt = attrappe.uid
+
+    def uid(befehl, *args):
+        antwort = echt(befehl, *args)
+        if befehl == "MOVE":
+            attrappe.uidvalidity_select = "2"
+        return antwort
+
+    attrappe.uid = uid
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv/{jahr}", machen=True,
+                                umgebung={})
+    assert bericht.verschoben == 1 and len(attrappe.befehle("UID MOVE")) == 1
+    assert "ist jetzt 2, der Plan dieses Laufs las 1" in bericht.grund
+    assert "kein weiterer Zug geht hinaus" in bericht.grund
+    assert "verschoben wird nichts" not in bericht.grund, bericht.grund
+    assert any("1 davon verschoben, der Rest nicht" in z for z in ablage.zeilen(bericht))
 
 
 def test_fehlt_ein_jahresordner_steht_er_neben_der_liegenden_benannten_mail():
@@ -800,7 +871,7 @@ def test_die_flags_werden_vor_und_hinter_dem_literal_gelesen(hinten):
 def test_eine_benannte_mail_mit_faehnchen_wandert_nur_mit_dem_schalter(trotz, erwartet):
     attrappe, _ = _postfach(eingang=[_mit_fahnen(_offen(), "\\Flagged")])
     bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
-                                uids=["101"], trotz_faehnchen=trotz)
+                                uidvalidity="1", uids=["101"], trotz_faehnchen=trotz)
     # Ohne Schalter hält das Fähnchen den Lauf an (Nachreview von #494, Befund 5).
     assert (bericht.grund is None) is trotz
     assert _uids(attrappe, "Archiv") == erwartet
@@ -813,7 +884,7 @@ def test_bliebe_eine_benannte_mail_liegen_wandert_keine():
                                      _mit_fahnen(_offen("Zweite", "<e2@example.org>"),
                                                  "\\Seen \\Flagged")])
     bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
-                                uids=["101", "102"])
+                                uidvalidity="1", uids=["101", "102"])
     assert bericht.grund == ("UID 102 bliebe liegen (Fähnchen) — verschoben wird nur, wenn "
                              "jede genannte UID wandern kann; --trotz-faehnchen hebt das "
                              "Fähnchen für diesen Lauf auf")
@@ -831,7 +902,7 @@ def test_gegenprobe_ohne_faehnchen_wandern_beide_benannten_mails():
     attrappe, _ = _postfach(eingang=[_offen("Erste", "<e1@example.org>"),
                                      _mit_fahnen(_offen("Zweite", "<e2@example.org>"), "\\Seen")])
     bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
-                                uids=["101", "102"])
+                                uidvalidity="1", uids=["101", "102"])
     assert bericht.grund is None and bericht.verschoben == 2
     assert _uids(attrappe, "Archiv") == [101, 102]
 
@@ -839,7 +910,7 @@ def test_gegenprobe_ohne_faehnchen_wandern_beide_benannten_mails():
 def test_unbekannte_flags_an_einer_benannten_mail_halten_den_lauf_an():
     attrappe, _ = _postfach(eingang=[_offen()], ohne_flags=True)
     bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
-                                uids=["101"])
+                                uidvalidity="1", uids=["101"])
     assert "UID 101 bliebe liegen (Fähnchen unbekannt" in bericht.grund
     assert "--trotz-faehnchen" in bericht.grund
     assert bericht.verschoben == 0 and not attrappe.befehle("UID MOVE")
@@ -875,7 +946,7 @@ def test_uid_und_ankunft_werden_vor_und_hinter_dem_literal_gelesen(hinten):
 def test_steht_die_uid_hinter_dem_literal_findet_uid_die_mail():
     attrappe, _ = _postfach(eingang=[_offen()], uid_hinten=True)
     bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
-                                uids=["101"])
+                                uidvalidity="1", uids=["101"])
     assert bericht.grund is None and bericht.verschoben == 1
     assert _uids(attrappe, "Archiv") == [101]
 
@@ -923,7 +994,7 @@ def test_fehlt_ein_jahresordner_wandert_keine_mail_des_laufs():
 def test_jahr_gilt_auch_fuer_benannte_mails():
     attrappe, _ = _postfach(**_jahr_lage(antworten=False))
     bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv/{jahr}", machen=True,
-                                umgebung={}, uids=["101"])
+                                umgebung={}, uidvalidity="1", uids=["101"])
     assert bericht.verschoben == 1
     assert [b[1:] for b in attrappe.befehle("UID MOVE")] == [("101", '"Archiv/2025"')]
 
@@ -937,7 +1008,7 @@ def test_ohne_ankunftsdatum_bleibt_die_mail_bei_jahr_liegen(monkeypatch):
     monkeypatch.setattr(postfach, "_ankunft", lambda *teile: None)
     attrappe, _ = _postfach(**_jahr_lage(antworten=False))
     bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv/{jahr}", machen=True,
-                                umgebung={}, uids=["101"])
+                                umgebung={}, uidvalidity="1", uids=["101"])
     assert bericht.grund.startswith("UID 101 bliebe liegen (ohne Ankunftsdatum")
     assert "--trotz-faehnchen" not in bericht.grund
     assert bericht.verschoben == 0

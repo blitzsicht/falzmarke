@@ -432,7 +432,8 @@ steht er im Feld `uidvalidity`. Fehlt er, endet `--uid … --machen` mit Exit 1,
 wird geöffnet. Weicht der Wert beim Lauf ab, wandert keine Mail, `NICHT GEPRÜFT` nennt beide Werte
 (Exit 3), und es heißt: ohne `--machen` neu anzeigen lassen. Nennt der Server gar keine
 UIDVALIDITY, kann `--uid` nicht verschieben. Am SELECT vor dem Zug wird der Wert noch einmal
-verglichen, auch ohne `--uid`.
+verglichen, auch ohne `--uid`; las der Plan keinen, geht kein Zug hinaus, und die Anzeige sagt
+es vorher. Dieselbe Pflicht gilt für jeden, der `ablage.raeume_auf` mit UIDs direkt aufruft.
 
 Es gelten dasselbe Ziel und dieselben Sperren. `--seit` gibt es dabei nicht; zusammen mit
 `--uid` endet es mit Exit 1, statt still übergangen zu werden. **Fehlt eine der genannten UIDs im
