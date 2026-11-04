@@ -560,6 +560,17 @@ def test_eine_mail_von_einer_identitaet_in_thunderbird_haelt_an(von):
     assert aus["ergebnis"] == {"cancel": True}, f"die Mail von {von} gilt als fremd"
 
 
+@pytest.mark.parametrize("von, ergebnis", [
+    (f"{KUNDE}, Paul <order@example.de>", {"cancel": True}),
+    (f"{KUNDE}, Kollege <kollege@example.net>", {}),
+], ids=["eine-eigene-genuegt", "zwilling-beide-fremd"])
+def test_mehrere_autoren_wie_in_falzmarke(von, ergebnis):
+    """#506, Befund 4: Dieselbe Regel wie `gesendet.fremder_absender` — eigen ist die Mail,
+    sobald einer der Autoren eine Identität in Thunderbird ist."""
+    aus = _lauf(_fall(_gesendet(von=von), konten=KONTEN))
+    assert aus["ergebnis"] == ergebnis
+
+
 def test_ohne_adressen_an_den_konten_zaehlt_jede_mail():
     """Nennt Thunderbird keine Adressen, wird nicht geraten — wie ohne Profil in falzmarke."""
     aus = _lauf(_fall(_gesendet(von=KUNDE)))

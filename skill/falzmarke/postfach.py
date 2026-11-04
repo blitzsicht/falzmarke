@@ -283,6 +283,10 @@ class Kopf(NamedTuple):
     #: Die Flags der Nachricht, klein geschrieben (`\\seen`, `\\flagged` …).
     #: `None` heißt: Der Server hat keine genannt, nicht „keine gesetzt“ (#478).
     fahnen: tuple[str, ...] | None = None
+    #: Jede Adresse aus `From`, klein, in der Reihenfolge der Kopfzeile. `von`
+    #: ist nur die erste; ob eine Mail von außerhalb kommt, hängt an allen
+    #: (`gesendet.fremder_absender`, wie `fremderAbsender` in der Brücke, #506).
+    absender: tuple[str, ...] = ()
 
 
 def _adressen(nachricht, *felder: str) -> tuple[str, ...]:
@@ -309,14 +313,15 @@ def kopf_aus(roh: bytes, uid: str, ankunft: datetime | None,
             datum = datum.replace(tzinfo=timezone.utc)
     betreff = _dekodiert(nachricht.get("Subject"))
     empfaenger = Empfaenger(*(_adressen(nachricht, feld) for feld in ("To", "Cc", "Bcc")))
+    absender = _adressen(nachricht, "From")
     return Kopf(uid=uid, datum=datum or ankunft,
                 an=tuple(dict.fromkeys(empfaenger.an + empfaenger.kopie + empfaenger.blindkopie)),
                 betreff=betreff, fassung=str(nachricht.get("X-Falzmarke-Fassung") or "").strip(),
                 antwort_auf=str(nachricht.get("In-Reply-To") or "").strip(),
                 kennung=str(nachricht.get("Message-ID") or "").strip(),
                 empfaenger=empfaenger,
-                von=next(iter(_adressen(nachricht, "From")), ""),
-                ankunft=ankunft, fahnen=fahnen)
+                von=next(iter(absender), ""),
+                ankunft=ankunft, fahnen=fahnen, absender=absender)
 
 
 def _dekodiert(wert) -> str:

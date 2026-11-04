@@ -549,6 +549,32 @@ def test_die_uebergangene_zaehlt_auch_hinter_einem_treffer(eigene, monkeypatch, 
     assert befund.zustand == "gesendet" and befund.fremde == 1
 
 
+def test_die_uebergangene_zaehlt_auch_vor_einem_treffer(eigene, monkeypatch, tmp_path):
+    """#506, Befund 5: Die fremde Mail ist älter als der Treffer. Der Treffer beendete die
+    Schleife, bevor sie gezählt war, und die Meldung nannte 0 statt 1."""
+    ordner = _profil(tmp_path)
+    _server(monkeypatch, _eingegangen(vor=timedelta(minutes=30)), _gesendet())
+    befund = _pruefe(eigene, thunderbird_ordner=ordner)
+    assert befund.zustand == "gesendet" and befund.fremde == 1, befund
+
+
+@pytest.mark.parametrize("von, zustand, fremde", [
+    (f"{KUNDE}, muster@example.de", "gesendet", 0),
+    (f"muster@example.de, {KUNDE}", "gesendet", 0),
+    (f"{KUNDE}, kollege@example.net", "frei", 1),
+], ids=["eigene-an-zweiter-stelle", "eigene-zuerst", "zwilling-beide-fremd"])
+def test_mehrere_autoren_eine_eigene_adresse_genuegt(eigene, monkeypatch, tmp_path, von,
+                                                     zustand, fremde):
+    """#506, Befund 4: Nennt `From` mehrere Autoren, ist die Mail eigen, sobald einer eigen
+    ist. So urteilt `fremderAbsender` in der Brücke; falzmarke sah nur den ersten, und
+    über dieselbe Mail sperrte die eine Sperre und die andere nicht. Der Zwilling mit zwei
+    fremden Adressen zeigt, dass nicht jede Mail mit Komma durchgeht."""
+    ordner = _profil(tmp_path)
+    _server(monkeypatch, _gesendet(von=von))
+    befund = _pruefe(eigene, thunderbird_ordner=ordner)
+    assert (befund.zustand, befund.fremde) == (zustand, fremde), befund
+
+
 def test_die_identitaeten_kommen_aus_dem_profil_der_bruecke(eigene, monkeypatch, tmp_path):
     """Nachreview #488, Nr. 1, hier für die Sperre: Das Standardprofil A nennt keine
     Identität, Profil B am Socket nennt muster@. Ohne Schalter zählt die eingegangene
