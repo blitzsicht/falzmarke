@@ -262,6 +262,22 @@ def test_ohne_proxy_nicht_geprueft_mit_grund(eigene, monkeypatch):
     assert "127.0.0.1:1993" in befund.grund
 
 
+#: Die langsamste gemessene Anmeldung samt LIST am Proxy, 30.10.2026 (#441).
+#: Bewusst eine eigene Zahl, nicht `postfach.FRIST_S`: Gegen sich selbst
+#: geprüft, bliebe jede Frist grün.
+LANGSAMSTE_ANMELDUNG_S = 20.6
+
+
+def test_die_gesendet_pruefung_wartet_laenger_als_die_langsamste_anmeldung(eigene,
+                                                                          monkeypatch):
+    """Mit 5 s endete die Prüfung an einem gesunden Proxy oft in „NICHT GEPRÜFT“."""
+    server = _server(monkeypatch)
+    _pruefe(eigene)
+    ((_, _, frist),) = server.verbindungen
+    assert frist > LANGSAMSTE_ANMELDUNG_S, (
+        f"Frist {frist} s, die Anmeldung dauerte {LANGSAMSTE_ANMELDUNG_S} s")
+
+
 def test_abgeschaltet_wird_nicht_verbunden(eigene, monkeypatch):
     server = _server(monkeypatch, _gesendet())
     befund = gesendet.pruefe_datei(eigene, umgebung={"FALZMARKE_GESENDET": "nie"}, jetzt=JETZT)

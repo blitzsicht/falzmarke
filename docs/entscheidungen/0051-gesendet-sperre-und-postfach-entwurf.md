@@ -215,3 +215,12 @@ die Tests würden rot.
 - Konten, die nicht über den Proxy laufen (etwa Gmail): Dort gilt „nicht geprüft“ und
   `-compose`.
 - Der Befund zu `X-Unsent: 1` (oben).
+
+## Nachtrag 04.11.2026 — Frist der Gesendet-Prüfung (#441)
+
+Die Frist für Verbindung und Lesen beträgt seit #441 30 s statt 5 s (`postfach.FRIST_S`).
+Anmeldung und LIST am Proxy dauerten am 30.10.2026 einmal 20,6 s, einmal 18,1 s und einmal
+3,6 s. Mit 5 s endete die Prüfung an einem gesunden Proxy oft in `GESENDET NICHT GEPRÜFT`. Ein
+hängender Proxy hält `--oeffnen` damit bis zu 30 s auf, so lange wie der Postfach-Entwurf
+(`oeffnen.FRIST_POSTFACH_S`). Einstellbar ist die Frist nicht. Kommt ein Fall, in dem 30 s zu kurz
+oder zu lang sind, wird sie es.

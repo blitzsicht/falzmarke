@@ -131,7 +131,9 @@ Was dabei nicht fehlen darf, weil es gemessen ist:
   `--ersetzen` legt den neuen dann trotzdem an und lässt stehen, was nicht weg darf.
   `--noch-ein-entwurf` nur, wenn der Mensch ausdrücklich
   einen zweiten will. Ist der Proxy nicht da, geht es weiter wie im nächsten Punkt, mit einer
-  Zeile `kein Postfach-Entwurf: <Grund>`.
+  Zeile `kein Postfach-Entwurf: <Grund>`. **Mit `--kein-fenster` nicht:** Dann geht weder
+  `-compose` noch die Datei auf, sondern es heißt `KEIN ENTWURF  <Grund>` mit Exit 3. Es liegt
+  dann kein Entwurf, das so melden und nicht von Hand ein Fenster öffnen.
 - Sonst entsteht der Entwurf als Fenster in **Thunderbird** (`-compose`), wenn es installiert
   ist; `from=` wählt dort die Identität, der Absender stimmt (ADR 0049). Thunderbird meldet nichts zurück — Exit 0 heißt
   „angenommen“, und der Befehl sagt, dass **nichts nachgezählt** ist: Empfänger, Anhänge und
@@ -184,7 +186,7 @@ Nachtrag gemeint ist). Erst auf sein Ja hin mit `--trotz-gesendet` erneut aufruf
 der 21.10.2026: Das Entwurfsfenster war zu, eine Sitzung sah nur in die Entwürfe und legte neu
 an — die Antwort ging zweimal hinaus.
 
-Lässt sich nicht nachsehen (kein Proxy, keine Antwort in 5 s), sperrt nichts; die **letzte
+Lässt sich nicht nachsehen (kein Proxy, keine Antwort in 30 s), sperrt nichts; die **letzte
 Zeile** lautet dann `GESENDET NICHT GEPRÜFT: <Grund>`. Das ist kein „nicht gesendet“ — die Zeile
 gehört in die Antwort. Abschalten: `FALZMARKE_GESENDET=nie`; ein anderer Proxy:
 `FALZMARKE_GESENDET_IMAP=host:port`; ein anderes Fenster: `FALZMARKE_GESENDET_STUNDEN`.

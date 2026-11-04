@@ -1137,8 +1137,10 @@ class Postfachablage(NamedTuple):
     uid: str = ""
 
 
-#: Zeitlimit für den Postfach-Entwurf. Länger als die Gesendet-Prüfung: Eine
-#: Nachricht mit PDF im Anhang ist schnell ein paar Megabyte.
+#: Zeitlimit für den Postfach-Entwurf. Seit #441 so lang wie die
+#: Gesendet-Prüfung (`postfach.FRIST_S`). Ob eine langsame Anmeldung (20,6 s
+#: am 30.10.2026) und die Ablage einer Nachricht mit mehreren Megabyte PDF
+#: zusammen hineinpassen, ist nicht gemessen.
 FRIST_POSTFACH_S = 30
 
 
@@ -1693,6 +1695,7 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
     `FALZMARKE_ENTWURF=nie` schaltet den Weg ab, ohne `--oeffnen` aufzugeben —
     für den, der die Datei will und nicht das Fenster. `kein_fenster` (am Befehl
     `--kein-fenster`) legt den Entwurf dagegen ab und lässt nur das Fenster weg.
+    Scheitert dann der Postfach-Entwurf, folgt kein `-compose` (#441).
 
     `wahl` ist das Wort aus `--programm` (siehe `entwurfsweg`), `binaer` die
     Suche nach Thunderbird und `ablage` das Verzeichnis, unter dem dessen
@@ -1742,6 +1745,10 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
                                         ersetzen=ersetzen)
         if lage is not None:
             return _fenster_auf(lage, felder, umgebung, kein_fenster=kein_fenster)
+        if kein_fenster:
+            # #441: `-compose` ist ein Fenster. Ein Abholer, der alle 180 s
+            # kopflos aufruft, öffnete bei ausgefallenem Proxy sonst jedes Mal eins.
+            return Entwurfslage(None, f"kein Postfach-Entwurf: {grund}", postfach_grund=grund)
         return _entwurf_compose(programm, felder, laufen=laufen, ablage=ablage,
                                 thunderbird_ordner=thunderbird_ordner)._replace(
                                     postfach_grund=grund)

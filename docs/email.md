@@ -221,7 +221,9 @@ Vier Eigenschaften, die dazugehören:
   Outlook (macOS fragt beim ersten Mal), fremde Plattform: Dann wird die `.eml` übergeben wie
   vorher.
 - **Ein Fehlschlag ist kein Fehler des Befehls.** Er meldet sich auf der Fehlerausgabe, nennt den
-  Pfad und lässt den Exit-Code bei 0.
+  Pfad und lässt den Exit-Code bei 0. Ausnahme `--kein-fenster` (#441): Dort gibt es nur den
+  Postfach-Entwurf. Liegt keiner, heißt es `KEIN ENTWURF  <Grund>` mit Exit 3, und weder
+  `-compose` noch die Datei gehen auf. Eine Schleife soll sehen, dass nichts liegt.
 
 Auf einem Rechner ohne Bildschirm — gesetztes `CI`, unter Linux fehlendes `DISPLAY` — wird gar
 nicht erst gestartet. `FALZMARKE_ENTWURF=nie` schaltet **nur den Entwurf** ab und lässt die
@@ -259,6 +261,7 @@ OK  Empfänger im Fenster wie in der Nachricht: An 1, Cc 0, Bcc 1
 | `NICHT GEPRÜFT  Absender im Fenster: <Grund>` | das Fenster nennt eine andere Adresse, und das Thunderbird-Profil sagt nicht, ob sie zum Konto gehört: „Von“ selbst ansehen |
 | `HINWEIS  Es geht kein Fenster auf` + `Entwurfsbrücke: <Grund>` | den Entwurf unter „Entwürfe“ öffnen |
 | `HINWEIS  Fenster ungewiss` | in Thunderbird nachsehen, **nicht** noch einmal öffnen |
+| `KEIN ENTWURF  <Grund>` (Exit 3, nur mit `--kein-fenster`) | es liegt kein Entwurf, weder Fenster noch Datei sind aufgegangen: Grund beheben (meist der IMAP-Proxy) und erneut aufrufen |
 
 Einen Entwurf, der schon liegt, öffnet `falzmarke entwurf-oeffnen --absender <adresse>
 --betreff <teil>` (oder `--uid`); ohne beides listet der Befehl die Entwürfe und nennt die
