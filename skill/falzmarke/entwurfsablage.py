@@ -258,8 +258,16 @@ def _noch_derselbe(sitzung: postfach.Postfach, ordner: str, zug: Zug) -> str:
 
 def _ziehe(sitzung: postfach.Postfach, ordner: str, ziel: str, zug: Zug, *, adresse: str,
            umgebung: Mapping[str, str], machen: bool) -> str:
-    """Prüft einen Zug unmittelbar davor und führt ihn aus. Leer heißt: geht/ging."""
-    offen, grund = entwurfsbuch._offene_uids(adresse, umgebung)
+    """Prüft einen Zug unmittelbar davor und führt ihn aus. Leer heißt: geht/ging.
+
+    Die Fenster-Sperre ist nachsichtig: Jedes offene Fenster mit dieser UID hält
+    den Entwurf, ohne Blick auf die Identität. Fehlt ein Alias noch in
+    `prefs.js`, fiele sein Fenster sonst heraus, und der Entwurf wanderte unter
+    dem offenen Fenster weg — am einzigen Schritt, der nicht umkehrbar ist. Die
+    Planung (`_werte_alte_aus`) und `status` bleiben streng (ADR 0060, Nachtrag
+    vom 04.11.2026).
+    """
+    offen, grund = entwurfsbuch._offene_uids(adresse, umgebung, streng=False)
     if grund:
         return grund
     if zug.uid in offen or zug.kette & set(offen):
@@ -364,8 +372,8 @@ def _werte_alte_aus(sitzung: postfach.Postfach, ordner: str, koepfe: list, felde
     adresse = str(felder.get("absender") or "").strip().lower()
     stand = entwurfsbuch.lesen(umgebung)
     eintraege, tagebuch_grund = entwurfsbuch.tagebuch(profilordner, umgebung)
-    offen, offen_grund = entwurfsbuch._offene_uids(adresse, umgebung)
-    bericht = entwurfsbuch.Bericht(adresse, fenster_grund=offen_grund, beleg_grund=" · ".join(
+    offen, offen_grund = entwurfsbuch._offene_uids(adresse, umgebung, profilordner)
+    bericht =entwurfsbuch.Bericht(adresse, fenster_grund=offen_grund, beleg_grund=" · ".join(
         g for g in (tagebuch_grund, f"{stand.unlesbar} Zeilen im Entwurfsbuch unlesbar"
                     if stand.unlesbar else "") if g))
     neu = postfach.kopf_aus(bytes(felder.get("roh") or b""), "0", None)

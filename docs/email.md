@@ -173,8 +173,12 @@ Datei sie liefert. Nachgesehen wird in `prefs.js` und `user.js` des Standardprof
 sich die Identität nicht bestimmen, bleibt die Signatur im Rumpf, und der Hinweis von früher
 steht da, mit dem Grund. Die `.eml` und die `.html` tragen die Signatur immer.
 
-Alles Folgende zum Nachzählen, zum Konto und zur Warnzeile `ABSENDER PRÜFEN` gilt für den
-**Outlook-Weg** (`--programm outlook`).
+Alles Folgende zum Nachzählen, zum Konto und zur Warnzeile `ABSENDER PRÜFEN: …` gilt für den
+**Outlook-Weg** (`--programm outlook`). Der Thunderbird-Weg kennt eine Zeile mit demselben
+Anfang, `ABSENDER PRÜFEN  Entwurf offen in Thunderbird …` (zwei Leerzeichen statt Doppelpunkt,
+#482). Sie steht anstelle von `OK  Entwurf offen`, ist **nicht** die letzte Zeile — danach können
+`NICHT GEPRÜFT`- und `HINWEIS`-Zeilen folgen — und steht in der Tabelle im Abschnitt „Der
+Entwurf im Postfach geht auf: die Entwurfsbrücke“.
 
 **Warum nicht einfach die Datei?** Weil eine `.eml` kein Entwurf ist. Der Befund oben gilt
 unverändert: In Apple Mail, Thunderbird und Outlook für Mac erscheint sie als Lesefenster, und
@@ -257,8 +261,9 @@ OK  Empfänger im Fenster wie in der Nachricht: An 1, Cc 0, Bcc 1
 | `EMPFÄNGER PRÜFEN  Entwurf offen in Thunderbird …` statt `OK` | das Fenster zeigt andere Empfänger als die Nachricht, der Befund steht dabei: vor dem Senden richten, oder das Fenster schließen und den Entwurf unter „Entwürfe“ neu öffnen |
 | `NICHT GEPRÜFT  Empfänger im Fenster: <Grund>` | das Add-on konnte sie nicht lesen (Fassung vor 0.3.8, oder das Fenster lud noch): An, Cc und Bcc selbst mit dem Entwurf vergleichen |
 | `OK  Absender im Fenster: <Adresse>` | nichts. Steht ein Zusatz dabei, schickt das Fenster von einer anderen Identität desselben Kontos (Alias) |
-| `ABSENDER PRÜFEN  Entwurf offen in Thunderbird …` statt `OK` | das Fenster schickt von einer Identität, die laut `prefs.js` nicht zum Konto der Nachricht gehört: im Fenster unter „Von“ richten. `entwurf-oeffnen` endet mit Exit 3 |
-| `NICHT GEPRÜFT  Absender im Fenster: <Grund>` | das Fenster nennt eine andere Adresse, und das Thunderbird-Profil sagt nicht, ob sie zum Konto gehört: „Von“ selbst ansehen |
+| `ABSENDER PRÜFEN  Entwurf offen in Thunderbird …` statt `OK` | das Fenster schickt von einer Identität, die laut `prefs.js` nicht zum Konto der Nachricht gehört, oder die Nachricht stammt von einer Adresse, die in keinem Konto steht, während das Fenster von einer Identität eines Kontos schickt: im Fenster unter „Von“ richten. `entwurf-oeffnen` endet mit Exit 3. Nicht die letzte Zeile, und nicht dieselbe wie `ABSENDER PRÜFEN: …` auf dem Outlook-Weg |
+| `NICHT GEPRÜFT  Absender im Fenster: <Grund>` | das Fenster nennt eine andere Adresse, und das Thunderbird-Profil kennt keine der beiden: „Von“ selbst ansehen |
+| `NICHT GEPRÜFT …` neben einem `PRÜFEN` | die eine Prüfung fand eine Abweichung, die andere konnte nicht vergleichen. Beide Zeilen gelten |
 | `HINWEIS  Es geht kein Fenster auf` + `Entwurfsbrücke: <Grund>` | den Entwurf unter „Entwürfe“ öffnen |
 | `HINWEIS  Fenster ungewiss` | in Thunderbird nachsehen, **nicht** noch einmal öffnen |
 | `KEIN ENTWURF  <Grund>` (Exit 3, nur mit `--kein-fenster`) | es liegt kein Entwurf, weder Fenster noch Datei sind aufgegangen: Grund beheben (meist der IMAP-Proxy) und erneut aufrufen |
@@ -316,8 +321,20 @@ Adresse, hängt die Zuordnung an der UID allein; die Adresse entscheidet dann nu
 Fenster dieselbe UID nennen ([ADR 0060](entscheidungen/0060-anker-der-zuordnung.md), Nachtrag
 29.10.2026).
 
+Meldet das Fenster eine andere Adresse, entscheiden die Identitäten des Kontos in `prefs.js`
+(#466). Eine davon ist ein Alias: Das Fenster gilt als sicher zugeordnet, und die Zeile sagt
+„unter „…“, einer Identität desselben Kontos“. Eine Adresse außerhalb des Kontos gehört zu einem
+anderen Konto, und der Entwurf heißt `WARTET`. Sagt das Profil nichts über das Konto, zählt das
+Fenster nur über die UID, und ein `HINWEIS  Identitäten des Kontos nicht gelesen (…)` nennt den
+Grund. Unter `--json` trägt das Fenster eines Alias das Feld `"alias_des_kontos": true` (in
+`entwuerfe[].fenster`, neben dem, was das Add-on meldet), und `fenster_nur_uid` ist dort `false`.
+Das letzte Wort vor dem Verschieben hat `aufraeumen --entwuerfe`: Unmittelbar vor dem Zug hält
+**jedes** offene Fenster mit dieser UID den Entwurf, ohne Blick auf die Identität. Ein Alias, den
+`prefs.js` noch nicht kennt, verliert seinen Entwurf so nicht (ADR 0060, Nachtrag 04.11.2026).
+
 Gelesen wird das Thunderbird-Profil, in dem der Socket der Brücke liegt — bei gesetztem
-`FALZMARKE_BRUECKE_SOCKET` also ein anderes als das Standardprofil. Liegt dort kein Tagebuch,
+`FALZMARKE_BRUECKE_SOCKET` also ein anderes als das Standardprofil. Das gilt für das Tagebuch,
+für die Identitäten des Kontos und für die Absenderprüfung im Fenster. Liegt dort kein Tagebuch,
 nennt der Hinweis das Profil beim Namen: `kein Tagebuch im Thunderbird-Profil „…“`. Vorher stand
 dort nur „kein Tagebuch“, und das klang nach einem zu alten Add-on statt nach dem falschen Profil.
 

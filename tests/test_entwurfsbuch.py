@@ -1807,6 +1807,81 @@ def test_kennt_das_profil_das_konto_nicht_bleibt_es_beim_nachsichtigen_weg(monke
     assert f"das Fenster meldet „{ANDERES_KONTO}“" in " ".join(entwurfsbuch.zeilen(bericht))
 
 
+def test_ohne_profilwissen_sagt_status_warum_das_fremde_fenster_nur_ueber_die_uid_zaehlt(
+        monkeypatch, tmp_path):
+    """Nachreview #488, Nr. 3: Der Grund aus `kontoadressen` ging verloren.
+
+    Er steht unter den Hinweisen, nicht in `fenster_grund`: Das ist eine
+    Sperre, und geprüft wurde ja, nur nachsichtig."""
+    _profil_des_kontos(monkeypatch, tmp_path, mit_konto=False)
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    uid = server.ordner[ENTWUERFE][0].uid
+    _mit_fenstern(monkeypatch, _fenster(uid, identitaet=ANDERES_KONTO))
+    bericht = _stand()
+    hinweis = [h for h in bericht.hinweise if h.startswith("Identitäten des Kontos nicht gelesen")]
+    assert hinweis, "status verschweigt, warum das fremde Fenster zählt"
+    assert f"kein Konto mit {VON}" in hinweis[0] and "nur über die UID" in hinweis[0]
+    assert not bericht.fenster_grund
+
+
+def test_kennt_das_profil_das_konto_steht_der_hinweis_nicht(monkeypatch, tmp_path):
+    """Zwilling: Derselbe Aufbau mit Konto im Profil hat keinen Grund zu melden."""
+    _profil_des_kontos(monkeypatch, tmp_path)
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    uid = server.ordner[ENTWUERFE][0].uid
+    _mit_fenstern(monkeypatch, _fenster(uid, identitaet=ANDERES_KONTO))
+    assert not [h for h in _stand().hinweise if "Identitäten des Kontos" in h]
+
+
+def _alias_nur_am_socket(monkeypatch, tmp_path) -> dict:
+    """Das Standardprofil führt Konto 1 ohne den Alias, das Profil am Socket der
+    Brücke mit ihm. Gibt die Umgebung mit `FALZMARKE_BRUECKE_SOCKET`."""
+    from test_thunderbird_signatur import _attrappe
+
+    werte = {"mail.accountmanager.accounts": "account1",
+             "mail.account.account1.identities": "id1",
+             "mail.identity.id1.useremail": VON}
+    monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER", _attrappe(tmp_path / "a", werte))
+    werte = {**werte, "mail.account.account1.identities": "id1,id3",
+             "mail.identity.id3.useremail": ALIAS}
+    profil_b = _attrappe(tmp_path / "b", werte) / "Profiles" / "abcd1234.default-release"
+    return {"FALZMARKE_BRUECKE_SOCKET": str(profil_b / bruecke.SOCKET_DATEI)}
+
+
+def test_die_aliasse_kommen_aus_dem_profil_der_bruecke(monkeypatch, tmp_path):
+    """Nachreview #488, Nr. 1 und 9: Die Fenster kommen aus dem Profil am
+    Socket, die Identitäten kamen aus dem Standardprofil. Kennt nur das Profil
+    der Brücke den Alias, fiel sein Fenster heraus, und der Entwurf hieß `WARTET`.
+
+    Zwilling ohne Schalter: Dann liest es das Standardprofil, und derselbe
+    Aufbau wartet. Ohne ihn wäre nicht zu sehen, ob der Socket etwas entscheidet."""
+    umgebung = _alias_nur_am_socket(monkeypatch, tmp_path)
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    uid = server.ordner[ENTWUERFE][0].uid
+    _mit_fenstern(monkeypatch, _fenster(uid, identitaet=ALIAS))
+    ohne = _einziger(_stand())
+    assert ohne.art == "wartet", "der Zwilling kann gar nicht WARTET werden"
+    mit = _einziger(entwurfsbuch.abgleich(VON, jetzt=JETZT, umgebung=umgebung))
+    assert mit.art == "offen", "der Alias aus dem Profil der Brücke hält den Entwurf nicht offen"
+    assert not entwurfsbuch.nur_uid(mit.fenster, VON)
+
+
+def test_eine_profiles_ini_ausserhalb_von_utf8_bricht_status_nicht_ab(monkeypatch, tmp_path):
+    """Nachreview #488, Nr. 4: Ein Latin-1-„ü“ in `profiles.ini` warf
+    `UnicodeDecodeError` bis in `status` und in die Sperre vor dem Zug. Jetzt
+    gibt es kein Profil, und es bleibt beim nachsichtigen Weg."""
+    ordner = tmp_path / "Thunderbird"
+    ordner.mkdir(parents=True)
+    (ordner / "profiles.ini").write_bytes(
+        "[Install1]\nDefault=Profiles/müller.default\n".encode("latin-1"))
+    monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER", ordner)
+    assert oeffnen.thunderbird_standardprofil(ordner) is None
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    uid = server.ordner[ENTWUERFE][0].uid
+    _mit_fenstern(monkeypatch, _fenster(uid, identitaet=ANDERES_KONTO))
+    assert _einziger(_stand()).art == "offen"
+
+
 #: `LOGIN_FREMD`, nur steht die UID hinter `/` statt hinter `#`. Eine leere
 #: `draft_id` genügte hier nicht: Ein gelockertes `UID_AUS_URI`, das jede Zahl am
 #: Ende nimmt, ließe sie ebenso liegen wie das heutige Muster (#468).

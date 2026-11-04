@@ -262,3 +262,38 @@ von einer Identität des Kontos, die `prefs.js` beim Lesen noch nicht führt. Th
 die Datei bei einer Änderung der Einstellungen selbst. Wie schnell das nach dem Anlegen einer
 Identität geschieht, ist nicht gemessen. Belegt ist der Weg in der Suite mit einer
 Profil-Attrappe, an einem Gerät nicht.
+
+## Nachtrag 04.11.2026 — Nachreview von #488 und #487
+
+Das Nachreview von #488 fand das falsche `WARTET` aus dem vorigen Nachtrag auch am Schritt, der
+nicht umkehrbar ist: Die letzte Prüfung vor dem `UID MOVE` (`entwurfsablage._ziehe`) ging über
+dieselbe strenge Zuordnung. Ein Fenster unter einem Alias, den `prefs.js` noch nicht führt, fiel
+dort heraus, und der Entwurf konnte unter dem offenen Fenster in den Papierkorb wandern.
+
+**Entschieden:**
+
+- **Die Sperre vor dem Zug ist nachsichtig.** Jedes offene Fenster mit dieser UID hält den
+  Entwurf, ohne Blick auf die Identität (`_offene_uids(…, streng=False)`). Ein Fenster eines
+  fremden Kontos mit derselben UID-Zahl hält den Zug dann auf und meldet „gerade in einem
+  Fenster offen“. Das ist der billige Irrtum: Der Entwurf bleibt liegen, und der nächste Lauf
+  räumt ihn weg.
+- **`status` und die Planung des Laufs bleiben streng.** Dort sagt ein falsches `WARTET` nur
+  etwas Falsches, es bewegt nichts. Die Planung lässt einen Entwurf, dessen Fenster sie nicht
+  zuordnet, zwar als Zug zu, aber die Sperre davor fängt ihn.
+- **Die Identitäten kommen aus dem Profil der Brücke**, nicht aus dem Standardprofil
+  (`bruecken_profil`, #410). Die Fenster meldet das Add-on aus dem Profil, in dem sein Socket
+  liegt. Mit `FALZMARKE_BRUECKE_SOCKET` ist das ein anderes, und nur dieses kennt die Aliasse
+  seiner Fenster. Ein übergebenes `profilordner` geht auch hier vor. Dasselbe gilt für die
+  Absenderprüfung im Fenster (`absender_pruefen`, #482) an `email --oeffnen` und
+  `entwurf-oeffnen`.
+- **Sagt das Profil nichts über das Konto, steht das in `status` als Hinweis**, sobald ein
+  Fenster einen anderen Absender meldet: „Identitäten des Kontos nicht gelesen (…): ein Fenster
+  mit anderem Absender zählt nur über die UID“. Der Grund geht nicht in `fenster_grund`, denn
+  das ist eine Sperre, und geprüft wurde ja, nur nachsichtig.
+- **Eine `profiles.ini` außerhalb von UTF-8 heißt „kein Profil“**, statt mit
+  `UnicodeDecodeError` bis in `status` und die Sperre durchzuschlagen. Ob Thunderbird je so
+  schreibt, ist nicht gemessen.
+
+Belegt ist das in der Suite: ein Socket in einem zweiten Profil, das allein den Alias kennt, mit
+dem Zwilling ohne Schalter; ein Fenster außerhalb des Kontos am Zug, mit dem Zwilling der
+strengen Zuordnung. An einem Gerät gemessen ist es nicht.

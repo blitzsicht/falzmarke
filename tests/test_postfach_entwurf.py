@@ -716,6 +716,19 @@ def test_kontoadressen_ohne_profil_raet_nicht(tmp_path):
     assert adressen is None and "kein Thunderbird-Profil" in grund
 
 
+def test_kontoadressen_ohne_kontoliste_raet_nicht(monkeypatch, tmp_path):
+    """Nachreview #487, Nr. 6: `_identitaeten` zählt ohne Kontoliste alle
+    Identitäten, `kontoadressen` bleibt bei `None` (Begründung im Docstring)."""
+    from test_thunderbird_signatur import _attrappe
+
+    werte = {"mail.identity.id1.useremail": ABSENDER, "mail.identity.id2.useremail": FREMD}
+    ordner = _attrappe(tmp_path / "ohne-liste", werte)
+    profil = ordner / "Profiles" / "abcd1234.default-release"
+    assert oeffnen._identitaeten(oeffnen.thunderbird_einstellungen(profil)) == ["id1", "id2"]
+    adressen, grund = oeffnen.kontoadressen(ABSENDER, ordner)
+    assert adressen is None and "nennt keine Konten" in grund
+
+
 def _fenster(identitaet: str, **mehr):
     return bruecke.Oeffnung("geoeffnet", gelesen=True, identitaet=identitaet, **mehr)
 
@@ -739,6 +752,114 @@ def test_absender_pruefen_ohne_profilwissen_meldet_keinen_fehlalarm():
     assert not ergebnis.absender_geprueft and not ergebnis.absender_abweichung
     assert ergebnis.absender_hinweis.startswith(
         f"das Fenster schickt von {FREMD}, die Nachricht von {ABSENDER}; ob beide")
+
+
+UNBEKANNT = "unbekannt@example.net"   # in keinem Konto von `_profil_mit_alias`
+
+
+def test_absender_pruefen_fragt_auch_das_konto_des_fensters(monkeypatch, tmp_path):
+    """Nachreview #487, Nr. 1: Der `From` ist keine Identität im Profil, das
+    Fenster schickt von einer. Thunderbird kann von `soll` gar nicht senden, das
+    ist eine Abweichung und nicht „nicht geprüft“."""
+    _profil_mit_alias(monkeypatch, tmp_path)
+    ergebnis = oeffnen.absender_pruefen(_fenster(FREMD), UNBEKANNT)
+    assert ergebnis.absender_abweichung == f"Fenster: {FREMD}, Nachricht: {UNBEKANNT}", \
+        "nur NICHT GEPRÜFT, obwohl das Fenster von einer Identität eines Kontos schickt"
+    assert ergebnis.absender_geprueft
+
+
+def test_absender_pruefen_kennt_das_profil_keine_der_beiden_bleibt_es_ungeprueft(monkeypatch,
+                                                                                tmp_path):
+    """Zwilling: Kennt das Profil auch die Adresse des Fensters nicht, wird nicht geraten."""
+    _profil_mit_alias(monkeypatch, tmp_path)
+    ergebnis = oeffnen.absender_pruefen(_fenster("niemand@example.net"), UNBEKANNT)
+    assert not ergebnis.absender_geprueft and not ergebnis.absender_abweichung
+    assert f"sagt Thunderbird nicht (kein Konto mit {UNBEKANNT}" in ergebnis.absender_hinweis
+
+
+def test_entwurf_oeffnen_mit_from_ausserhalb_der_konten_ist_exit_3(oeffne_befehl, monkeypatch,
+                                                                   capsys, tmp_path):
+    """Derselbe Fall am Befehl: Bis zum Nachreview endete er mit Exit 0."""
+    _profil_mit_alias(monkeypatch, tmp_path)
+    zeit = datetime(2026, 10, 21, 18, 31, tzinfo=timezone.utc)
+    _server(monkeypatch, [(nachricht(an="b@example.org", betreff="Vektor S2: Wappen", datum=zeit,
+                                     von=UNBEKANNT), zeit)])
+    _bruecke(monkeypatch, _offen_mit(an=("b@example.org",), betreff="Vektor S2: Wappen",
+                                     identitaet=FREMD))
+    assert oeffne_befehl("--betreff", "wappen") == 3
+    assert f"Fenster: {FREMD}, Nachricht: {UNBEKANNT}" in capsys.readouterr().err
+
+
+def _alias_nur_am_socket(monkeypatch, tmp_path) -> str:
+    """Das Standardprofil kennt den Alias nicht, das Profil am Socket der Brücke
+    schon. Gibt den Socketpfad für `FALZMARKE_BRUECKE_SOCKET`."""
+    from test_thunderbird_signatur import _attrappe, _grundwerte
+
+    entwuerfe = "imap://muster%40example.de@outlook.office365.com/Entw&APw-rfe"
+    monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER",
+                        _attrappe(tmp_path / "a", _grundwerte(draft_folder=entwuerfe)))
+    werte = _grundwerte(draft_folder=entwuerfe)
+    werte["mail.account.account1.identities"] = "id1,id3"
+    werte["mail.identity.id3.useremail"] = ALIAS
+    profil_b = _attrappe(tmp_path / "b", werte) / "Profiles" / "abcd1234.default-release"
+    return str(profil_b / bruecke.SOCKET_DATEI)
+
+
+def test_entwurf_oeffnen_liest_die_aliasse_aus_dem_profil_der_bruecke(oeffne_befehl,
+                                                                      monkeypatch, capsys,
+                                                                      tmp_path):
+    """Nachreview #487, Nr. 2: Das Fenster kommt aus dem Profil am Socket, also
+    auch die Identitäten, gegen die es geprüft wird. Zwilling ohne Schalter: Das
+    Standardprofil kennt den Alias nicht, und derselbe Aufbau wird rot."""
+    socket = _alias_nur_am_socket(monkeypatch, tmp_path)
+    _zwei_entwuerfe(monkeypatch)
+    _bruecke(monkeypatch, _offen_mit(an=("b@example.org",), betreff="Vektor S2: Wappen",
+                                     identitaet=ALIAS))
+    monkeypatch.setenv("FALZMARKE_BRUECKE_SOCKET", socket)
+    assert oeffne_befehl("--betreff", "wappen") == 0, \
+        "der Alias aus dem Profil der Brücke gilt als fremd"
+    assert "ABSENDER PRÜFEN" not in capsys.readouterr().err
+    monkeypatch.delenv("FALZMARKE_BRUECKE_SOCKET")
+    assert oeffne_befehl("--betreff", "wappen") == 3, "der Zwilling kann gar nicht rot werden"
+    assert "ABSENDER PRÜFEN" in capsys.readouterr().err
+
+
+def test_email_oeffnen_liest_die_aliasse_aus_dem_profil_der_bruecke(monkeypatch, tmp_path):
+    """Derselbe Fall an `_fenster_auf`, dem Weg von `email --oeffnen`: Die
+    Umgebung des Laufs bestimmt den Socket und damit das Profil."""
+    socket = _alias_nur_am_socket(monkeypatch, tmp_path)
+    _bruecke(monkeypatch, _offen_mit(identitaet=ALIAS))
+    lage = oeffnen.Entwurfslage(None, "", schon_da="Di 18:31", schon_da_uid="7")
+    felder = {"absender": ABSENDER, "an": ["paula@example.org"]}
+
+    def abweichung(umgebung) -> str:
+        return oeffnen._fenster_auf(lage, felder, umgebung).fenster.absender_abweichung
+
+    assert abweichung({}) == f"Fenster: {ALIAS}, Nachricht: {ABSENDER}", \
+        "der Zwilling kann gar nicht rot werden"
+    assert abweichung({"FALZMARKE_BRUECKE_SOCKET": socket}) == "", \
+        "email --oeffnen: der Alias aus dem Profil der Brücke gilt als fremd"
+
+
+@pytest.mark.parametrize("fenster, pruefen, ungeprueft", [
+    (bruecke.Oeffnung("geoeffnet", gelesen=True, identitaet=FREMD, lese_grund="Fenster lädt",
+                      absender_geprueft=True,
+                      absender_abweichung=f"Fenster: {FREMD}, Nachricht: {ABSENDER}"),
+     "ABSENDER PRÜFEN", "NICHT GEPRÜFT  Empfänger im Fenster: Fenster lädt"),
+    (bruecke.Oeffnung("geoeffnet", gelesen=True, geprueft=True,
+                      abweichung="Cc: fehlt c@example.org",
+                      absender_hinweis="das Add-on meldet keinen Absender des Fensters"),
+     "EMPFÄNGER PRÜFEN",
+     "NICHT GEPRÜFT  Absender im Fenster: das Add-on meldet keinen Absender des Fensters"),
+], ids=["absender-prueft-empfaenger-offen", "empfaenger-prueft-absender-offen"])
+def test_neben_einem_pruefen_steht_was_die_andere_pruefung_nicht_verglich(fenster, pruefen,
+                                                                         ungeprueft, capsys):
+    """Nachreview #487, Nr. 3: Bis dahin kehrte `_melde_fenster` nach dem
+    PRÜFEN-Block zurück, und die Zeile der anderen Prüfung fehlte."""
+    falzmarke._melde_fenster(fenster, "Entwürfe", "Vektor S2: Wappen")
+    fehler = capsys.readouterr().err
+    assert pruefen in fehler
+    assert ungeprueft in fehler, f"neben {pruefen} fehlt „{ungeprueft}“"
 
 
 def test_absender_pruefen_ohne_lesung_laesst_das_fenster_wie_es_ist(monkeypatch, tmp_path):
