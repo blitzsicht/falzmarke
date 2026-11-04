@@ -3769,6 +3769,40 @@ def test_ohne_die_pflicht_laeuft_uid_mit_machen_ohne_uidvalidity_durch(monkeypat
         probe(monkeypatch, capsys)
 
 
+@pytest.mark.parametrize("argumente, anfang, zeile", [
+    (["--uidvalidity", "1"], "FEHLER  --uidvalidity gilt nur mit --uid",
+     '        if args.uid is None:\n            print("FEHLER  --uidvalidity gilt'),
+    (["--uid", "101", "--uidvalidity", "0"], "FEHLER  --uidvalidity braucht eine Zahl ab 1",
+     "        if args.uidvalidity < 1:"),
+], ids=["ohne-uid", "null"])
+def test_ohne_die_cli_pruefung_zu_uidvalidity_laeuft_der_befehl_weiter(
+        monkeypatch, capsys, argumente, anfang, zeile):
+    """#504, Befund 7: Beide Prüfungen in `cli.py` hatten keine Gegenprobe. Jede Sabotage
+    kippt genau eine; der Befehl läuft dann weiter, hier gegen eine Attrappe statt gegen
+    den Proxy, damit die Sabotage nie ein echtes Postfach erreicht."""
+    from imap_attrappe import ImapAttrappe
+    from falzmarke import postfach as _postfach
+
+    def abgewiesen() -> str | None:
+        code = falzmarke.main(["aufraeumen", "--absender", "joe@example.org", *argumente])
+        fehler = capsys.readouterr().err
+        if code == falzmarke.EXIT_EINGABE and fehler.startswith(anfang):
+            return None
+        return f"nicht abgewiesen: Exit {code}, {fehler!r}"
+
+    monkeypatch.setattr(_postfach, "IMAP_KLASSE", ImapAttrappe(
+        {"INBOX": [], "Gesendete Elemente": []},
+        sonder={"INBOX": "", "Gesendete Elemente": "\\Sent", "Archiv": "\\Archive"}))
+    assert abgewiesen() is None                                            # Kontrolle
+    neu = zeile.replace("if args.uid is None:", "if False:").replace(
+        "if args.uidvalidity < 1:", "if False:")
+    monkeypatch.setattr(falzmarke, "befehl_aufraeumen", _zeile_ersetzt(
+        falzmarke, "befehl_aufraeumen", zeile, neu))
+    befund = abgewiesen()
+    assert befund is not None and befund.startswith("nicht abgewiesen"), \
+        "die Sabotage greift nicht: der Befehl wurde trotzdem abgewiesen"
+
+
 def test_mit_der_alten_regel_verschwindet_der_grund_zum_jahresordner(monkeypatch):
     """Review von #496, Befund 1: Der Grund „bliebe liegen“ ersetzte den zum Jahresordner."""
     from falzmarke import ablage as _ablage
