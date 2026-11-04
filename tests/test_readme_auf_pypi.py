@@ -22,15 +22,17 @@ from __future__ import annotations
 
 import re
 
+from markdown_it import MarkdownIt
+
 from conftest import REPO
 
 README = REPO / "README.md"
 BASIS = "https://github.com/blitzsicht/falzmarke"
 BILDENDUNGEN = (".png", ".gif", ".jpg", ".jpeg", ".svg", ".webp")
 
-# `](ziel)` und `src="ziel"`, ohne Protokoll, Anker oder mailto — also genau die
-# Formen, die auf PyPI ins Leere zeigen.
-RELATIV = re.compile(r'\]\((?!https?:|#|mailto:)([^)]+)\)|src="(?!https?:|#)([^"]+)"')
+# Ziele ohne Protokoll, Anker oder mailto — also genau die, die auf PyPI ins Leere zeigen.
+OHNE_HERKUNFT = re.compile(r"(?!https?:|#|mailto:)")
+HTML_ZIEL = re.compile(r'(?:src|href)="([^"]*)"')
 ABSOLUT = re.compile(rf'{re.escape(BASIS)}/(raw|blob|tree)/main/([^")\s#]+)')
 
 
@@ -38,9 +40,40 @@ def _text() -> str:
     return README.read_text(encoding="utf-8")
 
 
+def verweisziele(text: str) -> list[str]:
+    """Jedes Ziel, das ein Markdown-Leser als Link oder Bild rendert.
+
+    Gelesen wird wie auf PyPI, über einen CommonMark-Parser, nicht über eine
+    Textsuche. Bis #480 suchte hier eine Regex nach `](ziel)` im ganzen Text,
+    auch im Code. `scripts/changelog.py` muss Code aber wörtlich lassen, und
+    `` `[Text](url)` `` ist auf PyPI kein Verweis. Die Ausklammerung steht
+    absichtlich nicht ein zweites Mal hier: Erkennt `changelog.py` Code, wo
+    keiner ist, bleibt ein echter Verweis relativ, und der Parser findet ihn.
+    """
+    ziele: list[str] = []
+
+    def sammeln(marken) -> None:
+        for marke in marken:
+            if marke.type == "link_open":
+                ziele.append(marke.attrGet("href"))
+            elif marke.type == "image":
+                ziele.append(marke.attrGet("src"))
+            elif marke.type in ("html_block", "html_inline"):
+                ziele.extend(HTML_ZIEL.findall(marke.content))
+            if marke.children:
+                sammeln(marke.children)
+
+    sammeln(MarkdownIt("commonmark").enable("table").parse(text))
+    return ziele
+
+
+def relative_ziele(text: str) -> list[str]:
+    return [ziel for ziel in verweisziele(text) if OHNE_HERKUNFT.match(ziel)]
+
+
 def test_keine_relativen_verweise():
     """Jeder relative Verweis ist auf PyPI ein toter Link oder ein kaputtes Bild."""
-    treffer = [m.group(1) or m.group(2) for m in RELATIV.finditer(_text())]
+    treffer = relative_ziele(_text())
     assert not treffer, (
         f"{len(treffer)} relative Verweise im README. Auf PyPI zeigen sie ins Leere: {treffer[:5]}"
     )
@@ -88,15 +121,35 @@ def test_gegenprobe_die_pruefung_faengt_einen_relativen_verweis():
     """Belegt, dass die Prüfung oben trennt, statt nur zu laufen.
 
     Ohne das wüsste die Suite nur, dass das README heute sauber ist — nicht, dass
-    ein Rückfall auffiele. Geprüft wird an der Regex selbst, mit beiden
+    ein Rückfall auffiele. Geprüft wird an `relative_ziele` selbst, mit beiden
     Richtungen an einem Beispiel, das dem echten Fall entspricht.
     """
     rueckfall = '<img src="docs/assets/brand/banner.png" alt="x">'
-    assert RELATIV.search(rueckfall), "die Prüfung würde einen Rückfall nicht bemerken"
+    assert relative_ziele(rueckfall), "die Prüfung würde einen Rückfall nicht bemerken"
 
     repariert = f'<img src="{BASIS}/raw/main/docs/assets/brand/banner.png" alt="x">'
-    assert not RELATIV.search(repariert)
+    assert not relative_ziele(repariert)
 
     # und die Markdown-Form, die 41 der 43 Fälle ausmachte
-    assert RELATIV.search("[Bild](docs/renders/demo.gif)")
-    assert not RELATIV.search(f"[Bild]({BASIS}/raw/main/docs/renders/demo.gif)")
+    assert relative_ziele("[Bild](docs/renders/demo.gif)")
+    assert not relative_ziele(f"[Bild]({BASIS}/raw/main/docs/renders/demo.gif)")
+
+    # ein Verweis über eine Definition: die alte Textsuche sah ihn nie
+    assert relative_ziele("Siehe [ADR][a].\n\n[a]: docs/entscheidungen/0001.md\n")
+
+
+def test_code_ist_kein_verweis():
+    """`` `[Text](url)` `` rendert auf PyPI als Code, nicht als Link (#480).
+
+    Die Textsuche vor #480 meldete das als relativen Verweis. Hätte
+    `scripts/changelog.py` Code wörtlich gelassen, wäre der nächste Release-PR an
+    dieser Prüfung rot geworden statt an `test_kein_punkt_faellt_unter_den_tisch`.
+    Derselbe Absatz trägt einen echten Verweis: Er wird weiter gemeldet.
+    """
+    absatz = (
+        "Die Schreibweise `[Text](url)` und ``[a](b)`` bleiben Code, "
+        "[ADR](docs/x.md) ist ein Verweis.\n\n"
+        "```md\n[Bild](docs/renders/demo.gif)\n```\n"
+    )
+    treffer = relative_ziele(absatz)
+    assert treffer == ["docs/x.md"], f"als relativer Verweis gemeldet: {treffer}"

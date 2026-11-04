@@ -235,6 +235,22 @@ def _tiefer(rumpf: str) -> str:
 #: tests/test_readme_auf_pypi.py im fertigen README verbietet.
 RELATIV = re.compile(r"\]\((?!https?:|#|mailto:)([^)]+)\)")
 
+#: Code im Markdown: ein Codeblock zwischen Zaunzeilen oder ein Code-Span.
+#: Darin ist `](ziel)` Text, kein Verweis, und muss wörtlich bleiben (#480).
+#: Ein Code-Span schließt mit genau so vielen Backticks, wie er öffnet, und
+#: reicht nicht über den Anfang eines Blocks (Leerzeile, Listenpunkt,
+#: Überschrift, Zitat). Sonst verbände ein einzelner, nie geschlossener
+#: Backtick zwei Punkte und nähme den echten Verweis dazwischen aus der
+#: Umschreibung. tests/test_changelog.py misst jedes Fragment mit einem
+#: Markdown-Parser nach, damit beide Fehlrichtungen am Fragment auffallen.
+CODE = re.compile(
+    r"^[ \t]*(?P<zaun>`{3,}|~{3,})[^\n]*\n[\s\S]*?^[ \t]*(?P=zaun)[`~]*[ \t]*$"
+    r"|(?<![`\\])(?P<lauf>`+)(?!`)"
+    r"(?:(?!\n[ \t]*(?:\n|[-*+][ \t]|\d+[.)][ \t]|#|>))[\s\S])*?"
+    r"(?<!`)(?P=lauf)(?!`)",
+    re.MULTILINE,
+)
+
 
 def _absolut(rumpf: str) -> str:
     """Relative Verweise auf GitHub umschreiben.
@@ -248,13 +264,22 @@ def _absolut(rumpf: str) -> str:
     Die Umschreibung steht hier und nicht in der Hand der Fragment-Schreiber:
     Wer ein Fragment verfasst, denkt an den Changelog, nicht an PyPI — und die
     Projektseite einer veröffentlichten Version lässt sich nicht mehr ändern.
+
+    Code bleibt, wie er ist (#480): `` `[Text](url)` `` ist ein Beispiel, kein
+    Verweis. Umgeschrieben stimmte die Zeile nicht mehr mit CHANGELOG.md überein,
+    und das fiel erst im Release-PR auf, einen PR nach dem Fragment.
     """
     def ersetzen(treffer: re.Match) -> str:
         ziel = treffer.group(1)
         art = "raw" if ziel.lower().endswith(BILDENDUNGEN) else "blob"
         return f"]({BASIS_URL}/{art}/main/{ziel})"
 
-    return RELATIV.sub(ersetzen, rumpf)
+    stuecke, bis = [], 0
+    for code in CODE.finditer(rumpf):
+        stuecke += [RELATIV.sub(ersetzen, rumpf[bis:code.start()]), code.group(0)]
+        bis = code.end()
+    stuecke.append(RELATIV.sub(ersetzen, rumpf[bis:]))
+    return "".join(stuecke)
 
 
 def abschnitt() -> str:

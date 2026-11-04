@@ -16,8 +16,10 @@ import re
 import sys
 
 import pytest
+from markdown_it import MarkdownIt
 
 from conftest import REPO
+from test_readme_auf_pypi import relative_ziele
 
 sys.path.insert(0, str(REPO / "scripts"))
 
@@ -199,3 +201,131 @@ def test_die_umschreibung_wuerde_einen_relativen_verweis_bemerken(tmp_path, monk
     assert "](docs/entscheidungen/0047-geometrie-regeln-tragen-ihre-stufe.md)" in auszug, (
         "Ohne _absolut() bleibt der Verweis relativ — genau das muss der Test darüber verhindern."
     )
+
+
+def _auszug_aus(tmp_path, monkeypatch, punkte: str) -> str:
+    quelle = tmp_path / "CHANGELOG.md"
+    quelle.write_text(
+        "# Änderungen\n\n## v9.9.9 — 01.01.2099\n\n### Behoben\n\n" + punkte, encoding="utf-8"
+    )
+    monkeypatch.setattr(changelog, "QUELLE", quelle)
+    return changelog.abschnitt()
+
+
+def test_code_bleibt_im_auszug_woertlich(tmp_path, monkeypatch):
+    """`` `[Text](url)` `` ist ein Beispiel, kein Verweis, und bleibt stehen (#480).
+
+    Anlass: Das Fragment zu #424 trug die Link-Schreibweise im Code-Span. Am PR
+    war alles grün; erst der Release-PR #472 wurde an
+    test_kein_punkt_faellt_unter_den_tisch rot, weil der Auszug daraus
+    `[Text](https://github.com/…/blob/main/url)` gemacht hatte. Der echte Verweis
+    in derselben Zeile wird trotzdem umgeschrieben.
+    """
+    auszug = _auszug_aus(tmp_path, monkeypatch, (
+        "- Die Schreibweise `[Text](url)` und ``a`[b](c)`` bleiben, "
+        "[ADR](docs/x.md) wird absolut.\n"
+        "- Ein Block:\n\n  ```md\n  [Bild](docs/demo.gif)\n  ```\n"
+    ))
+    assert "`[Text](url)`" in auszug and "``a`[b](c)``" in auszug, auszug
+    assert "  [Bild](docs/demo.gif)\n" in auszug, "Der Codeblock wurde umgeschrieben."
+    assert f"[ADR]({changelog.BASIS_URL}/blob/main/docs/x.md)" in auszug, (
+        "Neben dem Code-Span blieb der echte Verweis relativ."
+    )
+
+
+#: Je Grenze eines Code-Spans ein Fall: (Punkte, Ziel, Meldung).
+OFFENE_BACKTICKS = {
+    "listenpunkt": ("- Ein ` allein.\n- Danach [A](docs/a.md), dann ein ` zu.\n",
+                    "docs/a.md", "Ein Backtick verband zwei Listenpunkte."),
+    "absatz": ("Ein Absatz mit `offen\n\n[B](docs/b.md) und ein spätes ` zu.\n",
+               "docs/b.md", "Ein Backtick verband zwei Absätze."),
+}
+
+
+@pytest.mark.parametrize("punkte, ziel, grund", list(OFFENE_BACKTICKS.values()),
+                         ids=list(OFFENE_BACKTICKS))
+def test_ein_offener_backtick_schuetzt_keinen_verweis(punkte, ziel, grund, tmp_path, monkeypatch):
+    """Ein Backtick ohne Partner im selben Block ist kein Code (#480).
+
+    Die Ausklammerung ist die gefährlichere Richtung: Was sie zu Unrecht für Code
+    hält, geht relativ nach PyPI. Ein Code-Span endet deshalb dort, wo ein
+    Markdown-Leser einen neuen Block beginnt. Je Fall ein eigener Auszug: In
+    einem gemeinsamen schlösse der Backtick des einen den des anderen.
+    """
+    auszug = _auszug_aus(tmp_path, monkeypatch, punkte)
+    assert f"]({changelog.BASIS_URL}/blob/main/{ziel})" in auszug, grund
+
+
+def test_ein_backtick_lauf_schliesst_nur_mit_einem_gleich_langen(tmp_path, monkeypatch):
+    """``` ``x` [C](c.md) `y`` ``` ist ein einziger Code-Span, der Verweis darin Text."""
+    auszug = _auszug_aus(tmp_path, monkeypatch, "- Ungleich lang: ``x` [C](docs/c.md) `y``\n")
+    assert "``x` [C](docs/c.md) `y``" in auszug, "Ein Lauf aus zwei Backticks schloss mit einem."
+
+
+# ── Jedes Fragment am eigenen PR nachgemessen (#480) ──────────────────────
+
+
+#: Das Fragment aus #469 im Wortlaut, wie es vor der Umformulierung in #472 stand.
+FRAGMENT_469 = (
+    "- **Eine nackte Adresse im Mailtext ist im HTML-Teil wieder anklickbar.** Aus "
+    "`https://…` und `http://…` wird beim Lesen ein Link wie bei `[Text](url)`: im HTML "
+    "ein `<a href>`, im Textteil die Adresse in spitzen Klammern (#424).\n"
+)
+
+
+def code_stellen(text: str) -> list[str]:
+    """Der Inhalt jedes Code-Spans und Codeblocks, so wie ein Markdown-Leser ihn sieht."""
+    stellen: list[str] = []
+
+    def sammeln(marken) -> None:
+        for marke in marken:
+            if marke.type in ("code_inline", "fence", "code_block"):
+                stellen.append(marke.content)
+            if marke.children:
+                sammeln(marke.children)
+
+    sammeln(MarkdownIt("commonmark").parse(text))
+    return stellen
+
+
+def umschreibung_befunde(text: str) -> list[str]:
+    """Was `_absolut` an diesem Text falsch machte, gemessen mit einem Parser.
+
+    Der Parser ist der Schiedsrichter, nicht die Regex in `changelog.py`: Er
+    entscheidet, was Code ist und was ein Verweis. Ändert die Umschreibung Code,
+    stimmt der Auszug nicht mehr mit CHANGELOG.md überein. Lässt sie einen
+    Verweis relativ, zeigt er auf PyPI ins Leere.
+    """
+    neu = changelog._absolut(text)
+    befunde = []
+    if code_stellen(neu) != code_stellen(text):
+        befunde.append("Code verändert")
+    befunde += [f"relativ geblieben: {ziel}" for ziel in relative_ziele(neu)]
+    return befunde
+
+
+def _schriftstuecke():
+    yield pytest.param(changelog.QUELLE, id="CHANGELOG.md")
+    for fragment in sorted(changelog.FRAGMENTE.glob("*.md")):
+        yield pytest.param(fragment, id=fragment.name)
+
+
+@pytest.mark.parametrize("pfad", list(_schriftstuecke()))
+def test_die_umschreibung_laesst_code_stehen_und_jeden_verweis_absolut(pfad):
+    """Am PR des Fragments rot, nicht erst am Release-PR (#480).
+
+    Ein Fragment geht erst beim Bündeln durch `_absolut`. Bis dahin sah keine
+    Prüfung, was die Umschreibung daraus macht: Das Fragment aus #469 war an
+    seinem PR grün und wurde im Release-PR #472 rot.
+    """
+    befunde = umschreibung_befunde(pfad.read_text(encoding="utf-8"))
+    assert not befunde, f"{pfad.name}: {befunde}"
+
+
+def test_das_fragment_aus_469_uebersteht_die_umschreibung():
+    """Der Anlass selbst. Dass der Test darüber an ihm rot würde, belegt der
+    Abschnitt „#480“ in test_gegenbeweis.py, unter der zurückgebauten Ausklammerung."""
+    assert code_stellen(FRAGMENT_469) == ["https://…", "http://…", "[Text](url)", "<a href>"], (
+        "Der Parser findet die vier Code-Spans nicht — dann misst er auch keine Änderung daran."
+    )
+    assert umschreibung_befunde(FRAGMENT_469) == []
