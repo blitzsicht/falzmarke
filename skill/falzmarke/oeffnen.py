@@ -1228,7 +1228,7 @@ def empfaenger_pruefen(fenster, felder: Mapping | None, *, grund: str = ""):
 
     Verglichen werden An, Cc und Bcc je als Menge kleingeschriebener Adressen:
     `felder` trägt sie ohne Anzeigenamen (`eml.entwurfsfelder`,
-    `postfach.empfaengerfelder`), das Add-on liefert sie ebenso. Reihenfolge
+    `postfach.Kopf.empfaenger`), das Add-on liefert sie ebenso. Reihenfolge
     und Dubletten zählen nicht. Zurück kommt die Öffnung mit `geprueft` und,
     wenn etwas fehlt oder zu viel ist, mit `abweichung` als Satz. Ohne Lesung
     aus dem Fenster (`gelesen` falsch) oder ohne `felder` gibt es nichts zu

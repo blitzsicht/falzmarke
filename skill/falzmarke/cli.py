@@ -2136,16 +2136,13 @@ def befehl_entwurf_oeffnen(args) -> int:
         print(f"HINWEIS  kein Fenster: {ohne_fenster}\n{zeile(kopf)}", file=sys.stderr)
         return EXIT_UMGEBUNG
     # Was der Entwurf trägt, getrennt nach An, Cc und Bcc: der Maßstab für das
-    # Fenster (#464). `Kopf.an` wirft die drei zusammen, darum noch einmal die
-    # Nachricht selbst — vor dem Öffnen, damit danach nur noch verglichen wird.
-    soll, soll_grund = None, ""
-    try:
-        with postfach.verbinde(adresse, frist=oeffnen_modul.FRIST_POSTFACH_S) as sitzung:
-            soll = postfach.empfaengerfelder(sitzung.nachricht(ordner, kopf.uid))
-    except postfach.PostfachFehler as fehler:
-        soll_grund = f"der Entwurf ließ sich nicht nachlesen ({fehler})"
+    # Fenster (#464). Die Kopfzeilen dafür hat `koepfe` schon geholt (#481).
+    # Bis dahin meldete sich der Befehl hier ein zweites Mal an und holte die
+    # ganze Nachricht samt Anhängen, nur weil `Kopf.an` die drei zusammenwirft.
+    soll = kopf.empfaenger._asdict() if kopf.empfaenger is not None else None
     oeffnung = oeffnen_modul.empfaenger_pruefen(bruecke.entwurf_oeffnen(adresse, kopf.uid),
-                                                soll, grund=soll_grund)
+                                                soll, grund="die Empfänger des Entwurfs "
+                                                "wurden nicht gelesen")
     _melde_fenster(oeffnung, anzeige, kopf.betreff)
     # Ein Fenster mit anderen Empfängern ist nicht das bestellte: Exit 3 wie ohne Fenster.
     return EXIT_OK if oeffnung.offen and not oeffnung.abweichung else EXIT_UMGEBUNG
