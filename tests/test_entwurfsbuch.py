@@ -1954,6 +1954,22 @@ def test_ohne_profil_zaehlt_die_eingegangene_mail_und_status_sagt_es(monkeypatch
     assert not [h for h in bericht.hinweise if h.startswith("Identitäten des Profils")]
 
 
+@pytest.mark.parametrize("zweiter, erwartet", [
+    (VON, []),
+    ("kollege@example.net",
+     ["1 Mail in „Gesendete Elemente“ mit anderem Absender zählt als gesendet"]),
+], ids=["eigene-adresse-dabei", "zwilling-beide-fremd"])
+def test_ohne_profil_genuegt_im_hinweis_ein_eigener_autor(monkeypatch, zweiter, erwartet):
+    """#506, Befund 7: Der Ersatzhinweis zählte nach dem ersten Autor. Eine Mail mit
+    `From: Kunde, ich` hieß „anderer Absender“, obwohl die Sperre sie seit #512 als eigen
+    ansieht. Der Zwilling mit zwei fremden Adressen zählt weiter."""
+    _postfach(monkeypatch, entwuerfe=[_mail()],
+              gesendet=[_eingegangen(von=f"{KUNDE}, {zweiter}")])
+    hinweise = [h for h in _stand().hinweise if h.startswith("Identitäten des Profils")]
+    assert [t for t in erwartet if not any(t in h for h in hinweise)] == []
+    assert len(hinweise) == len(erwartet), hinweise
+
+
 @pytest.mark.parametrize("von", [VON, ALIAS, ANDERES_KONTO],
                          ids=["konto", "alias", "anderes-konto-im-profil"])
 def test_eine_mail_von_einer_identitaet_des_profils_bleibt_schon_raus(monkeypatch, tmp_path,

@@ -328,6 +328,10 @@ Entwurf zu `SCHON RAUS` und keinen verschwundenen zu `GESENDET`. Die `OK`-Zeile 
 `HINWEIS  Identitäten des Profils nicht gelesen (…)` nennt, wie viele einen anderen Absender
 tragen. Dieselbe Regel gilt für die Sperre bei `email --oeffnen` und in der Entwurfsbrücke
 ([ADR 0051](entscheidungen/0051-gesendet-sperre-und-postfach-entwurf.md), Nachtrag 04.11.2026).
+Nennt `From` mehrere Adressen, genügt eine eigene. Der Absender des Entwurfs zählt immer, auch
+wenn das Profil ihn nicht führt. Wer über Webmail oder das Telefon von einem Alias sendet, den
+Thunderbird nicht als Identität kennt, legt ihn dort als Identität an. Sonst gilt diese Mail in
+„Gesendet“ als fremd und sperrt nicht.
 
 Welchem Konto ein offenes Fenster gehört, sagt das Add-on: Es meldet ab 0.3.0 die Absenderadresse
 des Fensters. Geraten wird sie **nicht** mehr aus der Adresse der Nachricht — deren Autoritätsteil

@@ -1061,13 +1061,15 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                 # Die geprüfte Adresse zählt immer, auch wenn das Profil der Brücke sie
                 # nicht nennt: Sonst stünde jede eigene Sendung unter `fremde`, und ein
                 # Entwurf, der schon draußen ist, hieße „wartet“ (#506, Befund 2).
-                eigene = eigene | {adresse.strip().lower()}
+                eigene = eigene | {adresse}
             fremde, behalten = [], []
             for kopf in raus:
                 (fremde if gesendet.fremder_absender(kopf, eigene) else behalten).append(kopf)
             raus = behalten
             if eigene is None:
-                andere = sum(bool(k.von) and k.von != adresse for k in raus)
+                # Dasselbe Prädikat wie der Filter, mit der geprüften Adresse allein als
+                # Maßstab: Bei mehreren Autoren genügt einer (#506, Befund 7).
+                andere = sum(gesendet.fremder_absender(k, frozenset({adresse})) for k in raus)
                 if andere:
                     hinweise.append(
                         f"Identitäten des Profils nicht gelesen ({eigene_grund}): "
