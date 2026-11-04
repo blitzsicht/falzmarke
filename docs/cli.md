@@ -13,6 +13,7 @@ falzmarke serie       VORLAGE.md --daten DATEN.csv --ziel ORDNER/ [--benennen SP
 falzmarke status      --absender ADRESSE [--tage 14] [--diff] [--json]
 falzmarke entwurf-oeffnen --absender ADRESSE [--betreff "..."] [--uid N]
 falzmarke aufraeumen  --absender ADRESSE [--seit 30] [--machen] [--json]   # --seit: 1 bis 3650
+falzmarke aufraeumen  --absender ADRESSE --uid N [N …] [--trotz-faehnchen] [--machen] [--json]
 falzmarke aufraeumen  --absender ADRESSE --entwuerfe [--seit 30] [--machen] [--json]
 falzmarke einlesen    AUS.pdf [-o GERUEST.md] [--ueberschreiben] [--json]
 falzmarke mcp

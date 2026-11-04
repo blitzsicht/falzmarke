@@ -19,13 +19,13 @@ QUELLE = "<kunde-1@example.org>"
 
 
 def _postfach(*, eingang=(), gesendet=(), sonder=None, verschieben=True,
-              faehigkeiten=("IMAP4REV1", "UIDPLUS", "MOVE")):
+              faehigkeiten=("IMAP4REV1", "UIDPLUS", "MOVE"), **optionen):
     """Eine angemeldete Sitzung über einer Attrappe mit Eingang und Gesendet."""
     sonder = sonder if sonder is not None else {
         "INBOX": "", "Gesendete Elemente": "\\Sent", "Entw&APw-rfe": "\\Drafts", "Archiv": ""}
     attrappe = ImapAttrappe({"INBOX": list(eingang), "Gesendete Elemente": list(gesendet)},
                             sonder=sonder, verschieben_erlaubt=verschieben,
-                            faehigkeiten=faehigkeiten)
+                            faehigkeiten=faehigkeiten, **optionen)
     postfach.IMAP_KLASSE = attrappe
     sitzung = postfach.verbinde("joe@example.org", umgebung={}, frist=30)
     return attrappe, sitzung
@@ -534,6 +534,220 @@ def test_gegenprobe_mit_machen_schlaegt_die_sperrende_attrappe_an():
     _postfach(eingang=[_eingegangen()], gesendet=[_antwort()], verschieben=False)
     with pytest.raises(AssertionError, match="readonly|UID MOVE"):
         ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={})
+
+
+# ── Fähnchen, benannte Mails, Jahresordner (#478) ───────────────────────────
+#
+# Die Attrappe vergibt UIDs ab 101 in der Reihenfolge des Eingangs.
+
+def _mit_fahnen(eintrag, flags):
+    return (*eintrag, flags)
+
+
+def _offen(betreff="Eingereichte Fassung", kennung="<abschluss@example.org>", tage=3):
+    """Eine Eingangsmail, auf die keine Antwort verweist — erledigt ohne Antwort."""
+    zeit = HEUTE - timedelta(days=tage)
+    return (nachricht(an="joe@example.org", von="amt@example.org", betreff=betreff,
+                      datum=zeit, kennung=kennung), zeit)
+
+
+def _uids(attrappe, ordner="INBOX"):
+    return [n.uid for n in attrappe.ordner[ordner]]
+
+
+def test_mit_uid_wandert_genau_die_genannte_mail_auch_ohne_antwort():
+    attrappe, _ = _postfach(eingang=[_offen("Erste", "<e1@example.org>"),
+                                     _offen("Zweite", "<e2@example.org>"),
+                                     _offen("Dritte", "<e3@example.org>")])
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
+                                uids=["101", "103"])
+    assert bericht.grund is None and bericht.benannt and bericht.verschoben == 2
+    (zug,) = attrappe.befehle("UID MOVE")
+    assert zug[1:] == ("101,103", '"Archiv"'), "es bleibt beim einen UID MOVE"
+    assert _uids(attrappe) == [102] and _uids(attrappe, "Archiv") == [101, 103]
+
+
+def test_mit_uid_ohne_machen_bewegt_nichts_und_nennt_datum_absender_betreff():
+    attrappe, _ = _postfach(eingang=[_offen()])
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", umgebung={}, uids=["101"])
+    assert bericht.verschoben == 0
+    assert not attrappe.befehle("UID MOVE") and not attrappe.befehle("SELECT")
+    text = ablage.zeilen(bericht)
+    assert text[0] == ("OK  joe@example.org: 1 benannte Nachricht im Eingang, "
+                       "1 zum Ablegen → „Archiv“")
+    (zeile,) = [z for z in text if z.startswith("    UID 101 ")]
+    datum = (HEUTE - timedelta(days=3)).astimezone().strftime("%d.%m.%Y")
+    assert datum in zeile and "amt@example.org" in zeile and "„Eingereichte Fassung“" in zeile
+    assert "beantwortet" not in zeile, "eine benannte Mail hat keine Antwort"
+    assert "    nichts bewegt — mit --machen verschieben" in text
+
+
+def test_fehlt_eine_genannte_uid_wandert_keine():
+    """Eine Liste, die nicht mehr stimmt, ist kein Auftrag für den Rest."""
+    attrappe, _ = _postfach(eingang=[_offen()])
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
+                                uids=["101", "999"])
+    assert "UID 999 liegt nicht im Eingang" in bericht.grund
+    assert bericht.verschoben == 0 and not attrappe.befehle("UID MOVE")
+    assert _uids(attrappe) == [101]
+    assert [z.uid for z in bericht.zuege] == ["101"], "die gefundene steht trotzdem da"
+    assert ablage.zeilen(bericht)[0].startswith("NICHT GEPRÜFT  joe@example.org: UID 999")
+
+
+def test_eine_beantwortete_mail_mit_faehnchen_bleibt_liegen():
+    """Abnahme aus #478; die Gegenprobe ohne Fähnchen steht darunter."""
+    attrappe, _ = _postfach(eingang=[_mit_fahnen(_eingegangen(), "\\Seen \\Flagged")],
+                            gesendet=[_antwort()])
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={})
+    assert bericht.grund is None and bericht.zuege == () and bericht.verschoben == 0
+    assert not attrappe.befehle("UID MOVE") and _uids(attrappe) == [101]
+    ((zug, grund),) = bericht.liegen
+    assert (zug.uid, grund) == ("101", "Fähnchen")
+
+
+def test_gegenprobe_ohne_faehnchen_wandert_die_beantwortete_mail():
+    attrappe, _ = _postfach(eingang=[_mit_fahnen(_eingegangen(), "\\Seen")],
+                            gesendet=[_antwort()])
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={})
+    assert bericht.verschoben == 1 and bericht.liegen == ()
+    assert _uids(attrappe, "Archiv") == [101]
+
+
+def test_die_ausgabe_sagt_liegt_faehnchen_in_text_und_json():
+    _, sitzung = _postfach(eingang=[_mit_fahnen(_eingegangen(), "\\Flagged")],
+                           gesendet=[_antwort()])
+    with sitzung:
+        bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+    text = ablage.zeilen(bericht)
+    assert text[0].startswith("OK  joe@example.org: 1 von 1 Antworten seit ")
+    assert ", 1 davon bleiben liegen → „Archiv“" in text[0]
+    assert any(z.startswith("    UID 101 ") and z.endswith("„Angebot S1“ — liegt, Fähnchen")
+               for z in text), text
+    (liegt,) = ablage.als_json(bericht)["liegen"]
+    assert (liegt["uid"], liegt["grund"]) == ("101", "Fähnchen")
+
+
+def test_nennt_der_server_keine_flags_bleibt_die_mail_liegen():
+    """Unbekannt ist nicht „nicht gesetzt“: Im Zweifel bleibt die Mail im Eingang."""
+    attrappe, _ = _postfach(eingang=[_eingegangen()], gesendet=[_antwort()], ohne_flags=True)
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={})
+    assert bericht.verschoben == 0 and not attrappe.befehle("UID MOVE")
+    ((_, grund),) = bericht.liegen
+    assert grund.startswith("Fähnchen unbekannt")
+
+
+@pytest.mark.parametrize("hinten", [False, True], ids=["vor-dem-literal", "hinter-dem-literal"])
+def test_die_flags_werden_vor_und_hinter_dem_literal_gelesen(hinten):
+    """RFC 3501 legt die Reihenfolge der FETCH-Teile nicht fest. Steht `FLAGS`
+    hinter dem Literal, liefert `imaplib` es als eigenes Element danach."""
+    _, sitzung = _postfach(eingang=[_mit_fahnen(_eingegangen(), "\\Seen \\Flagged")],
+                           flags_hinten=hinten)
+    with sitzung:
+        (kopf,) = sitzung.koepfe("INBOX")
+    assert kopf.fahnen == ("\\seen", "\\flagged")
+    assert kopf.ankunft == HEUTE - timedelta(days=5)
+
+
+@pytest.mark.parametrize("trotz, erwartet", [(False, []), (True, [101])],
+                         ids=["ohne-schalter", "trotz-faehnchen"])
+def test_eine_benannte_mail_mit_faehnchen_wandert_nur_mit_dem_schalter(trotz, erwartet):
+    attrappe, _ = _postfach(eingang=[_mit_fahnen(_offen(), "\\Flagged")])
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
+                                uids=["101"], trotz_faehnchen=trotz)
+    assert bericht.grund is None
+    assert _uids(attrappe, "Archiv") == erwartet
+
+
+_ALT_478 = datetime(2025, 12, 10, 12, 0, tzinfo=timezone.utc)
+_NEU_478 = datetime(2026, 10, 20, 12, 0, tzinfo=timezone.utc)
+
+
+def _jahr_lage(ordner=("Archiv/2025", "Archiv/2026"), *, antworten=True):
+    """Zwei beantwortete Mails, eine von 2025, eine von 2026."""
+    eingang = [(nachricht(an="joe@example.org", von="kunde@example.org", betreff=betreff,
+                          datum=zeit, kennung=kennung), zeit)
+               for betreff, kennung, zeit in (("Alt", "<alt@example.org>", _ALT_478),
+                                              ("Neu", "<neu@example.org>", _NEU_478))]
+    gesendet = [_antwort("<alt@example.org>", tage=2), _antwort("<neu@example.org>", tage=1)]
+    return dict(eingang=eingang, gesendet=gesendet if antworten else (),
+                sonder={"INBOX": "", "Gesendete Elemente": "\\Sent",
+                        **{name: "" for name in ordner}})
+
+
+def test_jahr_im_ziel_legt_jede_mail_in_das_jahr_ihrer_ankunft():
+    attrappe, _ = _postfach(**_jahr_lage())
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv/{jahr}", machen=True,
+                                umgebung={})
+    assert bericht.grund is None and bericht.verschoben == 2
+    assert [b[1:] for b in attrappe.befehle("UID MOVE")] == [
+        ("101", '"Archiv/2025"'), ("102", '"Archiv/2026"')]
+    assert _uids(attrappe, "Archiv/2025") == [101] and _uids(attrappe, "Archiv/2026") == [102]
+    assert ablage.als_json(bericht)["ablage"] == "Archiv/{jahr}"
+    assert any(z.endswith("→ „Archiv/2025“") for z in ablage.zeilen(bericht))
+
+
+def test_fehlt_ein_jahresordner_wandert_keine_mail_des_laufs():
+    """Abnahme aus #478: Fehlt `Archiv/2025`, geht auch die Mail von 2026 nicht."""
+    attrappe, _ = _postfach(**_jahr_lage(ordner=("Archiv/2026",)))
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv/{jahr}", machen=True,
+                                umgebung={})
+    assert "„Archiv/2025“" in bericht.grund and "gibt es im Postfach nicht" in bericht.grund
+    assert "keine Mail dieses Laufs wandert" in bericht.grund
+    assert not attrappe.befehle("UID MOVE")
+    assert _uids(attrappe) == [101, 102] and _uids(attrappe, "Archiv/2026") == []
+    assert "Archiv/2025" not in attrappe.ordner, "der Ordner wurde angelegt"
+
+
+def test_jahr_gilt_auch_fuer_benannte_mails():
+    attrappe, _ = _postfach(**_jahr_lage(antworten=False))
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv/{jahr}", machen=True,
+                                umgebung={}, uids=["101"])
+    assert bericht.verschoben == 1
+    assert [b[1:] for b in attrappe.befehle("UID MOVE")] == [("101", '"Archiv/2025"')]
+
+
+def test_ohne_ankunftsdatum_bleibt_die_mail_bei_jahr_liegen(monkeypatch):
+    """Das Jahr kommt aus INTERNALDATE, nicht aus `Date`: Fehlt es, bleibt die Mail."""
+    monkeypatch.setattr(postfach, "_ankunft", lambda meta: None)
+    attrappe, _ = _postfach(**_jahr_lage(antworten=False))
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv/{jahr}", machen=True,
+                                umgebung={}, uids=["101"])
+    assert bericht.grund is None and bericht.verschoben == 0
+    assert not attrappe.befehle("UID MOVE")
+    ((zug, grund),) = bericht.liegen
+    assert zug.uid == "101" and grund == "ohne Ankunftsdatum, das Jahr für „Archiv/{jahr}“ fehlt"
+
+
+def test_uid_verlangt_genau_ein_konto(capsys):
+    """Dieselbe UID ist in zwei Postfächern zwei fremde Mails."""
+    from falzmarke import cli as falzmarke
+
+    assert falzmarke.main(["aufraeumen", "--absender", "a@example.org", "--absender",
+                           "b@example.org", "--uid", "101"]) == falzmarke.EXIT_EINGABE
+    assert "--uid" in capsys.readouterr().err
+
+
+def test_uid_und_entwuerfe_schliessen_sich_aus(capsys):
+    from falzmarke import cli as falzmarke
+
+    assert falzmarke.main(["aufraeumen", "--absender", "a@example.org", "--entwuerfe",
+                           "--uid", "101"]) == falzmarke.EXIT_EINGABE
+    assert "--entwuerfe" in capsys.readouterr().err
+
+
+def test_gegenprobe_uid_mit_einem_konto_verschiebt_ueber_die_cli(monkeypatch, capsys):
+    """Ohne sie belegten die beiden Tests darüber nichts: Eine Sperre, die jedes
+    `--uid` abweist, wäre dort auch grün."""
+    from falzmarke import cli as falzmarke
+
+    attrappe, _ = _postfach(eingang=[_offen()],
+                            sonder={"INBOX": "", "Gesendete Elemente": "\\Sent",
+                                    "Archiv": "\\Archive"})
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", attrappe)
+    assert falzmarke.main(["aufraeumen", "--absender", "joe@example.org", "--uid", "101",
+                           "--machen"]) == falzmarke.EXIT_OK
+    assert "1 nach „Archiv“ verschoben" in capsys.readouterr().out
+    assert _uids(attrappe, "Archiv") == [101]
 
 
 # ── Das Profilfeld `email.ablage` ───────────────────────────────────────────

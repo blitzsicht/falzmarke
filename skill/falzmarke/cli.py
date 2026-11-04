@@ -2262,7 +2262,22 @@ def befehl_aufraeumen(args) -> int:
         print(f"FEHLER  --seit braucht 1 bis {ablage_modul.SEIT_MAX} Tage — zehn Jahre, "
               "darüber bricht die Datumsrechnung", file=sys.stderr)
         return EXIT_EINGABE
+    if args.uid is not None:
+        # UIDs gelten je Konto. Zwei Konten mit einer Liste hieße, dieselbe
+        # Zahl in zwei Postfächern zu verschieben — dort sind es fremde Mails.
+        if args.entwuerfe or len(args.absender) != 1:
+            print("FEHLER  --uid nennt Mails im Eingang genau eines Kontos: einmal "
+                  "--absender, ohne --entwuerfe", file=sys.stderr)
+            return EXIT_EINGABE
+        if any(uid < 1 for uid in args.uid):
+            print("FEHLER  --uid braucht UIDs ab 1, wie die Liste von aufraeumen sie zeigt",
+                  file=sys.stderr)
+            return EXIT_EINGABE
     if args.entwuerfe:
+        if args.trotz_faehnchen:
+            print("FEHLER  --trotz-faehnchen gilt für den Eingang, nicht für --entwuerfe",
+                  file=sys.stderr)
+            return EXIT_EINGABE
         return _raeume_entwuerfe(args)
     zusatz = Path(args.profiles) if args.profiles else None
     berichte = []
@@ -2278,7 +2293,9 @@ def befehl_aufraeumen(args) -> int:
                 nicht_im_eingang=0, zuege=(), verschoben=0))
             continue
         berichte.append(ablage_modul.raeume_auf(
-            adresse, wunsch=wunsch, seit_tagen=args.seit, machen=args.machen))
+            adresse, wunsch=wunsch, seit_tagen=args.seit, machen=args.machen,
+            uids=[str(u) for u in args.uid] if args.uid is not None else None,
+            trotz_faehnchen=args.trotz_faehnchen))
     if args.json:
         print(json.dumps([ablage_modul.als_json(b) for b in berichte], ensure_ascii=False,
                          indent=2))
@@ -2918,6 +2935,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--entwuerfe", action="store_true",
                    help="statt des Eingangs „Entwürfe“ aufräumen: was belegt überholt ist, "
                         "geht in den Papierkorb, jeder andere Entwurf bleibt mit Grund")
+    p.add_argument("--uid", type=int, nargs="+", metavar="UID",
+                   help="genau diese Mails im Eingang ablegen, auch ohne Antwort; fehlt eine, "
+                        "wandert keine. --seit gilt dann nicht")
+    p.add_argument("--trotz-faehnchen", action="store_true",
+                   help="auch Mails mit Fähnchen ablegen; ohne diesen Schalter bleiben sie "
+                        "im Eingang")
     p.add_argument("--machen", action="store_true",
                    help="wirklich verschieben; ohne diesen Schalter wird nur gezeigt")
     p.add_argument("--profiles", help="Verzeichnis mit den Absenderprofilen")
