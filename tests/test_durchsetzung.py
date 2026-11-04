@@ -13,6 +13,7 @@ die eine in beide Richtungen wirkt.
 
 from __future__ import annotations
 
+import importlib
 import re
 import shutil
 import subprocess
@@ -188,8 +189,12 @@ def test_die_pruef_richtung_folgt_der_quelle(tmp_path, monkeypatch):
     Test, der nur uebersprungen wird, belegt nichts.
     """
     monkeypatch.syspath_prepend(str(_verstellte_werkstatt(tmp_path)))
-    for modul in ("durchsetzung", "repo_pruefung"):
-        sys.modules.pop(modul, None)
+    # Die Originale zur Seite legen, nicht nur verdrängen: Zurückgelegt bleibt
+    # ein Modulname ein Referent. Bis zum Nachreview von #492 wurden sie nur
+    # geworfen, und jeder spätere `import repo_pruefung` baute ein zweites
+    # Modulobjekt; eine Gegenprobe mit eigenem Import traf dann das Objekt, das
+    # niemand ausführt (gemessen am 04.11.2026).
+    vorher = {name: sys.modules.pop(name, None) for name in ("durchsetzung", "repo_pruefung")}
     try:
         import repo_pruefung as frisch                            # noqa: PLC0415
         ergebnisse = frisch.pruefe(
@@ -209,11 +214,30 @@ def test_die_pruef_richtung_folgt_der_quelle(tmp_path, monkeypatch):
         # kam es von dort, und ein spaeterer `import test_repo_pruefung` las die
         # Workflows unter tmp_path (Nachreview vom 04.11.2026, nur in einem
         # Teil-Lauf ohne test_pflicht_checks sichtbar).
-        for modul in ("durchsetzung", "repo_pruefung"):
-            sys.modules.pop(modul, None)
         for name, modul in list(sys.modules.items()):
             if str(getattr(modul, "__file__", None) or "").startswith(str(tmp_path)):
                 sys.modules.pop(name, None)
+        for name, modul in vorher.items():
+            if modul is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = modul
+
+
+def test_nach_der_werkstatt_ist_repo_pruefung_wieder_das_eine_modul(tmp_path, monkeypatch):
+    """Nach dem Test oben liefert `import repo_pruefung` dasselbe Objekt wie davor.
+
+    Nachreview von #492: Bis dahin warf das Aufräumen die Module nur aus dem
+    Cache, ein späterer Import baute ein zweites Modulobjekt, und eine
+    Gegenprobe in test_gegenbeweis.py traf damit das falsche (gemessen am
+    04.11.2026). `test_repo_pruefung` hält weiter das erste.
+    """
+    import repo_pruefung as davor                                 # noqa: PLC0415
+
+    test_die_pruef_richtung_folgt_der_quelle(tmp_path, monkeypatch)
+    assert importlib.import_module("repo_pruefung") is davor, \
+        "ein zweites Modulobjekt: das Aufräumen hat die Originale nicht zurückgelegt"
+    assert importlib.import_module("durchsetzung") is durchsetzung
 
 
 @ohne_bash

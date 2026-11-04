@@ -19,7 +19,7 @@ import pytest
 from markdown_it import MarkdownIt
 
 from conftest import REPO
-from test_readme_auf_pypi import relative_ziele
+from test_readme_auf_pypi import OHNE_HERKUNFT, relative_ziele, verweisziele
 
 sys.path.insert(0, str(REPO / "scripts"))
 
@@ -288,6 +288,20 @@ def test_eine_raute_im_codeblock_bleibt_eine_raute(tmp_path, monkeypatch):
     assert "\n#### Tiefer\n" in auszug
 
 
+@pytest.mark.parametrize("ziel", ["HTTPS://example.org/a", "MAILTO:post@example.org"])
+def test_ein_gross_geschriebenes_protokoll_bleibt_absolut(ziel, tmp_path, monkeypatch):
+    """`HTTPS://` ist ein Protokoll, kein Pfad (Nachreview von #492).
+
+    Bis dahin war `RELATIV` schreibungsabhängig, anders als `OHNE_HERKUNFT` in
+    test_readme_auf_pypi.py seit dem Nachreview von #484: Das Ziel wurde zu
+    einem toten GitHub-Link, und die README-Prüfung sah darin ein `https:`-Ziel.
+    """
+    punkt = f"- Siehe [V]({ziel}).\n"
+    auszug = _auszug_aus(tmp_path, monkeypatch, punkt)
+    assert f"[V]({ziel})" in auszug, f"{ziel} wurde als relativer Verweis umgeschrieben"
+    assert umschreibung_befunde(punkt) == []
+
+
 # ── Jedes Fragment am eigenen PR nachgemessen (#480) ──────────────────────
 
 
@@ -322,12 +336,17 @@ def umschreibung_befunde(text: str) -> list[str]:
     stimmt der Auszug nicht mehr mit CHANGELOG.md überein. Lässt sie einen
     Verweis relativ, zeigt er auf PyPI ins Leere. Gemessen wird `readme_fassung`,
     derselbe Weg wie in `abschnitt()`, nicht nur `_absolut` (Nachreview von #484).
+    Und ein Ziel mit Protokoll bleibt wörtlich: Umgeschrieben wäre es ein toter
+    GitHub-Link, den die README-Prüfung für absolut hält (Nachreview von #492).
     """
     neu = changelog.readme_fassung(text)
     befunde = []
     if code_stellen(neu) != code_stellen(text):
         befunde.append("Code verändert")
     befunde += [f"relativ geblieben: {ziel}" for ziel in relative_ziele(neu)]
+    nachher = verweisziele(neu)
+    befunde += [f"absolutes Ziel verändert: {ziel}" for ziel in verweisziele(text)
+                if not OHNE_HERKUNFT.match(ziel) and ziel not in nachher]
     return befunde
 
 
