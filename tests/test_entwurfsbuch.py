@@ -1691,7 +1691,9 @@ def test_ohne_meldung_entscheidet_die_adresse_in_der_uri(monkeypatch, reihenfolg
     fremd = _fenster(uid, uri=LOGIN_FREMD, betreff="nur der Login")
     _mit_fenstern(monkeypatch, *([fremd, eigen] if reihenfolge == "fremd-zuerst"
                                  else [eigen, fremd]))
-    assert _einziger(_stand()).fenster["betreff"] == "Adresse in der URI"
+    zustand = _einziger(_stand())
+    # Auch `art`: Das Fenster hängt am Zustand, ob er nun OFFEN heißt oder nicht (#468).
+    assert zustand.art == "offen" and zustand.fenster["betreff"] == "Adresse in der URI"
 
 
 @pytest.mark.parametrize("uri", [
@@ -1728,23 +1730,34 @@ def test_ein_gemeldeter_absender_traegt_die_zuordnung_selbst(monkeypatch):
     assert zustand["fenster_nur_uid"] is False
 
 
-def test_ein_fenster_ohne_uid_in_der_uri_zaehlt_nicht(monkeypatch):
+#: `LOGIN_FREMD`, nur steht die UID hinter `/` statt hinter `#`. Eine leere
+#: `draft_id` genügte hier nicht: Ein gelockertes `UID_AUS_URI`, das jede Zahl am
+#: Ende nimmt, ließe sie ebenso liegen wie das heutige Muster (#468).
+OHNE_RAUTE = LOGIN_FREMD.replace("#{uid}", "/{uid}")
+
+
+@pytest.mark.parametrize("identitaet", [None, VON], ids=["ohne-meldung", "eigene-meldung"])
+def test_ein_fenster_ohne_uid_in_der_uri_zaehlt_nicht(monkeypatch, identitaet):
     """Ohne `#<uid>` ist nicht zu sagen, welcher Entwurf gemeint ist.
 
     Gegenprobe zur gelockerten Zuordnung: Dass die Adresse nicht mehr
-    ausschließt, heißt nicht, dass jedes Fenster zählt.
+    ausschließt, heißt nicht, dass jedes Fenster zählt. Auch die eigene
+    Meldung ersetzt die UID nicht.
 
-    Zwilling: Dasselbe Fenster mit `#<uid>` macht den Entwurf `OFFEN`. Bis #442
-    (N5) stand hier `assert server.ordner[ENTWUERFE]`, und das prüfte nur, dass
-    die Attrappe nicht leer ist.
+    Zwilling: dieselbe URI mit `#` statt `/`. Bis #442 (N5) stand hier
+    `assert server.ordner[ENTWUERFE]`, und das prüfte nur, dass die Attrappe
+    nicht leer ist. Bis #468 trug der Zwilling die eigene Identität und kam
+    damit über den ersten Rang zu `OFFEN`. Ohne Meldung trägt ihn die UID allein.
     """
     server = _postfach(monkeypatch, entwuerfe=[_mail()])
-    ohne = {"titel": "Verfassen", "betreff": "neu", "draft_id": "", "identitaet": VON}
-    _mit_fenstern(monkeypatch, ohne)
-    assert _einziger(_stand()).art == "wartet"
     uid = server.ordner[ENTWUERFE][0].uid
-    _mit_fenstern(monkeypatch, {**ohne, "draft_id": LOGIN_FREMD.format(uid=uid)})
-    assert _einziger(_stand()).art == "offen", "der Aufbau kann gar nicht OFFEN werden"
+    felder = {} if identitaet is None else {"identitaet": identitaet}
+    _mit_fenstern(monkeypatch, _fenster(uid, uri=OHNE_RAUTE, **felder))
+    assert _einziger(_stand()).art == "wartet"
+    _mit_fenstern(monkeypatch, _fenster(uid, uri=LOGIN_FREMD, **felder))
+    zwilling = _einziger(_stand())
+    assert zwilling.art == "offen", "der Aufbau kann gar nicht OFFEN werden"
+    assert entwurfsbuch.nur_uid(zwilling.fenster, VON) is (identitaet is None)
 
 
 # ── Das Tagebuch kommt aus dem Profil des Sockets (#410) ────────────────────

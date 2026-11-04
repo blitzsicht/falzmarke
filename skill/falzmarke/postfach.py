@@ -395,20 +395,40 @@ class Postfach:
         self._befehl(f"Ordner „{utf7_dekodieren(ordner)}“ nicht lesbar",
                      self._v.select, _zitiert(ordner), readonly=True)
 
-    def suche_kopfzeile(self, ordner: str, feld: str, wert: str) -> list[str]:
-        """Die UIDs im Ordner, deren Kopfzeile `feld` den `wert` enthält.
+    def _suche_kopfzeile(self, ordner: str, feld: str, wert: str) -> list[str]:
+        """Die UIDs im Ordner, deren Kopfzeile `feld` den `wert` **enthält**.
 
         `UID SEARCH HEADER` — nur lesend, und es lässt den Server suchen,
         statt alle Köpfe zu holen: Ein Eingang mit Jahren an Post würde sonst
         an `GRENZE` gekappt, und gerade die ältere Nachricht ist die gesuchte.
         Am Microsoft-Konto gegengeprüft (28.10.2026): dieselben Treffer wie
         ein Kopfvergleich von Hand, und eine erfundene Message-ID findet
-        nichts. Das Ergebnis ist eine Teilkettensuche: Vor einem Zug gehört es
-        gegen den Kopf nachverglichen (`gleiche_kennung`).
+        nichts.
+
+        Privat, weil das Ergebnis eine Teilkettensuche ist: `123` findet auch
+        `<x123y@…>`. Bis #468 war sie öffentlich, und nur ein Satz hier verlangte
+        den Nachvergleich. Ein Aufrufer, der ihn vergaß, hätte #442 zurückgeholt.
+        Von außen geht es über `suche_kennung`.
         """
         self._waehle(ordner)
         daten = self._befehl("SEARCH", self._v.uid, "SEARCH", "HEADER", feld, _zitiert(wert))
         return [u.decode() for u in ((daten[0] or b"").split() if daten else [])]
+
+    def suche_kennung(self, ordner: str, kennung: str) -> list[Kopf]:
+        """Die Köpfe im Ordner, deren Message-ID genau `kennung` ist (#442, #468).
+
+        Suche, Abruf und exakter Vergleich in einem Schritt. Die Teiltreffer des
+        Servers werden **alle** geholt, nicht die neuesten `GRENZE`: Bei einer
+        kurzen Kennung können es mehr sein, und gekappt vor dem Vergleich fiele
+        gerade die ältere, echte Nachricht heraus. Der Grenz-Hinweis erschiene
+        dann obendrein, ausgelöst nur von fremden Treffern. `koepfe` holt sie in
+        Stücken zu höchstens `GRENZE` UIDs je Befehl.
+        """
+        uids = self._suche_kopfzeile(ordner, "Message-ID", kennung)
+        if not uids:
+            return []
+        return [kopf for kopf in self.koepfe(ordner, uids=uids, grenze=len(uids))
+                if gleiche_kennung(kennung, kopf.kennung)]
 
     def koepfe(self, ordner: str, seit: date | None = None, *,
                grenze: int | None = None, uids: list[str] | None = None) -> list[Kopf]:

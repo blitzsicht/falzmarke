@@ -157,7 +157,7 @@ def test_gegenprobe_ohne_befund_kein_hinweis_auf_den_neustart():
 
 
 def test_gegenprobe_ohne_den_satz_in_pruefe_wird_die_meldung_rot(monkeypatch):
-    from test_gegenbeweis import _zeile_ersetzt
+    from sabotage import zeile_ersetzt as _zeile_ersetzt
 
     monkeypatch.setattr(closing_keyword, "pruefe", _zeile_ersetzt(
         closing_keyword, "pruefe", '"\\n" + NEUSTART', '""'))

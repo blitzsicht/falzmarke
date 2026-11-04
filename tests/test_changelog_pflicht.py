@@ -182,7 +182,7 @@ def test_gegenprobe_mit_eintrag_kein_hinweis_auf_den_neustart(tmp_path):
 
 
 def test_gegenprobe_ohne_den_satz_in_pruefe_wird_die_meldung_rot(tmp_path, monkeypatch):
-    from test_gegenbeweis import _zeile_ersetzt
+    from sabotage import zeile_ersetzt as _zeile_ersetzt
 
     monkeypatch.setattr(changelog_pflicht, "pruefe", _zeile_ersetzt(
         changelog_pflicht, "pruefe", '"\\n" + NEUSTART', '""'))

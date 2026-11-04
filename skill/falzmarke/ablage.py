@@ -206,13 +206,9 @@ def plane(sitzung: postfach.Postfach, *, wunsch: str | None = None,
                 unsendbar += 1
                 continue
             gesucht = True
-            uids = sitzung.suche_kopfzeile(EINGANG, "Message-ID", kennung)
-            if not uids:
-                continue
-            for kopf in sitzung.koepfe(EINGANG, uids=uids):
-                # Der Server sucht Teilketten, verschoben wird nur der exakte Treffer (#442).
-                if not postfach.gleiche_kennung(kennung, kopf.kennung):
-                    continue
+            # Der Server sucht Teilketten, verschoben wird nur der exakte Treffer (#442).
+            # `suche_kennung` vergleicht selbst und kappt nicht vorher (#468).
+            for kopf in sitzung.suche_kennung(EINGANG, kennung):
                 traf = True
                 vorher = gefunden.get(kopf.uid)
                 if vorher is not None and _spaeter(vorher.antwort_datum, antwort.datum):
