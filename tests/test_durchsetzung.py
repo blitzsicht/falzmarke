@@ -195,7 +195,8 @@ def test_die_pruef_richtung_folgt_der_quelle(tmp_path, monkeypatch):
         ergebnisse = frisch.pruefe(
             "blitzsicht/falzmarke",
             api=lambda pfad: [] if pfad.endswith("/rulesets") else {"homepage": ""},
-            workflow=REPO / ".github" / "workflows" / "ci.yml",
+            workflows=(REPO / ".github" / "workflows" / "ci.yml",
+                       REPO / ".github" / "workflows" / "pr-angaben.yml"),
             domain_pruefen=lambda _: True)
         soll_werte = {e.soll for e in ergebnisse if "enforcement" in e.name}
         assert soll_werte == {"verstellt"}, soll_werte

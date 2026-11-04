@@ -107,96 +107,10 @@ def test_ausgeschriebene_adresse_zaehlt():
     assert gut
 
 
-# ── Nach der Korrektur bleibt der rote Lauf stehen (#437) ───────────────────
-
-CI = REPO / ".github" / "workflows" / "ci.yml"
-
-# Was GitHub für `pull_request` ohne `types:` einsetzt (Dokumentation „Events
-# that trigger workflows“, Abschnitt pull_request; an PR #432 bestätigt: nach
-# `gh pr edit` lief nichts neu).
-VORGABE_TYPEN = ("opened", "synchronize", "reopened")
-
-
-def pull_request_typen(ci_text: str) -> tuple[str, ...]:
-    """Die Ereignisarten, bei denen ci.yml für einen Pull Request startet."""
-    import yaml
-
-    daten = yaml.safe_load(ci_text)
-    # PyYAML liest den Schlüssel `on` nach YAML 1.1 als True.
-    ausloeser = daten["on"] if "on" in daten else daten[True]
-    if isinstance(ausloeser, str):
-        ausloeser = {ausloeser: None}
-    elif isinstance(ausloeser, list):
-        ausloeser = dict.fromkeys(ausloeser)
-    typen = (ausloeser["pull_request"] or {}).get("types")
-    if typen is None:
-        return VORGABE_TYPEN
-    return (typen,) if isinstance(typen, str) else tuple(typen)
-
-
-def ci_mit_typen(tmp_path, typen: str):
-    """ci.yml mit einer `types:`-Zeile unter `pull_request:`, als Sabotage."""
-    text = CI.read_text(encoding="utf-8")
-    alt = "\n  pull_request:\n"
-    assert text.count(alt) == 1, "der Trigger steht nicht mehr in der erwarteten Form"
-    datei = tmp_path / "ci.yml"
-    datei.write_text(text.replace(alt, f"{alt}    types: [{typen}]\n"), encoding="utf-8")
-    return datei
-
-
-def test_die_meldung_sagt_wie_der_check_neu_laeuft():
-    gut, grund = closing_keyword.pruefe("Schließt #261.")
-    assert not gut
-    assert "gh run rerun --job" in closing_keyword.NEUSTART
-    assert closing_keyword.NEUSTART in grund, "NEUSTART fehlt in der Meldung"
-
-
-def test_gegenprobe_ohne_befund_kein_hinweis_auf_den_neustart():
-    _, grund = closing_keyword.pruefe("Closes #261.")
-    assert closing_keyword.NEUSTART not in grund
-
-
-def test_gegenprobe_ohne_den_satz_in_pruefe_wird_die_meldung_rot(monkeypatch):
-    from sabotage import zeile_ersetzt as _zeile_ersetzt
-
-    monkeypatch.setattr(closing_keyword, "pruefe", _zeile_ersetzt(
-        closing_keyword, "pruefe", '"\\n" + NEUSTART', '""'))
-    with pytest.raises(AssertionError, match="NEUSTART fehlt in der Meldung"):
-        test_die_meldung_sagt_wie_der_check_neu_laeuft()
-
-
-def test_der_hinweis_stimmt_solange_edited_und_labeled_nicht_ausloesen():
-    """Der Satz behauptet etwas über ci.yml. Ändert sich der Trigger, ist er falsch.
-
-    Kommt `edited` oder `labeled` dazu (#437, Weg 1), startet der Check von
-    selbst neu, und der Hinweis schickt jeden zu einem Neustart, den es nicht
-    mehr braucht. Dann gehört er aus beiden Skripten heraus.
-
-    Reichweite: nur `on.pull_request.types` in ci.yml. Ein eigener Workflow für
-    die beiden Checks (#437, Weg 2) oder `pull_request_target` bleiben hier
-    unsichtbar. Wer so einen baut, nimmt den Satz in demselben Vorgang heraus.
-    """
-    typen = pull_request_typen(CI.read_text(encoding="utf-8"))
-    for typ in ("edited", "labeled"):
-        assert typ not in typen, (
-            f"ci.yml startet jetzt bei „{typ}“ ({', '.join(typen)}): NEUSTART in "
-            "scripts/closing_keyword.py und scripts/changelog_pflicht.py ist überholt")
-
-
-@pytest.mark.parametrize("typ", ["edited", "labeled"])
-def test_gegenprobe_mit_dem_ereignis_im_trigger_wird_der_hinweis_rot(typ, tmp_path, monkeypatch):
-    """Jede Sabotage einzeln: eine Probe, die nur `edited` sähe, fiele hier auf."""
-    test_der_hinweis_stimmt_solange_edited_und_labeled_nicht_ausloesen()   # Kontrolle
-    monkeypatch.setattr(sys.modules[__name__], "CI",
-                        ci_mit_typen(tmp_path, f"opened, synchronize, reopened, {typ}"))
-    with pytest.raises(AssertionError, match=f"bei „{typ}“"):
-        test_der_hinweis_stimmt_solange_edited_und_labeled_nicht_ausloesen()
-
-
 # ── Der Weg, den die CI tatsächlich geht ───────────────────────────────────
 
 def test_pr_json_wird_gelesen(tmp_path):
-    """Nicht die Funktion, sondern der Aufruf aus ci.yml — mit echtem Exit-Code."""
+    """Nicht die Funktion, sondern der Aufruf aus pr-angaben.yml — mit echtem Exit-Code."""
     datei = tmp_path / "pr.json"
     datei.write_text('{"body": "Schließt #261.", "labels": []}', encoding="utf-8")
     ergebnis = subprocess.run([sys.executable, str(SKRIPT), "--pr-json", str(datei)],
@@ -232,15 +146,17 @@ def test_die_meldung_bleibt_unter_cp1252_lesbar(tmp_path):
     assert "#261" in ergebnis.stderr
 
 
-def test_der_job_steht_in_ci_yml():
+def test_der_job_steht_in_pr_angaben_yml():
     """Ein Prüfer ohne Aufrufer prüft nichts.
 
-    `scripts/pflicht_checks.py` leitet die Pflicht-Checks des Rulesets aus
-    ci.yml ab — steht der Job dort nicht, wird er nie zu einem.
+    Seit #437 steht der Job in pr-angaben.yml, damit er auch bei einem
+    korrigierten Rumpf neu startet. `scripts/pflicht_checks.py` liest die
+    Datei mit; steht der Job in keiner von `STANDARD_WORKFLOWS`, wird er nie
+    zu einem Pflicht-Check. Trigger und Ruleset prüft tests/test_pr_angaben.py.
     """
     import yaml
 
-    workflow = yaml.safe_load((REPO / ".github" / "workflows" / "ci.yml").read_text(
+    workflow = yaml.safe_load((REPO / ".github" / "workflows" / "pr-angaben.yml").read_text(
         encoding="utf-8"))
     job = workflow["jobs"]["closing-keyword"]
     assert job["name"] == "Closing-Keyword"
@@ -249,5 +165,4 @@ def test_der_job_steht_in_ci_yml():
     sys.path.insert(0, str(REPO / "scripts"))
     import pflicht_checks
 
-    assert "Closing-Keyword" in pflicht_checks.pflicht_checks(
-        REPO / ".github" / "workflows" / "ci.yml")
+    assert "Closing-Keyword" in pflicht_checks.pflicht_checks()

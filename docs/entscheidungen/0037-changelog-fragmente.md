@@ -71,6 +71,23 @@ nie als Doku, auch nicht `skill/references/din5008.md` — dort stehen die Sollw
 Normregeln, und ihre Änderung ohne Spur im Verlauf wäre genau die Sorte stille Änderung, gegen
 die dieses Repository sonst überall Wächter aufstellt.
 
+## Nachtrag 04.11.2026: ein eigener Workflow (#437)
+
+Der Abschnitt „Warum der Check blockiert“ begründet den Ort `ci.yml` mit einer Eigenschaft
+von `scripts/pflicht_checks.py`, nicht mit dem Check selbst. Diese Eigenschaft ist geändert:
+Das Skript liest jetzt die Dateien in `STANDARD_WORKFLOWS`, `ci.yml` und
+`.github/workflows/pr-angaben.yml`. Der Job steht in der zweiten.
+
+Der Anlass: `ci.yml` startet nur bei neuem Code. Wer das Label „ohne-changelog“ setzte, behob
+den Befund, und der rote Check blieb stehen, bis ihn jemand von Hand neu startete. Der eigene
+Workflow startet auch bei `labeled`, `unlabeled` und `edited`. In `ci.yml` hätte das die ganze
+Testmatrix bei jeder Textänderung neu gestartet.
+
+Die Entscheidung selbst gilt unverändert: Der Check blockiert, weil er im Ruleset steht. Das
+Ruleset nennt ihn nur beim Namen, der Umzug hat daran nichts geändert. `pflicht_checks` meldet
+seit #437 einen Fehler, wenn ein Checkname in zwei Workflows vorkommt oder ein Workflow nicht
+bei jedem neuen Commit startet.
+
 ## Verwandt
 
 - [0036](0036-pypi-wartezeit-statt-freigabe.md) — eine Versionsnummer auf PyPI ist unwiderruflich

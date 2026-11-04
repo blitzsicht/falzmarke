@@ -32,7 +32,7 @@ import topics                                                     # noqa: E402
 
 REPO_NAME = "blitzsicht/falzmarke"
 SKRIPT = REPO / "scripts" / "repo-einstellungen.sh"
-CI = REPO / ".github" / "workflows" / "ci.yml"
+WORKFLOWS = repo_pruefung.pflicht_checks.STANDARD_WORKFLOWS
 
 #: Die echte Registry-Abfrage, zur Importzeit festgehalten.
 #:
@@ -48,7 +48,7 @@ PYPI_REGELN_SOLL = [{"type": "branch_policy"}, {"type": "wait_timer", "wait_time
 PYPI_REGELN_MIT_FREIGABE = PYPI_REGELN_SOLL + [
     {"type": "required_reviewers", "reviewers": [{"reviewer": {"login": "siluri"}}]}]
 
-SOLL_CHECKS = sorted(repo_pruefung.pflicht_checks.pflicht_checks(CI))
+SOLL_CHECKS = sorted(repo_pruefung.pflicht_checks.pflicht_checks(WORKFLOWS))
 EIN_CHECK_ZU_WENIG = SOLL_CHECKS[1:]
 
 
@@ -154,7 +154,7 @@ def _pruefen(*, domain_antwortet: bool = True, im_registry: bool | Exception = T
         return [name] if im_registry else []
 
     return repo_pruefung.pruefe(REPO_NAME, api=_api(_vollstaendige_antworten(**kwargs)),
-                                workflow=CI, domain_pruefen=lambda _: domain_antwortet,
+                                workflows=WORKFLOWS, domain_pruefen=lambda _: domain_antwortet,
                                 registry_suche=suche,
                                 umgebung=umgebung or {})
 
@@ -302,7 +302,7 @@ def test_fehlendes_ruleset_ist_eine_abweichung_nicht_ein_absturz():
     behandelt als ein bloß zurückgestuftes (Exit 2 statt Exit 1)."""
     antworten = _vollstaendige_antworten()
     antworten[f"repos/{REPO_NAME}/rulesets"] = [_ruleset("main", 1, "active")]
-    ergebnisse = repo_pruefung.pruefe(REPO_NAME, api=_api(antworten), workflow=CI,
+    ergebnisse = repo_pruefung.pruefe(REPO_NAME, api=_api(antworten), workflows=WORKFLOWS,
                                       domain_pruefen=lambda _: True)
     abgleich = _finde(ergebnisse, "'release-tags': enforcement")
     assert not abgleich.unbekannt
@@ -325,7 +325,7 @@ def test_fehlendes_main_ruleset_wird_ebenso_erkannt():
     """
     antworten = _vollstaendige_antworten()
     antworten[f"repos/{REPO_NAME}/rulesets"] = [_ruleset("release-tags", 2, "active")]
-    ergebnisse = repo_pruefung.pruefe(REPO_NAME, api=_api(antworten), workflow=CI,
+    ergebnisse = repo_pruefung.pruefe(REPO_NAME, api=_api(antworten), workflows=WORKFLOWS,
                                       domain_pruefen=lambda _: True)
 
     durchsetzung = _finde(ergebnisse, "'main': enforcement")
@@ -430,7 +430,7 @@ def test_reihenfolge_allein_ist_keine_abweichung():
 def test_api_fehler_bei_der_homepage_ergibt_unbekannt_nicht_gruen():
     antworten = _vollstaendige_antworten()
     antworten[f"repos/{REPO_NAME}"] = RuntimeError("kein Netz")
-    ergebnisse = repo_pruefung.pruefe(REPO_NAME, api=_api(antworten), workflow=CI)
+    ergebnisse = repo_pruefung.pruefe(REPO_NAME, api=_api(antworten), workflows=WORKFLOWS)
     abgleich = _finde(ergebnisse, "Homepage")
     assert abgleich.unbekannt
     assert not abgleich.stimmt
@@ -442,7 +442,7 @@ def test_api_fehler_bei_rulesets_betrifft_enforcement_und_checkliste():
     müssen beide den dritten Zustand zeigen, nicht nur einer."""
     antworten = _vollstaendige_antworten()
     antworten[f"repos/{REPO_NAME}/rulesets"] = RuntimeError("HTTP 403: keine Admin-Rechte")
-    ergebnisse = repo_pruefung.pruefe(REPO_NAME, api=_api(antworten), workflow=CI)
+    ergebnisse = repo_pruefung.pruefe(REPO_NAME, api=_api(antworten), workflows=WORKFLOWS)
     for teilname in ("'main': enforcement", "'release-tags': enforcement", "Pflicht-Check-Liste"):
         abgleich = _finde(ergebnisse, teilname)
         assert abgleich.unbekannt, teilname
@@ -453,7 +453,7 @@ def test_api_fehler_bei_rulesets_betrifft_enforcement_und_checkliste():
 def test_api_fehler_beim_ruleset_detail_betrifft_nur_die_checkliste():
     antworten = _vollstaendige_antworten()
     antworten[f"repos/{REPO_NAME}/rulesets/1"] = RuntimeError("API-Fehler")
-    ergebnisse = repo_pruefung.pruefe(REPO_NAME, api=_api(antworten), workflow=CI)
+    ergebnisse = repo_pruefung.pruefe(REPO_NAME, api=_api(antworten), workflows=WORKFLOWS)
     assert _finde(ergebnisse, "Pflicht-Check-Liste").unbekannt
     assert _finde(ergebnisse, "'main': enforcement").stimmt
 
@@ -652,7 +652,7 @@ def test_der_servername_kommt_aus_server_json(tmp_path):
     gefragt: list[str] = []
 
     ergebnisse = repo_pruefung.pruefe(
-        REPO_NAME, api=_api(_vollstaendige_antworten()), workflow=CI,
+        REPO_NAME, api=_api(_vollstaendige_antworten()), workflows=WORKFLOWS,
         domain_pruefen=lambda _: True, server_json=eigen,
         registry_suche=lambda name: gefragt.append(name) or [name], umgebung={})
 
@@ -664,7 +664,7 @@ def test_eine_unlesbare_server_json_ist_unbekannt(tmp_path):
     """Auch das ist „nicht geprüft“ und nicht „nicht gelistet“."""
     fehlt = tmp_path / "gibt-es-nicht.json"
     ergebnisse = repo_pruefung.pruefe(
-        REPO_NAME, api=_api(_vollstaendige_antworten()), workflow=CI,
+        REPO_NAME, api=_api(_vollstaendige_antworten()), workflows=WORKFLOWS,
         domain_pruefen=lambda _: True, server_json=fehlt,
         registry_suche=lambda name: [name], umgebung={})
     abgleich = _finde(ergebnisse, "MCP-Registry")

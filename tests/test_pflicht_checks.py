@@ -1,4 +1,4 @@
-"""Die Pflicht-Checks des Rulesets stammen aus ci.yml, nicht aus einem Lauf.
+"""Die Pflicht-Checks des Rulesets stammen aus den Workflow-Dateien, nicht aus einem Lauf.
 
 WARUM ES DAS GIBT
 
@@ -11,8 +11,8 @@ einen Pflicht-Check, den es vorher hatte. Welche Checks am Ende im Ruleset
 stehen, hing damit vom Zeitpunkt des Aufrufs ab statt vom Workflow selbst
 (Issue #196).
 
-`scripts/pflicht_checks.py` ersetzt das: Es liest nur `.github/workflows/
-ci.yml`. Diese Tests halten fest, dass die Liste ausschließlich vom
+`scripts/pflicht_checks.py` ersetzt das: Es liest nur die Dateien in
+`STANDARD_WORKFLOWS`, `ci.yml` und seit #437 `pr-angaben.yml`. Diese Tests halten fest, dass die Liste ausschließlich vom
 Dateiinhalt abhängt, dass der berechtigte Teil der alten Logik (Jobs, die nur
 auf main laufen, gehören nicht in die PR-Pflicht-Checks) erhalten bleibt, und
 dass der *angezeigte* Name verwendet wird — nicht der Jobschlüssel, der bei
@@ -34,6 +34,7 @@ sys.path.insert(0, str(REPO / "scripts"))
 import pflicht_checks                                            # noqa: E402
 
 CI = REPO / ".github" / "workflows" / "ci.yml"
+PR_ANGABEN = REPO / ".github" / "workflows" / "pr-angaben.yml"
 SKRIPT = REPO / "scripts" / "repo-einstellungen.sh"
 
 # Die Pflicht-Checks des Rulesets `main`. Der Job `tests` hat eine Matrix mit
@@ -60,21 +61,29 @@ ERWARTET = [
     # fremde Prüfung wäre jede Aussage über ZUGFeRD eine, die falzmarke über
     # sich selbst macht.
     "E-Rechnung (Mustang, fremdes Werkzeug)",
+    # Ab hier pr-angaben.yml, das zweite Element von STANDARD_WORKFLOWS (#437):
+    # Die beiden Jobs lesen den PR, nicht den Code, und starten darum auch bei
+    # `edited` und `labeled`. Ein Job in einem Workflow, der dort fehlt, wäre
+    # gelaufen, aber nie im Ruleset gelandet.
+    #
     # Seit Issue #229: ein Vorgang ohne Punkt im Verlauf lässt sich nicht mergen.
-    # Der Job steht in ci.yml und nicht in einem eigenen Workflow, weil
-    # `analysiere()` nur diese Datei liest — daneben wäre er gelaufen, aber nie
-    # im Ruleset gelandet.
     "Changelog-Eintrag",
-    # Seit Issue #268: „Schließt #N“ schließt bei GitHub nichts. Derselbe Ort
-    # aus demselben Grund — ein Job daneben liefe, landete aber nie im Ruleset.
+    # Seit Issue #268: „Schließt #N“ schließt bei GitHub nichts.
     "Closing-Keyword",
 ]
 
 
-def test_die_checks_aus_dem_echten_ci_yml():
+def test_die_checks_aus_den_echten_workflows():
     """Keine Zahl im Namen: Sie stand bis #237 auf „acht“ und war mit dem
     neunten Check falsch, ohne dass jemand den Namen gelesen hätte."""
-    assert pflicht_checks.pflicht_checks(CI) == ERWARTET
+    assert pflicht_checks.STANDARD_WORKFLOWS == (CI, PR_ANGABEN)
+    assert pflicht_checks.pflicht_checks() == ERWARTET
+
+
+def test_ohne_pr_angaben_fehlen_genau_die_beiden_checks():
+    """Die Gegenprobe zur Liste oben: ci.yml allein trägt die beiden nicht mehr."""
+    assert pflicht_checks.pflicht_checks(CI) == ERWARTET[:-2]
+    assert pflicht_checks.pflicht_checks(PR_ANGABEN) == ERWARTET[-2:]
 
 
 def test_zweimal_derselbe_aufruf_liefert_dieselbe_liste():
@@ -86,7 +95,7 @@ def test_zweimal_derselbe_aufruf_liefert_dieselbe_liste():
     nachdem ob CI gerade lief — kann hier grundsätzlich nicht auftreten,
     weil kein CI-Lauf mehr abgefragt wird.
     """
-    assert pflicht_checks.pflicht_checks(CI) == pflicht_checks.pflicht_checks(CI)
+    assert pflicht_checks.pflicht_checks() == pflicht_checks.pflicht_checks()
 
 
 def _schreibe(tmp_path, jobs_yaml: str):
@@ -274,8 +283,46 @@ def test_die_datei_ist_gueltiges_yaml_mit_pyyaml_lesbar():
     synthetischen Dateien arbeiten."""
     daten = yaml.safe_load(CI.read_text(encoding="utf-8"))
     assert set(daten["jobs"]) == {"tests", "frischklon", "skill-paket",
-                                 "pdf-konformitaet", "changelog", "closing-keyword",
-                                 "mcp-container", "e-rechnung"}
+                                 "pdf-konformitaet", "mcp-container", "e-rechnung"}
+    daten = yaml.safe_load(PR_ANGABEN.read_text(encoding="utf-8"))
+    assert set(daten["jobs"]) == {"changelog", "closing-keyword"}
+
+
+# ── Was sich aus einem Workflow nicht ableiten lässt (#437) ────────────────
+
+def _workflow(tmp_path, name: str, kopf: str, job: str = "tests"):
+    pfad = tmp_path / name
+    pfad.write_text(kopf + f"jobs:\n  {job}:\n    runs-on: ubuntu-latest\n    steps: []\n",
+                    encoding="utf-8")
+    return pfad
+
+
+def test_ein_checkname_in_zwei_workflows_ist_ein_fehler(tmp_path):
+    """Zwei Check-Runs gleichen Namens: Für das Ruleset zählt der jüngste, ein
+    grüner des einen überdeckte einen roten des anderen."""
+    a = _workflow(tmp_path, "a.yml", "on: pull_request\n")
+    b = _workflow(tmp_path, "b.yml", "on: pull_request\n")
+    assert pflicht_checks.pflicht_checks(a) == ["tests"]   # Kontrolle: einzeln gültig
+    with pytest.raises(pflicht_checks.Workflowfehler, match="mehrfach vergeben: tests"):
+        pflicht_checks.pflicht_checks((a, b))
+
+
+def test_ein_workflow_ohne_pull_request_ist_ein_fehler(tmp_path):
+    """Seine Jobs kämen in keinem PR: Das Ruleset wartete auf sie, bis jemand es ändert."""
+    pfad = _workflow(tmp_path, "nur-push.yml", "on:\n  push:\n    branches: [main]\n")
+    with pytest.raises(pflicht_checks.Workflowfehler, match="nur-push.yml startet nicht bei pull_request"):
+        pflicht_checks.pflicht_checks(pfad)
+
+
+def test_ein_workflow_ohne_synchronize_ist_ein_fehler(tmp_path):
+    """Ein neuer Commit bekäme seinen Check nie. `edited` allein reicht nicht."""
+    pfad = _workflow(tmp_path, "angaben.yml",
+                     "on:\n  pull_request:\n    types: [opened, reopened, edited]\n")
+    with pytest.raises(pflicht_checks.Workflowfehler, match="startet nicht bei synchronize"):
+        pflicht_checks.pflicht_checks(pfad)
+    voll = _workflow(tmp_path, "voll.yml",
+                     "on:\n  pull_request:\n    types: [opened, synchronize, reopened, edited]\n")
+    assert pflicht_checks.pflicht_checks(voll) == ["tests"]   # Gegenstück: mit ihm gültig
 
 
 # ── Das Skript ruft keinen CI-Lauf mehr ab ──────────────────────────────────
@@ -303,6 +350,6 @@ def test_liste_wird_vor_dem_anwenden_gezeigt():
     """Trockenlauf-Anforderung aus dem Issue: Die Liste steht vor jeder
     Ruleset-Anwendung im Skriptablauf — nicht nur im Trockenlauf-Zweig."""
     text = SKRIPT.read_text(encoding="utf-8")
-    ableitung = text.index("Status-Checks aus .github/workflows/ci.yml ableiten")
+    ableitung = text.index("Status-Checks aus den Workflow-Dateien ableiten")
     anwendung = text.index('setze_ruleset "main"')
     assert ableitung < anwendung

@@ -8,7 +8,7 @@ Dreimal am 31.08.2026 ist eine Repo-Einstellung von ihrem Sollwert abgewichen
 Alle drei Ursachen sind behoben — aber nichts hätte gemerkt, wenn der gelebte
 Zustand danach wieder abweicht: jemand verstellt die Homepage in der
 Weboberfläche, ein alter Lauf stuft ein Ruleset zurück, oder ein Jobname in
-`ci.yml` ändert sich, ohne dass das Ruleset nachzieht. Bisher fiel das nur auf,
+`ci.yml` oder `pr-angaben.yml` ändert sich, ohne dass das Ruleset nachzieht. Bisher fiel das nur auf,
 wenn zufällig jemand nachmaß (#206).
 
 Dieses Skript setzt nichts. Es vergleicht die Sollwerte — dieselben, die
@@ -287,10 +287,10 @@ def _pruefe_pflicht_checks(
     rulesets: list[dict] | None,
     rulesets_fehler: str | None,
     api: Callable[[str], Any],
-    workflow: Path,
+    workflows: Path | tuple[Path, ...],
 ) -> Abgleich:
     name = "Pflicht-Check-Liste (Ruleset main)"
-    soll = sorted(pflicht_checks.pflicht_checks(workflow))
+    soll = sorted(pflicht_checks.pflicht_checks(workflows))
     if rulesets is None:
         return Abgleich(name, soll, None, rulesets_fehler)
     haupt = next((r for r in rulesets if r.get("name") == "main"), None)
@@ -308,7 +308,7 @@ def pruefe(
     repo: str,
     *,
     api: Callable[[str], Any] = gh_api_json,
-    workflow: Path = pflicht_checks.STANDARD_WORKFLOW,
+    workflows: Path | tuple[Path, ...] = pflicht_checks.STANDARD_WORKFLOWS,
     domain_pruefen: Callable[[str], bool] = homepage.domain_antwortet,
     # Kein Default-Objekt, sondern None: Ein zur Definitionszeit gebundener
     # Default laesst sich nicht per monkeypatch ersetzen — gemessen am
@@ -342,7 +342,7 @@ def pruefe(
     for name in RULESET_NAMEN:
         ergebnisse.append(_pruefe_durchsetzung(
             name, rulesets, rulesets_fehler, durchsetzung.soll(name, umgebung)))
-    ergebnisse.append(_pruefe_pflicht_checks(repo, rulesets, rulesets_fehler, api, workflow))
+    ergebnisse.append(_pruefe_pflicht_checks(repo, rulesets, rulesets_fehler, api, workflows))
     ergebnisse.append(_pruefe_mcp_registry(registry_suche or registry_namen, server_json))
     ergebnisse.append(_pruefe_pypi_umgebung(repo, api))
     return ergebnisse

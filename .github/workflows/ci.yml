@@ -5,13 +5,14 @@ on:
     branches: [main]
   pull_request:
   # KEIN `workflow_dispatch`. Ein erster Entwurf hatte es, weil ein Lauf ohne Commit
-  # bequem ist — es haette aber zwei Pflicht-Checks aushebeln koennen: `Changelog-Eintrag`
-  # und `Closing-Keyword` laufen nur `if: github.event_name == 'pull_request'`, melden bei
-  # jedem anderen Ereignis `skipped`, und GitHub wertet einen uebersprungenen Job als
-  # erfuellt. Da fuer die Mergebarkeit der JUENGSTE Check-Run je Name zaehlt, haette ein
-  # `gh workflow run ci.yml --ref <pr-branch>` ein rotes Changelog-Gate durch ein gruenes
-  # `skipped` ersetzt, ohne dass das Gate je gelaufen waere. Wer die Suite ohne Commit
-  # fahren will, nimmt einen Draft-PR.
+  # bequem ist — es haette aber Pflicht-Checks aushebeln koennen: Ein Job, der bei einem
+  # Ereignis per `if:` uebersprungen wird, meldet `skipped`, und GitHub wertet einen
+  # uebersprungenen Job als erfuellt. Da fuer die Mergebarkeit der JUENGSTE Check-Run je
+  # Name zaehlt, haette ein `gh workflow run ci.yml --ref <pr-branch>` damals ein rotes
+  # Changelog-Gate durch ein gruenes `skipped` ersetzt, ohne dass das Gate je gelaufen
+  # waere. Die beiden Gates stehen seit #437 in pr-angaben.yml; die Regel gilt weiter fuer
+  # jeden Job hier, der je ein `if:` bekommt. Wer die Suite ohne Commit fahren will, nimmt
+  # einen Draft-PR.
 
 # Voreinstellung fuer alle Jobs: nur lesen. Wer mehr braucht,
 # sagt es im Job — sichtbar und begrenzt.
@@ -594,91 +595,11 @@ jobs:
                        /tmp/xrechnung-kleinunternehmer-ohne-hinweis.xml::BR-E-10 \
                        /tmp/xrechnung-kleinunternehmer-mit-satz.xml::BR-E-05
 
-  changelog:
-    # Ein Vorgang, der das Werkzeug aendert, traegt einen Punkt in den Verlauf
-    # ein — sonst laesst er sich nicht mergen (Issue #229).
-    #
-    # Zweimal fiel die Nacharbeit fuer ein halbes Hundert Vorgaenge auf einmal
-    # an: Von 46 Vorgaengen zwischen v0.8.2 und v0.9.0 hat einer CHANGELOG.md
-    # angefasst, und nach dem Nachtragen von 39 Eintraegen von Hand waren es bei
-    # den naechsten vier wieder null. Der Grund war strukturell — es gab keinen
-    # Ort fuer einen Eintrag ohne Version. Den gibt es jetzt: changelog.d/.
-    #
-    # Dieser Job steht bewusst HIER und nicht in einem eigenen Workflow.
-    # scripts/pflicht_checks.py liest nur ci.yml; ein Job daneben waere zwar
-    # gelaufen, aber nie im Ruleset gelandet und haette damit nichts verhindert.
-    # `if:` traegt keinen der NUR_MAIN_MARKER — der Job zaehlt als Pflicht-Check
-    # und erscheint dort unter seinem `name:`, nicht unter dem Jobschluessel.
-    name: Changelog-Eintrag
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      pull-requests: read       # `gh pr view` liest Dateien, Autor und Labels
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
-        with:
-          python-version: "3.12"
-
-      - name: Einen Punkt im Verlauf verlangen
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NUMMER: ${{ github.event.pull_request.number }}
-        run: |
-          # Die Angaben kommen in EINEM Stueck als JSON zum Pruefer. Der
-          # naheliegende Weg — Labels als Wortliste durch die Shell reichen und
-          # unquoted expandieren — zerlegt „good first issue“ in drei Labels.
-          gh pr view "$NUMMER" --repo "$GITHUB_REPOSITORY" \
-            --json files,author,labels > /tmp/pr.json
-          python3 scripts/changelog_pflicht.py --pr-json /tmp/pr.json
-
-  closing-keyword:
-    # „Schliesst #261“ schliesst nichts — GitHub liest nur englische Keywords
-    # (Issue #268). Gemessen an PR #262: Der Rumpf trug den Satz, nach dem
-    # Squash-Merge stand das Issue weiter auf OPEN.
-    #
-    # Eigener Job und kein Schritt im Job „Changelog-Eintrag“: Ein Job traegt
-    # genau eine Aussage. Steckte die Pruefung dort mit drin, meldete der rote
-    # Check „Changelog-Eintrag“ einen Vorgang, der seinen Changelog-Eintrag hat.
-    #
-    # Er steht wie jener HIER in ci.yml und nicht in einem eigenen Workflow:
-    # scripts/pflicht_checks.py liest nur ci.yml, und ein Job daneben liefe
-    # zwar, landete aber nie im Ruleset. `if:` traegt keinen der
-    # NUR_MAIN_MARKER — der Job zaehlt als Pflicht-Check und erscheint dort
-    # unter seinem `name:`.
-    #
-    # Pflicht-Check im Ruleset `main`, wie „Changelog-Eintrag“ (gemessen am
-    # 03.11.2026: `gh api repos/blitzsicht/falzmarke/rules/branches/main`).
-    # Ein roter Lauf sperrt den Merge also, bis er neu laeuft — und eine
-    # korrigierte Beschreibung startet ihn nicht neu (#437).
-    name: Closing-Keyword
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      pull-requests: read       # `gh pr view` liest Rumpf und Labels
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
-        with:
-          python-version: "3.12"
-
-      - name: Deutschen Schliesssatz ohne englisches Keyword melden
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NUMMER: ${{ github.event.pull_request.number }}
-        run: |
-          # Rumpf und Labels in EINEM Stueck als JSON — aus demselben Grund wie
-          # beim Changelog-Job: Ein Label darf Leerzeichen tragen, und ein
-          # Rumpf traegt Zeilenumbrueche.
-          gh pr view "$NUMMER" --repo "$GITHUB_REPOSITORY" \
-            --json body,labels > /tmp/pr-rumpf.json
-          python3 scripts/closing_keyword.py --pr-json /tmp/pr-rumpf.json
+# Hier standen bis #437 die Jobs `changelog` („Changelog-Eintrag“) und
+# `closing-keyword` („Closing-Keyword“). Sie lesen keinen Code, sondern was am
+# Pull Request steht, und müssen darum auch bei `edited` und `labeled` starten.
+# Das kann ci.yml nicht, ohne bei jeder Textänderung die ganze Matrix zu
+# fahren: Sie stehen jetzt in .github/workflows/pr-angaben.yml.
 
 # Hier stand bis zum 30.08.2026 der Job `renders-aktualisieren` (Issue #188).
 #

@@ -53,16 +53,17 @@ if ! gh api "repos/$REPO" --jq '.permissions.admin' 2>/dev/null | grep -q true; 
 fi
 hinweis "Admin-Rechte auf $REPO vorhanden."
 
-# Die Status-Checks stammen aus .github/workflows/ci.yml, nicht aus einem
+# Die Status-Checks stammen aus den Workflow-Dateien (ci.yml und, seit #437,
+# pr-angaben.yml; die Liste steht in pflicht_checks.STANDARD_WORKFLOWS), nicht aus einem
 # CI-Lauf (Issue #196): Ein aus dem letzten Lauf abgeleiteter Check fehlt in
 # der Liste, wenn sein Job zum Zeitpunkt der Ableitung noch läuft — dieselbe
 # Anfrage liefert dann je nach Zeitpunkt eine andere Liste. scripts/
-# pflicht_checks.py liest nur die Workflow-Datei: Ein Job mit `if:`-Bedingung
+# pflicht_checks.py liest nur die Workflow-Dateien: Ein Job mit `if:`-Bedingung
 # auf main/push bleibt ausgeschlossen (der berechtigte Teil der alten Logik),
 # und ein Job mit `name:` erscheint unter dem angezeigten Namen, nicht dem
 # Jobschlüssel. Ein Ruleset, das nicht existierende Checks verlangt, blockiert
 # den Branch dauerhaft: GitHub wartet auf etwas, das nie kommt.
-echo "== Status-Checks aus .github/workflows/ci.yml ableiten =="
+echo "== Status-Checks aus den Workflow-Dateien ableiten =="
 # Bewusst kein `done < <(python3 ...)`: Der Exit-Code einer Prozess-Substitution
 # geht unter `set -e` verloren (die while-Schleife liest nur den Dateideskriptor,
 # ihr eigener Exit-Code zählt für -e — nicht der des erzeugenden Prozesses).
@@ -76,7 +77,7 @@ while IFS= read -r name; do
   CHECKS+=("$name")
 done <<< "$CHECKS_ROH"
 if [ ${#CHECKS[@]} -eq 0 ]; then
-  hinweis "Kein Job in ci.yml gefunden — das Ruleset bekommt KEINE Status-Checks."
+  hinweis "Kein Pflicht-Job in den Workflows gefunden — das Ruleset bekommt KEINE Status-Checks."
   hinweis "Sonst wäre der Branch gesperrt, bis ein Check existiert, den es nie gibt."
 else
   hinweis "Gefunden: ${CHECKS[*]}"
