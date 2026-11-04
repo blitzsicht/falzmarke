@@ -3677,24 +3677,33 @@ def test_mit_edited_in_ci_yml_wird_die_gegenseite_rot(tmp_path, monkeypatch):
         test_pr_angaben.test_ci_yml_startet_weiter_nur_bei_neuem_code()
 
 
-@pytest.mark.parametrize("alt, neu, probe", [
-    ("    if doppelt:\n", "    if False:\n", "test_ein_checkname_in_zwei_workflows_ist_ein_fehler"),
-    ("    fehlend = [t for t in VORGABE_TYPEN if t not in typen]\n", "    fehlend = []\n",
-     "test_ein_workflow_ohne_synchronize_ist_ein_fehler"),
-    ("    typen = pull_request_typen(daten)\n", "    typen = pull_request_typen(daten) or VORGABE_TYPEN\n",
+@pytest.mark.parametrize("funktion, alt, neu, probe", [
+    ("analysiere", "    if doppelt:\n", "    if False:\n",
+     "test_ein_checkname_in_zwei_workflows_ist_ein_fehler"),
+    ("_analysiere_einen", "    fehlend = [t for t in VORGABE_TYPEN if t not in typen]\n",
+     "    fehlend = []\n", "test_ein_workflow_ohne_synchronize_ist_ein_fehler"),
+    ("_analysiere_einen", "    typen = pull_request_typen(daten)\n",
+     "    typen = pull_request_typen(daten) or VORGABE_TYPEN\n",
      "test_ein_workflow_ohne_pull_request_ist_ein_fehler"),
-    ("    if filter_schluessel:\n", "    if False:\n", "test_ein_workflow_mit_filter_ist_ein_fehler"),
-], ids=["doppelt", "ohne-synchronize", "ohne-pull-request", "filter"])
-def test_ohne_die_pruefung_in_pflicht_checks_wird_die_probe_rot(alt, neu, probe, tmp_path,
-                                                                 monkeypatch):
-    """Je eine Prüfung in `analysiere` zurückgebaut auf den Stand vor #437, der
-    keine davon kannte: Die Liste kam dann ohne Fehler heraus."""
+    ("_analysiere_einen", "    if filter_schluessel:\n", "    if False:\n",
+     "test_ein_workflow_mit_filter_ist_ein_fehler"),
+    # #493: ohne die Nachbarprüfung, und mit Nachbarn, deren `if:`-Jobs nicht zählen.
+    ("analysiere", "    if kollisionen:\n", "    if False:\n",
+     "test_ein_nachbar_mit_gleichem_checknamen_ist_ein_fehler"),
+    ("nachbar_namen", "    return _checknamen(_lies(workflow), alle=True)[0]\n",
+     "    return _checknamen(_lies(workflow))[0]\n",
+     "test_ein_per_if_ausgeschlossener_nachbar_job_zaehlt_trotzdem"),
+], ids=["doppelt", "ohne-synchronize", "ohne-pull-request", "filter", "nachbar", "nachbar-mit-if"])
+def test_ohne_die_pruefung_in_pflicht_checks_wird_die_probe_rot(funktion, alt, neu, probe,
+                                                                 tmp_path, monkeypatch):
+    """Je eine Prüfung zurückgebaut auf den Stand vor #437 (kannte keine davon) oder
+    vor #493 (las keine Nachbarn): Die Liste kam dann ohne Fehler heraus."""
     sys.path.insert(0, str(REPO / "scripts"))
     import pflicht_checks
     import test_pflicht_checks
 
-    name = "analysiere" if "doppelt" in alt else "_analysiere_einen"
-    monkeypatch.setattr(pflicht_checks, name, _zeile_ersetzt(pflicht_checks, name, alt, neu))
+    monkeypatch.setattr(pflicht_checks, funktion,
+                        _zeile_ersetzt(pflicht_checks, funktion, alt, neu))
     with pytest.raises(pytest.fail.Exception, match="DID NOT RAISE"):
         getattr(test_pflicht_checks, probe)(tmp_path)
 
@@ -4002,18 +4011,18 @@ def test_faengt_befehl_nur_unicodeencodeerror_entkommt_der_valueerror(monkeypatc
 # ── Nachreview vom 04.11.2026, zweite Runde: #492 ────────────────────────────
 
 @pytest.mark.parametrize("fall, erwartet", [("fehlt", FileNotFoundError), ("kaputt", yaml.YAMLError)])
-def test_ohne_das_abfangen_in_analysiere_einen_geht_der_lesefehler_durch(fall, erwartet, tmp_path,
-                                                                          monkeypatch):
-    """`_analysiere_einen` wie vor dem Nachreview von #492: Lesen und Parsen ohne Schutz,
-    der rohe Fehler geht an `main()` und am Wächter vorbei."""
+def test_ohne_das_abfangen_in_lies_geht_der_lesefehler_durch(fall, erwartet, tmp_path,
+                                                              monkeypatch):
+    """`_lies` (bis #493 Teil von `_analysiere_einen`) wie vor dem Nachreview von #492:
+    Lesen und Parsen ohne Schutz, der rohe Fehler geht an `main()` und am Wächter vorbei."""
     import test_pflicht_checks as tpc                      # legt scripts/ auf den Pfad
     import pflicht_checks
 
     (tmp_path / "k").mkdir()
     (tmp_path / "s").mkdir()
     tpc.test_eine_fehlende_oder_kaputte_datei_ist_ein_workflowfehler(tmp_path / "k", fall)  # Kontrolle
-    monkeypatch.setattr(pflicht_checks, "_analysiere_einen", _zeile_ersetzt(
-        pflicht_checks, "_analysiere_einen",
+    monkeypatch.setattr(pflicht_checks, "_lies", _zeile_ersetzt(
+        pflicht_checks, "_lies",
         "except (OSError, UnicodeDecodeError, yaml.YAMLError) as fehler:", "except () as fehler:"))
     with pytest.raises(erwartet):
         tpc.test_eine_fehlende_oder_kaputte_datei_ist_ein_workflowfehler(tmp_path / "s", fall)

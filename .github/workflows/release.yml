@@ -23,6 +23,10 @@ permissions:
 
 jobs:
   skill-paket:
+    # Der Anzeigename ist seit #493 eindeutig über alle Workflows: ci.yml meldet
+    # einen Check „skill-paket“, und zwei Check-Runs gleichen Namens verdeckten
+    # einander. Der Job-Schlüssel bleibt, `needs:` und Skripte sehen ihn weiter.
+    name: Skill-Paket (Release)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
