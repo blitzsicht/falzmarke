@@ -536,10 +536,14 @@ def thunderbird_standardprofil(ordner: Path) -> Path | None:
     import configparser
 
     ini = configparser.ConfigParser(interpolation=None, strict=False)
+    # `UnicodeDecodeError` mit: Ein Byte außerhalb von UTF-8 lief sonst bis in
+    # `status` und in die Sperre vor dem Zug (Nachreview #488, Nr. 4). Ob
+    # Thunderbird je so schreibt, ist nicht gemessen; nachgestellt ist der Fall
+    # mit einem Latin-1-„ü“ im Profilnamen.
     try:
         if not ini.read(Path(ordner) / "profiles.ini", encoding="utf-8"):
             return None
-    except configparser.Error:
+    except (configparser.Error, UnicodeDecodeError):
         return None
 
     def aufgeloest(pfad: str, relativ: bool = True) -> Path:
@@ -591,6 +595,16 @@ def thunderbird_einstellungen(profil: Path) -> dict:
     return werte
 
 
+def _kontoliste(werte: dict) -> list[str]:
+    """Die Konten aus `mail.accountmanager.accounts`, in deren Reihenfolge.
+
+    Eine Stelle für `_identitaeten` und `kontoadressen` (Nachreview #487, Nr. 6).
+    Was eine leere Liste bedeutet, entscheidet jeder Aufrufer selbst.
+    """
+    return [k.strip() for k in str(werte.get("mail.accountmanager.accounts") or "").split(",")
+            if k.strip()]
+
+
 def _identitaeten(werte: dict) -> list[str]:
     """Die Identitäten der eingerichteten Konten, in deren Reihenfolge.
 
@@ -598,8 +612,7 @@ def _identitaeten(werte: dict) -> list[str]:
     Thunderbird wählt mit `from=` nur unter Identitäten, die zu einem Konto
     gehören. Fehlt die Kontoliste, zählen alle, die eine Adresse tragen.
     """
-    konten = [k.strip() for k in str(werte.get("mail.accountmanager.accounts") or "").split(",")
-              if k.strip()]
+    konten = _kontoliste(werte)
     if not konten:
         return sorted({n.split(".")[2] for n in werte
                        if n.startswith("mail.identity.") and n.endswith(".useremail")})
@@ -693,15 +706,28 @@ def thunderbird_ordner(adresse: str, art: str, ordner: Path | None = None) -> st
     return gefunden.pop() if len(gefunden) == 1 else None
 
 
-def kontoadressen(adresse: str, ordner: Path | None = None) -> tuple[frozenset[str] | None, str]:
+def kontoadressen(adresse: str, ordner: Path | None = None, *,
+                  profil: Path | None = None) -> tuple[frozenset[str] | None, str]:
     """Die Adressen aller Identitäten in dem Konto, zu dem `adresse` gehört (#482).
 
     Ein Alias ist eine weitere Identität desselben Kontos. Thunderbird führt
     die Zuordnung in `prefs.js` (`mail.account.<konto>.identities`). Das ist
     dieselbe Datei, aus der schon Ordner und Signatur kommen, und dieselbe
-    Kontoliste wie in `_identitaeten`. Gibt `(adressen, "")` oder `(None,
-    grund)`, wenn das Profil es nicht sagt: kein Profil, keine Kontoliste,
-    oder kein Konto mit dieser Adresse.
+    Kontoliste wie in `_identitaeten` (`_kontoliste`). Gibt `(adressen, "")`
+    oder `(None, grund)`, wenn das Profil es nicht sagt: kein Profil, keine
+    Kontoliste, oder kein Konto mit dieser Adresse.
+
+    `profil` ist das Profilverzeichnis selbst und geht vor `ordner`. Wer die
+    Fenster der Entwurfsbrücke beurteilt, muss das Profil nehmen, aus dem sie
+    antwortet (`entwurfsbuch.bruecken_profil`), nicht das Standardprofil
+    (Nachreview #487 Nr. 2, #488 Nr. 1).
+
+    Fehlt die Kontoliste, bleibt es bei `None`. `_identitaeten` zählt dann alle
+    Identitäten, denn dort ist das Mehr harmlos: Signatur und Ordner werden nur
+    für die eine gesuchte Adresse gelesen. Hier hieße derselbe Rückfall, dass
+    jede Identität des Profils ein Alias jeder anderen ist, und ein Fenster
+    eines fremden Kontos gälte als geprüft. Ohne Kontoliste ist das geraten
+    (Nachreview #487, Nr. 6).
 
     Führen zwei Konten eine Identität mit derselben Adresse, zählen die
     Adressen beider. Das ist die nachsichtige Richtung: ein übersehener
@@ -711,13 +737,16 @@ def kontoadressen(adresse: str, ordner: Path | None = None) -> tuple[frozenset[s
     adresse = (adresse or "").strip().lower()
     if not adresse:
         return None, "ohne Absenderadresse kein Konto"
-    ordner = THUNDERBIRD_ORDNER if ordner is None else Path(ordner)
-    profil = thunderbird_standardprofil(ordner)
-    if profil is None or not profil.is_dir():
-        return None, f"kein Thunderbird-Profil unter {ordner}"
+    if profil is None:
+        ordner = THUNDERBIRD_ORDNER if ordner is None else Path(ordner)
+        profil = thunderbird_standardprofil(ordner)
+        if profil is None or not profil.is_dir():
+            return None, f"kein Thunderbird-Profil unter {ordner}"
+    elif not Path(profil).is_dir():
+        return None, f"das Thunderbird-Profil {profil} fehlt"
+    profil = Path(profil)
     werte = thunderbird_einstellungen(profil)
-    konten = [k.strip() for k in str(werte.get("mail.accountmanager.accounts") or "").split(",")
-              if k.strip()]
+    konten = _kontoliste(werte)
     if not konten:
         return None, f"das Profil {profil.name} nennt keine Konten"
     adressen: set[str] = set()
@@ -1300,7 +1329,8 @@ def empfaenger_pruefen(fenster, felder: Mapping | None, *, grund: str = ""):
     return fenster._replace(geprueft=True, abweichung=" · ".join(befunde))
 
 
-def absender_pruefen(fenster, soll: str, *, ordner: Path | None = None):
+def absender_pruefen(fenster, soll: str, *, ordner: Path | None = None,
+                     profil: Path | None = None):
     """Schickt das Fenster von der Adresse der Nachricht? (#482)
 
     `soll` ist der `From` des Entwurfs. Das Add-on meldet unter `identitaet`,
@@ -1309,9 +1339,21 @@ def absender_pruefen(fenster, soll: str, *, ordner: Path | None = None):
     auch das richtige Fenster eine andere (#462). Deshalb entscheidet das Konto
     (`kontoadressen`). Gehört die gemeldete Adresse zu einer Identität darin,
     ist der Absender geprüft, und `absender_hinweis` nennt den Alias. Sonst
-    steht der Unterschied in `absender_abweichung`. Weiß das Profil nichts über
-    das Konto, wird nicht geraten: `absender_geprueft` bleibt falsch, und
-    `absender_hinweis` sagt warum.
+    steht der Unterschied in `absender_abweichung`.
+
+    Kennt das Profil `soll` in keinem Konto, wird auch `ist` gefragt: Ist das
+    eine Identität eines Kontos, gehört `soll` sicher nicht dazu, und das
+    Fenster schickt von einer Adresse, von der die Nachricht nicht stammt —
+    eine Abweichung, nicht „nicht geprüft“ (Nachreview #487, Nr. 1). Erst wenn
+    das Profil über keine der beiden Adressen etwas weiß, wird nicht geraten:
+    `absender_geprueft` bleibt falsch, und `absender_hinweis` sagt warum.
+
+    „Geprüft“ heißt „verglichen“, nicht „stimmt“: Bei einer Abweichung ist
+    `absender_geprueft` wahr und `absender_abweichung` gefüllt, wie `geprueft`
+    und `abweichung` bei den Empfängern.
+
+    `profil` ist das Profil der Entwurfsbrücke (`entwurfsbuch.bruecken_profil`);
+    ohne es liest `kontoadressen` das Standardprofil unter `ordner`.
 
     Ohne Lesung aus dem Fenster gibt es nichts zu vergleichen, wie bei den
     Empfängern.
@@ -1326,7 +1368,11 @@ def absender_pruefen(fenster, soll: str, *, ordner: Path | None = None):
         return fenster._replace(absender_hinweis="das Add-on meldet keinen Absender des Fensters")
     if ist == soll:
         return fenster._replace(absender_geprueft=True)
-    adressen, grund = kontoadressen(soll, ordner)
+    adressen, grund = kontoadressen(soll, ordner, profil=profil)
+    if adressen is None and kontoadressen(ist, ordner, profil=profil)[0] is not None:
+        return fenster._replace(absender_geprueft=True, absender_hinweis=(
+            f"{soll} gehört zu keinem Konto im Profil, {ist} schon"),
+            absender_abweichung=f"Fenster: {ist}, Nachricht: {soll}")
     if adressen is None:
         return fenster._replace(absender_hinweis=(
             f"das Fenster schickt von {ist}, die Nachricht von {soll}; ob beide "
@@ -1360,10 +1406,14 @@ def _fenster_auf(lage: Entwurfslage, felder: Mapping, umgebung: Mapping[str, str
         konto, uid = str(felder.get("absender") or ""), lage.schon_da_uid
     else:
         return lage
-    from falzmarke import bruecke
+    from falzmarke import bruecke, entwurfsbuch
 
     fenster = empfaenger_pruefen(bruecke.entwurf_oeffnen(konto, uid, umgebung=umgebung), felder)
-    return lage._replace(fenster=absender_pruefen(fenster, str(felder.get("absender") or "")))
+    # Die Identitäten aus dem Profil, aus dem die Brücke antwortet: Mit
+    # `FALZMARKE_BRUECKE_SOCKET` ist das nicht das Standardprofil (#410).
+    profil, _ = entwurfsbuch.bruecken_profil(None, umgebung)
+    return lage._replace(fenster=absender_pruefen(fenster, str(felder.get("absender") or ""),
+                                                  profil=profil))
 
 
 def _steuere(skript: str, kennung: str, *, laufen=subprocess.run) -> str | None:
@@ -1695,7 +1745,8 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
     `FALZMARKE_ENTWURF=nie` schaltet den Weg ab, ohne `--oeffnen` aufzugeben —
     für den, der die Datei will und nicht das Fenster. `kein_fenster` (am Befehl
     `--kein-fenster`) legt den Entwurf dagegen ab und lässt nur das Fenster weg.
-    Scheitert dann der Postfach-Entwurf, folgt kein `-compose` (#441).
+    Scheitert dann der Postfach-Entwurf, folgt kein `-compose` (#441). Den
+    Outlook-Weg gibt es mit `kein_fenster` gar nicht: Er öffnet jeden Entwurf.
 
     `wahl` ist das Wort aus `--programm` (siehe `entwurfsweg`), `binaer` die
     Suche nach Thunderbird und `ablage` das Verzeichnis, unter dem dessen
@@ -1752,6 +1803,13 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
         return _entwurf_compose(programm, felder, laufen=laufen, ablage=ablage,
                                 thunderbird_ordner=thunderbird_ordner)._replace(
                                     postfach_grund=grund)
+    if kein_fenster:
+        # Nachreview #491, Befund 1: Der AppleScript-Weg legt die Nachricht an
+        # und öffnet sie danach ohne Ausnahme (`programm.oeffnen`). Ein Entwurf
+        # ohne Fenster ist dort nicht zu haben, also wird gar keiner angelegt.
+        return Entwurfslage(
+            None, f"{programm.name} legt einen Entwurf nur mit Fenster an; "
+                  "mit --kein-fenster geht nur der Postfach-Entwurf über Thunderbird")
 
     with tempfile.TemporaryDirectory(prefix="falzmarke-entwurf-") as ordner:
         pfade = _anhaenge_ausschreiben(ordner, felder.get("anhaenge") or [])

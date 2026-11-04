@@ -2041,7 +2041,9 @@ def test_ohne_sperre_im_entwurf_geht_mit_kein_fenster_compose_auf(_email_befehl_
     # Die Fixture hat `entwurf` schon durch ein `partial` ersetzt; gekippt wird
     # das Original, und es bekommt dieselben Attrappen.
     monkeypatch.setattr(_oeffnen, "entwurf", _email_befehl_441.echt)
-    kaputt = _zeile_ersetzt(_oeffnen, "entwurf", "if kein_fenster:", "if False:")
+    # Mit acht Leerzeichen: Seit dem Nachreview von #491 steht ein zweites
+    # `if kein_fenster:` im Rumpf, eine Ebene höher, für den Outlook-Weg.
+    kaputt = _zeile_ersetzt(_oeffnen, "entwurf", "        if kein_fenster:", "        if False:")
     monkeypatch.setattr(_oeffnen, "entwurf", functools.partial(
         kaputt, plattform="darwin", umgebung={"DISPLAY": ":0"},
         laufen=_email_befehl_441.tb, binaer=lambda: THUNDERBIRD_PFAD))
@@ -2084,6 +2086,46 @@ def test_ohne_sperre_im_befehl_geht_ohne_proxy_die_datei_auf(_email_befehl_441,
     """Die Sperre in `entwurf` allein hielte `-compose` fern, aber die Datei ginge auf."""
     from test_postfach_entwurf import (
         test_kein_fenster_ohne_proxy_oeffnet_nichts_und_endet_mit_exit_3 as probe)
+
+    probe(_email_befehl_441, monkeypatch, capsys)                          # Kontrolle
+    monkeypatch.setattr(falzmarke, "befehl_email", _zeile_ersetzt(
+        falzmarke, "befehl_email", "elif args.kein_fenster:", "elif False:"))
+    with pytest.raises(AssertionError, match="die Datei ging trotz --kein-fenster auf"):
+        probe(_email_befehl_441, monkeypatch, capsys)
+
+
+def test_ohne_sperre_im_outlook_weg_geht_mit_kein_fenster_ein_fenster_auf(monkeypatch):
+    """Nachreview von #491, Befund 1: der Outlook-Weg wie vor der Nacharbeit."""
+    from test_oeffnen import (
+        test_outlook_mit_kein_fenster_legt_nichts_an_und_oeffnet_nichts as probe)
+
+    probe()                                                                # Kontrolle
+    monkeypatch.setattr(_oeffnen, "entwurf", _zeile_ersetzt(
+        _oeffnen, "entwurf", "\n    if kein_fenster:\n", "\n    if False:\n"))
+    with pytest.raises(AssertionError, match=r"Outlook-Fenster trotz kein_fenster: \['oeffnen'\]"):
+        probe()
+
+
+def test_ohne_abweisung_im_befehl_geht_outlook_mit_kein_fenster_durch(_email_befehl_441,
+                                                                     monkeypatch, capsys):
+    """Nachreview von #491, Befund 1: Ohne die Abweisung landet die Kombination
+    erst in `entwurf` und endet als „kein Entwurf“ statt als Eingabefehler."""
+    from test_postfach_entwurf import test_kein_fenster_mit_outlook_wird_abgewiesen as probe
+
+    probe(_email_befehl_441, monkeypatch, capsys)                          # Kontrolle
+    monkeypatch.setattr(falzmarke, "befehl_email", _zeile_ersetzt(
+        falzmarke, "befehl_email",
+        'if args.kein_fenster and args.programm == "outlook":', "if False:"))
+    with pytest.raises(AssertionError,
+                       match="--programm outlook --kein-fenster nicht abgewiesen"):
+        probe(_email_befehl_441, monkeypatch, capsys)
+
+
+def test_ohne_sperre_im_befehl_geht_bei_abgeschaltetem_entwurf_die_datei_auf(
+        _email_befehl_441, monkeypatch, capsys):
+    """Nachreview von #491, Befund 4: `FALZMARKE_ENTWURF=nie` mit `--kein-fenster`."""
+    from test_postfach_entwurf import (
+        test_kein_fenster_mit_abgeschaltetem_entwurf_endet_mit_exit_3 as probe)
 
     probe(_email_befehl_441, monkeypatch, capsys)                          # Kontrolle
     monkeypatch.setattr(falzmarke, "befehl_email", _zeile_ersetzt(
@@ -2437,6 +2479,67 @@ def test_ohne_alias_marke_in_nur_uid_meldet_json_den_alias_als_uid_treffer(monke
         alias(monkeypatch, tmp_path / "s")
 
 
+# Nachreview #488 (04.11.2026): das Profil der Brücke, der Grund ohne
+# Profilwissen, die nachsichtige Sperre vor dem Zug, `profiles.ini` außerhalb
+# von UTF-8. Je eine Zeile gekippt, je eine Probe muss namentlich scheitern.
+
+def test_mit_dem_standardprofil_statt_dem_der_bruecke_faellt_der_alias_heraus(monkeypatch,
+                                                                             tmp_path):
+    from falzmarke import entwurfsbuch as _buch
+    from test_entwurfsbuch import test_die_aliasse_kommen_aus_dem_profil_der_bruecke as probe
+
+    probe(monkeypatch, tmp_path / "k")                                     # Kontrolle
+    monkeypatch.setattr(_buch, "_offene_uids", _zeile_ersetzt(
+        _buch, "_offene_uids", "profil, grund = bruecken_profil(profilordner, umgebung)",
+        "profil, grund = oeffnen.thunderbird_standardprofil(oeffnen.THUNDERBIRD_ORDNER), ''"))
+    with pytest.raises(AssertionError, match="der Alias aus dem Profil der Brücke hält den "
+                                             "Entwurf nicht offen"):
+        probe(monkeypatch, tmp_path / "s")
+
+
+def test_ohne_den_hinweis_verschweigt_status_den_grund(monkeypatch, tmp_path):
+    from falzmarke import entwurfsbuch as _buch
+    from test_entwurfsbuch import (
+        test_ohne_profilwissen_sagt_status_warum_das_fremde_fenster_nur_ueber_die_uid_zaehlt
+        as probe)
+
+    probe(monkeypatch, tmp_path / "k")                                     # Kontrolle
+    monkeypatch.setattr(_buch, "_offene_uids", _zeile_ersetzt(
+        _buch, "_offene_uids", "if adressen is None and hinweise is not None and any(",
+        "if False and any("))
+    with pytest.raises(AssertionError, match="status verschweigt, warum das fremde Fenster"):
+        probe(monkeypatch, tmp_path / "s")
+
+
+def test_eine_strenge_sperre_vor_dem_zug_laesst_das_fenster_ausserhalb_des_kontos_durch(
+        monkeypatch, tmp_path):
+    """Die Entscheidung aus dem Nachreview: Wer `_ziehe` wieder streng macht,
+    verliert den Entwurf unter einem Alias, den `prefs.js` noch nicht kennt."""
+    from falzmarke import entwurfsablage as _ablage
+    from test_entwurfsablage import (
+        test_die_letzte_sperre_haelt_auch_ein_fenster_ausserhalb_des_kontos as probe)
+
+    probe(monkeypatch, tmp_path / "k")                                     # Kontrolle
+    monkeypatch.setattr(_ablage, "_ziehe", _zeile_ersetzt(
+        _ablage, "_ziehe", "entwurfsbuch._offene_uids(adresse, umgebung, streng=False)",
+        "entwurfsbuch._offene_uids(adresse, umgebung, streng=True)"))
+    with pytest.raises(AssertionError, match="das Fenster außerhalb des Kontos hält den Zug "
+                                             "nicht"):
+        probe(monkeypatch, tmp_path / "s")
+
+
+def test_ohne_unicodedecodeerror_bricht_status_an_der_profiles_ini_ab(monkeypatch, tmp_path):
+    from test_entwurfsbuch import (
+        test_eine_profiles_ini_ausserhalb_von_utf8_bricht_status_nicht_ab as probe)
+
+    probe(monkeypatch, tmp_path / "k")                                     # Kontrolle
+    monkeypatch.setattr(_oeffnen, "thunderbird_standardprofil", _zeile_ersetzt(
+        _oeffnen, "thunderbird_standardprofil",
+        "except (configparser.Error, UnicodeDecodeError):", "except configparser.Error:"))
+    with pytest.raises(UnicodeDecodeError):
+        probe(monkeypatch, tmp_path / "s")
+
+
 def test_ohne_zweiten_rang_gewinnt_die_reihenfolge_der_liste(monkeypatch):
     """Zwei Fenster ohne Meldung; das fremde steht zuerst in der Liste."""
     from falzmarke import entwurfsbuch as _buch
@@ -2683,7 +2786,8 @@ def test_ohne_aufruf_meldet_entwurf_oeffnen_die_fremde_identitaet_nicht(
     fremd(oeffne_befehl, monkeypatch, capsys, tmp_path / "k")             # Kontrolle
     monkeypatch.setattr(_cli, "befehl_entwurf_oeffnen", _zeile_ersetzt(
         _cli, "befehl_entwurf_oeffnen",
-        "oeffnung = oeffnen_modul.absender_pruefen(oeffnung, kopf.von)", "pass"))
+        "oeffnung = oeffnen_modul.absender_pruefen(oeffnung, kopf.von, profil=profil)",
+        "pass"))
     with pytest.raises(AssertionError, match=r"assert 0 == 3"):
         fremd(oeffne_befehl, monkeypatch, capsys, tmp_path / "s")
 
@@ -2700,10 +2804,95 @@ def test_ohne_aufruf_meldet_email_oeffnen_die_fremde_identitaet_nicht(
     fremd(befehl, monkeypatch, capsys, tmp_path / "k")                           # Kontrolle
     monkeypatch.setattr(_oeffnen, "_fenster_auf", _zeile_ersetzt(
         _oeffnen, "_fenster_auf",
-        'return lage._replace(fenster=absender_pruefen(fenster, str(felder.get("absender") or "")))',
-        "return lage._replace(fenster=fenster)"))
+        # Ein Fenster ist ein nicht leeres Tupel: `fenster or …` ruft die Prüfung nie.
+        "return lage._replace(fenster=absender_pruefen(",
+        "return lage._replace(fenster=fenster or absender_pruefen("))
     with pytest.raises(AssertionError, match="ABSENDER PRÜFEN"):
         fremd(befehl, monkeypatch, capsys, tmp_path / "s")
+
+
+# Nachreview #487 (04.11.2026): das Konto des Fensters als Rückfall, das Profil
+# der Brücke an beiden Aufrufern, die NICHT-GEPRÜFT-Zeile neben einem PRÜFEN.
+
+def test_ohne_rueckfall_auf_das_konto_des_fensters_bleibt_es_bei_nicht_geprueft(
+        oeffne_befehl, monkeypatch, capsys, tmp_path):
+    """Der Zwilling (keine der beiden Adressen bekannt) bleibt dabei grün."""
+    from test_postfach_entwurf import (
+        test_absender_pruefen_fragt_auch_das_konto_des_fensters as probe,
+        test_absender_pruefen_kennt_das_profil_keine_der_beiden_bleibt_es_ungeprueft as zwilling,
+        test_entwurf_oeffnen_mit_from_ausserhalb_der_konten_ist_exit_3 as befehl)
+
+    probe(monkeypatch, tmp_path / "k")                                     # Kontrolle
+    monkeypatch.setattr(_oeffnen, "absender_pruefen", _zeile_ersetzt(
+        _oeffnen, "absender_pruefen",
+        "if adressen is None and kontoadressen(ist, ordner, profil=profil)[0] is not None:",
+        "if False:"))
+    with pytest.raises(AssertionError, match="nur NICHT GEPRÜFT, obwohl das Fenster"):
+        probe(monkeypatch, tmp_path / "s")
+    with pytest.raises(AssertionError, match=r"assert 0 == 3"):
+        befehl(oeffne_befehl, monkeypatch, capsys, tmp_path / "b")
+    zwilling(monkeypatch, tmp_path / "z")
+
+
+def test_ohne_profil_der_bruecke_gilt_der_alias_bei_entwurf_oeffnen_als_fremd(
+        oeffne_befehl, monkeypatch, capsys, tmp_path):
+    from falzmarke import cli as _cli
+    from test_postfach_entwurf import (
+        test_entwurf_oeffnen_liest_die_aliasse_aus_dem_profil_der_bruecke as probe)
+
+    probe(oeffne_befehl, monkeypatch, capsys, tmp_path / "k")             # Kontrolle
+    monkeypatch.setattr(_cli, "befehl_entwurf_oeffnen", _zeile_ersetzt(
+        _cli, "befehl_entwurf_oeffnen", "profil, _ = entwurfsbuch.bruecken_profil()",
+        "profil = None"))
+    with pytest.raises(AssertionError, match="der Alias aus dem Profil der Brücke gilt als "
+                                             "fremd"):
+        probe(oeffne_befehl, monkeypatch, capsys, tmp_path / "s")
+
+
+def test_ohne_profil_der_bruecke_gilt_der_alias_bei_email_oeffnen_als_fremd(monkeypatch,
+                                                                            tmp_path):
+    from test_postfach_entwurf import (
+        test_email_oeffnen_liest_die_aliasse_aus_dem_profil_der_bruecke as probe)
+
+    probe(monkeypatch, tmp_path / "k")                                     # Kontrolle
+    monkeypatch.setattr(_oeffnen, "_fenster_auf", _zeile_ersetzt(
+        _oeffnen, "_fenster_auf", "profil, _ = entwurfsbuch.bruecken_profil(None, umgebung)",
+        "profil = None"))
+    with pytest.raises(AssertionError, match="email --oeffnen: der Alias aus dem Profil"):
+        probe(monkeypatch, tmp_path / "s")
+
+
+@pytest.mark.parametrize("fall, alt", [
+    ("absender-prueft-empfaenger-offen",
+     "            if not fenster.geprueft:\n                _empfaenger_ungeprueft(fenster)\n"),
+    ("empfaenger-prueft-absender-offen",
+     ("            if not fenster.absender_geprueft and fenster.absender_hinweis:\n"
+      "                _absender_ungeprueft(fenster)\n")),
+], ids=["empfaengerzeile", "absenderzeile"])
+def test_ohne_die_zeile_der_anderen_pruefung_verschweigt_pruefen_sie(monkeypatch, capsys, fall,
+                                                                     alt):
+    """Je Richtung eine Sabotage; die andere Richtung bleibt dabei grün."""
+    from falzmarke import cli as _cli
+    from test_postfach_entwurf import (
+        test_neben_einem_pruefen_steht_was_die_andere_pruefung_nicht_verglich as probe)
+
+    faelle = _faelle_der_anderen_pruefung()
+    for werte in faelle.values():                                          # Kontrolle
+        probe(*werte, capsys)
+    monkeypatch.setattr(_cli, "_melde_fenster", _zeile_ersetzt(_cli, "_melde_fenster", alt, ""))
+    with pytest.raises(AssertionError, match="neben .* PRÜFEN fehlt „NICHT GEPRÜFT"):
+        probe(*faelle[fall], capsys)
+    for anderer, werte in faelle.items():
+        if anderer != fall:
+            probe(*werte, capsys)
+
+
+def _faelle_der_anderen_pruefung():
+    from test_postfach_entwurf import (
+        test_neben_einem_pruefen_steht_was_die_andere_pruefung_nicht_verglich as probe)
+
+    marke = next(m for m in probe.pytestmark if m.name == "parametrize")
+    return dict(zip(marke.kwargs["ids"], marke.args[1], strict=True))
 
 
 # ── Das Profil, aus dem die Brücke antwortet (#410) ─────────────────────────
@@ -3196,7 +3385,7 @@ def test_ohne_den_zweig_fuer_fehlende_ankunft_bricht_jahr_den_lauf_ab(monkeypatc
     from falzmarke import ablage as _ablage
     from falzmarke import postfach as _postfach_modul
 
-    monkeypatch.setattr(_postfach_modul, "_ankunft", lambda meta: None)
+    monkeypatch.setattr(_postfach_modul, "_ankunft", lambda *teile: None)
 
     def probe():
         attrappe, bericht = _lauf_478(monkeypatch, [_eingang_438("<j@example.org>")],
@@ -3234,6 +3423,140 @@ def test_ohne_den_rest_der_antwortzeile_geht_das_faehnchen_hinter_dem_literal_ve
     monkeypatch.setattr(_postfach_modul.Postfach, "koepfe", _zeile_ersetzt(
         _postfach_modul, "Postfach.koepfe", "_fahnen(meta, rest)", "_fahnen(meta)"))
     with pytest.raises(AssertionError, match=r"Flags gelesen: None"):
+        probe()
+
+
+# Nachreview von #494: je Befund eine Sabotage, die den Stand vor der Nacharbeit
+# an genau einer Stelle nachbaut.
+
+def _kopf_hinter_dem_literal_494(monkeypatch):
+    from falzmarke import postfach as _postfach_modul
+
+    from imap_attrappe import ImapAttrappe
+
+    attrappe = ImapAttrappe({"INBOX": [(*_eingang_438("<h@example.org>"), "\\Seen")]},
+                            uid_hinten=True)
+    monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE", attrappe)
+    with _postfach_modul.verbinde("joe@example.org", umgebung={}, frist=30) as sitzung:
+        return sitzung.koepfe("INBOX")
+
+
+def test_ohne_den_rest_der_antwortzeile_geht_die_uid_hinter_dem_literal_verloren(monkeypatch):
+    """Befund 2: `UID` hinter dem Literal. Ohne den Rest fällt der Kopf stumm
+    aus der Liste, und `--uid` meldet die Mail als nicht im Eingang."""
+    from falzmarke import postfach as _postfach_modul
+
+    def probe():
+        koepfe = _kopf_hinter_dem_literal_494(monkeypatch)
+        assert [k.uid for k in koepfe] == ["101"], f"Köpfe gelesen: {[k.uid for k in koepfe]}"
+
+    probe()
+    monkeypatch.setattr(_postfach_modul.Postfach, "koepfe", _zeile_ersetzt(
+        _postfach_modul, "Postfach.koepfe", "_uid(meta, rest)", "_uid(meta)"))
+    with pytest.raises(AssertionError, match=r"Köpfe gelesen: \[\]"):
+        probe()
+
+
+def test_ohne_den_rest_der_antwortzeile_geht_die_ankunft_hinter_dem_literal_verloren(
+        monkeypatch):
+    """Befund 2: `INTERNALDATE` hinter dem Literal. Ohne den Rest ist die
+    Ankunft leer, und unter `{jahr}` bliebe jede Mail liegen."""
+    from falzmarke import postfach as _postfach_modul
+
+    def probe():
+        (kopf,) = _kopf_hinter_dem_literal_494(monkeypatch)
+        assert kopf.ankunft is not None, f"Ankunft gelesen: {kopf.ankunft}"
+
+    probe()
+    monkeypatch.setattr(_postfach_modul.Postfach, "koepfe", _zeile_ersetzt(
+        _postfach_modul, "Postfach.koepfe", "_ankunft(meta, rest)", "_ankunft(meta)"))
+    with pytest.raises(AssertionError, match="Ankunft gelesen: None"):
+        probe()
+
+
+def test_mit_der_alten_regel_gilt_ein_frueherer_jahreszug_als_gesendeter_rest(monkeypatch):
+    """Befund 3: `zug_gesendet` wieder mit `or verschoben > 0`."""
+    from falzmarke import ablage as _ablage
+    from test_ablage import (
+        test_bricht_der_zweite_jahreszug_vor_seinem_move_ab_ist_fuer_den_rest_nichts_gesendet
+        as probe)
+
+    probe(monkeypatch)                                                     # Kontrolle
+    monkeypatch.setattr(_ablage, "raeume_auf", _zeile_ersetzt(
+        _ablage, "raeume_auf", "zug_gesendet=isinstance(fehler, ZugAbgebrochen))",
+        "zug_gesendet=isinstance(fehler, ZugAbgebrochen)\n"
+        "                                    or verschoben > 0)"))
+    with pytest.raises(AssertionError, match="zug_gesendet ohne gesendetes MOVE für den Rest"):
+        probe(monkeypatch)
+
+
+def test_mit_dem_alten_text_heisst_der_stand_des_rests_ungeprueft(monkeypatch):
+    """Befund 3, die Textseite: ein Zweig für `verschoben`, egal ob gesendet."""
+    from falzmarke import ablage as _ablage
+    from test_ablage import (
+        test_bricht_der_zweite_jahreszug_vor_seinem_move_ab_ist_fuer_den_rest_nichts_gesendet
+        as probe)
+
+    probe(monkeypatch)                                                     # Kontrolle
+    monkeypatch.setattr(_ablage, "zeilen", _zeile_ersetzt(
+        _ablage, "zeilen", "if bericht.verschoben and bericht.zug_gesendet:",
+        "if bericht.verschoben:"))
+    with pytest.raises(AssertionError, match="ob der Server vom Rest schon etwas bewegt hat"):
+        probe(monkeypatch)
+
+
+def test_ohne_die_sperre_fuer_liegende_benannte_mails_wandert_der_rest(monkeypatch):
+    """Befund 5: Eine benannte Mail mit Fähnchen bleibt, die andere wanderte."""
+    from falzmarke import ablage as _ablage
+
+    def probe():
+        attrappe, bericht = _lauf_478(
+            monkeypatch, [_eingang_438("<b1@example.org>"),
+                          (*_eingang_438("<b2@example.org>"), "\\Flagged")],
+            uids=["101", "102"])
+        _bleibt_im_eingang_478(attrappe, bericht, 2)
+        assert "--trotz-faehnchen" in bericht.grund
+
+    probe()
+    monkeypatch.setattr(_ablage, "plane_benannt", _zeile_ersetzt(
+        _ablage, "plane_benannt", "    elif liegen:", "    elif False:"))
+    with pytest.raises(AssertionError, match="UID MOVE gesendet"):
+        probe()
+
+
+def test_ohne_die_abweisung_wird_seit_mit_uid_still_uebergangen(monkeypatch, capsys):
+    """Befund 6: `--seit 30 --uid 101` lief bis zum Profil weiter."""
+    from test_ablage import test_uid_und_seit_schliessen_sich_aus as probe
+
+    probe("30", capsys)                                                    # Kontrolle
+    monkeypatch.setattr(falzmarke, "befehl_aufraeumen", _zeile_ersetzt(
+        falzmarke, "befehl_aufraeumen",
+        "if args.uid is not None and args.seit is not None:", "if False:"))
+    with pytest.raises(AssertionError, match="--seit 30 mit --uid nicht abgewiesen"):
+        probe("30", capsys)
+
+
+def test_ohne_dekodieren_steht_das_jahresziel_in_server_schreibweise_im_json(monkeypatch):
+    """Befund 8, das Ziel des Laufs: `_ziel_vorab` gibt den Wunsch roh zurück."""
+    from falzmarke import ablage as _ablage
+    from test_ablage import test_jahr_in_server_schreibweise_steht_lesbar_in_text_und_json as probe
+
+    probe()                                                                # Kontrolle
+    monkeypatch.setattr(_ablage, "_ziel_vorab", _zeile_ersetzt(
+        _ablage, "_ziel_vorab", "return _lesbar(wunsch), None, None", "return wunsch, None, None"))
+    with pytest.raises(AssertionError, match="Ablage im JSON: Gesch&AOQ-ft/{jahr}"):
+        probe()
+
+
+def test_ohne_dekodieren_steht_das_ziel_je_zug_in_server_schreibweise_im_json(monkeypatch):
+    """Befund 8, das Ziel je Zug: `_ziele_zuordnen` setzt den rohen Namen."""
+    from falzmarke import ablage as _ablage
+    from test_ablage import test_jahr_in_server_schreibweise_steht_lesbar_in_text_und_json as probe
+
+    probe()                                                                # Kontrolle
+    monkeypatch.setattr(_ablage, "_ziele_zuordnen", _zeile_ersetzt(
+        _ablage, "_ziele_zuordnen", "ziel=_lesbar(name)", "ziel=name"))
+    with pytest.raises(AssertionError, match=r"Ziele im JSON: \['Gesch&AOQ-ft/2025'"):
         probe()
 
 
@@ -3597,7 +3920,7 @@ def test_vor_dem_vergleich_gekappt_faellt_die_echte_nachricht_heraus(monkeypatch
     probe(monkeypatch)  # Kontrollprobe: unsabotiert grün
     monkeypatch.setattr(_postfach_modul.Postfach, "suche_kennung", _zeile_ersetzt(
         _postfach_modul, "Postfach.suche_kennung",
-        "uids=uids, grenze=SUCHGRENZE)", "uids=uids)"))
+        "uids=uids, grenze=grenze)", "uids=uids)"))
     with pytest.raises(AssertionError, match=r"\['echt'\]"):
         probe(monkeypatch)
 
@@ -3807,9 +4130,50 @@ def test_ohne_suchgrenze_holt_suche_kennung_jeden_teiltreffer(monkeypatch):
         test_mehr_teiltreffer_als_die_suchgrenze_werden_gekappt_und_gemeldet as probe)
 
     probe(monkeypatch)                                                            # Kontrolle
+    # Seit dem Nachreview von #492 kappt `suche_kennung` selbst, mit `grenze`.
     monkeypatch.setattr(_postfach_modul.Postfach, "suche_kennung", _zeile_ersetzt(
-        _postfach_modul, "Postfach.suche_kennung", "grenze=SUCHGRENZE)", "grenze=len(uids))"))
+        _postfach_modul, "Postfach.suche_kennung", "grenze = SUCHGRENZE", "grenze = len(uids)"))
     with pytest.raises(AssertionError, match="nicht gekappt"):
+        probe(monkeypatch)
+
+
+# Nachreview von #492, Befund 1: Die Suchkappung stand unter dem Ordnernamen in
+# `gekappt`. Die Sabotage baut genau diese Zeile nach.
+_SUCHKAPPUNG_492 = "self.suchkappungen.append((ordner, kennung, len(uids), grenze))"
+_ALS_ORDNERKAPPUNG_492 = "self.gekappt[ordner] = (len(uids), grenze)"
+
+
+def test_als_ordnerkappung_meldet_die_suche_einen_ungekappten_ordner(monkeypatch):
+    from falzmarke import postfach as _postfach_modul
+    from test_ablage import test_eine_gekappte_suche_meldet_die_kennung_nicht_den_ordner as probe
+
+    probe(monkeypatch)                                                            # Kontrolle
+    monkeypatch.setattr(_postfach_modul.Postfach, "suche_kennung", _zeile_ersetzt(
+        _postfach_modul, "Postfach.suche_kennung", _SUCHKAPPUNG_492, _ALS_ORDNERKAPPUNG_492))
+    with pytest.raises(AssertionError, match="Suchkappung als Ordnerkappung gemeldet"):
+        probe(monkeypatch)
+
+
+def test_als_ordnerkappung_ueberschreibt_die_suche_die_echte_kappung(monkeypatch):
+    from falzmarke import postfach as _postfach_modul
+    from test_ablage import test_eine_suche_ueberschreibt_die_kappung_des_ordners_nicht as probe
+
+    probe(monkeypatch)                                                            # Kontrolle
+    monkeypatch.setattr(_postfach_modul.Postfach, "suche_kennung", _zeile_ersetzt(
+        _postfach_modul, "Postfach.suche_kennung", _SUCHKAPPUNG_492, _ALS_ORDNERKAPPUNG_492))
+    with pytest.raises(AssertionError,
+                       match=r"die Suche überschrieb die Ordnerkappung: \{'INBOX': \(5, 3\)\}"):
+        probe(monkeypatch)
+
+
+def test_ohne_eigenen_satz_bleibt_die_gekappte_suche_stumm(monkeypatch):
+    from falzmarke import ablage as _ablage
+    from test_ablage import test_eine_gekappte_suche_meldet_die_kennung_nicht_den_ordner as probe
+
+    probe(monkeypatch)                                                            # Kontrolle
+    monkeypatch.setattr(_ablage, "_kappungen", _zeile_ersetzt(
+        _ablage, "_kappungen", "in sitzung.suchkappungen)", "in [])"))
+    with pytest.raises(AssertionError, match="Suchkappung ohne Hinweis"):
         probe(monkeypatch)
 
 

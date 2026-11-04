@@ -1679,6 +1679,20 @@ def _setze_email(brief_pfad: Path, ausgabe: Path | None = None, *,
     return dateien[0], dateien, unterschrift
 
 
+def _empfaenger_ungeprueft(fenster) -> None:
+    sys.stdout.flush()
+    print(f"NICHT GEPRÜFT  Empfänger im Fenster: {fenster.lese_grund or 'nicht verglichen'}\n"
+          "         Vor dem Senden An, Cc und Bcc im Fenster mit dem Entwurf "
+          "vergleichen.", file=sys.stderr)
+
+
+def _absender_ungeprueft(fenster) -> None:
+    sys.stdout.flush()
+    print(f"NICHT GEPRÜFT  Absender im Fenster: {fenster.absender_hinweis}\n"
+          "         Vor dem Senden den Absender im Fenster mit dem Entwurf "
+          "vergleichen.", file=sys.stderr)
+
+
 def _melde_fenster(fenster, ordner: str, betreff: str) -> None:
     """Sagt, ob der Postfach-Entwurf als Fenster aufging (ADR 0054) und ob das
     Fenster die Empfänger der Nachricht zeigt (#464).
@@ -1694,6 +1708,9 @@ def _melde_fenster(fenster, ordner: str, betreff: str) -> None:
     Für den Absender gilt dasselbe (#482): Schickt das Fenster von einer
     Identität, die nicht zum Konto der Nachricht gehört, steht `ABSENDER
     PRÜFEN` statt `OK`. Ein Alias desselben Kontos ist grün und wird genannt.
+
+    Neben einem PRÜFEN steht die `NICHT GEPRÜFT`-Zeile der anderen Prüfung,
+    wenn sie nicht vergleichen konnte (Nachreview #487, Nr. 3).
     """
     if fenster is not None and fenster.offen:
         schon = " (war schon offen)" if fenster.zustand == "schon_offen" else ""
@@ -1714,25 +1731,24 @@ def _melde_fenster(fenster, ordner: str, betreff: str) -> None:
                       f"         Vor dem Senden den Absender im Fenster richten, oder es "
                       f"schließen und den\n"
                       f"         Entwurf unter „{ordner}“ neu öffnen.", file=sys.stderr)
+            # Was die andere Prüfung nicht vergleichen konnte, steht auch hier.
+            # Bis zum Nachreview von #487 (Nr. 3) ging die Zeile mit dem PRÜFEN verloren.
+            if not fenster.geprueft:
+                _empfaenger_ungeprueft(fenster)
+            if not fenster.absender_geprueft and fenster.absender_hinweis:
+                _absender_ungeprueft(fenster)
             return
         print(f"OK  Entwurf offen in Thunderbird: {titel}")
         if fenster.geprueft:
             print(f"OK  Empfänger im Fenster wie in der Nachricht: An {len(fenster.an)}, "
                   f"Cc {len(fenster.kopie)}, Bcc {len(fenster.blindkopie)}")
         else:
-            sys.stdout.flush()
-            print(f"NICHT GEPRÜFT  Empfänger im Fenster: "
-                  f"{fenster.lese_grund or 'nicht verglichen'}\n"
-                  "         Vor dem Senden An, Cc und Bcc im Fenster mit dem Entwurf "
-                  "vergleichen.", file=sys.stderr)
+            _empfaenger_ungeprueft(fenster)
         if fenster.absender_geprueft:
             zusatz = f" ({fenster.absender_hinweis})" if fenster.absender_hinweis else ""
             print(f"OK  Absender im Fenster: {fenster.identitaet.strip().lower()}{zusatz}")
         elif fenster.absender_hinweis:
-            sys.stdout.flush()
-            print(f"NICHT GEPRÜFT  Absender im Fenster: {fenster.absender_hinweis}\n"
-                  "         Vor dem Senden den Absender im Fenster mit dem Entwurf "
-                  "vergleichen.", file=sys.stderr)
+            _absender_ungeprueft(fenster)
         return
     if fenster is not None and fenster.zustand == "ungewiss":
         print(f"HINWEIS  Fenster ungewiss: {fenster.grund}\n"
@@ -1814,6 +1830,13 @@ def befehl_email(args) -> int:
 
     brief = Path(args.brief)
     profile = Path(args.profiles) if args.profiles else None
+
+    # Nachreview #491, Befund 1: Outlook öffnet jeden Entwurf als Fenster. Wer
+    # beides verlangt, bekäme sonst ein Fenster oder gar nichts, je nachdem.
+    if args.kein_fenster and args.programm == "outlook":
+        print("FEHLER  --kein-fenster geht nicht mit --programm outlook: Outlook legt "
+              "einen Entwurf nur mit Fenster an", file=sys.stderr)
+        return EXIT_EINGABE
 
     # Dieselbe Reihenfolge wie beim Brief: Ein Eingabefehler soll Exit 1
     # ergeben und kein Setzen kosten.
@@ -2178,7 +2201,11 @@ def befehl_entwurf_oeffnen(args) -> int:
                                                 "wurden nicht gelesen")
     # Der Absender gegen den `From` des Entwurfs, nicht gegen `--absender`: Der
     # nennt das Postfach, und ein Entwurf darin darf von einem Alias stammen (#482).
-    oeffnung = oeffnen_modul.absender_pruefen(oeffnung, kopf.von)
+    # Die Identitäten aus dem Profil, aus dem die Brücke antwortet (#410).
+    from falzmarke import entwurfsbuch
+
+    profil, _ = entwurfsbuch.bruecken_profil()
+    oeffnung = oeffnen_modul.absender_pruefen(oeffnung, kopf.von, profil=profil)
     _melde_fenster(oeffnung, anzeige, kopf.betreff)
     # Ein Fenster mit anderen Empfängern oder einem fremden Absender ist nicht das
     # bestellte: Exit 3 wie ohne Fenster.
@@ -2258,6 +2285,15 @@ def befehl_aufraeumen(args) -> int:
 
     from falzmarke import ablage as ablage_modul
 
+    if args.uid is not None and args.seit is not None:
+        # Nachreview von #494, Befund 6: Mit `--uid` gibt es kein Fenster. Ein
+        # gesetztes `--seit` würde still übergangen, also wird es abgewiesen —
+        # und ein unsinniger Wert nicht an einer Grenze gemessen, die nicht gilt.
+        print("FEHLER  --seit gilt nicht mit --uid: die genannten Mails werden ohne "
+              "Zeitfenster gesucht", file=sys.stderr)
+        return EXIT_EINGABE
+    if args.seit is None:
+        args.seit = ablage_modul.SEIT_TAGEN
     if not 1 <= args.seit <= ablage_modul.SEIT_MAX:
         print(f"FEHLER  --seit braucht 1 bis {ablage_modul.SEIT_MAX} Tage — zehn Jahre, "
               "darüber bricht die Datumsrechnung", file=sys.stderr)
@@ -2886,7 +2922,8 @@ def main(argv: list[str] | None = None) -> int:
                    help="den Entwurf ablegen, aber kein Verfassen-Fenster öffnen und "
                         "Thunderbird nicht nach vorn holen (für Schleifen über viele Briefe). "
                         "Lässt sich der Entwurf nicht im Postfach ablegen, geht weder "
-                        "-compose noch die Datei auf: KEIN ENTWURF mit Grund, Exit 3")
+                        "-compose noch die Datei auf: KEIN ENTWURF mit Grund, Exit 3. "
+                        "Nicht mit --programm outlook")
     p.add_argument("--programm", choices=["thunderbird", "outlook"],
                    help="Mailprogramm für den Entwurf (ohne Angabe Thunderbird; "
                         "Outlook nur auf Wahl); schließt --oeffnen ein")
@@ -2929,15 +2966,17 @@ def main(argv: list[str] | None = None) -> int:
              "überholte Entwürfe in den Papierkorb")
     p.add_argument("--absender", required=True, action="append",
                    help="die Adresse des Kontos; mehrfach für mehrere Konten")
-    p.add_argument("--seit", type=int, default=30,
+    # `default=None`, nicht 30: Nur so ist „gesetzt“ von „Vorgabe“ zu trennen,
+    # und mit `--uid` ist ein gesetztes `--seit` ein Fehler (Nachreview #494).
+    p.add_argument("--seit", type=int, default=None,
                    help="so weit zurück werden gesendete Antworten angesehen "
-                        "(Vorgabe 30 Tage, höchstens 3650)")
+                        "(Vorgabe 30 Tage, höchstens 3650); nicht mit --uid")
     p.add_argument("--entwuerfe", action="store_true",
                    help="statt des Eingangs „Entwürfe“ aufräumen: was belegt überholt ist, "
                         "geht in den Papierkorb, jeder andere Entwurf bleibt mit Grund")
     p.add_argument("--uid", type=int, nargs="+", metavar="UID",
-                   help="genau diese Mails im Eingang ablegen, auch ohne Antwort; fehlt eine, "
-                        "wandert keine. --seit gilt dann nicht")
+                   help="genau diese Mails im Eingang ablegen, auch ohne Antwort; fehlt eine "
+                        "oder bliebe eine liegen, wandert keine. Nicht mit --seit")
     p.add_argument("--trotz-faehnchen", action="store_true",
                    help="auch Mails mit Fähnchen ablegen; ohne diesen Schalter bleiben sie "
                         "im Eingang")

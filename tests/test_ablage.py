@@ -174,10 +174,45 @@ def test_mehr_teiltreffer_als_die_suchgrenze_werden_gekappt_und_gemeldet(monkeyp
     _, sitzung = _postfach(eingang=fremde)
     with sitzung:
         assert sitzung.suche_kennung("INBOX", "123") == []
-        assert sitzung.gekappt == {"INBOX": (4, 3)}, "die Teiltreffer wurden nicht gekappt"
+        assert sitzung.suchkappungen == [("INBOX", "123", 4, 3)], \
+            "die Teiltreffer wurden nicht gekappt"
+        assert sitzung.gekappt == {}, f"Suchkappung als Ordnerkappung: {sitzung.gekappt}"
     _, sitzung = _postfach(eingang=fremde[:3])                       # Gegenstück: unter der Grenze
     with sitzung:
-        assert sitzung.suche_kennung("INBOX", "123") == [] and sitzung.gekappt == {}
+        assert sitzung.suche_kennung("INBOX", "123") == [] and sitzung.suchkappungen == []
+
+
+def test_eine_gekappte_suche_meldet_die_kennung_nicht_den_ordner(monkeypatch):
+    """Nachreview von #492, Befund 1: Die Suchkappung hieß „„INBOX“: nur die
+    neuesten 3 von 4 Mails angesehen“, obwohl der Eingang nicht gekappt war."""
+    monkeypatch.setattr(postfach, "SUCHGRENZE", 3)
+    fremde = [_eingegangen(f"<x123y{i}@example.org>", betreff=f"fremd {i}", tage=4 - i)
+              for i in range(4)]
+    _, sitzung = _postfach(eingang=fremde, gesendet=[_antwort("123")])
+    with sitzung:
+        bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+    assert not [h for h in bericht.hinweise if "Mails angesehen" in h], \
+        f"Suchkappung als Ordnerkappung gemeldet: {bericht.hinweise}"
+    assert ("Kennung „123“ in „INBOX“: nur 3 von 4 Teiltreffern verglichen, die neuesten — "
+            "eine ältere Nachricht mit dieser Kennung fehlt womöglich im Abgleich"
+            in bericht.hinweise), f"Suchkappung ohne Hinweis: {bericht.hinweise}"
+
+
+def test_eine_suche_ueberschreibt_die_kappung_des_ordners_nicht(monkeypatch):
+    """Nachreview von #492, Befund 1, die zweite Folge: Die Suche schrieb unter
+    demselben Ordnernamen und löschte eine echte Ordnerkappung aus dem Bericht."""
+    monkeypatch.setattr(postfach, "GRENZE", 2)
+    monkeypatch.setattr(postfach, "SUCHGRENZE", 3)
+    fremde = [_eingegangen(f"<x123y{i}@example.org>", betreff=f"fremd {i}", tage=5 - i)
+              for i in range(5)]
+    _, sitzung = _postfach(eingang=fremde)
+    with sitzung:
+        sitzung.koepfe("INBOX")
+        assert sitzung.gekappt == {"INBOX": (5, 2)}, "Kontrollprobe: der Ordner ist gekappt"
+        sitzung.suche_kennung("INBOX", "123")
+        assert sitzung.gekappt == {"INBOX": (5, 2)}, \
+            f"die Suche überschrieb die Ordnerkappung: {sitzung.gekappt}"
+        assert sitzung.suchkappungen == [("INBOX", "123", 5, 3)]
 
 
 def test_eine_kennung_ohne_klammern_findet_ihre_nachricht():
@@ -654,8 +689,83 @@ def test_eine_benannte_mail_mit_faehnchen_wandert_nur_mit_dem_schalter(trotz, er
     attrappe, _ = _postfach(eingang=[_mit_fahnen(_offen(), "\\Flagged")])
     bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
                                 uids=["101"], trotz_faehnchen=trotz)
-    assert bericht.grund is None
+    # Ohne Schalter hält das Fähnchen den Lauf an (Nachreview von #494, Befund 5).
+    assert (bericht.grund is None) is trotz
     assert _uids(attrappe, "Archiv") == erwartet
+
+
+def test_bliebe_eine_benannte_mail_liegen_wandert_keine():
+    """Nachreview von #494, Befund 5: Eine benannte Mail mit Fähnchen zählt wie
+    eine fehlende UID. Bis dahin wanderte der Rest, und der Lauf endete grün."""
+    attrappe, _ = _postfach(eingang=[_offen("Erste", "<e1@example.org>"),
+                                     _mit_fahnen(_offen("Zweite", "<e2@example.org>"),
+                                                 "\\Seen \\Flagged")])
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
+                                uids=["101", "102"])
+    assert bericht.grund == ("UID 102 bliebe liegen (Fähnchen) — verschoben wird nur, wenn "
+                             "jede genannte UID wandern kann; --trotz-faehnchen hebt das "
+                             "Fähnchen für diesen Lauf auf")
+    assert bericht.verschoben == 0 and not attrappe.befehle("UID MOVE")
+    assert _uids(attrappe) == [101, 102]
+    text = ablage.zeilen(bericht)
+    assert text[0].startswith("NICHT GEPRÜFT  joe@example.org: UID 102 bliebe liegen")
+    assert any(z.startswith("    UID 101 ") for z in text), "die wandernde fehlt im Text"
+    assert any(z.startswith("    UID 102 ") and z.endswith("— liegt, Fähnchen") for z in text)
+
+
+def test_gegenprobe_ohne_faehnchen_wandern_beide_benannten_mails():
+    """Ohne sie belegte der Test darüber nichts: Eine Sperre, die jedes `--uid`
+    mit zwei Mails anhält, wäre dort auch grün."""
+    attrappe, _ = _postfach(eingang=[_offen("Erste", "<e1@example.org>"),
+                                     _mit_fahnen(_offen("Zweite", "<e2@example.org>"), "\\Seen")])
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
+                                uids=["101", "102"])
+    assert bericht.grund is None and bericht.verschoben == 2
+    assert _uids(attrappe, "Archiv") == [101, 102]
+
+
+def test_unbekannte_flags_an_einer_benannten_mail_halten_den_lauf_an():
+    attrappe, _ = _postfach(eingang=[_offen()], ohne_flags=True)
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
+                                uids=["101"])
+    assert "UID 101 bliebe liegen (Fähnchen unbekannt" in bericht.grund
+    assert "--trotz-faehnchen" in bericht.grund
+    assert bericht.verschoben == 0 and not attrappe.befehle("UID MOVE")
+
+
+def test_eine_benannte_mail_mit_faehnchen_endet_ueber_die_cli_mit_exit_3(monkeypatch, capsys):
+    from falzmarke import cli as falzmarke
+
+    attrappe, _ = _postfach(eingang=[_mit_fahnen(_offen(), "\\Flagged")],
+                            sonder={"INBOX": "", "Gesendete Elemente": "\\Sent",
+                                    "Archiv": "\\Archive"})
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", attrappe)
+    assert falzmarke.main(["aufraeumen", "--absender", "joe@example.org", "--uid", "101",
+                           "--machen"]) == falzmarke.EXIT_UMGEBUNG
+    fehler = capsys.readouterr().err
+    assert fehler.startswith("NICHT GEPRÜFT  joe@example.org: UID 101 bliebe liegen")
+    assert "--trotz-faehnchen" in fehler
+    assert _uids(attrappe) == [101] and not attrappe.befehle("UID MOVE")
+
+
+@pytest.mark.parametrize("hinten", [False, True], ids=["vor-dem-literal", "hinter-dem-literal"])
+def test_uid_und_ankunft_werden_vor_und_hinter_dem_literal_gelesen(hinten):
+    """Nachreview von #494, Befund 2: wie `FLAGS`. Bis dahin las nur die
+    Kopfzeile der Antwort, und eine Mail mit `UID` hinter dem Literal fiel
+    stumm aus der Liste."""
+    _, sitzung = _postfach(eingang=[_eingegangen()], uid_hinten=hinten)
+    with sitzung:
+        (kopf,) = sitzung.koepfe("INBOX")
+    assert kopf.uid == "101"
+    assert kopf.ankunft == HEUTE - timedelta(days=5)
+
+
+def test_steht_die_uid_hinter_dem_literal_findet_uid_die_mail():
+    attrappe, _ = _postfach(eingang=[_offen()], uid_hinten=True)
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
+                                uids=["101"])
+    assert bericht.grund is None and bericht.verschoben == 1
+    assert _uids(attrappe, "Archiv") == [101]
 
 
 _ALT_478 = datetime(2025, 12, 10, 12, 0, tzinfo=timezone.utc)
@@ -707,15 +817,91 @@ def test_jahr_gilt_auch_fuer_benannte_mails():
 
 
 def test_ohne_ankunftsdatum_bleibt_die_mail_bei_jahr_liegen(monkeypatch):
-    """Das Jahr kommt aus INTERNALDATE, nicht aus `Date`: Fehlt es, bleibt die Mail."""
-    monkeypatch.setattr(postfach, "_ankunft", lambda meta: None)
+    """Das Jahr kommt aus INTERNALDATE, nicht aus `Date`: Fehlt es, bleibt die Mail.
+
+    Benannt hält sie seit dem Nachreview von #494 den Lauf an; der Hinweis auf
+    `--trotz-faehnchen` fehlt, denn der hilft hier nicht.
+    """
+    monkeypatch.setattr(postfach, "_ankunft", lambda *teile: None)
     attrappe, _ = _postfach(**_jahr_lage(antworten=False))
     bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv/{jahr}", machen=True,
                                 umgebung={}, uids=["101"])
-    assert bericht.grund is None and bericht.verschoben == 0
+    assert bericht.grund.startswith("UID 101 bliebe liegen (ohne Ankunftsdatum")
+    assert "--trotz-faehnchen" not in bericht.grund
+    assert bericht.verschoben == 0
     assert not attrappe.befehle("UID MOVE")
     ((zug, grund),) = bericht.liegen
     assert zug.uid == "101" and grund == "ohne Ankunftsdatum, das Jahr für „Archiv/{jahr}“ fehlt"
+
+
+def test_jahr_in_server_schreibweise_steht_lesbar_in_text_und_json():
+    """Nachreview von #494, Befund 8: Ohne `{jahr}` wurde das Ziel schon
+    dekodiert, mit `{jahr}` stand `&AOQ-` in der Ausgabe."""
+    lage = _jahr_lage(ordner=("Gesch&AOQ-ft/2025", "Gesch&AOQ-ft/2026"))
+    attrappe, _ = _postfach(**lage)
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Gesch&AOQ-ft/{jahr}", machen=True,
+                                umgebung={})
+    assert bericht.grund is None and bericht.verschoben == 2
+    assert _uids(attrappe, "Gesch&AOQ-ft/2025") == [101]
+    daten = ablage.als_json(bericht)
+    assert daten["ablage"] == "Geschäft/{jahr}", f"Ablage im JSON: {daten['ablage']}"
+    ziele = [z["ziel"] for z in daten["zuege"]]
+    assert ziele == ["Geschäft/2025", "Geschäft/2026"], f"Ziele im JSON: {ziele}"
+    assert any(z.endswith("→ „Geschäft/2025“") for z in ablage.zeilen(bericht))
+
+
+def _zweiter_jahreszug_bricht_ab(monkeypatch, attrappe, *, am):
+    """Der erste Jahreszug geht durch, der zweite bricht `am` SELECT oder MOVE ab."""
+    echtes_select, echtes_uid = attrappe.select, attrappe.uid
+    zuege = []
+
+    def select(mailbox="INBOX", readonly=False):
+        if not readonly:
+            zuege.append(mailbox)
+            if am == "SELECT" and len(zuege) == 2:
+                return "NO", [b"Mailbox busy."]
+        return echtes_select(mailbox, readonly=readonly)
+
+    def uid(befehl, *args):
+        if am == "MOVE" and befehl.upper() == "MOVE" and len(zuege) == 2:
+            attrappe.protokoll.append(("UID MOVE", *args))
+            raise OSError("Verbindung getrennt")
+        return echtes_uid(befehl, *args)
+
+    monkeypatch.setattr(attrappe, "select", select)
+    monkeypatch.setattr(attrappe, "uid", uid)
+
+
+def test_bricht_der_zweite_jahreszug_vor_seinem_move_ab_ist_fuer_den_rest_nichts_gesendet(
+        monkeypatch):
+    """Nachreview von #494, Befund 3: Bis dahin galt `verschoben > 0` als
+    „gesendet“, und der Text nannte den Stand des Rests ungeprüft, obwohl für
+    ihn nie ein MOVE hinausging."""
+    attrappe, _ = _postfach(**_jahr_lage())
+    _zweiter_jahreszug_bricht_ab(monkeypatch, attrappe, am="SELECT")
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv/{jahr}", machen=True,
+                                umgebung={})
+    assert "Mailbox busy" in bericht.grund and bericht.verschoben == 1
+    assert bericht.zug_gesendet is False, "zug_gesendet ohne gesendetes MOVE für den Rest"
+    assert ablage.als_json(bericht)["zug_gesendet"] is False
+    assert [b[1:] for b in attrappe.befehle("UID MOVE")] == [("101", '"Archiv/2025"')]
+    stand = ablage.zeilen(bericht)[1]
+    assert stand == ("    2 Nachrichten für „Archiv/{jahr}“ gefunden; "
+                     "1 davon verschoben, der Rest nicht, weil der Lauf "
+                     "vor seinem Zug abbrach"), f"Stand im Text: {stand}"
+
+
+def test_bricht_der_zweite_jahreszug_im_move_ab_bleibt_der_rest_offen(monkeypatch):
+    """Gegenstück: Hier ging das MOVE des Rests hinaus, nur hier ist sein Stand offen."""
+    attrappe, _ = _postfach(**_jahr_lage())
+    _zweiter_jahreszug_bricht_ab(monkeypatch, attrappe, am="MOVE")
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv/{jahr}", machen=True,
+                                umgebung={})
+    assert "Verbindung getrennt" in bericht.grund and bericht.verschoben == 1
+    assert bericht.zug_gesendet is True
+    assert ablage.zeilen(bericht)[1] == ("    2 Nachrichten für „Archiv/{jahr}“ gefunden; "
+                                         "1 davon verschoben, ob der Server vom Rest schon "
+                                         "etwas bewegt hat, ist nicht geprüft")
 
 
 def test_uid_verlangt_genau_ein_konto(capsys):
@@ -725,6 +911,39 @@ def test_uid_verlangt_genau_ein_konto(capsys):
     assert falzmarke.main(["aufraeumen", "--absender", "a@example.org", "--absender",
                            "b@example.org", "--uid", "101"]) == falzmarke.EXIT_EINGABE
     assert "--uid" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("seit", ["30", "0"], ids=["gueltig", "ausserhalb"])
+def test_uid_und_seit_schliessen_sich_aus(seit, capsys):
+    """Nachreview von #494, Befund 6: Mit `--uid` gibt es kein Fenster. Ein
+    gesetztes `--seit` wurde still übergangen, und `--seit 0` scheiterte an
+    einer Grenze, die gar nicht galt."""
+    from falzmarke import cli as falzmarke
+
+    code = falzmarke.main(["aufraeumen", "--absender", "a@example.org", "--uid", "101",
+                           "--seit", seit])
+    fehler = capsys.readouterr().err
+    assert fehler.startswith("FEHLER  --seit gilt nicht mit --uid"), \
+        f"--seit {seit} mit --uid nicht abgewiesen: Exit {code}, {fehler}"
+    assert code == falzmarke.EXIT_EINGABE
+
+
+def test_ohne_seit_gilt_die_vorgabe_und_seit_null_bleibt_ein_fehler(monkeypatch, capsys):
+    """Gegenprobe zu `default=None`: Ohne `--uid` kommen weiter 30 Tage an,
+    und die Grenze greift wie vorher."""
+    from falzmarke import cli as falzmarke
+
+    angekommen = []
+    monkeypatch.setattr(ablage, "raeume_auf", lambda adresse, **kw: angekommen.append(
+        kw["seit_tagen"]) or ablage.Bericht(
+            adresse=adresse, ziel="Archiv", grund="Attrappe", seit=None, antworten=0,
+            nicht_im_eingang=0, zuege=(), verschoben=0))
+    monkeypatch.setattr(falzmarke, "ablage_aus_profil", lambda adresse, zusatz: ("Archiv", None))
+    falzmarke.main(["aufraeumen", "--absender", "a@example.org"])
+    assert angekommen == [ablage.SEIT_TAGEN]
+    assert falzmarke.main(["aufraeumen", "--absender", "a@example.org", "--seit", "0"]) \
+        == falzmarke.EXIT_EINGABE
+    assert "--seit braucht 1 bis" in capsys.readouterr().err
 
 
 def test_uid_und_entwuerfe_schliessen_sich_aus(capsys):

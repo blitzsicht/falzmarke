@@ -36,12 +36,19 @@ Lauf.
 **Benannte Mails** (`--uid`, #478) sind erledigt, weil der Bediener es sagt,
 nicht wegen einer Antwort. Es bleibt bei denselben Sperren und demselben einen
 `UID MOVE`. Fehlt eine der genannten UIDs im Eingang, wandert keine: Eine
-Liste, die nicht mehr stimmt, ist kein Auftrag für den Rest.
+Liste, die nicht mehr stimmt, ist kein Auftrag für den Rest. Dasselbe gilt,
+wenn eine genannte Mail liegen bliebe, etwa wegen eines Fähnchens
+(Nachreview von #494, Befund 5): Wer die UID nannte, hat das Fähnchen
+vermutlich übersehen.
 
 **`{jahr}` im Ziel** (#478) wird je Mail zum Jahr ihrer Ankunft im Postfach
-(INTERNALDATE, Ortszeit), so wie Thunderbird mit `archive_granularity 1`
-ablegt. Fehlt einer der Jahresordner, wandert keine Mail des Laufs: Sonst
-wäre die eine Hälfte abgelegt und die andere still nicht.
+(INTERNALDATE, Ortszeit). Thunderbird legt mit `archive_granularity 1` anders
+ab: Es nimmt `msgHdr.date` (`MessageArchiver.sys.mjs`). falzmarke bleibt bei
+der Ankunft, weil der Absender sie nicht fälschen kann und der Server sie zu
+jeder Nachricht führt. Eine Mail vom 31.12. um 23:50, die erst am 01.01.
+ankommt, liegt deshalb bei falzmarke im neuen Jahr und bei Thunderbird
+womöglich im alten. Fehlt einer der Jahresordner, wandert keine Mail des
+Laufs: Sonst wäre die eine Hälfte abgelegt und die andere still nicht.
 """
 
 from __future__ import annotations
@@ -139,7 +146,8 @@ class Bericht(NamedTuple):
     adresse: str
     #: Der Ablageordner, lesbar. `None`, wenn keiner feststeht.
     ziel: str | None
-    #: Warum nichts geht. Gesetzt heißt: nichts geprüft, nichts bewegt.
+    #: Warum es nicht weitergeht. Gesetzt heißt: der Lauf ist nicht zu Ende
+    #: gekommen; was trotzdem geschah, steht in `verschoben` und `zug_gesendet`.
     grund: str | None
     seit: date | None
     #: Gesendete Antworten im Fenster — die Grundmenge.
@@ -157,8 +165,10 @@ class Bericht(NamedTuple):
     #: nur lesbar. Steht hier, damit der Zug den Ordner nicht ein zweites Mal
     #: bestimmen muss — zwei Bestimmungen können verschieden ausfallen.
     ziel_server: str | None = None
-    #: War `UID MOVE` schon gesendet, als der Lauf abbrach? Nur dann kann der
-    #: Server einen Teil bewegt haben. Ohne Grund immer `False`.
+    #: Brach der Lauf an einem gesendeten `UID MOVE` ab? Nur dann kann der
+    #: Server vom Rest einen Teil bewegt haben. Was ein früherer Zug schon
+    #: bewegt hat, zählt `verschoben`, nicht dieses Feld (Nachreview #494,
+    #: Befund 3). Ohne Grund immer `False`.
     zug_gesendet: bool = False
     #: Was erledigt wäre und bleibt — Fähnchen, unbekannte Flags, kein Jahr.
     liegen: tuple[Liegt, ...] = ()
@@ -205,6 +215,19 @@ def ablageordner(sitzung: postfach.Postfach, wunsch: str | None) -> tuple[str | 
 
 # ── Der Plan ────────────────────────────────────────────────────────────────
 
+def _lesbar(wunsch: str) -> str:
+    """Der Wunsch aus dem Profil in Klartext — er darf in beiden Schreibweisen dastehen.
+
+    `ablageordner` nimmt den Namen wörtlich oder kodiert ihn. Ein lesbarer Name
+    mit `&` („Kunden &Co-…“) ist kein gültiges UTF-7; dann bleibt er, wie er ist,
+    statt den Lauf mit einem Traceback zu beenden.
+    """
+    try:
+        return postfach.utf7_dekodieren(wunsch)
+    except ValueError:
+        return wunsch
+
+
 def _ziel_vorab(sitzung: postfach.Postfach,
                 wunsch: str | None) -> tuple[str | None, str | None, str | None]:
     """`(lesbar, server, grund)` — das Ziel des Laufs, bevor gelesen wird.
@@ -214,7 +237,10 @@ def _ziel_vorab(sitzung: postfach.Postfach,
     denselben Sperren wie hier.
     """
     if wunsch and JAHR in wunsch:
-        return wunsch, None, None
+        # Lesbar wie ohne `{jahr}`: Steht der Wunsch in Server-Schreibweise
+        # (`&APw-`) im Profil, zeigten Text und JSON sonst den kodierten Namen
+        # (Nachreview #494, Befund 8).
+        return _lesbar(wunsch), None, None
     ziel, grund = ablageordner(sitzung, wunsch)
     if ziel is None:
         return None, None, grund
@@ -263,7 +289,7 @@ def _ziele_zuordnen(sitzung: postfach.Postfach, wunsch: str | None, zuege: list[
         ordner, grund = geprueft[name]
         if ordner is None and grund not in fehlend:
             fehlend.append(grund)
-        zugeordnet.append(zug._replace(ziel=name, ziel_server=ordner))
+        zugeordnet.append(zug._replace(ziel=_lesbar(name), ziel_server=ordner))
     grund = None
     if fehlend:
         grund = ("; ".join(fehlend) + " — keine Mail dieses Laufs wandert, auch nicht "
@@ -292,6 +318,15 @@ def plane_benannt(sitzung: postfach.Postfach, uids: list[str], *, wunsch: str | 
         grund = (f"{'UID' if len(fehlen) == 1 else 'die UIDs'} {', '.join(fehlen)} "
                  f"{'liegt' if len(fehlen) == 1 else 'liegen'} nicht im Eingang — "
                  "verschoben wird nur, wenn jede genannte UID da ist")
+    elif liegen:
+        # Nachreview von #494, Befund 5: Eine genannte Mail, die liegen bliebe,
+        # zählt wie eine fehlende UID. Sonst wanderte der Rest mit Exit 0, und
+        # die Liste des Bedieners wäre nur zum Teil erledigt.
+        bleiben = sorted(liegen, key=lambda l: int(l.zug.uid))
+        grund = ("; ".join(f"UID {l.zug.uid} bliebe liegen ({l.grund})" for l in bleiben)
+                 + " — verschoben wird nur, wenn jede genannte UID wandern kann")
+        if any(l.zug.fahnen is None or FAEHNCHEN in l.zug.fahnen for l in bleiben):
+            grund += "; --trotz-faehnchen hebt das Fähnchen für diesen Lauf auf"
     return leer._replace(ziel=ziel, ziel_server=ziel_server, grund=grund,
                          zuege=tuple(sorted(zuege, key=lambda z: int(z.uid))), liegen=liegen,
                          hinweise=_kappungen(sitzung))
@@ -367,16 +402,25 @@ def plane(sitzung: postfach.Postfach, *, wunsch: str | None = None,
 
 
 def _kappungen(sitzung: postfach.Postfach) -> tuple[str, ...]:
-    """Je Ordner, in dem `koepfe` mehr fand als es ansah, ein Satz.
+    """Je Ordner, in dem `koepfe` mehr fand als es ansah, ein Satz; dazu je
+    gekappter Kennungssuche einer.
 
     Derselbe Wortlaut wie in `entwurfsbuch` (ADR 0055): Dort steht er für
     dieselben Ordner, und zwei Formulierungen für dieselbe Lücke wären für den
     Leser zwei verschiedene Lücken.
     """
-    return tuple(
+    ordner_saetze = tuple(
         f"„{postfach.utf7_dekodieren(ordner)}“: nur die neuesten {angesehen} von {alle} "
         "Mails angesehen — was davor liegt, fehlt im Abgleich"
         for ordner, (alle, angesehen) in sorted(sitzung.gekappt.items()))
+    # Eine gekappte Kennungssuche ist eine andere Lücke als ein gekappter Ordner
+    # und bekommt ihren eigenen Satz (Nachreview von #492, Befund 1).
+    such_saetze = tuple(
+        f"Kennung „{kennung}“ in „{postfach.utf7_dekodieren(ordner)}“: nur {verglichen} von "
+        f"{alle} Teiltreffern verglichen, die neuesten — eine ältere Nachricht mit dieser "
+        "Kennung fehlt womöglich im Abgleich"
+        for ordner, kennung, alle, verglichen in sitzung.suchkappungen)
+    return ordner_saetze + such_saetze
 
 
 def _unsendbare(anzahl: int) -> tuple[str, ...]:
@@ -479,9 +523,11 @@ def raeume_auf(adresse: str, *, wunsch: str | None = None, seit_tagen: int = SEI
             # von „nichts geschehen“ — für den einen Fall, in dem etwas
             # geschehen sein kann (#438). Bei `{jahr}` kann ein früherer Zug
             # schon durch sein, wenn ein späterer abbricht (#478).
+            # Für den Rest zählt nur, ob **sein** MOVE hinausging. Brach der
+            # Lauf davor ab, etwa am SELECT der zweiten Jahresgruppe, ist für
+            # ihn sicher nichts gesendet (Nachreview von #494, Befund 3).
             return bericht._replace(grund=str(fehler), verschoben=verschoben,
-                                    zug_gesendet=isinstance(fehler, ZugAbgebrochen)
-                                    or verschoben > 0)
+                                    zug_gesendet=isinstance(fehler, ZugAbgebrochen))
 
 
 # ── Ausgabe: ein Bericht, zwei Darstellungen ────────────────────────────────
@@ -525,9 +571,12 @@ def zeilen(bericht: Bericht) -> list[str]:
             zahl = len(bericht.zuege)
             gefunden = (f"    {zahl} {'Nachricht' if zahl == 1 else 'Nachrichten'} "
                         f"für „{bericht.ziel}“ gefunden; ")
-            if bericht.verschoben:
+            if bericht.verschoben and bericht.zug_gesendet:
                 stand = (f"{bericht.verschoben} davon verschoben, ob der Server vom Rest "
                          "schon etwas bewegt hat, ist nicht geprüft")
+            elif bericht.verschoben:
+                stand = (f"{bericht.verschoben} davon verschoben, der Rest nicht, weil der "
+                         "Lauf vor seinem Zug abbrach")
             elif bericht.zug_gesendet:
                 stand = "ob der Server davon schon etwas bewegt hat, ist nicht geprüft"
             else:
