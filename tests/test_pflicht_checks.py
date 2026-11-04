@@ -105,8 +105,8 @@ def _schreibe(tmp_path, jobs_yaml: str):
     `jobs:` statt darin.
 
     Die Tests mit dieser Datei geben `nachbarn=()` an: Ohne die Angabe läse
-    `analysiere` das echte Verzeichnis als Nachbarn (#493), und ein Jobname wie
-    „PDF-Konformität (veraPDF, fremdes Werkzeug)“ stieße an ci.yml."""
+    `analysiere` die übrigen Dateien unter `tmp_path` als Nachbarn (#493), und ein
+    Test, der dort noch eine Datei ablegt, prüfte nebenbei die Kollision mit."""
     pfad = tmp_path / "ci.yml"
     pfad.write_text(
         "on:\n  push:\n    branches: [main]\n  pull_request:\njobs:\n"
@@ -391,9 +391,11 @@ def _nachbar(tmp_path, dateiname: str, jobs_yaml: str):
 
 
 def test_ein_nachbar_mit_gleichem_checknamen_ist_ein_fehler(tmp_path):
-    """Der Fall aus #493: `aktion.yml` trug einen Job `name: Closing-Keyword`. GitHub
-    meldete zwei Check-Runs gleichen Namens, das Ruleset nahm den jüngsten, und ein
-    grüner Lauf des Nachbarn überdeckte ein rotes `closing_keyword`-Ergebnis."""
+    """Der Fall aus #493, dort als möglich beschrieben, nicht gefunden: Trüge `aktion.yml`
+    einen Job `name: Closing-Keyword`, meldete GitHub zwei Check-Runs gleichen Namens,
+    das Ruleset nähme den jüngsten, und ein grüner Lauf des Nachbarn überdeckte ein
+    rotes `closing_keyword`-Ergebnis. Einen solchen Job gab es nie (`git log -S`,
+    Nachreview #499, Befund 3)."""
     pflicht = _schreibe(tmp_path, CLOSING_KEYWORD)
     nachbar = _nachbar(tmp_path, "aktion.yml", textwrap.dedent("""\
         selbsttest:
@@ -470,11 +472,16 @@ def test_ohne_angabe_zaehlen_die_uebrigen_dateien_des_verzeichnisses(tmp_path):
         tmp_path / "b.yml", tmp_path / "c.yaml")
     assert PR_ANGABEN in pflicht_checks.nachbarn_von((CI,))
     assert CI not in pflicht_checks.nachbarn_von((CI, PR_ANGABEN))
-    # Ohne Angabe ist das Verzeichnis das echte: Ein Pflicht-Workflow unter tmp_path,
-    # der einen Checknamen aus pr-angaben.yml wiederholt, stößt dort an.
-    zwilling = _schreibe(tmp_path, CLOSING_KEYWORD)
+    # Ohne Angabe ist das Verzeichnis das des Pflicht-Workflows, nicht stur das echte
+    # (Nachreview #499, Befund 4): Allein stößt der Zwilling an nichts, auch nicht an
+    # pr-angaben.yml; mit einem Nachbarn neben sich schon.
+    allein = tmp_path / "allein"
+    allein.mkdir()
+    zwilling = _schreibe(allein, CLOSING_KEYWORD)
+    assert pflicht_checks.pflicht_checks(zwilling) == ["Closing-Keyword"]
+    _nachbar(allein, "aktion.yml", CLOSING_KEYWORD)
     with pytest.raises(pflicht_checks.Workflowfehler,
-                       match="Closing-Keyword in ci.yml und pr-angaben.yml"):
+                       match="Closing-Keyword in ci.yml und aktion.yml"):
         pflicht_checks.pflicht_checks(zwilling)
 
 
@@ -484,6 +491,76 @@ def test_ein_nicht_lesbarer_nachbar_ist_ein_workflowfehler(tmp_path):
     pflicht = _schreibe(tmp_path, CLOSING_KEYWORD)
     with pytest.raises(pflicht_checks.Workflowfehler, match="weg.yml nicht lesbar"):
         pflicht_checks.pflicht_checks(pflicht, nachbarn=(tmp_path / "weg.yml",))
+
+
+@pytest.mark.parametrize("name", ["tests", "veroeffentlichen"], ids=["gleich", "anders"])
+def test_ein_main_job_unter_dem_namen_eines_pflicht_checks_ist_ein_fehler(tmp_path, name):
+    """Nachreview #499, Befund 1: Ein Job, der nur auf main läuft, meldet auf dem PR
+    einen übersprungenen Check-Run, und der gilt dem Ruleset als erfüllt. In einem
+    Nachbarn fiel das seit #493 auf, im Pflicht-Workflow selbst nicht.
+    Zwilling: Unter eigenem Namen bleibt er ein ausgeschlossener Job."""
+    pfad = _schreibe(tmp_path, textwrap.dedent(f"""\
+        tests:
+          runs-on: ubuntu-latest
+          steps: []
+        veroeffentlichen:
+          name: {name}
+          if: github.ref == 'refs/heads/main'
+          runs-on: ubuntu-latest
+          steps: []
+    """))
+    if name == "veroeffentlichen":
+        assert pflicht_checks.analysiere(pfad, nachbarn=()) == (["tests"], ["veroeffentlichen"])
+        return
+    with pytest.raises(pflicht_checks.Workflowfehler,
+                       match="an einem Job, der nur auf main läuft: tests in ci.yml und ci.yml"):
+        pflicht_checks.analysiere(pfad, nachbarn=())
+
+
+@pytest.mark.parametrize(("inhalt", "satz"), [
+    ("- todo\n", "aktion.yml ist kein Workflow: oben steht list"),
+    ("todo\n", "aktion.yml ist kein Workflow: oben steht str"),
+    ("on: push\njobs: [a, b]\n", "aktion.yml: `jobs` ist keine Abbildung"),
+    ("on: push\njobs:\n  a: hallo\n", "aktion.yml: Job `a` ist keine Abbildung"),
+], ids=["liste", "text", "jobs-liste", "job-text"])
+def test_ein_nachbar_ohne_workflow_form_ist_ein_workflowfehler(tmp_path, monkeypatch, capsys,
+                                                              inhalt, satz):
+    """Nachreview #499, Befund 2: Gültiges YAML, aber kein Workflow, endete in einem
+    AttributeError, und `main()` fängt nur `Workflowfehler`. Jetzt eine FEHLER-Zeile."""
+    pflicht = _schreibe(tmp_path, CLOSING_KEYWORD)
+    nachbar = tmp_path / "aktion.yml"
+    nachbar.write_text(inhalt, encoding="utf-8")
+    with pytest.raises(pflicht_checks.Workflowfehler, match=satz.replace("`", ".")):
+        pflicht_checks.pflicht_checks(pflicht, nachbarn=(nachbar,))
+    monkeypatch.setattr(sys, "argv", ["pflicht_checks.py", "--workflow", str(pflicht)])
+    assert pflicht_checks.main() == 1
+    assert capsys.readouterr().err.startswith(f"FEHLER  {satz}")
+
+
+def test_ein_pflicht_workflow_als_nachbar_kollidiert_nicht_mit_sich_selbst(tmp_path):
+    """Nachreview #499, Befund 4: `--nachbar ci.yml` meldete jeden Check als doppelt.
+    Zwilling: Eine Kopie unter anderem Namen kollidiert weiter."""
+    pflicht = _schreibe(tmp_path, CLOSING_KEYWORD)
+    assert pflicht_checks.pflicht_checks(pflicht, nachbarn=(pflicht,)) == ["Closing-Keyword"]
+    kopie = tmp_path / "kopie.yml"
+    kopie.write_text(pflicht.read_text(encoding="utf-8"), encoding="utf-8")
+    with pytest.raises(pflicht_checks.Workflowfehler, match="in ci.yml und kopie.yml"):
+        pflicht_checks.pflicht_checks(pflicht, nachbarn=(kopie,))
+
+
+def test_ein_ausdruck_im_jobnamen_ist_ein_workflowfehler(tmp_path):
+    """Nachreview #499, Befund 7: `name: ${{ … }}` setzt erst GitHub ein. Wörtlich
+    verglichen, fiele eine Gleichheit mit einem Pflicht-Check nie auf.
+    Zwilling: Derselbe Name ohne Ausdruck kollidiert sichtbar."""
+    pflicht = _schreibe(tmp_path, CLOSING_KEYWORD)
+    mit = _nachbar(tmp_path, "mit.yml", "a:\n  name: \"${{ 'Closing-Keyword' }}\"\n"
+                                          "  runs-on: ubuntu-latest\n")
+    with pytest.raises(pflicht_checks.Workflowfehler, match="Ausdruck im Namen"):
+        pflicht_checks.pflicht_checks(pflicht, nachbarn=(mit,))
+    ohne = _nachbar(tmp_path, "ohne.yml", "a:\n  name: Closing-Keyword\n"
+                                            "  runs-on: ubuntu-latest\n")
+    with pytest.raises(pflicht_checks.Workflowfehler, match="in ci.yml und ohne.yml"):
+        pflicht_checks.pflicht_checks(pflicht, nachbarn=(ohne,))
 
 
 def test_das_skript_nimmt_nachbarn_entgegen(tmp_path, monkeypatch, capsys):

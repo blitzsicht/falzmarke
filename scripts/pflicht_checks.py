@@ -153,13 +153,21 @@ def _durch_exclude_ausgeschlossen(kombi: dict, ausschluesse: list[dict]) -> bool
     )
 
 
-def nachbarn_von(workflows: Iterable[Path], verzeichnis: Path = WORKFLOWS) -> tuple[Path, ...]:
-    """Die übrigen Workflow-Dateien im Verzeichnis, ohne die Pflicht-Workflows selbst."""
-    eigene = {Path(w).resolve() for w in workflows}
-    return tuple(sorted(
-        datei for muster in ("*.yml", "*.yaml") for datei in verzeichnis.glob(muster)
-        if datei.resolve() not in eigene
-    ))
+def nachbarn_von(workflows: Iterable[Path], verzeichnis: Path | None = None) -> tuple[Path, ...]:
+    """Die übrigen Workflow-Dateien, ohne die Pflicht-Workflows selbst.
+
+    Ohne `verzeichnis` die Verzeichnisse, in denen die Pflicht-Workflows liegen,
+    nicht stur `WORKFLOWS`: Mit `--workflow` aus einem anderen Checkout war die
+    echte `ci.yml` sonst Nachbarin ihrer Kopie, und jeder Name kollidierte mit
+    sich selbst (Nachreview #499, Befund 4).
+    """
+    workflows = [Path(w).resolve() for w in workflows]
+    eigene = set(workflows)
+    verzeichnisse = [verzeichnis] if verzeichnis is not None else sorted({w.parent for w in workflows})
+    return tuple(sorted({
+        datei for ort in verzeichnisse for muster in ("*.yml", "*.yaml")
+        for datei in Path(ort).glob(muster) if datei.resolve() not in eigene
+    }))
 
 
 def analysiere(workflows: Path | Iterable[Path] = STANDARD_WORKFLOWS,
@@ -183,17 +191,32 @@ def analysiere(workflows: Path | Iterable[Path] = STANDARD_WORKFLOWS,
     checks: list[str] = []
     ausgeschlossen: list[str] = []
     herkunft: dict[str, Path] = {}
+    uebersprungen: list[tuple[str, Path]] = []
     for workflow in workflows:
         c, a = _analysiere_einen(workflow)
         checks += c
         ausgeschlossen += a
         herkunft.update((name, workflow) for name in c)
+        # Die Namen der Jobs, die nur auf main laufen: Übersprungen melden sie auf
+        # dem PR trotzdem einen Check-Run, und der gilt dem Ruleset als erfüllt
+        # (Nachreview #499, Befund 1). Die Differenz der Zählungen, damit auch ein
+        # zweiter Job unter dem Namen eines Pflicht-Jobs derselben Datei auffällt.
+        uebersprungen += [(name, workflow)
+                          for name in (Counter(nachbar_namen(workflow)) - Counter(c)).elements()]
     doppelt = sorted(name for name, n in Counter(checks).items() if n > 1)
     if doppelt:
         raise Workflowfehler("Checkname mehrfach vergeben: " + ", ".join(doppelt))
+    schatten = [f"{name} in {herkunft[name].name} und {workflow.name}"
+                for name, workflow in uebersprungen if name in herkunft]
+    if schatten:
+        raise Workflowfehler("Checkname auch an einem Job, der nur auf main läuft: "
+                             + "; ".join(schatten))
+    eigene = {Path(w).resolve() for w in workflows}
     kollisionen = [
         f"{name} in {herkunft[name].name} und {nachbar.name}"
         for nachbar in (nachbarn_von(workflows) if nachbarn is None else nachbarn)
+        # Ein Pflicht-Workflow als `--nachbar` ist keiner: Er kollidierte mit sich selbst.
+        if Path(nachbar).resolve() not in eigene
         for name in nachbar_namen(nachbar) if name in herkunft
     ]
     if kollisionen:
@@ -204,13 +227,33 @@ def analysiere(workflows: Path | Iterable[Path] = STANDARD_WORKFLOWS,
 def _lies(workflow: Path) -> dict:
     """Die Workflow-Datei als Wörterbuch, sonst `Workflowfehler`."""
     try:
-        return yaml.safe_load(workflow.read_text(encoding="utf-8")) or {}
+        daten = yaml.safe_load(workflow.read_text(encoding="utf-8")) or {}
     except (OSError, UnicodeDecodeError, yaml.YAMLError) as fehler:
         # Auch das ist der dritte Zustand: Bis zum Nachreview von #492 ging eine
         # fehlende oder kaputte Datei als Traceback durch `main()` und riss den
         # Wächter ab, obwohl beide `Workflowfehler` längst abfangen.
         grund = (str(fehler).splitlines() or [type(fehler).__name__])[0]
         raise Workflowfehler(f"{workflow.name} nicht lesbar: {grund}") from fehler
+    # Gültiges YAML ist noch kein Workflow. Eine Liste oder ein `jobs`, das keine
+    # Abbildung ist, endete sonst in einem AttributeError, und seit #493 genügt
+    # dafür jede Datei im Verzeichnis (Nachreview #499, Befund 2).
+    if not isinstance(daten, dict):
+        raise Workflowfehler(f"{workflow.name} ist kein Workflow: oben steht "
+                             f"{type(daten).__name__}, keine Abbildung")
+    jobs = daten.get("jobs") or {}
+    if not isinstance(jobs, dict):
+        raise Workflowfehler(f"{workflow.name}: `jobs` ist keine Abbildung")
+    for job_id, job in jobs.items():
+        if job is not None and not isinstance(job, dict):
+            raise Workflowfehler(f"{workflow.name}: Job `{job_id}` ist keine Abbildung")
+        name = str((job or {}).get("name") or "")
+        if "${{" in name:
+            # Den Namen setzt erst GitHub zur Laufzeit ein. Wörtlich verglichen, fiele
+            # eine Gleichheit nie auf (Nachreview #499, Befund 7).
+            raise Workflowfehler(f"{workflow.name}: Job `{job_id}` trägt einen Ausdruck im "
+                                 f"Namen ({name}), sein Checkname ist aus der Datei nicht "
+                                 "bestimmbar")
+    return daten
 
 
 def nachbar_namen(workflow: Path) -> list[str]:
