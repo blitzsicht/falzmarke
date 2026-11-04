@@ -120,7 +120,8 @@ class ImapAttrappe:
                  append_fehler: BaseException | None = None,
                  verschieben_erlaubt: bool = False,
                  faehigkeiten: tuple[str, ...] = ("IMAP4REV1", "UIDPLUS", "MOVE"),
-                 flags_hinten: bool = False, ohne_flags: bool = False):
+                 flags_hinten: bool = False, ohne_flags: bool = False,
+                 uid_hinten: bool = False):
         self.ordner: dict[str, list[Eintrag]] = {}
         self._naechste_uid = 100
         for name, nachrichten in (ordner or {}).items():
@@ -148,6 +149,9 @@ class ImapAttrappe:
         #: Ein Server, der FLAGS gar nicht beantwortet: Dann ist das Fähnchen
         #: unbekannt, nicht „nicht gesetzt“.
         self.ohne_flags = ohne_flags
+        #: `UID` und `INTERNALDATE` hinter das Literal statt davor — ebenso
+        #: erlaubt wie `flags_hinten` (Nachreview #494, Befund 2).
+        self.uid_hinten = uid_hinten
         #: Jeder Befehl mit seinen Argumenten, in Reihenfolge.
         self.protokoll: list[tuple] = []
         self.verbindungen: list[tuple] = []
@@ -242,9 +246,12 @@ class ImapAttrappe:
                     if re.search(r"\bFLAGS\b", teile) and not self.ohne_flags:
                         fahnen = f"FLAGS ({n.flags})"
                     vorn = f"{fahnen} " if fahnen and not self.flags_hinten else ""
-                    meta = (f'{nummer} (UID {n.uid} INTERNALDATE "{_internaldate(n.angekommen)}" '
+                    kennung = f'UID {n.uid} INTERNALDATE "{_internaldate(n.angekommen)}"'
+                    meta = (f'{nummer} ({"" if self.uid_hinten else kennung + " "}'
                             f'{vorn}BODY[HEADER.FIELDS ({" ".join(felder)})] {{{len(literal)}}}')
-                    schluss = (f" {fahnen})" if fahnen and self.flags_hinten else ")").encode()
+                    hinten = " ".join(t for t in (kennung if self.uid_hinten else "",
+                                                  fahnen if self.flags_hinten else "") if t)
+                    schluss = (f" {hinten})" if hinten else ")").encode()
                 else:
                     literal = n.roh
                     meta = f"{nummer} (UID {n.uid} BODY[] {{{len(literal)}}}"

@@ -336,6 +336,37 @@ def test_kein_fenster_ohne_entwurfsweg_uebergibt_auch_die_datei_nicht(befehl, mo
     assert "KEIN ENTWURF  kein Mailprogramm" in capsys.readouterr().err
 
 
+def test_kein_fenster_mit_outlook_wird_abgewiesen(befehl, monkeypatch, capsys):
+    """Nachreview von #491, Befund 1: Outlook öffnet jeden Entwurf. Die
+    Kombination ist ein Eingabefehler, kein „kein Entwurf“."""
+    _server(monkeypatch)
+    uebergeben = _datei_uebergaben(monkeypatch)
+    code = befehl("--programm", "outlook", "--kein-fenster")
+    fehler = capsys.readouterr().err
+    assert code == falzmarke.EXIT_EINGABE, \
+        f"Exit {code}, --programm outlook --kein-fenster nicht abgewiesen"
+    assert fehler.startswith("FEHLER  --kein-fenster geht nicht mit --programm outlook")
+    assert uebergeben == [] and befehl.tb.compose == []
+
+
+def test_kein_fenster_mit_abgeschaltetem_entwurf_endet_mit_exit_3(befehl, monkeypatch, capsys):
+    """Nachreview von #491, Befund 4: `FALZMARKE_ENTWURF=nie` lässt ohne Schalter
+    die Datei aufgehen. Mit `--kein-fenster` gibt es die Datei nicht, also Exit 3."""
+    _server(monkeypatch)
+    monkeypatch.setattr(oeffnen, "entwurf", functools.partial(
+        oeffnen.entwurf.func, plattform="darwin",
+        umgebung={"DISPLAY": ":0", "FALZMARKE_ENTWURF": "nie"}, laufen=befehl.tb,
+        binaer=lambda: THUNDERBIRD_PFAD))
+    uebergeben = _datei_uebergaben(monkeypatch)
+    assert befehl() == 0 and len(uebergeben) == 1                          # Gegenprobe
+    capsys.readouterr()
+    code = befehl("--kein-fenster")
+    assert len(uebergeben) == 1, "die Datei ging trotz --kein-fenster auf"
+    assert code == falzmarke.EXIT_UMGEBUNG, f"Exit {code} ohne Entwurf"
+    assert "KEIN ENTWURF  FALZMARKE_ENTWURF=nie ist gesetzt" in capsys.readouterr().err
+    assert befehl.tb.compose == []
+
+
 def test_die_abgelegte_datei_ist_die_gemessene(eml_pfad, felder, monkeypatch):
     """Was im Postfach liegt, ist byte-gleich die Datei, die `verify --email` maß —
     nicht eine zweite Ableitung."""

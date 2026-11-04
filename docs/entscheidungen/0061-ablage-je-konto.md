@@ -161,7 +161,8 @@ für einen Lauf auf. `postfach.koepfe` holt dafür `FLAGS` mit, ein lesender Tei
 Flags werden vor und hinter dem Literal gesucht, denn RFC 3501 legt die Reihenfolge nicht fest.
 
 **`{jahr}` in `email.ablage`.** `Archiv/{jahr}` wird je Mail zum Jahr ihrer Ankunft im Postfach
-(INTERNALDATE, Ortszeit), derselbe Ordner wie Thunderbirds Taste A mit `archive_granularity 1`.
+(INTERNALDATE, Ortszeit). Nicht immer derselbe Ordner wie bei Thunderbirds Taste A, siehe den
+Nachtrag unten.
 Angelegt wird weiterhin nichts, und jeder Jahresordner geht durch dieselben Sperren wie ein fester
 Name. **Fehlt einer der Jahresordner, wandert keine Mail des Laufs**, auch nicht die mit
 vorhandenem Ordner. Die naheliegende Fassung, die Mail ohne Ordner zu übergehen und den Rest zu
@@ -170,4 +171,37 @@ verschieben, legte die eine Hälfte ab und die andere still nicht. Am Jahreswech
 Fehlen sonst niemandem auf.
 
 Bei mehreren Jahresordnern gibt es einen `UID MOVE` je Ordner. Bricht ein späterer ab, steht im
-Bericht, wie viele der frühere schon bewegt hat (`verschoben`), und `zug_gesendet` ist gesetzt.
+Bericht, wie viele der frühere schon bewegt hat (`verschoben`). `zug_gesendet` ist nur gesetzt,
+wenn der Abbruch selbst an einem gesendeten `UID MOVE` lag (berichtigt im Nachtrag unten).
+
+## Nachtrag (04.11.2026, Nachreview von #494)
+
+Vier Punkte aus dem Nachreview, zwei davon entschieden.
+
+**Das Jahr bleibt die Ankunft.** Der Satz oben, `{jahr}` ergebe „derselbe Ordner wie Thunderbirds
+Taste A“, war falsch. Thunderbird bestimmt das Jahr aus `msgHdr.date`
+(`MessageArchiver.sys.mjs`, im installierten Thunderbird gelesen), falzmarke aus INTERNALDATE.
+Ob `msgHdr.date` dort der `Date`-Kopf oder das Empfangsdatum ist, ist nicht nachgelesen.
+**Entschieden:** falzmarke bleibt bei der Ankunft, weil der Absender sie nicht fälschen kann und
+der Server sie zu jeder Nachricht führt; ein `Date`-Kopf kann fehlen oder lügen. Eine Mail vom
+31.12. um 23:50, die erst am 01.01. ankommt, liegt bei falzmarke im neuen Jahr.
+
+**Eine benannte Mail, die liegen bliebe, hält den Lauf an.** Bisher blieb unter `--uid` eine Mail
+mit Fähnchen (oder mit unbekannten Flags, oder unter `{jahr}` ohne Ankunft) liegen, und die
+übrigen wanderten mit Exit 0. Das widersprach dem Grundsatz zu fehlenden UIDs: Eine Liste, die
+nicht mehr stimmt, ist kein Auftrag für den Rest. **Entschieden:** Unter `--uid` zählt eine Mail,
+die liegen bliebe, wie eine fehlende UID. Es wandert keine, `NICHT GEPRÜFT` nennt sie mit Grund
+(Exit 3), und bei Fähnchen oder unbekannten Flags steht der Hinweis auf `--trotz-faehnchen` dabei.
+Wer eine UID nennt, hat das Fähnchen vermutlich übersehen. Eine fehlende UID geht als Grund vor.
+
+**`zug_gesendet` gilt nur für den abgebrochenen Zug.** Bricht unter `{jahr}` ein späterer Zug ab,
+bevor sein `UID MOVE` hinausging (etwa am `SELECT`), ist für den Rest sicher nichts gesendet. Der
+Bericht sagt dann „N davon verschoben, der Rest nicht, weil der Lauf vor seinem Zug abbrach“ und
+nicht mehr, der Stand des Rests sei ungeprüft.
+
+**`--seit` gibt es mit `--uid` nicht.** Ein gesetztes `--seit` wurde bisher still übergangen und
+trotzdem an seiner Grenze gemessen. Jetzt endet es zusammen mit `--uid` mit Exit 1.
+
+**Bekannte Grenze:** `--uid` erkennt eine Mail nur an der UID, nicht an der UIDVALIDITY des
+Eingangs. Vergibt der Server die UIDs zwischen Anzeige und `--machen` neu, trifft dieselbe Zahl
+eine andere Mail. Offen in #495.

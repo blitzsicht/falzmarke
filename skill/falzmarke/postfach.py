@@ -349,8 +349,28 @@ def _fahnen(*teile: bytes) -> tuple[str, ...] | None:
     return None
 
 
-def _ankunft(meta: bytes) -> datetime | None:
-    treffer = _ANKUNFT.search(meta)
+def _uid(*teile: bytes) -> str | None:
+    """Die UID aus der FETCH-Antwort, vor oder hinter dem Literal.
+
+    Aus demselben Grund wie bei `_fahnen`: Die Reihenfolge der Antwortteile
+    ist frei, und `UID 42` darf hinter `BODY[…] {n}` stehen. Bis zum
+    Nachreview von #494 las nur die Kopfzeile, und eine solche Mail fiel
+    stumm aus der Liste (Befund 2).
+    """
+    for teil in teile:
+        treffer = _UID.search(teil or b"")
+        if treffer:
+            return treffer.group(1).decode()
+    return None
+
+
+def _ankunft(*teile: bytes) -> datetime | None:
+    """INTERNALDATE als UTC, vor oder hinter dem Literal; `None`, wenn es fehlt."""
+    treffer = None
+    for teil in teile:
+        treffer = _ANKUNFT.search(teil or b"")
+        if treffer:
+            break
     if not treffer:
         return None
     zeit = imaplib.Internaldate2tuple(b'INTERNALDATE "' + treffer.group(1) + b'"')
@@ -514,15 +534,15 @@ class Postfach:
             if not isinstance(eintrag, tuple) or len(eintrag) < 2:
                 continue
             meta, roh = eintrag[0], eintrag[1]
-            uid = _UID.search(meta)
-            if uid is None:
-                continue
             # Hinter einem Literal liefert `imaplib` immer den Rest **derselben**
             # Antwortzeile als eigenes Element, mindestens `)`. Die nächste
             # Antwort beginnt erst danach.
             rest = daten[nummer + 1] if nummer + 1 < len(daten) else b""
             rest = rest if isinstance(rest, bytes) else b""
-            koepfe.append(kopf_aus(roh or b"", uid.group(1).decode(), _ankunft(meta),
+            uid = _uid(meta, rest)
+            if uid is None:
+                continue
+            koepfe.append(kopf_aus(roh or b"", uid, _ankunft(meta, rest),
                                    _fahnen(meta, rest)))
         return koepfe
 
