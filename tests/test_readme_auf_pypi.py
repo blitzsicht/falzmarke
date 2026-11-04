@@ -31,13 +31,22 @@ BASIS = "https://github.com/blitzsicht/falzmarke"
 BILDENDUNGEN = (".png", ".gif", ".jpg", ".jpeg", ".svg", ".webp")
 
 # Ziele ohne Protokoll, Anker oder mailto — also genau die, die auf PyPI ins Leere zeigen.
-OHNE_HERKUNFT = re.compile(r"(?!https?:|#|mailto:)")
-HTML_ZIEL = re.compile(r'(?:src|href)="([^"]*)"')
+OHNE_HERKUNFT = re.compile(r"(?!https?:|#|mailto:)", re.IGNORECASE)
+#: `src=` und `href=` in HTML — in doppelten, einfachen oder ohne Anführungszeichen,
+#: wie ein Browser sie liest (Nachreview von #484: bis dahin nur doppelte).
+HTML_ZIEL = re.compile(r"""(?:src|href)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))""",
+                       re.IGNORECASE)
 ABSOLUT = re.compile(rf'{re.escape(BASIS)}/(raw|blob|tree)/main/([^")\s#]+)')
 
 
 def _text() -> str:
     return README.read_text(encoding="utf-8")
+
+
+def html_ziele(html: str) -> list[str]:
+    """Jedes `src`- und `href`-Ziel in einem Stück HTML."""
+    return [next(ziel for ziel in treffer.groups() if ziel is not None)
+            for treffer in HTML_ZIEL.finditer(html)]
 
 
 def verweisziele(text: str) -> list[str]:
@@ -59,7 +68,7 @@ def verweisziele(text: str) -> list[str]:
             elif marke.type == "image":
                 ziele.append(marke.attrGet("src"))
             elif marke.type in ("html_block", "html_inline"):
-                ziele.extend(HTML_ZIEL.findall(marke.content))
+                ziele.extend(html_ziele(marke.content))
             if marke.children:
                 sammeln(marke.children)
 
@@ -136,6 +145,12 @@ def test_gegenprobe_die_pruefung_faengt_einen_relativen_verweis():
 
     # ein Verweis über eine Definition: die alte Textsuche sah ihn nie
     assert relative_ziele("Siehe [ADR][a].\n\n[a]: docs/entscheidungen/0001.md\n")
+
+    # einfache Anführungszeichen und ein groß geschriebenes Protokoll (Nachreview von #484)
+    assert relative_ziele("<img src='docs/x.png'>") == ["docs/x.png"], \
+        "ein Ziel in einfachen Anführungszeichen wurde nicht gesehen"
+    assert not relative_ziele("[A](HTTPS://example.org/a)"), \
+        "ein groß geschriebenes Protokoll gilt als relativ"
 
 
 def test_code_ist_kein_verweis():

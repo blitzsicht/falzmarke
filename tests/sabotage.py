@@ -25,6 +25,12 @@ def zeile_ersetzt(modul, name: str, alt: str, neu: str):
     `name` darf eine Methode sein (`"Postfach.suche_kennung"`). Zurück kommt dann
     die bloße Funktion, gesetzt wird sie mit `monkeypatch.setattr` an der Klasse.
     Ihre Globals bleiben die des Moduls, nicht die der Klasse.
+
+    Grenzen (Nachreview von #479, gemessen am 04.11.2026): `alt` wird im Quelltext
+    ohne die Einrückung der Klasse gesucht, so, als stünde die Methode auf
+    Modulebene. Ein `super()` ohne Argumente trägt nicht: Außerhalb des
+    Klassenrumpfs fehlt die Zelle `__class__`, Python meldet beim Aufruf
+    `RuntimeError: super(): __class__ cell not found`.
     """
     ziel = modul
     for teil in name.split("."):

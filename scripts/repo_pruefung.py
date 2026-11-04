@@ -290,7 +290,13 @@ def _pruefe_pflicht_checks(
     workflows: Path | tuple[Path, ...],
 ) -> Abgleich:
     name = "Pflicht-Check-Liste (Ruleset main)"
-    soll = sorted(pflicht_checks.pflicht_checks(workflows))
+    try:
+        soll = sorted(pflicht_checks.pflicht_checks(workflows))
+    except pflicht_checks.Workflowfehler as fehler:
+        # Der dritte Zustand, nicht ein Absturz: Bis zum Nachreview von #483 riss
+        # ein unbrauchbarer Workflow den ganzen Wächter ab, und kein anderer
+        # Abgleich wurde mehr gezeigt.
+        return Abgleich(name, None, None, f"Pflicht-Workflow unbrauchbar: {fehler}")
     if rulesets is None:
         return Abgleich(name, soll, None, rulesets_fehler)
     haupt = next((r for r in rulesets if r.get("name") == "main"), None)

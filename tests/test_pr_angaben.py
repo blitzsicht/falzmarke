@@ -42,7 +42,9 @@ AUSLOESER = {
 #: Die Pflicht-Checks, die in diesem Workflow stehen, unter ihrem `name:`.
 CHECKS = ["Changelog-Eintrag", "Closing-Keyword"]
 
-_JSON_FELDER = re.compile(r"gh pr view\b[^\n]*?(?:\\\n[^\n]*?)*--json\s+([a-z_,]+)")
+#: Auch Großbuchstaben: Die Felder von `gh pr view --json` heißen `closingIssuesReferences`
+#: oder `baseRefName`; `[a-z_,]+` bräche dort ab (Nachreview von #483).
+_JSON_FELDER = re.compile(r"gh pr view\b[^\n]*?(?:\\\n[^\n]*?)*--json\s+([A-Za-z_,]+)")
 
 
 def _lade(pfad=None) -> dict:
@@ -76,7 +78,7 @@ def fehlende_ausloeser(daten: dict) -> list[str]:
 
 def ueberspringbares(daten: dict) -> list[str]:
     """Was einen Job dieses Workflows `skipped` melden lassen könnte."""
-    ausloeser = daten["on"] if "on" in daten else daten[True]
+    ausloeser = pflicht_checks.ausloeser(daten)
     befunde = [f"Auslöser „{a}“ neben pull_request" for a in ausloeser if a != "pull_request"]
     befunde += [f"{job_id} trägt if: {job['if']}"
                 for job_id, job in daten["jobs"].items() if "if" in job]

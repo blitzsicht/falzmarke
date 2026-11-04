@@ -164,6 +164,22 @@ def test_viele_teiltreffer_verdraengen_die_echte_nachricht_nicht(monkeypatch):
     assert not [h for h in bericht.hinweise if "angesehen" in h], bericht.hinweise
 
 
+def test_mehr_teiltreffer_als_die_suchgrenze_werden_gekappt_und_gemeldet(monkeypatch):
+    """Nachreview von #479: Eine Kennung ohne Klammern ist eine Teilkette, und die
+    kann in einem alten Eingang tausendfach treffen. `suche_kennung` holt dann
+    nicht jeden Kopf nach, sondern höchstens `SUCHGRENZE`, und sagt es."""
+    monkeypatch.setattr(postfach, "SUCHGRENZE", 3)
+    fremde = [_eingegangen(f"<x123y{i}@example.org>", betreff=f"fremd {i}", tage=4 - i)
+              for i in range(4)]
+    _, sitzung = _postfach(eingang=fremde)
+    with sitzung:
+        assert sitzung.suche_kennung("INBOX", "123") == []
+        assert sitzung.gekappt == {"INBOX": (4, 3)}, "die Teiltreffer wurden nicht gekappt"
+    _, sitzung = _postfach(eingang=fremde[:3])                       # Gegenstück: unter der Grenze
+    with sitzung:
+        assert sitzung.suche_kennung("INBOX", "123") == [] and sitzung.gekappt == {}
+
+
 def test_eine_kennung_ohne_klammern_findet_ihre_nachricht():
     _, sitzung = _postfach(eingang=[_eingegangen("<abc@example.org>")],
                            gesendet=[_antwort("abc@example.org")])

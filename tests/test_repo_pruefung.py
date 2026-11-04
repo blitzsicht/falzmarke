@@ -427,6 +427,21 @@ def test_reihenfolge_allein_ist_keine_abweichung():
 # ── Dritter Zustand: nicht abfragbar ist nicht dasselbe wie "stimmt" ────────
 
 
+def test_ein_unbrauchbarer_pflicht_workflow_ist_ein_befund_kein_absturz(tmp_path):
+    """Nachreview von #483: Bis dahin riss ein `Workflowfehler` den ganzen Wächter
+    ab, und kein anderer Abgleich wurde mehr gezeigt."""
+    kaputt = tmp_path / "nur-push.yml"
+    kaputt.write_text("on:\n  push:\njobs:\n  tests:\n    runs-on: ubuntu-latest\n",
+                      encoding="utf-8")
+    ergebnisse = repo_pruefung.pruefe(
+        REPO_NAME, api=_api(_vollstaendige_antworten()), workflows=(kaputt,),
+        domain_pruefen=lambda _: True, umgebung={})
+    befund = _finde(ergebnisse, "Pflicht-Check")
+    assert befund.ist is None and befund.fehler is not None
+    assert "nur-push.yml startet nicht bei pull_request" in befund.fehler
+    assert len(ergebnisse) == len(_pruefen()), "die anderen Abgleiche fehlen"
+
+
 def test_api_fehler_bei_der_homepage_ergibt_unbekannt_nicht_gruen():
     antworten = _vollstaendige_antworten()
     antworten[f"repos/{REPO_NAME}"] = RuntimeError("kein Netz")
