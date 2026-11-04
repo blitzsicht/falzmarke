@@ -12,7 +12,8 @@ stehen, hing damit vom Zeitpunkt des Aufrufs ab statt vom Workflow selbst
 (Issue #196).
 
 `scripts/pflicht_checks.py` ersetzt das: Es liest nur die Dateien in
-`STANDARD_WORKFLOWS`, `ci.yml` und seit #437 `pr-angaben.yml`. Diese Tests halten fest, dass die Liste ausschließlich vom
+`STANDARD_WORKFLOWS`, `ci.yml` und seit #437 `pr-angaben.yml`; die übrigen Workflows liest es
+seit #493 nur auf Namensgleichheit (Abschnitt unten). Diese Tests halten fest, dass die Liste ausschließlich vom
 Dateiinhalt abhängt, dass der berechtigte Teil der alten Logik (Jobs, die nur
 auf main laufen, gehören nicht in die PR-Pflicht-Checks) erhalten bleibt, und
 dass der *angezeigte* Name verwendet wird — nicht der Jobschlüssel, der bei
@@ -101,7 +102,11 @@ def test_zweimal_derselbe_aufruf_liefert_dieselbe_liste():
 def _schreibe(tmp_path, jobs_yaml: str):
     """`jobs_yaml` beginnt bei Spalte 0 (dedented) und wird hier unter `jobs:`
     eingerückt — sonst stünden die Jobs als eigene Top-Level-Schlüssel neben
-    `jobs:` statt darin."""
+    `jobs:` statt darin.
+
+    Die Tests mit dieser Datei geben `nachbarn=()` an: Ohne die Angabe läse
+    `analysiere` das echte Verzeichnis als Nachbarn (#493), und ein Jobname wie
+    „PDF-Konformität (veraPDF, fremdes Werkzeug)“ stieße an ci.yml."""
     pfad = tmp_path / "ci.yml"
     pfad.write_text(
         "on:\n  push:\n    branches: [main]\n  pull_request:\njobs:\n"
@@ -122,7 +127,7 @@ def test_job_nur_auf_main_bleibt_ausgeschlossen(tmp_path):
           runs-on: ubuntu-latest
           steps: []
     """))
-    assert pflicht_checks.pflicht_checks(pfad) == ["tests"]
+    assert pflicht_checks.pflicht_checks(pfad, nachbarn=()) == ["tests"]
 
 
 def test_gegenprobe_ohne_if_erscheint_der_job(tmp_path):
@@ -136,7 +141,7 @@ def test_gegenprobe_ohne_if_erscheint_der_job(tmp_path):
           runs-on: ubuntu-latest
           steps: []
     """))
-    assert pflicht_checks.pflicht_checks(pfad) == ["veroeffentlichen", "tests"]
+    assert pflicht_checks.pflicht_checks(pfad, nachbarn=()) == ["veroeffentlichen", "tests"]
 
 
 def test_angezeigter_name_statt_jobschluessel(tmp_path):
@@ -150,7 +155,7 @@ def test_angezeigter_name_statt_jobschluessel(tmp_path):
           runs-on: ubuntu-latest
           steps: []
     """))
-    assert pflicht_checks.pflicht_checks(pfad) == ["PDF-Konformität (veraPDF, fremdes Werkzeug)"]
+    assert pflicht_checks.pflicht_checks(pfad, nachbarn=()) == ["PDF-Konformität (veraPDF, fremdes Werkzeug)"]
 
 
 def test_gegenprobe_ohne_name_erscheint_der_jobschluessel(tmp_path):
@@ -161,7 +166,7 @@ def test_gegenprobe_ohne_name_erscheint_der_jobschluessel(tmp_path):
           runs-on: ubuntu-latest
           steps: []
     """))
-    assert pflicht_checks.pflicht_checks(pfad) == ["pdf-konformitaet"]
+    assert pflicht_checks.pflicht_checks(pfad, nachbarn=()) == ["pdf-konformitaet"]
 
 
 def test_matrix_mit_zwei_achsen_wird_zum_kartesischen_produkt(tmp_path):
@@ -177,7 +182,7 @@ def test_matrix_mit_zwei_achsen_wird_zum_kartesischen_produkt(tmp_path):
           runs-on: ${{ matrix.os }}
           steps: []
     """))
-    assert pflicht_checks.pflicht_checks(pfad) == [
+    assert pflicht_checks.pflicht_checks(pfad, nachbarn=()) == [
         "tests (ubuntu-latest, 3.11)",
         "tests (ubuntu-latest, 3.12)",
         "tests (macos-latest, 3.11)",
@@ -202,7 +207,7 @@ def test_matrix_exclude_entfernt_die_kombination(tmp_path):
           runs-on: ${{ matrix.os }}
           steps: []
     """))
-    assert pflicht_checks.pflicht_checks(pfad) == [
+    assert pflicht_checks.pflicht_checks(pfad, nachbarn=()) == [
         "tests (ubuntu-latest, 3.11)",
         "tests (ubuntu-latest, 3.12)",
         "tests (macos-latest, 3.12)",
@@ -221,7 +226,7 @@ def test_gegenprobe_ohne_exclude_erscheint_die_kombination_wieder(tmp_path):
           runs-on: ${{ matrix.os }}
           steps: []
     """))
-    assert "tests (macos-latest, 3.11)" in pflicht_checks.pflicht_checks(pfad)
+    assert "tests (macos-latest, 3.11)" in pflicht_checks.pflicht_checks(pfad, nachbarn=())
 
 
 def test_matrix_nur_include_erzeugt_eine_kombination_je_eintrag(tmp_path):
@@ -242,7 +247,7 @@ def test_matrix_nur_include_erzeugt_eine_kombination_je_eintrag(tmp_path):
           runs-on: ${{ matrix.os }}
           steps: []
     """))
-    assert pflicht_checks.pflicht_checks(pfad) == [
+    assert pflicht_checks.pflicht_checks(pfad, nachbarn=()) == [
         "tests (ubuntu-latest, 3.11)",
         "tests (macos-latest, 3.12)",
     ]
@@ -259,7 +264,7 @@ def test_gegenprobe_ohne_include_erscheint_nur_der_nackte_jobname(tmp_path):
           runs-on: ubuntu-latest
           steps: []
     """))
-    assert pflicht_checks.pflicht_checks(pfad) == ["tests"]
+    assert pflicht_checks.pflicht_checks(pfad, nachbarn=()) == ["tests"]
 
 
 def test_analysiere_meldet_ausgeschlossene_jobs_getrennt(tmp_path):
@@ -272,7 +277,7 @@ def test_analysiere_meldet_ausgeschlossene_jobs_getrennt(tmp_path):
           runs-on: ubuntu-latest
           steps: []
     """))
-    checks, ausgeschlossen = pflicht_checks.analysiere(pfad)
+    checks, ausgeschlossen = pflicht_checks.analysiere(pfad, nachbarn=())
     assert checks == ["tests"]
     assert ausgeschlossen == ["veroeffentlichen"]
 
@@ -302,16 +307,16 @@ def test_ein_checkname_in_zwei_workflows_ist_ein_fehler(tmp_path):
     grüner des einen überdeckte einen roten des anderen."""
     a = _workflow(tmp_path, "a.yml", "on: pull_request\n")
     b = _workflow(tmp_path, "b.yml", "on: pull_request\n")
-    assert pflicht_checks.pflicht_checks(a) == ["tests"]   # Kontrolle: einzeln gültig
+    assert pflicht_checks.pflicht_checks(a, nachbarn=()) == ["tests"]   # Kontrolle: einzeln gültig
     with pytest.raises(pflicht_checks.Workflowfehler, match="mehrfach vergeben: tests"):
-        pflicht_checks.pflicht_checks((a, b))
+        pflicht_checks.pflicht_checks((a, b), nachbarn=())
 
 
 def test_ein_workflow_ohne_pull_request_ist_ein_fehler(tmp_path):
     """Seine Jobs kämen in keinem PR: Das Ruleset wartete auf sie, bis jemand es ändert."""
     pfad = _workflow(tmp_path, "nur-push.yml", "on:\n  push:\n    branches: [main]\n")
     with pytest.raises(pflicht_checks.Workflowfehler, match="nur-push.yml startet nicht bei pull_request"):
-        pflicht_checks.pflicht_checks(pfad)
+        pflicht_checks.pflicht_checks(pfad, nachbarn=())
 
 
 def test_ein_workflow_ohne_synchronize_ist_ein_fehler(tmp_path):
@@ -319,10 +324,10 @@ def test_ein_workflow_ohne_synchronize_ist_ein_fehler(tmp_path):
     pfad = _workflow(tmp_path, "angaben.yml",
                      "on:\n  pull_request:\n    types: [opened, reopened, edited]\n")
     with pytest.raises(pflicht_checks.Workflowfehler, match="startet nicht bei synchronize"):
-        pflicht_checks.pflicht_checks(pfad)
+        pflicht_checks.pflicht_checks(pfad, nachbarn=())
     voll = _workflow(tmp_path, "voll.yml",
                      "on:\n  pull_request:\n    types: [opened, synchronize, reopened, edited]\n")
-    assert pflicht_checks.pflicht_checks(voll) == ["tests"]   # Gegenstück: mit ihm gültig
+    assert pflicht_checks.pflicht_checks(voll, nachbarn=()) == ["tests"]   # Gegenstück: mit ihm gültig
 
 
 def test_ein_workflow_mit_filter_ist_ein_fehler(tmp_path):
@@ -331,13 +336,13 @@ def test_ein_workflow_mit_filter_ist_ein_fehler(tmp_path):
     pfade = _workflow(tmp_path, "gefiltert.yml", "on:\n  pull_request:\n    paths: ['src/**']\n")
     with pytest.raises(pflicht_checks.Workflowfehler,
                        match="gefiltert.yml startet bei pull_request nur mit paths"):
-        pflicht_checks.pflicht_checks(pfade)
+        pflicht_checks.pflicht_checks(pfade, nachbarn=())
     zweige = _workflow(tmp_path, "zweige.yml",
                        "on:\n  pull_request:\n    branches-ignore: [docs]\n")
     with pytest.raises(pflicht_checks.Workflowfehler, match="nur mit branches-ignore"):
-        pflicht_checks.pflicht_checks(zweige)
+        pflicht_checks.pflicht_checks(zweige, nachbarn=())
     frei = _workflow(tmp_path, "frei.yml", "on:\n  pull_request:\n")
-    assert pflicht_checks.pflicht_checks(frei) == ["tests"]   # Gegenstück: ohne Filter gültig
+    assert pflicht_checks.pflicht_checks(frei, nachbarn=()) == ["tests"]   # Gegenstück: ohne Filter gültig
 
 
 @pytest.mark.parametrize("fall", ["fehlt", "kaputt"])
@@ -352,7 +357,7 @@ def test_eine_fehlende_oder_kaputte_datei_ist_ein_workflowfehler(tmp_path, fall)
     if fall == "kaputt":
         datei.write_text("on:\n  pull_request:\n   types: [opened\njobs:\n", encoding="utf-8")
     with pytest.raises(pflicht_checks.Workflowfehler, match="ci.yml nicht lesbar: "):
-        pflicht_checks.analysiere(datei)
+        pflicht_checks.analysiere(datei, nachbarn=())
 
 
 def test_das_skript_meldet_einen_unbrauchbaren_workflow_statt_abzustuerzen(tmp_path, monkeypatch,
@@ -364,6 +369,138 @@ def test_das_skript_meldet_einen_unbrauchbaren_workflow_statt_abzustuerzen(tmp_p
     assert pflicht_checks.main() == 1
     aus = capsys.readouterr()
     assert "FEHLER  nur-push.yml startet nicht bei pull_request" in aus.err and aus.out == ""
+
+
+# ── Nachbar-Workflows: kein Pflicht-Checkname zweimal (#493) ─────────────────
+
+CLOSING_KEYWORD = textwrap.dedent("""\
+    closing-keyword:
+      name: Closing-Keyword
+      runs-on: ubuntu-latest
+      steps: []
+""")
+
+
+def _nachbar(tmp_path, dateiname: str, jobs_yaml: str):
+    """Ein Workflow wie aktion.yml: startet bei `pull_request` nur mit `paths`-Filter,
+    liefert also keine Pflicht-Checks, meldet aber Check-Runs unter seinen Jobnamen."""
+    pfad = tmp_path / dateiname
+    pfad.write_text("on:\n  pull_request:\n    paths: ['action.yml']\njobs:\n"
+                    + textwrap.indent(jobs_yaml, "  "), encoding="utf-8")
+    return pfad
+
+
+def test_ein_nachbar_mit_gleichem_checknamen_ist_ein_fehler(tmp_path):
+    """Der Fall aus #493: `aktion.yml` trug einen Job `name: Closing-Keyword`. GitHub
+    meldete zwei Check-Runs gleichen Namens, das Ruleset nahm den jüngsten, und ein
+    grüner Lauf des Nachbarn überdeckte ein rotes `closing_keyword`-Ergebnis."""
+    pflicht = _schreibe(tmp_path, CLOSING_KEYWORD)
+    nachbar = _nachbar(tmp_path, "aktion.yml", textwrap.dedent("""\
+        selbsttest:
+          name: Closing-Keyword
+          runs-on: ubuntu-latest
+          steps: []
+    """))
+    assert pflicht_checks.pflicht_checks(pflicht, nachbarn=()) == ["Closing-Keyword"]  # Kontrolle
+    with pytest.raises(pflicht_checks.Workflowfehler,
+                       match="Nachbar-Workflow: Closing-Keyword in ci.yml und aktion.yml"):
+        pflicht_checks.pflicht_checks(pflicht, nachbarn=(nachbar,))
+
+
+def test_ein_nachbar_mit_anderem_namen_ist_kein_fehler(tmp_path):
+    """Die Gegenprobe: Ohne sie bewiese der Test oben nur, dass ein Nachbar überhaupt
+    einen Fehler auslöst, nicht, dass der gleiche Name der Grund ist."""
+    pflicht = _schreibe(tmp_path, CLOSING_KEYWORD)
+    nachbar = _nachbar(tmp_path, "aktion.yml", textwrap.dedent("""\
+        selbsttest:
+          name: Aktion auf den eigenen Beispielen
+          runs-on: ubuntu-latest
+          steps: []
+    """))
+    assert pflicht_checks.pflicht_checks(pflicht, nachbarn=(nachbar,)) == ["Closing-Keyword"]
+
+
+def test_ein_per_if_ausgeschlossener_nachbar_job_zaehlt_trotzdem(tmp_path):
+    """Ein Job mit `if:` läuft nicht, meldet aber einen übersprungenen Check-Run unter
+    seinem Namen, und ein übersprungener Check gilt dem Ruleset als erfüllt."""
+    pflicht = _schreibe(tmp_path, CLOSING_KEYWORD)
+    nachbar = _nachbar(tmp_path, "aktion.yml", textwrap.dedent("""\
+        selbsttest:
+          name: Closing-Keyword
+          if: github.ref == 'refs/heads/main'
+          runs-on: ubuntu-latest
+          steps: []
+    """))
+    with pytest.raises(pflicht_checks.Workflowfehler, match="Closing-Keyword in ci.yml und aktion.yml"):
+        pflicht_checks.pflicht_checks(pflicht, nachbarn=(nachbar,))
+
+
+def test_ein_nachbar_mit_matrix_zaehlt_je_kombination(tmp_path):
+    """Der Nachbar meldet je Kombination einen Check-Run, wie der Pflicht-Workflow.
+    Der nackte Jobname `tests` allein trifft `tests (macos-latest)` nicht."""
+    pflicht = _schreibe(tmp_path, textwrap.dedent("""\
+        tests:
+          strategy:
+            matrix:
+              os: [ubuntu-latest, macos-latest]
+          runs-on: ${{ matrix.os }}
+          steps: []
+    """))
+    ohne_matrix = _nachbar(tmp_path, "nachtlauf.yml", "tests:\n  runs-on: ubuntu-latest\n  steps: []\n")
+    assert len(pflicht_checks.pflicht_checks(pflicht, nachbarn=(ohne_matrix,))) == 2   # Kontrolle
+    mit_matrix = _nachbar(tmp_path, "nachtlauf.yml", textwrap.dedent("""\
+        tests:
+          strategy:
+            matrix:
+              os: [macos-latest]
+          runs-on: ${{ matrix.os }}
+          steps: []
+    """))
+    with pytest.raises(pflicht_checks.Workflowfehler,
+                       match=r"tests \(macos-latest\) in ci.yml und nachtlauf.yml"):
+        pflicht_checks.pflicht_checks(pflicht, nachbarn=(mit_matrix,))
+
+
+def test_ohne_angabe_zaehlen_die_uebrigen_dateien_des_verzeichnisses(tmp_path):
+    """Wer einen neuen Workflow anlegt, muss ihn nirgends eintragen: `analysiere()`
+    liest ohne Angabe alles andere im Verzeichnis, `.yml` wie `.yaml`."""
+    for name in ("a.yml", "b.yml", "c.yaml", "d.txt"):
+        (tmp_path / name).write_text("on: push\n", encoding="utf-8")
+    assert pflicht_checks.nachbarn_von((tmp_path / "a.yml",), tmp_path) == (
+        tmp_path / "b.yml", tmp_path / "c.yaml")
+    assert PR_ANGABEN in pflicht_checks.nachbarn_von((CI,))
+    assert CI not in pflicht_checks.nachbarn_von((CI, PR_ANGABEN))
+    # Ohne Angabe ist das Verzeichnis das echte: Ein Pflicht-Workflow unter tmp_path,
+    # der einen Checknamen aus pr-angaben.yml wiederholt, stößt dort an.
+    zwilling = _schreibe(tmp_path, CLOSING_KEYWORD)
+    with pytest.raises(pflicht_checks.Workflowfehler,
+                       match="Closing-Keyword in ci.yml und pr-angaben.yml"):
+        pflicht_checks.pflicht_checks(zwilling)
+
+
+def test_ein_nicht_lesbarer_nachbar_ist_ein_workflowfehler(tmp_path):
+    """Ob ein Nachbar kollidiert, lässt sich ohne seine Datei nicht sagen: der dritte
+    Zustand, keine stille Freigabe."""
+    pflicht = _schreibe(tmp_path, CLOSING_KEYWORD)
+    with pytest.raises(pflicht_checks.Workflowfehler, match="weg.yml nicht lesbar"):
+        pflicht_checks.pflicht_checks(pflicht, nachbarn=(tmp_path / "weg.yml",))
+
+
+def test_das_skript_nimmt_nachbarn_entgegen(tmp_path, monkeypatch, capsys):
+    pflicht = _schreibe(tmp_path, CLOSING_KEYWORD)
+    nachbar = _nachbar(tmp_path, "aktion.yml", textwrap.dedent("""\
+        selbsttest:
+          name: Closing-Keyword
+          runs-on: ubuntu-latest
+          steps: []
+    """))
+    monkeypatch.setattr(sys, "argv", ["pflicht_checks.py", "--workflow", str(pflicht),
+                                      "--nachbar", str(nachbar)])
+    assert pflicht_checks.main() == 1
+    aus = capsys.readouterr()
+    assert ("FEHLER  Checkname auch in einem Nachbar-Workflow: Closing-Keyword in ci.yml "
+            "und aktion.yml") in aus.err
+    assert aus.out == ""
 
 
 # ── Das Skript ruft keinen CI-Lauf mehr ab ──────────────────────────────────
