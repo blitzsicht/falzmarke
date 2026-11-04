@@ -89,6 +89,18 @@ def test_jede_gelesene_angabe_hat_ihren_ausloeser():
     assert fehlende_ausloeser(_lade()) == []
 
 
+def test_gelesene_felder_lesen_auch_grossbuchstaben():
+    """`closingIssuesReferences` ist ein Feld von `gh pr view --json` (Nachreview von #483).
+
+    Die Gegenprobe dazu fehlte bis #492: Der Workflow liest heute nur klein
+    geschriebene Felder, ein Rückfall auf `[a-z_,]+` bliebe unsichtbar.
+    """
+    job = {"steps": [{"run": 'gh pr view "$NUMMER" --repo "$R" \\\n'
+                             '  --json closingIssuesReferences,body'}]}
+    assert gelesene_felder(job) == {"closingIssuesReferences", "body"}, \
+        "ein Feld mit Großbuchstaben wurde abgeschnitten"
+
+
 def test_kein_job_laesst_sich_ueberspringen():
     """Ein übersprungener Job gilt GitHub als erfüllt, und der jüngste Check-Run
     je Name zählt. Ein `workflow_dispatch` oder ein `if:` hier würde ein rotes

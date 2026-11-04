@@ -150,8 +150,8 @@ def analysiere(workflows: Path | Iterable[Path] = STANDARD_WORKFLOWS,
                ) -> tuple[list[str], list[str]]:
     """(Pflicht-Checks, wegen `if:` ausgeschlossene Jobs) — nur aus den Dateien.
 
-    Wirft `Workflowfehler`, wenn ein Workflow nicht bei jedem Pull Request
-    startet oder ein Checkname zweimal vorkommt. Zwei Jobs gleichen Namens
+    Wirft `Workflowfehler`, wenn ein Workflow nicht lesbar ist, nicht bei jedem
+    Pull Request startet oder ein Checkname zweimal vorkommt. Zwei Jobs gleichen Namens
     melden zwei Check-Runs, und für das Ruleset zählt der jüngste: Ein grüner
     Lauf des einen überdeckte dann einen roten des anderen.
     """
@@ -170,7 +170,14 @@ def analysiere(workflows: Path | Iterable[Path] = STANDARD_WORKFLOWS,
 
 
 def _analysiere_einen(workflow: Path) -> tuple[list[str], list[str]]:
-    daten = yaml.safe_load(workflow.read_text(encoding="utf-8")) or {}
+    try:
+        daten = yaml.safe_load(workflow.read_text(encoding="utf-8")) or {}
+    except (OSError, UnicodeDecodeError, yaml.YAMLError) as fehler:
+        # Auch das ist der dritte Zustand: Bis zum Nachreview von #492 ging eine
+        # fehlende oder kaputte Datei als Traceback durch `main()` und riss den
+        # Wächter ab, obwohl beide `Workflowfehler` längst abfangen.
+        grund = (str(fehler).splitlines() or [type(fehler).__name__])[0]
+        raise Workflowfehler(f"{workflow.name} nicht lesbar: {grund}") from fehler
     typen = pull_request_typen(daten)
     if typen is None:
         raise Workflowfehler(f"{workflow.name} startet nicht bei pull_request: "
@@ -179,11 +186,11 @@ def _analysiere_einen(workflow: Path) -> tuple[list[str], list[str]]:
     if fehlend:
         raise Workflowfehler(f"{workflow.name} startet nicht bei {', '.join(fehlend)}: "
                              "ein PR bekäme seine Checks dann nicht für jeden Commit")
-    filter = [f for f in FILTER if f in ausloeser(daten).get("pull_request", {})]
-    if filter:
+    filter_schluessel = [f for f in FILTER if f in ausloeser(daten).get("pull_request", {})]
+    if filter_schluessel:
         raise Workflowfehler(f"{workflow.name} startet bei pull_request nur mit "
-                             f"{', '.join(filter)}: ein PR außerhalb des Filters bekäme "
-                             "seine Checks nie")
+                             f"{', '.join(filter_schluessel)}: ein PR außerhalb des Filters "
+                             "bekäme seine Checks nie")
     checks: list[str] = []
     ausgeschlossen: list[str] = []
     for job_id, job in (daten.get("jobs") or {}).items():
