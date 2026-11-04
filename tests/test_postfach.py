@@ -225,6 +225,52 @@ def test_gleiche_kennung_nimmt_genau_ein_klammerpaar_ab(gesucht, kopfwert, gleic
     assert postfach.gleiche_kennung(gesucht, kopfwert) is gleich
 
 
+#: Die Teilkettensuche des Servers, unter dem alten und dem heutigen Namen.
+TEILKETTENSUCHE = frozenset({"suche_kopfzeile", "_suche_kopfzeile"})
+
+
+def aufrufe_der_teilkettensuche(quellen: dict[str, str]) -> list[str]:
+    """`datei:zeile` je Zugriff auf die Teilkettensuche außerhalb von `postfach.py`.
+
+    Gelesen über `ast`: Ein Kommentar, der die Suche erklärt, ist kein Aufruf.
+    """
+    import ast
+
+    return [f"{name}:{knoten.lineno}" for name, text in sorted(quellen.items())
+            if name != "postfach.py"
+            for knoten in ast.walk(ast.parse(text))
+            if isinstance(knoten, ast.Attribute) and knoten.attr in TEILKETTENSUCHE]
+
+
+def _paketquellen() -> dict[str, str]:
+    from pathlib import Path
+
+    ordner = Path(postfach.__file__).parent
+    return {p.name: p.read_text(encoding="utf-8") for p in ordner.glob("*.py")}
+
+
+def test_nur_postfach_ruft_die_teilkettensuche():
+    """#468: Von außen geht die Suche nach einer Kennung über `suche_kennung`.
+
+    Bis dahin lieferte `suche_kopfzeile` ungefilterte UIDs, und nur ein Satz im
+    Docstring verlangte den Nachvergleich. Ein Aufrufer, der ihn vergaß, hätte
+    #442 zurückgeholt: eine fremde Mail, deren Kennung die gesuchte enthält.
+    """
+    quellen = _paketquellen()
+    assert {"postfach.py", "ablage.py"} <= set(quellen), sorted(quellen)
+    assert aufrufe_der_teilkettensuche(quellen) == []
+
+
+def test_gegenprobe_der_alte_aufruf_in_ablage_wird_gemeldet():
+    quellen = _paketquellen()
+    neu = "sitzung.suche_kennung(EINGANG, kennung)"
+    assert quellen["ablage.py"].count(neu) == 1, "die Sabotage findet ihren Anker nicht"
+    quellen["ablage.py"] = quellen["ablage.py"].replace(
+        neu, 'sitzung.suche_kopfzeile(EINGANG, "Message-ID", kennung)')
+    (fund,) = aufrufe_der_teilkettensuche(quellen)
+    assert fund.startswith("ablage.py:")
+
+
 # ── Ablegen: der einzige schreibende Befehl ────────────────────────────────
 
 def test_ablegen_als_entwurf_mit_draft_und_seen(server):

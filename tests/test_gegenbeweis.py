@@ -21,6 +21,7 @@ from falzmarke import lint as _lint
 from falzmarke import oeffnen as _oeffnen
 from falzmarke import regeln as _regeln
 from conftest import PROFILE, REPO
+from sabotage import zeile_ersetzt as _zeile_ersetzt
 
 BEISPIEL = REPO / "examples" / "brief-form-b.md"
 
@@ -2247,17 +2248,22 @@ def test_ohne_pruefung_der_identitaet_gewinnt_das_fremde_fenster(monkeypatch):
 # wenn im heutigen Code eine einzelne Zeile kippt. Dafür wird die Funktion
 # hier aus ihrem eigenen Quelltext neu übersetzt, mit genau einer Änderung.
 
-def _zeile_ersetzt(modul, name: str, alt: str, neu: str):
-    import __future__
+def test_unter_sabotage_zeigt_der_traceback_auf_die_gekippte_zeile():
+    """#468: Bis dahin übersetzte der Helfer ab Zeile 1, und ein Fehler unter
+    Sabotage stand im Traceback beim Modulkopf von `entwurfsbuch.py`."""
     import inspect
+    import traceback
 
-    quelle = inspect.getsource(getattr(modul, name))
-    assert quelle.count(alt) == 1, f"„{alt.strip()}“ steht nicht genau einmal in {name}"
-    raum: dict = {}
-    exec(compile(quelle.replace(alt, neu), inspect.getsourcefile(modul), "exec",
-                 flags=__future__.annotations.compiler_flag, dont_inherit=True),
-         modul.__dict__, raum)
-    return raum[name]
+    from falzmarke import entwurfsbuch as _buch
+
+    alt = "    if fenster is None:\n        return False\n"
+    zeilen, erste = inspect.getsourcelines(_buch.nur_uid)
+    soll = erste + "".join(zeilen)[:"".join(zeilen).index(alt)].count("\n")
+    kaputt = _zeile_ersetzt(_buch, "nur_uid", alt, "    raise RuntimeError('gekippt')\n")
+    with pytest.raises(RuntimeError) as fehler:
+        kaputt(None, _VON_410)
+    rahmen = traceback.extract_tb(fehler.tb)[-1]
+    assert (Path(rahmen.filename).name, rahmen.lineno) == ("entwurfsbuch.py", soll)
 
 
 def test_kippt_der_rang_der_fremden_meldung_geht_sie_vor_keiner(monkeypatch):
@@ -2299,6 +2305,68 @@ def test_ohne_zweiten_rang_gewinnt_die_reihenfolge_der_liste(monkeypatch):
     monkeypatch.setattr(_buch, "fenster_des_kontos", _zeile_ersetzt(
         _buch, "fenster_des_kontos", "key=lambda e: e[:2]", "key=lambda e: e[:1]"))
     assert _uids_410(monkeypatch, *fenster)["4711"]["betreff"] == "nur der Login"
+
+
+# ── #468: Die Proben aus #461 werden selbst rot, nicht nur die Funktion ─────
+#
+# Die Sabotagen darüber prüfen, was die gekippte Funktion zurückgibt. Hier wird
+# die Probe aus test_entwurfsbuch.py gerufen und muss namentlich scheitern.
+
+def test_ohne_zweiten_rang_wird_die_probe_fremd_zuerst_rot(monkeypatch):
+    from falzmarke import entwurfsbuch as _buch
+    from test_entwurfsbuch import test_ohne_meldung_entscheidet_die_adresse_in_der_uri as probe
+
+    probe(monkeypatch, "fremd-zuerst")  # Kontrollprobe: unsabotiert grün
+    monkeypatch.setattr(_buch, "fenster_des_kontos", _zeile_ersetzt(
+        _buch, "fenster_des_kontos", "key=lambda e: e[:2]", "key=lambda e: e[:1]"))
+    with pytest.raises(AssertionError):
+        probe(monkeypatch, "fremd-zuerst")
+    probe(monkeypatch, "eigen-zuerst")  # deshalb gibt es die zweite Reihenfolge
+
+
+@pytest.mark.parametrize("identitaet", [None, _VON_410], ids=["ohne-meldung", "eigene-meldung"])
+def test_ein_gelockertes_uid_muster_macht_die_probe_ohne_uid_rot(monkeypatch, identitaet):
+    """Nimmt das Muster jede Zahl am Ende, gilt auch `…/4711` als UID."""
+    import re
+
+    from falzmarke import entwurfsbuch as _buch
+    from test_entwurfsbuch import test_ein_fenster_ohne_uid_in_der_uri_zaehlt_nicht as probe
+
+    probe(monkeypatch, identitaet)  # Kontrollprobe: unsabotiert grün
+    monkeypatch.setattr(_buch, "UID_AUS_URI", re.compile(r"(\d+)$"))
+    with pytest.raises(AssertionError, match="wartet"):
+        probe(monkeypatch, identitaet)
+
+
+def test_traegt_die_uid_nicht_allein_wird_nur_der_zwilling_ohne_meldung_rot(monkeypatch):
+    """Der Stand vor #410: ein Fenster ohne Meldung fällt heraus. Der Zwilling
+    mit eigener Identität bemerkt das nicht, deshalb gibt es den ohne."""
+    from falzmarke import entwurfsbuch as _buch
+    from test_entwurfsbuch import test_ein_fenster_ohne_uid_in_der_uri_zaehlt_nicht as probe
+
+    probe(monkeypatch, None)  # Kontrollprobe: unsabotiert grün
+    monkeypatch.setattr(_buch, "fenster_des_kontos", _zeile_ersetzt(
+        _buch, "fenster_des_kontos",
+        "rang = 0 if gemeldet == eigen else 1 if not gemeldet else 2",
+        "if not gemeldet:\n            continue\n        rang = 0 if gemeldet == eigen else 2"))
+    with pytest.raises(AssertionError, match="gar nicht OFFEN"):
+        probe(monkeypatch, None)
+    probe(monkeypatch, _VON_410)
+
+
+def test_heisst_der_zustand_nicht_offen_wird_die_probe_zum_zweiten_rang_rot(monkeypatch):
+    """Das Fenster hängt am Zustand auch dann, wenn `art` es nicht nutzt. Bis
+    #468 prüfte die Probe nur den Betreff des Fensters und blieb hier grün."""
+    from falzmarke import entwurfsbuch as _buch
+    from test_entwurfsbuch import test_ohne_meldung_entscheidet_die_adresse_in_der_uri as probe
+
+    probe(monkeypatch, "eigen-zuerst")  # Kontrollprobe: unsabotiert grün
+    monkeypatch.setattr(_buch, "abgleich", _zeile_ersetzt(
+        _buch, "abgleich",
+        'art = ("schon_raus" if gleich else "offen" if fenster is not None else "wartet")',
+        'art = ("schon_raus" if gleich else "wartet")'))
+    with pytest.raises(AssertionError):
+        probe(monkeypatch, "eigen-zuerst")
 
 
 # ── Die Empfänger im Fenster (#464) ─────────────────────────────────────────
@@ -2919,6 +2987,36 @@ def test_mit_strip_gilt_eine_einzelne_klammer_als_paar(monkeypatch):
         with pytest.raises(AssertionError):
             probe(*fall)
     probe("abc@x", "<abc@x>", True)  # die Sabotage trifft nicht den gewollten Fall
+
+
+def test_vor_dem_vergleich_gekappt_faellt_die_echte_nachricht_heraus(monkeypatch):
+    """#468: `suche_kennung` holt alle Teiltreffer. Ohne `grenze=len(uids)` gilt
+    wieder `GRENZE`, und die ältere, echte Nachricht geht vor dem Vergleich verloren."""
+    from falzmarke import postfach as _postfach_modul
+    from test_ablage import test_viele_teiltreffer_verdraengen_die_echte_nachricht_nicht as probe
+
+    monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE", _postfach_modul.IMAP_KLASSE, raising=False)
+    probe(monkeypatch)  # Kontrollprobe: unsabotiert grün
+    monkeypatch.setattr(_postfach_modul.Postfach, "suche_kennung", _zeile_ersetzt(
+        _postfach_modul, "Postfach.suche_kennung",
+        "uids=uids, grenze=len(uids))", "uids=uids)"))
+    with pytest.raises(AssertionError, match=r"\['echt'\]"):
+        probe(monkeypatch)
+
+
+def test_ohne_filter_liefert_suche_kennung_die_teilkette(monkeypatch):
+    """#468: Der exakte Vergleich steht in `suche_kennung`, nicht mehr beim Aufrufer.
+    Fehlt er dort, kommt die fremde Mail mit `<x123y@…>` zurück."""
+    from falzmarke import postfach as _postfach_modul
+    from test_ablage import test_eine_teilkette_der_kennung_ist_kein_treffer as probe
+
+    monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE", _postfach_modul.IMAP_KLASSE, raising=False)
+    probe()  # Kontrollprobe: unsabotiert grün
+    monkeypatch.setattr(_postfach_modul.Postfach, "suche_kennung", _zeile_ersetzt(
+        _postfach_modul, "Postfach.suche_kennung",
+        "if gleiche_kennung(kennung, kopf.kennung)]", "]"))
+    with pytest.raises(AssertionError, match=r"== \[\][\s\S]*kennung='<x123y@example.org>'"):
+        probe()
 
 
 def test_ohne_pruefung_vor_login_geht_der_umbruch_an_imaplib(monkeypatch):

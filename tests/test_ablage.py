@@ -139,10 +139,29 @@ def test_eine_teilkette_der_kennung_ist_kein_treffer():
     attrappe, sitzung = _postfach(eingang=[_eingegangen("<x123y@example.org>")],
                                   gesendet=[_antwort("123")])
     with sitzung:
-        assert sitzung.suche_kopfzeile("INBOX", "Message-ID", "123"), \
+        assert sitzung._suche_kopfzeile("INBOX", "Message-ID", "123"), \
             "Kontrollprobe: die Attrappe muss die Teilkette finden wie ein Server"
+        assert sitzung.suche_kennung("INBOX", "123") == []
         bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
     assert bericht.zuege == () and bericht.nicht_im_eingang == 1
+
+
+def test_viele_teiltreffer_verdraengen_die_echte_nachricht_nicht(monkeypatch):
+    """Review von #457 (#468): Die Teiltreffer des Servers wurden auf die neuesten
+    `GRENZE` gekappt, **bevor** exakt verglichen wurde. Bei einer kurzen Kennung
+    fiel die ältere, echte Nachricht heraus, und der Grenz-Hinweis erschien,
+    ausgelöst nur von fremden Treffern."""
+    monkeypatch.setattr(postfach, "GRENZE", 2)
+    fremde = [_eingegangen(f"<x123y{i}@example.org>", betreff=f"fremd {i}", tage=4 - i)
+              for i in range(3)]
+    _, sitzung = _postfach(eingang=[_eingegangen("<123>", betreff="echt", tage=5), *fremde],
+                           gesendet=[_antwort("123")])
+    with sitzung:
+        assert len(sitzung._suche_kopfzeile("INBOX", "Message-ID", "123")) == 4, \
+            "Kontrollprobe: mehr Teiltreffer als GRENZE, sonst misst der Test nichts"
+        bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+    assert [z.betreff for z in bericht.zuege] == ["echt"] and bericht.nicht_im_eingang == 0
+    assert not [h for h in bericht.hinweise if "angesehen" in h], bericht.hinweise
 
 
 def test_eine_kennung_ohne_klammern_findet_ihre_nachricht():
