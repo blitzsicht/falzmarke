@@ -119,13 +119,16 @@ class ImapAttrappe:
                  append_wirkt: bool = True,
                  append_fehler: BaseException | None = None,
                  verschieben_erlaubt: bool = False,
-                 faehigkeiten: tuple[str, ...] = ("IMAP4REV1", "UIDPLUS", "MOVE")):
+                 faehigkeiten: tuple[str, ...] = ("IMAP4REV1", "UIDPLUS", "MOVE"),
+                 flags_hinten: bool = False, ohne_flags: bool = False):
         self.ordner: dict[str, list[Eintrag]] = {}
         self._naechste_uid = 100
         for name, nachrichten in (ordner or {}).items():
             self.ordner[name] = []
-            for roh, zeit in nachrichten:
-                self._lege_ab(name, roh, zeit)
+            # `(roh, zeit)` oder `(roh, zeit, flags)` — Flags wie auf der
+            # Leitung, etwa `"\\Seen \\Flagged"` (#478).
+            for roh, zeit, *flags in nachrichten:
+                self._lege_ab(name, roh, zeit, *flags)
         self.sonder = sonder if sonder is not None else {
             "INBOX": "", "Gesendete Elemente": "\\Sent", "Entw&APw-rfe": "\\Drafts"}
         for name in self.sonder:
@@ -138,6 +141,13 @@ class ImapAttrappe:
         #: Wie `imaplib.IMAP4.capabilities` — `falzmarke.ablage` liest daraus,
         #: ob der Server `MOVE` kennt, statt es anzunehmen.
         self.capabilities = tuple(faehigkeiten)
+        #: Wohin `FLAGS (…)` in der FETCH-Antwort kommt: vor das Literal (die
+        #: Reihenfolge der Anfrage) oder dahinter — RFC 3501 erlaubt beides,
+        #: und `imaplib` liefert den Rest dann als eigenes Element (#478).
+        self.flags_hinten = flags_hinten
+        #: Ein Server, der FLAGS gar nicht beantwortet: Dann ist das Fähnchen
+        #: unbekannt, nicht „nicht gesetzt“.
+        self.ohne_flags = ohne_flags
         #: Jeder Befehl mit seinen Argumenten, in Reihenfolge.
         self.protokoll: list[tuple] = []
         self.verbindungen: list[tuple] = []
@@ -228,12 +238,18 @@ class ImapAttrappe:
                     zeilen = [z for z in _kopfzeilen(n.roh)
                               if z.split(b":", 1)[0].decode("utf-8", "replace").upper() in felder]
                     literal = b"\r\n".join(zeilen) + b"\r\n\r\n"
+                    fahnen = ""
+                    if re.search(r"\bFLAGS\b", teile) and not self.ohne_flags:
+                        fahnen = f"FLAGS ({n.flags})"
+                    vorn = f"{fahnen} " if fahnen and not self.flags_hinten else ""
                     meta = (f'{nummer} (UID {n.uid} INTERNALDATE "{_internaldate(n.angekommen)}" '
-                            f'BODY[HEADER.FIELDS ({" ".join(felder)})] {{{len(literal)}}}')
+                            f'{vorn}BODY[HEADER.FIELDS ({" ".join(felder)})] {{{len(literal)}}}')
+                    schluss = (f" {fahnen})" if fahnen and self.flags_hinten else ")").encode()
                 else:
                     literal = n.roh
                     meta = f"{nummer} (UID {n.uid} BODY[] {{{len(literal)}}}"
-                antwort += [(meta.encode(), literal), b")"]
+                    schluss = b")"
+                antwort += [(meta.encode(), literal), schluss]
             return "OK", antwort
         if befehl == "MOVE":
             if not self.verschieben_erlaubt:

@@ -175,6 +175,7 @@ email:
   #                                    misst das und warnt (Issue #154).
   ablage: Archiv                       # optional, der Ordner für `aufraeumen` — ohne ihn
   #                                    wird keine beantwortete Eingangspost verschoben
+  #                                    `Archiv/{jahr}`: je Mail das Jahr ihrer Ankunft
   stil:                                # optional, der eigene Schreibstil — siehe unten
     person: ich
     floskeln: [zeitnah, kurzfristig]

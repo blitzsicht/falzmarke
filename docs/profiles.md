@@ -88,8 +88,12 @@ Server ihn führt.
 ```yaml
 email:
   absender: muster@example.de
-  ablage: Archiv             # oder "Erledigt", "INBOX/Fertig" …
+  ablage: Archiv             # oder "Erledigt", "INBOX/Fertig", "Archiv/{jahr}" …
 ```
+
+`{jahr}` wird je Mail zum Jahr ihrer Ankunft im Postfach, derselbe Ordner wie Thunderbirds
+Taste A mit `archive_granularity 1`. Die Jahresordner legt falzmarke nicht an. Fehlt einer, wandert
+keine Mail des Laufs, und `aufraeumen` nennt den fehlenden Ordner.
 
 **Ohne diese Zeile wird nichts verschoben**, und `aufraeumen` sagt das. Der naheliegende
 Ausweg — der IMAP-Sonderordner `\Archive` ([RFC 6154](https://www.rfc-editor.org/rfc/rfc6154)) — trägt nicht: An den Konten des

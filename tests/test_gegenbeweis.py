@@ -3082,6 +3082,167 @@ def test_ohne_den_grund_wandert_die_post_in_den_archive_ordner(monkeypatch, tmp_
     assert len(attrappe.ordner["Archiv"]) == 1
 
 
+# ── #478: Fähnchen, benannte Mails, Jahresordner ────────────────────────────
+#
+# Jede Sabotage baut den Stand vor #478 an genau einer Stelle nach: Die Mail
+# wandert, statt liegen zu bleiben, oder der Rest des Laufs geht still weiter.
+
+def _lauf_478(monkeypatch, eingang, *, gesendet=(), ordner=("Archiv",), **optionen):
+    """Ein Lauf mit `--machen` über einer frischen Attrappe; zurück kommt sie samt Bericht."""
+    from falzmarke import ablage as _ablage
+    from falzmarke import postfach as _postfach_modul
+
+    from imap_attrappe import ImapAttrappe
+
+    attrappe = ImapAttrappe(
+        {"INBOX": list(eingang), "Gesendete Elemente": list(gesendet)},
+        sonder={"INBOX": "", "Gesendete Elemente": "\\Sent", **{n: "" for n in ordner}},
+        verschieben_erlaubt=True)
+    monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE", attrappe)
+    wunsch = optionen.pop("wunsch", "Archiv")
+    return attrappe, _ablage.raeume_auf("joe@example.org", wunsch=wunsch, machen=True,
+                                        umgebung={}, **optionen)
+
+
+def _bleibt_im_eingang_478(attrappe, bericht, anzahl):
+    assert not attrappe.befehle("UID MOVE"), \
+        f"UID MOVE gesendet: {attrappe.befehle('UID MOVE')}"
+    assert len(attrappe.ordner["INBOX"]) == anzahl and bericht.verschoben == 0
+
+
+def test_ohne_den_faehnchen_zweig_wandert_die_mail_mit_faehnchen(monkeypatch):
+    from falzmarke import ablage as _ablage
+
+    def probe():
+        attrappe, bericht = _lauf_478(
+            monkeypatch, [(*_eingang_438("<f@example.org>"), "\\Flagged")],
+            gesendet=[_antwort_438("<f@example.org>")])
+        _bleibt_im_eingang_478(attrappe, bericht, 1)
+
+    probe()
+    monkeypatch.setattr(_ablage, "_ziele_zuordnen", _zeile_ersetzt(
+        _ablage, "_ziele_zuordnen", 'liegen.append(Liegt(zug, "Fähnchen"))', "gehen.append(zug)"))
+    with pytest.raises(AssertionError, match="UID MOVE gesendet"):
+        probe()
+
+
+def test_ohne_den_zweig_fuer_unbekannte_flags_wandert_die_mail(monkeypatch):
+    from falzmarke import ablage as _ablage
+    from falzmarke import postfach as _postfach_modul
+
+    from imap_attrappe import ImapAttrappe
+
+    def probe():
+        attrappe = ImapAttrappe(
+            {"INBOX": [_eingang_438("<u@example.org>")],
+             "Gesendete Elemente": [_antwort_438("<u@example.org>")]},
+            sonder={"INBOX": "", "Gesendete Elemente": "\\Sent", "Archiv": ""},
+            verschieben_erlaubt=True, ohne_flags=True)
+        monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE", attrappe)
+        bericht = _ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True,
+                                     umgebung={})
+        _bleibt_im_eingang_478(attrappe, bericht, 1)
+
+    probe()
+    monkeypatch.setattr(_ablage, "_ziele_zuordnen", _zeile_ersetzt(
+        _ablage, "_ziele_zuordnen",
+        'liegen.append(Liegt(zug, "Fähnchen unbekannt, der Server nannte keine Flags"))',
+        "gehen.append(zug)"))
+    with pytest.raises(AssertionError, match="UID MOVE gesendet"):
+        probe()
+
+
+def test_ohne_die_sperre_fuer_fehlende_uids_wandert_der_rest(monkeypatch):
+    from falzmarke import ablage as _ablage
+
+    def probe():
+        attrappe, bericht = _lauf_478(monkeypatch, [_eingang_438("<b@example.org>")],
+                                      uids=["101", "999"])
+        _bleibt_im_eingang_478(attrappe, bericht, 1)
+        assert "UID 999" in bericht.grund
+
+    probe()
+    monkeypatch.setattr(_ablage, "plane_benannt", _zeile_ersetzt(
+        _ablage, "plane_benannt", "    if fehlen:", "    if False:"))
+    with pytest.raises(AssertionError, match="UID MOVE gesendet"):
+        probe()
+
+
+def test_ohne_alles_oder_nichts_wandert_die_mail_mit_vorhandenem_jahresordner(monkeypatch):
+    """Die naheliegende Fassung: Wer keinen Jahresordner hat, wird übergangen,
+    der Rest wandert. Dann fehlt die Mail von 2025 sogar im Bericht."""
+    from falzmarke import ablage as _ablage
+
+    from imap_attrappe import nachricht
+
+    alt = datetime(2025, 12, 10, 12, 0, tzinfo=timezone.utc)
+    eingang = [(nachricht(an="joe@example.org", betreff="Alt", datum=alt,
+                          kennung="<alt@example.org>"), alt),
+               _eingang_438("<neu@example.org>", "Neu")]
+
+    def probe():
+        attrappe, bericht = _lauf_478(monkeypatch, eingang,
+                                      gesendet=[_antwort_438("<alt@example.org>", tage=2),
+                                                _antwort_438("<neu@example.org>", tage=1)],
+                                      ordner=("Archiv/2026",), wunsch="Archiv/{jahr}")
+        _bleibt_im_eingang_478(attrappe, bericht, 2)
+        assert "„Archiv/2025“" in bericht.grund
+
+    probe()
+    monkeypatch.setattr(_ablage, "_ziele_zuordnen", _zeile_ersetzt(
+        _ablage, "_ziele_zuordnen", "            fehlend.append(grund)",
+        "            continue"))
+    with pytest.raises(AssertionError, match="UID MOVE gesendet"):
+        probe()
+
+
+def test_ohne_den_zweig_fuer_fehlende_ankunft_bricht_jahr_den_lauf_ab(monkeypatch):
+    """Ohne INTERNALDATE ist das Jahr nicht zu bestimmen. Der Zweig legt die Mail
+    zu den liegenden; ohne ihn endet der Lauf in einem Traceback statt in einem Satz."""
+    from falzmarke import ablage as _ablage
+    from falzmarke import postfach as _postfach_modul
+
+    monkeypatch.setattr(_postfach_modul, "_ankunft", lambda meta: None)
+
+    def probe():
+        attrappe, bericht = _lauf_478(monkeypatch, [_eingang_438("<j@example.org>")],
+                                      uids=["101"], ordner=("Archiv/2026",),
+                                      wunsch="Archiv/{jahr}")
+        _bleibt_im_eingang_478(attrappe, bericht, 1)
+        ((_, grund),) = bericht.liegen
+        assert grund.startswith("ohne Ankunftsdatum")
+
+    probe()
+    monkeypatch.setattr(_ablage, "_ziele_zuordnen", _zeile_ersetzt(
+        _ablage, "_ziele_zuordnen", "        if zug.ankunft is None:", "        if False:"))
+    with pytest.raises(AttributeError, match="astimezone"):
+        probe()
+
+
+def test_ohne_den_rest_der_antwortzeile_geht_das_faehnchen_hinter_dem_literal_verloren(
+        monkeypatch):
+    """Steht `FLAGS` hinter dem Literal, liest `postfach.koepfe` es aus dem
+    Element danach. Ohne das ist das Fähnchen unbekannt — sicher, aber falsch:
+    An einem solchen Server bliebe jede Mail liegen."""
+    from falzmarke import postfach as _postfach_modul
+
+    from imap_attrappe import ImapAttrappe
+
+    def probe():
+        attrappe = ImapAttrappe({"INBOX": [(*_eingang_438("<h@example.org>"), "\\Flagged")]},
+                                flags_hinten=True)
+        monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE", attrappe)
+        with _postfach_modul.verbinde("joe@example.org", umgebung={}, frist=30) as sitzung:
+            (kopf,) = sitzung.koepfe("INBOX")
+        assert kopf.fahnen == ("\\flagged",), f"Flags gelesen: {kopf.fahnen!r}"
+
+    probe()
+    monkeypatch.setattr(_postfach_modul.Postfach, "koepfe", _zeile_ersetzt(
+        _postfach_modul, "Postfach.koepfe", "_fahnen(meta, rest)", "_fahnen(meta)"))
+    with pytest.raises(AssertionError, match=r"Flags gelesen: None"):
+        probe()
+
+
 # ── #454: Der Plugin-Ordner bleibt aus dem Skill-Paket ──────────────────────
 
 def test_ohne_ausschluss_landet_der_plugin_ordner_im_skill_paket(tmp_path):

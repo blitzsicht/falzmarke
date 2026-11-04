@@ -267,6 +267,13 @@ class Kopf(NamedTuple):
     #: Die Adresse aus `From`, klein, ohne Anzeigenamen; leer, wenn keine dasteht.
     #: Der Maßstab für den Absender im Verfassen-Fenster (#482).
     von: str = ""
+    #: Die Ankunft im Ordner (INTERNALDATE), für sich. `datum` nimmt sie nur,
+    #: wenn `Date` fehlt; das Jahr in `email.ablage: Archiv/{jahr}` richtet sich
+    #: nach ihr allein (#478).
+    ankunft: datetime | None = None
+    #: Die Flags der Nachricht, klein geschrieben (`\\seen`, `\\flagged` …).
+    #: `None` heißt: Der Server hat keine genannt, nicht „keine gesetzt“ (#478).
+    fahnen: tuple[str, ...] | None = None
 
 
 def _adressen(nachricht, *felder: str) -> tuple[str, ...]:
@@ -279,7 +286,8 @@ def _adressen(nachricht, *felder: str) -> tuple[str, ...]:
     return tuple(gesehen)
 
 
-def kopf_aus(roh: bytes, uid: str, ankunft: datetime | None) -> Kopf:
+def kopf_aus(roh: bytes, uid: str, ankunft: datetime | None,
+             fahnen: tuple[str, ...] | None = None) -> Kopf:
     """Ein `Kopf` aus den Bytes der Kopfzeilen (oder der ganzen Nachricht)."""
     nachricht = email.message_from_bytes(roh, policy=policy.compat32)
     datum = None
@@ -298,7 +306,8 @@ def kopf_aus(roh: bytes, uid: str, ankunft: datetime | None) -> Kopf:
                 empfaenger=Empfaenger(an=_adressen(nachricht, "To"),
                                       kopie=_adressen(nachricht, "Cc"),
                                       blindkopie=_adressen(nachricht, "Bcc")),
-                von=next(iter(_adressen(nachricht, "From")), ""))
+                von=next(iter(_adressen(nachricht, "From")), ""),
+                ankunft=ankunft, fahnen=fahnen)
 
 
 def _dekodiert(wert) -> str:
@@ -315,6 +324,22 @@ def _dekodiert(wert) -> str:
 
 _UID = re.compile(rb"\bUID (\d+)")
 _ANKUNFT = re.compile(rb'INTERNALDATE "([^"]+)"')
+_FAHNEN = re.compile(rb"\bFLAGS \(([^)]*)\)")
+
+
+def _fahnen(*teile: bytes) -> tuple[str, ...] | None:
+    """Die Flags aus der FETCH-Antwort, klein; `None`, wenn keine Liste dasteht.
+
+    Gesucht wird in der Kopfzeile der Antwort **und** im Rest nach dem
+    Literal: RFC 3501 legt die Reihenfolge der Antwortteile nicht fest, und
+    ein Server darf `FLAGS (…)` hinter `BODY[…] {n}` schicken. `imaplib`
+    liefert diesen Rest als eigenes Element nach dem Tupel (#478).
+    """
+    for teil in teile:
+        treffer = _FAHNEN.search(teil or b"")
+        if treffer:
+            return tuple(treffer.group(1).decode("utf-8", "replace").lower().split())
+    return None
 
 
 def _ankunft(meta: bytes) -> datetime | None:
@@ -467,21 +492,30 @@ class Postfach:
             uids = uids[-grenze:]
         if not uids:
             return []
-        teile = "(UID INTERNALDATE BODY.PEEK[HEADER.FIELDS (" + " ".join(KOPFZEILEN) + ")])"
+        # FLAGS liest nur: `BODY.PEEK` setzt kein `\Seen`, und FLAGS ohne STORE
+        # ändert nichts. Gebraucht für das Fähnchen in `ablage` (#478).
+        teile = ("(UID INTERNALDATE FLAGS BODY.PEEK[HEADER.FIELDS ("
+                 + " ".join(KOPFZEILEN) + ")])")
         daten = []
         # Je Befehl höchstens GRENZE UIDs, sonst wird die Befehlszeile zu lang.
         for start in range(0, len(uids), GRENZE):
             stueck = ",".join(uids[start:start + GRENZE])
             daten.extend(self._befehl("FETCH", self._v.uid, "FETCH", stueck, teile) or [])
         koepfe = []
-        for eintrag in daten:
+        for nummer, eintrag in enumerate(daten):
             if not isinstance(eintrag, tuple) or len(eintrag) < 2:
                 continue
             meta, roh = eintrag[0], eintrag[1]
             uid = _UID.search(meta)
             if uid is None:
                 continue
-            koepfe.append(kopf_aus(roh or b"", uid.group(1).decode(), _ankunft(meta)))
+            # Hinter einem Literal liefert `imaplib` immer den Rest **derselben**
+            # Antwortzeile als eigenes Element, mindestens `)`. Die nächste
+            # Antwort beginnt erst danach.
+            rest = daten[nummer + 1] if nummer + 1 < len(daten) else b""
+            rest = rest if isinstance(rest, bytes) else b""
+            koepfe.append(kopf_aus(roh or b"", uid.group(1).decode(), _ankunft(meta),
+                                   _fahnen(meta, rest)))
         return koepfe
 
     def nachricht(self, ordner: str, uid: str) -> bytes:
