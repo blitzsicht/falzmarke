@@ -254,6 +254,9 @@ OK  Empfänger im Fenster wie in der Nachricht: An 1, Cc 0, Bcc 1
 | `OK  Empfänger im Fenster wie in der Nachricht` | nichts, An, Cc und Bcc im Fenster sind die der Nachricht |
 | `EMPFÄNGER PRÜFEN  Entwurf offen in Thunderbird …` statt `OK` | das Fenster zeigt andere Empfänger als die Nachricht, der Befund steht dabei: vor dem Senden richten, oder das Fenster schließen und den Entwurf unter „Entwürfe“ neu öffnen |
 | `NICHT GEPRÜFT  Empfänger im Fenster: <Grund>` | das Add-on konnte sie nicht lesen (Fassung vor 0.3.8, oder das Fenster lud noch): An, Cc und Bcc selbst mit dem Entwurf vergleichen |
+| `OK  Absender im Fenster: <Adresse>` | nichts. Steht ein Zusatz dabei, schickt das Fenster von einer anderen Identität desselben Kontos (Alias) |
+| `ABSENDER PRÜFEN  Entwurf offen in Thunderbird …` statt `OK` | das Fenster schickt von einer Identität, die laut `prefs.js` nicht zum Konto der Nachricht gehört: im Fenster unter „Von“ richten. `entwurf-oeffnen` endet mit Exit 3 |
+| `NICHT GEPRÜFT  Absender im Fenster: <Grund>` | das Fenster nennt eine andere Adresse, und das Thunderbird-Profil sagt nicht, ob sie zum Konto gehört: „Von“ selbst ansehen |
 | `HINWEIS  Es geht kein Fenster auf` + `Entwurfsbrücke: <Grund>` | den Entwurf unter „Entwürfe“ öffnen |
 | `HINWEIS  Fenster ungewiss` | in Thunderbird nachsehen, **nicht** noch einmal öffnen |
 

@@ -642,6 +642,109 @@ def test_entwurf_oeffnen_sieht_ein_fehlendes_cc(oeffne_befehl, monkeypatch, caps
     assert "An: " not in fehler and "Bcc: " not in fehler, fehler
 
 
+# ── Der Absender im Fenster (#482) ──────────────────────────────────────────
+
+ALIAS = "alias@example.de"
+FREMD = "andere@example.org"          # Identität des zweiten Kontos in `_grundwerte`
+
+
+def _profil_mit_alias(monkeypatch, tmp_path):
+    """Konto 1 trägt ABSENDER und ALIAS, Konto 2 nur FREMD."""
+    from test_thunderbird_signatur import _attrappe, _grundwerte
+
+    werte = _grundwerte(draft_folder="imap://muster%40example.de@outlook.office365.com/"
+                                     "Entw&APw-rfe")
+    werte["mail.account.account1.identities"] = "id1,id3"
+    werte["mail.identity.id3.useremail"] = ALIAS.upper()
+    monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER", _attrappe(tmp_path / "alias", werte))
+
+
+def test_kontoadressen_nennt_die_identitaeten_eines_kontos(monkeypatch, tmp_path):
+    _profil_mit_alias(monkeypatch, tmp_path)
+    assert oeffnen.kontoadressen(ABSENDER) == (frozenset({ABSENDER, ALIAS}), "")
+    assert oeffnen.kontoadressen(ALIAS) == (frozenset({ABSENDER, ALIAS}), "")
+    assert oeffnen.kontoadressen(FREMD) == (frozenset({FREMD}), "")
+    adressen, grund = oeffnen.kontoadressen("niemand@example.net")
+    assert adressen is None and "kein Konto mit niemand@example.net" in grund
+
+
+def test_kontoadressen_ohne_profil_raet_nicht(tmp_path):
+    adressen, grund = oeffnen.kontoadressen(ABSENDER, tmp_path / "kein-profil")
+    assert adressen is None and "kein Thunderbird-Profil" in grund
+
+
+def _fenster(identitaet: str, **mehr):
+    return bruecke.Oeffnung("geoeffnet", gelesen=True, identitaet=identitaet, **mehr)
+
+
+@pytest.mark.parametrize("identitaet, geprueft, abweichung, hinweis", [
+    (ABSENDER.upper(), True, "", ""),
+    (ALIAS, True, "", f"{ALIAS} ist eine Identität im selben Konto wie {ABSENDER}"),
+    (FREMD, True, f"Fenster: {FREMD}, Nachricht: {ABSENDER}", ""),
+    ("", False, "", "das Add-on meldet keinen Absender des Fensters"),
+], ids=["gleich", "alias", "fremdes-konto", "ohne-meldung"])
+def test_absender_pruefen(identitaet, geprueft, abweichung, hinweis, monkeypatch, tmp_path):
+    _profil_mit_alias(monkeypatch, tmp_path)
+    ergebnis = oeffnen.absender_pruefen(_fenster(identitaet), ABSENDER)
+    assert (ergebnis.absender_geprueft, ergebnis.absender_abweichung,
+            ergebnis.absender_hinweis) == (geprueft, abweichung, hinweis)
+
+
+def test_absender_pruefen_ohne_profilwissen_meldet_keinen_fehlalarm():
+    """Ohne Konto im Profil ist eine andere Adresse weder Alias noch fremd."""
+    ergebnis = oeffnen.absender_pruefen(_fenster(FREMD), ABSENDER)
+    assert not ergebnis.absender_geprueft and not ergebnis.absender_abweichung
+    assert ergebnis.absender_hinweis.startswith(
+        f"das Fenster schickt von {FREMD}, die Nachricht von {ABSENDER}; ob beide")
+
+
+def test_absender_pruefen_ohne_lesung_laesst_das_fenster_wie_es_ist(monkeypatch, tmp_path):
+    """Add-on bis 0.3.7: Es gibt nichts zu vergleichen, wie bei den Empfängern."""
+    _profil_mit_alias(monkeypatch, tmp_path)
+    ungelesen = bruecke.Oeffnung("geoeffnet", identitaet=FREMD)
+    assert oeffnen.absender_pruefen(ungelesen, ABSENDER) == ungelesen
+
+
+def test_entwurf_oeffnen_unter_fremder_identitaet_ist_exit_3(oeffne_befehl, monkeypatch,
+                                                             capsys, tmp_path):
+    _profil_mit_alias(monkeypatch, tmp_path)
+    _zwei_entwuerfe(monkeypatch)
+    _bruecke(monkeypatch, _offen_mit(an=("b@example.org",), betreff="Vektor S2: Wappen",
+                                     identitaet=FREMD))
+    assert oeffne_befehl("--betreff", "wappen") == 3
+    ausgabe = capsys.readouterr()
+    assert "OK  Entwurf offen" not in ausgabe.out
+    assert "ABSENDER PRÜFEN  Entwurf offen in Thunderbird: Vektor S2: Wappen" in ausgabe.err
+    assert f"Fenster: {FREMD}, Nachricht: {ABSENDER}" in ausgabe.err
+    assert "EMPFÄNGER PRÜFEN" not in ausgabe.err
+
+
+def test_entwurf_oeffnen_unter_einem_alias_ist_gruen(oeffne_befehl, monkeypatch, capsys,
+                                                     tmp_path):
+    _profil_mit_alias(monkeypatch, tmp_path)
+    _zwei_entwuerfe(monkeypatch)
+    _bruecke(monkeypatch, _offen_mit(an=("b@example.org",), betreff="Vektor S2: Wappen",
+                                     identitaet=ALIAS))
+    assert oeffne_befehl("--betreff", "wappen") == 0
+    ausgabe = capsys.readouterr()
+    assert (f"OK  Absender im Fenster: {ALIAS} ({ALIAS} ist eine Identität im selben Konto "
+            f"wie {ABSENDER})") in ausgabe.out
+    assert "ABSENDER PRÜFEN" not in ausgabe.err
+
+
+def test_email_oeffnen_unter_fremder_identitaet_warnt_mit_exit_0(befehl, monkeypatch, capsys,
+                                                                 tmp_path):
+    """`email --oeffnen` endet mit 0, der Entwurf liegt ja (ADR 0038), wie bei
+    `EMPFÄNGER PRÜFEN`."""
+    _profil_mit_alias(monkeypatch, tmp_path)
+    _server(monkeypatch)
+    _bruecke(monkeypatch, _offen_mit(identitaet=FREMD))
+    assert befehl() == 0
+    ausgabe = capsys.readouterr()
+    assert "ABSENDER PRÜFEN" in ausgabe.err and f"Fenster: {FREMD}" in ausgabe.err
+    assert "OK  Entwurf offen" not in ausgabe.out
+
+
 def test_entwurf_oeffnen_mit_leerem_fenster_ist_exit_3(oeffne_befehl, monkeypatch, capsys):
     """Ein Fenster mit anderen Empfängern ist nicht das bestellte — Exit 3 wie ohne Fenster."""
     _zwei_entwuerfe(monkeypatch)

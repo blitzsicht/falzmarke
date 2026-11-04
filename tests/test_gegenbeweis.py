@@ -2509,6 +2509,68 @@ def test_mit_zusammengeworfenem_an_steht_die_kopie_unter_an(_entwurf_oeffnen_481
         probe(_entwurf_oeffnen_481, monkeypatch, capsys)
 
 
+# #482: Der Absender im Fenster gegen den `From` des Entwurfs. Je eine Sabotage
+# für den Vergleich, das Alias-Wissen aus dem Profil und jeden der beiden Aufrufer.
+
+def test_ohne_vergleich_geht_die_fremde_identitaet_durch(_entwurf_oeffnen_481, monkeypatch,
+                                                         capsys, tmp_path):
+    """Die Alias-Probe bleibt dabei grün: Sie darf den Fall nicht tragen."""
+    from test_postfach_entwurf import (
+        test_entwurf_oeffnen_unter_einem_alias_ist_gruen as alias,
+        test_entwurf_oeffnen_unter_fremder_identitaet_ist_exit_3 as fremd)
+
+    fremd(_entwurf_oeffnen_481, monkeypatch, capsys, tmp_path / "k")             # Kontrolle
+    monkeypatch.setattr(_oeffnen, "absender_pruefen", _zeile_ersetzt(
+        _oeffnen, "absender_pruefen", "if ist in adressen:", "if True:"))
+    with pytest.raises(AssertionError, match=r"assert 0 == 3"):
+        fremd(_entwurf_oeffnen_481, monkeypatch, capsys, tmp_path / "s")
+    alias(_entwurf_oeffnen_481, monkeypatch, capsys, tmp_path / "a")
+
+
+def test_ohne_aliasse_aus_dem_profil_wird_der_alias_rot(_entwurf_oeffnen_481, monkeypatch,
+                                                        capsys, tmp_path):
+    """`kontoadressen` nur mit der eigenen Adresse: der Fehlalarm aus #462."""
+    from test_postfach_entwurf import test_entwurf_oeffnen_unter_einem_alias_ist_gruen as alias
+
+    alias(_entwurf_oeffnen_481, monkeypatch, capsys, tmp_path / "k")             # Kontrolle
+    monkeypatch.setattr(_oeffnen, "kontoadressen", _zeile_ersetzt(
+        _oeffnen, "kontoadressen", "adressen |= im_konto", "adressen |= im_konto & {adresse}"))
+    with pytest.raises(AssertionError, match=r"assert 3 == 0"):
+        alias(_entwurf_oeffnen_481, monkeypatch, capsys, tmp_path / "s")
+
+
+def test_ohne_aufruf_meldet_entwurf_oeffnen_die_fremde_identitaet_nicht(
+        _entwurf_oeffnen_481, monkeypatch, capsys, tmp_path):
+    from falzmarke import cli as _cli
+    from test_postfach_entwurf import (
+        test_entwurf_oeffnen_unter_fremder_identitaet_ist_exit_3 as fremd)
+
+    fremd(_entwurf_oeffnen_481, monkeypatch, capsys, tmp_path / "k")             # Kontrolle
+    monkeypatch.setattr(_cli, "befehl_entwurf_oeffnen", _zeile_ersetzt(
+        _cli, "befehl_entwurf_oeffnen",
+        "oeffnung = oeffnen_modul.absender_pruefen(oeffnung, kopf.von)", "pass"))
+    with pytest.raises(AssertionError, match=r"assert 0 == 3"):
+        fremd(_entwurf_oeffnen_481, monkeypatch, capsys, tmp_path / "s")
+
+
+def test_ohne_aufruf_meldet_email_oeffnen_die_fremde_identitaet_nicht(
+        _email_oeffnen_464, monkeypatch, capsys, tmp_path):
+    from test_postfach_entwurf import (
+        test_email_oeffnen_unter_fremder_identitaet_warnt_mit_exit_0 as fremd)
+
+    def befehl():
+        return falzmarke.main(["email", str(tmp_path / "antwort.md"), "--profiles", str(PROFILE),
+                               "--oeffnen"])
+
+    fremd(befehl, monkeypatch, capsys, tmp_path / "k")                           # Kontrolle
+    monkeypatch.setattr(_oeffnen, "_fenster_auf", _zeile_ersetzt(
+        _oeffnen, "_fenster_auf",
+        'return lage._replace(fenster=absender_pruefen(fenster, str(felder.get("absender") or "")))',
+        "return lage._replace(fenster=fenster)"))
+    with pytest.raises(AssertionError, match="ABSENDER PRÜFEN"):
+        fremd(befehl, monkeypatch, capsys, tmp_path / "s")
+
+
 # ── Das Profil, aus dem die Brücke antwortet (#410) ─────────────────────────
 
 def _zwei_profile_410(tmp_path, *, in_a=True, in_b=True):
@@ -3244,6 +3306,10 @@ def test_ohne_filter_liefert_suche_kennung_die_teilkette(monkeypatch):
     monkeypatch.setattr(_postfach_modul.Postfach, "suche_kennung", _zeile_ersetzt(
         _postfach_modul, "Postfach.suche_kennung",
         "if gleiche_kennung(kennung, kopf.kennung)]", "]"))
+    # pytest kürzt die Meldung in der Mitte: Mit jedem neuen Feld am Ende von
+    # `Kopf` (#481, #482) rückte `kennung=` weiter in den gekürzten Teil.
+    monkeypatch.setattr(_postfach_modul.Kopf, "__repr__",
+                        lambda kopf: f"Kopf(kennung={kopf.kennung!r})")
     with pytest.raises(AssertionError, match=r"== \[\][\s\S]*kennung='<x123y@example.org>'"):
         probe()
 
