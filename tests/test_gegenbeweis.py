@@ -2451,6 +2451,64 @@ def test_gegenprobe_am_echten_weg_macht_die_sabotage_das_leere_fenster_gruen(
     assert "EMPFÄNGER PRÜFEN" not in aus.err and "OK  Entwurf offen" in aus.out
 
 
+# #481: Den Maßstab für `entwurf-oeffnen` liefert die erste Sitzung, aus den
+# Kopfzeilen, die `koepfe` ohnehin holt. Zwei Rückbauten, je eine Zusage.
+
+@pytest.fixture
+def _entwurf_oeffnen_481(monkeypatch, tmp_path):
+    """Wie `oeffne_befehl` in `test_postfach_entwurf.py`: Fixtures eines anderen
+    Testmoduls sind hier nicht zu haben, die Probe selbst wird importiert."""
+    import test_postfach_entwurf as tpe
+
+    for name in ("CI", "FALZMARKE_OEFFNEN", "FALZMARKE_BRUECKE"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("DISPLAY", ":0")
+    tpe._profil_mit_entwuerfen(monkeypatch, tmp_path,
+                               "imap://muster%40example.de@outlook.office365.com/Entw&APw-rfe")
+    return lambda *argumente: falzmarke.main(["entwurf-oeffnen", "--absender", tpe.ABSENDER,
+                                              *argumente])
+
+
+@pytest.mark.parametrize("alt, neu, erwartet", [
+    # Der Weg vor #481: noch eine Sitzung und darin die ganze Nachricht.
+    ("soll = kopf.empfaenger._asdict() if kopf.empfaenger is not None else None",
+     "with postfach.verbinde(adresse, frist=oeffnen_modul.FRIST_POSTFACH_S) as sitzung:\n"
+     "        roh = sitzung.nachricht(ordner, kopf.uid)\n"
+     "    soll = postfach.kopf_aus(roh, kopf.uid, None).empfaenger._asdict()",
+     "2 Anmeldungen am Postfach"),
+    # Eine Sitzung, aber trotzdem `BODY.PEEK[]`: Das fiele an der Anmeldung nicht auf.
+    ("koepfe = sitzung.koepfe(ordner) if ordner else []",
+     "koepfe = sitzung.koepfe(ordner) if ordner else []\n"
+     "            [sitzung.nachricht(ordner, k.uid) for k in koepfe]",
+     "ein Abruf ohne Feldliste holt die ganze Nachricht"),
+], ids=["zweite-sitzung", "ganze-nachricht"])
+def test_mit_dem_alten_abruf_wird_die_probe_rot(alt, neu, erwartet, _entwurf_oeffnen_481,
+                                                monkeypatch, capsys):
+    from falzmarke import cli as _cli
+    from test_postfach_entwurf import (
+        test_entwurf_oeffnen_meldet_sich_einmal_an_und_holt_nur_kopfzeilen as probe)
+
+    probe(_entwurf_oeffnen_481, monkeypatch, capsys)                               # Kontrolle
+    monkeypatch.setattr(_cli, "befehl_entwurf_oeffnen",
+                        _zeile_ersetzt(_cli, "befehl_entwurf_oeffnen", alt, neu))
+    with pytest.raises(AssertionError, match=erwartet):
+        probe(_entwurf_oeffnen_481, monkeypatch, capsys)
+
+
+def test_mit_zusammengeworfenem_an_steht_die_kopie_unter_an(_entwurf_oeffnen_481, monkeypatch,
+                                                            capsys):
+    """`Kopf.empfaenger.an` aus To, Cc und Bcc gebaut, wie `Kopf.an`."""
+    from falzmarke import postfach as _postfach
+    from test_postfach_entwurf import test_entwurf_oeffnen_sieht_ein_fehlendes_cc as probe
+
+    probe(_entwurf_oeffnen_481, monkeypatch, capsys)                               # Kontrolle
+    monkeypatch.setattr(_postfach, "kopf_aus", _zeile_ersetzt(
+        _postfach, "kopf_aus", 'empfaenger=Empfaenger(an=_adressen(nachricht, "To"),',
+        'empfaenger=Empfaenger(an=_adressen(nachricht, "To", "Cc", "Bcc"),'))
+    with pytest.raises(AssertionError, match=r"An: fehlt archiv@example\.de, c@example\.org"):
+        probe(_entwurf_oeffnen_481, monkeypatch, capsys)
+
+
 # ── Das Profil, aus dem die Brücke antwortet (#410) ─────────────────────────
 
 def _zwei_profile_410(tmp_path, *, in_a=True, in_b=True):

@@ -586,13 +586,60 @@ def test_entwurf_oeffnen_nach_betreff(oeffne_befehl, monkeypatch, capsys):
 
 def test_entwurf_oeffnen_vergleicht_das_fenster_mit_dem_entwurf(oeffne_befehl, monkeypatch,
                                                                  capsys):
-    """Den Maßstab liest der Befehl aus der Nachricht selbst, nicht aus `Kopf.an`:
+    """Den Maßstab liest der Befehl aus `Kopf.empfaenger`, nicht aus `Kopf.an`:
     Der wirft An, Cc und Bcc zusammen."""
     _zwei_entwuerfe(monkeypatch)
     _bruecke(monkeypatch, _offen_mit(an=("b@example.org",), betreff="Vektor S2: Wappen"))
     assert oeffne_befehl("--betreff", "wappen") == 0
     assert ("OK  Empfänger im Fenster wie in der Nachricht: An 1, Cc 0, Bcc 0"
             in capsys.readouterr().out)
+
+
+def _entwurf_mit_kopien(monkeypatch):
+    roh = nachricht(an="b@example.org", betreff="Vektor S2: Wappen", von=ABSENDER,
+                    kopf={"Cc": "Carla <C@example.org>", "Bcc": "archiv@example.de"},
+                    datum=datetime(2026, 10, 21, 18, 31, tzinfo=timezone.utc))
+    return _server(monkeypatch, [(roh, datetime(2026, 10, 21, 18, 31, tzinfo=timezone.utc))])
+
+
+def test_der_kopf_traegt_an_cc_und_bcc_getrennt():
+    """#481: `koepfe` holt To, Cc und Bcc ohnehin. `Kopf.an` wirft sie zusammen,
+    `Kopf.empfaenger` hält sie auseinander, klein und ohne Anzeigenamen."""
+    roh = nachricht(an="B@example.org", kopf={"Cc": "Carla <C@example.org>",
+                                              "Bcc": "archiv@example.de"})
+    kopf = postfach.kopf_aus(roh, "7", None)
+    assert kopf.an == ("b@example.org", "c@example.org", "archiv@example.de")
+    assert kopf.empfaenger == postfach.Empfaenger(
+        an=("b@example.org",), kopie=("c@example.org",), blindkopie=("archiv@example.de",))
+
+
+def test_entwurf_oeffnen_meldet_sich_einmal_an_und_holt_nur_kopfzeilen(oeffne_befehl,
+                                                                         monkeypatch, capsys):
+    """#481: Bis dahin eine zweite Anmeldung und `BODY.PEEK[]` für den einen
+    Treffer. Das war die ganze Nachricht samt Anhängen, gebraucht wurden drei
+    Kopfzeilen, die die erste Sitzung schon hatte."""
+    server = _entwurf_mit_kopien(monkeypatch)
+    _bruecke(monkeypatch, _offen_mit(an=("b@example.org",), kopie=("c@example.org",),
+                                     blindkopie=("archiv@example.de",),
+                                     betreff="Vektor S2: Wappen"))
+    assert oeffne_befehl("--betreff", "wappen") == 0
+    assert "OK  Empfänger im Fenster wie in der Nachricht: An 1, Cc 1, Bcc 1" in capsys.readouterr().out
+    abrufe = [befehl[2] for befehl in server.befehle("UID FETCH")]
+    assert len(server.angemeldet) == 1, f"{len(server.angemeldet)} Anmeldungen am Postfach"
+    assert abrufe and all("HEADER.FIELDS" in teile for teile in abrufe), (
+        f"ein Abruf ohne Feldliste holt die ganze Nachricht: {abrufe}")
+
+
+def test_entwurf_oeffnen_sieht_ein_fehlendes_cc(oeffne_befehl, monkeypatch, capsys):
+    """Die Trennung trägt: Steht die Kopie im Fenster nicht, fehlt sie im Cc und
+    nirgends sonst. Mit `Kopf.an` als Maßstab stünde sie unter An."""
+    _entwurf_mit_kopien(monkeypatch)
+    _bruecke(monkeypatch, _offen_mit(an=("b@example.org",), blindkopie=("archiv@example.de",),
+                                     betreff="Vektor S2: Wappen"))
+    assert oeffne_befehl("--betreff", "wappen") == 3
+    fehler = capsys.readouterr().err
+    assert "EMPFÄNGER PRÜFEN" in fehler and "Cc: fehlt c@example.org" in fehler
+    assert "An: " not in fehler and "Bcc: " not in fehler, fehler
 
 
 def test_entwurf_oeffnen_mit_leerem_fenster_ist_exit_3(oeffne_befehl, monkeypatch, capsys):

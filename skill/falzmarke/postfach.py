@@ -232,6 +232,18 @@ def ziel(umgebung: Mapping[str, str]) -> tuple[str, int]:
 
 # ── Kopfzeilen ──────────────────────────────────────────────────────────────
 
+class Empfaenger(NamedTuple):
+    """An, Cc und Bcc einer Nachricht, je für sich, als reine Adressen, klein.
+
+    Der Maßstab für das Verfassen-Fenster (#464), in derselben Form wie bei
+    `eml.entwurfsfelder`: `_asdict()` ist, was `oeffnen.empfaenger_pruefen` liest.
+    """
+
+    an: tuple[str, ...]
+    kopie: tuple[str, ...]
+    blindkopie: tuple[str, ...]
+
+
 class Kopf(NamedTuple):
     """Was aus den Kopfzeilen einer Nachricht gebraucht wird."""
 
@@ -245,6 +257,10 @@ class Kopf(NamedTuple):
     antwort_auf: str
     #: Die `Message-ID` der Nachricht, roh.
     kennung: str = ""
+    #: Dieselben Adressen wie `an`, aber nach Feldern getrennt (#481). `None`
+    #: heißt: nicht aus Kopfzeilen gelesen, sondern von Hand gebaut. Das ist
+    #: etwas anderes als ein Entwurf ohne Empfänger.
+    empfaenger: Empfaenger | None = None
 
 
 def _adressen(nachricht, *felder: str) -> tuple[str, ...]:
@@ -272,16 +288,10 @@ def kopf_aus(roh: bytes, uid: str, ankunft: datetime | None) -> Kopf:
     return Kopf(uid=uid, datum=datum or ankunft, an=_adressen(nachricht, "To", "Cc", "Bcc"),
                 betreff=betreff, fassung=str(nachricht.get("X-Falzmarke-Fassung") or "").strip(),
                 antwort_auf=str(nachricht.get("In-Reply-To") or "").strip(),
-                kennung=str(nachricht.get("Message-ID") or "").strip())
-
-
-def empfaengerfelder(roh: bytes) -> dict[str, tuple[str, ...]]:
-    """An, Cc und Bcc einer Nachricht, getrennt und klein — der Maßstab für das
-    Verfassen-Fenster (#464). `Kopf.an` wirft die drei zusammen; hier bleibt
-    jedes Feld für sich, in derselben Form wie bei `eml.entwurfsfelder`."""
-    nachricht = email.message_from_bytes(roh, policy=policy.compat32)
-    return {"an": _adressen(nachricht, "To"), "kopie": _adressen(nachricht, "Cc"),
-            "blindkopie": _adressen(nachricht, "Bcc")}
+                kennung=str(nachricht.get("Message-ID") or "").strip(),
+                empfaenger=Empfaenger(an=_adressen(nachricht, "To"),
+                                      kopie=_adressen(nachricht, "Cc"),
+                                      blindkopie=_adressen(nachricht, "Bcc")))
 
 
 def _dekodiert(wert) -> str:
