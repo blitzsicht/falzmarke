@@ -66,7 +66,9 @@ GRENZE = 500
 #: spitzen Klammern trifft eine Nachricht; eine ohne (die `kennungen` roh
 #: durchreicht) ist eine Teilkette und kann in einem alten Eingang tausendfach
 #: treffen. Ohne Grenze holte der kopflose `aufraeumen`-Lauf dann jeden dieser
-#: Köpfe (Nachreview von #479). Die Kappung steht wie bei `koepfe` in `gekappt`.
+#: Köpfe (Nachreview von #479). Die Kappung steht in `suchkappungen`, nicht in
+#: `gekappt`: Gekappt ist dann die Trefferliste, nicht der Ordner (Nachreview
+#: von #492, Befund 1).
 SUCHGRENZE = 4 * GRENZE
 
 #: Die Kopfzeilen, die je Nachricht gelesen werden — nie der ganze Inhalt,
@@ -391,6 +393,11 @@ class Postfach:
         self._bis = time.monotonic() + frist
         #: Ordner, in denen `koepfe` mehr fand, als es ansah: (gefunden, angesehen).
         self.gekappt: dict[str, tuple[int, int]] = {}
+        #: Kennungssuchen, die mehr Teiltreffer fanden, als sie verglichen:
+        #: (ordner, kennung, gefunden, verglichen). Getrennt von `gekappt`, denn
+        #: der Ordner selbst wurde dabei nicht gekappt, und ein zweiter Eintrag
+        #: unter demselben Ordnernamen überschriebe eine echte Ordnerkappung.
+        self.suchkappungen: list[tuple[str, str, int, int]] = []
 
     def __enter__(self) -> "Postfach":
         return self
@@ -493,11 +500,20 @@ class Postfach:
         Grenz-Hinweis erschiene dann obendrein, ausgelöst nur von fremden
         Treffern. `koepfe` holt sie in Stücken zu höchstens `GRENZE` UIDs je
         Befehl.
+
+        Gekappt wird hier, nicht in `koepfe`, und vermerkt in `suchkappungen`.
+        Bis zum Nachreview von #492 kappte `koepfe` und schrieb nach `gekappt`;
+        dann hieß es „nur die neuesten 2000 von N Mails angesehen“ über einen
+        Ordner, der gar nicht gekappt war (Befund 1).
         """
         uids = self._suche_kopfzeile(ordner, "Message-ID", kennung)
         if not uids:
             return []
-        return [kopf for kopf in self.koepfe(ordner, uids=uids, grenze=SUCHGRENZE)
+        grenze = SUCHGRENZE
+        if len(uids) > grenze:
+            self.suchkappungen.append((ordner, kennung, len(uids), grenze))
+            uids = uids[-grenze:]
+        return [kopf for kopf in self.koepfe(ordner, uids=uids, grenze=grenze)
                 if gleiche_kennung(kennung, kopf.kennung)]
 
     def koepfe(self, ordner: str, seit: date | None = None, *,

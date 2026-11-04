@@ -174,10 +174,45 @@ def test_mehr_teiltreffer_als_die_suchgrenze_werden_gekappt_und_gemeldet(monkeyp
     _, sitzung = _postfach(eingang=fremde)
     with sitzung:
         assert sitzung.suche_kennung("INBOX", "123") == []
-        assert sitzung.gekappt == {"INBOX": (4, 3)}, "die Teiltreffer wurden nicht gekappt"
+        assert sitzung.suchkappungen == [("INBOX", "123", 4, 3)], \
+            "die Teiltreffer wurden nicht gekappt"
+        assert sitzung.gekappt == {}, f"Suchkappung als Ordnerkappung: {sitzung.gekappt}"
     _, sitzung = _postfach(eingang=fremde[:3])                       # Gegenstück: unter der Grenze
     with sitzung:
-        assert sitzung.suche_kennung("INBOX", "123") == [] and sitzung.gekappt == {}
+        assert sitzung.suche_kennung("INBOX", "123") == [] and sitzung.suchkappungen == []
+
+
+def test_eine_gekappte_suche_meldet_die_kennung_nicht_den_ordner(monkeypatch):
+    """Nachreview von #492, Befund 1: Die Suchkappung hieß „„INBOX“: nur die
+    neuesten 3 von 4 Mails angesehen“, obwohl der Eingang nicht gekappt war."""
+    monkeypatch.setattr(postfach, "SUCHGRENZE", 3)
+    fremde = [_eingegangen(f"<x123y{i}@example.org>", betreff=f"fremd {i}", tage=4 - i)
+              for i in range(4)]
+    _, sitzung = _postfach(eingang=fremde, gesendet=[_antwort("123")])
+    with sitzung:
+        bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+    assert not [h for h in bericht.hinweise if "Mails angesehen" in h], \
+        f"Suchkappung als Ordnerkappung gemeldet: {bericht.hinweise}"
+    assert ("Kennung „123“ in „INBOX“: nur 3 von 4 Teiltreffern verglichen, die neuesten — "
+            "eine ältere Nachricht mit dieser Kennung fehlt womöglich im Abgleich"
+            in bericht.hinweise), f"Suchkappung ohne Hinweis: {bericht.hinweise}"
+
+
+def test_eine_suche_ueberschreibt_die_kappung_des_ordners_nicht(monkeypatch):
+    """Nachreview von #492, Befund 1, die zweite Folge: Die Suche schrieb unter
+    demselben Ordnernamen und löschte eine echte Ordnerkappung aus dem Bericht."""
+    monkeypatch.setattr(postfach, "GRENZE", 2)
+    monkeypatch.setattr(postfach, "SUCHGRENZE", 3)
+    fremde = [_eingegangen(f"<x123y{i}@example.org>", betreff=f"fremd {i}", tage=5 - i)
+              for i in range(5)]
+    _, sitzung = _postfach(eingang=fremde)
+    with sitzung:
+        sitzung.koepfe("INBOX")
+        assert sitzung.gekappt == {"INBOX": (5, 2)}, "Kontrollprobe: der Ordner ist gekappt"
+        sitzung.suche_kennung("INBOX", "123")
+        assert sitzung.gekappt == {"INBOX": (5, 2)}, \
+            f"die Suche überschrieb die Ordnerkappung: {sitzung.gekappt}"
+        assert sitzung.suchkappungen == [("INBOX", "123", 5, 3)]
 
 
 def test_eine_kennung_ohne_klammern_findet_ihre_nachricht():

@@ -3763,7 +3763,7 @@ def test_vor_dem_vergleich_gekappt_faellt_die_echte_nachricht_heraus(monkeypatch
     probe(monkeypatch)  # Kontrollprobe: unsabotiert grün
     monkeypatch.setattr(_postfach_modul.Postfach, "suche_kennung", _zeile_ersetzt(
         _postfach_modul, "Postfach.suche_kennung",
-        "uids=uids, grenze=SUCHGRENZE)", "uids=uids)"))
+        "uids=uids, grenze=grenze)", "uids=uids)"))
     with pytest.raises(AssertionError, match=r"\['echt'\]"):
         probe(monkeypatch)
 
@@ -3901,9 +3901,50 @@ def test_ohne_suchgrenze_holt_suche_kennung_jeden_teiltreffer(monkeypatch):
         test_mehr_teiltreffer_als_die_suchgrenze_werden_gekappt_und_gemeldet as probe)
 
     probe(monkeypatch)                                                            # Kontrolle
+    # Seit dem Nachreview von #492 kappt `suche_kennung` selbst, mit `grenze`.
     monkeypatch.setattr(_postfach_modul.Postfach, "suche_kennung", _zeile_ersetzt(
-        _postfach_modul, "Postfach.suche_kennung", "grenze=SUCHGRENZE)", "grenze=len(uids))"))
+        _postfach_modul, "Postfach.suche_kennung", "grenze = SUCHGRENZE", "grenze = len(uids)"))
     with pytest.raises(AssertionError, match="nicht gekappt"):
+        probe(monkeypatch)
+
+
+# Nachreview von #492, Befund 1: Die Suchkappung stand unter dem Ordnernamen in
+# `gekappt`. Die Sabotage baut genau diese Zeile nach.
+_SUCHKAPPUNG_492 = "self.suchkappungen.append((ordner, kennung, len(uids), grenze))"
+_ALS_ORDNERKAPPUNG_492 = "self.gekappt[ordner] = (len(uids), grenze)"
+
+
+def test_als_ordnerkappung_meldet_die_suche_einen_ungekappten_ordner(monkeypatch):
+    from falzmarke import postfach as _postfach_modul
+    from test_ablage import test_eine_gekappte_suche_meldet_die_kennung_nicht_den_ordner as probe
+
+    probe(monkeypatch)                                                            # Kontrolle
+    monkeypatch.setattr(_postfach_modul.Postfach, "suche_kennung", _zeile_ersetzt(
+        _postfach_modul, "Postfach.suche_kennung", _SUCHKAPPUNG_492, _ALS_ORDNERKAPPUNG_492))
+    with pytest.raises(AssertionError, match="Suchkappung als Ordnerkappung gemeldet"):
+        probe(monkeypatch)
+
+
+def test_als_ordnerkappung_ueberschreibt_die_suche_die_echte_kappung(monkeypatch):
+    from falzmarke import postfach as _postfach_modul
+    from test_ablage import test_eine_suche_ueberschreibt_die_kappung_des_ordners_nicht as probe
+
+    probe(monkeypatch)                                                            # Kontrolle
+    monkeypatch.setattr(_postfach_modul.Postfach, "suche_kennung", _zeile_ersetzt(
+        _postfach_modul, "Postfach.suche_kennung", _SUCHKAPPUNG_492, _ALS_ORDNERKAPPUNG_492))
+    with pytest.raises(AssertionError,
+                       match=r"die Suche überschrieb die Ordnerkappung: \{'INBOX': \(5, 3\)\}"):
+        probe(monkeypatch)
+
+
+def test_ohne_eigenen_satz_bleibt_die_gekappte_suche_stumm(monkeypatch):
+    from falzmarke import ablage as _ablage
+    from test_ablage import test_eine_gekappte_suche_meldet_die_kennung_nicht_den_ordner as probe
+
+    probe(monkeypatch)                                                            # Kontrolle
+    monkeypatch.setattr(_ablage, "_kappungen", _zeile_ersetzt(
+        _ablage, "_kappungen", "in sitzung.suchkappungen)", "in [])"))
+    with pytest.raises(AssertionError, match="Suchkappung ohne Hinweis"):
         probe(monkeypatch)
 
 

@@ -402,16 +402,25 @@ def plane(sitzung: postfach.Postfach, *, wunsch: str | None = None,
 
 
 def _kappungen(sitzung: postfach.Postfach) -> tuple[str, ...]:
-    """Je Ordner, in dem `koepfe` mehr fand als es ansah, ein Satz.
+    """Je Ordner, in dem `koepfe` mehr fand als es ansah, ein Satz; dazu je
+    gekappter Kennungssuche einer.
 
     Derselbe Wortlaut wie in `entwurfsbuch` (ADR 0055): Dort steht er für
     dieselben Ordner, und zwei Formulierungen für dieselbe Lücke wären für den
     Leser zwei verschiedene Lücken.
     """
-    return tuple(
+    ordner_saetze = tuple(
         f"„{postfach.utf7_dekodieren(ordner)}“: nur die neuesten {angesehen} von {alle} "
         "Mails angesehen — was davor liegt, fehlt im Abgleich"
         for ordner, (alle, angesehen) in sorted(sitzung.gekappt.items()))
+    # Eine gekappte Kennungssuche ist eine andere Lücke als ein gekappter Ordner
+    # und bekommt ihren eigenen Satz (Nachreview von #492, Befund 1).
+    such_saetze = tuple(
+        f"Kennung „{kennung}“ in „{postfach.utf7_dekodieren(ordner)}“: nur {verglichen} von "
+        f"{alle} Teiltreffern verglichen, die neuesten — eine ältere Nachricht mit dieser "
+        "Kennung fehlt womöglich im Abgleich"
+        for ordner, kennung, alle, verglichen in sitzung.suchkappungen)
+    return ordner_saetze + such_saetze
 
 
 def _unsendbare(anzahl: int) -> tuple[str, ...]:
