@@ -10,9 +10,13 @@ Exit 2, weil der Unterbefehl `mcp` und das optionale SDK fehlen.
 Geprüft wird hier zweierlei, beides ohne Netz. Der Handschlag startet den Dienst über
 einen Ersatz für `uvx` (`_startbefehl`: der Interpreter der Testumgebung, das Paket
 über PYTHONPATH aus dem Repository, dahinter die Paketargumente des Eintrags). Und
-`_uvx_befehl` hält fest, dass der Eintrag genau den Befehl ergibt, der am 02.11.2026
-von Hand gefahren wurde (`docs/bestandsaufnahme-distribution.md`); verglichen wird
-gegen eine feste Liste.
+`_uvx_befehl` baut aus dem Paketeintrag den Befehl, den ein Client daraus macht. Der
+Test vergleicht ihn mit der Form des Befehls, der am 02.11.2026 von Hand gefahren wurde
+(`docs/bestandsaufnahme-distribution.md`): `uvx`, `--with`, `mcp~=2.0` und `mcp` stehen
+fest im Test, die Paketversion setzt er aus `server.json` selbst ein (das obere Feld
+`version`). Geprüft sind damit die Form des Befehls und dass `packages[0].version` zum
+oberen Feld passt, nicht die Nummer selbst; die hält `tests/test_version.py` gegen
+`pyproject.toml`.
 
 Den echten Start mit `uvx` aus einem gebauten Paket prüft derzeit niemand vor dem
 Release, weder die CI noch `scripts/vor_dem_tag.sh`. Die Tabelle in der
@@ -25,7 +29,6 @@ Jede Prüfung hat eine Gegenprobe, die rot werden muss.
 from __future__ import annotations
 
 import copy
-import importlib.util
 import json
 import os
 import re
@@ -36,19 +39,16 @@ from urllib.parse import parse_qs, urlsplit
 
 import jsonschema
 import pytest
-import yaml
-from conftest import REPO
+from conftest import REPO, packer
 from packaging.requirements import Requirement
 
 SCHEMAS = REPO / "tests" / "schemas"
 SERVER_JSON = REPO / "server.json"
-SKILL_MD = REPO / "skill" / "SKILL.md"
 LISTINGS = REPO / "docs" / "listings.md"
 PLUGIN_ORDNER = REPO / "skill"
 CLAUDE_MANIFEST = PLUGIN_ORDNER / ".claude-plugin" / "plugin.json"
 PLUGIN_README = PLUGIN_ORDNER / "README.md"
 HANDSCHLAG = REPO / "scripts" / "mcp_handschlag.py"
-PACKER = REPO / "scripts" / "plugin_packen.py"
 
 #: Dieselben sieben Ziele wie im Auftrag; die Reihenfolge ist die der Datei.
 ZIELE = ["Anthropic-Plugin-Verzeichnis", "mcp.so", "Smithery", "Glama",
@@ -108,14 +108,12 @@ def _server() -> dict:
 
 
 def _skill_kopf() -> dict:
-    return yaml.safe_load(SKILL_MD.read_text(encoding="utf-8").split("---", 2)[1])
+    """Der Kopf von SKILL.md, gelesen wie beim Packen: mit `plugin_packen.skill_kopf`."""
+    return packer().skill_kopf(PLUGIN_ORDNER)
 
 
 def _plugin_manifest() -> dict:
-    spec = importlib.util.spec_from_file_location("falzmarke_plugin_packen", PACKER)
-    modul = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(modul)
-    return modul.manifest(modul.projekt())
+    return packer().manifest(packer().projekt())
 
 
 # ── MCP-Definition ──────────────────────────────────────────────────────────

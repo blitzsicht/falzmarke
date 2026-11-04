@@ -98,7 +98,9 @@ def test_kein_proxy_ist_ein_grund(monkeypatch):
 def test_zeitueberschreitung_ist_ein_grund(monkeypatch):
     monkeypatch.setattr(postfach, "IMAP_KLASSE",
                         ImapAttrappe(verbindungsfehler=TimeoutError("timed out")))
-    with pytest.raises(postfach.PostfachFehler, match="5 s"):
+    # Die Meldung nennt die Frist. Ihren Wert prüft `test_gesendet` gegen die
+    # gemessene Anmeldung (#441).
+    with pytest.raises(postfach.PostfachFehler, match=f"in {postfach.FRIST_S:g} s$"):
         postfach.verbinde("joe@example.org", umgebung={})
 
 

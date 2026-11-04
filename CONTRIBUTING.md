@@ -173,18 +173,21 @@ erzeugt (`python3 scripts/changelog.py`, oder `make changelog`) — ihn nie von 
 ihn stehen lässt, zeigt auf der Produktseite einen Stand, den es nicht mehr gibt, und
 `tests/test_changelog.py` schlägt fehl.
 
-**Die Versionsnummer steht an fünf Stellen**, und beim Bump wandern alle mit:
+**Die Versionsnummer steht in sechs Feldern in fünf Dateien**, und beim Bump wandern alle
+mit. Dazu kommt die Überschrift in `CHANGELOG.md`:
 
 | Datei | Schlüssel |
 |---|---|
 | `pyproject.toml` | `project.version` (die Quelle, gegen die alle anderen geprüft werden) |
 | `skill/falzmarke/__init__.py` | `__version__` |
-| `server.json` | `version` und `packages[0].version` |
-| `skill/SKILL.md` | `metadata.version`, als Zeichenkette in Anführungszeichen |
+| `server.json` | `version` und `packages[0].version`, also zwei Felder |
+| `skill/SKILL.md` | `metadata.version`, als Zeichenkette; Anführungszeichen empfohlen, weil YAML z. B. `1.0` sonst als Zahl liest |
 | `skill/.claude-plugin/plugin.json` | `version` |
+| `CHANGELOG.md` | Überschrift `## v<version>`; sie entsteht mit `python3 scripts/changelog.py --buendeln v<version>` und wird nicht von Hand geschrieben |
 
-`tests/test_version.py` hält jede davon gegen `pyproject.toml`. Das ChatGPT-Paket übernimmt
-die Version beim Packen aus `pyproject.toml` (`scripts/plugin_packen.py`).
+`tests/test_version.py` hält jedes der sechs Felder gegen `pyproject.toml` und verlangt die
+Überschrift (`test_changelog_kennt_die_version`). Das ChatGPT-Paket übernimmt die Version beim
+Packen aus `pyproject.toml` (`scripts/plugin_packen.py`).
 
 **Die Rechnungs-Goldens bleiben beim Bump unberührt.** Ein Rechnungs-PDF führt die Fassung in
 `/Producer` und `/falzmarke_Version`. Bis 0.11.2 stand dort die Paketversion, und jedes Release

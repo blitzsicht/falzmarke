@@ -2000,6 +2000,97 @@ def test_ohne_doppelprobe_entsteht_ein_zweiter_entwurf(tmp_path, monkeypatch):
     assert not lage.schon_da and abgelegt == 1
 
 
+@pytest.fixture
+def _email_befehl_441(tmp_path, monkeypatch):
+    """`befehl` aus `test_postfach_entwurf.py`; Fixtures eines anderen Moduls
+    sind hier nicht zu haben."""
+    import functools
+
+    from test_oeffnen import THUNDERBIRD_PFAD, Thunderbird
+    from test_postfach_entwurf import MAIL
+
+    monkeypatch.delenv("CI", raising=False)
+    monkeypatch.delenv("FALZMARKE_OEFFNEN", raising=False)
+    monkeypatch.setenv("DISPLAY", ":0")
+    tb = Thunderbird()
+    echt = _oeffnen.entwurf
+    monkeypatch.setattr(_oeffnen, "entwurf", functools.partial(
+        echt, plattform="darwin", umgebung={"DISPLAY": ":0"}, laufen=tb,
+        binaer=lambda: THUNDERBIRD_PFAD))
+    quelle = tmp_path / "antwort.md"
+    quelle.write_text(MAIL, encoding="utf-8")
+
+    def lauf(*extra):
+        return falzmarke.main(["email", str(quelle), "--profiles", str(PROFILE), "--oeffnen",
+                               *extra])
+    lauf.tb, lauf.echt = tb, echt
+    return lauf
+
+
+def test_ohne_sperre_im_entwurf_geht_mit_kein_fenster_compose_auf(_email_befehl_441,
+                                                                   monkeypatch, capsys):
+    """#441, Abnahme 3: der Rückfall auf `-compose`, wie vor dem Fix."""
+    import functools
+
+    from test_oeffnen import THUNDERBIRD_PFAD
+    from test_postfach_entwurf import (
+        test_kein_fenster_ohne_proxy_oeffnet_nichts_und_endet_mit_exit_3 as probe)
+
+    probe(_email_befehl_441, monkeypatch, capsys)                          # Kontrolle
+    # Die Fixture hat `entwurf` schon durch ein `partial` ersetzt; gekippt wird
+    # das Original, und es bekommt dieselben Attrappen.
+    monkeypatch.setattr(_oeffnen, "entwurf", _email_befehl_441.echt)
+    kaputt = _zeile_ersetzt(_oeffnen, "entwurf", "if kein_fenster:", "if False:")
+    monkeypatch.setattr(_oeffnen, "entwurf", functools.partial(
+        kaputt, plattform="darwin", umgebung={"DISPLAY": ":0"},
+        laufen=_email_befehl_441.tb, binaer=lambda: THUNDERBIRD_PFAD))
+    with pytest.raises(AssertionError, match="-compose trotz --kein-fenster"):
+        probe(_email_befehl_441, monkeypatch, capsys)
+
+
+def test_ohne_sperre_im_befehl_geht_mit_kein_fenster_die_datei_auf(_email_befehl_441,
+                                                                    monkeypatch, capsys):
+    from test_postfach_entwurf import (
+        test_kein_fenster_ohne_entwurfsweg_uebergibt_auch_die_datei_nicht as probe)
+
+    probe(_email_befehl_441, monkeypatch, capsys)                          # Kontrolle
+    monkeypatch.setattr(falzmarke, "befehl_email", _zeile_ersetzt(
+        falzmarke, "befehl_email", "elif args.kein_fenster:", "elif False:"))
+    with pytest.raises(AssertionError, match="die Datei ging trotz --kein-fenster auf"):
+        probe(_email_befehl_441, monkeypatch, capsys)
+
+
+@pytest.fixture
+def eigene_441(tmp_path) -> Path:
+    return _eigene_mail(tmp_path)
+
+
+def test_mit_der_alten_frist_wird_die_probe_zur_gesendet_pruefung_rot(eigene_441, monkeypatch):
+    """#441, Abnahme 4: `verbinde` wieder mit 5 s Vorgabe."""
+    from falzmarke import postfach as _postfach
+    from test_gesendet import (
+        test_die_gesendet_pruefung_wartet_laenger_als_die_langsamste_anmeldung as probe)
+
+    probe(eigene_441, monkeypatch)                                         # Kontrolle
+    monkeypatch.setattr(_postfach, "verbinde", _zeile_ersetzt(
+        _postfach, "verbinde", "frist: float = FRIST_S", "frist: float = 5"))
+    with pytest.raises(AssertionError, match=r"Frist 5 s, die Anmeldung dauerte 20\.6 s"):
+        probe(eigene_441, monkeypatch)
+
+
+def test_ohne_sperre_im_befehl_geht_ohne_proxy_die_datei_auf(_email_befehl_441,
+                                                            monkeypatch, capsys):
+    """Die Sperre in `entwurf` allein hielte `-compose` fern, aber die Datei ginge auf."""
+    from test_postfach_entwurf import (
+        test_kein_fenster_ohne_proxy_oeffnet_nichts_und_endet_mit_exit_3 as probe)
+
+    probe(_email_befehl_441, monkeypatch, capsys)                          # Kontrolle
+    monkeypatch.setattr(falzmarke, "befehl_email", _zeile_ersetzt(
+        falzmarke, "befehl_email", "elif args.kein_fenster:", "elif False:"))
+    with pytest.raises(AssertionError, match="die Datei ging trotz --kein-fenster auf"):
+        probe(_email_befehl_441, monkeypatch, capsys)
+
+
 def test_ohne_signaturklasse_findet_die_pruefung_keine_signatur(tmp_path, monkeypatch):
     """Sabotage: Die Hülle der Signatur trägt eine andere Klasse. Dann findet
     die Prüfung aus `test_moz_signatur.py` kein Element mehr — und Thunderbirds
@@ -2193,7 +2284,7 @@ def test_eine_geratene_zuordnung_verliert_das_konto_mit_fremdem_login(monkeypatc
     """
     from falzmarke import entwurfsbuch as _buch
 
-    def geraten(fenster, adresse):
+    def geraten(fenster, adresse, kontoadressen=None):
         # `unquote` gehört dazu: Die URI trägt die Adresse prozentcodiert
         # (`order%40example.de`), und ohne das Entpacken träfe die Teilkette
         # auch im alten Code nie — der Nachbau wäre dann milder als das
@@ -2227,7 +2318,7 @@ def test_ohne_pruefung_der_identitaet_gewinnt_das_fremde_fenster(monkeypatch):
     """
     from falzmarke import entwurfsbuch as _buch
 
-    def nur_uid(fenster, adresse):
+    def nur_uid(fenster, adresse, kontoadressen=None):
         aus = {}
         for eintrag in fenster:
             treffer = _buch.UID_AUS_URI.search(str(eintrag.get("draft_id") or ""))
@@ -2293,6 +2384,56 @@ def test_kippt_der_vergleich_in_nur_uid_gilt_der_alias_als_sicher_zugeordnet(mon
         'return str(fenster.get("identitaet") or "").strip().lower() != adresse.strip().lower()',
         'return not str(fenster.get("identitaet") or "").strip()'))
     assert not _buch.nur_uid(fremd, _VON_410)
+
+
+# #466: Die Identitäten des Kontos aus dem Profil trennen Alias und fremdes
+# Konto. Die Probe der einen Seite bleibt unter der Sabotage der anderen grün.
+
+@pytest.mark.parametrize("identitaet", ["andere@example.org", "fremd@example.net"],
+                         ids=["anderes-konto", "in-keinem-konto"])
+def test_ohne_kontoadressen_haelt_ein_fremdes_fenster_wieder_offen(monkeypatch, tmp_path,
+                                                                   identitaet):
+    from falzmarke import entwurfsbuch as _buch
+    from test_entwurfsbuch import (
+        test_mit_profil_faellt_ein_fremdes_fenster_derselben_uid_heraus as probe,
+        test_mit_profil_ist_der_alias_sicher_zugeordnet as alias)
+
+    probe(monkeypatch, tmp_path / "k", identitaet)                         # Kontrolle
+    monkeypatch.setattr(_buch, "_offene_uids", _zeile_ersetzt(
+        _buch, "_offene_uids", 'return fenster_des_kontos(fenster, adresse, adressen), ""',
+        'return fenster_des_kontos(fenster, adresse), ""'))
+    with pytest.raises(AssertionError, match=f"ein Fenster von {identitaet} hält den "
+                                             "Entwurf offen"):
+        probe(monkeypatch, tmp_path / "s", identitaet)
+    # Der Alias fällt auf den nachsichtigen Weg zurück: OFFEN, aber ohne Zuordnung.
+    with pytest.raises(AssertionError, match="einer Identität desselben Kontos"):
+        alias(monkeypatch, tmp_path / "a")
+
+
+def test_ohne_alias_ausnahme_wartet_auch_der_alias(monkeypatch, tmp_path):
+    from falzmarke import entwurfsbuch as _buch
+    from test_entwurfsbuch import (
+        test_mit_profil_faellt_ein_fremdes_fenster_derselben_uid_heraus as fremd,
+        test_mit_profil_ist_der_alias_sicher_zugeordnet as alias)
+
+    alias(monkeypatch, tmp_path / "k")                                     # Kontrolle
+    monkeypatch.setattr(_buch, "fenster_des_kontos", _zeile_ersetzt(
+        _buch, "fenster_des_kontos", "if gemeldet not in kontoadressen:", "if True:"))
+    with pytest.raises(AssertionError, match="der Alias hält den Entwurf nicht offen"):
+        alias(monkeypatch, tmp_path / "s")
+    fremd(monkeypatch, tmp_path / "f", "andere@example.org")  # trägt den Fall nicht
+
+
+def test_ohne_alias_marke_in_nur_uid_meldet_json_den_alias_als_uid_treffer(monkeypatch,
+                                                                         tmp_path):
+    from falzmarke import entwurfsbuch as _buch
+    from test_entwurfsbuch import test_mit_profil_ist_der_alias_sicher_zugeordnet as alias
+
+    alias(monkeypatch, tmp_path / "k")                                     # Kontrolle
+    monkeypatch.setattr(_buch, "nur_uid", _zeile_ersetzt(
+        _buch, "nur_uid", "if fenster.get(ALIAS_DES_KONTOS):", "if False:"))
+    with pytest.raises(AssertionError, match="fenster_nur_uid am Alias"):
+        alias(monkeypatch, tmp_path / "s")
 
 
 def test_ohne_zweiten_rang_gewinnt_die_reihenfolge_der_liste(monkeypatch):

@@ -293,6 +293,49 @@ def test_befehl_ohne_proxy_sagt_warum_compose(befehl, monkeypatch, capsys):
     assert len(befehl.tb.compose) == 1
 
 
+# ── --kein-fenster ohne Postfach (#441) ─────────────────────────────────────
+#
+# Der Abholer in siluri-angebote ruft alle 180 s kopflos auf. Fällt der Proxy
+# aus, öffnete jeder Takt ein `-compose`-Fenster, und scheiterte auch das, ging
+# die Datei als Lesefenster auf. Die Gegenprobe ohne Schalter ist
+# `test_befehl_ohne_proxy_sagt_warum_compose` direkt darüber: derselbe Aufbau,
+# genau ein `-compose`.
+
+def _datei_uebergaben(monkeypatch) -> list:
+    uebergeben: list = []
+    monkeypatch.setattr(oeffnen, "oeffne", lambda pfad, **k: uebergeben.append(pfad))
+    return uebergeben
+
+
+def test_kein_fenster_ohne_proxy_oeffnet_nichts_und_endet_mit_exit_3(befehl, monkeypatch,
+                                                                     capsys):
+    monkeypatch.setattr(postfach, "IMAP_KLASSE",
+                        ImapAttrappe(verbindungsfehler=ConnectionRefusedError(61, "refused")))
+    uebergeben = _datei_uebergaben(monkeypatch)
+    code = befehl("--kein-fenster")
+    ausgabe = capsys.readouterr()
+    assert befehl.tb.compose == [], "-compose trotz --kein-fenster"
+    assert uebergeben == [], "die Datei ging trotz --kein-fenster auf"
+    assert code == falzmarke.EXIT_UMGEBUNG, f"Exit {code} ohne Entwurf"
+    assert "KEIN ENTWURF  kein Postfach-Entwurf: kein IMAP-Proxy unter" in ausgabe.err
+    assert "Die geprüfte Nachricht liegt hier:" in ausgabe.err
+    assert "OK  Entwurf" not in ausgabe.out
+
+
+def test_kein_fenster_ohne_entwurfsweg_uebergibt_auch_die_datei_nicht(befehl, monkeypatch,
+                                                                      capsys):
+    """Kein Weg zum Entwurf, etwa kein Mailprogramm. Ohne Schalter geht die Datei auf."""
+    monkeypatch.setattr(oeffnen, "entwurf",
+                        lambda felder, **k: oeffnen.Entwurfslage(None, "kein Mailprogramm"))
+    uebergeben = _datei_uebergaben(monkeypatch)
+    assert befehl() == 0 and len(uebergeben) == 1                          # Gegenprobe
+    capsys.readouterr()
+    code = befehl("--kein-fenster")
+    assert len(uebergeben) == 1, "die Datei ging trotz --kein-fenster auf"
+    assert code == falzmarke.EXIT_UMGEBUNG, f"Exit {code} ohne Entwurf"
+    assert "KEIN ENTWURF  kein Mailprogramm" in capsys.readouterr().err
+
+
 def test_die_abgelegte_datei_ist_die_gemessene(eml_pfad, felder, monkeypatch):
     """Was im Postfach liegt, ist byte-gleich die Datei, die `verify --email` maß —
     nicht eine zweite Ableitung."""

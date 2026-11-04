@@ -1733,6 +1733,80 @@ def test_ein_gemeldeter_absender_traegt_die_zuordnung_selbst(monkeypatch):
     assert zustand["fenster_nur_uid"] is False
 
 
+# ── Die Identitäten des Kontos aus dem Profil (#466) ────────────────────────
+
+ALIAS = "verkauf@example.de"
+ANDERES_KONTO = "andere@example.org"
+
+
+def _profil_des_kontos(monkeypatch, tmp_path, *, mit_konto: bool = True):
+    """Konto 1 führt VON und ALIAS, Konto 2 ANDERES_KONTO. Ohne `mit_konto`
+    kennt das Profil nur Konto 2."""
+    from test_thunderbird_signatur import _attrappe
+
+    werte = {"mail.accountmanager.accounts": "account1,account2" if mit_konto else "account2",
+             "mail.account.account1.identities": "id1,id3",
+             "mail.account.account2.identities": "id2",
+             "mail.identity.id1.useremail": VON,
+             "mail.identity.id3.useremail": ALIAS,
+             "mail.identity.id2.useremail": ANDERES_KONTO}
+    monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER", _attrappe(tmp_path / "profil", werte))
+
+
+@pytest.mark.parametrize("identitaet", [ANDERES_KONTO, "fremd@example.net"],
+                         ids=["anderes-konto", "in-keinem-konto"])
+def test_mit_profil_faellt_ein_fremdes_fenster_derselben_uid_heraus(monkeypatch, tmp_path,
+                                                                    identitaet):
+    """Der Preis von #462: Ein Fenster eines anderen Kontos mit derselben
+    UID-Zahl machte den Entwurf `OFFEN`. Kennt das Profil die Identitäten des
+    Kontos, ist eine Meldung außerhalb davon kein Alias, und der Entwurf wartet."""
+    _profil_des_kontos(monkeypatch, tmp_path)
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    uid = server.ordner[ENTWUERFE][0].uid
+    _mit_fenstern(monkeypatch, _fenster(uid, identitaet=identitaet))
+    zustand = _einziger(_stand())
+    assert zustand.art == "wartet", f"ein Fenster von {identitaet} hält den Entwurf {zustand.art}"
+    assert zustand.fenster is None
+
+
+def test_mit_profil_ist_der_alias_sicher_zugeordnet(monkeypatch, tmp_path):
+    """Der Alias desselben Kontos hält den Entwurf offen, und die Ausgabe sagt
+    nicht mehr „nur über die UID“."""
+    _profil_des_kontos(monkeypatch, tmp_path)
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    uid = server.ordner[ENTWUERFE][0].uid
+    _mit_fenstern(monkeypatch, _fenster(uid, identitaet=ALIAS.upper()))
+    bericht = _stand()
+    assert _einziger(bericht).art == "offen", "der Alias hält den Entwurf nicht offen"
+    text = " ".join(entwurfsbuch.zeilen(bericht))
+    assert f"unter „{ALIAS.upper()}“, einer Identität desselben Kontos" in text
+    assert "nur über die UID" not in text, "der Alias gilt als nur über die UID zugeordnet"
+    (zustand,) = entwurfsbuch.als_json(bericht)["entwuerfe"]
+    assert zustand["fenster_nur_uid"] is False, "fenster_nur_uid am Alias"
+
+
+def test_der_alias_geht_einem_fenster_ohne_meldung_vor(monkeypatch, tmp_path):
+    _profil_des_kontos(monkeypatch, tmp_path)
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    uid = server.ordner[ENTWUERFE][0].uid
+    _mit_fenstern(monkeypatch, _fenster(uid, uri=LOGIN_EIGEN, betreff="ohne Meldung"),
+                  _fenster(uid, identitaet=ALIAS, betreff="Alias"))
+    assert _einziger(_stand()).fenster["betreff"] == "Alias"
+
+
+def test_kennt_das_profil_das_konto_nicht_bleibt_es_beim_nachsichtigen_weg(monkeypatch,
+                                                                           tmp_path):
+    """Ohne Wissen über das Konto ist eine fremde Meldung weder Alias noch
+    fremd. Dann gilt #462: `OFFEN` über die UID, ein falsches `WARTET` wäre teurer."""
+    _profil_des_kontos(monkeypatch, tmp_path, mit_konto=False)
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    uid = server.ordner[ENTWUERFE][0].uid
+    _mit_fenstern(monkeypatch, _fenster(uid, identitaet=ANDERES_KONTO))
+    bericht = _stand()
+    assert _einziger(bericht).art == "offen"
+    assert f"das Fenster meldet „{ANDERES_KONTO}“" in " ".join(entwurfsbuch.zeilen(bericht))
+
+
 #: `LOGIN_FREMD`, nur steht die UID hinter `/` statt hinter `#`. Eine leere
 #: `draft_id` genügte hier nicht: Ein gelockertes `UID_AUS_URI`, das jede Zahl am
 #: Ende nimmt, ließe sie ebenso liegen wie das heutige Muster (#468).

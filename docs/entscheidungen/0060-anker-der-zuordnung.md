@@ -239,3 +239,26 @@ Hingenommen wird die Gegenrichtung aus #410. Ein Fenster eines anderen Kontos mi
 macht den Entwurf `OFFEN`, auch wenn es seinen fremden Absender meldet. Es sperrt ihn damit
 gegen das Wegräumen, und die Ausgabe sagt, dass die Zuordnung nur an der UID hängt. Den zweiten
 Anker, den Ordner aus der URI, bringt erst #443.
+
+## Nachtrag 04.11.2026 — Aliasse aus dem Profil (#466)
+
+Die Gegenrichtung vom 03.11. wird enger, wo das Thunderbird-Profil die Identitäten des Kontos
+nennt. `prefs.js` führt sie unter `mail.account.<konto>.identities`, und `oeffnen.kontoadressen`
+liest sie dort (eingeführt mit #482 für die Absenderprüfung im Fenster). `_offene_uids` gibt
+sie an `fenster_des_kontos` weiter.
+
+**Entschieden:**
+
+- Eine gemeldete Adresse unter den Identitäten des Kontos ist ein Alias. Das Fenster ist dann so
+  sicher zugeordnet wie unter der eigenen Adresse: erster Rang, nicht `fenster_nur_uid`, und im
+  Text „unter „…“, einer Identität desselben Kontos“.
+- Eine gemeldete Adresse außerhalb davon ist ein Fenster eines anderen Kontos, das nur die
+  UID-Zahl teilt. Es fällt heraus, und der Entwurf heißt wieder `WARTET`.
+- Weiß das Profil nichts über das Konto (kein Profil, keine Kontoliste, die Adresse in keinem
+  Konto), bleibt es beim Nachtrag vom 03.11.
+
+Damit ist ein falsches `WARTET` wieder möglich, und zwar in genau einem Fall: Das Fenster schickt
+von einer Identität des Kontos, die `prefs.js` beim Lesen noch nicht führt. Thunderbird schreibt
+die Datei bei einer Änderung der Einstellungen selbst. Wie schnell das nach dem Anlegen einer
+Identität geschieht, ist nicht gemessen. Belegt ist der Weg in der Suite mit einer
+Profil-Attrappe, an einem Gerät nicht.

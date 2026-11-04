@@ -48,8 +48,11 @@ IMAP_KLASSE = imaplib.IMAP4
 ZIEL_VORGABE = "127.0.0.1:1993"
 
 #: Zeitlimit der Gesendet-Prüfung, für die ganze Sitzung — nicht je Befehl.
-#: Ein hängender Proxy darf `--oeffnen` nicht länger aufhalten als das.
-FRIST_S = 5
+#: Ein hängender Proxy darf `--oeffnen` nicht länger aufhalten als das. Bis
+#: #441 waren es 5 s. Anmeldung und LIST am Proxy dauerten am 30.10.2026
+#: einmal 20,6 s, einmal 18,1 s und einmal 3,6 s, und die Prüfung endete oft
+#: in „GESENDET NICHT GEPRÜFT“, obwohl der Proxy gesund war.
+FRIST_S = 30
 
 #: Der Proxy nimmt jedes Kennwort; sein Kennwort ist das OAuth-Token. Derselbe
 #: Platzhalter wie im Mailarchiv des Betreibers (`zaehler.imap_zaehlung`).
