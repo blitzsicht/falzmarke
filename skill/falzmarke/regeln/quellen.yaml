@@ -61,7 +61,7 @@ quellen:
       Als Sichtreferenz gegengeprüft. Die dort angebotene Word-Vorlage wich am
       25.08.2026 in vier Maßen von den Zeichnungen ab (docs/normmasse.md); die
       Maßzeichnung selbst stimmt mit den übrigen Quellen überein. Ein Urteil
-      „nicht normgerecht" wird daraus nicht abgeleitet: Gemessen wurde gegen
+      „nicht normgerecht“ wird daraus nicht abgeleitet: Gemessen wurde gegen
       die Zeichnungen, nicht gegen den Normtext.
       **Die frühere Adresse (…/din-5008-vorlage/) ist tot** — sie leitet auf die
       Magazin-Startseite um und wurde nie archiviert. Am 26.08.2026 durch die
@@ -101,7 +101,7 @@ quellen:
       Zusammenfassung). Nennt beide Formen getrennt und schreibt die Werte
       ausdrücklich der DIN 5008 zu: „Die DIN 5008 gibt die Positionen jeweils
       gemessen von der oberen Blattkante an; die Maßangaben für die Faltmarken
-      unterscheiden sich deshalb für die Briefblätter der Formen A und B."
+      unterscheiden sich deshalb für die Briefblätter der Formen A und B.“
       Form A: Kopfzeile 27 mm, Faltmarke 1 bei 87 mm, Lochmarke bei 148,5 mm,
       Faltmarke 2 bei 192 mm. Form B: 105 / 148,5 / 210 mm.
 
@@ -113,7 +113,7 @@ quellen:
 
       **Was sie nicht ist:** eine bemaßte Zeichnung, und keine Berufung auf die
       Ausgabe 2020-03. Sie bezieht sich auf die „Schreib- und Gestaltungsregeln
-      für die Textverarbeitung" vom April 2011. Das steht der Stufe `voll`
+      für die Textverarbeitung“ vom April 2011. Das steht der Stufe `voll`
       nicht entgegen — `massskizze_b` ist eine Zeichnung von 2013 und zählt
       ebenso —, gehört aber genannt: Belegt ist damit der Stand 2011, nicht
       geprüft, ob 2020-03 daran etwas geändert hat. Diese Frage beantwortet
@@ -129,8 +129,8 @@ quellen:
       **Nicht vendort** — im Gegensatz zu letter_pro setzt falzmarke nicht damit.
       Der Sollwert käme also von außen, und die Prüfung kann rot werden.
       **Zählt trotzdem nicht zur Bestätigung**, aus zwei Gründen. Erstens
-      bezeichnet das Handbuch die Datei selbst als „experimentellen" Parametersatz,
-      „angelehnt an" Variante A, der „nur eine einzige Interpretation der Norm"
+      bezeichnet das Handbuch die Datei selbst als „experimentellen“ Parametersatz,
+      „angelehnt an“ Variante A, der „nur eine einzige Interpretation der Norm“
       umsetzt. Zweitens: `DIN5008A.lco` lädt `DINmtext` als Basis und ändert
       zwölf Längen — aber keine der Kerngeometrie. Faltmarken 87/192 und
       Anschriftfeld 27 stammen unverändert aus `DINmtext`, und das ist laut
@@ -156,7 +156,7 @@ quellen:
       Fensterecke 90 mm (Form B) bzw. 72 mm (Form A), Bezugszeichenzeile
       98,5 mm bzw. 80,5 mm, obere Faltmarke 105 mm bzw. 87 mm, untere 210 mm
       bzw. 192 mm. `\addresshigh` heisst dort ausdruecklich „entsprechend der
-      Form A der DIN Norm", `\addressstd` „entsprechend der Form B".
+      Form A der DIN Norm“, `\addressstd` „entsprechend der Form B“.
 
       **Zaehlt trotzdem nur einzeln**, und der Grund ist derselbe wie bei
       `koma_script`: Die Dokumentation beruft sich auf **DIN 676** — auf die
@@ -208,14 +208,14 @@ quellen:
     bemerkung: >-
       Vollständig gelesen am 25.09.2026 (Rohtext aus dem HTML). Eine Tabelle
       „Element / Abstand von oben / Abstand von linker Blattkante / Abstand von
-      rechter Blattkante", ausdrücklich zur Fassung März 2020: „Wie genau sieht
+      rechter Blattkante“, ausdrücklich zur Fassung März 2020: „Wie genau sieht
       nun ein DIN-gerechter Briefbogen laut aktueller Version der DIN 5008
-      (März 2020) aus?"
+      (März 2020) aus?“
 
       Trägt zwei Werte, die sonst keine Quelle hergibt. Informationsblock:
-      „Höhe ist variable, mind. 40 mm, max. Breite: 75 mm". Zu den Marken:
+      „Höhe ist variable, mind. 40 mm, max. Breite: 75 mm“. Zu den Marken:
       „keine Vorgaben, die Falzmarken sollen aber im sogenannten Heftrand
-      liegen, das sind die ersten 20 mm von der linken Blattkante aus" — also
+      liegen, das sind die ersten 20 mm von der linken Blattkante aus“ — also
       ein Beleg für die Heftrandgrenze und zugleich die ausdrückliche Aussage,
       dass die Norm zur Gestalt der Marken nichts vorgibt.
 
@@ -223,7 +223,7 @@ quellen:
       Wolfenbüttel. Eigene Gruppe, weil es ein eigenes Werk ist; ob die Werte
       von einer der übrigen Quellen stammen, ist NICHT geprüft. Dafür spricht
       die eigenwillige Darstellung: Falzmarke 2 der Form A steht dort als
-      „105 mm von der unteren Blattkante" statt als 192 mm von oben — dasselbe
+      „105 mm von der unteren Blattkante“ statt als 192 mm von oben — dasselbe
       Maß, anders gerechnet.
 
       **Was sie nicht ist:** eine bemaßte Zeichnung. Zu Schriftgrößen sagt sie
@@ -240,15 +240,15 @@ quellen:
       der WEKA-Gruppe (Impressum von sekretaria.de führt auf WEKA).
 
       Trägt die Höhe des Informationsblocks wörtlich: „Die Höhe des
-      Informationsblocks liegt bei mindestens 40 mm." Zur Zusatz- und
-      Vermerkzone: „Geforderte Schriftgröße ist mindestens 8 pt."
+      Informationsblocks liegt bei mindestens 40 mm.“ Zur Zusatz- und
+      Vermerkzone: „Geforderte Schriftgröße ist mindestens 8 pt.“
 
       Zu den Marken sagt sie dasselbe wie `natusch`, nur ausführlicher: „Wie die
       Marken konkret auszusehen haben, dazu macht die DIN 5008 keine Angaben.
       Meist handelt es sich dabei um kurze, schmale Striche … Die einzige
       Vorgabe, die in der DIN noch genannt wird, ist, dass die Marken im
       sogenannten Heftrand des Briefbogens untergebracht sein sollen, der die
-      ersten 20 mm von der linken Blattkante aus umfasst."
+      ersten 20 mm von der linken Blattkante aus umfasst.“
 
       Eigene Gruppe: anderer Träger als `natusch`, andere Darstellungsform
       (Fließtext gegen Tabelle) und andere Schwerpunkte. Unabhängigkeit der
@@ -265,15 +265,15 @@ quellen:
       Vollständig gelesen am 25.09.2026. Blogbeitrag von Oliver Haberger vom
       08.09.2026; Herausgeberin ist die MANAGER INSTITUT Bildung für die
       Wirtschaft GmbH, München (Impressum). Beruft sich ausdrücklich auf die
-      geltende Fassung: „Die aktuelle Fassung heißt DIN 5008:2020-03."
+      geltende Fassung: „Die aktuelle Fassung heißt DIN 5008:2020-03.“
 
       Trägt die Schriftgrößen in beiden Richtungen: „Im Fließtext sollte die
-      Schrift nicht kleiner als 10 Punkt sein; 11 oder 12 Punkt sind üblich."
-      und „Im Anschriftfeld sind 8 Punkt die absolute Untergrenze."
+      Schrift nicht kleiner als 10 Punkt sein; 11 oder 12 Punkt sind üblich.“
+      und „Im Anschriftfeld sind 8 Punkt die absolute Untergrenze.“
 
       Der Beitrag kennt Unterschiede zwischen den Ausgaben — er nennt den
-      Wechsel von „Faltmarken" zu „Falzmarken" und den von „sollten" zu
-      „können" — und spricht damit nicht bloß eine ältere Fassung nach.
+      Wechsel von „Faltmarken“ zu „Falzmarken“ und den von „sollten“ zu
+      „können“ — und spricht damit nicht bloß eine ältere Fassung nach.
 
       **Grenzen:** jung (08.09.2026) und ohne Quellenangaben; woher die Werte
       stammen, steht nicht dabei. Zur Höhe des Informationsblocks sagt er
@@ -336,7 +336,7 @@ quellen:
       (Fußnote 4); 33 MB für Outlook auf iOS und Android.
       Ausdrücklich zur Kodierung: „Messages that are routed outside of the
       Microsoft datacenters are subject to an additional 33% translation
-      encoding increase." Die Grenzen gelten also der Nachricht, nicht der
+      encoding increase.“ Die Grenzen gelten also der Nachricht, nicht der
       Datei — das ist der Satz, auf dem `KODIERUNGSAUFSCHLAG` steht.
       Keine Aussage über die DIN 5008; die Quelle trägt nur Regeln der Ebene
       `praxis`.
@@ -349,7 +349,7 @@ quellen:
     zaehlt: voll
     abgerufen: 2026-08-29
     bemerkung: >-
-      „For personal Gmail accounts, the limit is 25 MB." Für Geschäfts- und
+      „For personal Gmail accounts, the limit is 25 MB.“ Für Geschäfts- und
       Schulkonten setzt die Grenze der Workspace-Administrator; die Seite nennt
       dafür keinen Wert. **Sie unterscheidet nicht zwischen Dateigröße und
       Nachrichtengröße** — nachgesehen am 29.08.2026, die Seite sagt dazu
@@ -442,7 +442,7 @@ quellen:
   #
   # Je Paragraf eine Quelle, wie bei den Geschäftsbrief-Vorschriften darunter.
   # Keine dieser Quellen belegt heute eine Regel — sie tragen die Fundstellen
-  # des Abschnitts „E-Rechnung" in docs/recht.md, und `test_fundstellen.py`
+  # des Abschnitts „E-Rechnung“ in docs/recht.md, und `test_fundstellen.py`
   # verlangt, dass jede Gesetzes-URL im Fließtext hier steht.
 
   ustg_14:
@@ -573,7 +573,7 @@ quellen:
       anordnet, fand dort nichts darueber.
 
       Nachgeschlagen am 29.08.2026: Artikel 51 Nummer 16 b) ersetzt die Angabe
-      „§ 125a Abs. 1 Satz 2" durch „§ 125 Absatz 1 Satz 2"; Geltung ab
+      „§ 125a Abs. 1 Satz 2“ durch „§ 125 Absatz 1 Satz 2“; Geltung ab
       01.01.2024, abweichend siehe Artikel 137.
 
   ehug:
@@ -587,7 +587,7 @@ quellen:
     abgerufen: 2026-08-28
     bemerkung: >-
       Seit dem Inkrafttreten am 1. Januar 2007 gelten die Vorschriften ueber
-      Geschaeftsbriefe „gleichviel welcher Form"; eine geschaeftliche E-Mail ist
+      Geschaeftsbriefe „gleichviel welcher Form“; eine geschaeftliche E-Mail ist
       damit erfasst. Nicht bei gesetze-im-internet.de: Dort stehen nur
       konsolidierte Fassungen, und ein Aenderungsgesetz hat dort keine Seite.
 
@@ -602,7 +602,7 @@ quellen:
       Belegt die Liste der Nichtzeichen in `zeichen.py`, nicht die Regel: 66
       Codepunkte, nämlich U+FDD0–FDEF, U+FFFE/FFFF und die beiden letzten
       Stellen jeder der 16 weiteren Ebenen. Entscheidend ist der Satz „The set
-      of noncharacters is formally immutable" — die Liste altert nicht und darf
+      of noncharacters is formally immutable“ — die Liste altert nicht und darf
       deshalb wörtlich im Code stehen. Dass ein Nichtzeichen in einem deutschen
       Geschäftsbrief ein Defekt ist, sagt diese Quelle nicht; das ist der eigene
       Datenvertrag (ADR 0052).
@@ -616,11 +616,11 @@ quellen:
     abgerufen: 2026-10-25
     bemerkung: >-
       Belegt die Kategorien, über die `zeichen.py` prüft, statt eine zweite
-      Codepunkt-Liste zu führen: `Cc` als „control", `Co` als „private-use",
-      `Cn` als „reserved" (Tabelle 3). Die abgeleitete Eigenschaft
+      Codepunkt-Liste zu führen: `Cc` als „control“, `Co` als „private-use“,
+      `Cn` als „reserved“ (Tabelle 3). Die abgeleitete Eigenschaft
       `Default_Ignorable_Code_Point` ist dort hergeleitet als
       „Other_Default_Ignorable_Code_Point + Cf (Format characters) +
-      Variation_Selector − White_Space − …" — genau der Zuschnitt der
+      Variation_Selector − White_Space − …“ — genau der Zuschnitt der
       Fehlerklasse, ohne dass die Liste von Hand gepflegt wird.
 
       Dieselbe Quelle nennt den Grund, warum die Kategorie `Cn` NICHT geprüft

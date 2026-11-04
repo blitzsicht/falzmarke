@@ -19,10 +19,10 @@ MOVE`, damit die Zusage hier wahr bleibt.
 das Kennwort ist ein Platzhalter — der Proxy tauscht die Anmeldung gegen OAuth
 und spricht TLS mit dem Server. So läuft es beim Betreiber mit `emailproxy`
 für die Microsoft-Konten. Ein Konto, das der Proxy nicht kennt (Gmail), lehnt
-er ab, ohne den Server zu fragen; dann heißt es „nicht geprüft", mit seiner
+er ab, ohne den Server zu fragen; dann heißt es „nicht geprüft“, mit seiner
 Meldung als Grund.
 
-Kein `subprocess`: Die Regel „genau ein Modul startet fremde Programme"
+Kein `subprocess`: Die Regel „genau ein Modul startet fremde Programme“
 (ADR 0038, Punkt 5) bleibt unberührt — eine Socket-Verbindung startet nichts.
 """
 

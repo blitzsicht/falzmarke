@@ -92,7 +92,7 @@ def test_niemals_ueber_eine_shell():
     rekorder = Rekorder()
     oeffnen._fuehre_aus("argv", ["open", "/x.eml"], laufen=rekorder)
     # Beide Zusicherungen zusammen: Die zweite ist die Gegenprobe zur ersten —
-    # „kein shell=True" wäre bei null Aufrufen leer erfüllt.
+    # „kein shell=True“ wäre bei null Aufrufen leer erfüllt.
     assert rekorder.anzahl == 1
     assert rekorder.kwargs[0].get("shell") is not True
 
@@ -192,7 +192,7 @@ def test_linux_ohne_display_haelt_zu():
 
 def test_macos_braucht_kein_display():
     """Gegenprobe: Sonst wäre die DISPLAY-Regel womöglich eine
-    „nie öffnen"-Regel, die zufällig richtig aussieht."""
+    „nie öffnen“-Regel, die zufällig richtig aussieht."""
     assert oeffnen.kein_bildschirm({}, "darwin") is None
 
 
@@ -202,7 +202,7 @@ def test_wayland_zaehlt_auch():
 
 @pytest.mark.parametrize("wunsch, erwartet_zu", [("nie", True), ("immer", False)])
 def test_der_schalter_sticht_alles(wunsch, erwartet_zu):
-    # „immer" gegen die schärfste Gegenlage: Baurechner ohne Bildschirm.
+    # „immer“ gegen die schärfste Gegenlage: Baurechner ohne Bildschirm.
     umgebung = {"FALZMARKE_OEFFNEN": wunsch, "CI": "true"}
     assert bool(oeffnen.kein_bildschirm(umgebung, "linux")) is erwartet_zu
 
@@ -281,7 +281,7 @@ class Antwortet:
         self.angelegt: list[tuple] = []
         #: Die Folgeschritte, an ihrem Skriptnamen erkannt.
         self.schritte: list[tuple] = []
-        #: Was jeder Folgeschritt war — „oeffnen" oder „verwerfen".
+        #: Was jeder Folgeschritt war — „oeffnen“ oder „verwerfen“.
         self.schrittarten: list[str] = []
         self.dateien_da: list[bool] = []
         self._schrittcode = schrittcode
@@ -304,7 +304,7 @@ class Antwortet:
             # Ohne ihn ließe sich Öffnen nicht von Verwerfen unterscheiden, und
             # die Prüfung unten könnte nicht rot werden. Gemessen — die erste
             # Fassung dieses Tests überlebte die Sabotage „verwerfen durch
-            # öffnen ersetzt" unbeschadet.
+            # öffnen ersetzt“ unbeschadet.
             self.schritte.append(tuple(argv))
             self.schrittarten.append(
                 "verwerfen" if "delete" in Path(argv[1]).read_text(encoding="utf-8")
@@ -528,7 +528,7 @@ def test_eine_verschluckte_blindkopie_faellt_auf():
 # ── Ein Fenster, nie zwei (#287) ────────────────────────────────────────────
 #
 # ANLASS (Betreiber, 11.09.2026, mit Bildschirmfoto): „Jetzt macht er die
-# E-Mails immer zweimal auf … auch nicht passend zum senden."
+# E-Mails immer zweimal auf … auch nicht passend zum senden.“
 #
 # Bis dahin stand `open entwurf` IM Anlegeskript, also vor jeder Entscheidung
 # auf Python-Seite. Fiel `_nachweis_stimmt` danach durch, war das Fenster
@@ -595,7 +595,7 @@ def test_stimmt_die_zaehlung_nicht_wird_verworfen_und_nichts_geoeffnet():
 
 
 def test_die_gerissene_frist_ist_ungewiss_und_kein_rueckfall():
-    """„Nicht geprüft" ist nicht „nichts da": Kehrt das Skript nicht zurück,
+    """„Nicht geprüft“ ist nicht „nichts da“: Kehrt das Skript nicht zurück,
     weiß niemand, ob eine Nachricht entstand und ob ein Fenster offen ist."""
     def haengt(argv, **kwargs):
         if "-e" in argv:
@@ -631,7 +631,7 @@ def test_laesst_sich_der_entwurf_nicht_zeigen_bleibt_er_nicht_liegen():
 # ── Der Absender (#305) ─────────────────────────────────────────────────────
 #
 # ANLASS (Betreiber, 13.09.2026): „Der Absender ist meistens der falsche. Den
-# muss ich immer manuell einstellen. Das vergesse ich oft."
+# muss ich immer manuell einstellen. Das vergesse ich oft.“
 #
 # Bis dahin legte das Skript den Entwurf ohne Konto an, und Outlook nahm sein
 # Standardkonto. Gemessen am 13.09.2026, Outlook für Mac 16.112.4: Im
@@ -692,17 +692,17 @@ def test_ohne_absender_im_profil_gibt_es_nichts_zu_pruefen():
 
 # ── Kein Konto zur Adresse des Profils (#315) ──────────────────────────────
 #
-# ANLASS (Betreiber, 14.09.2026): „signatur stimmt nicht mit absender überein".
+# ANLASS (Betreiber, 14.09.2026): „signatur stimmt nicht mit absender überein“.
 # Das Profil nannte eine Adresse, für die Outlook kein Konto hatte. Der Entwurf
 # lag auf dem Standardkonto, die Signatur im Rumpf nannte die Profiladresse, und
-# die Warnzeile riet „unter Von umstellen" — dort stand die Adresse gar nicht.
+# die Warnzeile riet „unter Von umstellen“ — dort stand die Adresse gar nicht.
 # Die Suche im Skript wusste es; weitergegeben wurde nur das Konto am Entwurf.
 
 
 def test_die_suche_kommt_aus_der_dritten_zeile():
     assert oeffnen.suche_aus_nachweis("97 1 0 0 0\njoe@example.de\nfehlt") == "fehlt"
     assert oeffnen.suche_aus_nachweis("97 1 0 0 0\ninfo@example.de\ngefunden\n") == "gefunden"
-    # „-" heißt: Outlook zeigte keine Konten. Das ist nicht geprüft, nicht „fehlt".
+    # „-“ heißt: Outlook zeigte keine Konten. Das ist nicht geprüft, nicht „fehlt“.
     assert oeffnen.suche_aus_nachweis("97 1 0 0 0\n-\n-") is None
     # Ein Nachweis ohne dritte Zeile (älteres Skript) ist ebenfalls nicht geprüft.
     assert oeffnen.suche_aus_nachweis("97 1 0 0 0\njoe@example.de") is None
@@ -710,7 +710,7 @@ def test_die_suche_kommt_aus_der_dritten_zeile():
 
 def test_das_skript_meldet_die_suche_mit():
     skript = oeffnen.SKRIPT_OUTLOOK
-    # Jede der drei Kontoarten zählt mit — sonst hieße ein reines IMAP-Postfach „keine Konten".
+    # Jede der drei Kontoarten zählt mit — sonst hieße ein reines IMAP-Postfach „keine Konten“.
     assert skript.count("set gesehen to gesehen + 1") == 3
     assert "linefeed & kontoadresse & linefeed & suche" in skript
     assert 'set suche to "fehlt"' in skript

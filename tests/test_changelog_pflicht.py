@@ -105,7 +105,7 @@ def test_code_und_doku_zusammen_brauchen_einen_eintrag(tmp_path):
 def test_die_normregeln_sind_keine_doku(tmp_path):
     """`skill/references/din5008.md` ist die Quelle der Sollwerte.
 
-    Fiele sie unter „nur Doku", ließe sich der Sollwert einer Regel ändern,
+    Fiele sie unter „nur Doku“, ließe sich der Sollwert einer Regel ändern,
     ohne dass es im Verlauf erscheint — die Datei endet auf `.md`, und genau
     daran hängt die Doku-Ausnahme.
     """
@@ -223,8 +223,8 @@ def test_gegenprobe_mit_anderem_trigger_wird_der_hinweis_rot(typen, erwartet, tm
 # Wörtlich die Ausgabe von `gh pr view 222 --json files,author,labels`, gemessen
 # am 02.09.2026. Sie steht hier als Text und nicht als nachgebautes Objekt, weil
 # genau die Schreibweise des Autors die Falle war: Die Ausnahme war zuerst auf
-# „dependabot[bot]" gestellt — den Wert, den `github.actor` und die REST-API
-# liefern. `gh pr view` sagt „app/dependabot". Eine Ausnahme, die nie greift,
+# „dependabot[bot]“ gestellt — den Wert, den `github.actor` und die REST-API
+# liefern. `gh pr view` sagt „app/dependabot“. Eine Ausnahme, die nie greift,
 # fühlt sich wie ein strenger Prüfer an und fällt darum nicht auf.
 PR_222 = ('{"author":{"is_bot":true,"login":"app/dependabot"},'
           '"files":[{"path":".github/workflows/release.yml"}],'
@@ -275,11 +275,11 @@ def test_die_meldung_bleibt_unter_cp1252_lesbar(tmp_path):
     Ausgabe. `stderr` kam als None zurück, weil sich die Bytes nicht als UTF-8
     lesen ließen — der Aufrufer bekam nichts, obwohl der Befund richtig war.
 
-    Hier fiel es bisher nicht auf, weil der Job „Changelog-Eintrag"
+    Hier fiel es bisher nicht auf, weil der Job „Changelog-Eintrag“
     ausschließlich auf ubuntu läuft. Der Test erzwingt cp1252 über
     PYTHONIOENCODING und läuft damit auf jedem System, nicht nur auf einem
     Windows-Läufer. Ohne `_ausgabe_auf_utf8()` endet er mit der Meldung aus der
-    CI: „'utf-8' codec can't decode byte 0xdf".
+    CI: „'utf-8' codec can't decode byte 0xdf“.
     """
     import os
     import subprocess

@@ -13,7 +13,7 @@ WAS HIER GEMESSEN WIRD
 
 * AC 1: Kein Absatz verspricht ein Setzen, ohne die Warnung zu nennen; und jede
   der drei Dateien sagt, welche Schritte nur gemeldet werden.
-* AC 1 („und warum"): Derselbe Absatz nennt den Grund — die Regel ist nur
+* AC 1 („und warum“): Derselbe Absatz nennt den Grund — die Regel ist nur
   einzeln belegt.
 * AC 2: Die Auskunft ist die Warnung, nicht bloß „setzt nicht“.
 * AC 3: Eine Zahl über die Schritte trägt ein Datum im selben Absatz.

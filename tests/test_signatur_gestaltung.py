@@ -84,7 +84,7 @@ def test_jede_regel_traegt_important():
 SABOTAGEN = [
     ("ein zweiter Block", lambda s: s.replace("</head>", "<style>p{color:red}</style>\n</head>")),
     ("eine Farbe geändert", lambda s: s.replace(html.RAHMEN_DUNKEL, "#ff0000")),
-    # „eine Regel mehr" war bis #275 ein Verstoß: Der Block war eine Konstante
+    # „eine Regel mehr“ war bis #275 ein Verstoß: Der Block war eine Konstante
     # und sonst nichts. Seitdem darf HINTER dem eigenen Teil ein mitgebrachter
     # stehen — geprüft, nicht verglichen. Was rot bleiben muss, ist ein Zusatz,
     # der nach außen zeigt oder ein zweites Dokument aufmacht.
@@ -139,7 +139,7 @@ def test_alles_schaltet_um(beispiel):
 def test_die_pruefung_bemerkt_eine_gesetzte_schriftfarbe():
     """Gegenprobe — sonst belegte der Test darüber nur, dass eine Liste leer ist.
 
-    Bis zum 15.10.2026 hieß die Sabotage „Klasse vergessen": Jeder Absatz trug
+    Bis zum 15.10.2026 hieß die Sabotage „Klasse vergessen“: Jeder Absatz trug
     `#1a1a1a`, und ohne `KLASSE_TEXT` schaltete er nicht um. Seither trägt kein
     Absatz eine Farbe; der Rückfall, gegen den die Prüfung steht, ist die
     Farbe selbst — mit oder ohne Klasse."""
@@ -375,7 +375,7 @@ def test_die_pruefung_bemerkt_eine_vergessene_trennlinie(profil_mit_logo):
     Ohne ihn könnte `nicht_umschaltbar()` an der neuen Linie nie rot werden:
     `"border:" in stil` trifft `border-left:` nicht, weil dazwischen ein
     Bindestrich steht und kein Doppelpunkt. Gemessen am 07.09.2026 — die
-    Sabotage „Eintrag entfernt" blieb grün, solange die Zelle ihre Klasse trug.
+    Sabotage „Eintrag entfernt“ blieb grün, solange die Zelle ihre Klasse trug.
     Erst beides zusammen zeigt, was hier wovon abhängt.
     """
     seite = _seite_mit_logo(profil_mit_logo)
@@ -485,7 +485,7 @@ def test_beide_neuen_formen_bleiben_ohne_verstoss(profil_mit):
 
 def test_die_datenuri_traegt_ihre_masse(profil_mit):
     """Aus den Bytes gerechnet, nicht geraten. Ohne Maße meldet `verstoesse()`
-    „Bild ohne Breiten- oder Höhenangabe" — und kein Client reserviert Platz."""
+    „Bild ohne Breiten- oder Höhenangabe“ — und kein Client reserviert Platz."""
     profil, pfad = profil_mit(_datenuri())
     seite = eml.htmlteil(KOPF_LOGO, profil, [], logo=eml.logo_quelle(profil, pfad))
     assert re.search(r'<img[^>]+width="\d+" height="40"', seite), seite[seite.find("<img"):][:200]

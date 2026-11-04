@@ -595,7 +595,7 @@ def test_ohne_entwurf_bleibt_der_alte_weg(tmp_path, monkeypatch, starter, capsys
 
 def test_eine_rote_pruefung_bekommt_auch_keinen_entwurf(tmp_path, monkeypatch):
     """Regel 0 gilt für den neuen Weg genauso: Was seine eigene Prüfung nicht
-    besteht, landet in keinem Fenster, in dem der nächste Griff „Senden" ist."""
+    besteht, landet in keinem Fenster, in dem der nächste Griff „Senden“ ist."""
     from falzmarke import oeffnen, pruefung_eml
 
     class _Durchgefallen:
@@ -620,8 +620,8 @@ def test_eine_rote_pruefung_bekommt_auch_keinen_entwurf(tmp_path, monkeypatch):
 # ANLASS (11.09.2026): Der Betreiber fand seine Mails als HTML-Seite im Browser
 # statt als Entwurf in Outlook — und jede Sitzung machte es anders. Die Ursache
 # stand in SKILL.md selbst: „Diese Vorschau ist das, was gezeigt wird — nicht
-# die .eml" machte den Umweg zur Vorschrift, und „--oeffnen gehört im Gespräch
-# dazu, sobald ein Mensch die Nachricht wirklich abschicken will" überließ die
+# die .eml“ machte den Umweg zur Vorschrift, und „--oeffnen gehört im Gespräch
+# dazu, sobald ein Mensch die Nachricht wirklich abschicken will“ überließ die
 # Entscheidung der Auslegung. Gemessen im selben Ordner: Die fertige `.eml`
 # (444 KB, mit Anhang) lag neben der `.html` (4,6 KB); geöffnet wurde die
 # falsche.
@@ -648,7 +648,7 @@ def test_die_alte_empfehlung_kehrt_nicht_zurueck():
     text = (SKILL / "SKILL.md").read_text(encoding="utf-8")
     # Der Rückblick im selben Abschnitt zitiert den alten Satz absichtlich.
     # Gesucht wird deshalb nur außerhalb der Anführungszeichen: Ein Zitat trägt
-    # „…", eine Vorschrift nicht.
+    # „…“, eine Vorschrift nicht.
     ohne_zitate = re.sub(r"„[^“]*“", "", text)
     treffer = [w for w in ZURUECKGENOMMEN if w in ohne_zitate]
     assert not treffer, (
@@ -708,7 +708,7 @@ def test_gegenprobe_ohne_ungewissheit_wird_sehr_wohl_nachgeschoben(tmp_path, mon
 
 def test_der_rueckfall_sagt_dass_es_kein_entwurf_ist(tmp_path, monkeypatch,
                                                      starter, capsys):
-    """Die zweite Hälfte der Meldung: „auch nicht passend zum senden."
+    """Die zweite Hälfte der Meldung: „auch nicht passend zum senden.“
 
     Eine `.eml` erscheint als Lesefenster ohne Senden-Knopf (ADR 0038). Wer das
     nicht dazusagt, lässt den Menschen vor einem Fenster stehen, das nicht tut,

@@ -18,4 +18,4 @@ Jedes Repo trägt seine Tür. Ohne ausgefüllte DOOR.md legt `cw-new-repo` kein 
 | Kill-Kriterium | < 10 Briefe oder Mails über falzmarke zwischen 2026-12-01 und 2026-12-31, sonst Archiv |
 | Modell-Routing | anthropic + deepseek-fallback (nur Code ohne Daten) |
 
-Regel: Mindestens eine der vier Fragen ist „ja", sonst gehört das Repo nicht angelegt. Linie 1 erfordert Frage 4 = ja und ein ausgefülltes „Add-on zu".
+Regel: Mindestens eine der vier Fragen ist „ja“, sonst gehört das Repo nicht angelegt. Linie 1 erfordert Frage 4 = ja und ein ausgefülltes „Add-on zu“.

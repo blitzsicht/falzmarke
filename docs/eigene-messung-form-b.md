@@ -8,7 +8,7 @@ Acht Regeln zur Geometrie von Form B wirken heute als **Fehler** und stützen si
 Quellen: `massskizze_b`, `onlineprinters` und `letter_pro`. Die ersten beiden sind **dieselbe
 Zeichnung** (Gruppe `formb_zeichnung_2013`), die dritte ist die Implementierung, mit der
 falzmarke selbst setzt. Nach der Definition in [recht.md](recht.md) — „drei unabhängige Quellen,
-oder eine Quelle plus zwei Implementierungen" — trägt keine der acht ihre Stufe.
+oder eine Quelle plus zwei Implementierungen“ — trägt keine der acht ihre Stufe.
 
 Der Ausweg ist nicht, die Strenge zu senken, sondern einen Beleg hinzuzufügen, den es bisher
 nicht gibt.
@@ -28,8 +28,8 @@ Genau deshalb ist sie als Quelle etwas wert: Sie kann der Zeichnung widerspreche
 
 ## Was gebraucht wird
 
-- Ein Drucker, der **ohne Skalierung** druckt (im Dialog „Tatsächliche Größe" / „100 %",
-  nicht „An Seite anpassen") — das ist die häufigste Fehlerquelle der ganzen Übung
+- Ein Drucker, der **ohne Skalierung** druckt (im Dialog „Tatsächliche Größe“ / „100 %“,
+  nicht „An Seite anpassen“) — das ist die häufigste Fehlerquelle der ganzen Übung
 - Ein Lineal oder Messschieber mit Millimeterteilung, besser ein Stahllineal als ein Geodreieck
 - Fensterumschläge **DL** (110 × 220 mm) mit Fenster links, möglichst von zwei Herstellern
 - Optional ein Locher mit Anschlag
@@ -87,10 +87,10 @@ Sie ist wichtiger als jedes Einzelmaß, weil sie etwas prüft, was keine Zeichnu
 
 ## Wie das Ergebnis eingetragen wird
 
-**Nicht** in die vorhandene Quelle `eigene_messung`. Die heißt „Messung am gerenderten PDF"
+**Nicht** in die vorhandene Quelle `eigene_messung`. Die heißt „Messung am gerenderten PDF“
 und steht zu Recht auf `zaehlt: nie` — ihre eigene Bemerkung sagt warum: *„Ein Sollwert von hier
 würde gegen ein PDF geprüft, das dieselbe Quelle erzeugt hat — die Prüfung könnte nicht rot
-werden."* Dieselbe Zirkularität hätte eine Druckmessung nicht, aber verwechseln darf man die
+werden.“* Dieselbe Zirkularität hätte eine Druckmessung nicht, aber verwechseln darf man die
 beiden nicht.
 
 Es braucht deshalb eine **neue** Quelle in `skill/falzmarke/regeln/quellen.yaml`, etwa
@@ -101,7 +101,7 @@ Dafür gehört in die Quelle:
 
 - **Datum** der Messung und **wer** gemessen hat
 - **Drucker und Papier** (Modell, Grammatur) — eine Messung ohne Gerät ist nicht wiederholbar
-- **Die gemessenen Werte selbst**, nicht nur „stimmt": je Zeile der Tabelle oben der Istwert
+- **Die gemessenen Werte selbst**, nicht nur „stimmt“: je Zeile der Tabelle oben der Istwert
 - **Die Umschlagmarken** aus der Funktionsprüfung
 - **Abweichungen**, falls welche auftreten — besonders die. Eine Messung, die nur Bestätigung
   meldet, ist verdächtig
@@ -113,5 +113,5 @@ Es könnte der Drucker sein, das Papier, oder tatsächlich das Werkzeug.
 
 Die Messung macht die acht Regeln belegbar. Sie sagt weiterhin nichts darüber, ob
 DIN 5008:2020-03 diese Werte **vorschreibt** — das bleibt #12. Der Unterschied gehört in jede
-Formulierung, die aus dieser Messung entsteht: „gemessen am gedruckten Brief", nicht
-„normgerecht".
+Formulierung, die aus dieser Messung entsteht: „gemessen am gedruckten Brief“, nicht
+„normgerecht“.

@@ -4,7 +4,7 @@ Drei Dinge können hier still schiefgehen, und jedes hat seine Prüfung:
 
 1. Das Ergebnis behauptet weiter PDF/A, obwohl eine Anlage es nicht ist. Ein
    Merge erhält die XMP-Metadaten des Briefes; gemessen mit veraPDF ist das
-   Ergebnis dann FAIL, während die Datei weiter „2b" sagt. Wer sie ins Archiv
+   Ergebnis dann FAIL, während die Datei weiter „2b“ sagt. Wer sie ins Archiv
    legt, merkt es, wenn die Schrift fehlt.
 2. Die Kennzeichnung fällt, obwohl sie bleiben dürfte — übervorsichtig, und der
    Nutzer verliert PDF/A ohne Grund.
@@ -141,8 +141,8 @@ def test_eine_anlage_ohne_deklaration_kostet_die_kennzeichnung(brief, tmp_path):
 def test_eine_anlage_mit_deklaration_behaelt_sie(brief, tmp_path):
     """Gegenprobe: Die Regel darf nicht jede Kennzeichnung streichen.
 
-    Ohne diesen Fall wäre „Kennzeichnung entfernt" nicht von „Kennzeichnung
-    immer entfernt" zu unterscheiden — und Anlagen und PDF/A schlössen sich
+    Ohne diesen Fall wäre „Kennzeichnung entfernt“ nicht von „Kennzeichnung
+    immer entfernt“ zu unterscheiden — und Anlagen und PDF/A schlössen sich
     grundsätzlich aus, ohne dass es jemand entschieden hätte.
     """
     pdf, _ = brief
@@ -263,7 +263,7 @@ def test_englischer_mehrseiter_mit_anlage(tmp_path):
 
     Hier treffen sich zwei Zahlen, die leicht verwechselt werden: die Seiten der
     Datei und die Seiten des Briefes. Die Fusszeile des Briefes zaehlt nur ihn
-    selbst („Page 2 of 2"), die Datei hat mit Anlage aber drei Seiten.
+    selbst („Page 2 of 2“), die Datei hat mit Anlage aber drei Seiten.
 
     Genau daran ist der Merge von #11 und #55 gescheitert, ohne dass git einen
     Konflikt gemeldet haette: Beide Aenderungen standen textuell nebeneinander,

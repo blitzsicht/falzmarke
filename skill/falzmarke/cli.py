@@ -36,7 +36,7 @@ FONT_DIR = PAKET / "assets" / "fonts"
 
 EXIT_OK, EXIT_EINGABE, EXIT_GEOMETRIE, EXIT_UMGEBUNG = 0, 1, 2, 3
 #: `email --oeffnen`: Die Nachricht ging schon hinaus, kein Entwurf (ADR 0051).
-#: Ein eigener Code, damit eine Sitzung ihn nicht mit „Fenster ging nicht auf"
+#: Ein eigener Code, damit eine Sitzung ihn nicht mit „Fenster ging nicht auf“
 #: verwechselt — dort bleibt es bei 0 (ADR 0038, Punkt 4).
 EXIT_SCHON_GESENDET = 4
 
@@ -353,7 +353,7 @@ def _hat_ueberschrift_erster_ebene(bloecke) -> bool:
 def baue_daten(kopf: dict, profil: dict, profil_pfad: Path, arbeitsverzeichnis: Path,
                brief_pfad: Path) -> dict:
     # Ohne diesen Abbruch meldet der Renderer „Pflichtfelder fehlen: empfaenger,
-    # datum" — für ein Schreiben, das als E-Mail vollständig ist. Wer dann
+    # datum“ — für ein Schreiben, das als E-Mail vollständig ist. Wer dann
     # `empfaenger:` ergänzt, läuft in den Ausschluss des Linters. Zwei Fehler
     # hintereinander, und keiner nennt die Ursache.
     if str(kopf.get("typ") or "brief") == "email":
@@ -367,7 +367,7 @@ def baue_daten(kopf: dict, profil: dict, profil_pfad: Path, arbeitsverzeichnis: 
     # Derselbe Abbruch für `typ: rechnung` (#115), aus einem schärferen Grund:
     # Ohne ihn fiele eine Rechnung in den Briefzweig und entstünde als PDF —
     # OHNE Positionen und Summen, die der Brief nicht kennt, und ohne ein Wort
-    # darüber. Ein Werkzeug, das „abbrechen statt still etwas anderes setzen"
+    # darüber. Ein Werkzeug, das „abbrechen statt still etwas anderes setzen“
     # verspricht, darf eine Rechnung nicht als Brief ausgeben.
     # `typ: rechnung` lief bis #116 in denselben Abbruch wie `typ: email`: Der
     # Emitter fehlte, und als Brief gesetzt hätten Positionen und Summen gefehlt.
@@ -856,7 +856,7 @@ def _positionstabelle(kopf: dict, profil: dict | None = None) -> str:
     Gerechnet wird nichts (ADR 0039): Jede Zahl steht so in der Quelle.
 
     **Beim Kleinunternehmer** (ADR 0041) nur der Gesamtbetrag: Eine Zeile
-    „Summe netto" mit demselben Wert darüber wäre Rauschen, eine Steuerzeile
+    „Summe netto“ mit demselben Wert darüber wäre Rauschen, eine Steuerzeile
     gibt es nicht. Darunter steht der Hinweis aus dem Profil, im selben Wortlaut
     wie in der XML (BT-120, BT-33).
     """
@@ -1496,7 +1496,7 @@ def befehl_render(args) -> int:
     if not args.no_pdfa and not kennzeichnung_gefallen:
         # Der Name der Prüfung nennt die Stufe, die das Dokument behauptet —
         # nicht die, die es meistens hat. Ein Brief mit eingebetteter Datei ist
-        # A-3b, und „PDF/A-2b: fehlt" wäre dort eine Meldung über die falsche
+        # A-3b, und „PDF/A-2b: fehlt“ wäre dort eine Meldung über die falsche
         # Sache (Issue #114).
         stufe = geometrie.pdfa_stufe(pdf)
         erwartet = "3b" if eingebettet_gefragt else "2b"
@@ -1518,7 +1518,7 @@ def befehl_render(args) -> int:
     print(bericht.als_text(ausfuehrlich=args.verbose))
     if not bericht.ok:
         if str(kopf_cli.get("typ") or "brief") == "urkunde":
-            # Nicht „aus DIN 5008": Die Norm sagt zu einem Blatt ohne
+            # Nicht „aus DIN 5008“: Die Norm sagt zu einem Blatt ohne
             # Anschriftfeld nichts. Was hier gemessen wurde, hat das Werkzeug
             # selbst gesetzt (ADR 0048).
             print("\nFEHLGESCHLAGEN — das PDF hält die Maße nicht ein, die falzmarke "
@@ -1641,7 +1641,7 @@ def _setze_email(brief_pfad: Path, ausgabe: Path | None = None, *,
     # Der Brief wird JETZT gesetzt, in einen Arbeitsordner. Damit kann kein
     # veraltetes PDF mitreisen — es gibt keines, das älter wäre als dieser
     # Aufruf. Genau das war der Punkt in #78: „ein veraltetes PDF in einer
-    # frischen Mail muss auffallen und nicht stillschweigend mitreisen."
+    # frischen Mail muss auffallen und nicht stillschweigend mitreisen.“
     if kopf.get("brief"):
         quelle = Path(str(kopf["brief"]))
         if not quelle.is_absolute():
@@ -1854,7 +1854,7 @@ def befehl_email(args) -> int:
     # Der einzige Schritt mit einer Wirkung außerhalb dieses Prozesses — und er
     # steht hinter der Messung: Was seine eigene Prüfung nicht besteht, wird
     # niemandem ins Mailprogramm gelegt, wo der nächste Handgriff
-    # „Weiterleiten" heißt (Regel 0 im Skill, ADR 0038 Punkt 3).
+    # „Weiterleiten“ heißt (Regel 0 im Skill, ADR 0038 Punkt 3).
     #
     # Spät importiert, damit `subprocess` nicht in jedem Prozess liegt, der
     # `falzmarke.cli` lädt — der MCP-Dienst tut das auf Modulebene.
@@ -2009,7 +2009,7 @@ def befehl_email(args) -> int:
                                   ausser=frozenset({lage.schon_da_uid}), fenster=lage.fenster)
         elif lage.ungewiss:
             # Der dritte Zustand (#287). Ob ein Fenster offen ist, weiß hier
-            # niemand — und „nicht geprüft" ist nicht „nichts da". Die `.eml`
+            # niemand — und „nicht geprüft“ ist nicht „nichts da“. Die `.eml`
             # jetzt zu übergeben, wäre womöglich das zweite Fenster, das der
             # Betreiber am 11.09.2026 gemeldet hat.
             print(f"HINWEIS  Entwurf ungewiss: {lage.grund}\n"
@@ -2160,7 +2160,7 @@ def ablage_aus_profil(adresse: str, zusatz=None) -> tuple[str | None, str | None
     Zwei Profile mit derselben Adresse und verschiedener Ablage sind ein
     **Grund** und nicht nur ein Hinweis. Vorher stand hier `(None, hinweis)`,
     und `None` ist für `ablage.ablageordner` nicht von „kein Profil nennt das
-    Feld" zu unterscheiden: Der Lauf nahm dann `\\Archive` und verschob die Post
+    Feld“ zu unterscheiden: Der Lauf nahm dann `\\Archive` und verschob die Post
     mit `--machen` in einen Ordner, den keines der beiden Profile verlangt
     hatte — während die Ausgabe sagte, es sei keines genommen worden (#438).
     """
@@ -2557,7 +2557,7 @@ def befehl_einlesen(args) -> int:
     Lücken sind hier KEIN Fehler, sondern das erwartete Ergebnis: Bei einem
     Brief ohne DIN-Raster ist die Lücke die einzige ehrliche Antwort. Der
     Befehl endet deshalb mit EXIT_OK, auch wenn Felder offen bleiben — ein
-    Skript, das den Exit-Code prüft, soll nicht bei jedem Altbrief „scheitern".
+    Skript, das den Exit-Code prüft, soll nicht bei jedem Altbrief „scheitern“.
 
     Für die maschinelle Auswertung gibt es `--json`, wie bei `lint` und
     `verify`. Einen sechsten Exit-Code einzuführen wäre eine Änderung am

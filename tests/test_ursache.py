@@ -1,8 +1,8 @@
 """Ein Befund nennt nicht nur das Symptom, sondern die Stelle in der Eingabe (#145).
 
-`verify` meldete bisher `soll ≤ 190.0 ist 190.88 bei „1234567"`. Das ist die
+`verify` meldete bisher `soll ≤ 190.0 ist 190.88 bei „1234567“`. Das ist die
 Messung, und sie stimmt — aber wer den Brief geschrieben hat, sucht danach die
-Stelle in seiner Markdown-Datei, und „190,88" hilft ihm dabei nicht.
+Stelle in seiner Markdown-Datei, und „190,88“ hilft ihm dabei nicht.
 
 ## Was vorher gemessen wurde
 
@@ -27,7 +27,7 @@ Gemessen am 29.08.2026, und das Ergebnis verschiebt die Antwort:
 
 Die häufigen Fälle kommen gar nicht bis `verify` — der Datenvertrag weist sie
 vorher ab, und seine Meldung nennt die Ursache schon („betreff: 187 Zeichen —
-die Norm lässt höchstens 2 Zeilen zu"). Was übrig bleibt, sind **vier Klassen,
+die Norm lässt höchstens 2 Zeilen zu“). Was übrig bleibt, sind **vier Klassen,
 alle vier Überläufe nach rechts.** Für die gibt es jetzt eine Ursache im
 Bericht; die Schleife braucht es dafür nicht.
 

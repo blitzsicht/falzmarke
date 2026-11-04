@@ -2,7 +2,7 @@
 
 **Stand: 30.08.2026 · falzmarke v0.8.2 · Commit `71bfaaa`**
 
-Ein von außen erstellter Katalog („`blitzsicht/falzmarke` auf 10/10 Engineering-Reife bringen")
+Ein von außen erstellter Katalog („`blitzsicht/falzmarke` auf 10/10 Engineering-Reife bringen“)
 nennt 24 Forderungen. Dieses Dokument hält fest, welche davon bereits erfüllt sind, welche
 teilweise, und welche echte Arbeit bedeuten — **mit Fundstelle statt mit Einschätzung.**
 
@@ -45,7 +45,7 @@ benutzt. In `skill/requirements.txt` (5 Zeilen) und im `DEPS`-Dict in
 
 Die CI wird trotzdem grün, weil `pdfplumber` Pillow transitiv mitbringt. Das ist genau der
 Zustand, den der Katalog verbietet: „Keine Runtime-Abhängigkeit darf nur zufällig über ein
-anderes Paket vorhanden sein."
+anderes Paket vorhanden sein.“
 
 Ein Konsistenztest existiert nicht. `tests/test_vendor.py:95-98` prüft nur, dass `pdfplumber`
 und `pypdf` *genannt* sind — kein Listenvergleich.
@@ -199,7 +199,7 @@ beschreibt.
 `dialekt:` wird real ausgewertet: `pruefe_fassung` (`markdown.py:590-604`) lehnt unbekannte
 Fassungen mit Fehler ab, die Fassung steuert Grenzen (`MAX_LISTENTIEFE[lage.dialekt]`,
 `markdown.py:425`), und der Default bleibt bewusst 1.0, „damit ein alter Brief sein Aussehen
-nicht ändert" (`markdown.py:35-37`). Exit-Codes 0–4 sind in `docs/cli.md:116-124` dokumentiert.
+nicht ändert“ (`markdown.py:35-37`). Exit-Codes 0–4 sind in `docs/cli.md:116-124` dokumentiert.
 Neun ADRs liegen in `docs/entscheidungen/`.
 
 Es fehlt eine geschriebene Deprecation-Regel. Gelebt wird sie über den Fassungsmechanismus.
@@ -238,7 +238,7 @@ Originaltext der DIN 5008:2020-03** samt Berichtigung 1:2020-07.
 
 Er ist durch keinen der 24 Abschnitte lösbar, weil er kein Engineering-Problem ist. Er braucht
 ein gekauftes Normexemplar und jemanden, der Fundstellen überträgt. Solange er offen ist, sagt
-das Projekt nicht „normgerecht" — so steht es in `CLAUDE.md`, festgehalten von
+das Projekt nicht „normgerecht“ — so steht es in `CLAUDE.md`, festgehalten von
 `tests/test_textkanon.py`.
 
 Ein Katalog, der 24 Kapitel Arbeit vorschlägt und diesen Punkt in einem Nebensatz mitführt, setzt

@@ -43,7 +43,7 @@ ADR 0042 bewusst in Kauf genommen.
 ## Was liegen bleibt
 
 Die Reihenfolge stünde so, wenn die Arbeit wieder aufgenommen würde — sortiert nach Wirkung je
-Aufwand, nicht nach Stückzahl. Die Spalte „Folge" ist regelbezogen: Sie gilt, wenn **alle**
+Aufwand, nicht nach Stückzahl. Die Spalte „Folge“ ist regelbezogen: Sie gilt, wenn **alle**
 ungeprüften Quellen dieser Regel schweigen, nicht nur die der Portion.
 
 | # | Quelle | Paare | trägt Gruppe? | Fehler-Regeln | Warum hier |
@@ -75,7 +75,7 @@ typst-letter-pro v3.0.0
 `https://github.com/Sematre/typst-letter-pro`
 Zählstufe `einzeln`, Gruppe `letter_pro`.
 
-> Diese Quelle zählt `einzeln` und trägt keine Belegsgruppe. Die Spalte „Folge"
+> Diese Quelle zählt `einzeln` und trägt keine Belegsgruppe. Die Spalte „Folge“
 > rechnet die **übrigen** ungeprüften Quellen derselben Regel mit — ein Schweigen
 > ausgerechnet hier fällt keine dieser Regeln.
 
@@ -103,7 +103,7 @@ KOMA-Script, DIN5008A.lco (TeX Live)
 `https://ctan.org/pkg/koma-script`
 Zählstufe `einzeln`, Gruppe `koma_script`.
 
-> Diese Quelle zählt `einzeln` und trägt keine Belegsgruppe. Die Spalte „Folge"
+> Diese Quelle zählt `einzeln` und trägt keine Belegsgruppe. Die Spalte „Folge“
 > rechnet die **übrigen** ungeprüften Quellen derselben Regel mit — ein Schweigen
 > ausgerechnet hier fällt keine dieser Regeln.
 
@@ -127,7 +127,7 @@ Zählstufe `einzeln`, Gruppe `koma_script`.
 3. `python3 -m pytest tests/test_quellenlage.py` — die Schranke `UNGEPRUEFTE_PAARE` darf nur
    sinken und will dann von Hand nachgezogen werden; `SCHWEIGENDE_QUELLEN` ebenso.
 4. `python3 scripts/quellenlage.py` erzeugt den Doku-Abschnitt in der Normreferenz neu.
-5. Die Zahlen in `docs/recht.md` („Was die Stufen derzeit wert sind") nachziehen — sie werden
+5. Die Zahlen in `docs/recht.md` („Was die Stufen derzeit wert sind“) nachziehen — sie werden
    von `tests/test_textkanon.py` gegen die Regeldaten gezählt.
 6. `python3 scripts/offene_paare.py` — diese Liste neu erzeugen, die abgearbeitete Quelle aus
    `REIHENFOLGE` nehmen und unter `ERLEDIGT` eintragen.

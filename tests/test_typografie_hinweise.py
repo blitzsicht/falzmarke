@@ -4,7 +4,7 @@ WARUM ES DAS GIBT
 
 `typografie.anwenden()` ändert den Text nur dort, wo die Regel mehrfach belegt
 ist. Was sie zurückhält, sammelt `vorschlaege()` — „der Linter macht
-Warnungen daraus", stand im Docstring. Der Linter rief die Funktion nie auf:
+Warnungen daraus“, stand im Docstring. Der Linter rief die Funktion nie auf:
 Trug eine Regel ihre Stufe, wurde still ersetzt; trug sie sie nicht, geschah
 still nichts. Beide Male erfuhr der Schreibende nichts.
 
@@ -67,7 +67,7 @@ STELLEN = {
 NBSP = typografie.NBSP
 
 #: Dieselben Sätze, an der Stelle bereits mit geschütztem Leerzeichen. Von Hand
-#: statt aus `STELLEN` abgeleitet: „Tel." trägt kein Leerzeichen im Ausschnitt.
+#: statt aus `STELLEN` abgeleitet: „Tel.“ trägt kein Leerzeichen im Ausschnitt.
 GESCHUETZT = {
     "_abkuerzungen": ("z. B.", f"z.{NBSP}B."),
     "_datum": ("3. Oktober", f"3.{NBSP}Oktober"),
@@ -132,7 +132,7 @@ def test_die_herkunft_in_den_daten_steuert_den_pass(monkeypatch, schritt):
     """Gegenprobe zu den Proben unten, und deshalb von Anfang an grün: Sie
     stellen die Stufe über `stufe_setzen` um. Wirkte das nicht auf den Pass,
     hielten sie zwei gleiche Zustände gegeneinander — und die Paare „herabgestuft
-    warnt, getragen schweigt" bewiesen nichts."""
+    warnt, getragen schweigt“ bewiesen nichts."""
     probe, _ = STELLEN[schritt]
     for stufe, soll_ersetzen in ((regeln.EINZELN, False), (regeln.MEHRFACH, True), (regeln.PRIMAER, True)):
         with monkeypatch.context() as m:
@@ -218,7 +218,7 @@ def test_der_hinweis_gilt_auch_in_verschachtelten_knoten(tmp_path, body):
 def test_dieselbe_stelle_warnt_nur_herabgestuft(tmp_path, monkeypatch, schritt):
     """Zwei Proben am selben Satz. Herabgestuft: unverändert **und** gewarnt.
     Trägt die Regel ihre Stufe: ersetzt **und** still. Für `_datum` ist das der
-    Fall „3. Oktober" aus dem Vorgang."""
+    Fall „3. Oktober“ aus dem Vorgang."""
     probe, stelle = STELLEN[schritt]
 
     ersetzt, gefunden, bericht = unter_stufe(tmp_path, monkeypatch, schritt, regeln.EINZELN, probe)

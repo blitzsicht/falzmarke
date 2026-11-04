@@ -14,7 +14,7 @@ Entscheidung; hier steht nur, was gemessen wurde.
 | | Wikimedia Commons | Onlineprinters-Magazin |
 |---|---|---|
 | Datei | `File:DIN_5008_Form_B.svg` | `Vorlage_Geschaeftsbrief_DIN-5008_Form-B.jpg` |
-| Hochgeladen | 02.04.2013, Benutzer „Flamon" | Pfad nennt Juli 2021 |
+| Hochgeladen | 02.04.2013, Benutzer „Flamon“ | Pfad nennt Juli 2021 |
 | Lizenz | **CC0**, als eigenes Werk angegeben | keine Angabe |
 | Format | SVG, Text in Pfade konvertiert | JPEG, 599 × 846 |
 
@@ -45,8 +45,8 @@ Dann nebeneinanderlegen.
   148,5 / 87, oben 125 / 50, rechts 20 / 10 / 75.
 - **Zahlenwerte** durchgängig gleich, einschließlich der ungewöhnlichen Nachkommastellen:
   17,7 · 27,3 · 80 · 85 · 8,46 · 25 · 4,23.
-- **Beschriftungen** wortgleich: „Feld für Briefkopf, Form B", „Anschriftzone", „Faltmarke 1",
-  „Faltmarke 2", „Lochmarke", „Seite x von y (Bei mehrseitigen Texten)".
+- **Beschriftungen** wortgleich: „Feld für Briefkopf, Form B“, „Anschriftzone“, „Faltmarke 1“,
+  „Faltmarke 2“, „Lochmarke“, „Seite x von y (Bei mehrseitigen Texten)“.
 - **Informationsblock**: dieselbe Zeilenfolge — Ihr Gesprächspartner / Abteilung / Telefon /
   Telefax / E-Mail / Datum.
 - **Der Fußtext ist wortgleich**, über vier Zeilen:
@@ -62,10 +62,10 @@ Dann nebeneinanderlegen.
 
 ## Was sich unterscheidet
 
-Nur Zutaten: Logo, graue Flächen, Beschriftungen im Textfeld („Betreff", „Anrede", „Grußformel",
-„Anlage(n)"), der Hinweis „variabel gestaltbarer Informationsblock", die zusätzlich eingetragene
+Nur Zutaten: Logo, graue Flächen, Beschriftungen im Textfeld („Betreff“, „Anrede“, „Grußformel“,
+„Anlage(n)“), der Hinweis „variabel gestaltbarer Informationsblock“, die zusätzlich eingetragene
 Betreffposition 103,46 mm — und ausgetauschte Musterdaten (2013 „Christian Schmidtberger,
-muster-institut-hh.de" → 2021 „Max Mustermann, onlineprinters.de", Datum 2013-04-30 → 2021-07-20).
+muster-institut-hh.de“ → 2021 „Max Mustermann, onlineprinters.de“, Datum 2013-04-30 → 2021-07-20).
 
 ## Was daraus folgt — und was nicht
 
@@ -76,7 +76,7 @@ eine Übernahme wäre ausdrücklich erlaubt und völlig legitim. Aber ob die jü
 abstammt oder beide auf eine dritte Vorlage zurückgehen, sagt dieser Vergleich nicht.
 
 **Für die Frage der Beleglage ist das gleichgültig.** In beiden Fällen sind es nicht zwei
-unabhängige Quellen, und die Stufe „mehrfach bestätigt" verlangt genau das.
+unabhängige Quellen, und die Stufe „mehrfach bestätigt“ verlangt genau das.
 
 Kein Vorwurf an irgendwen: CC0 heißt, dass Weiterverwendung ohne Nennung vorgesehen ist. Der
 Fehler liegt bei uns — zwei Ansichten derselben Sache wurden als zwei Belege gezählt. Das ist die

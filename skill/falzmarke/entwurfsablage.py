@@ -2,7 +2,7 @@
 
 Neben `ablage` das zweite Modul des Pakets, das eine Nachricht im Postfach
 **bewegt**, und aus demselben Grund neben `postfach` statt darin: Dessen Zusage
-„nur lesend, der einzige schreibende Befehl ist `APPEND`" bleibt wahr.
+„nur lesend, der einzige schreibende Befehl ist `APPEND`“ bleibt wahr.
 
 **Ein ändernder Befehl, und es ist `UID MOVE`, immer in den Ordner mit `\\Trash`.**
 Kein `COPY`, kein `STORE \\Deleted`, kein `EXPUNGE`: Nichts wird hart gelöscht,
@@ -19,7 +19,7 @@ je eine herausnehmen können: Bewegt sich der Entwurf dann, trägt genau diese
 Sperre den Fall.
 
 **Fehlender Beleg ist kein Befund.** Ist das Postfach nicht zu erreichen, heißt
-das `NICHT GEPRÜFT` und nie „nichts zu tun".
+das `NICHT GEPRÜFT` und nie „nichts zu tun“.
 
 **Was vor dem Zug noch einmal gelesen wird.** Zwischen Plan und `MOVE` liegen
 Sekunden, in denen der Betreiber ein Fenster öffnen oder Thunderbird den Ordner
@@ -171,13 +171,13 @@ def _selbe_fassung_raus(z) -> bool:
 def _neuere_fassung_raus(z) -> bool:
     """Eine neuere Fassung ging an genau dieselben Empfänger hinaus.
 
-    „Andere Fassung" kommt aus dem Tagebuch. Ohne Eintrag ist nichts bewiesen:
+    „Andere Fassung“ kommt aus dem Tagebuch. Ohne Eintrag ist nichts bewiesen:
     Eine von Hand geschriebene Mail mit demselben Betreff kann eine Rückfrage
     sein. Gleiche Empfänger heißt gleiche Menge, nicht Schnitt, und gleicher
     Betreff schließt die Antwortstufe ein: Ein `AW:` mehr ist eine Antwort im
     Faden, keine neue Fassung.
 
-    „Neuer" heißt: später ins Buch gekommen als dieser Entwurf. Später gesendet
+    „Neuer“ heißt: später ins Buch gekommen als dieser Entwurf. Später gesendet
     reicht nicht. Liegen zwei Fassungen und geht die ältere hinaus, ist die
     jüngere nicht überholt, sie wird vielleicht noch gebraucht.
     """

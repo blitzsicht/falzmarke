@@ -5,8 +5,8 @@
 ## Worum es geht
 
 `skill/references/stil.md` sagt, wie eine Geschäftsmail aufgebaut ist. Was es nicht sagen kann:
-wie **dieser** Absender schreibt. Ein Einzelunternehmer schreibt „ich", eine GmbH „wir"; eine
-Werkstatt will „zeitnah" nicht lesen, eine Kanzlei schon. Das in die Stilreferenz zu schreiben
+wie **dieser** Absender schreibt. Ein Einzelunternehmer schreibt „ich“, eine GmbH „wir“; eine
+Werkstatt will „zeitnah“ nicht lesen, eine Kanzlei schon. Das in die Stilreferenz zu schreiben
 hieße, sie für jeden Absender zu gabeln — und es gibt mehrere: siluri, blitzsicht, privat.
 
 Der Ort dafür ist das Profil, denn dort steht ohnehin, wer der Absender ist. Neu ist der
@@ -20,7 +20,7 @@ Zeichenketten, höchstens zehn, je höchstens 200 Zeichen. Der Inhalt bleibt ung
 Der Grund ist keine Bequemlichkeit, sondern eine Eigenschaft des Pakets: falzmarke gibt
 Profildaten an kein Modell weiter und versteht keinen Satz. Die Abhängigkeiten sind `typst`,
 `pyyaml`, `pdfplumber`, `pypdf`, `markdown-it-py`, `pillow` — kein HTTP-Client, kein Modell-SDK
-(ADR 0029, ADR 0039). Eine Prüfung, die „Fristen immer als Datum, nie als Dauer" einzuhalten
+(ADR 0029, ADR 0039). Eine Prüfung, die „Fristen immer als Datum, nie als Dauer“ einzuhalten
 behauptete, wäre eine Zusage ohne Deckung. Genau das verbietet ADR 0035 Festlegung 1.
 
 Wirksam ist `hinweise:` trotzdem, nur auf dem anderen Weg: `skill/SKILL.md` Schritt 4 lässt den
@@ -36,7 +36,7 @@ Zwei Regeln auf Ebene `praxis`, `herkunft: werkzeug`, `wirkung: warnung`:
 
 | Regel | Was sie sagt |
 |---|---|
-| `email.stil_person` | Das Profil sagt `person: ich`, im Text steht „wir" (oder umgekehrt) |
+| `email.stil_person` | Das Profil sagt `person: ich`, im Text steht „wir“ (oder umgekehrt) |
 | `email.stil_floskel` | Eine Wendung aus `floskeln:` steht im Text |
 
 Warnung, weil es Ermessen ist: Wie jemand schreibt, entscheidet er selbst. Nach ADR 0035
@@ -50,15 +50,15 @@ ein Tippfehler darf nicht stillschweigend die Prüfung abschalten — derselbe G
 
 ## Entscheidung 3: Nur die Subjektform, und nur außerhalb von Auszügen
 
-`person:` sucht `\bich\b` beziehungsweise `\bwir\b`, sonst nichts. „unser Angebot" schreibt auch
-ein Einzelunternehmer, „mein Eindruck" auch jemand, der sonst „wir" sagt. Die Possessivformen
+`person:` sucht `\bich\b` beziehungsweise `\bwir\b`, sonst nichts. „unser Angebot“ schreibt auch
+ein Einzelunternehmer, „mein Eindruck“ auch jemand, der sonst „wir“ sagt. Die Possessivformen
 mitzuprüfen hätte die Regel bei gültigem Text anschlagen lassen — die Lehre aus der
 Telefonprüfung ([#133](https://github.com/blitzsicht/falzmarke/issues/133)).
 
 Beide Prüfungen laufen auf dem Text **ohne wortgetreue Auszüge**: Zäune mit ``` oder ~~~ und
 Inline-Auszüge in einfachen Backticks fallen vorher weg. Ein Auszug ist fremder Wortlaut — eine
-zitierte Protokollzeile, eine Fehlermeldung, die Antwort eines Kunden. Dass dort „wir" oder
-„zeitnah" steht, sagt über den Stil des Absenders nichts.
+zitierte Protokollzeile, eine Fehlermeldung, die Antwort eines Kunden. Dass dort „wir“ oder
+„zeitnah“ steht, sagt über den Stil des Absenders nichts.
 
 Die feste Liste `FLOSKELN` bleibt davon unberührt. Was sie heute tut, halten Tests fest; sie
 ebenfalls um die Auszüge zu beschneiden ist eine eigene Änderung mit eigener Gegenprobe.
@@ -84,7 +84,7 @@ eigenes Profil ein.
 
 ## Was ausdrücklich nicht entschieden wird
 
-- **Keine Prüfung von `hinweise:` auf Inhalt**, auch nicht „nur als Warnung". Siehe Entscheidung 1.
+- **Keine Prüfung von `hinweise:` auf Inhalt**, auch nicht „nur als Warnung“. Siehe Entscheidung 1.
 - **Kein Umschreiben.** `lint` ändert den Text nicht; die Begründung steht in
   `skill/references/stil.md` und ist älter als dieser Abschnitt.
 - **Keine Satzlängen- oder Varianzregel.** Eine Mail nach `stil.md` hat fünf Sätze; eine

@@ -17,7 +17,7 @@ Beispielprofils; `scripts/golden_email.py` wendet sie an und schreibt Profil,
 Kopf und erwartete Blöcke als JSON nach
 `tests/golden/email/signatur-faelle.json`. Beide Seiten lesen dieselbe Datei:
 dieses Repo als zweite Sicht auf vorhandene Tests, jeder weitere Umsetzer als
-Unterschied zwischen „prüft sich selbst" und „prüft gegen das Werkzeug".
+Unterschied zwischen „prüft sich selbst“ und „prüft gegen das Werkzeug“.
 
 **Jeder Fall muss sich von jedem anderen unterscheiden.** Das ist keine
 Ordnungsliebe, sondern der Kern: Der erste Entwurf hatte einen Fall

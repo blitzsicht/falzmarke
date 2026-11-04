@@ -78,13 +78,13 @@ GEPRUEFT = _zu_pruefen()
 #: Das Kürzel ist **nicht aufgezählt**. Bis zum 29.08.2026 stand hier
 #: `(?:HGB|GmbHG|AktG|GenG|UWG|UStG)` — sechs Gesetze, und ein siebtes wäre
 #: still durchgerutscht. Genau davor warnt #124: „sonst wächst die Lücke beim
-#: nächsten Absatz von selbst nach." Ein Muster, das nur kennt, was schon da
+#: nächsten Absatz von selbst nach.“ Ein Muster, das nur kennt, was schon da
 #: ist, wächst nicht mit.
 #:
 #: Ein Kürzel trägt **mindestens zwei Großbuchstaben** — HGB, GmbHG, GewO,
 #: BetrVG, StromGVV, MoPeG. Ein gewöhnliches Wort hat einen: `§ 5 Absatz`,
 #: `§ 12 dieser`. Der erste Anlauf ließ ein einzelnes Großwort zu und las
-#: „Absatz" als Gesetz; die Gegenprobe unten hat es gefunden.
+#: „Absatz“ als Gesetz; die Gegenprobe unten hat es gefunden.
 NENNUNG = re.compile(
     r"§+ ?\d+[a-z]?(?: Abs(?:\.|atz) ?\d+[a-z]?)? "
     r"(?=[A-Za-z]{2,10}\b)(?:[a-z]*[A-ZÄÖÜ]){2}[A-Za-z]*\b"
@@ -219,7 +219,7 @@ def test_das_muster_kennt_auch_ungenannte_gesetze(nennung):
     """Es zählte sechs Kürzel auf; ein siebtes wäre still durchgerutscht.
 
     Genau davor warnt #124: „sonst wächst die Lücke beim nächsten Absatz von
-    selbst nach." Keines der hier geprüften Kürzel kommt im Repository vor —
+    selbst nach.“ Keines der hier geprüften Kürzel kommt im Repository vor —
     das ist der Punkt.
     """
     assert nennung in _erste_nennungen(f"Dazu sagt {nennung} etwas.")

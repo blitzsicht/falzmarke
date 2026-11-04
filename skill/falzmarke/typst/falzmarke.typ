@@ -201,7 +201,7 @@
   // Rasterpruefung haelt die Abstaende aufeinanderfolgender Zeilen des
   // Briefkoerpers gegen 4,2333 mm. Mit `below: 0pt`, wie es hier bis zum
   // Merge von #140 stand, sind es 11 pt statt 12; die Pruefung meldet das
-  // seither als „0.92 Zeilen" an jedem Absatz nach einer Ueberschrift.
+  // seither als „0.92 Zeilen“ an jedem Absatz nach einer Ueberschrift.
   // Das Aussehen des Blockzitats. Es steht hier und nicht bei `#let zitat`,
   // weil eine show-Regel den Kontext eines Dokuments braucht; das `#let`
   // liefert nur noch das Element, damit die Auszeichnung entsteht.

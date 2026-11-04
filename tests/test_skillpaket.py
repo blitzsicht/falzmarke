@@ -190,7 +190,7 @@ def test_der_plugin_ordner_bleibt_aus_dem_skill_paket(tmp_path):
 
 # ── Der Sollwert: 30 MB Uploadgrenze ────────────────────────────────────────
 
-#: Gemessen am 28.08.2026 am Dialog „Fähigkeit hochladen" von claude.ai. Der
+#: Gemessen am 28.08.2026 am Dialog „Fähigkeit hochladen“ von claude.ai. Der
 #: Wortlaut der Meldung steht hier, weil eine Zahl ohne ihren Anlass nach
 #: einem halben Jahr wie eine Schätzung aussieht.
 MELDUNG = "Zip file must be less than 30MB"
@@ -429,7 +429,7 @@ def test_der_vorrat_kommt_vor_dem_netz():
 
 def test_ohne_pypi_nennt_die_meldung_das_offline_paket(monkeypatch, capsys):
     """Eine Sandbox ohne PyPI (ChatGPT, September 2026) endete hier mit Exit 1 und
-    „abbrechen". Der Ausweg lag im selben Release — die Meldung muss ihn nennen."""
+    „abbrechen“. Der Ausweg lag im selben Release — die Meldung muss ihn nennen."""
     b = _bootstrap()
     monkeypatch.setattr(b, "fehlende", lambda: {"typst": "typst>=0.15,<0.16"})
     monkeypatch.setattr(b, "wheels", lambda: [])

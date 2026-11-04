@@ -23,7 +23,7 @@ sagt zu jedem uebrigen, warum nicht.
 ### Praezisiert am 28.08.2026 (Dialekt 1.1)
 
 Hier stand: „Langes Wort ohne Trennmoeglichkeit und lange URL laufen nicht ueber
-— Typst bricht beide um." Das galt fuer den Stand, an dem es gemessen wurde, und
+— Typst bricht beide um.“ Das galt fuer den Stand, an dem es gemessen wurde, und
 es gilt **im Absatz** weiterhin: ein 120 Zeichen langes Wort mitten in einem Satz
 wird hart getrennt und bleibt bei 190,00 mm.
 
@@ -55,7 +55,7 @@ Feldern) liegt knapp darueber — der Fall ist also nicht konstruiert.
 
 ### Ueberlauf ist nur der eine Ausgang (gemessen 29.08.2026, Issue #173)
 
-Hier stand: „Er laeuft also zwangslaeufig ueber, sobald die Zeile zu lang ist."
+Hier stand: „Er laeuft also zwangslaeufig ueber, sobald die Zeile zu lang ist.“
 Das gilt nur fuer eine Zeile **ohne Leerzeichen**. Hat sie eines, bricht Typst
 sie dort um — still, und das PDF haelt danach alle Masse ein:
 

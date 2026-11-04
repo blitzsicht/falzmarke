@@ -25,7 +25,7 @@ dort rot wird — an `#1a1a1a` (main) wie am weißen Grund (Zwischenstand a784fd
 Bis zum 15.10.2026 schnitten diese Tests eine mitgebrachte Signatur
 (`email.signatur_html`) heraus: Ihre Farben galten als Sache der Quelle. Seither
 setzt falzmarke sie nach derselben Regel ein (ADR 0034, Nachtrag „Die Signatur
-erbt ihre Farben"), und gemessen wird die ganze Nachricht. Was dabei an der
+erbt ihre Farben“), und gemessen wird die ganze Nachricht. Was dabei an der
 Signatur geschieht, misst `tests/test_signatur_farbe_geerbt.py`.
 """
 

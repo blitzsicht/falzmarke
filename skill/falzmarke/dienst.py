@@ -273,7 +273,7 @@ def email_setzen(nachricht: str, profil=None, als: str = "pfad",
             "versendet": False,
         }
         # Derselbe Hinweis wie auf der Kommandozeile. Ohne ihn bekäme der
-        # Aufrufer hier nur „bestanden: true" zurück und hielte den
+        # Aufrufer hier nur „bestanden: true“ zurück und hielte den
         # Blindverteiler für erledigt — die eine Lage, die #242 verhindern
         # wollte. Der MCP-Dienst ist der Hauptweg dieses Pakets.
         bcc = email.message_from_bytes(
@@ -286,7 +286,7 @@ def email_setzen(nachricht: str, profil=None, als: str = "pfad",
         # Und dasselbe für die gewählte Logo-Form (#243): Wer `email.logo` auf
         # eine Adresse oder eine Data-URI setzt, bekommt hier den Satz, der
         # sagt, was das beim Empfänger kostet. Der Aufrufer sieht sonst nur
-        # „bestanden: true" und hält ein Logo für zugestellt, das bei einem Teil
+        # „bestanden: true“ und hält ein Logo für zugestellt, das bei einem Teil
         # der Empfänger als leerer Kasten ankommt.
         logo_hinweis = eml_modul.logo_hinweis_aus_datei(eml_pfad)
         if logo_hinweis:

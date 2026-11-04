@@ -13,11 +13,11 @@ braucht. Es ist bewusst eine Bestandsliste und keine Anleitung zum Bewerben. Die
 
 | Verzeichnis | Wie der Eintrag entsteht | Stand |
 |---|---|---|
-| **Offizielles MCP-Registry** | `server.json` + Job `mcp-registry` im Release-Lauf, OIDC | gelistet, v0.11.1 (03.11.2026); Startbefehl aus dem Eintrag gefahren, Handschlag und vier Werkzeuge; Brief mit 34/34 zuletzt an v0.11.0 ([Finding 1](bestandsaufnahme-distribution.md)) |
-| **Glama** | Konto nötig, „Add Server" in der Weboberfläche | gelistet, noch nicht beansprucht |
+| **Offizielles MCP-Registry** | `server.json` + Job `mcp-registry` im Release-Lauf, OIDC | gelistet, v0.11.2 (03.11.2026); Startbefehl aus dem Eintrag gefahren, Handschlag, vier Werkzeuge und Brief mit 34/34 ([Finding 1](bestandsaufnahme-distribution.md)) |
+| **Glama** | Konto nötig, „Add Server“ in der Weboberfläche | gelistet, noch nicht beansprucht |
 | **awesome-mcp-servers** | PR [punkpeye/awesome-mcp-servers#13221](https://github.com/punkpeye/awesome-mcp-servers/pull/13221) | offen; der Maintainer verlangt Anspruch und Quality Score auf Glama |
 | Repo-Themen (`mcp`, `mcp-server`, `model-context-protocol`) | `scripts/topics.py`, Wächter `repo_pruefung.py` | erledigt |
-| `Dockerfile` im Wurzelverzeichnis | liegt dort; CI-Job „MCP-Dienst im Container" baut und spricht ihn an | erledigt |
+| `Dockerfile` im Wurzelverzeichnis | liegt dort; CI-Job „MCP-Dienst im Container“ baut und spricht ihn an | erledigt |
 | Englisches README | `README.en.md` | erledigt |
 
 ## Das offizielle Registry — und warum es beim Release passiert
@@ -55,7 +55,7 @@ und sie steht dort, damit niemand sie für erledigt hält.
 
 Glama nennt seinen Einreichungsweg nicht öffentlich. Gemessen am 11.09.2026: Weder
 `glama.ai/mcp/servers` noch die API-Referenz beschreiben ein Verfahren; die Referenz nennt als
-Aufnahmequellen „Community submissions", automatische Entdeckung, die
+Aufnahmequellen „Community submissions“, automatische Entdeckung, die
 Awesome-MCP-Servers-Liste und das offizielle Registry.
 
 Damit gibt es zwei Wege, und der erste läuft schon: Ein Eintrag im offiziellen Registry ist

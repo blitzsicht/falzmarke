@@ -242,7 +242,7 @@ def link(ziel: str, inhalt: str) -> str:
     Mailprogramme, die Adressen selbst erkennen, ziehen es in den Verweis.
 
     Eine eigene Zeile loest das, zerreisst aber den Satz: Der Rest des Satzes
-    begaenne dann mit „, die seit August". Die Klammern loesen dasselbe Problem
+    begaenne dann mit „, die seit August“. Die Klammern loesen dasselbe Problem
     und lassen den Satz stehen — sie sind die uebliche Abgrenzung fuer eine
     Adresse im Fliesstext und werden beim Erkennen nicht mitgenommen.
     """
@@ -322,14 +322,14 @@ FESTE_BLOECKE = (baum_modul.Liste, baum_modul.Tabelle, baum_modul.Angaben,
 def teile(bloecke) -> list[tuple[str, str]]:
     """Geprüfter Baum -> je Block sein Text und seine Art (`FLIESS`, `FEST`, `ZITAT`).
 
-    „Fest" heißt: nicht weich umbrechbar. Listen und Tabellen tragen ihre
+    „Fest“ heißt: nicht weich umbrechbar. Listen und Tabellen tragen ihre
     Bedeutung in der Form — eine gefaltete Einrückung landet beim Entfalten
     mitten im Satz, und eine gefaltete Tabellenspalte zerbricht.
 
     Diese Auskunft entsteht hier, wo der Knotentyp bekannt ist, und wird an
     `falte()` weitergereicht. Sie aus dem fertigen Text zurückzuraten wäre
-    möglich und war es auch — die Heuristik hielt „2. Mahnung: …" am
-    Satzanfang für einen Aufzählungspunkt und ein „A | B" im Fließtext für
+    möglich und war es auch — die Heuristik hielt „2. Mahnung: …“ am
+    Satzanfang für einen Aufzählungspunkt und ein „A | B“ im Fließtext für
     eine Tabelle, und ließ beide Absätze ungefaltet stehen.
     """
     ergebnis = []

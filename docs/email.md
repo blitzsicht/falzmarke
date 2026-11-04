@@ -54,7 +54,7 @@ falten, entfalten, muss gleich sein.
 | ein Versandweg | falzmarke versendet nichts. Es gibt keinen Versandbefehl und keine Option, die sendet. |
 
 `Bcc` steht dagegen in der Datei, wenn `bcc:` im Frontmatter gesetzt ist — aber **nicht** in der
-`.html`-Vorschau: Die ist zum Herauskopieren gedacht, und eine sichtbare Zeile „Blindkopie" wäre
+`.html`-Vorschau: Die ist zum Herauskopieren gedacht, und eine sichtbare Zeile „Blindkopie“ wäre
 das Gegenteil dessen, wofür das Feld da ist. `verify --email` misst beides: dass die Kopfzeile
 auswertbar ist und dass keine ihrer Adressen im Text- oder HTML-Teil auftaucht. Ob ein
 Mailprogramm die Zeile beim Weiterleiten übernimmt, entscheidet das Programm; der Befehl nennt
@@ -313,7 +313,7 @@ Fenster dieselbe UID nennen ([ADR 0060](entscheidungen/0060-anker-der-zuordnung.
 Gelesen wird das Thunderbird-Profil, in dem der Socket der Brücke liegt — bei gesetztem
 `FALZMARKE_BRUECKE_SOCKET` also ein anderes als das Standardprofil. Liegt dort kein Tagebuch,
 nennt der Hinweis das Profil beim Namen: `kein Tagebuch im Thunderbird-Profil „…“`. Vorher stand
-dort nur „kein Tagebuch", und das klang nach einem zu alten Add-on statt nach dem falschen Profil.
+dort nur „kein Tagebuch“, und das klang nach einem zu alten Add-on statt nach dem falschen Profil.
 
 Ab 0.2.0 hält die Entwurfsbrücke außerdem das Senden an, wenn derselbe Text in den letzten 14
 Tagen schon an einen dieser Empfänger ging. Bei einem Entwurf oder einer neuen Mail gilt das auch
@@ -365,7 +365,7 @@ zurück angesehen werden (Vorgabe 30 Tage).
 
 **Eine Antwort darf mehrere Nachrichten erledigen.** `In-Reply-To` trägt nach RFC 5322 eine
 Liste, und ein langer Wert liegt über mehrere Zeilen gefaltet in der Nachricht. Gesucht wird
-deshalb je Kennung einzeln; eine Antwort zählt erst als „längst weggeräumt", wenn **keine** ihrer
+deshalb je Kennung einzeln; eine Antwort zählt erst als „längst weggeräumt“, wenn **keine** ihrer
 Kennungen im Eingang liegt. Ein Umbruch in einem IMAP-Argument wird abgelehnt und nicht
 entschärft — in IMAP beginnt dort ein zweiter Befehl.
 
@@ -492,7 +492,7 @@ Ein Beispiel liegt unter `examples/email/email-signatur.md`, die Signatur dazu i
 
 - **Betreff:** ab 78 Zeichen eine **Warnung**, kein Fehler. Die Zahl stammt aus
   [RFC 5322](https://www.rfc-editor.org/rfc/rfc5322), Abschnitt 2.1.1 — dort steht aber etwas anderes, als hier bis v0.8.1 behauptet wurde: Begrenzt
-  ist die **Zeilenlänge** einer Kopfzeile („SHOULD be no more than 78 characters"), und ein
+  ist die **Zeilenlänge** einer Kopfzeile („SHOULD be no more than 78 characters“), und ein
   längerer Betreff wird gefaltet, nicht abgelehnt. Was oberhalb wirklich passiert, ist eine
   Anzeigefrage: Übersichten schneiden ab, und wo genau, ist von Programm zu Programm verschieden.
   Damit ist es Erfahrung und keine Vorschrift — Ebene **Praxis** nach
@@ -507,7 +507,7 @@ Ein Beispiel liegt unter `examples/email/email-signatur.md`, die Signatur dazu i
   sie mitten im Wort brachen (gemessen am 08.09.2026 in Outlook für Mac). Rechtsbündige Zellen
   brechen zusätzlich nicht zwischen Zahl und
   Einheit — das ist eine Anweisung an die Darstellung und **keine** Ersetzung im Text: Das
-  geschützte Leerzeichen vor „EUR" steht auf einer Einzelquelle und darf nach der Quellenlage
+  geschützte Leerzeichen vor „EUR“ steht auf einer Einzelquelle und darf nach der Quellenlage
   nicht automatisch gesetzt werden. Jede Layouttabelle trägt
   `role="presentation"`: Ohne die Marke liest ein Screenreader sie als Datensatz vor, und die
   Prüfung lehnt sie ab. Umgekehrt gilt dasselbe — eine Tabelle ohne `<th>` **und** ohne die Marke
@@ -528,7 +528,7 @@ Ein Beispiel liegt unter `examples/email/email-signatur.md`, die Signatur dazu i
   in `quellen.yaml`. Eine Setzung auf Ebene *Praxis* nach
   [ADR 0035](entscheidungen/0035-vier-ebenen-fuer-email-regeln.md) — und Praxis ist nie ein
   Fehler, wirkte hier aber als einer, weil `Bericht` keine Warnstufe kennt. Die Prüfung steht
-  jetzt in der Gegenrichtung („Fließtext ohne Breitendeckel") und hält fest, dass der Deckel nicht
+  jetzt in der Gegenrichtung („Fließtext ohne Breitendeckel“) und hält fest, dass der Deckel nicht
   stillschweigend zurückkommt. Sie misst nur die **eigenen** Absätze (`class="fm-t"`): Eine
   mitgebrachte Signatur darf ihre eigene Breite behalten. Wer den Deckel wiederhaben will, braucht
   zuerst eine Quelle und dann einen Weg, ihn als Warnung zu melden.
@@ -538,7 +538,7 @@ Ein Beispiel liegt unter `examples/email/email-signatur.md`, die Signatur dazu i
   die schärfere der beiden Grenzen. Eine Regel auf der Ebene `praxis` kann damit **warnen**: Sie
   steht im Bericht, erscheint im Schlusssatz und lässt den Exit-Code bei 0.
 
-  Bis #292 war das nicht möglich. Es gab nur „Fehler" oder „gar nicht prüfen", weil
+  Bis #292 war das nicht möglich. Es gab nur „Fehler“ oder „gar nicht prüfen“, weil
   `geometrie.Bericht` keine dritte Stufe kannte — und daran ist die Lesebreite gestorben, eine
   Setzung ohne Quelle, die als harter Befund wirkte (#289). Die Wirkung hat sich für keine
   Prüfung geändert; der Gewinn ist, dass sie jetzt begründet ist. Die Briefmaße bleiben
@@ -612,7 +612,7 @@ Klartextteil ist die Überschrift unterstrichen, das Zitat trägt `>` als Zitatt
 und der Auszug steht eingerückt in festen Zeilen — gefaltet wird er nie.
 
 Die Zahl oben hält `tests/test_email_beispiele.py` fest. Sie stand von August bis September
-2026 auf „Vier", während längst fünf Dateien dort lagen; eine Zahl in Prosa altert still.
+2026 auf „Vier“, während längst fünf Dateien dort lagen; eine Zahl in Prosa altert still.
 
 Erneuert werden die Goldens mit `python3 scripts/golden_email.py`. Der Diff im Pull Request ist
 dann der Befund.

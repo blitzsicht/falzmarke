@@ -1,6 +1,6 @@
 """Wendungen, die nichts sagen — als Warnung, nie als Fehler (#106).
 
-„Ich hoffe, diese E-Mail erreicht Sie wohlauf" ist nicht falsch. Es ist leer:
+„Ich hoffe, diese E-Mail erreicht Sie wohlauf“ ist nicht falsch. Es ist leer:
 Die Zeile ließe sich streichen, ohne dass die Nachricht etwas verlöre. Genau das
 ist die Aufnahmebedingung dieser Liste.
 
@@ -13,12 +13,12 @@ Wendung, die ihr **ähnlich sieht und bleiben muss**:
 
 | gemeldet | bleibt |
 |---|---|
-| „vielen Dank für Ihre Zeit" | „vielen Dank für die Unterlagen" |
-| „ich hoffe, es geht Ihnen gut" | „ich hoffe, der Termin passt Ihnen" |
-| „wollte mich nur kurz melden" | „ich melde mich wegen der Rechnung" |
-| „jederzeit gerne zur Verfügung" | „bei Rückfragen stehe ich zur Verfügung" |
-| „es ist wichtig zu beachten" | „wichtig: die Frist endet am 15." |
-| „wir würden uns freuen" | „wir freuen uns auf die Zusammenarbeit" |
+| „vielen Dank für Ihre Zeit“ | „vielen Dank für die Unterlagen“ |
+| „ich hoffe, es geht Ihnen gut“ | „ich hoffe, der Termin passt Ihnen“ |
+| „wollte mich nur kurz melden“ | „ich melde mich wegen der Rechnung“ |
+| „jederzeit gerne zur Verfügung“ | „bei Rückfragen stehe ich zur Verfügung“ |
+| „es ist wichtig zu beachten“ | „wichtig: die Frist endet am 15.“ |
+| „wir würden uns freuen“ | „wir freuen uns auf die Zusammenarbeit“ |
 
 Der Unterschied ist jedes Mal derselbe: Trägt der Satz eine Information oder
 nicht.

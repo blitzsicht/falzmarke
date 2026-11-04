@@ -42,7 +42,7 @@ Originaltext vorliegt. Der Normabgleich wiederum wartet auf 100 Sterne im Reposi
 dieser Entscheidung: 0) — und die kommen nur durch Verbreitung.
 
 Das ist ein Kreislauf, und er ist hier **nicht entschieden**. Er gehört in eine eigene
-Entscheidung, die den Zuschnitt von „Vor Verbreitung" klärt: Vermutlich ist Verbreitung
+Entscheidung, die den Zuschnitt von „Vor Verbreitung“ klärt: Vermutlich ist Verbreitung
 vertretbar, solange die Warnstufe ehrlich ausgewiesen bleibt — heute stehen 13 Regeln auf Fehler
 und 17 auf Warnung, und das steht auch so im README. Aber das ist eine Abwägung, keine
 Ableitung, und sie wird getroffen statt unterstellt.
@@ -64,10 +64,10 @@ einfachen Zugang.
 müssen im Markdown-Baum existieren, bevor ein zweiter Emitter sie ausgeben kann. Und sie hängt
 *nicht* am Hybridbrief oder am Beweis, also gibt es keinen Grund, sie dahinter zu stellen.
 
-**Warum sie eine eigene Phase ist und nicht in „Dokumentpakete" fällt:** Dort liegen Pakete
+**Warum sie eine eigene Phase ist und nicht in „Dokumentpakete“ fällt:** Dort liegen Pakete
 *um* ein Dokument herum — Anlagen, Ablage, Serie. Eine E-Mail ist ein anderes Erzeugnis, mit
 eigener Struktur, eigenem Prüfweg (`verify --email`) und eigenen Regeln (Abschnitt 22). Sie unter
-„Dokumentpakete" zu führen hieße, den Namen der Phase unbrauchbar zu machen.
+„Dokumentpakete“ zu führen hieße, den Namen der Phase unbrauchbar zu machen.
 
 Die Phase ändert nichts an der Begründung oben: Belegbarkeit bleibt zuerst, und die E-Mail-Regeln
 tragen ihre Herkunft wie alle anderen — bis zum Normabgleich (#12) aus Sekundärquellen.

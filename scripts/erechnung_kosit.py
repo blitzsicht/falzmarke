@@ -96,7 +96,7 @@ def lies_bericht(pfad: Path) -> dict:
     # Die Regel steht als `rep:message code="BR-DE-15" level="error"` — gemessen am
     # echten Bericht (13.09.2026). Eine erste Fassung suchte `svrl:failed-assert`;
     # der nachgestellte Bericht im Test trug dieselbe falsche Annahme und blieb
-    # grün, erst der Lauf gegen den echten Validator zeigte „ohne Regel".
+    # grün, erst der Lauf gegen den echten Validator zeigte „ohne Regel“.
     regeln = {m.get("code") for m in wurzel.iter(f"{{{NS['rep']}}}message")
               if m.get("code") and m.get("level") in ("error", "fatal")}
     return {

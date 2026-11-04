@@ -36,7 +36,7 @@ def _bild(pfad, flaechen, breite=20, hoehe=20):
     """Ein PNG aus waagerechten Streifen: [(farbe, anteil), …].
 
     `anteil` ist der Anteil an der Hoehe. So laesst sich „viel Tinte, wenig
-    Gruen" genau einstellen — und damit die Grenze, an der die Pruefung kippt.
+    Gruen“ genau einstellen — und damit die Grenze, an der die Pruefung kippt.
     """
     from PIL import Image
 

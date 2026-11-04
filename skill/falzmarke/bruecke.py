@@ -161,7 +161,7 @@ def socketpfad(umgebung: Mapping[str, str] | None = None) -> str:
 
     `FALZMARKE_BRUECKE_SOCKET` sticht; dann wird der Pfad genommen, wie er
     dasteht. Geworfen wird nichts: Ein fehlendes Profil ist kein Fehler
-    dieses Moduls, sondern die Antwort „hier gibt es nichts zu rufen", und
+    dieses Moduls, sondern die Antwort „hier gibt es nichts zu rufen“, und
     sie fällt beim Verbinden mit einem Satz heraus.
     """
     umgebung = os.environ if umgebung is None else umgebung

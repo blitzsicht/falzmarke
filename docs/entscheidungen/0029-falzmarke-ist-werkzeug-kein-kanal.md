@@ -32,14 +32,14 @@ nachvollziehbar auf jedem Rechner. Zustellung ist es nicht — sie hängt an ein
 Zeitpunkten, an Empfängern, an Geld.
 
 Beides in einem Repository hieße, dass die schwächere Zusicherung die stärkere mitzieht: Sobald
-falzmarke Zustellung verspricht, ist „auf den Millimeter geprüft" nicht mehr die Aussage des
+falzmarke Zustellung verspricht, ist „auf den Millimeter geprüft“ nicht mehr die Aussage des
 Werkzeugs, sondern die Aussage einer Kette, deren Glieder es nicht kontrolliert.
 
 ## Folgen
 
 - **#8** (Postversand über LetterXpress) wird geschlossen, mit Verweis auf diese Entscheidung.
 - **#19** (Beweiskette) verkleinert sich auf `proof`; `delivery` entfällt und wird als Absatz
-  „außerhalb" festgehalten, damit die Überlegung nicht verlorengeht.
+  „außerhalb“ festgehalten, damit die Überlegung nicht verlorengeht.
 - **#9** (Ablage in Paperless-NGX) bleibt möglich — Ablage ist keine Beförderung —, aber als
   optionaler Adapter, nicht als Kernaufgabe.
 - Der Meilenstein **Geparkt** nimmt auf, was durch diese Entscheidung wartet, statt es zu löschen.

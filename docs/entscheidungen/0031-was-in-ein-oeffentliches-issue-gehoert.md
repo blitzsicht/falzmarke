@@ -17,7 +17,7 @@ Lautet die Antwort nein, gehört er in den internen Auftrag, nicht ins Issue.
 ## Warum
 
 Für Dateien galt diese Grenze schon (siehe `docs/entscheidungen/README.md`, Abschnitt „Was hier
-steht und was nicht"): Entscheidungen sind öffentlich, Aufträge nicht. Für Issues war sie nie
+steht und was nicht“): Entscheidungen sind öffentlich, Aufträge nicht. Für Issues war sie nie
 formuliert — und Issues sind genau die Stelle, an der ein interner Auftrag in ein öffentliches
 Arbeitspaket übersetzt wird. Beim Übersetzen rutscht Kontext mit, der im Auftrag richtig war und
 im Issue niemandem nützt.
@@ -34,14 +34,14 @@ zwanzig Issues fiel er niemandem auf; gebündelt auf einer Seite sofort.
 ## Was das nicht heißt
 
 **Belege dürfen weiter intern liegen.** Ein Satz wie „Die Belege liegen beim Maintainer vor;
-sie sind nicht frei lizenziert und gehören nicht in dieses Repository" ist genau richtig: Er
+sie sind nicht frei lizenziert und gehören nicht in dieses Repository“ ist genau richtig: Er
 sagt ehrlich, dass es einen Beleg gibt und warum er fehlt. Das ist die Belegkultur dieses
 Projekts (vgl. `skill/references/din5008.md`). Nur der **Ort** ist wegzulassen — er nützt von
 außen niemandem.
 
 **Architekturfragen bleiben öffentlich.** Ob eine Orchestrierungsschicht in dieses Werkzeug
 gehört oder daneben, ist eine Frage über das Werkzeug und gehört hierher. Was nicht hierher
-gehört, ist die Antwort auf „und so machen wir das heute intern".
+gehört, ist die Antwort auf „und so machen wir das heute intern“.
 
 ## Folgen
 

@@ -143,7 +143,7 @@ def _eingebettet(pdf) -> ET.Element:
 def test_das_pdf_zeigt_keine_steuer_und_keine_doppelte_nettozeile(gesetzt):
     text = _pdftext(gesetzt)
     assert "Gesamtbetrag 370,00 EUR" in text
-    # Die Tabellenzeilen, nicht das Wort: Der Brieftext sagt selbst „keine Umsatzsteuer".
+    # Die Tabellenzeilen, nicht das Wort: Der Brieftext sagt selbst „keine Umsatzsteuer“.
     assert not re.search(r"^Summe netto ", text, re.M), text
     assert not re.search(r"^Umsatzsteuer [\d,.]+ %", text, re.M), text
 

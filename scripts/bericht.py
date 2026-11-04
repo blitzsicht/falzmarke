@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Schreibt echte Messwerte fuer den Erklaerfilm.
 
-Der Film zeigt in der Szene „Pruefen" Zeilen aus dem Messbericht. Sie werden
+Der Film zeigt in der Szene „Pruefen“ Zeilen aus dem Messbericht. Sie werden
 nicht abgetippt, sondern hier aus einem wirklichen Lauf gezogen: rendern,
 `verify --json` lesen, die gezeigten Pruefungen herausschreiben.
 

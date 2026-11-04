@@ -138,7 +138,7 @@ def test_das_erscheinungsbild_beschreibt_die_dateien():
 
 
 def test_der_offene_punkt_ist_weg():
-    """Er stand unter „Offen" und ist mit dieser Arbeit erledigt."""
+    """Er stand unter „Offen“ und ist mit dieser Arbeit erledigt."""
     text = (REPO / "docs" / "marke" / "erscheinungsbild.md").read_text(encoding="utf-8")
     assert "Kein Favicon" not in text
 
@@ -198,7 +198,7 @@ def test_die_svg_sind_gueltiges_xml():
 
     Beim Anlegen der Kontur stand zeitweise ein zweites `class`-Attribut neben
     dem vorhandenen. Jede Prüfung auf Zeichenketten war grün; erst der Renderer
-    sagte „Attribute class redefined" und gab kein Bild aus.
+    sagte „Attribute class redefined“ und gab kein Bild aus.
     """
     import xml.etree.ElementTree as ET
 

@@ -115,8 +115,8 @@ def test_die_signatur_kommt_genau_einmal_vor(beispiel):
     profil = _profil(kopf["profil"], beispiel)
     # Siehe test_email_beispiele: Mail-Fassung, also `ziel="email"`.
     bloecke = markdown.lies(body, versatz, dialekt=kopf.get("dialekt"), ziel="email")
-    # Nicht am Namen messen: „Erika Muster" steht auch in
-    # „Geschäftsführerin: Erika Muster" aus der Fußzeile. Zwei Rollen, kein
+    # Nicht am Namen messen: „Erika Muster“ steht auch in
+    # „Geschäftsführerin: Erika Muster“ aus der Fußzeile. Zwei Rollen, kein
     # Duplikat — die Adresse dagegen kommt in der Signatur genau einmal vor.
     adresse = profil["email"]["absender"]
 
@@ -125,13 +125,13 @@ def test_die_signatur_kommt_genau_einmal_vor(beispiel):
 
     # **Nur die Signatur zählt**, nicht der ganze Text. Bis zum 29.08.2026 stand
     # hier `text.count(adresse)` über alles — und `email-links.md` machte es rot:
-    # Der Brieftext nennt „erika.muster@example.de", und der Absender
-    # „muster@example.de" steckt als Teilzeichenkette darin.
+    # Der Brieftext nennt „erika.muster@example.de“, und der Absender
+    # „muster@example.de“ steckt als Teilzeichenkette darin.
     #
     # Der Befund war falsch. Eine Adresse im Brieftext ist kein doppelter
     # Signaturanhang, und genau den soll dieser Test finden — dass die Signatur
     # nur einmal hängt, sagt der Trenner darüber. Es ist derselbe Fehler, vor
-    # dem `pruefung_eml._woerter` warnt: „Mengenvergleich, kein Substring."
+    # dem `pruefung_eml._woerter` warnt: „Mengenvergleich, kein Substring.“
     signatur = text[text.index(eml.SIGNATUR_TRENNER):]
     assert signatur.count(adresse) == 1, f"in der Signatur {signatur.count(adresse)}×"
 
@@ -247,7 +247,7 @@ def test_bekannte_kuerzel_sind_kein_geschrei(text):
 
 
 def test_der_unbekannte_anredewert_ist_ein_fehler():
-    """Ein Tippfehler dürfte nicht als „kein Feld gesetzt" durchgehen — dann
+    """Ein Tippfehler dürfte nicht als „kein Feld gesetzt“ durchgehen — dann
     bliebe die Tonprüfung wirkungslos, ohne dass es jemand merkt."""
     profil = _profil()
     profil["email"]["anrede"] = "hoeflich"

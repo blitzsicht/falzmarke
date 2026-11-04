@@ -124,7 +124,7 @@ def mitgeschnittene_zeilen() -> list[str]:
 #
 # ist 110 Zeichen lang. Im Mitschnitt stand die schliessende Klammer allein in
 # der naechsten Zeile, und der Test darunter meldete beide Haelften als „Zeilen,
-# die kein Lauf erzeugt". Die Kopplung zwischen Ausgabebreite und Aufnahmebreite
+# die kein Lauf erzeugt“. Die Kopplung zwischen Ausgabebreite und Aufnahmebreite
 # war bis dahin nirgends festgehalten: Sie fiel erst auf main auf, nachdem der PR
 # gruen durchgelaufen war — die Video-Aktion laeuft nur dort.
 #

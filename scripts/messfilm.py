@@ -16,23 +16,23 @@ Am Ende die echte Schlusszeile des Berichts.
 ## Warum keine gemalten Positionen
 
 `Prüfung` (skill/falzmarke/geometrie.py) trägt name, soll, ist, toleranz und
-bestanden — aber KEINE Koordinate. Eine Tabelle „Prüfungsname -> Höhe" von
+bestanden — aber KEINE Koordinate. Eine Tabelle „Prüfungsname -> Höhe“ von
 Hand zu pflegen wäre genau die stille Veraltung, gegen die tests/test_detailbild.py
 geschrieben wurde: Wer den Sollwert ändert, merkt nichts, und das Bild zeigt
 weiter auf die alte Stelle.
 
 Sie ist auch nicht nötig. Bei den Prüfungen, um die es hier geht, IST der
-gemessene Wert die Position: „Falzmarke 1, y: ist 105.00" heißt, die Marke
+gemessene Wert die Position: „Falzmarke 1, y: ist 105.00“ heißt, die Marke
 sitzt auf 105,00 mm. Der Film hält also dort an, wo die Messung es sagt.
 
 Die x-Maße (Ränder, Spaltenkanten) und die Wahrheitsprüfungen („Betreff ohne
-Leitwort", „Schriften eingebettet") haben keine Höhe. Sie werden nicht
+Leitwort“, „Schriften eingebettet“) haben keine Höhe. Sie werden nicht
 unterschlagen, sondern im Schlussbild mitgezählt.
 
 ## Kein nachgestelltes Terminal
 
 docs/marke/video/readme.tape hält die Hausregel fest: „Ein GIF mit gruenen
-OK-Zeilen wuerde etwas zeigen, das vor keinem echten Terminal je so aussieht."
+OK-Zeilen wuerde etwas zeigen, das vor keinem echten Terminal je so aussieht.“
 Dieser Film ist deshalb ausdrücklich KEIN nachgestelltes Terminal, sondern eine
 Zeichnung über einem echten Render — und er gibt sich auch als solche.
 
@@ -92,7 +92,7 @@ HOEHENMASS = re.compile(r"(?:, y$|y-Oberkante|Zeile y$|Unterkante$)")
 # Verschiebung für die Gegenprobe, in Millimetern. Dieselbe Zahl und derselbe
 # Grund wie in detailbild.py: 2 mm sind das Siebenfache der Toleranz und damit
 # sicher ein Fehler — und zugleich so wenig, dass die Frage „fällt das
-# überhaupt auf?" ihre Berechtigung behält.
+# überhaupt auf?“ ihre Berechtigung behält.
 SABOTAGE_MM = 107.0
 
 # Bildmaße. Anders als bei den Standbildern (detailbild.py: BREITE = 1240) ist
@@ -147,7 +147,7 @@ def rendere(brief: Path, ziel: Path, *, typst_dir: Path | None = None) -> tuple[
 
 #: Rückgabewerte der CLI (cli.py: EXIT_OK, EXIT_EINGABE, EXIT_GEOMETRIE,
 #: EXIT_UMGEBUNG = 0, 1, 2, 3). Der Film nimmt 0 und 2 an: 2 heißt „gemessen,
-#: aber ein Maß hält nicht" — genau das Ergebnis, das die Gegenprobe braucht.
+#: aber ein Maß hält nicht“ — genau das Ergebnis, das die Gegenprobe braucht.
 #: 1 und 3 heißen, dass gar nicht gemessen wurde; daraus einen Film zu bauen
 #: hieße, eine leere Messung als bestandene auszugeben.
 VERIFY_GEMESSEN = (0, 2)
@@ -226,7 +226,7 @@ def stopps(bericht: dict) -> list[dict]:
 def schlusszeile(bericht: dict) -> str:
     """Die Zählung aus dem Bericht, nicht aus diesem Skript.
 
-    „Prüfungen", nicht „Maße": `verify --json` liefert den Geometriebericht,
+    „Prüfungen“, nicht „Maße“: `verify --json` liefert den Geometriebericht,
     und der zählt 33. Die CLI meldet nach einem `render` eine mehr, weil sie
     zusätzlich die PDF/A-Konformität prüft — die liegt auf keinem Millimeter
     und hat im Film nichts zu suchen. Das README nennt deshalb an anderer Stelle
@@ -384,7 +384,7 @@ def _schlussbild(grund, seitenbreite: int, bericht: dict, halte: list[dict]):
         z.line([(RAND - 14, y), (RAND + seitenbreite + 14, y)], fill=GRUEN, width=2)
 
     ohne_hoehe = len(bericht["pruefungen"]) - len(halte)
-    # 28 pt statt 32: „33 von 33 Prüfungen eingehalten" braucht bei 32 pt
+    # 28 pt statt 32: „33 von 33 Prüfungen eingehalten“ braucht bei 32 pt
     # 565 px und passt nicht in die 518 der Spalte. `_zeile` hat es gemeldet,
     # statt es abzuschneiden — dafür steht es dort.
     _zeile(z, (text_x, 150), schlusszeile(bericht), _schrift(28, fett=True), TINTE, platz)
@@ -440,8 +440,8 @@ def baue_film(seite, bericht: dict) -> tuple[list, list[int]]:
 #
 # Warum es das gibt: Der Querformat-Film wird von Facebook, Instagram und
 # WhatsApp als Video behandelt und auf 9:16 beschnitten. Nachgesehen am
-# 29.08.2026 an einer echten Facebook-Vorschau: links fiel „Jedes Maß" weg,
-# rechts „Infoblock, y-Oberkan…". Ein Bild, das im Feed die Hälfte seiner
+# 29.08.2026 an einer echten Facebook-Vorschau: links fiel „Jedes Maß“ weg,
+# rechts „Infoblock, y-Oberkan…“. Ein Bild, das im Feed die Hälfte seiner
 # Aussage verliert, ist dort kein Bild.
 #
 # Warum das Hochformat hier nicht Notlösung ist, sondern die bessere Form:
@@ -531,7 +531,7 @@ def _hoch_schlussbild(grund, blatt_x: int, blattbreite: int, bericht: dict, halt
 
     # Marker an den Blatträndern statt Linien quer durch das Blatt. Acht Linien
     # gleichzeitig durch den Brieftext sehen aus wie Durchstreichungen — im
-    # ersten Entwurf war „Umsetzung mit barrierefreier Navigation" durchgestrichen.
+    # ersten Entwurf war „Umsetzung mit barrierefreier Navigation“ durchgestrichen.
     # Beim einzelnen Halt ist die durchgehende Linie richtig, hier nicht.
     for stopp in halte:
         y = _hoch_y(stopp["y_mm"])

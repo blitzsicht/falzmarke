@@ -40,7 +40,7 @@ regeln:
     bemerkung: >-
       § 14 Absatz 4 Nummer 4 UStG verlangt „eine fortlaufende Nummer … die zur
       Identifizierung der Rechnung vom Rechnungsaussteller einmalig vergeben
-      wird". falzmarke vergibt keine (ADR 0039) und prüft keine Fortlaufendheit —
+      wird“. falzmarke vergibt keine (ADR 0039) und prüft keine Fortlaufendheit —
       es kennt die vorige Rechnung nicht. Geprüft wird nur, dass eine dasteht.
 
   - id: rechnung.leistung
@@ -52,7 +52,7 @@ regeln:
     wirkung: fehler
     bemerkung: >-
       § 14 Absatz 4 Nummer 6 UStG verlangt den „Zeitpunkt der Lieferung oder
-      sonstigen Leistung". Ein Zeitraum ist die Form, die eine Dauerleistung
+      sonstigen Leistung“. Ein Zeitraum ist die Form, die eine Dauerleistung
       braucht. Beides zugleich ist widersprüchlich, und falzmarke wählt nicht
       für den Absender.
 
@@ -65,7 +65,7 @@ regeln:
     wirkung: fehler
     bemerkung: >-
       Kein Pflichtfeld des UStG, aber ein Feld, das jede Rechnung in der Praxis
-      trägt. Ein Datum und keine Frist in Tagen: „30 Tage" setzt einen
+      trägt. Ein Datum und keine Frist in Tagen: „30 Tage“ setzt einen
       Bezugspunkt voraus, den der Empfänger anders lesen kann als der Absender.
 
   - id: rechnung.position
@@ -76,8 +76,8 @@ regeln:
     quellen: []
     wirkung: fehler
     bemerkung: >-
-      § 14 Absatz 4 Nummer 5 und 8 UStG verlangen „die Menge und die Art" sowie
-      „den anzuwendenden Steuersatz". Der Betrag ist Pflicht, weil falzmarke ihn
+      § 14 Absatz 4 Nummer 5 und 8 UStG verlangen „die Menge und die Art“ sowie
+      „den anzuwendenden Steuersatz“. Der Betrag ist Pflicht, weil falzmarke ihn
       nicht bildet (ADR 0039). Ein unbekanntes Feld in einer Position wird
       gemeldet — Abnahme 2 aus #115: Ein Tippfehler bleibt nicht stumm.
 
@@ -114,7 +114,7 @@ regeln:
     wirkung: fehler
     bemerkung: >-
       § 14 Absatz 4 Nummer 1 UStG verlangt „den vollständigen Namen und die
-      vollständige Anschrift des leistenden Unternehmers". Sie stehen im Profil
+      vollständige Anschrift des leistenden Unternehmers“. Sie stehen im Profil
       und nicht im einzelnen Schreiben — wie die übrigen Absenderangaben.
 
       Name, Straße, PLZ und Ort kommen aus `absender:`, das es schon gibt. Neu
@@ -132,7 +132,7 @@ regeln:
     bemerkung: >-
       § 14 Absatz 4 Nummer 2 UStG verlangt „die dem leistenden Unternehmer vom
       Finanzamt erteilte Steuernummer oder die ihm vom Bundeszentralamt für
-      Steuern erteilte Umsatzsteuer-Identifikationsnummer". Eine von beiden
+      Steuern erteilte Umsatzsteuer-Identifikationsnummer“. Eine von beiden
       genügt; beide zugleich sind zulässig und werden nicht gemeldet.
 
       Geprüft wird nur, dass eine dasteht. Ob sie gilt, prüft falzmarke nicht —
@@ -147,13 +147,13 @@ regeln:
     wirkung: fehler
     bemerkung: >-
       § 14 Absatz 4 Nummer 1 UStG verlangt „den vollständigen Namen und die
-      vollständige Anschrift … des Leistungsempfängers". Im Brief steht sie
+      vollständige Anschrift … des Leistungsempfängers“. Im Brief steht sie
       unter `empfaenger:` als ein bis sechs freie Zeilen — das genügt für das
       Anschriftfeld im Fensterumschlag, aber nicht für die eingebettete XML.
 
       Ob die zweite Zeile die Straße ist oder eine zweite Namenszeile, lässt
       sich nicht sicher ablesen: „Muster GmbH / Frau Erika Muster /
-      Musterstraße 1" und „Muster GmbH / Musterstraße 1 / 12345 Musterstadt"
+      Musterstraße 1“ und „Muster GmbH / Musterstraße 1 / 12345 Musterstadt“
       sehen gleich aus. Geraten hieße, den Empfänger falsch zu adressieren,
       ohne dass es auffällt — deshalb `empfaenger_anschrift:` mit `name`,
       `strasse`, `plz`, `ort` und `land`.
@@ -319,7 +319,7 @@ regeln:
     bemerkung: >-
       Der teure Fall aus #119: Die Positionstabelle im PDF zeigt nie den
       Steuersatz einer einzelnen Position — nur die Sammelzeilen aus
-      `summen.steuer` als „Umsatzsteuer NN %" (`cli.py:_positionstabelle`).
+      `summen.steuer` als „Umsatzsteuer NN %“ (`cli.py:_positionstabelle`).
       Trägt eine Position einen Satz, für den `summen.steuer` keine Zeile hat,
       verlässt dieser Satz die Quelle nur über die eingebettete XML: Ein PDF,
       das nur 19 % zeigt, und eine XML, die zusätzlich 7 % trägt, sehen beide
@@ -341,7 +341,7 @@ regeln:
       wurden bis #119 nur auf Vorhandensein geprüft — `land: Deutschland`
       blieb unbeanstandet und landete unverändert als `<ram:CountryID>` in der
       eingebetteten XML. Geprüft wird gegen die amtlich vergebenen Codes
-      (`emit_xml.LAENDERCODES`), nicht nur die Form „zwei Buchstaben".
+      (`emit_xml.LAENDERCODES`), nicht nur die Form „zwei Buchstaben“.
 
   # ── Rechnungen von Kleinunternehmern (#317, ADR 0041) ────────────────────
 

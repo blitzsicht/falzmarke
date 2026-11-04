@@ -200,7 +200,7 @@ def test_ohne_dialekt_11_bleibt_es_ein_fehler(klasse, ziel):
     """Die Gegenrichtung: Die Öffnung gilt der Fassung, nicht jeder Mail.
 
     Die Meldung nennt das Feld, das hilft — in der E-Mail dieselbe wie im Brief.
-    Bis #109 sagte sie dort „setzt der HTML-Teil noch nicht", und das stimmt
+    Bis #109 sagte sie dort „setzt der HTML-Teil noch nicht“, und das stimmt
     nicht mehr.
     """
     with pytest.raises(MarkdownFehler) as fehler:

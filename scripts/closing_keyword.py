@@ -3,7 +3,7 @@
 
 GitHub schliesst ein Issue beim Merge nur, wenn im Rumpf ein **englisches**
 Keyword steht — `close`, `fix`, `resolve` in ihren Beugungen. Dieses Repository
-schreibt deutsch. „Schliesst #261" liest sich wie eine Zusage und ist keine.
+schreibt deutsch. „Schliesst #261“ liest sich wie eine Zusage und ist keine.
 
 Gemessen an PR #262: Der Rumpf trug den Satz, nach dem Squash-Merge meldete
 `gh issue view 261` weiterhin `OPEN`. Das Issue musste von Hand geschlossen
@@ -30,7 +30,7 @@ import re
 import sys
 from pathlib import Path
 
-# Die ausdrueckliche Einzelfall-Ausnahme, gleiche Bauart wie „ohne-changelog":
+# Die ausdrueckliche Einzelfall-Ausnahme, gleiche Bauart wie „ohne-changelog“:
 # Sie steht am Vorgang, ist damit sichtbar und begruendbar — anders als ein
 # stiller Sonderweg im Code. Fuer den Fall, dass ein Vorgang auf ein Issue
 # verweist, das absichtlich offen bleibt (Teilarbeit an einem groesseren Faden).
@@ -45,7 +45,7 @@ DEUTSCHE_VERBEN = (
 )
 
 # Was GitHub tatsaechlich auswertet. Quelle: die Dokumentation zu „Linking a
-# pull request to an issue" — drei Staemme in je drei Beugungen.
+# pull request to an issue“ — drei Staemme in je drei Beugungen.
 ENGLISCHE_KEYWORDS = (
     "close", "closes", "closed",
     "fix", "fixes", "fixed",
@@ -111,7 +111,7 @@ def pruefe(rumpf: str, labels: tuple[str, ...] = ()) -> tuple[bool, str]:
     if not versprochen:
         return True, "Kein deutscher Schließsatz auf eine Nummer im Rumpf."
 
-    # Je Nummer, nicht als Menge: Ein „Closes #99" neben „Schließt #261" ist
+    # Je Nummer, nicht als Menge: Ein „Closes #99“ neben „Schließt #261“ ist
     # kein Beleg fuer #261. Genau dieser Fall — zwei Vorgaenge in einem Rumpf,
     # einer englisch zugesagt, einer deutsch — waere einer Mengenpruefung
     # entgangen.
@@ -133,7 +133,7 @@ def pruefe(rumpf: str, labels: tuple[str, ...] = ()) -> tuple[bool, str]:
         "\n"
         f"    Closes #{offen[0]}\n"
         "\n"
-        "Gemessen an PR #262: Der Rumpf trug „Schließt #261\", nach dem Merge stand\n"
+        "Gemessen an PR #262: Der Rumpf trug „Schließt #261“, nach dem Merge stand\n"
         "das Issue weiter auf OPEN und musste von Hand geschlossen werden.\n"
         "\n"
         "Soll der Vorgang bewusst offen bleiben, setzt ein Maintainer das Label\n"
@@ -146,7 +146,7 @@ def aus_pr_json(text: str) -> tuple[str, tuple[str, ...]]:
     """(Rumpf, Labels) aus der Ausgabe von `gh pr view --json body,labels`.
 
     Labels kommen in einem Stueck an, nicht als Wortliste durch die Shell: Ein
-    Label darf Leerzeichen enthalten („good first issue"), und unquoted
+    Label darf Leerzeichen enthalten („good first issue“), und unquoted
     expandiert zerfaellt es in drei.
     """
     daten = json.loads(text)

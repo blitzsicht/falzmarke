@@ -80,7 +80,7 @@ def markdown(k: dict) -> str:
 def claim_stufen(claim: str) -> tuple[str, str]:
     """Der Claim, in zwei Stufen getrennt.
 
-    Der Abbinder zeigt erst „Briefe schreiben mit KI", dann die Pointe. Getrennt
+    Der Abbinder zeigt erst „Briefe schreiben mit KI“, dann die Pointe. Getrennt
     wird am Geviertstrich, damit der Kanon eine einzige Quelle bleibt — zwei
     gepflegte Fassungen desselben Satzes waeren zwei Fassungen, die auseinander-
     laufen. tests/test_marke.py prueft, dass beide Teile wieder den Claim ergeben.

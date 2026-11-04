@@ -3,7 +3,7 @@
 # Bis v0.8.1 standen sie in `din5008.yaml` und trugen alle dieselbe Angabe:
 # `herkunft: werkzeug`, `quellen: []`. Die RFC-Regel, die handelsrechtliche
 # Erinnerung und die Erfahrung mit einem Mailprogramm wirkten damit gleich
-# stark und sahen in der Meldung gleich aus. Eine Meldung, die „DIN" sagt, wo
+# stark und sahen in der Meldung gleich aus. Eine Meldung, die „DIN“ sagt, wo
 # Outlook-Praxis gemeint ist, ist von einer, die ihr Versprechen einloest, fuer
 # den Empfaenger nicht zu unterscheiden.
 #
@@ -138,7 +138,7 @@ regeln:
       rfc5322: >-
         Abschnitt 3.6.4 — Identification Fields: „The message identifier
         (msg-id) syntax is a limited version of the addr-spec construct
-        enclosed in the angle bracket characters, '<' and '>'."
+        enclosed in the angle bracket characters, '<' and '>'.“
 
   # ── Recht: das Werkzeug erinnert, es prüft nicht ─────────────────────────
 
@@ -165,7 +165,7 @@ regeln:
         Nummer. Seit dem MoPeG hier statt in § 125a.
       gmbhg_35a: >-
         Absatz 1 — „Auf allen Geschäftsbriefen gleichviel welcher Form, die an
-        einen bestimmten Empfänger gerichtet werden, müssen …". Diese Wendung
+        einen bestimmten Empfänger gerichtet werden, müssen …“. Diese Wendung
         ist der Grund, aus dem die Pflicht auch für E-Mails gilt; sie steht im
         geltenden Text selbst, nicht nur im Änderungsgesetz. Derselbe Satz
         zählt für die GmbH auf: Rechtsform und Sitz der Gesellschaft,
@@ -176,21 +176,21 @@ regeln:
         Kapital macht, muss das Stammkapital nennen und, solange Einlagen
         offen sind, deren Gesamtbetrag.
       aktg_80: >-
-        Absatz 1 — gleicher Wortlaut „gleichviel welcher Form", und dieselbe
+        Absatz 1 — gleicher Wortlaut „gleichviel welcher Form“, und dieselbe
         Aufzählung wie bei der GmbH mit drei Unterschieden: statt der
         Geschäftsführer alle Vorstandsmitglieder, der Vorsitzende des
-        Aufsichtsrats ohne den Vorbehalt „sofern gebildet", und nach Satz 2
+        Aufsichtsrats ohne den Vorbehalt „sofern gebildet“, und nach Satz 2
         ist der Vorsitzende des Vorstands als solcher zu bezeichnen. Beim
         Kapital tritt das Grundkapital an die Stelle des Stammkapitals.
       geng_25a: >-
-        Absatz 1 — gleicher Wortlaut „gleichviel welcher Form". Aufgezählt
+        Absatz 1 — gleicher Wortlaut „gleichviel welcher Form“. Aufgezählt
         werden Rechtsform und Sitz der Genossenschaft, Registergericht des
         Sitzes, Nummer im Genossenschaftsregister, alle Vorstandsmitglieder
         und, sofern der Aufsichtsrat einen Vorsitzenden hat, dieser — mit
         Familiennamen und mindestens einem ausgeschriebenen Vornamen. Anders
         als GmbHG und AktG kennt die Vorschrift keine Kapitalangaben.
       ehug: >-
-        Das Änderungsgesetz, das die Wendung „gleichviel welcher Form" 2007 in
+        Das Änderungsgesetz, das die Wendung „gleichviel welcher Form“ 2007 in
         die vier Vorschriften eingefügt hat. Historischer Beleg, nicht der
         geltende Text — den tragen die Paragrafen oben selbst. Steht hier,
         damit die Jahreszahl in docs/recht.md eine Fundstelle hat.
@@ -206,7 +206,7 @@ regeln:
     wirkung: warnung
     bemerkung: >-
       Die Begründung stand bis v0.8.1 falsch da: „Aus RFC 5322: Die Kopfzeile
-      ist auf 78 Zeichen begrenzt." Das trifft nicht zu. RFC 5322 begrenzt die
+      ist auf 78 Zeichen begrenzt.“ Das trifft nicht zu. RFC 5322 begrenzt die
       ZEILENLÄNGE einer Kopfzeile; ein längerer Betreff wird gefaltet, nicht
       abgelehnt. Was oberhalb wirklich passiert, ist eine Anzeigefrage —
       Übersichten schneiden ab, und wo genau, ist von Programm zu Programm
@@ -265,12 +265,12 @@ regeln:
       Postfach des Empfängers, und das kennt der Absender nicht.
     belegt_durch:
       microsoft_grenzen: >-
-        Tabelle „Exchange Online limits", Zeile „Message size limit", Fußnote 1
+        Tabelle „Exchange Online limits“, Zeile „Message size limit“, Fußnote 1
         (Standard 35 MB senden / 36 MB empfangen, einstellbar 1–150 MB) und
         Fußnote 4 (10 MB als Standard einer Exchange-Server-Organisation);
-        zur Kodierung „an additional 33% translation encoding increase".
+        zur Kodierung „an additional 33% translation encoding increase“.
       gmail_grenzen: >-
-        „For personal Gmail accounts, the limit is 25 MB."
+        „For personal Gmail accounts, the limit is 25 MB.“
 
   - id: email.tabelle_spalten
     titel: Breite Tabellen tragen in einer Mail nicht
@@ -314,7 +314,7 @@ regeln:
     bemerkung: >-
       Eine Aussage ueber den Datenvertrag, nicht ueber die Sprache: `sie` oder
       `du`, sonst nichts. Ein Tippfehler duerfte nicht stillschweigend als „kein
-      Feld gesetzt" durchgehen — dann bliebe die Pruefung darunter wirkungslos,
+      Feld gesetzt“ durchgehen — dann bliebe die Pruefung darunter wirkungslos,
       ohne dass es jemand merkt.
 
   - id: email.ablage
@@ -399,9 +399,9 @@ regeln:
     quellen: []
     wirkung: warnung
     bemerkung: >-
-      „hier" und „klicken Sie hier" sagen nichts. Ein Bildschirmleseprogramm
+      „hier“ und „klicken Sie hier“ sagen nichts. Ein Bildschirmleseprogramm
       liest Links oft als Liste vor, losgeloest vom Satz drumherum — dort ist
-      „hier" nichts. Eine Aussage ueber die Lesbarkeit, nach ADR 0035 also nie
+      „hier“ nichts. Eine Aussage ueber die Lesbarkeit, nach ADR 0035 also nie
       ein Fehler; geaendert wird der Text nie, denn wie jemand formuliert,
       entscheidet er selbst.
 
@@ -428,11 +428,11 @@ regeln:
     quellen: []
     wirkung: warnung
     bemerkung: >-
-      „Ich hoffe, diese E-Mail erreicht Sie wohlauf" und Verwandtes sind nicht
+      „Ich hoffe, diese E-Mail erreicht Sie wohlauf“ und Verwandtes sind nicht
       falsch, sie sind leer: Die Zeile liesse sich streichen, ohne dass die
       Nachricht etwas verloere. Genau das ist die Aufnahmebedingung der Liste,
-      und sie ist eng gemeint — „vielen Dank fuer die Unterlagen" steht nicht
-      drin, „vielen Dank fuer Ihre Zeit" schon.
+      und sie ist eng gemeint — „vielen Dank fuer die Unterlagen“ steht nicht
+      drin, „vielen Dank fuer Ihre Zeit“ schon.
 
       Warnung und nie Fehler: Ob ein Satz leer ist, ist eine Aussage ueber den
       Stil, nicht ueber die Technik (ADR 0035). Geaendert wird nichts — wie
@@ -509,7 +509,7 @@ regeln:
         Abschnitt 5.1.4 — Alternative Subtype: „the alternatives appear in an
         order of increasing faithfulness to the original content. In general,
         the best choice is the LAST part of a type supported by the recipient
-        system's local environment."
+        system's local environment.“
 
   - id: eml.kopfzeilen
     titel: From, To und Subject sind gesetzt
@@ -543,7 +543,7 @@ regeln:
     belegt_durch:
       rfc5322: >-
         Abschnitt 3.6.4 — Identification Fields: „The generator of the message
-        identifier MUST guarantee that the msg-id is unique."
+        identifier MUST guarantee that the msg-id is unique.“
 
   - id: eml.date
     titel: Die Nachricht traegt ein Date
@@ -585,7 +585,7 @@ regeln:
     belegt_durch:
       rfc2045: >-
         Abschnitt 5.1 — Syntax of the Content-Type Header Field: „the `charset`
-        parameter is applicable to any subtype of `text`".
+        parameter is applicable to any subtype of `text`“.
 
   - id: eml.transfer_encoding
     titel: Der Textteil ist quoted-printable kodiert
@@ -601,7 +601,7 @@ regeln:
       rfc2045: >-
         Abschnitt 6.7 — Quoted-Printable Content-Transfer-Encoding: „intended to
         represent data that largely consists of octets that correspond to
-        printable characters in the US-ASCII character set."
+        printable characters in the US-ASCII character set.“
 
   - id: eml.flowed
     titel: Der Textteil traegt format=flowed
@@ -618,7 +618,7 @@ regeln:
       rfc3676: >-
         Abschnitt 4 — The Format and DelSp Parameters: „A Format value of Flowed
         indicates that the definition of flowed text (as specified in this memo)
-        was used on generation."
+        was used on generation.“
 
   - id: eml.delsp
     titel: delsp ist gesetzt
@@ -634,7 +634,7 @@ regeln:
     belegt_durch:
       rfc3676: >-
         Abschnitt 4 — The Format and DelSp Parameters: „If DelSp is not
-        specified, or if its value is not recognized, a value of No is assumed."
+        specified, or if its value is not recognized, a value of No is assumed.“
 
   - id: eml.space_stuffing
     titel: Zeilen, die Schutz brauchen, sind space-stuffed
@@ -651,7 +651,7 @@ regeln:
       rfc3676: >-
         Abschnitt 4.4 — Space-Stuffing: „Space-stuffing adds a single space to
         the start of any line which needs protection when the message is
-        generated."
+        generated.“
 
   - id: eml.signaturtrenner
     titel: Vor der Signatur steht die Trennzeile
@@ -666,7 +666,7 @@ regeln:
     belegt_durch:
       rfc3676: >-
         Abschnitt 4.3 — Usenet Signature Convention: „a long-standing convention
-        … of using \"-- \" as the separator line between the body and the
+        … of using \“-- \" as the separator line between the body and the
         signature."
 
   # ── Der HTML-Teil ────────────────────────────────────────────────────────
@@ -726,7 +726,7 @@ regeln:
     wirkung: fehler
     bemerkung: >-
       Der Befund aus #264: Ein Deckel am Umschlag quetscht alles darin. Gemessen
-      am 08.09.2026 in Outlook fuer Mac brach die Kopfzelle „Datum" mitten im
+      am 08.09.2026 in Outlook fuer Mac brach die Kopfzelle „Datum“ mitten im
       Wort, waehrend das Fenster doppelt so breit war.
 
   - id: eml.zaehlpixel
@@ -798,7 +798,7 @@ regeln:
     quellen: []
     wirkung: fehler
     bemerkung: >-
-      Ein Anhang ohne Namen erscheint beim Empfaenger als „Unbenannt" und
+      Ein Anhang ohne Namen erscheint beim Empfaenger als „Unbenannt“ und
       laesst sich nicht zuordnen.
 
   # ── Blindkopie (#242) ────────────────────────────────────────────────────
@@ -845,7 +845,7 @@ regeln:
       Der Inhalt von `hinweise:` wird NICHT geprüft, und das ist die
       Entscheidung, nicht eine Lücke. falzmarke gibt Profildaten an kein Modell
       weiter und versteht keinen Satz; eine Prüfung, die „Fristen immer als
-      Datum" einzuhalten behauptete, wäre eine Zusage ohne Deckung — genau was
+      Datum“ einzuhalten behauptete, wäre eine Zusage ohne Deckung — genau was
       ADR 0035 abstellt. Das Werkzeug überträgt die Vorgabe, es erzwingt sie
       nicht (ADR 0039). Wer sie liest, steht in `SKILL.md` Schritt 4.
 
@@ -861,9 +861,9 @@ regeln:
       Person der Absender schreibt; die Prüfung meldet, wenn der Text die andere
       benutzt. Geändert wird nichts.
 
-      Bewusst eng — nur die Subjektform „ich" beziehungsweise „wir". „unser
-      Angebot" schreibt auch ein Einzelunternehmer, „mein Eindruck" auch jemand,
-      der sonst „wir" sagt. Eine Warnung, die bei gültigem Text anschlägt,
+      Bewusst eng — nur die Subjektform „ich“ beziehungsweise „wir“. „unser
+      Angebot“ schreibt auch ein Einzelunternehmer, „mein Eindruck“ auch jemand,
+      der sonst „wir“ sagt. Eine Warnung, die bei gültigem Text anschlägt,
       kostet Vertrauen in alle anderen; das war die Lehre aus der
       Telefonprüfung (#133).
 
@@ -879,8 +879,8 @@ regeln:
     wirkung: warnung
     bemerkung: >-
       Die Ergänzung zur festen Liste in `lint.FLOSKELN`. Dort steht, was leer
-      ist; hier steht, was dieser Absender nicht lesen will — „zeitnah",
-      „kurzfristig", was auch immer. Über Geschmack urteilt das Werkzeug nicht,
+      ist; hier steht, was dieser Absender nicht lesen will — „zeitnah“,
+      „kurzfristig“, was auch immer. Über Geschmack urteilt das Werkzeug nicht,
       es gibt nur wieder, was im Profil steht.
 
       Gesucht wird als ganzes Wort, nicht als Ausdruck: Ein Regex aus dem Profil

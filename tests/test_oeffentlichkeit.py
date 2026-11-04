@@ -65,7 +65,7 @@ def test_der_bereinigte_zustand_ist_still():
 
 def test_der_belegverweis_ohne_ort_bleibt_erlaubt():
     """ADR 0031 verbietet den Ort, nicht die Aussage. Ein Wächter, der auch
-    „liegt beim Maintainer vor" anstriche, würde die Belegkultur beschädigen."""
+    „liegt beim Maintainer vor“ anstriche, würde die Belegkultur beschädigen."""
     assert hygiene.pruefe([_issue(3, "Quellenlage", "",
                                   ["Die Belege liegen beim Maintainer vor; sie sind nicht "
                                    "frei lizenziert und gehören nicht in dieses Repository."])]) == []

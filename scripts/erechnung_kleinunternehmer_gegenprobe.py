@@ -9,7 +9,7 @@ Verkäufers) — die Datei muss an BR-E-10 scheitern. `mit-satz` setzt jeden
 `RateApplicablePercent` mit Kategorie E auf 19.00 — sie muss an BR-E-05
 scheitern. Per ElementTree und gezählt wie `erechnung_ohne_referenz.py`: Findet
 die Änderung nichts zu ändern, entsteht keine Datei (Exit 1) — sonst wäre die
-„Gegenprobe" ein gültiges Dokument und belegte nichts.
+„Gegenprobe“ ein gültiges Dokument und belegte nichts.
 """
 
 from __future__ import annotations

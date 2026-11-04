@@ -11,7 +11,7 @@ Abschnitt [Nur für die Videoerzeugung](#nur-für-die-videoerzeugung) sagt, was 
 
 **Das ist eine bewusste Entscheidung, keine Selbstverständlichkeit.** Bis v0.1.2 wurde die
 Geometrie mit [PyMuPDF](https://pymupdf.readthedocs.io) gemessen. PyMuPDF ist *„Dual Licensed —
-GNU AFFERO GPL 3.0 or Artifex Commercial License"*: Wer falzmarke eingebaut und die Software über
+GNU AFFERO GPL 3.0 or Artifex Commercial License“*: Wer falzmarke eingebaut und die Software über
 ein Netzwerk angeboten hätte, wäre unter der AGPL zur Offenlegung des eigenen Quelltexts
 verpflichtet gewesen. Für ein Werkzeug, dessen Zielgruppe Firmen sind, ist das ein
 Ausschlusskriterium. Seit v0.2.0 messen pdfplumber und pypdf; das ist nebenbei genauer, weil

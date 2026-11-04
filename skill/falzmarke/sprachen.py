@@ -8,11 +8,11 @@ nicht der Optik wegen, sondern für die Silbentrennung.
 
 **Die englischen Wörter sind nicht normbelegt.** DIN 5008 ist eine deutsche Norm
 und schreibt keine englische Beschriftung vor; es gibt in ihr kein „Your
-reference". Was hier steht, ist die im Geschäftsverkehr übliche Entsprechung —
+reference“. Was hier steht, ist die im Geschäftsverkehr übliche Entsprechung —
 eine Konvention, keine Fundstelle. Wer einen Brief in englischer Beschriftung
 setzt, bekommt deshalb ein Blatt, dessen **Maße** belegt sind und dessen
 **Wörter** es nicht sind. Das ist ein Unterschied, den dieses Repository sonst
-sorgfältig auseinanderhält (siehe „Quellenlage je Regel"), und er gilt auch hier.
+sorgfältig auseinanderhält (siehe „Quellenlage je Regel“), und er gilt auch hier.
 
 Aus demselben Grund ändert die Sprache nichts an einer Prüfung: `verify` misst
 Zonen und Abstände, keine Wörter. Ein englischer Brief fällt weder durch noch

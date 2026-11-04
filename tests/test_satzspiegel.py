@@ -6,7 +6,7 @@ Die Geometrieprüfung mass bis hierher den **Vordruck**: Anschriftfeld,
 Falzmarken, Informationsblock. Für den Text gab es genau zwei Messungen, und
 beide liefen auf `dokument.pages[0]` — `pruefe()` setzt `seite = pages[0]` und
 misst alles daran. Ein mehrseitiger Brief konnte ab Seite 2 beliebig aus dem
-Satzspiegel laufen und trotzdem „Maße eingehalten" melden.
+Satzspiegel laufen und trotzdem „Maße eingehalten“ melden.
 
 Das ist kein theoretischer Fall. `ueberlauf-auf-seite-zwei.md` ist genau das:
 Seite 1 sitzt sauber bei 190,00 mm, Seite 2 läuft auf 190,88 — und vor dieser
@@ -138,7 +138,7 @@ def test_nur_die_betroffene_seite_wird_gemeldet(tmp_path):
 
 
 def test_bericht_nennt_seite_und_element(tmp_path):
-    """AC4: „ausserhalb" allein sagt niemandem, wo er suchen soll."""
+    """AC4: „ausserhalb“ allein sagt niemandem, wo er suchen soll."""
     pdf = _rendere(FIXTURES / "ueberlauf-auf-seite-zwei.md", tmp_path / "seite2.pdf")
     treffer = next(p for p in _befunde(pdf) if p.name == "Seite 2, rechter Rand")
     assert "Seite 2" in treffer.name
@@ -156,7 +156,7 @@ def test_gegenprobe_die_pruefung_haengt_am_gemessenen_wert(tmp_path, monkeypatch
     genau der Meldung, die auch im Ernstfall käme. Eine Prüfung, die das nicht
     tut, misst etwas anderes als den Wert, den sie im Bericht nennt.
 
-    Eine reine Arithmetik-Behauptung („190,31 ist grösser als 190,3") stand hier
+    Eine reine Arithmetik-Behauptung („190,31 ist grösser als 190,3“) stand hier
     zuerst. Sie hätte auch dann bestanden, wenn `_satzspiegel` gar nicht
     aufgerufen würde.
     """

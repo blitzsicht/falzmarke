@@ -90,7 +90,7 @@ speichert. Ein Kennwort müsste irgendwo liegen, wo falzmarke es liest, und dort
 denselben Prozess.
 
 **Nachtrag 28.10.2026, Fenster und Fokus (#415):** ADR 0051 hielt für den Postfach-Weg fest
-„Es geht kein Fenster auf." Diese Entscheidung hat das aufgehoben, ohne einen Weg zurück zu
+„Es geht kein Fenster auf.“ Diese Entscheidung hat das aufgehoben, ohne einen Weg zurück zu
 lassen: Abschalten ging nur über `FALZMARKE_BRUECKE=nie`, und das stand in keiner Befehlshilfe.
 Vier Briefe in einer Schleife waren vier Fenster und vier Fokussprünge — derselbe Einwand, mit
 dem ADR 0038 das Opt-in begründet hat. Es gibt deshalb `--kein-fenster` am Befehl `email`, und
@@ -101,7 +101,7 @@ zweiter Weg zum selben Schalter und benennte den Grund falsch.
 Der Fokus wird außerdem nur noch geholt, wenn das Fenster in diesem Aufruf entstand. Das kostet
 etwas, und das steht hier, damit es eine Entscheidung bleibt und kein Versehen: `falzmarke
 entwurf-oeffnen` holt einen bereits offenen Entwurf nicht mehr nach vorn. Der Befehl sagt
-weiterhin, dass das Fenster steht („war schon offen"), den Wechsel macht der Mensch. Ein Fenster,
+weiterhin, dass das Fenster steht („war schon offen“), den Wechsel macht der Mensch. Ein Fenster,
 das schon stand, hat niemand in diesem Augenblick angefordert — die Schleife über viele Briefe
 hat das Gegenteil bewiesen.
 

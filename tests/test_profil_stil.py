@@ -14,7 +14,7 @@ Drei Gegenrichtungen, ohne die die Tests unten grün wären, ohne etwas zu zeige
   Befund, statt zu wirken. `test_ohne_den_eintrag_gilt_das_feld_als_tippfehler`
   nimmt den Eintrag weg und verlangt genau diesen Befund.
 * **Der Auszug.** In einem wortgetreuen Auszug steht fremder Wortlaut. Dass
-  dort „wir" oder „zeitnah" steht, sagt über den Stil des Absenders nichts.
+  dort „wir“ oder „zeitnah“ steht, sagt über den Stil des Absenders nichts.
 * **Die Stufe.** Beide Textregeln sind Warnung, nie Fehler. Die Erwartung steht
   hier wörtlich und wird nicht aus derselben Datei gelesen, die sie festlegt.
 """
@@ -206,7 +206,7 @@ def test_die_andere_person_wird_gemeldet(tmp_path, person, satz, gemeldet):
     "Bitte schicken Sie mir die Bestellnummer.\n",
 ])
 def test_nur_die_subjektform_wird_geprueft(tmp_path, satz):
-    """„unser Angebot" schreibt auch ein Einzelunternehmer.
+    """„unser Angebot“ schreibt auch ein Einzelunternehmer.
 
     Eine Warnung, die bei gültigem Text anschlägt, kostet Vertrauen in alle
     anderen — die Lehre aus der Telefonprüfung (#133).
@@ -247,7 +247,7 @@ def test_die_meldung_nennt_die_wendung(tmp_path):
 
 
 def test_ein_teilwort_wird_nicht_gemeldet(tmp_path):
-    """Als Wort gesucht, nicht als Teilkette — sonst trifft `rat` in „Vorrat"."""
+    """Als Wort gesucht, nicht als Teilkette — sonst trifft `rat` in „Vorrat“."""
     bericht = _linte(tmp_path, {"floskeln": ["rat"]},
                      "Der Vorrat reicht bis Oktober.\n")
     assert "email.stil_floskel" not in _regeln(bericht), bericht.als_text("nachricht.md")

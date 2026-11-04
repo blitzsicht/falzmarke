@@ -11,7 +11,7 @@ Der Pruefer liest eine Dateiliste, nie ein Repository und nie das Netz. Damit
 haengt sein Ergebnis allein von seiner Eingabe ab, nie vom Zeitpunkt des Aufrufs
 — dieselbe Entscheidung wie in scripts/pflicht_checks.py, und aus demselben
 Grund (#196). Der Preis ist, dass der Aufrufer die Liste beschaffen muss; das
-tut der Job „Changelog-Eintrag" in .github/workflows/ci.yml.
+tut der Job „Changelog-Eintrag“ in .github/workflows/ci.yml.
 
     gh pr view 42 --json files --jq '.files[].path' \\
       | python3 scripts/changelog_pflicht.py --autor siluri --label P1
@@ -81,7 +81,7 @@ def verlangt_keinen_punkt(pfad: str) -> bool:
 
     Ausdruecklich **nicht** dabei ist `skill/**`, auch nicht die Markdown-Datei
     `skill/references/din5008.md`: Das ist die Quelle der Normregeln, ihre
-    Aenderung aendert das Verhalten des Linters. Wer sie unter „Doku" faellen
+    Aenderung aendert das Verhalten des Linters. Wer sie unter „Doku“ faellen
     liesse, koennte den Sollwert einer Regel aendern, ohne dass es jemand im
     Verlauf sieht.
     """
@@ -152,7 +152,7 @@ def pruefe(pfade: list[str], autor: str = "", labels: tuple[str, ...] = (),
 def aus_pr_json(text: str) -> tuple[list[str], str, tuple[str, ...]]:
     """(Pfade, Autor, Labels) aus der Ausgabe von `gh pr view --json ...`.
 
-    Ein Label darf Leerzeichen enthalten („good first issue"), und genau daran
+    Ein Label darf Leerzeichen enthalten („good first issue“), und genau daran
     zerbricht der naheliegende Weg: Labels als Wortliste durch die Shell zu
     reichen und dort unquoted zu expandieren. Hier kommen sie in einem Stueck an.
     """
@@ -173,7 +173,7 @@ def _ausgabe_auf_utf8() -> None:
     `scripts/closing_keyword.py` traf: `stderr` liess sich nicht als UTF-8
     lesen und kam als None zurueck.
 
-    Hier faellt es bisher nur deshalb nicht auf, weil der Job „Changelog-Eintrag"
+    Hier faellt es bisher nur deshalb nicht auf, weil der Job „Changelog-Eintrag“
     ausschliesslich auf ubuntu laeuft — die Falle ist gestellt, sie hat bloss
     noch niemand ausgeloest. Dieselbe Vorkehrung wie in
     `scripts/closing_keyword.py` und in `falzmarke/cli.py` (dort seit

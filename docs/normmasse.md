@@ -52,7 +52,7 @@ Die Marken sind dort absolut positioniert; die Abweichung hängt also nicht am P
 die Datei geöffnet wird. **Wer diese Vorlage als Vergleichsmaßstab nimmt, misst gegen andere
 Werte als die, die hier eingehalten werden.**
 
-Nicht behauptet wird, die Vorlage sei „nicht normgerecht". Gemessen wurde gegen die
+Nicht behauptet wird, die Vorlage sei „nicht normgerecht“. Gemessen wurde gegen die
 Maßzeichnungen, nicht gegen den Normtext — und solange der Abgleich mit dem Original aussteht,
 sagt falzmarke dieses Wort über niemanden, auch nicht über Fremde. Dass die Messung hier nicht
 Schritt für Schritt nachvollziehbar ist, gehört dazugesagt: Sie stammt aus einem einzelnen

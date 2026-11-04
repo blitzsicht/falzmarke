@@ -24,7 +24,7 @@ Protokoll. Gemessen wird dann:
 
 Beide Hälften gehören zusammen: Erst dass der Aufbau mit passendem Digest bis zum
 Installer durchläuft, macht das Ausbleiben bei falschem Digest zu einer Aussage.
-Sonst wäre „bricht ab" auch bei einem Nachbau grün, der immer abbricht.
+Sonst wäre „bricht ab“ auch bei einem Nachbau grün, der immer abbricht.
 
 Drei Abweichungen, je einzeln gefahren:
 
@@ -159,7 +159,7 @@ def test_digest_und_version_stehen_im_selben_diff():
 
 
 def test_beim_pin_steht_ein_datum():
-    """„Sichtbar, wann sie zuletzt angefasst wurde" — ohne `git blame` zu brauchen."""
+    """„Sichtbar, wann sie zuletzt angefasst wurde“ — ohne `git blame` zu brauchen."""
     text = CI.read_text(encoding="utf-8")
     stellen = _zeilen_mit(text, DIGEST)
     assert stellen, ANNAHME
@@ -276,7 +276,7 @@ def _veraPDF_schritte(ci_text: str) -> tuple[list[dict], dict[str, str]]:
 
 
 def _fahre(ci_text: str, nutzlast: bytes, ort: Path) -> Lauf:
-    """Führt die veraPDF-Schritte aus ci_text aus; `nutzlast` ist, was curl „herunterlädt"."""
+    """Führt die veraPDF-Schritte aus ci_text aus; `nutzlast` ist, was curl „herunterlädt“."""
     echtes_unzip = _werkzeug_da()
     schritte, umgebung_ci = _veraPDF_schritte(ci_text)
 

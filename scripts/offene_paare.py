@@ -184,7 +184,7 @@ ADR 0042 bewusst in Kauf genommen.
 ## Was liegen bleibt
 
 Die Reihenfolge stünde so, wenn die Arbeit wieder aufgenommen würde — sortiert nach Wirkung je
-Aufwand, nicht nach Stückzahl. Die Spalte „Folge" ist regelbezogen: Sie gilt, wenn **alle**
+Aufwand, nicht nach Stückzahl. Die Spalte „Folge“ ist regelbezogen: Sie gilt, wenn **alle**
 ungeprüften Quellen dieser Regel schweigen, nicht nur die der Portion.
 
 | # | Quelle | Paare | trägt Gruppe? | Fehler-Regeln | Warum hier |
@@ -203,7 +203,7 @@ ungeprüften Quellen dieser Regel schweigen, nicht nur die der Portion.
         hinweis = ""
         if d.get("zaehlt") != "voll":
             hinweis = ("\n> Diese Quelle zählt `einzeln` und trägt keine Belegsgruppe. Die "
-                       "Spalte „Folge\"\n> rechnet die **übrigen** ungeprüften Quellen "
+                       "Spalte „Folge“\n> rechnet die **übrigen** ungeprüften Quellen "
                        "derselben Regel mit — ein Schweigen\n> ausgerechnet hier fällt keine "
                        "dieser Regeln.\n")
         teile.append(f"""
@@ -235,7 +235,7 @@ Zählstufe `{d.get('zaehlt')}`, Gruppe `{d.get('gruppe', name)}`.
 3. `python3 -m pytest tests/test_quellenlage.py` — die Schranke `UNGEPRUEFTE_PAARE` darf nur
    sinken und will dann von Hand nachgezogen werden; `SCHWEIGENDE_QUELLEN` ebenso.
 4. `python3 scripts/quellenlage.py` erzeugt den Doku-Abschnitt in der Normreferenz neu.
-5. Die Zahlen in `docs/recht.md` („Was die Stufen derzeit wert sind") nachziehen — sie werden
+5. Die Zahlen in `docs/recht.md` („Was die Stufen derzeit wert sind“) nachziehen — sie werden
    von `tests/test_textkanon.py` gegen die Regeldaten gezählt.
 6. `python3 scripts/offene_paare.py` — diese Liste neu erzeugen, die abgearbeitete Quelle aus
    `REIHENFOLGE` nehmen und unter `ERLEDIGT` eintragen.

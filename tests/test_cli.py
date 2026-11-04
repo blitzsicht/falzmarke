@@ -221,7 +221,7 @@ def test_jeder_befehl_steht_im_skill():
 def test_die_beschreibung_nennt_serie_und_einlesen():
     """Zwei der fuenf Befehle haben einen eigenen Anlass.
 
-    „Serienbrief an zweihundert Empfaenger" und „lies diesen alten Brief ein"
+    „Serienbrief an zweihundert Empfaenger“ und „lies diesen alten Brief ein“
     sind Aufgaben, bei denen niemand von sich aus an einen DIN-Skill denkt. Sie
     erreichen ihn nur ueber die Beschreibung: Der Rumpf wird erst NACH dem Laden
     gelesen. Fuer `preview`, `init` und `mcp` gilt das nicht — sie haben keinen

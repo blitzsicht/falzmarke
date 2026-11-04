@@ -15,7 +15,7 @@ Begründung, das Datum entstehe beim Versand. Die trug nur, solange man annahm,
 das Mailprogramm übernehme die Datei als Entwurf und setze den Zeitpunkt selbst.
 Nach der Messung in `docs/mailprogramme-2026-08-27.md` tut das keines der drei
 geprüften Programme: Sie zeigen ein Lesefenster, und der gangbare Weg ist
-„Weiterleiten". Dabei baut das Programm den zitierten Kopf aus den Feldern der
+„Weiterleiten“. Dabei baut das Programm den zitierten Kopf aus den Feldern der
 Quelle — ein fehlendes Feld wird dort nicht ersetzt, sondern als
 `Datum: (null), (null)` angezeigt und mitverschickt. Dazu führt RFC 5322,
 Abschnitt 3.6, `orig-date` als Pflichtfeld: Ohne `Date` ist die Datei keine
@@ -78,7 +78,7 @@ def blindkopien(kopf: dict, profil: dict) -> list[str]:
     tun, und die eine duerfte die andere nie verdraengen.
 
     Doppelte Adressen fallen weg, verglichen ueber die Adresse selbst: „Archiv
-    <a@example.de>" und „a@example.de" sind dieselbe Empfaengerin, und zweimal
+    <a@example.de>“ und „a@example.de“ sind dieselbe Empfaengerin, und zweimal
     gesetzt stuende sie sichtbar doppelt im Kopf. Die zuerst genannte
     Schreibweise bleibt — das Frontmatter gewinnt vor dem Profil, weil es den
     Anzeigenamen fuer diesen einen Fall traegt.
@@ -226,7 +226,7 @@ def signatur_bloecke(profil: dict, kopf: dict) -> list[list[str]]:
 def signatur_zeilen(profil: dict, kopf: dict) -> list[str]:
     """Dieselbe Signatur, flach — für alles, was keine Blöcke braucht.
 
-    Bleibt, weil die Frage „steht diese Zeile in der Signatur?" häufiger ist
+    Bleibt, weil die Frage „steht diese Zeile in der Signatur?“ häufiger ist
     als die nach ihrer Gliederung.
     """
     return [zeile for block in signatur_bloecke(profil, kopf) for zeile in block]
@@ -655,7 +655,7 @@ def _signaturtabelle(profil: dict, logo: Logo, inhalt: str) -> str:
     `emit_html.verstoesse()` Zeichen für Zeichen vergleicht.
 
     `role="presentation"`: Das ist Layout, keine Daten. Ohne die Marke liest
-    ein Screenreader „Tabelle, zwei Spalten, Zelle eins" vor, bevor der Name
+    ein Screenreader „Tabelle, zwei Spalten, Zelle eins“ vor, bevor der Name
     kommt — und `verify --email` lehnt sie ab. Gemessen am 29.08.2026: Jede
     Mail mit Logo im Profil fiel dort durch, und niemandem war es aufgefallen,
     weil das Beispielprofil kein Logo trägt.
@@ -738,7 +738,7 @@ def signatur_html(kopf: dict, profil: dict, logo: Logo | None = None,
         # Die erste Zeile des ersten Blocks ist der Name. Sie stand bisher wie
         # jede andere da — dieselbe Groesse wie die Umsatzsteuer-Nummer, und das
         # Auge fand keinen Anker (Operator, 04.09.2026: „schaut nach Behoerde
-        # aus"). Sie bekommt deshalb Gewicht und eine Spur mehr Groesse.
+        # aus“). Sie bekommt deshalb Gewicht und eine Spur mehr Groesse.
         #
         # Bewusst KEINE Akzentfarbe: Die Signatur gehoert dem Absender, nicht
         # uns — eine gefaerbte Linie waere unsere Marke in fremder Post. Und
@@ -797,7 +797,7 @@ def signatur_html(kopf: dict, profil: dict, logo: Logo | None = None,
 #: Keine Norm und kein Hersteller nennt eine Zahl — RFC 6068 schweigt dazu.
 #: Gemessen haben andere: Firefox unter Windows kürzt mailto bei rund 2 KB mit
 #: Absicht (Mozilla-Bug 253311, offen), und für das klassische Outlook gibt es
-#: eine Einzelmessung bei 2046 Zeichen. Ebene „Praxis" nach ADR 0035, deshalb
+#: eine Einzelmessung bei 2046 Zeichen. Ebene „Praxis“ nach ADR 0035, deshalb
 #: kein Fehler: Darüber entsteht nur kein Link, und die Vorschau sagt, warum.
 MAILTO_GRENZE = 2000
 
@@ -960,7 +960,7 @@ def baue(kopf: dict, profil: dict, quelle_md: str, bloecke, *,
     # Bcc steht in der Datei, damit das Mailprogramm die Adresse übernehmen
     # kann, ohne dass sie jemand abtippt. Sie erscheint bewusst NICHT in der
     # `.html`-Vorschau — die ist zum Herauskopieren gedacht, und eine sichtbare
-    # Zeile „Blindkopie" wäre genau das Gegenteil dessen, wofür das Feld da ist.
+    # Zeile „Blindkopie“ wäre genau das Gegenteil dessen, wofür das Feld da ist.
     # Frontmatter UND Profil (#272) - `blindkopien()` fuehrt beide zusammen.
     verdeckt = blindkopien(kopf, profil)
     if verdeckt:
@@ -971,7 +971,7 @@ def baue(kopf: dict, profil: dict, quelle_md: str, bloecke, *,
         nachricht["References"] = str(kopf["antwort_auf"])
 
     # Date immer — RFC 5322 führt es als Pflichtfeld, und ein fehlendes zeigt
-    # das Mailprogramm beim Weiterleiten als „(null), (null)" im Text an (#236).
+    # das Mailprogramm beim Weiterleiten als „(null), (null)“ im Text an (#236).
     # SOURCE_DATE_EPOCH behält den Vorrang: Es macht den Golden-Vergleich
     # möglich, indem es das einzig Veränderliche festnagelt.
     epoch = os.environ.get("SOURCE_DATE_EPOCH")
@@ -1095,7 +1095,7 @@ def entwurfsfelder(pfad) -> dict:
 
     Eine reine Funktion — sie startet nichts und kennt kein Mailprogramm. Was
     mit den Feldern geschieht, entscheidet `falzmarke.oeffnen`; die Grenze
-    zwischen „E-Mail verstehen" und „ein fremdes Programm starten" bleibt damit
+    zwischen „E-Mail verstehen“ und „ein fremdes Programm starten“ bleibt damit
     dieselbe wie vorher (ADR 0038, Punkt 5).
 
     Anhänge kommen als Name und Inhalt zurück, nicht als Pfad: In der `.eml`
@@ -1115,7 +1115,7 @@ def entwurfsfelder(pfad) -> dict:
         if not wert:
             return []
         # Über `addresses` des Headers statt über einen Split an Kommas: In
-        # einem Anzeigenamen darf ein Komma stehen („Gottl, Franz <x@y.de>"),
+        # einem Anzeigenamen darf ein Komma stehen („Gottl, Franz <x@y.de>“),
         # und ein naiver Split zerlegte genau die Adressen, die einen Namen
         # tragen. Der Name selbst bleibt hier draußen — in den Entwurf geht die
         # Adresse, den Namen kennt das Adressbuch des Programms.

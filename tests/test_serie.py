@@ -192,7 +192,7 @@ def test_ein_kaputter_satz_haelt_die_serie_nicht_an(tmp_path):
 
 
 def test_und_die_meldung_nennt_die_zeile(tmp_path, capsys):
-    """„Ein Datensatz ist kaputt" hilft bei zweihundert Zeilen niemandem."""
+    """„Ein Datensatz ist kaputt“ hilft bei zweihundert Zeilen niemandem."""
     zeilen = [list(ZEILEN[0]), list(ZEILEN[1])]
     zeilen[1][0] = ""
     _lauf(tmp_path, zeilen=zeilen)
