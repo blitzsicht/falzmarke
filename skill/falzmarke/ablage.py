@@ -304,16 +304,23 @@ def _ziele_zuordnen(sitzung: postfach.Postfach, wunsch: str | None, zuege: list[
     return tuple(zugeordnet), tuple(liegen), grund
 
 
+#: Das Ende des Satzes, wenn der Zug am SELECT abbricht. Nicht „verschoben wird
+#: nichts“: Bei `{jahr}` kann eine frühere Gruppe schon gewandert sein, und die
+#: Zeile darunter sagt dann „1 davon verschoben“ (Nachreview #502, Befund 4).
+_SCHLUSS_AM_ZUG = "kein weiterer Zug geht hinaus, erst ohne --machen neu anzeigen lassen"
+
+
 def _uidvalidity_grund(vorher: str, ist: str | None, *,
-                       quelle: str = "die Anzeige nannte") -> str:
+                       quelle: str = "die Anzeige nannte",
+                       schluss: str = "verschoben wird nichts, erst ohne --machen neu "
+                                      "anzeigen lassen") -> str:
     """Der Satz, wenn die UIDs nicht mehr sicher dieselben Mails meinen (#495)."""
     if ist is None:
         return (f"der Server nennt für den Eingang keine UIDVALIDITY, {quelle} {vorher} — "
-                "ob die UIDs noch dieselben Mails meinen, ist nicht zu prüfen; "
-                "verschoben wird nichts")
+                f"ob die UIDs noch dieselben Mails meinen, ist nicht zu prüfen; {schluss}")
     return (f"die UIDVALIDITY des Eingangs ist jetzt {ist}, {quelle} {vorher} — "
             "der Server hat die UIDs neu vergeben, dieselbe Zahl kann eine andere Mail sein; "
-            "verschoben wird nichts, erst ohne --machen neu anzeigen lassen")
+            f"{schluss}")
 
 
 def plane_benannt(sitzung: postfach.Postfach, uids: list[str], *, wunsch: str | None = None,
@@ -343,6 +350,10 @@ def plane_benannt(sitzung: postfach.Postfach, uids: list[str], *, wunsch: str | 
         # Vor allem anderen und allein: Nach einem Wechsel sagt weder eine
         # fehlende noch eine gefundene UID etwas über die Mail, die gemeint war.
         grund = _uidvalidity_grund(uidvalidity, ist)
+        # Was unter der neuen Nummerierung gefunden wurde, ist nicht die Mail, die
+        # die Anzeige meinte. Als „gefunden für …“ gezeigt, sähe der Bediener eine
+        # fremde Mail unter seiner UID (Nachreview #502, Befund 3).
+        zuege, liegen = [], ()
     elif fehlen:
         # Vor dem Grund des Jahresordners: Eine Liste, die nicht stimmt, ist der
         # schwerere Befund — sie sagt, dass der Bediener etwas anderes meinte.
@@ -493,12 +504,19 @@ def verschiebe(sitzung: postfach.Postfach, ziel: str, uids: list[str], *,
     `uidvalidity` ist der Wert, unter dem die UIDs geplant wurden. Nennt das
     SELECT einen anderen, geht kein MOVE hinaus (#495): Zwischen dem EXAMINE
     des Plans und diesem SELECT kann der Server den Eingang neu nummeriert
-    haben. Ohne Planwert gibt es nichts zu vergleichen.
+    haben. Ohne Planwert geht ebenso keines hinaus: Unbekannt ist nicht
+    „gleich“, und die UIDs ließen sich gegen nichts prüfen (Nachreview #502,
+    Befund 1).
     """
     if not uids:
         return 0
     if not ziel:
         raise AblageFehler("ohne Ablageordner wird nichts verschoben")
+    if uidvalidity is None:
+        # Vor dem SELECT: Ohne Planwert ist der Eingang nicht einmal zum Schreiben zu wählen.
+        raise AblageFehler("der Plan dieses Laufs las für den Eingang keine UIDVALIDITY — "
+                           "ob die UIDs noch dieselben Mails meinen, ist nicht zu prüfen; "
+                           + _SCHLUSS_AM_ZUG)
     if not _kann_verschieben(sitzung):
         raise AblageFehler(
             "der Server nennt in CAPABILITY kein MOVE (RFC 6851) — falzmarke baut es nicht "
@@ -509,9 +527,10 @@ def verschiebe(sitzung: postfach.Postfach, ziel: str, uids: list[str], *,
     # der Server nichts. Gewählt wird allein der Eingang.
     sitzung._befehl(f"Ordner „{EINGANG}“ nicht wählbar", sitzung._v.select, zitiert(EINGANG))
     jetzt = sitzung._lies_uidvalidity()
-    if uidvalidity is not None and jetzt != uidvalidity:
+    if jetzt != uidvalidity:
         raise AblageFehler(_uidvalidity_grund(uidvalidity, jetzt,
-                                              quelle="der Plan dieses Laufs las"))
+                                              quelle="der Plan dieses Laufs las",
+                                              schluss=_SCHLUSS_AM_ZUG))
     try:
         sitzung._befehl(f"MOVE nach „{postfach.utf7_dekodieren(ziel)}“",
                         sitzung._v.uid, "MOVE", ",".join(uids), zitiert(ziel))
@@ -547,6 +566,15 @@ def raeume_auf(adresse: str, *, wunsch: str | None = None, seit_tagen: int = SEI
     """
     bericht = Bericht(adresse=adresse, ziel=None, grund=None, seit=None, antworten=0,
                       nicht_im_eingang=0, zuege=(), verschoben=0, benannt=uids is not None)
+    if uids is not None and machen and uidvalidity is None:
+        # Dieselbe Pflicht wie in `cli.py`, hier für jeden Aufrufer: Ohne den Wert der
+        # Anzeige verglich der Lauf die aktuelle Nummerierung mit sich selbst und
+        # verschob nach einem Wechsel eine fremde Mail (Nachreview #502, Befund 2).
+        # Vor der Anmeldung, wie dort: Es wird kein Postfach geöffnet.
+        return bericht._replace(
+            grund="mit UIDs und machen fehlt die UIDVALIDITY, die die Anzeige nannte — "
+                  "ohne sie ist nicht zu prüfen, ob die UIDs noch dieselben Mails meinen; "
+                  "verschoben wird nichts")
     try:
         sitzung = postfach.verbinde(adresse, umgebung=umgebung, frist=frist)
     except postfach.PostfachFehler as fehler:
@@ -665,7 +693,9 @@ def zeilen(bericht: Bericht) -> list[str]:
         aus.append(f"    {bericht.nicht_im_eingang} Antworten ohne Nachricht im Eingang "
                    "(längst weggeräumt)")
     if bericht.zuege and not bericht.verschoben:
-        aus.append("    nichts bewegt — mit --machen verschieben")
+        aus.append("    nichts bewegt — mit --machen verschieben" if bericht.uidvalidity else
+                   "    nichts bewegt — der Server nennt für den Eingang keine UIDVALIDITY, "
+                   "auch mit --machen wird deshalb nicht verschoben")
     return aus + nachspann
 
 

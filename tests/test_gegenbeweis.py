@@ -3356,6 +3356,10 @@ def _lauf_478(monkeypatch, eingang, *, gesendet=(), ordner=("Archiv",), **option
         verschieben_erlaubt=True)
     monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE", attrappe)
     wunsch = optionen.pop("wunsch", "Archiv")
+    if "uids" in optionen:
+        # Der Wert der Attrappe, wie die Anzeige ihn nennt: `raeume_auf` verlangt ihn
+        # mit UIDs und `machen` (Nachreview #502, Befund 2).
+        optionen.setdefault("uidvalidity", attrappe.uidvalidity)
     return attrappe, _ablage.raeume_auf("joe@example.org", wunsch=wunsch, machen=True,
                                         umgebung={}, **optionen)
 
@@ -3658,10 +3662,36 @@ def test_ohne_den_vergleich_am_select_geht_das_move_trotz_wechsel_hinaus(monkeyp
 
     probe(benannt)                                                         # Kontrolle
     monkeypatch.setattr(_ablage, "verschiebe", _zeile_ersetzt(
-        _ablage, "verschiebe", "    if uidvalidity is not None and jetzt != uidvalidity:",
+        _ablage, "verschiebe", "    if jetzt != uidvalidity:",
         "    if False:"))
     with pytest.raises(AssertionError, match="UID MOVE gesendet"):
         probe(benannt)
+
+
+def test_ohne_die_sperre_fuer_fehlenden_planwert_geht_das_move_ungeprueft_hinaus(monkeypatch):
+    """Nachreview #502, Befund 1: Der Stand davor verglich nur, wenn der Plan einen Wert las."""
+    from falzmarke import ablage as _ablage
+    from test_ablage import test_ohne_uidvalidity_im_plan_geht_kein_move_hinaus as probe
+
+    probe()                                                                # Kontrolle
+    monkeypatch.setattr(_ablage, "verschiebe", _zeile_ersetzt(
+        _ablage, "verschiebe", "    if uidvalidity is None:", "    if False:"))
+    with pytest.raises(AssertionError, match="UID MOVE gesendet"):
+        probe()
+
+
+def test_ohne_die_pflicht_in_der_funktion_wandert_die_fremde_mail(monkeypatch):
+    """Nachreview #502, Befund 2: Der Stand davor prüfte die Pflicht nur in `cli.py`."""
+    from falzmarke import ablage as _ablage
+    from test_ablage import (
+        test_mit_uids_und_machen_verlangt_auch_die_funktion_die_uidvalidity as probe)
+
+    probe()                                                                # Kontrolle
+    monkeypatch.setattr(_ablage, "raeume_auf", _zeile_ersetzt(
+        _ablage, "raeume_auf", "    if uids is not None and machen and uidvalidity is None:",
+        "    if False:"))
+    with pytest.raises(AssertionError, match="UID MOVE gesendet"):
+        probe()
 
 
 def test_ohne_die_pflicht_laeuft_uid_mit_machen_ohne_uidvalidity_durch(monkeypatch, capsys):
