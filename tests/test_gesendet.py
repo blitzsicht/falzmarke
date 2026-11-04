@@ -124,10 +124,10 @@ def _server(monkeypatch, *gesendete, sonder=None) -> ImapAttrappe:
 
 
 def _gesendet(*, vor=timedelta(minutes=7), betreff="AW: Sommerfest – Programm und was noch fehlt",
-              text=THUNDERBIRD_TEXT, an=f"Paula Beispiel <{EMPFAENGER}>", kopf=None):
+              text=THUNDERBIRD_TEXT, an=f"Paula Beispiel <{EMPFAENGER}>", kopf=None,
+              von="muster@example.de"):
     zeit = JETZT - vor
-    return nachricht(an=an, betreff=betreff, text=text, datum=zeit, von="muster@example.de",
-                     kopf=kopf), zeit
+    return nachricht(an=an, betreff=betreff, text=text, datum=zeit, von=von, kopf=kopf), zeit
 
 
 def _pruefe(eml_pfad, **k) -> gesendet.Befund:
@@ -464,6 +464,105 @@ def test_die_flags_stehen_in_der_hilfe(capsys):
         falzmarke.main(["email", "--help"])
     hilfe = capsys.readouterr().out
     assert "--trotz-gesendet" in hilfe and "--noch-ein-entwurf" in hilfe
+
+
+# ── Der Absender der gefundenen Mail (#434) ─────────────────────────────────
+#
+# Im Gesendet-Ordner liegt nicht nur, was von hier hinausging. Gemessen am
+# 04.11.2026 an acht Konten des Betreibers, 90 Tage, nur lesend: In „Gesendete
+# Elemente“ von order@ trugen 651 von 3000 Mails ein anderes `From` — alle von
+# zwei weiteren Konten desselben Thunderbird-Profils, unter denen Odoo über
+# dieses Postfach verschickt. Eine eingegangene Mail lag in einem Konto, genau
+# einmal. Fremd ist deshalb, was von **keiner Identität des Profils** kommt,
+# nicht, was von keiner des Kontos kommt: Die Odoo-Mails gingen hinaus und
+# sperren weiter; die eingegangene sperrt nicht mehr.
+
+KUNDE = "kunde@example.net"
+ALIAS = "alias@example.de"
+ANDERES_KONTO = "andere@example.org"   # Identität des zweiten Kontos in `_grundwerte`
+
+
+def _profil(tmp_path) -> Path:
+    """Ein Thunderbird-Ordner: Konto 1 führt muster@ und einen Alias, Konto 2 andere@."""
+    from test_thunderbird_signatur import _attrappe, _grundwerte
+
+    werte = _grundwerte()
+    werte["mail.account.account1.identities"] = "id1,id3"
+    werte["mail.identity.id3.useremail"] = ALIAS
+    return _attrappe(tmp_path, werte)
+
+
+def _eingegangen(**k):
+    """„AW: …“ vom Kunden an mich, Paula in Cc — anderer Text, derselbe Betreffkern.
+
+    Paula als gemeinsamer Empfänger und der Betreff der eigenen Mail: der Fall
+    aus #434, ohne Absenderprüfung eine `GEÄNDERTE FASSUNG`."""
+    k.setdefault("text", ANDERER_TEXT)
+    return _gesendet(von=KUNDE, an="muster@example.de",
+                     kopf={"Cc": f"Paula Beispiel <{EMPFAENGER}>"}, **k)
+
+
+def test_eine_eingegangene_mail_im_gesendet_ordner_sperrt_nicht(eigene, monkeypatch, tmp_path):
+    ordner = _profil(tmp_path)
+    _server(monkeypatch, _eingegangen())
+    befund = _pruefe(eigene, thunderbird_ordner=ordner)
+    assert befund.zustand == "frei", befund
+    assert (befund.angesehen, befund.fremde) == (1, 1)
+    assert gesendet.meldung(befund).endswith("angesehen, 1 mit fremdem Absender übergangen")
+
+
+def test_ohne_profil_zaehlt_die_eingegangene_mail_weiter(eigene, monkeypatch):
+    """Sagt kein Profil, wer „wir“ sind, wird nicht geraten: Die Mail sperrt wie bisher,
+    und die OK-Zeile bekommt keinen Zusatz."""
+    _server(monkeypatch, _eingegangen())
+    befund = _pruefe(eigene)
+    assert befund.zustand == "geaendert" and befund.fremde == 0
+    _server(monkeypatch, _gesendet(betreff="Termin Montag", text=ANDERER_TEXT, von=KUNDE))
+    befund = _pruefe(eigene)
+    assert befund.zustand == "frei" and "übergangen" not in gesendet.meldung(befund)
+
+
+@pytest.mark.parametrize("von", ["muster@example.de", ALIAS, ANDERES_KONTO],
+                         ids=["konto", "alias", "anderes-konto-im-profil"])
+def test_eine_mail_von_einer_identitaet_des_profils_sperrt_weiter(eigene, monkeypatch, tmp_path,
+                                                                 von):
+    """Alias und das andere Konto desselben Profils: So schickt Odoo Rechnungen von
+    buchhaltung@ über das Postfach von order@ (Messung 04.11.2026)."""
+    ordner = _profil(tmp_path)
+    _server(monkeypatch, _gesendet(von=von))
+    befund = _pruefe(eigene, thunderbird_ordner=ordner)
+    assert befund.zustand == "gesendet", f"die Mail von {von} gilt als fremd: {befund}"
+    assert befund.fremde == 0
+
+
+def test_ohne_absender_zaehlt_die_mail(eigene, monkeypatch, tmp_path):
+    ordner = _profil(tmp_path)
+    _server(monkeypatch, _gesendet(von=""))
+    befund = _pruefe(eigene, thunderbird_ordner=ordner)
+    assert befund.zustand == "gesendet" and befund.fremde == 0
+
+
+def test_die_uebergangene_zaehlt_auch_hinter_einem_treffer(eigene, monkeypatch, tmp_path):
+    ordner = _profil(tmp_path)
+    _server(monkeypatch, _eingegangen(vor=timedelta(minutes=3)), _gesendet())
+    befund = _pruefe(eigene, thunderbird_ordner=ordner)
+    assert befund.zustand == "gesendet" and befund.fremde == 1
+
+
+def test_die_identitaeten_kommen_aus_dem_profil_der_bruecke(eigene, monkeypatch, tmp_path):
+    """Nachreview #488, Nr. 1, hier für die Sperre: Das Standardprofil A nennt keine
+    Identität, Profil B am Socket nennt muster@. Ohne Schalter zählt die eingegangene
+    Mail (der Zwilling), mit Schalter nicht."""
+    from falzmarke import bruecke, oeffnen
+    from test_thunderbird_signatur import _attrappe, _grundwerte
+
+    monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER", _attrappe(tmp_path / "a", {}))
+    b = _attrappe(tmp_path / "b", _grundwerte()) / "Profiles" / "abcd1234.default-release"
+    _server(monkeypatch, _eingegangen())
+    assert _pruefe(eigene).zustand == "geaendert", "der Zwilling kann gar nicht sperren"
+    umgebung = {"FALZMARKE_BRUECKE_SOCKET": str(b / bruecke.SOCKET_DATEI)}
+    befund = gesendet.pruefe_datei(eigene, umgebung=umgebung, jetzt=JETZT)
+    assert befund.zustand == "frei" and befund.fremde == 1
 
 
 # ── Fassung aus dem Tagebuch (ADR 0056) ─────────────────────────────────────

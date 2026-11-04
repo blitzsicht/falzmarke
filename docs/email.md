@@ -320,6 +320,15 @@ steht es nicht: Dass derselbe Betreff mit anderem Text hinausging, belegt für d
 nichts. Entwürfe, die nicht über falzmarke entstanden, zeigt `status` nur, solange sie in
 „Entwürfe“ liegen.
 
+Eine Mail in „Gesendet“ zählt nur, wenn ihr Absender eine Identität des Thunderbird-Profils ist,
+gleich welches Kontos. Eingegangene Post, die eine Regel oder eine Hand dorthin legt, macht keinen
+Entwurf zu `SCHON RAUS` und keinen verschwundenen zu `GESENDET`. Die `OK`-Zeile sagt dann
+„37 Mails … angesehen (2 mit fremdem Absender übergangen)“, unter `--json` steht die Zahl in
+`fremde`. Lassen sich die Identitäten nicht lesen, zählt jede Mail wie bisher, und ein
+`HINWEIS  Identitäten des Profils nicht gelesen (…)` nennt, wie viele einen anderen Absender
+tragen. Dieselbe Regel gilt für die Sperre bei `email --oeffnen` und in der Entwurfsbrücke
+([ADR 0051](entscheidungen/0051-gesendet-sperre-und-postfach-entwurf.md), Nachtrag 04.11.2026).
+
 Welchem Konto ein offenes Fenster gehört, sagt das Add-on: Es meldet ab 0.3.0 die Absenderadresse
 des Fensters. Geraten wird sie **nicht** mehr aus der Adresse der Nachricht — deren Autoritätsteil
 trägt den IMAP-Anmeldenamen, und der muss die E-Mail-Adresse nicht enthalten. Heißt der Login
@@ -349,7 +358,8 @@ Ab 0.2.0 hält die Entwurfsbrücke außerdem das Senden an, wenn derselbe Text i
 Tagen schon an einen dieser Empfänger ging. Bei einem Entwurf oder einer neuen Mail gilt das auch
 für denselben Betreff mit anderem Text in den letzten 24 Stunden. Thunderbird fragt dann, „Nicht
 senden“ ist vorgewählt. Kann das Add-on nicht prüfen, geht die Mail hinaus, und das Tagebuch hält
-es fest ([ADR 0055](entscheidungen/0055-entwurfsbuch-status-und-sperre.md)).
+es fest ([ADR 0055](entscheidungen/0055-entwurfsbuch-status-und-sperre.md)). Ab 0.3.9 übergeht es
+dabei Mails, deren Absender keine Identität dieses Thunderbird ist (#434).
 
 **Wo die Sperre aufhört.** „Derselbe Text“ setzt genug Text voraus. Ein Textkern — alles bis zur
 Grußformel — zählt erst ab **20 Zeichen Textkern**, und ein eigener Text, der bloß der Anfang der

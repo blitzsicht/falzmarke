@@ -125,7 +125,10 @@ globalThis.browser = {
     },
     continueList: async () => ({ id: null, messages: [] }),
   },
-  accounts: { list: async () => [{ id: "account5", name: "order", identities: [{ id: "id5" }] }] },
+  accounts: {
+    list: async () => fall.konten
+      || [{ id: "account5", name: "order", identities: [{ id: "id5" }] }],
+  },
   folders: {
     query: async (q) => (fall.ohne_gesendet ? [] : [{ id: "sent5", accountId: q.accountId }]),
   },
@@ -189,10 +192,13 @@ def _voll(text, *, html=False, anhang=False):
 
 
 def _gesendet(*, text=TEXT, an=("erika@example.com",), betreff="Auftrag S1", vor=timedelta(days=2),
-              html=False, anhang=False, message_id="m1@example.de"):
-    return {"recipients": list(an), "ccList": [], "bccList": [], "subject": betreff,
+              html=False, anhang=False, message_id="m1@example.de", von=None):
+    kopf = {"recipients": list(an), "ccList": [], "bccList": [], "subject": betreff,
             "date": (JETZT - vor).isoformat(), "voll": _voll(text, html=html, anhang=anhang),
             "headerMessageId": message_id}
+    if von is not None:
+        kopf["author"] = von
+    return kopf
 
 
 def _fall(*gesendet, typ="draft", text=TEXT, betreff="Auftrag S1", **mehr):
@@ -448,6 +454,9 @@ def test_tagebuch_datei_hat_auf_beiden_seiten_denselben_namen():
      'kopfwert(voll, "x-falzmarke-fassung")',
      lambda: _fall(_gesendet(text=GEAENDERT, vor=timedelta(days=3)),
                    fassungen=[{"message_id": "m1@example.de", "fassung": "abc123def456"}])),
+    # #434: Ohne den Absenderfilter hält die Mail des Kunden an.
+    ("    if (fremderAbsender(kopf, eigene)) {", "    if (false) {",
+     lambda: _fall(_gesendet(von=KUNDE), konten=KONTEN)),
 ])
 def test_gegenprobe(tmp_path, alt, neu, fall):
     quelltext = HINTERGRUND.read_text(encoding="utf-8")
@@ -516,6 +525,50 @@ def test_die_blindkopie_steht_trotzdem_im_tagebuch():
     aus = _lauf(fall)
     (eintrag,) = [e for e in aus["tagebuch"] if e["art"] == "gesendet"]
     assert eintrag["blindkopie"] == [ARCHIV]
+
+
+# ── Der Absender der gefundenen Mail (#434) ─────────────────────────────────
+#
+# Wie `gesendet.fremder_absender` in falzmarke: Fremd ist, was von keiner
+# Identität eines Kontos in Thunderbird kommt — auch ein anderes Konto zählt
+# als eigen, denn so verschickt Odoo von buchhaltung@ über das Postfach von
+# order@ (gemessen 04.11.2026). Nennt Thunderbird keine Adressen, zählt jede
+# Mail; ohne Absender ebenso.
+
+KONTEN = [
+    {"id": "account5", "name": "order",
+     "identities": [{"id": "id5", "email": "order@example.de"},
+                    {"id": "id6", "email": "alias@example.de"}]},
+    {"id": "account6", "name": "buchhaltung",
+     "identities": [{"id": "id7", "email": "buchhaltung@example.de"}]},
+]
+KUNDE = "Kunde <kunde@example.net>"
+
+
+def test_eine_eingegangene_mail_in_gesendet_haelt_nicht_an():
+    """Derselbe Text, derselbe Empfänger — aber vom Kunden. Kein Dialog."""
+    aus = _lauf(_fall(_gesendet(von=KUNDE), konten=KONTEN))
+    assert aus["ergebnis"] == {} and aus["fragen"] == []
+    assert _arten(aus) == ["geoeffnet", "geschlossen"]
+
+
+@pytest.mark.parametrize("von", ["Paul <order@example.de>", "ALIAS@example.de",
+                                 "Buchhaltung <buchhaltung@example.de>"],
+                         ids=["konto", "alias", "anderes-konto"])
+def test_eine_mail_von_einer_identitaet_in_thunderbird_haelt_an(von):
+    aus = _lauf(_fall(_gesendet(von=von), konten=KONTEN))
+    assert aus["ergebnis"] == {"cancel": True}, f"die Mail von {von} gilt als fremd"
+
+
+def test_ohne_adressen_an_den_konten_zaehlt_jede_mail():
+    """Nennt Thunderbird keine Adressen, wird nicht geraten — wie ohne Profil in falzmarke."""
+    aus = _lauf(_fall(_gesendet(von=KUNDE)))
+    assert aus["ergebnis"] == {"cancel": True}
+
+
+def test_ohne_absender_zaehlt_die_mail():
+    aus = _lauf(_fall(_gesendet(), konten=KONTEN))
+    assert aus["ergebnis"] == {"cancel": True}
 
 
 # ── Eine Prüfung, die hängt, hält niemanden auf (ADR 0055, Punkt 5) ─────────

@@ -2153,6 +2153,46 @@ def test_ohne_signaturklasse_findet_die_pruefung_keine_signatur(tmp_path, monkey
     assert elemente() == 0
 
 
+def test_ohne_den_absenderfilter_sperrt_die_eingegangene_mail(tmp_path, monkeypatch):
+    """#434, Abnahme 6: Die Mail des Kunden mit Paula in Cc und demselben Betreffkern
+    gab `GEÄNDERTE FASSUNG`. Mit dem Filter ist sie frei, ohne ihn wieder nicht —
+    und die eigene Mail (Kontrolle) sperrt vorher wie nachher."""
+    from falzmarke import gesendet as _gesendet_modul
+    from test_gesendet import _eingegangen, _gesendet, _profil, _pruefe, _server
+
+    eml_pfad = _eigene_mail(tmp_path)
+    ordner = _profil(tmp_path)
+
+    def urteile() -> tuple[str, str]:
+        _server(monkeypatch, _eingegangen())
+        eingegangen = _pruefe(eml_pfad, thunderbird_ordner=ordner).zustand
+        _server(monkeypatch, _gesendet())
+        return eingegangen, _pruefe(eml_pfad, thunderbird_ordner=ordner).zustand
+
+    assert urteile() == ("frei", "gesendet")
+    monkeypatch.setattr(_gesendet_modul, "pruefe", _zeile_ersetzt(
+        _gesendet_modul, "pruefe",
+        "            if fremder_absender(kopf, eigene):\n", "            if False:\n"))
+    assert urteile() == ("geaendert", "gesendet")
+
+
+def test_ohne_den_absenderfilter_im_abgleich_ist_die_eingegangene_mail_schon_raus(monkeypatch,
+                                                                                tmp_path):
+    """Dieselbe Zusage für `status`: Der Filter steht in `abgleich`, vor `treffer`."""
+    from falzmarke import entwurfsbuch as _buch
+    from test_entwurfsbuch import (_eingegangen, _einziger, _mail, _postfach,
+                                   _profil_des_kontos, _stand)
+
+    _profil_des_kontos(monkeypatch, tmp_path)
+    _postfach(monkeypatch, entwuerfe=[_mail()], gesendet=[_eingegangen()])
+    assert _einziger(_stand()).art == "wartet"
+    monkeypatch.setattr(_buch, "abgleich", _zeile_ersetzt(
+        _buch, "abgleich",
+        "            raus = [k for k in raus if not gesendet.fremder_absender(k, eigene)]\n",
+        "            raus = list(raus)\n"))
+    assert _einziger(_stand()).art == "schon_raus"
+
+
 # ── Die Ablage je Konto (#431, ADR 0061) ───────────────────────────────────
 #
 # `tests/test_ablage.py` hält fest, was der Befehl tut. Hier steht die Frage,
@@ -2489,8 +2529,8 @@ def test_mit_dem_standardprofil_statt_dem_der_bruecke_faellt_der_alias_heraus(mo
     from test_entwurfsbuch import test_die_aliasse_kommen_aus_dem_profil_der_bruecke as probe
 
     probe(monkeypatch, tmp_path / "k")                                     # Kontrolle
-    monkeypatch.setattr(_buch, "_offene_uids", _zeile_ersetzt(
-        _buch, "_offene_uids", "profil, grund = bruecken_profil(profilordner, umgebung)",
+    monkeypatch.setattr(_buch, "kontoadressen", _zeile_ersetzt(
+        _buch, "kontoadressen", "profil, grund = bruecken_profil(profilordner, umgebung)",
         "profil, grund = oeffnen.thunderbird_standardprofil(oeffnen.THUNDERBIRD_ORDNER), ''"))
     with pytest.raises(AssertionError, match="der Alias aus dem Profil der Brücke hält den "
                                              "Entwurf nicht offen"):

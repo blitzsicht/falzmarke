@@ -187,6 +187,10 @@ Nachtrag gemeint ist). Erst auf sein Ja hin mit `--trotz-gesendet` erneut aufruf
 der 21.10.2026: Das Entwurfsfenster war zu, eine Sitzung sah nur in die Entwürfe und legte neu
 an — die Antwort ging zweimal hinaus.
 
+Gezählt wird nur, was von einer Identität des Thunderbird-Profils kam, aus welchem Konto auch
+immer. Eingegangene Post, die eine Regel nach „Gesendet“ legt, sperrt nicht; die `OK`-Zeile
+nennt sie mit „N mit fremdem Absender übergangen“ (#434).
+
 Lässt sich nicht nachsehen (kein Proxy, keine Antwort in 30 s), sperrt nichts; die **letzte
 Zeile** lautet dann `GESENDET NICHT GEPRÜFT: <Grund>`. Das ist kein „nicht gesendet“ — die Zeile
 gehört in die Antwort. Abschalten: `FALZMARKE_GESENDET=nie`; ein anderer Proxy:
