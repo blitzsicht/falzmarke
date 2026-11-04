@@ -340,6 +340,21 @@ def test_ein_workflow_mit_filter_ist_ein_fehler(tmp_path):
     assert pflicht_checks.pflicht_checks(frei) == ["tests"]   # Gegenstück: ohne Filter gültig
 
 
+@pytest.mark.parametrize("fall", ["fehlt", "kaputt"])
+def test_eine_fehlende_oder_kaputte_datei_ist_ein_workflowfehler(tmp_path, fall):
+    """Auch das ist der dritte Zustand, kein Absturz (Nachreview von #492).
+
+    Bis dahin gingen `FileNotFoundError` und `yaml.YAMLError` als Traceback
+    durch `main()` und rissen den Wächter ab, obwohl beide `Workflowfehler`
+    abfangen.
+    """
+    datei = tmp_path / "ci.yml"
+    if fall == "kaputt":
+        datei.write_text("on:\n  pull_request:\n   types: [opened\njobs:\n", encoding="utf-8")
+    with pytest.raises(pflicht_checks.Workflowfehler, match="ci.yml nicht lesbar: "):
+        pflicht_checks.analysiere(datei)
+
+
 def test_das_skript_meldet_einen_unbrauchbaren_workflow_statt_abzustuerzen(tmp_path, monkeypatch,
                                                                              capsys):
     """Nachreview von #483: Exit 1 mit einer Zeile, kein Traceback — das Skript

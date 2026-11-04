@@ -116,7 +116,7 @@ bleibt, sind Empfänger, Betreff und Text.
    leere Nachricht gliche jeder anderen leeren, und „Hallo Paula, danke!“ steht am Anfang vieler
    verschiedener Mails.
 5. **Scheitert die Prüfung, wird gesendet.** Fehlt der Gesendet-Ordner, wirft eine Abfrage, geht
-   der Dialog nicht auf oder liegen mehr als 2000 gesendete Mails in 14 Tagen, lässt die Sperre die
+   der Dialog nicht auf oder liegen mehr als `GRENZE_GESENDET` (3000) gesendete Mails in 14 Tagen, lässt die Sperre die
    Mail hinaus und schreibt
    `pruefung_fehlgeschlagen` mit dem Grund ins Tagebuch. Eine Prüfung, die hängt, darf den
    Menschen nicht aufhalten; dass sie nicht geprüft hat, steht dann in `status`.

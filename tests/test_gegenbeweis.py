@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+import yaml
 
 from falzmarke import geometrie
 from falzmarke import cli as falzmarke
@@ -3535,7 +3536,7 @@ def test_mit_edited_in_ci_yml_wird_die_gegenseite_rot(tmp_path, monkeypatch):
      "test_ein_workflow_ohne_synchronize_ist_ein_fehler"),
     ("    typen = pull_request_typen(daten)\n", "    typen = pull_request_typen(daten) or VORGABE_TYPEN\n",
      "test_ein_workflow_ohne_pull_request_ist_ein_fehler"),
-    ("    if filter:\n", "    if False:\n", "test_ein_workflow_mit_filter_ist_ein_fehler"),
+    ("    if filter_schluessel:\n", "    if False:\n", "test_ein_workflow_mit_filter_ist_ein_fehler"),
 ], ids=["doppelt", "ohne-synchronize", "ohne-pull-request", "filter"])
 def test_ohne_die_pruefung_in_pflicht_checks_wird_die_probe_rot(alt, neu, probe, tmp_path,
                                                                  monkeypatch):
@@ -3849,6 +3850,78 @@ def test_faengt_befehl_nur_unicodeencodeerror_entkommt_der_valueerror(monkeypatc
     monkeypatch.setattr(_postfach_modul.Postfach, "_befehl", raum["_befehl"])
     with pytest.raises(ValueError, match="NUL, CR and LF"):
         probe(monkeypatch)
+
+
+# ── Nachreview vom 04.11.2026, zweite Runde: #492 ────────────────────────────
+
+@pytest.mark.parametrize("fall, erwartet", [("fehlt", FileNotFoundError), ("kaputt", yaml.YAMLError)])
+def test_ohne_das_abfangen_in_analysiere_einen_geht_der_lesefehler_durch(fall, erwartet, tmp_path,
+                                                                          monkeypatch):
+    """`_analysiere_einen` wie vor dem Nachreview von #492: Lesen und Parsen ohne Schutz,
+    der rohe Fehler geht an `main()` und am Wächter vorbei."""
+    import test_pflicht_checks as tpc                      # legt scripts/ auf den Pfad
+    import pflicht_checks
+
+    (tmp_path / "k").mkdir()
+    (tmp_path / "s").mkdir()
+    tpc.test_eine_fehlende_oder_kaputte_datei_ist_ein_workflowfehler(tmp_path / "k", fall)  # Kontrolle
+    monkeypatch.setattr(pflicht_checks, "_analysiere_einen", _zeile_ersetzt(
+        pflicht_checks, "_analysiere_einen",
+        "except (OSError, UnicodeDecodeError, yaml.YAMLError) as fehler:", "except () as fehler:"))
+    with pytest.raises(erwartet):
+        tpc.test_eine_fehlende_oder_kaputte_datei_ist_ein_workflowfehler(tmp_path / "s", fall)
+
+
+def test_mit_dem_alten_relativ_wird_ein_grosses_protokoll_umgeschrieben(tmp_path, monkeypatch):
+    """`RELATIV` wie vor dem Nachreview von #492: schreibungsabhängig, `HTTPS://` gilt
+    als Pfad. Der Fragment-Test nennt dasselbe Ziel, er ist das zweite Netz."""
+    changelog = _changelog()
+    import test_changelog
+
+    test_changelog.test_ein_gross_geschriebenes_protokoll_bleibt_absolut(
+        "HTTPS://example.org/a", tmp_path, monkeypatch)                           # Kontrolle
+    monkeypatch.setattr(changelog, "RELATIV", re.compile(r"\]\((?!https?:|#|mailto:)([^)]+)\)"))
+    with pytest.raises(AssertionError, match="als relativer Verweis umgeschrieben"):
+        test_changelog.test_ein_gross_geschriebenes_protokoll_bleibt_absolut(
+            "HTTPS://example.org/a", tmp_path, monkeypatch)
+    assert test_changelog.umschreibung_befunde("- Siehe [V](HTTPS://example.org/a).\n") == [
+        "absolutes Ziel verändert: HTTPS://example.org/a"]
+
+
+def test_ohne_das_zuruecklegen_entsteht_ein_zweites_modulobjekt(tmp_path, monkeypatch):
+    """Das Aufräumen in test_durchsetzung wie vor dem Nachreview von #492: nur `pop`,
+    kein Zurücklegen der Originale."""
+    import test_durchsetzung as td
+
+    gesichert = {name: sys.modules.get(name) for name in ("durchsetzung", "repo_pruefung")}
+    try:
+        td.test_nach_der_werkstatt_ist_repo_pruefung_wieder_das_eine_modul(
+            tmp_path / "k", monkeypatch)                                          # Kontrolle
+        monkeypatch.setattr(td, "test_die_pruef_richtung_folgt_der_quelle", _zeile_ersetzt(
+            td, "test_die_pruef_richtung_folgt_der_quelle",
+            "sys.modules[name] = modul", "sys.modules.pop(name, None)"))
+        with pytest.raises(AssertionError, match="ein zweites Modulobjekt"):
+            td.test_nach_der_werkstatt_ist_repo_pruefung_wieder_das_eine_modul(
+                tmp_path / "s", monkeypatch)
+    finally:
+        # Sonst hinterließe die Sabotage genau die zweite Modulwelt, die sie zeigt.
+        for name, modul in gesichert.items():
+            if modul is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = modul
+
+
+def test_mit_dem_alten_feldmuster_wird_ein_grosses_feld_abgeschnitten(monkeypatch):
+    """`_JSON_FELDER` wie vor dem Nachreview von #483: nur `[a-z_,]+`. Die Gegenprobe
+    fehlte in #492; der Workflow liest heute nur klein geschriebene Felder."""
+    import test_pr_angaben as tpa
+
+    tpa.test_gelesene_felder_lesen_auch_grossbuchstaben()                          # Kontrolle
+    monkeypatch.setattr(tpa, "_JSON_FELDER", re.compile(
+        r"gh pr view\b[^\n]*?(?:\\\n[^\n]*?)*--json\s+([a-z_,]+)"))
+    with pytest.raises(AssertionError, match="abgeschnitten"):
+        tpa.test_gelesene_felder_lesen_auch_grossbuchstaben()
 
 
 # ── Nachreview vom 04.11.2026: #479, #483, #484 ──────────────────────────────
