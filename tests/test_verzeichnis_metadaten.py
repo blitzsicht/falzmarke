@@ -7,10 +7,16 @@ Ein Fehler in `server.json` fällt erst im Release-Lauf auf, nach dem PyPI-Uploa
 02.11.2026 stand im Registry nur das Paket, also `uvx falzmarke`. Das endet mit
 Exit 2, weil der Unterbefehl `mcp` und das optionale SDK fehlen.
 
-Der Handschlag unten deckt die Paketargumente, im Stand des Repositorys und mit dem
-SDK der Testumgebung. Der echte `uvx`-Lauf braucht Netz und ein veröffentlichtes
-Paket; er läuft von Hand vor dem Tag (`docs/bestandsaufnahme-distribution.md`). Hier
-steht, dass der Eintrag genau diesen Befehl ergibt.
+Geprüft wird hier zweierlei, beides ohne Netz. Der Handschlag startet den Dienst über
+einen Ersatz für `uvx` (`_startbefehl`: der Interpreter der Testumgebung, das Paket
+über PYTHONPATH aus dem Repository, dahinter die Paketargumente des Eintrags). Und
+`_uvx_befehl` hält fest, dass der Eintrag genau den Befehl ergibt, der am 02.11.2026
+von Hand gefahren wurde (`docs/bestandsaufnahme-distribution.md`); verglichen wird
+gegen eine feste Liste.
+
+Den echten Start mit `uvx` aus einem gebauten Paket prüft derzeit niemand vor dem
+Release, weder die CI noch `scripts/vor_dem_tag.sh`. Die Tabelle in der
+Bestandsaufnahme ist eine Messung von damals, kein wiederholter Schritt.
 
 Die Schemas liegen unter `tests/schemas/`; ihre Herkunft steht dort im README.
 Jede Prüfung hat eine Gegenprobe, die rot werden muss.
