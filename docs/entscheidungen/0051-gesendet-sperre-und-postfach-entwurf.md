@@ -220,7 +220,15 @@ die Tests würden rot.
 
 Die Frist für Verbindung und Lesen beträgt seit #441 30 s statt 5 s (`postfach.FRIST_S`).
 Anmeldung und LIST am Proxy dauerten am 30.10.2026 einmal 20,6 s, einmal 18,1 s und einmal
-3,6 s. Mit 5 s endete die Prüfung an einem gesunden Proxy oft in `GESENDET NICHT GEPRÜFT`. Ein
-hängender Proxy hält `--oeffnen` damit bis zu 30 s auf, so lange wie der Postfach-Entwurf
-(`oeffnen.FRIST_POSTFACH_S`). Einstellbar ist die Frist nicht. Kommt ein Fall, in dem 30 s zu kurz
-oder zu lang sind, wird sie es.
+3,6 s. Mit 5 s endete die Prüfung an einem gesunden Proxy oft in `GESENDET NICHT GEPRÜFT`.
+Einstellbar ist die Frist nicht. Kommt ein Fall, in dem 30 s zu kurz oder zu lang sind, wird sie
+es.
+
+**Berichtigt im Nachreview von #491:** Hier stand, ein hängender Proxy halte `--oeffnen` „bis zu
+30 s“ auf. Das unterschätzt die Lage. Je Sitzung darf schon der Verbindungsaufbau `frist`
+Sekunden warten (`IMAP_KLASSE(…, timeout=frist)` in `postfach.verbinde`), erst danach beginnt das
+Budget für die Befehle, noch einmal `frist`. Gesendet-Prüfung (`postfach.FRIST_S`, 30 s) und
+Postfach-Entwurf (`oeffnen.FRIST_POSTFACH_S`, 30 s) laufen nacheinander, jede in eigener Sitzung.
+Ein hängender Proxy kann `--oeffnen` also im schlimmsten Fall rund 120 s aufhalten. Das ist aus
+dem Quelltext abgeleitet, nicht gemessen. Ob der Abholer in siluri-angebote mit seinem
+180-s-Takt das verträgt, ist eine eigene Frage.

@@ -415,6 +415,26 @@ def test_der_entwurf_meldet_das_programm(tmp_path):
     assert lauf[2:] == ("Probe", "<p>Text</p>", "a@example.de", "", "", "")
 
 
+def test_outlook_mit_kein_fenster_legt_nichts_an_und_oeffnet_nichts():
+    """Nachreview von #491, Befund 1 und 7: über das echte `entwurf`, nicht über
+    eine Attrappe davon. Der AppleScript-Weg öffnet jeden Entwurf; mit
+    `kein_fenster` darf er deshalb gar nicht erst anlegen."""
+    antwort = Antwortet(nachweis="97 1 0 0 0")
+    lage = oeffnen.entwurf(FELDER, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=antwort, wahl="outlook", kein_fenster=True)
+    assert antwort.schrittarten == [], \
+        f"Outlook-Fenster trotz kein_fenster: {antwort.schrittarten}"
+    assert antwort.angelegt == [], "angelegt, obwohl kein Fenster aufgehen darf"
+    assert lage.programm is None and "nur mit Fenster" in lage.grund
+
+    # Gegenprobe ohne den Schalter: derselbe Aufbau legt an und öffnet einmal.
+    antwort = Antwortet(nachweis="97 1 0 0 0")
+    lage = oeffnen.entwurf(FELDER, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=antwort, wahl="outlook")
+    assert lage.programm == "Microsoft Outlook"
+    assert len(antwort.angelegt) == 1 and antwort.schrittarten == ["oeffnen"]
+
+
 def test_ein_verschluckter_anhang_faellt_auf():
     """Der Fall, den ein Exit-Code allein nie zeigt: Das Skript läuft durch,
     aber die Anlage fehlt."""

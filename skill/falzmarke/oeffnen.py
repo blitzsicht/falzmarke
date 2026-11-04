@@ -1695,7 +1695,8 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
     `FALZMARKE_ENTWURF=nie` schaltet den Weg ab, ohne `--oeffnen` aufzugeben —
     für den, der die Datei will und nicht das Fenster. `kein_fenster` (am Befehl
     `--kein-fenster`) legt den Entwurf dagegen ab und lässt nur das Fenster weg.
-    Scheitert dann der Postfach-Entwurf, folgt kein `-compose` (#441).
+    Scheitert dann der Postfach-Entwurf, folgt kein `-compose` (#441). Den
+    Outlook-Weg gibt es mit `kein_fenster` gar nicht: Er öffnet jeden Entwurf.
 
     `wahl` ist das Wort aus `--programm` (siehe `entwurfsweg`), `binaer` die
     Suche nach Thunderbird und `ablage` das Verzeichnis, unter dem dessen
@@ -1752,6 +1753,13 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
         return _entwurf_compose(programm, felder, laufen=laufen, ablage=ablage,
                                 thunderbird_ordner=thunderbird_ordner)._replace(
                                     postfach_grund=grund)
+    if kein_fenster:
+        # Nachreview #491, Befund 1: Der AppleScript-Weg legt die Nachricht an
+        # und öffnet sie danach ohne Ausnahme (`programm.oeffnen`). Ein Entwurf
+        # ohne Fenster ist dort nicht zu haben, also wird gar keiner angelegt.
+        return Entwurfslage(
+            None, f"{programm.name} legt einen Entwurf nur mit Fenster an; "
+                  "mit --kein-fenster geht nur der Postfach-Entwurf über Thunderbird")
 
     with tempfile.TemporaryDirectory(prefix="falzmarke-entwurf-") as ordner:
         pfade = _anhaenge_ausschreiben(ordner, felder.get("anhaenge") or [])

@@ -133,7 +133,8 @@ Was dabei nicht fehlen darf, weil es gemessen ist:
   einen zweiten will. Ist der Proxy nicht da, geht es weiter wie im nächsten Punkt, mit einer
   Zeile `kein Postfach-Entwurf: <Grund>`. **Mit `--kein-fenster` nicht:** Dann geht weder
   `-compose` noch die Datei auf, sondern es heißt `KEIN ENTWURF  <Grund>` mit Exit 3. Es liegt
-  dann kein Entwurf, das so melden und nicht von Hand ein Fenster öffnen.
+  dann kein Entwurf, das so melden und nicht von Hand ein Fenster öffnen. Mit `--programm
+  outlook` geht `--kein-fenster` nicht (Exit 1): Outlook öffnet jeden Entwurf.
 - Sonst entsteht der Entwurf als Fenster in **Thunderbird** (`-compose`), wenn es installiert
   ist; `from=` wählt dort die Identität, der Absender stimmt (ADR 0049). Thunderbird meldet nichts zurück — Exit 0 heißt
   „angenommen“, und der Befehl sagt, dass **nichts nachgezählt** ist: Empfänger, Anhänge und
@@ -329,8 +330,9 @@ geöffnet und nichts bewegt — welcher Ordner gilt, muss im Profil stehen. Brau
 **Eine Mail mit Fähnchen bleibt im Eingang** („liegt, Fähnchen“), auch wenn sie beantwortet ist;
 `--trotz-faehnchen` hebt das für einen Lauf auf. Erledigt ohne Antwort: `--uid N [N …]` legt genau
 diese Mails eines Kontos ab und nennt je UID Datum, Absender und Betreff. Fehlt eine davon im
-Eingang, wandert keine. `ablage: Archiv/{jahr}` legt nach dem Jahr der Ankunft ab; fehlt ein
-Jahresordner, wandert keine Mail des Laufs.
+Eingang oder bliebe eine liegen (Fähnchen), wandert keine; `--seit` gibt es dabei nicht.
+`ablage: Archiv/{jahr}` legt nach dem Jahr der Ankunft ab; fehlt ein Jahresordner, wandert keine
+Mail des Laufs.
 
 **`aufraeumen --entwuerfe` — überholte Entwürfe in den Papierkorb.** Niemand soll einen Entwurf von
 Hand löschen; das geschieht bei jedem `email --oeffnen` von selbst für den eigenen Absender.
