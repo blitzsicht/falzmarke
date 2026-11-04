@@ -51,6 +51,12 @@ def _typ(pfad: Path) -> str:
 #: Briefe der Kategorie „Rechnung“ laufen (#119).
 RECHNUNG_BEISPIELE = sorted(p for p in BEISPIELE if _typ(p) == "rechnung")
 
+#: Die Fassung, die ein Rechnungs-Golden in `/Producer` und `/falzmarke_Version`
+#: trägt, gesetzt über `cli.VERSION`. Mit der echten Paketversion musste jedes
+#: Release alle sechs PDF-Goldens neu erzeugen, obwohl sich an keiner Rechnung
+#: etwas änderte (#467). Gelesen von den Tests und von `scripts/golden_rechnung.py`.
+GOLDEN_VERSION = "0.0.0+golden"
+
 #: Die ausgelieferten Profile. Ein Beispiel darf sein Profil auch neben sich
 #: legen — `cli.finde_profile` sucht dort zuerst (Punkt 3 der Suchreihenfolge).
 PROFILE = SKILL / "falzmarke" / "typst" / "profiles"

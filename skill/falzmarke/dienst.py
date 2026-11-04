@@ -36,6 +36,7 @@ import json
 import tempfile
 from pathlib import Path
 
+from falzmarke import __version__
 from falzmarke.cli import (
     Eingabefehler,
     Umgebungsfehler,
@@ -414,7 +415,9 @@ def baue_server():
     MCPServer = _mcp_modul()
     from mcp.server.mcpserver.exceptions import ToolError
 
-    server = MCPServer(NAME)
+    # Ohne `version` antwortet `initialize` mit `serverInfo.version` = "" (gemessen
+    # an 0.11.1 und 0.11.2, #467): Ein Client sieht dann nicht, welche Fassung läuft.
+    server = MCPServer(NAME, version=__version__)
     for werkzeug in WERKZEUGE:
         server.tool()(_durchgereicht(werkzeug, ToolError))
     return server

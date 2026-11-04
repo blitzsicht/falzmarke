@@ -158,8 +158,13 @@ def handschlag(befehl: list[str], *, mit_render: bool = True) -> None:
             "capabilities": {},
             "clientInfo": {"name": "falzmarke-handschlag", "version": "1"},
         })
-        name = (ergebnis.get("serverInfo") or {}).get("name", "?")
-        print(f"OK    initialize — Server meldet sich als {name!r}")
+        info = ergebnis.get("serverInfo") or {}
+        name, version = info.get("name", "?"), info.get("version") or ""
+        if not version:
+            raise Handschlagfehler(
+                f"initialize: Server {name!r} meldet keine Version (serverInfo.version leer).\n"
+                "  Ein Client kann dann nicht sagen, welche Fassung läuft (#467).")
+        print(f"OK    initialize — Server meldet sich als {name!r}, Version {version}")
         verbindung.melde("notifications/initialized")
 
         werkzeuge = [w.get("name") for w in verbindung.rufe("tools/list").get("tools", [])]

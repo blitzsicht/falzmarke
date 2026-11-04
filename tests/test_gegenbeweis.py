@@ -2783,6 +2783,29 @@ def test_ohne_dereferenzieren_loescht_das_packen_die_quelle(tmp_path):
         "ohne -L trifft das `rm` die Quelle — sonst hielte -L nichts"
 
 
+# ── #467: Der Handschlag verlangt eine Version in `serverInfo` ──────────────
+
+def test_ein_server_ohne_version_faellt_beim_handschlag_durch(tmp_path):
+    """Ein Server, der `initialize` ohne Version beantwortet, muss scheitern,
+    und zwar an der Version: Er meldet gar keine Werkzeuge, also müsste ihn ohne
+    die neue Prüfung erst `tools/list` aufhalten."""
+    pytest.importorskip("mcp", reason="optionales Extra falzmarke[mcp]")
+    import os
+    import subprocess
+
+    server = tmp_path / "ohne_version.py"
+    server.write_text("from mcp.server import MCPServer\nMCPServer('falzmarke').run()\n",
+                      encoding="utf-8")
+    lauf = subprocess.run(
+        [sys.executable, str(REPO / "scripts" / "mcp_handschlag.py"), "--ohne-render", "--",
+         sys.executable, str(server)],
+        capture_output=True, text=True, encoding="utf-8", timeout=120, check=False,
+        env={**os.environ, "PYTHONUTF8": "1"})
+    ausgabe = lauf.stdout + lauf.stderr
+    assert lauf.returncode == 1, ausgabe
+    assert "meldet keine Version" in ausgabe and "tools/list" not in ausgabe, ausgabe
+
+
 # ── #442 N2: Der abgebrochene Zug zeigt seinen Plan auch im Text ────────────
 
 def test_ohne_zugzeilen_im_grund_verschweigt_der_text_den_plan(monkeypatch):
