@@ -706,6 +706,23 @@ def thunderbird_ordner(adresse: str, art: str, ordner: Path | None = None) -> st
     return gefunden.pop() if len(gefunden) == 1 else None
 
 
+def _profil_aus(ordner: Path | None, profil: Path | None) -> tuple[Path | None, str]:
+    """Das Profilverzeichnis für `kontoadressen` und `profiladressen` — oder `(None, grund)`.
+
+    `profil` geht vor `ordner`; ohne beides gilt das Standardprofil unter
+    `THUNDERBIRD_ORDNER`. Eine Stelle für beide, damit sie das Profil gleich
+    finden und ein Fehlen gleich begründen (#506, Befund 7).
+    """
+    if profil is None:
+        ordner = THUNDERBIRD_ORDNER if ordner is None else Path(ordner)
+        profil = thunderbird_standardprofil(ordner)
+        if profil is None or not profil.is_dir():
+            return None, f"kein Thunderbird-Profil unter {ordner}"
+    elif not Path(profil).is_dir():
+        return None, f"das Thunderbird-Profil {profil} fehlt"
+    return Path(profil), ""
+
+
 def kontoadressen(adresse: str, ordner: Path | None = None, *,
                   profil: Path | None = None) -> tuple[frozenset[str] | None, str]:
     """Die Adressen aller Identitäten in dem Konto, zu dem `adresse` gehört (#482).
@@ -737,14 +754,9 @@ def kontoadressen(adresse: str, ordner: Path | None = None, *,
     adresse = (adresse or "").strip().lower()
     if not adresse:
         return None, "ohne Absenderadresse kein Konto"
+    profil, grund = _profil_aus(ordner, profil)
     if profil is None:
-        ordner = THUNDERBIRD_ORDNER if ordner is None else Path(ordner)
-        profil = thunderbird_standardprofil(ordner)
-        if profil is None or not profil.is_dir():
-            return None, f"kein Thunderbird-Profil unter {ordner}"
-    elif not Path(profil).is_dir():
-        return None, f"das Thunderbird-Profil {profil} fehlt"
-    profil = Path(profil)
+        return None, grund
     werte = thunderbird_einstellungen(profil)
     konten = _kontoliste(werte)
     if not konten:
@@ -777,14 +789,9 @@ def profiladressen(ordner: Path | None = None, *,
     Thunderbird senden kann, ist „wir“. Gibt `(adressen, "")` oder
     `(None, grund)`; `profil` geht vor `ordner`, wie bei `kontoadressen`.
     """
+    profil, grund = _profil_aus(ordner, profil)
     if profil is None:
-        ordner = THUNDERBIRD_ORDNER if ordner is None else Path(ordner)
-        profil = thunderbird_standardprofil(ordner)
-        if profil is None or not profil.is_dir():
-            return None, f"kein Thunderbird-Profil unter {ordner}"
-    elif not Path(profil).is_dir():
-        return None, f"das Thunderbird-Profil {profil} fehlt"
-    profil = Path(profil)
+        return None, grund
     werte = thunderbird_einstellungen(profil)
     adressen = {str(werte.get(f"mail.identity.{kennung}.useremail") or "").strip().lower()
                 for kennung in _identitaeten(werte)} - {""}

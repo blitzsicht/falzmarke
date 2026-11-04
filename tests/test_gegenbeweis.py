@@ -2221,9 +2221,30 @@ def test_ohne_die_eigene_adresse_ist_die_eigene_sendung_im_abgleich_fremd(monkey
     assert _einziger(_stand()).art == "schon_raus"
     monkeypatch.setattr(_buch, "abgleich", _zeile_ersetzt(
         _buch, "abgleich",
-        "                eigene = eigene | {adresse.strip().lower()}\n",
+        "                eigene = eigene | {adresse}\n",
         "                eigene = eigene\n"))
     assert _einziger(_stand()).art == "wartet"
+
+
+def test_nach_dem_ersten_autor_gezaehlt_nennt_der_hinweis_die_eigene_mail(monkeypatch):
+    """#506, Befund 7: der Ersatzhinweis vor #506, nachgebaut. Ohne Profil steht der
+    Kunde vorn und die eigene Adresse dahinter: vorher kein Hinweis, mit der alten
+    Zählung einer."""
+    from falzmarke import entwurfsbuch as _buch
+    from test_entwurfsbuch import KUNDE, VON, _eingegangen, _mail, _postfach, _stand
+
+    def hinweise():
+        _postfach(monkeypatch, entwuerfe=[_mail()],
+                  gesendet=[_eingegangen(von=f"{KUNDE}, {VON}")])
+        return [h for h in _stand().hinweise if h.startswith("Identitäten des Profils")]
+
+    assert hinweise() == []
+    monkeypatch.setattr(_buch, "abgleich", _zeile_ersetzt(
+        _buch, "abgleich",
+        "                andere = sum(gesendet.fremder_absender(k, frozenset({adresse})) "
+        "for k in raus)\n",
+        "                andere = sum(bool(k.von) and k.von != adresse for k in raus)\n"))
+    assert len(hinweise()) == 1
 
 
 def test_nur_der_erste_autor_laesst_die_zweite_sendung_durch(tmp_path, monkeypatch):

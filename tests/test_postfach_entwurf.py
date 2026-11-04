@@ -760,6 +760,19 @@ def test_kontoadressen_ohne_kontoliste_raet_nicht(monkeypatch, tmp_path):
     assert adressen is None and "nennt keine Konten" in grund
 
 
+@pytest.mark.parametrize("aufruf", [
+    lambda ordner=None, profil=None: oeffnen.kontoadressen(ABSENDER, ordner, profil=profil),
+    lambda ordner=None, profil=None: oeffnen.profiladressen(ordner, profil=profil),
+], ids=["kontoadressen", "profiladressen"])
+def test_ohne_profil_nennen_beide_den_grund_wortgleich(aufruf, tmp_path):
+    """#506, Befund 7: Beide Funktionen lösen das Profil gleich auf und begründen ein
+    Fehlen mit denselben Sätzen. Der Wortlaut steht hier ganz, nicht als Teilstück."""
+    ordner = tmp_path / "kein-profil"
+    assert aufruf(ordner=ordner) == (None, f"kein Thunderbird-Profil unter {ordner}")
+    fehlt = tmp_path / "weg.default-release"
+    assert aufruf(profil=fehlt) == (None, f"das Thunderbird-Profil {fehlt} fehlt")
+
+
 def _fenster(identitaet: str, **mehr):
     return bruecke.Oeffnung("geoeffnet", gelesen=True, identitaet=identitaet, **mehr)
 
