@@ -12,7 +12,6 @@ Prüfung muss dort anschlagen. Kein Test geht ans Netz.
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
 import re
@@ -25,9 +24,11 @@ from pathlib import Path
 
 import pytest
 import yaml
-from conftest import REPO
 
-PACKER = REPO / "scripts" / "plugin_packen.py"
+# Als `_packer` eingebunden: Die Tests hier nennen das Modul lokal `packer`.
+from conftest import PACKER, REPO
+from conftest import packer as _packer
+
 SKRIPT = REPO / "scripts" / "skill_packen.sh"
 RELEASE = REPO / ".github" / "workflows" / "release.yml"
 PLUGIN = "falzmarke-chatgpt-plugin.zip"
@@ -48,13 +49,6 @@ AUSLOESER = ["Brief", "Briefkopf", "Anschriftfeld", "Anschreiben", "Kündigung",
 AUSLOESER_EN = ["German business letter", "formal letter", "cover letter", "cancellation",
                 "payment reminder", "quote", "email", "contract", "power of attorney",
                 "mail merge"]
-
-
-def _packer():
-    spec = importlib.util.spec_from_file_location("falzmarke_plugin_packen", PACKER)
-    modul = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(modul)
-    return modul
 
 
 def _probewheel(ordner: Path) -> None:

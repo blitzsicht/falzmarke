@@ -7,15 +7,17 @@ Version wundert, oder bis eine Fehlermeldung die falsche Version nennt.
 
 from __future__ import annotations
 
-import importlib.util
+import copy
 import re
 import subprocess
 import tomllib
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+import yaml
 
-from conftest import REPO
+from conftest import REPO, packer
 
 PYPROJECT = REPO / "pyproject.toml"
 
@@ -126,9 +128,6 @@ def test_server_json_nennt_dieselbe_version():
         f"server.json/packages sagt {paket['version']}, pyproject.toml {version}")
 
 
-PACKER = REPO / "scripts" / "plugin_packen.py"
-
-
 def _skill_kopf(skill: Path) -> dict:
     """Der Kopf so, wie ihn das Packskript liest: als YAML, nicht als Textmuster.
 
@@ -136,10 +135,7 @@ def _skill_kopf(skill: Path) -> dict:
     darunter `version:`. Ein gültiger Kopf mit `metadata.author` vor `version`
     fiel damit als „kein metadata/version“ durch.
     """
-    spec = importlib.util.spec_from_file_location("falzmarke_plugin_packen", PACKER)
-    modul = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(modul)
-    return modul.skill_kopf(skill)
+    return packer().skill_kopf(skill)
 
 
 def _skill_version(skill: Path) -> str:
@@ -167,36 +163,59 @@ def test_skill_kopf_nennt_dieselbe_version():
     _pruefe_skill_version(REPO / "skill")
 
 
-def _abgewandelter_kopf(tmp_path: Path, alt: str, neu: str) -> Path:
-    """Eine Kopie von SKILL.md mit genau einer Ersetzung im Kopf."""
-    text = (REPO / "skill" / "SKILL.md").read_text(encoding="utf-8")
-    assert text.count(alt) == 1, f"Ersetzung `{alt}` trifft {text.count(alt)}-mal"
-    (tmp_path / "SKILL.md").write_text(text.replace(alt, neu), encoding="utf-8")
+def _abgewandelter_kopf(tmp_path: Path, abwandeln: Callable[[dict], None]) -> Path:
+    """Eine Kopie von SKILL.md, deren Kopf als Daten abgewandelt wurde.
+
+    Bis zum Review von #476 ersetzte diese Stelle Text und verlangte, dass er
+    genau einmal vorkommt. Damit hing jede Gegenprobe am heutigen Layout:
+    `author` vor `version` im echten Kopf oder ein YAML-Beispiel mit
+    `  version: "…"` im Body, und die Ersetzung traf null- oder zweimal.
+
+    Jetzt liest der Packer den Kopf, `abwandeln` ändert das Dict, und der Kopf
+    wird neu geschrieben, der Body bleibt Byte für Byte derselbe. Dass der
+    Packer den neu geschriebenen Kopf wieder genau so liest (auch die
+    mehrzeilige description), prüft diese Funktion selbst.
+    """
+    quelle = REPO / "skill"
+    kopf = copy.deepcopy(_skill_kopf(quelle))
+    abwandeln(kopf)
+    # Dieselbe Teilung wie `plugin_packen.skill_kopf`: davor leer, dann Kopf, dann Body.
+    _, _, body = (quelle / "SKILL.md").read_text(encoding="utf-8").split("---", 2)
+    text = "---\n" + yaml.safe_dump(kopf, sort_keys=False, allow_unicode=True) + "---" + body
+    (tmp_path / "SKILL.md").write_text(text, encoding="utf-8")
+    assert _skill_kopf(tmp_path) == kopf, "Der Packer liest den neu geschriebenen Kopf anders"
+    assert text.split("---", 2)[2] == body, "Der Body hat sich beim Schreiben verändert"
     return tmp_path
 
 
 def test_gegenprobe_version_hinter_einem_anderen_metadata_schluessel(tmp_path):
     """Gültiges YAML mit `author` vor `version`: Der Test muss es weiter lesen."""
-    version = version_aus_pyproject()
-    skill = _abgewandelter_kopf(
-        tmp_path, f'metadata:\n  version: "{version}"',
-        f'metadata:\n  author: "Probe"\n  version: "{version}"')
-    assert _skill_kopf(skill)["metadata"]["author"] == "Probe", "Abwandlung griff nicht"
+    def author_davor(kopf: dict) -> None:
+        kopf["metadata"] = {"author": "Probe", **kopf["metadata"]}
+
+    skill = _abgewandelter_kopf(tmp_path, author_davor)
+    assert list(_skill_kopf(skill)["metadata"])[:2] == ["author", "version"], (
+        "Abwandlung griff nicht")
     _pruefe_skill_version(skill)
 
 
 def test_gegenprobe_falsche_version_im_skill_kopf(tmp_path):
     """Eine andere Nummer im Kopf muss als Abweichung auffallen."""
-    version = version_aus_pyproject()
-    skill = _abgewandelter_kopf(tmp_path, f'  version: "{version}"', '  version: "0.0.1"')
+    skill = _abgewandelter_kopf(tmp_path, lambda k: k["metadata"].update(version="0.0.1"))
     with pytest.raises(AssertionError, match="SKILL.md sagt 0.0.1"):
         _pruefe_skill_version(skill)
 
 
 def test_gegenprobe_version_als_zahl_im_skill_kopf(tmp_path):
-    """Ohne Anführungszeichen liest YAML eine Zahl; die Spezifikation verlangt Text."""
-    version = version_aus_pyproject()
-    skill = _abgewandelter_kopf(tmp_path, f'  version: "{version}"', "  version: 1.0")
+    """Eine Nummer wie `1.0` ohne Anführungszeichen liest YAML als Zahl; verlangt ist Text.
+
+    Das betrifft nur Nummern, die YAML als Zahl deuten kann. `0.12.0` bliebe
+    auch ohne Anführungszeichen eine Zeichenkette. Deshalb verlangt der Test
+    den Typ und nicht die Anführungszeichen.
+    """
+    skill = _abgewandelter_kopf(tmp_path, lambda k: k["metadata"].update(version=1.0))
+    assert "  version: 1.0\n" in (skill / "SKILL.md").read_text(encoding="utf-8"), (
+        "Die Zahl steht nicht ohne Anführungszeichen im Kopf")
     with pytest.raises(AssertionError, match="keine Zeichenkette"):
         _pruefe_skill_version(skill)
 
