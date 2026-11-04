@@ -3880,6 +3880,21 @@ def test_ohne_die_pruefung_in_pflicht_checks_wird_die_probe_rot(funktion, alt, n
         getattr(test_pflicht_checks, probe)(tmp_path)
 
 
+def test_ohne_die_pruefung_eigener_main_jobs_wird_die_probe_rot(tmp_path, monkeypatch):
+    """Nachreview #499, Befund 1, zurückgebaut: Ein main-Job im Pflicht-Workflow unter
+    dem Namen eines Pflicht-Checks ging ohne Fehler durch."""
+    sys.path.insert(0, str(REPO / "scripts"))
+    import pflicht_checks
+    import test_pflicht_checks
+
+    probe = test_pflicht_checks.test_ein_main_job_unter_dem_namen_eines_pflicht_checks_ist_ein_fehler
+    probe(tmp_path, "tests")                                               # Kontrolle
+    monkeypatch.setattr(pflicht_checks, "analysiere", _zeile_ersetzt(
+        pflicht_checks, "analysiere", "    if schatten:\n", "    if False:\n"))
+    with pytest.raises(pytest.fail.Exception, match="DID NOT RAISE"):
+        probe(tmp_path, "tests")
+
+
 # ── #480: Code im Changelog bleibt auf dem Weg ins README Code ──────────────
 
 def _changelog():

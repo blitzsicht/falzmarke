@@ -296,7 +296,10 @@ def _pruefe_pflicht_checks(
         # Der dritte Zustand, nicht ein Absturz: Bis zum Nachreview von #483 riss
         # ein unbrauchbarer Workflow den ganzen Wächter ab, und kein anderer
         # Abgleich wurde mehr gezeigt.
-        return Abgleich(name, None, None, f"Pflicht-Workflow unbrauchbar: {fehler}")
+        # Nicht „Pflicht-Workflow“: Seit #493 kann es auch ein Nachbar sein, und der
+        # Satz zeigte dann auf die falsche Datei. Den Dateinamen nennt `fehler`
+        # (Nachreview #499, Befund 6).
+        return Abgleich(name, None, None, f"Workflows unbrauchbar: {fehler}")
     if rulesets is None:
         return Abgleich(name, soll, None, rulesets_fehler)
     haupt = next((r for r in rulesets if r.get("name") == "main"), None)

@@ -458,19 +458,22 @@ def test_eine_nicht_lesbare_pflicht_workflow_datei_ist_ein_befund_kein_absturz(t
 
 def test_ein_nachbar_mit_pflicht_checknamen_ist_ein_befund_kein_absturz(tmp_path):
     """#493: Ein Pflicht-Workflow, dessen Checkname in einem Nachbarn wiederkehrt, ist
-    derselbe dritte Zustand. Als Nachbarn zählen ohne Angabe die echten Workflows,
-    und pr-angaben.yml trägt „Closing-Keyword“."""
+    derselbe dritte Zustand. Als Nachbarn zählen ohne Angabe die übrigen Dateien im
+    Verzeichnis des Pflicht-Workflows, hier also nur die eine unter `tmp_path`, nicht
+    das echte Verzeichnis (Nachreview #499, Befund 4 und 6)."""
     zwilling = tmp_path / "ci.yml"
-    zwilling.write_text("on:\n  pull_request:\njobs:\n  closing-keyword:\n"
-                        "    name: Closing-Keyword\n    runs-on: ubuntu-latest\n",
-                        encoding="utf-8")
+    job = "jobs:\n  closing-keyword:\n    name: Closing-Keyword\n    runs-on: ubuntu-latest\n"
+    zwilling.write_text("on:\n  pull_request:\n" + job, encoding="utf-8")
+    (tmp_path / "aktion.yml").write_text("on:\n  pull_request:\n    paths: [action.yml]\n"
+                                         + job, encoding="utf-8")
     ergebnisse = repo_pruefung.pruefe(
         REPO_NAME, api=_api(_vollstaendige_antworten()), workflows=(zwilling,),
         domain_pruefen=lambda _: True, umgebung={})
     befund = _finde(ergebnisse, "Pflicht-Check")
     assert befund.ist is None and befund.fehler is not None
+    assert befund.fehler.startswith("Workflows unbrauchbar: "), befund.fehler
     assert ("Checkname auch in einem Nachbar-Workflow: Closing-Keyword in ci.yml "
-            "und pr-angaben.yml") in befund.fehler
+            "und aktion.yml") in befund.fehler
     assert len(ergebnisse) == len(_pruefen()), "die anderen Abgleiche fehlen"
 
 
