@@ -73,12 +73,13 @@ Für dieses Repository heißt das:
 
 Diese Dateien liegen unter [`tests/schemas/`](tests/schemas/), damit die Metadaten-Prüfung ohne
 Netz läuft. Sie gehören nicht zum Programm und gehen weder ins Wheel noch ins `.skill`-Paket.
-Herkunft und Prüfung im Einzelnen stehen im [README dort](tests/schemas/README.md).
+Herkunft und Prüfung im Einzelnen stehen im [README dort](tests/schemas/README.md), die
+Lizenztexte daneben unter [`tests/schemas/LICENSES/`](tests/schemas/LICENSES/).
 
 | Komponente | Urheber | Lizenz | Verwendung |
 |---|---|---|---|
-| [MCP-Schema für `server.json`](https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json), Fassung 2025-12-11 | Model Context Protocol ([modelcontextprotocol/static](https://github.com/modelcontextprotocol/static)) | MIT | Prüfung von `server.json`; unverändert, abgerufen 02.11.2026 |
-| [Agent-Plugins-Schema für `plugin.json`](https://agent-plugins.org/schemas/1.0.0/plugin.schema.json) 1.0.0 | Agent Plugins ([agentplugins/agent-plugins-spec](https://github.com/agentplugins/agent-plugins-spec)) | Apache-2.0 | Prüfung des Manifests im ChatGPT-Plugin; unverändert, abgerufen 02.11.2026 |
+| [MCP-Schema für `server.json`](https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json), Fassung 2025-12-11 | Model Context Protocol ([modelcontextprotocol/static](https://github.com/modelcontextprotocol/static)) | MIT ([Lizenztext](tests/schemas/LICENSES/MIT-modelcontextprotocol-static.txt)) | Prüfung von `server.json`; unverändert, abgerufen 02.11.2026 |
+| [Agent-Plugins-Schema für `plugin.json`](https://agent-plugins.org/schemas/1.0.0/plugin.schema.json) 1.0.0 | Agent Plugins ([agentplugins/agent-plugins-spec](https://github.com/agentplugins/agent-plugins-spec)) | Apache-2.0 ([Lizenztext](tests/schemas/LICENSES/Apache-2.0.txt)) | Prüfung des Manifests im ChatGPT-Plugin; unverändert, abgerufen 02.11.2026 |
 
 ## Normen
 

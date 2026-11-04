@@ -8,6 +8,8 @@ Sache. Das Programm selbst schreibt seit v0.2.0 immer UTF-8.
 
 from __future__ import annotations
 
+import functools
+import importlib.util
 import re
 import subprocess
 import sys
@@ -99,6 +101,30 @@ def ohne_typografiehinweise(bericht) -> list:
     kennungen = {r["id"] for r in regeln.alle() if r.get("typografie")}
     assert kennungen, "keine Regel trägt `typografie:` — der Filter nähme nichts aus"
     return [b for b in bericht.befunde if b.regel not in kennungen]
+
+
+#: Das Packskript für das ChatGPT-Plugin. Es liegt unter `scripts/`, nicht im Paket.
+PACKER = REPO / "scripts" / "plugin_packen.py"
+
+
+@functools.cache
+def packer():
+    """`scripts/plugin_packen.py` als Modul, einmal je Testlauf geladen.
+
+    Steht hier, weil drei Testdateien dasselbe Ladestück je für sich trugen
+    (`test_version`, `test_chatgpt_plugin`, `test_verzeichnis_metadaten`) und
+    `test_verzeichnis_metadaten` den SKILL.md-Kopf zudem mit eigenem Parser las
+    statt mit dem des Packers. Gemeint ist überall derselbe Kopf: der, den der
+    Packer liest (`packer().skill_kopf`).
+
+    Das Modul lädt beim Aufruf PyYAML; conftest selbst bleibt beim Sammeln frei
+    davon. Alle Tests bekommen dasselbe Modulobjekt: Wer ein Attribut daran
+    ändert, tut das über `monkeypatch`, sonst sieht es der nächste Test.
+    """
+    spec = importlib.util.spec_from_file_location("falzmarke_plugin_packen", PACKER)
+    modul = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modul)
+    return modul
 
 
 def _fassung(pfad: Path) -> str:
