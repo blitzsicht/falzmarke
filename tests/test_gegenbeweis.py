@@ -2959,6 +2959,92 @@ def test_ohne_die_pruefung_in_pflicht_checks_wird_die_probe_rot(alt, neu, probe,
         getattr(test_pflicht_checks, probe)(tmp_path)
 
 
+# ── #480: Code im Changelog bleibt auf dem Weg ins README Code ──────────────
+
+def _changelog():
+    sys.path.insert(0, str(REPO / "scripts"))
+    import changelog
+
+    return changelog
+
+
+def test_ohne_ausklammerung_wird_der_code_span_umgeschrieben(tmp_path, monkeypatch):
+    """Die Ausklammerung in `_absolut` zurückgebaut: Der Code geht wieder ganz
+    durch `RELATIV.sub`, wie vor #480. Rot werden muss der Auszug-Test und der
+    Fragment-Test am Fragment aus #469 — dieser am PR des Fragments, nicht erst
+    im Release-PR."""
+    changelog = _changelog()
+    import test_changelog
+
+    fragment = tmp_path / "nackte-url-424.behoben.md"
+    fragment.write_text(test_changelog.FRAGMENT_469, encoding="utf-8")
+    test_changelog.test_code_bleibt_im_auszug_woertlich(tmp_path, monkeypatch)    # Kontrolle
+    test_changelog.test_die_umschreibung_laesst_code_stehen_und_jeden_verweis_absolut(fragment)
+
+    monkeypatch.setattr(changelog, "_absolut", _zeile_ersetzt(
+        changelog, "_absolut", "for code in CODE.finditer(rumpf):", "for code in ():"))
+    with pytest.raises(AssertionError, match=r"`\[Text\]\(https://github\.com/[^`]*/main/url\)`"):
+        test_changelog.test_code_bleibt_im_auszug_woertlich(tmp_path, monkeypatch)
+    with pytest.raises(AssertionError, match=r"nackte-url-424\.behoben\.md: \['Code verändert'\]"):
+        test_changelog.test_die_umschreibung_laesst_code_stehen_und_jeden_verweis_absolut(fragment)
+
+
+def test_ohne_umschreibung_meldet_der_fragment_test_den_relativen_verweis(tmp_path, monkeypatch):
+    """Die andere Richtung: `_absolut` tut nichts, der Verweis bleibt relativ."""
+    changelog = _changelog()
+    import test_changelog
+
+    fragment = tmp_path / "adr-480.behoben.md"
+    fragment.write_text("- Siehe [ADR](docs/entscheidungen/0001.md) (#480).\n", encoding="utf-8")
+    test_changelog.test_die_umschreibung_laesst_code_stehen_und_jeden_verweis_absolut(fragment)
+    monkeypatch.setattr(changelog, "_absolut", lambda rumpf: rumpf)
+    with pytest.raises(AssertionError, match=r"relativ geblieben: docs/entscheidungen/0001\.md"):
+        test_changelog.test_die_umschreibung_laesst_code_stehen_und_jeden_verweis_absolut(fragment)
+
+
+@pytest.mark.parametrize("alt, neu, probe, erwartet", [
+    (r"|[-*+][ \t]|\d+[.)][ \t]|#|>", "", "listenpunkt", "zwei Listenpunkte"),
+    (r"(?:\n|[-*+]", r"(?:[-*+]", "absatz", "zwei Absätze"),
+    (r"(?<!`)(?P=lauf)(?!`)", "`+", None, "schloss mit einem"),
+], ids=["listenpunkt", "leerzeile", "gleich-lang"])
+def test_jede_grenze_des_code_spans_traegt(alt, neu, probe, erwartet, tmp_path, monkeypatch):
+    """Je eine Grenze aus `CODE` genommen. Jede schützt einen echten Verweis
+    davor, für Code gehalten zu werden und relativ nach PyPI zu gehen."""
+    changelog = _changelog()
+    import test_changelog
+
+    muster = changelog.CODE.pattern
+    assert muster.count(alt) == 1, f"„{alt}“ steht nicht genau einmal in CODE"
+
+    def lauf():
+        if probe:
+            test_changelog.test_ein_offener_backtick_schuetzt_keinen_verweis(
+                *test_changelog.OFFENE_BACKTICKS[probe], tmp_path, monkeypatch)
+        else:
+            test_changelog.test_ein_backtick_lauf_schliesst_nur_mit_einem_gleich_langen(
+                tmp_path, monkeypatch)
+
+    lauf()                                                                         # Kontrolle
+    monkeypatch.setattr(changelog, "CODE", re.compile(muster.replace(alt, neu), re.MULTILINE))
+    with pytest.raises(AssertionError, match=erwartet):
+        lauf()
+
+
+def test_mit_der_alten_textsuche_wird_code_zum_verweis(monkeypatch):
+    """Die README-Prüfung vor #480 suchte `](ziel)` im ganzen Text. Mit ihr meldet
+    die Probe den Code-Span als relativen Verweis — derselbe Fehlalarm, den
+    `changelog.py` sonst erst ins README getragen hätte."""
+    import test_readme_auf_pypi as pypi
+
+    pypi.test_code_ist_kein_verweis()                                              # Kontrolle
+    alt = re.compile(r'\]\((?!https?:|#|mailto:)([^)]+)\)|src="(?!https?:|#)([^"]+)"')
+    monkeypatch.setattr(pypi, "verweisziele",
+                        lambda text: [m.group(1) or m.group(2) for m in alt.finditer(text)])
+    with pytest.raises(AssertionError,
+                       match=r"als relativer Verweis gemeldet: \['url', 'b', 'docs/x\.md'"):
+        pypi.test_code_ist_kein_verweis()
+
+
 # ── #442 N2: Der abgebrochene Zug zeigt seinen Plan auch im Text ────────────
 
 def test_ohne_zugzeilen_im_grund_verschweigt_der_text_den_plan(monkeypatch):
