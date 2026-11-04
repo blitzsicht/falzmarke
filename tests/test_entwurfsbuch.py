@@ -1977,6 +1977,19 @@ def test_aus_dem_buch_ist_eine_eingegangene_mail_kein_gesendet(monkeypatch, tmp_
     assert _einziger(_stand()).art == "gesendet"
 
 
+def test_die_eigene_adresse_zaehlt_auch_ohne_ihr_konto_im_profil(monkeypatch, tmp_path):
+    """#506, Befund 2: Kennt das Profil der Brücke nur Konto 2, bleibt die eigene Sendung
+    von VON `SCHON RAUS`. Zwilling: Die Mail des Kunden wird weiter übergangen."""
+    _profil_des_kontos(monkeypatch, tmp_path, mit_konto=False)
+    _postfach(monkeypatch, entwuerfe=[_mail()], gesendet=[_eingegangen(von=VON)])
+    bericht = _stand()
+    assert _einziger(bericht).art == "schon_raus", bericht
+    assert bericht.fremde == 0
+    _postfach(monkeypatch, entwuerfe=[_mail()], gesendet=[_eingegangen()])
+    bericht = _stand()
+    assert _einziger(bericht).art == "wartet" and bericht.fremde == 1, bericht
+
+
 # ── Das Tagebuch kommt aus dem Profil des Sockets (#410) ────────────────────
 #
 # Vorher las `tagebuch()` stur das Standardprofil, während `bruecke.socketpfad`
