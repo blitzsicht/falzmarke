@@ -106,6 +106,12 @@ def _adressliste(wert) -> str:
     teile = []
     for eintrag in _als_liste(wert):
         name, adresse = parseaddr(eintrag)
+        if not adresse:
+            # „Muster, Max <max@example.org>“: parseaddr liefert keine Adresse,
+            # Address() schriebe daraus „<>“, eine Mail ohne Empfänger (#519).
+            # lint fängt das vorher ab; hier bleibt es ein Abbruch, kein Kopf.
+            raise ValueError(f"„{eintrag}“ ist keine E-Mail-Adresse. Steht ein Komma "
+                             f"im Namen, gehört der Name in Anführungszeichen.")
         nutzer, _, wirt = adresse.partition("@")
         teile.append(str(Address(name, nutzer, wirt)))
     return ", ".join(teile)
