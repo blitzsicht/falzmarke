@@ -3931,6 +3931,20 @@ def test_ohne_dekodieren_steht_das_ziel_je_zug_in_server_schreibweise_im_json(mo
         probe()
 
 
+def test_ohne_dekodieren_verschiebt_sich_die_grenze_von_lesbar(monkeypatch):
+    """#522, Punkt 1: Die Probe hält die gemessene Grenze fest, nicht nur `&-`.
+    Dekodiert `_lesbar` gar nicht mehr, muss sie zuerst am Drei-Buchstaben-Fall anschlagen."""
+    from falzmarke import ablage as _ablage
+    from test_ablage import test_die_bekannte_grenze_von_lesbar as probe
+
+    probe()                                                                # Kontrolle
+    monkeypatch.setattr(_ablage, "_lesbar", _zeile_ersetzt(
+        _ablage, "_lesbar", "return postfach.utf7_dekodieren(wunsch)", "return wunsch"))
+    with pytest.raises(AssertionError,
+                       match=r"Grenze verschoben: 'R&Dev-Team' → 'R&Dev-Team'"):
+        probe()
+
+
 # #495: Eine UID gilt nur mit der UIDVALIDITY des Eingangs. Jede Sabotage baut
 # den Stand vor #495 an genau einer Stelle nach, dazu die beiden Befunde aus
 # dem Review von #496, die in `plane_benannt` lagen.
