@@ -1074,6 +1074,25 @@ def test_neben_einem_pruefen_steht_was_die_andere_pruefung_bestand(fenster, prue
     assert "OK  Entwurf offen" not in ausgabe.out
 
 
+@pytest.mark.parametrize("fenster, verboten", [
+    (bruecke.Oeffnung("geoeffnet", lese_grund="Add-on vor 0.3.8"), "OK  Empfänger"),
+    (bruecke.Oeffnung("geoeffnet", gelesen=True, identitaet=FREMD, lese_grund="Fenster lädt",
+                      absender_geprueft=True,
+                      absender_abweichung=f"Fenster: {FREMD}, Nachricht: {ABSENDER}"),
+     "OK  Empfänger"),
+    (bruecke.Oeffnung("geoeffnet", gelesen=True, geprueft=True,
+                      abweichung="Cc: fehlt c@example.org"),
+     "OK  Absender"),
+], ids=["ohne-pruefen", "absender-prueft", "empfaenger-prueft"])
+def test_was_nicht_verglichen_wurde_bekommt_nie_eine_ok_zeile(fenster, verboten, capsys):
+    """#522, Punkt 9: Ohne Vergleich gibt es kein OK, gleich in welchem Zweig von
+    `_melde_fenster`. Ein ungelesenes Fenster sähe sonst aus wie „An 0, Cc 0, Bcc 0“."""
+    falzmarke._melde_fenster(fenster, "Entwürfe", "Vektor S2: Wappen")
+    ausgabe = capsys.readouterr()
+    zeilen = [z for z in (ausgabe.out + ausgabe.err).splitlines() if z.startswith(verboten)]
+    assert zeilen == [], f"nicht verglichen, trotzdem {zeilen}"
+
+
 def test_absender_pruefen_ohne_lesung_laesst_das_fenster_wie_es_ist(monkeypatch, tmp_path):
     """Add-on bis 0.3.7: Es gibt nichts zu vergleichen, wie bei den Empfängern."""
     _profil_mit_alias(monkeypatch, tmp_path)
