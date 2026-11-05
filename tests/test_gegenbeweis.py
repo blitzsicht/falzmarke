@@ -3725,6 +3725,192 @@ def test_ohne_den_grund_wandert_die_post_in_den_archive_ordner(monkeypatch, tmp_
     assert len(attrappe.ordner["Archiv"]) == 1
 
 
+# ── #541: `aufraeumen --alle` — Konten aus den Profilen ─────────────────────
+#
+# `tests/test_ablage.py` hält fest, was der Lauf tut. Hier wird je Zusage eine
+# Zeile des heutigen Codes gekippt, und die Probe muss dort anschlagen. Jede
+# Probe läuft erst unsabotiert (Kontrollprobe), dann sabotiert.
+
+def _alle_541(monkeypatch, tmp_path, capsys, *, profile, attrappen, argumente=("--json",)):
+    """`aufraeumen --alle` über Profile in `tmp_path`; zurück kommen Exit und stdout.
+
+    Die Verbindungen gehen der Reihe nach an `attrappen`. Ist keine mehr da, wird
+    die Verbindung abgelehnt: Ein Konto, das gar nicht hätte geöffnet werden
+    dürfen, taucht dann als `NICHT GEPRÜFT` auf, statt den Test mit einem
+    `IndexError` zu beenden, den keine Zusicherung erklärt.
+    """
+    from falzmarke import cli as _cli
+    from falzmarke import postfach as _postfach_modul
+
+    from imap_attrappe import ImapAttrappe
+
+    for name, (absender, ablage_wert) in profile.items():
+        zeile = f"  ablage: {ablage_wert}\n" if ablage_wert else ""
+        (tmp_path / f"{name}.yaml").write_text(
+            f"email:\n  absender: {absender}\n{zeile}", encoding="utf-8")
+    # Ohne diese Einengung reichte der Suchweg bis in `~/.config` des Rechners.
+    monkeypatch.setattr(_cli, "profil_verzeichnisse", lambda *a, **kw: [tmp_path])
+    rest = list(attrappen)
+    abgelehnt = ImapAttrappe({}, verbindungsfehler=ConnectionRefusedError("abgelehnt"))
+    monkeypatch.setattr(_postfach_modul, "IMAP_KLASSE",
+                        lambda *a, **kw: (rest.pop(0) if rest else abgelehnt)(*a, **kw))
+    code = _cli.main(["aufraeumen", "--alle", "--profiles", str(tmp_path), *argumente])
+    return code, capsys.readouterr().out
+
+
+def _konto_541(kennung, *, ordner=("Archiv",), verschieben=True):
+    from datetime import datetime, timedelta, timezone
+
+    from imap_attrappe import ImapAttrappe, nachricht
+
+    jetzt = datetime.now(timezone.utc)
+    ankunft, gesendet = jetzt - timedelta(days=5), jetzt - timedelta(days=1)
+    return ImapAttrappe(
+        {"INBOX": [(nachricht(an="a@example.de", von="kunde@example.de", betreff="Angebot S1",
+                              datum=ankunft, kennung=kennung), ankunft)],
+         "Gesendete Elemente": [(nachricht(an="kunde@example.de", betreff="AW: Angebot S1",
+                                           datum=gesendet, kennung="<eigene@example.de>",
+                                           kopf={"In-Reply-To": kennung}), gesendet)]},
+        sonder={"INBOX": "", "Gesendete Elemente": "\\Sent", **{o: "" for o in ordner}},
+        verschieben_erlaubt=verschieben)
+
+
+def test_ohne_den_ablage_filter_wird_auch_das_konto_ohne_ablage_geoeffnet(
+        monkeypatch, tmp_path, capsys):
+    """Sabotage an genau einer Stelle: `konten_aus_profilen` zählt jede Adresse
+    als „mit Ablage“. Dann wird das Konto, das absichtlich keine hat, geöffnet
+    und fällt als `NICHT GEPRÜFT` auf, statt unter „übersprungen“ zu stehen."""
+    import json
+
+    from falzmarke import cli as _cli
+
+    profile = {"eins": ("a@example.de", "Archiv"), "zwei": ("c@example.de", None)}
+
+    def probe(unterverzeichnis):
+        ziel = tmp_path / unterverzeichnis
+        ziel.mkdir()
+        code, aus = _alle_541(monkeypatch, ziel, capsys, profile=profile,
+                              attrappen=[_konto_541("<a@example.de>")])
+        bericht = json.loads(aus)
+        assert code == _cli.EXIT_OK and bericht["uebersprungen"] == ["c@example.de"], \
+            f"das Konto ohne `ablage` wurde nicht übersprungen: Exit {code}, {bericht}"
+
+    probe("heil")
+    monkeypatch.setattr(_cli, "konten_aus_profilen", _zeile_ersetzt(
+        _cli, "konten_aus_profilen", "if isinstance(wert, str) and wert.strip():", "if True:"))
+    with pytest.raises(AssertionError, match="nicht übersprungen"):
+        probe("sabotiert")
+
+
+def test_ohne_den_exit_code_bleibt_ein_nicht_geprueftes_konto_unbemerkt(
+        monkeypatch, tmp_path, capsys):
+    """Sabotage an genau einer Stelle: `befehl_aufraeumen` gibt immer 0 zurück.
+    Dann sieht der Zeitplan nie, dass ein Konto nicht geprüft wurde."""
+    from falzmarke import cli as _cli
+
+    profile = {"eins": ("a@example.de", "Archiv/{jahr}"), "zwei": ("b@example.de", "Archiv")}
+
+    def probe(unterverzeichnis):
+        ziel = tmp_path / unterverzeichnis
+        ziel.mkdir()
+        code, _ = _alle_541(monkeypatch, ziel, capsys, profile=profile, attrappen=[
+            _konto_541("<a@example.de>", ordner=("Archiv/1999",)), _konto_541("<b@example.de>")])
+        assert code == _cli.EXIT_UMGEBUNG, f"Exit {code} trotz `NICHT GEPRÜFT`"
+
+    probe("heil")
+    monkeypatch.setattr(_cli, "befehl_aufraeumen", _zeile_ersetzt(
+        _cli, "befehl_aufraeumen",
+        "return EXIT_UMGEBUNG if any(b.grund for b in berichte) else EXIT_OK",
+        "return EXIT_OK"))
+    with pytest.raises(AssertionError, match="trotz `NICHT GEPRÜFT`"):
+        probe("sabotiert")
+
+
+def test_ohne_weiterlaufen_haelt_ein_nicht_geprueftes_konto_die_anderen_an(
+        monkeypatch, tmp_path, capsys):
+    """Sabotage an genau einer Stelle: Der Lauf bricht nach dem ersten Konto mit
+    Grund ab. Dann bleibt die beantwortete Post der übrigen Konten liegen."""
+    from falzmarke import cli as _cli
+
+    profile = {"eins": ("a@example.de", "Archiv/{jahr}"), "zwei": ("b@example.de", "Archiv")}
+
+    def probe(unterverzeichnis):
+        ziel = tmp_path / unterverzeichnis
+        ziel.mkdir()
+        heil = _konto_541("<b@example.de>")
+        _alle_541(monkeypatch, ziel, capsys, profile=profile, argumente=("--machen", "--json"),
+                  attrappen=[_konto_541("<a@example.de>", ordner=("Archiv/1999",)), heil])
+        assert len(heil.ordner["Archiv"]) == 1, "das zweite Konto hat nicht verschoben"
+
+    probe("heil")
+    monkeypatch.setattr(_cli, "befehl_aufraeumen", _zeile_ersetzt(
+        _cli, "befehl_aufraeumen", "berichte.append(ablage_modul.raeume_auf(",
+        "if any(b.grund for b in berichte):\n            break\n"
+        "        berichte.append(ablage_modul.raeume_auf("))
+    with pytest.raises(AssertionError, match="zweite Konto hat nicht verschoben"):
+        probe("sabotiert")
+
+
+def test_alle_mit_machen_im_trockenlauf_schlaegt_die_sperrende_attrappe_an(
+        monkeypatch, tmp_path, capsys):
+    """Sabotage an genau einer Stelle: `--alle` reicht `machen=True` weiter, auch
+    ohne `--machen`. Die Attrappe, die jedes Verschieben verbietet, muss dann anschlagen."""
+    from falzmarke import cli as _cli
+
+    profile = {"eins": ("a@example.de", "Archiv")}
+
+    def probe(unterverzeichnis):
+        ziel = tmp_path / unterverzeichnis
+        ziel.mkdir()
+        return _alle_541(monkeypatch, ziel, capsys, profile=profile, argumente=("--json",),
+                         attrappen=[_konto_541("<a@example.de>", verschieben=False)])
+
+    code, _ = probe("heil")
+    assert code == _cli.EXIT_OK
+    monkeypatch.setattr(_cli, "befehl_aufraeumen", _zeile_ersetzt(
+        _cli, "befehl_aufraeumen", "machen=args.machen,", "machen=True,"))
+    with pytest.raises(AssertionError, match="readonly|UID MOVE"):
+        probe("sabotiert")
+
+
+def test_ohne_die_abweisung_laeuft_alle_mit_einem_einzelkonto_schalter(
+        monkeypatch, tmp_path, capsys):
+    """Sabotage an genau einer Stelle: Die Schalterliste wird nicht mehr geprüft."""
+    from falzmarke import cli as _cli
+
+    def probe(unterverzeichnis):
+        ziel = tmp_path / unterverzeichnis
+        ziel.mkdir()
+        code, _ = _alle_541(monkeypatch, ziel, capsys, profile={"eins": ("a@example.de", "Archiv")},
+                            argumente=("--trotz-faehnchen",), attrappen=[_konto_541("<a@example.de>")])
+        assert code == _cli.EXIT_EINGABE, f"Exit {code}: --alle lief mit --trotz-faehnchen"
+
+    probe("heil")
+    monkeypatch.setattr(_cli, "befehl_aufraeumen", _zeile_ersetzt(
+        _cli, "befehl_aufraeumen", "if gesetzt:", "if False:"))
+    with pytest.raises(AssertionError, match="lief mit --trotz-faehnchen"):
+        probe("sabotiert")
+
+
+def test_ohne_die_leerpruefung_ist_ein_lauf_ohne_konten_gruen(monkeypatch, tmp_path, capsys):
+    """Sabotage an genau einer Stelle: Die Prüfung auf „kein Konto gefunden“ entfällt.
+    Ein Zeitplan, der nichts prüft, meldet dann Exit 0."""
+    from falzmarke import cli as _cli
+
+    def probe(unterverzeichnis):
+        ziel = tmp_path / unterverzeichnis
+        ziel.mkdir()
+        code, _ = _alle_541(monkeypatch, ziel, capsys, profile={"eins": ("c@example.de", None)},
+                            attrappen=[])
+        assert code == _cli.EXIT_UMGEBUNG, f"Exit {code} ohne ein einziges geprüftes Konto"
+
+    probe("heil")
+    monkeypatch.setattr(_cli, "befehl_aufraeumen", _zeile_ersetzt(
+        _cli, "befehl_aufraeumen", "if not adressen:", "if False:"))
+    with pytest.raises(AssertionError, match="ohne ein einziges geprüftes Konto"):
+        probe("sabotiert")
+
+
 # ── #478: Fähnchen, benannte Mails, Jahresordner ────────────────────────────
 #
 # Jede Sabotage baut den Stand vor #478 an genau einer Stelle nach: Die Mail
