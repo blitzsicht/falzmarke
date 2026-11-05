@@ -270,7 +270,7 @@ OK  Empfänger im Fenster wie in der Nachricht: An 1, Cc 0, Bcc 1
 | `OK  Absender im Fenster: <Adresse>` | nichts. Steht ein Zusatz dabei, schickt das Fenster von einer anderen Identität desselben Kontos (Alias) |
 | `ABSENDER PRÜFEN  Entwurf offen in Thunderbird …` statt `OK` | das Fenster schickt von einer Identität, die laut `prefs.js` nicht zum Konto der Nachricht gehört, oder die Nachricht stammt von einer Adresse, die in keinem Konto steht, während das Fenster von einer Identität eines Kontos schickt: im Fenster unter „Von“ richten. `entwurf-oeffnen` endet mit Exit 3. Nicht die letzte Zeile, und nicht dieselbe wie `ABSENDER PRÜFEN: …` auf dem Outlook-Weg |
 | `NICHT GEPRÜFT  Absender im Fenster: <Grund>` | das Fenster nennt eine andere Adresse, und das Thunderbird-Profil kennt keine der beiden: „Von“ selbst ansehen |
-| `NICHT GEPRÜFT …` neben einem `PRÜFEN` | die eine Prüfung fand eine Abweichung, die andere konnte nicht vergleichen. Beide Zeilen gelten |
+| `NICHT GEPRÜFT …` oder `OK …` neben einem `PRÜFEN` | die eine Prüfung fand eine Abweichung, und die Zeile der anderen sagt, ob sie verglich und bestand. Beide Zeilen gelten |
 | `HINWEIS  Es geht kein Fenster auf` + `Entwurfsbrücke: <Grund>` | den Entwurf unter „Entwürfe“ öffnen |
 | `HINWEIS  Fenster ungewiss` | in Thunderbird nachsehen, **nicht** noch einmal öffnen |
 | `KEIN ENTWURF  <Grund>` (Exit 3, nur mit `--kein-fenster`) | es liegt kein Entwurf, weder Fenster noch Datei sind aufgegangen: Grund beheben (meist der IMAP-Proxy) und erneut aufrufen |

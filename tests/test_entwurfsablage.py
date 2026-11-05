@@ -602,7 +602,7 @@ def test_die_letzte_sperre_haelt_auch_ein_fenster_ausserhalb_des_kontos(monkeypa
     server, uid, _profil_pfad = _fall1(monkeypatch, tmp_path)
     _konto_ohne_den_alias(monkeypatch, tmp_path)
     monkeypatch.setattr(bruecke, "VERBINDEN", _alias_fenster(uid))
-    assert entwurfsbuch._offene_uids(VON, {}) == ({}, ""), "Kontrolle: streng fällt es heraus"
+    assert entwurfsbuch._offene_uids(VON, {}) == ({}, ""), "Kontrolle: die strenge Fassung lässt es heraus"
     zug = entwurfsablage.Zug(str(uid), "Auftrag S1", (AN,), ALT, ANGELEGT,
                              entwurfsablage.SCHON_RAUS, frozenset({str(uid)}))
     with postfach.verbinde(VON, umgebung={}) as sitzung:

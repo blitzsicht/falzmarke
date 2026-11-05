@@ -751,16 +751,27 @@ def kontoadressen(adresse: str, ordner: Path | None = None, *,
     Fremdabsender statt eines Fehlalarms am eigenen Alias. Gemessen ist der
     Fall nicht.
     """
-    adresse = (adresse or "").strip().lower()
-    if not adresse:
+    if not (adresse or "").strip():
         return None, "ohne Absenderadresse kein Konto"
     profil, grund = _profil_aus(ordner, profil)
     if profil is None:
         return None, grund
-    werte = thunderbird_einstellungen(profil)
+    return konto_in(thunderbird_einstellungen(profil), profil.name, adresse)
+
+
+def konto_in(werte: dict, profilname: str,
+             adresse: str) -> tuple[frozenset[str] | None, str]:
+    """`kontoadressen` an schon gelesenen Einstellungen (`thunderbird_einstellungen`).
+
+    Wer mehrere Adressen gegen dasselbe Profil fragt, liest es so nur einmal
+    (`entwurfsbuch.kontoleser`, #515 Befund 6). `profilname` steht nur im Grund.
+    """
+    adresse = (adresse or "").strip().lower()
+    if not adresse:
+        return None, "ohne Absenderadresse kein Konto"
     konten = _kontoliste(werte)
     if not konten:
-        return None, f"das Profil {profil.name} nennt keine Konten"
+        return None, f"das Profil {profilname} nennt keine Konten"
     adressen: set[str] = set()
     for konto in konten:
         kennungen = str(werte.get(f"mail.account.{konto}.identities") or "").split(",")
@@ -769,7 +780,7 @@ def kontoadressen(adresse: str, ordner: Path | None = None, *,
         if adresse in im_konto:
             adressen |= im_konto
     if not adressen:
-        return None, f"kein Konto mit {adresse} im Profil {profil.name}"
+        return None, f"kein Konto mit {adresse} im Profil {profilname}"
     return frozenset(adressen), ""
 
 
@@ -1368,8 +1379,7 @@ def empfaenger_pruefen(fenster, felder: Mapping | None, *, grund: str = ""):
     return fenster._replace(geprueft=True, abweichung=" · ".join(befunde))
 
 
-def absender_pruefen(fenster, soll: str, *, ordner: Path | None = None,
-                     profil: Path | None = None):
+def absender_pruefen(fenster, soll: str, *, umgebung: Mapping[str, str] | None = None):
     """Schickt das Fenster von der Adresse der Nachricht? (#482)
 
     `soll` ist der `From` des Entwurfs. Das Add-on meldet unter `identitaet`,
@@ -1391,8 +1401,11 @@ def absender_pruefen(fenster, soll: str, *, ordner: Path | None = None,
     `absender_geprueft` wahr und `absender_abweichung` gefüllt, wie `geprueft`
     und `abweichung` bei den Empfängern.
 
-    `profil` ist das Profil der Entwurfsbrücke (`entwurfsbuch.bruecken_profil`);
-    ohne es liest `kontoadressen` das Standardprofil unter `ordner`.
+    Die Identitäten kommen aus dem Profil, aus dem die Brücke antwortet, über
+    `entwurfsbuch.kontoleser`: `umgebung` bestimmt mit
+    `FALZMARKE_BRUECKE_SOCKET` das Profil (#410). Fehlt es, steht der Grund aus
+    `bruecken_profil` im Hinweis. Bis #500 lösten die beiden Aufrufer das Profil
+    selbst auf und warfen den Grund weg.
 
     Ohne Lesung aus dem Fenster gibt es nichts zu vergleichen, wie bei den
     Empfängern.
@@ -1407,8 +1420,12 @@ def absender_pruefen(fenster, soll: str, *, ordner: Path | None = None,
         return fenster._replace(absender_hinweis="das Add-on meldet keinen Absender des Fensters")
     if ist == soll:
         return fenster._replace(absender_geprueft=True)
-    adressen, grund = kontoadressen(soll, ordner, profil=profil)
-    if adressen is None and kontoadressen(ist, ordner, profil=profil)[0] is not None:
+    from falzmarke import entwurfsbuch
+
+    # Ein Leser für beide Adressen: Profil und `prefs.js` nur einmal (#515, Befund 6).
+    konto = entwurfsbuch.kontoleser(umgebung)
+    adressen, grund = konto(soll)
+    if adressen is None and konto(ist)[0] is not None:
         return fenster._replace(absender_geprueft=True, absender_hinweis=(
             f"{soll} gehört zu keinem Konto im Profil, {ist} schon"),
             absender_abweichung=f"Fenster: {ist}, Nachricht: {soll}")
@@ -1445,14 +1462,13 @@ def _fenster_auf(lage: Entwurfslage, felder: Mapping, umgebung: Mapping[str, str
         konto, uid = str(felder.get("absender") or ""), lage.schon_da_uid
     else:
         return lage
-    from falzmarke import bruecke, entwurfsbuch
+    from falzmarke import bruecke
 
     fenster = empfaenger_pruefen(bruecke.entwurf_oeffnen(konto, uid, umgebung=umgebung), felder)
-    # Die Identitäten aus dem Profil, aus dem die Brücke antwortet: Mit
-    # `FALZMARKE_BRUECKE_SOCKET` ist das nicht das Standardprofil (#410).
-    profil, _ = entwurfsbuch.bruecken_profil(None, umgebung)
+    # Dieselbe Umgebung wie für die Brücke: Mit `FALZMARKE_BRUECKE_SOCKET` ist das
+    # Profil der Identitäten nicht das Standardprofil (#410).
     return lage._replace(fenster=absender_pruefen(fenster, str(felder.get("absender") or ""),
-                                                  profil=profil))
+                                                  umgebung=umgebung))
 
 
 def _steuere(skript: str, kennung: str, *, laufen=subprocess.run) -> str | None:

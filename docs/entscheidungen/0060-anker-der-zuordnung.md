@@ -273,8 +273,9 @@ dort heraus, und der Entwurf konnte unter dem offenen Fenster in den Papierkorb 
 **Entschieden:**
 
 - **Die Sperre vor dem Zug ist nachsichtig.** Jedes offene Fenster mit dieser UID hält den
-  Entwurf, ohne Blick auf die Identität (`_offene_uids(…, streng=False)`). Ein Fenster eines
-  fremden Kontos mit derselben UID-Zahl hält den Zug dann auf und meldet „gerade in einem
+  Entwurf, ohne Blick auf die Identität (`_offene_uids_nachsichtig`, bis #515
+  `_offene_uids(…, streng=False)`). Ein Fenster eines fremden Kontos mit derselben UID-Zahl
+  hält den Zug dann auf und meldet „gerade in einem
   Fenster offen“. Das ist der billige Irrtum: Der Entwurf bleibt liegen, und der nächste Lauf
   räumt ihn weg.
 - **`status` und die Planung des Laufs bleiben streng.** Dort sagt ein falsches `WARTET` nur

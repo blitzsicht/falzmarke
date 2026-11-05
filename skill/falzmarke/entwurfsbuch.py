@@ -37,7 +37,7 @@ import json
 import os
 import re
 import time
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from email import policy
@@ -780,21 +780,36 @@ def fremde_identitaet(fenster: Mapping | None, adresse: str) -> str:
     return gemeldet if gemeldet and gemeldet.lower() != adresse.strip().lower() else ""
 
 
-def kontoadressen(adresse: str, umgebung: Mapping[str, str] | None = None,
-                  profilordner: Path | None = None) -> tuple[frozenset[str] | None, str]:
-    """Die Identitäten des Kontos aus dem Profil, aus dem die Brücke antwortet.
+def kontoleser(umgebung: Mapping[str, str] | None = None, profilordner: Path | None = None
+               ) -> Callable[[str], tuple[frozenset[str] | None, str]]:
+    """Fragt Adressen gegen die Konten im Profil, aus dem die Brücke antwortet.
 
-    `oeffnen.kontoadressen` am Profil von `bruecken_profil`: Liegt der Socket
-    der Brücke in einem anderen Profil als dem Standardprofil, kennt nur dieses
-    die Aliasse (Nachreview #488, Nr. 1). Gibt `(adressen, "")` oder
-    `(None, grund)`. Der Maßstab für die Fenster (`_offene_uids`).
+    Die einzige Stelle, die `bruecken_profil` und die Konten aus `prefs.js`
+    zusammensetzt (#500, Befund 2). Liegt der Socket der Brücke in einem anderen
+    Profil als dem Standardprofil, kennt nur dieses die Aliasse (Nachreview
+    #488, Nr. 1). Das Profil wird einmal aufgelöst und gelesen, auch wenn der
+    Aufrufer mehrere Adressen fragt (#515, Befund 6). Jede Frage gibt
+    `(adressen, "")` oder `(None, grund)`, ohne Profil mit dem Grund aus
+    `bruecken_profil`.
     """
     from falzmarke import oeffnen
 
     profil, grund = bruecken_profil(profilordner, umgebung)
+    if profil is not None:
+        profil, grund = oeffnen._profil_aus(None, profil)
     if profil is None:
-        return None, grund
-    return oeffnen.kontoadressen(adresse, profil=profil)
+        return lambda adresse: (None, grund)
+    werte = oeffnen.thunderbird_einstellungen(profil)
+    return lambda adresse: oeffnen.konto_in(werte, profil.name, adresse)
+
+
+def kontoadressen(adresse: str, umgebung: Mapping[str, str] | None = None,
+                  profilordner: Path | None = None) -> tuple[frozenset[str] | None, str]:
+    """Die Identitäten des Kontos aus dem Profil, aus dem die Brücke antwortet.
+
+    Eine Frage an `kontoleser`. Der Maßstab für die Fenster (`_offene_uids`).
+    """
+    return kontoleser(umgebung, profilordner)(adresse)
 
 
 def profiladressen(umgebung: Mapping[str, str] | None = None,
@@ -814,38 +829,51 @@ def profiladressen(umgebung: Mapping[str, str] | None = None,
     return oeffnen.profiladressen(profil=profil)
 
 
-def _offene_uids(adresse: str, umgebung: Mapping[str, str], profilordner: Path | None = None,
-                 *, streng: bool = True,
-                 hinweise: list[str] | None = None) -> tuple[dict[str, dict], str]:
-    """UID → was die Brücke über das Fenster meldet, in dem dieser Entwurf offen ist.
-
-    Die Identitäten des Kontos kommen aus dem Thunderbird-Profil (#466), und
-    zwar aus dem, aus dem die Brücke antwortet (`kontoadressen`).
-
-    `streng=False` lässt die Identitäten weg, und jedes Fenster mit dieser UID
-    zählt. So sperrt die letzte Prüfung vor dem Zug (`entwurfsablage._ziehe`):
-    Ein fremdes Fenster, das den Zug aufhält, ist der billige Irrtum, ein
-    eigenes Alias-Fenster, das nicht aufhält, der teure (ADR 0060, Nachtrag
-    vom 04.11.2026).
-
-    Sagt das Profil nichts über das Konto, und meldet ein Fenster einen anderen
-    Absender, landet der Grund in `hinweise`, sofern übergeben (Nr. 3). Nicht
-    in den Rückgabegrund: Der ist eine Sperre (`fenster_grund`), und hier wurde
-    ja geprüft, nur nachsichtig.
-    """
+def _offene_fenster(umgebung: Mapping[str, str]) -> tuple[list[dict], str]:
+    """Die offenen Verfassen-Fenster der Brücke, oder der Grund, warum keine Liste kam."""
     from falzmarke import bruecke
 
     try:
-        fenster = bruecke.offene_entwuerfe(umgebung=umgebung)
+        return bruecke.offene_entwuerfe(umgebung=umgebung), ""
     except bruecke.BrueckenFehler as fehler:
-        return {}, f"offene Fenster nicht geprüft: {fehler}"
-    if not streng:
-        return fenster_des_kontos(fenster, adresse), ""
+        return [], f"offene Fenster nicht geprüft: {fehler}"
+
+
+def _offene_uids_nachsichtig(adresse: str,
+                             umgebung: Mapping[str, str]) -> tuple[dict[str, dict], str]:
+    """Wie `_offene_uids`, aber ohne Identitäten: Jedes Fenster mit dieser UID zählt.
+
+    So sperrt die letzte Prüfung vor dem Zug (`entwurfsablage._ziehe`): Ein
+    fremdes Fenster, das den Zug aufhält, ist der billige Irrtum, ein eigenes
+    Alias-Fenster, das nicht aufhält, der teure (ADR 0060, Nachtrag vom
+    04.11.2026). Eine eigene Funktion statt des Schalters `streng=False`, der
+    `profilordner` und die Hinweise still überging (#515, Befund 7).
+    """
+    fenster, grund = _offene_fenster(umgebung)
+    return ({}, grund) if grund else (fenster_des_kontos(fenster, adresse), "")
+
+
+def _offene_uids(adresse: str, umgebung: Mapping[str, str], profilordner: Path | None = None,
+                 *, ohne_identitaeten: list[str] | None = None) -> tuple[dict[str, dict], str]:
+    """UID → was die Brücke über das Fenster meldet, in dem dieser Entwurf offen ist.
+
+    Die Identitäten des Kontos kommen aus dem Thunderbird-Profil (#466), und
+    zwar aus dem, aus dem die Brücke antwortet (`kontoadressen`). Die
+    nachsichtige Fassung ohne sie ist `_offene_uids_nachsichtig`.
+
+    Sagt das Profil nichts über das Konto, landet der Grund in
+    `ohne_identitaeten`, sofern übergeben (Nachreview #488, Nr. 3). Nicht in den
+    Rückgabegrund: Der ist eine Sperre (`fenster_grund`), und hier wurde ja
+    geprüft, nur nachsichtig. Ob daraus ein Hinweis wird, entscheidet `abgleich`
+    erst an den Entwürfen: Ein fremdes Fenster zählt nur, wenn seine UID in
+    diesem Konto liegt (#500, Befund 4).
+    """
+    fenster, grund = _offene_fenster(umgebung)
+    if grund:
+        return {}, grund
     adressen, grund = kontoadressen(adresse, umgebung, profilordner)
-    if adressen is None and hinweise is not None and any(
-            fremde_identitaet(f, adresse) for f in fenster):
-        hinweise.append(f"Identitäten des Kontos nicht gelesen ({grund}): ein Fenster mit "
-                        "anderem Absender zählt nur über die UID")
+    if adressen is None and ohne_identitaeten is not None:
+        ohne_identitaeten.append(grund)
     return fenster_des_kontos(fenster, adresse, adressen), ""
 
 
@@ -1026,7 +1054,9 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
     # mit, was jetzt schon in `hinweise` steht — und gerade dann zählt, was das Buch weiß.
     if stand.unlesbar:
         hinweise.append(_zeilenwort(stand.unlesbar, "im Entwurfsbuch"))
-    offen, offen_grund = _offene_uids(adresse, umgebung, profilordner, hinweise=hinweise)
+    ohne_identitaeten: list[str] = []
+    offen, offen_grund = _offene_uids(adresse, umgebung, profilordner,
+                                      ohne_identitaeten=ohne_identitaeten)
     if offen_grund:
         hinweise.append(offen_grund)
 
@@ -1051,6 +1081,14 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                 return leer._replace(grund=f"im Postfach von {adresse} ist kein "
                                            "Entwürfe-Ordner gekennzeichnet")
             liegend = sitzung.koepfe(ordner_e)
+            # Nur ein Fenster auf einen Entwurf dieses Kontos zählt hier über die UID.
+            # Ein fremdes mit einer UID, die es hier nicht gibt, stand bis #500 bei
+            # jedem Konto im Hinweis (Befund 4).
+            if ohne_identitaeten and any(fremde_identitaet(offen.get(k.uid), adresse)
+                                         for k in liegend):
+                hinweise.append(f"Identitäten des Kontos nicht gelesen "
+                                f"({ohne_identitaeten[0]}): ein Fenster mit anderem "
+                                "Absender zählt nur über die UID")
             raus = [k for k in sitzung.koepfe(ordner_g, seit=grenze.date(),
                                                  grenze=GRENZE_GESENDET)
                     if k.datum is None or k.datum >= grenze]
