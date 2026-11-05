@@ -198,6 +198,35 @@ def test_eine_gekappte_suche_meldet_die_kennung_nicht_den_ordner(monkeypatch):
             in bericht.hinweise), f"Suchkappung ohne Hinweis: {bericht.hinweise}"
 
 
+def test_eine_gekappte_suche_steht_nur_einmal_im_bericht(monkeypatch):
+    """#515, Befund 2 (aus den Reviews von #496 und #497): Beantworten drei Antworten
+    dieselbe gekappte Kennung, stand derselbe Satz dreimal unter den Hinweisen."""
+    monkeypatch.setattr(postfach, "SUCHGRENZE", 3)
+    fremde = [_eingegangen(f"<x123y{i}@example.org>", betreff=f"fremd {i}", tage=4 - i)
+              for i in range(4)]
+    antworten = [_antwort("123", tage=t) for t in (1, 2, 3)]
+    _, sitzung = _postfach(eingang=fremde, gesendet=antworten)
+    with sitzung:
+        bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+    saetze = [h for h in bericht.hinweise if h.startswith("Kennung „123“ in „INBOX“")]
+    assert len(saetze) == 1, f"Suchkappung {len(saetze)}-mal gemeldet: {bericht.hinweise}"
+
+
+def test_eine_zweite_gekappte_kennung_bekommt_ihren_eigenen_satz(monkeypatch):
+    """Gegenstück zu oben: Nur dieselbe Kennung im selben Ordner fällt zusammen.
+    Eine Sperre, die jede weitere Kappung schluckte, bestünde den Test darüber auch."""
+    monkeypatch.setattr(postfach, "SUCHGRENZE", 3)
+    fremde = [_eingegangen(f"<x{k}y{i}@example.org>", betreff=f"fremd {k} {i}", tage=4 - i)
+              for k in ("123", "456") for i in range(4)]
+    _, sitzung = _postfach(eingang=fremde,
+                           gesendet=[_antwort("123", tage=1), _antwort("456", tage=2)])
+    with sitzung:
+        bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+    for kennung in ("123", "456"):
+        saetze = [h for h in bericht.hinweise if h.startswith(f"Kennung „{kennung}“ in „INBOX“")]
+        assert len(saetze) == 1, f"{kennung}: {len(saetze)}-mal gemeldet: {bericht.hinweise}"
+
+
 def test_eine_suche_ueberschreibt_die_kappung_des_ordners_nicht(monkeypatch):
     """Nachreview von #492, Befund 1, die zweite Folge: Die Suche schrieb unter
     demselben Ordnernamen und löschte eine echte Ordnerkappung aus dem Bericht."""
@@ -1030,6 +1059,21 @@ def test_ohne_ankunftsdatum_bleibt_die_mail_bei_jahr_liegen(monkeypatch):
     assert not attrappe.befehle("UID MOVE")
     ((zug, grund),) = bericht.liegen
     assert zug.uid == "101" and grund == "ohne Ankunftsdatum, das Jahr für „Archiv/{jahr}“ fehlt"
+
+
+@pytest.mark.parametrize("name", ["R&D-Projekte", "F&E-Archiv", "AT&T-Rechnungen",
+                                  "Q&A-Ablage", "Kunden & Co", "A&B", "Müller&Söhne"])
+def test_ein_lesbarer_name_mit_und_zeichen_bleibt_wie_er_ist(name):
+    """#515, Befund 4: Übliche Namen mit `&` sind kein gültiges UTF-7 oder dekodieren
+    auf sich selbst. Still verändert würde nur `&-` oder eine Base64-Folge wie `&AOQ-`."""
+    assert ablage._lesbar(name) == name
+
+
+def test_die_bekannte_grenze_von_lesbar_ist_das_und_minus():
+    """Hält die Grenze aus dem Docstring fest: Ändert sich das Verhalten, muss auch
+    die Begründung der Streichung von #515, Befund 4 neu gelesen werden."""
+    assert ablage._lesbar("Kunden &-Co") == "Kunden &Co"
+    assert ablage._lesbar("Gesch&AOQ-ft") == "Geschäft"
 
 
 def test_jahr_in_server_schreibweise_steht_lesbar_in_text_und_json():

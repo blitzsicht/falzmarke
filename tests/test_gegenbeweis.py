@@ -4636,6 +4636,29 @@ def test_ohne_eigenen_satz_bleibt_die_gekappte_suche_stumm(monkeypatch):
         probe(monkeypatch)
 
 
+# #515, Befund 2: je Ordner und Kennung ein Eintrag in `suchkappungen`.
+_DOPPEL_515 = "if not any((o, k) == (ordner, kennung) for o, k, *_ in self.suchkappungen):"
+
+
+@pytest.mark.parametrize("ersatz, probe_name, meldung", [
+    ("if True:", "test_eine_gekappte_suche_steht_nur_einmal_im_bericht", "3-mal gemeldet"),
+    ("if not any(o == ordner for o, k, *_ in self.suchkappungen):",
+     "test_eine_zweite_gekappte_kennung_bekommt_ihren_eigenen_satz", "456: 0-mal gemeldet"),
+], ids=["ohne-doppelpruefung", "nur-der-ordner-zaehlt"])
+def test_ohne_die_doppelpruefung_der_suchkappung(monkeypatch, ersatz, probe_name, meldung):
+    """Die erste Sabotage baut den Stand vor #515 nach, die zweite eine Sperre, die
+    jede weitere Kappung im selben Ordner schluckte. Jede kippt genau ihren Test."""
+    import test_ablage
+    from falzmarke import postfach as _postfach_modul
+    probe = getattr(test_ablage, probe_name)
+
+    probe(monkeypatch)                                                            # Kontrolle
+    monkeypatch.setattr(_postfach_modul.Postfach, "suche_kennung", _zeile_ersetzt(
+        _postfach_modul, "Postfach.suche_kennung", _DOPPEL_515, ersatz))
+    with pytest.raises(AssertionError, match=meldung):
+        probe(monkeypatch)
+
+
 def test_ohne_das_abfangen_reisst_der_workflowfehler_den_waechter_ab(tmp_path, monkeypatch):
     """`_pruefe_pflicht_checks` wie vor dem Nachreview von #483: der Fehler geht durch.
 
