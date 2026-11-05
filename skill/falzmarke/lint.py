@@ -712,6 +712,31 @@ def _adressen(wert) -> list[str]:
     return [wert] if isinstance(wert, str) else [str(z) for z in (wert or [])]
 
 
+def _komma_abhilfe(eintrag: str, feld: str) -> str:
+    """Abhilfe für einen Adresseintrag, den `parseaddr` nicht zerlegt.
+
+    Ein Komma trennt für RFC 5322 zwei Einträge (#519). Steht links davon schon
+    eine Adresse, sind es wirklich zwei Empfänger: Sie gehören in zwei Zeilen
+    der Liste. Quoten machte daraus einen, die erste Adresse fiele still weg
+    (Review an PR #523). Sonst ist es ein Name mit Komma. Die vorgeschlagene
+    Zeile steht YAML-fertig da, ein Apostroph im Namen ist verdoppelt.
+    """
+    from email.headerregistry import Address
+    from email.utils import getaddresses
+
+    teile = getaddresses([eintrag])
+    if len(teile) > 1 and all("@" in adresse for _, adresse in teile):
+        zeilen = " und ".join(
+            f"`- {Address(name, *adresse.split('@', 1))}`" for name, adresse in teile)
+        return f"zwei Adressen in einem Eintrag: je Adresse eine Zeile der Liste unter `{feld}:`, {zeilen}"
+    komma = re.fullmatch(r"\s*([^\"<>@]*,[^\"<>@]*?)\s*<([^<>\s]+@[^<>\s]+)>\s*", eintrag)
+    if not komma:
+        return "erwartet wird `name@beispiel.de` oder `Name <name@beispiel.de>`"
+    gequotet = f'"{komma.group(1)}" <{komma.group(2)}>'
+    yaml_wert = "'" + gequotet.replace("'", "''") + "'"
+    return f"Komma im Namen: Namen in Anführungszeichen setzen, im Frontmatter `{feld}: {yaml_wert}`"
+
+
 def pruefe_adressfeld(wert, feld: str, kopf_roh: str, bericht: Bericht) -> None:
     """`erika@example.de` oder `Muster GmbH <post@example.de>` — sonst nichts.
 
@@ -725,18 +750,8 @@ def pruefe_adressfeld(wert, feld: str, kopf_roh: str, bericht: Bericht) -> None:
         _, adresse = parseaddr(eintrag)
         ort = _feldzeile(kopf_roh, feld)
         if not adresse or not EMAIL_MUSTER.match(adresse):
-            # „Muster, Max <max@example.org>“ hat die Klammerform, aber das
-            # Komma trennt für RFC 5322 zwei Einträge (#519). Die allgemeine
-            # Abhilfe empfähle genau die Form, die schon dasteht.
-            komma = re.fullmatch(r"\s*([^\"<>]*,[^\"<>]*?)\s*<([^<>\s]+@[^<>\s]+)>\s*", eintrag)
-            bericht.fehler(
-                ort, feld,
-                f"„{eintrag}“ ist keine E-Mail-Adresse",
-                f"Komma im Namen: Namen in Anführungszeichen setzen, "
-                f"`\"{komma.group(1)}\" <{komma.group(2)}>`, im Frontmatter in "
-                f"einfache Anführungszeichen gefasst"
-                if komma else
-                "erwartet wird `name@beispiel.de` oder `Name <name@beispiel.de>`")
+            bericht.fehler(ort, feld, f"„{eintrag}“ ist keine E-Mail-Adresse",
+                           _komma_abhilfe(eintrag, feld))
             continue
         grund = adresse_grund(eintrag, adresse)
         if grund:
