@@ -946,6 +946,18 @@ def test_uid_und_ankunft_werden_vor_und_hinter_dem_literal_gelesen(hinten):
     assert kopf.ankunft == HEUTE - timedelta(days=5)
 
 
+@pytest.mark.parametrize("hinten", ["uid", "ankunft"], ids=["nur-uid-hinten", "nur-ankunft-hinten"])
+def test_uid_und_ankunft_werden_je_fuer_sich_hinter_dem_literal_gelesen(hinten):
+    """#501, Befund 9: `postfach._uid` und `_ankunft` suchen je für sich. Die
+    Attrappe verschob beide immer gemeinsam; der Fall „eines davor, eines
+    dahinter“ wurde nie gelesen."""
+    _, sitzung = _postfach(eingang=[_eingegangen()], uid_hinten=hinten)
+    with sitzung:
+        koepfe = sitzung.koepfe("INBOX")
+    assert [k.uid for k in koepfe] == ["101"], f"UIDs gelesen: {[k.uid for k in koepfe]}"
+    assert koepfe[0].ankunft == HEUTE - timedelta(days=5), f"Ankunft gelesen: {koepfe[0].ankunft}"
+
+
 def test_steht_die_uid_hinter_dem_literal_findet_uid_die_mail():
     attrappe, _ = _postfach(eingang=[_offen()], uid_hinten=True)
     bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
@@ -1484,3 +1496,68 @@ def test_gegenprobe_die_quellpruefung_findet_einen_zweiten_befehl():
     prosa = _befehlswoerter(ast.parse(
         '"""Kein COPY, kein STORE, kein EXPUNGE."""\ndef f():\n    """Auch kein MOVE."""\n'))
     assert prosa == set(), "die Erklärung des Verbots darf nicht als Verstoß gelten"
+
+
+# ── #501: Aufräumbefunde aus den Reviews von #496 und #497 ──────────────────
+
+def _entwurfsablage_tage(monkeypatch, argumente):
+    """Mit welchen `tage` kommt `aufraeumen` bei `entwurfsablage.raeume_auf` an?"""
+    from falzmarke import cli as falzmarke
+    from falzmarke import entwurfsablage, entwurfsbuch
+
+    angekommen = []
+
+    def lauf(adresse, *, tage=entwurfsbuch.TAGE_VORGABE, **_k):
+        angekommen.append(tage)
+        return entwurfsablage.Bericht(adresse)
+
+    monkeypatch.setattr(entwurfsablage, "raeume_auf", lauf)
+    falzmarke.main(["aufraeumen", "--absender", "a@example.org", *argumente])
+    return angekommen
+
+
+def test_mit_entwuerfe_gelten_ohne_seit_vierzehn_tage(monkeypatch):
+    """#501, Befund 1: Bis dahin kamen auch hier 30 an, weil `--seit` vor der
+    `--entwuerfe`-Weiche auf die Vorgabe des Eingangs gesetzt wurde."""
+    from falzmarke import entwurfsbuch
+
+    assert entwurfsbuch.TAGE_VORGABE == 14
+    angekommen = _entwurfsablage_tage(monkeypatch, ["--entwuerfe"])
+    assert angekommen == [14], f"Tage bei --entwuerfe: {angekommen}"
+
+
+def test_ein_gesetztes_seit_gilt_in_beiden_modi(monkeypatch):
+    """Gegenprobe zu Befund 1: `--seit 7` darf weder von 14 noch von 30 überdeckt werden."""
+    angekommen = _entwurfsablage_tage(monkeypatch, ["--entwuerfe", "--seit", "7"])
+    assert angekommen == [7], f"Tage bei --entwuerfe --seit 7: {angekommen}"
+
+
+def test_die_hilfe_nennt_beide_vorgaben(capsys):
+    """#501, Befund 1: Die Hilfe sagte für beide Modi „Vorgabe 30 Tage“."""
+    from falzmarke import cli as falzmarke
+
+    with pytest.raises(SystemExit):
+        falzmarke.main(["aufraeumen", "--help"])
+    hilfe = " ".join(capsys.readouterr().out.split())
+    assert "Vorgabe 30" in hilfe, f"Hilfe ohne die 30 des Eingangs: {hilfe}"
+    assert "Vorgabe 14" in hilfe, f"Hilfe ohne die 14 der Entwürfe: {hilfe}"
+
+
+def test_fehlt_der_jahresordner_nennt_der_grund_den_lesbaren_namen():
+    """#501, Befund 3: Bei `{jahr}` stand im Grund der Wunsch in Server-
+    Schreibweise (`Gesch&AOQ-ft/2025`), während `ziel` den lesbaren Namen zeigte."""
+    _postfach(**_jahr_lage(ordner=("Gesch&AOQ-ft/2026",)))
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Gesch&AOQ-ft/{jahr}", machen=True,
+                                umgebung={})
+    assert bericht.verschoben == 0 and bericht.grund
+    assert "„Geschäft/2025“" in bericht.grund, f"Lesbarer Name fehlt im Grund: {bericht.grund}"
+    assert "&AOQ" not in bericht.grund, f"Roher Name im Grund: {bericht.grund}"
+
+
+def test_ein_lesbarer_wunsch_mit_jahr_bleibt_im_grund_lesbar():
+    """Gegenprobe zu Befund 3: Steht der Wunsch schon lesbar im Profil, ändert sich nichts."""
+    _postfach(**_jahr_lage(ordner=("Gesch&AOQ-ft/2026",)))
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Geschäft/{jahr}", machen=True,
+                                umgebung={})
+    assert bericht.verschoben == 0 and bericht.grund
+    assert "„Geschäft/2025“" in bericht.grund, f"Lesbarer Name fehlt im Grund: {bericht.grund}"

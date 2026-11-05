@@ -176,7 +176,8 @@ wenn der Abbruch selbst an einem gesendeten `UID MOVE` lag (berichtigt im Nachtr
 
 ## Nachtrag (04.11.2026, Nachreview von #494)
 
-Vier Punkte aus dem Nachreview, zwei davon entschieden.
+Fünf Punkte aus dem Nachreview: zwei entschieden (Jahr, benannte Mail), zwei berichtigt
+(`zug_gesendet`, `--seit` mit `--uid`) und eine bekannte Grenze, die #495 inzwischen geschlossen hat.
 
 **Das Jahr bleibt die Ankunft.** Der Satz oben, `{jahr}` ergebe „derselbe Ordner wie Thunderbirds
 Taste A“, war falsch. Thunderbird bestimmt das Jahr aus `msgHdr.date`

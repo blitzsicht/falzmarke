@@ -2309,7 +2309,9 @@ def befehl_aufraeumen(args) -> int:
               "Zeitfenster gesucht", file=sys.stderr)
         return EXIT_EINGABE
     if args.seit is None:
-        args.seit = ablage_modul.SEIT_TAGEN
+        # #501, Befund 1: Die Vorgabe hängt am Modus — die Entwürfe haben ihre eigene.
+        from falzmarke import entwurfsbuch
+        args.seit = entwurfsbuch.TAGE_VORGABE if args.entwuerfe else ablage_modul.SEIT_TAGEN
     if not 1 <= args.seit <= ablage_modul.SEIT_MAX:
         print(f"FEHLER  --seit braucht 1 bis {ablage_modul.SEIT_MAX} Tage — zehn Jahre, "
               "darüber bricht die Datumsrechnung", file=sys.stderr)
@@ -3003,7 +3005,8 @@ def main(argv: list[str] | None = None) -> int:
     # und mit `--uid` ist ein gesetztes `--seit` ein Fehler (Nachreview #494).
     p.add_argument("--seit", type=int, default=None,
                    help="so weit zurück werden gesendete Antworten angesehen "
-                        "(Vorgabe 30 Tage, höchstens 3650); nicht mit --uid")
+                        "(Vorgabe 30 Tage, mit --entwuerfe Vorgabe 14 Tage; "
+                        "höchstens 3650); nicht mit --uid")
     p.add_argument("--entwuerfe", action="store_true",
                    help="statt des Eingangs „Entwürfe“ aufräumen: was belegt überholt ist, "
                         "geht in den Papierkorb, jeder andere Entwurf bleibt mit Grund")

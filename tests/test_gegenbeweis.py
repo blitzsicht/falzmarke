@@ -3703,6 +3703,44 @@ def test_ohne_den_rest_der_antwortzeile_geht_die_ankunft_hinter_dem_literal_verl
         probe()
 
 
+@pytest.mark.parametrize(
+    ("hinten", "sabotiert", "ersatz", "meldung"),
+    [("uid", "_uid(meta, rest)", "_uid(meta)", r"UIDs gelesen: \[\]"),
+     ("ankunft", "_ankunft(meta, rest)", "_ankunft(meta)", r"Ankunft gelesen: None")],
+    ids=["uid-allein-hinten", "ankunft-allein-hinten"])
+def test_ohne_den_rest_geht_je_ein_einzeln_verschobenes_feld_verloren(
+        hinten, sabotiert, ersatz, meldung, monkeypatch):
+    """#501, Befund 9: Die Attrappe verschiebt `UID` und `INTERNALDATE` auch
+    einzeln. Die Sabotage trifft genau das Feld, das hinten steht."""
+    from falzmarke import postfach as _postfach_modul
+    from test_ablage import (
+        test_uid_und_ankunft_werden_je_fuer_sich_hinter_dem_literal_gelesen as probe)
+
+    probe(hinten)                                                          # Kontrolle
+    monkeypatch.setattr(_postfach_modul.Postfach, "koepfe", _zeile_ersetzt(
+        _postfach_modul, "Postfach.koepfe", sabotiert, ersatz))
+    with pytest.raises(AssertionError, match=meldung):
+        probe(hinten)
+
+
+@pytest.mark.parametrize(
+    ("hinten", "sabotiert", "ersatz"),
+    [("uid", "_ankunft(meta, rest)", "_ankunft(meta)"),
+     ("ankunft", "_uid(meta, rest)", "_uid(meta)")],
+    ids=["uid-hinten-ankunft-sabotiert", "ankunft-hinten-uid-sabotiert"])
+def test_das_vorn_stehende_feld_braucht_den_rest_nicht(
+        hinten, sabotiert, ersatz, monkeypatch):
+    """Gegenprobe dazu: Steht das andere Feld hinten, bleibt die Sabotage am vorn
+    stehenden ohne Wirkung. Nur so trennt die Attrappe die beiden Suchen."""
+    from falzmarke import postfach as _postfach_modul
+    from test_ablage import (
+        test_uid_und_ankunft_werden_je_fuer_sich_hinter_dem_literal_gelesen as probe)
+
+    monkeypatch.setattr(_postfach_modul.Postfach, "koepfe", _zeile_ersetzt(
+        _postfach_modul, "Postfach.koepfe", sabotiert, ersatz))
+    probe(hinten)
+
+
 def test_mit_der_alten_regel_gilt_ein_frueherer_jahreszug_als_gesendeter_rest(monkeypatch):
     """Befund 3: `zug_gesendet` wieder mit `or verschoben > 0`."""
     from falzmarke import ablage as _ablage
@@ -3753,6 +3791,32 @@ def test_ohne_die_sperre_fuer_liegende_benannte_mails_wandert_der_rest(monkeypat
         probe()
 
 
+def test_mit_der_vorgabe_des_eingangs_gelten_bei_entwuerfe_dreissig_tage(monkeypatch):
+    """#501, Befund 1: Wäre die 14 aus der 30 abgeleitet statt eigene Vorgabe,
+    folgte sie ihr. Die Probe misst die 14 des Entwurfsbuchs, nicht die des Eingangs."""
+    from falzmarke import ablage as _ablage
+    from test_ablage import test_mit_entwuerfe_gelten_ohne_seit_vierzehn_tage as probe
+
+    probe(monkeypatch)                                                     # Kontrolle
+    monkeypatch.setattr(_ablage, "SEIT_TAGEN", 99)
+    probe(monkeypatch)                    # die 14 darf der Eingangs-Vorgabe nicht folgen
+
+
+def test_ohne_entwuerfe_bleiben_es_die_dreissig_des_eingangs(monkeypatch):
+    """Gegenprobe zu Befund 1: Die 14 gilt nur mit `--entwuerfe`. Ohne den
+    Schalter muss weiter die Vorgabe des Eingangs ankommen."""
+    from falzmarke import ablage as _ablage
+
+    angekommen = []
+    monkeypatch.setattr(_ablage, "raeume_auf", lambda adresse, **kw: angekommen.append(
+        kw["seit_tagen"]) or _ablage.Bericht(
+            adresse=adresse, ziel="Archiv", grund="Attrappe", seit=None, antworten=0,
+            nicht_im_eingang=0, zuege=(), verschoben=0))
+    monkeypatch.setattr(falzmarke, "ablage_aus_profil", lambda adresse, zusatz: ("Archiv", None))
+    falzmarke.main(["aufraeumen", "--absender", "a@example.org"])
+    assert angekommen == [_ablage.SEIT_TAGEN] == [30], f"Tage im Eingang: {angekommen}"
+
+
 def test_ohne_die_abweisung_wird_seit_mit_uid_still_uebergangen(monkeypatch, capsys):
     """Befund 6: `--seit 30 --uid 101` lief bis zum Profil weiter."""
     from test_ablage import test_uid_und_seit_schliessen_sich_aus as probe
@@ -3763,6 +3827,28 @@ def test_ohne_die_abweisung_wird_seit_mit_uid_still_uebergangen(monkeypatch, cap
         "if args.uid is not None and args.seit is not None:", "if False:"))
     with pytest.raises(AssertionError, match="--seit 30 mit --uid nicht abgewiesen"):
         probe("30", capsys)
+
+
+def test_ohne_dekodieren_steht_der_jahresordner_im_grund_in_server_schreibweise(monkeypatch):
+    """#501, Befund 3: Ohne die Dekodierung zeigt der Grund den rohen Namen."""
+    from falzmarke import postfach as _postfach_modul
+    from test_ablage import test_fehlt_der_jahresordner_nennt_der_grund_den_lesbaren_namen as probe
+
+    probe()                                                                # Kontrolle
+    monkeypatch.setattr(_postfach_modul, "utf7_dekodieren", lambda name: name)
+    with pytest.raises(AssertionError, match=r"Lesbarer Name fehlt im Grund"):
+        probe()
+
+
+def test_ein_vorab_lesbarer_wunsch_kommt_auch_ohne_dekodieren_lesbar_an(monkeypatch):
+    """Gegenprobe dazu: Mit lesbarem Wunsch und ohne Dekodierung zeigt der Grund
+    weiter „Geschäft/2025“ — die Probe unterscheidet also Wunsch-Schreibweisen,
+    statt jede Dekodierung zu verlangen."""
+    from falzmarke import postfach as _postfach_modul
+    from test_ablage import test_ein_lesbarer_wunsch_mit_jahr_bleibt_im_grund_lesbar as probe
+
+    monkeypatch.setattr(_postfach_modul, "utf7_dekodieren", lambda name: name)
+    probe()
 
 
 def test_ohne_dekodieren_steht_das_jahresziel_in_server_schreibweise_im_json(monkeypatch):
