@@ -13,6 +13,7 @@ import ast
 import functools
 import imaplib
 import inspect
+import socket
 import subprocess
 import textwrap
 
@@ -142,11 +143,24 @@ def test_der_applescript_weg_mit_kein_fenster_ist_dauerhaft(monkeypatch, felder)
 @pytest.mark.parametrize("fehler", [
     ConnectionRefusedError(61, "refused"), TimeoutError("timed out"),
     OSError(65, "No route to host"),
-], ids=["abgelehnt", "zeitlimit", "keine-route"])
+    socket.gaierror(socket.EAI_AGAIN, "temporary failure in name resolution"),
+], ids=["abgelehnt", "zeitlimit", "keine-route", "namensaufloesung-gestoert"])
 def test_ein_proxy_der_nicht_antwortet_ist_voruebergehend(monkeypatch, felder, fehler):
     _server(monkeypatch, verbindungsfehler=fehler)
     lage = _entwurf(felder)
     assert lage.grund.startswith("kein Postfach-Entwurf: ") and lage.dauer == V, lage
+
+
+@pytest.mark.parametrize("fehler", [
+    socket.gaierror(socket.EAI_NONAME, "nodename nor servname provided, or not known"),
+    imaplib.IMAP4.error("* NO kein IMAP-Dienst"),
+], ids=["unbekannter-host", "begruessung-nein"])
+def test_ein_falsches_ziel_ist_dauerhaft(monkeypatch, felder, fehler):
+    """Nachreview von #505: Ein vertippter Hostname ist ein `OSError`, vergeht aber
+    nicht. Als vorübergehend holte der Abholer ihn alle 180 s erneut."""
+    _server(monkeypatch, verbindungsfehler=fehler)
+    lage = _entwurf(felder)
+    assert lage.dauer == D, lage
 
 
 def test_eine_abgelehnte_anmeldung_ist_dauerhaft(monkeypatch, felder):

@@ -32,6 +32,7 @@ import base64
 import email
 import imaplib
 import re
+import socket
 import time
 from collections.abc import Mapping
 from datetime import date, datetime, timezone
@@ -90,6 +91,20 @@ class PostfachFehler(Exception):
     def __init__(self, grund: str = "", *, voruebergehend: bool = False):
         super().__init__(grund)
         self.voruebergehend = voruebergehend
+
+
+def _vergeht(fehler: BaseException) -> bool:
+    """Kann die Ursache beim nächsten Lauf ausbleiben? (#505)
+
+    Socket und abgerissene Verbindung (`IMAP4.abort`) vergehen, eine Antwort
+    NO/BAD (`IMAP4.error`) und ein Kodierfehler bleiben. Ein unbekannter Host
+    (`socket.gaierror`) ist zwar ein `OSError`, bleibt aber, bis jemand den Namen
+    in `FALZMARKE_GESENDET_IMAP` berichtigt. Nur `EAI_AGAIN`, die gerade gestörte
+    Namensauflösung, vergeht.
+    """
+    if isinstance(fehler, socket.gaierror):
+        return fehler.errno == socket.EAI_AGAIN
+    return isinstance(fehler, (OSError, imaplib.IMAP4.abort))
 
 
 # ── Ordnernamen ─────────────────────────────────────────────────────────────
@@ -446,10 +461,8 @@ class Postfach:
             # („NUL, CR and LF not allowed“). Beides wirft, bevor etwas gesendet
             # ist, und ist kein IMAP-Fehler. Entkäme es hier, stünde ein
             # Traceback da, und `verbinde` meldete nicht ab (Review von #460).
-            # Socket und abgerissene Verbindung (`IMAP4.abort`) vergehen, eine
-            # Antwort NO/BAD (`IMAP4.error`) und ein Kodierfehler bleiben (#505).
-            raise PostfachFehler(f"{was}: {_kurz(fehler)}", voruebergehend=isinstance(
-                fehler, (OSError, imaplib.IMAP4.abort))) from None
+            raise PostfachFehler(f"{was}: {_kurz(fehler)}",
+                                 voruebergehend=_vergeht(fehler)) from None
         if typ != "OK":
             raise PostfachFehler(f"{was}: {_kurz(daten)}")
         return daten
@@ -681,7 +694,7 @@ def verbinde(adresse: str, *, umgebung: Mapping[str, str] | None = None,
                              voruebergehend=True) from None
     except (OSError, imaplib.IMAP4.error) as fehler:
         raise PostfachFehler(f"keine Verbindung zu {wo}: {_kurz(fehler)}",
-                             voruebergehend=True) from None
+                             voruebergehend=_vergeht(fehler)) from None
     postfach = Postfach(verbindung, adresse, frist)
     try:
         postfach._befehl(f"Anmeldung als {adresse} an {wo} abgelehnt",

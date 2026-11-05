@@ -231,10 +231,10 @@ Vier Eigenschaften, die dazugehören:
   Darunter steht `URSACHE  vorübergehend` oder `URSACHE  dauerhaft` (#505). Vorübergehend sind
   ein Proxy, der nicht antwortet, eine abgerissene Leitung, ein Zeitlimit und ein Mailprogramm,
   das nicht antwortet: Der nächste Lauf kann gelingen. Alles andere ist dauerhaft (abgeschaltet,
-  `CI`, kein Mailprogramm, Anmeldung abgelehnt, kein Entwürfe-Ordner) und bleibt, bis jemand die
-  Ursache behebt. Was sich nicht sicher zuordnen lässt, gilt als dauerhaft. Wer in einer
-  Schleife aufruft, liest diese Zeile statt des Wortlauts im Grund; die Zeile `KEIN ENTWURF`
-  selbst bleibt unverändert.
+  `CI`, kein Mailprogramm, Anmeldung abgelehnt, kein Entwürfe-Ordner, ein unbekannter Hostname in
+  `FALZMARKE_GESENDET_IMAP`) und bleibt, bis jemand die Ursache behebt. Was sich nicht sicher
+  zuordnen lässt, gilt als dauerhaft. Wer in einer Schleife aufruft, liest diese Zeile statt des
+  Wortlauts im Grund; die Zeile `KEIN ENTWURF` selbst bleibt unverändert.
   `--kein-fenster` geht nicht mit `--programm outlook` (Exit 1): Outlook legt einen Entwurf nur
   mit Fenster an. Bleibt das Ablegen ungewiss (`HINWEIS … das Ablegen blieb ungewiss`), endet der
   Befehl auch mit `--kein-fenster` mit Exit 0, aber ohne `OK  Entwurf liegt in`. Ein erneuter
