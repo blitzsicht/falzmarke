@@ -1063,6 +1063,25 @@ ENTWURFSPROGRAMME = (
 )
 
 
+def ohne_fenster_absage(wahl: str | None) -> str | None:
+    """Warum das Programm zu `wahl` mit `kein_fenster` keinen Entwurf anlegt; `None`, wenn es geht.
+
+    `wahl` ist das Wort aus `--programm`, `None` heißt die Vorgabe. Nur der Weg
+    `compose` kommt ohne Fenster aus (der Postfach-Entwurf über Thunderbird); der
+    AppleScript-Weg öffnet jeden Entwurf, den er anlegt (`programm.oeffnen`).
+
+    Die Absage stand bis #515 (Befund 5) zweimal da, in `befehl_email` als
+    Vergleich mit „outlook“ und in `entwurf` als eigener Satz. Beide fragen jetzt
+    hier, und die Antwort kommt aus `ENTWURFSPROGRAMME`.
+    """
+    for programm in ENTWURFSPROGRAMME:
+        if programm.vorgabe if wahl is None else programm.schluessel == wahl:
+            if programm.weg == "compose":
+                return None
+            return f"{programm.name} legt einen Entwurf nur mit Fenster an"
+    return None
+
+
 def entwurfsweg(plattform: str = sys.platform, *, laufen=subprocess.run,
                 wahl: str | None = None,
                 binaer=thunderbird_binaer) -> Entwurfsprogramm | None:
@@ -1862,8 +1881,9 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
         # Nachreview #491, Befund 1: Der AppleScript-Weg legt die Nachricht an
         # und öffnet sie danach ohne Ausnahme (`programm.oeffnen`). Ein Entwurf
         # ohne Fenster ist dort nicht zu haben, also wird gar keiner angelegt.
+        # Hier ist der Weg nie `compose`, die Absage also nie `None`.
         return Entwurfslage(
-            None, f"{programm.name} legt einen Entwurf nur mit Fenster an; "
+            None, f"{ohne_fenster_absage(programm.schluessel)}; "
                   "mit --kein-fenster geht nur der Postfach-Entwurf über Thunderbird")
 
     with tempfile.TemporaryDirectory(prefix="falzmarke-entwurf-") as ordner:

@@ -426,6 +426,9 @@ def test_outlook_mit_kein_fenster_legt_nichts_an_und_oeffnet_nichts():
         f"Outlook-Fenster trotz kein_fenster: {antwort.schrittarten}"
     assert antwort.angelegt == [], "angelegt, obwohl kein Fenster aufgehen darf"
     assert lage.programm is None and "nur mit Fenster" in lage.grund
+    # Derselbe Satz wie in der Abweisung des Befehls (#515, Befund 5).
+    assert lage.grund.startswith(oeffnen.ohne_fenster_absage("outlook") + ";"), \
+        f"eigene Fassung der Absage: {lage.grund}"
 
     # Gegenprobe ohne den Schalter: derselbe Aufbau legt an und öffnet einmal.
     antwort = Antwortet(nachweis="97 1 0 0 0")
@@ -433,6 +436,17 @@ def test_outlook_mit_kein_fenster_legt_nichts_an_und_oeffnet_nichts():
                            laufen=antwort, wahl="outlook")
     assert lage.programm == "Microsoft Outlook"
     assert len(antwort.angelegt) == 1 and antwort.schrittarten == ["oeffnen"]
+
+
+@pytest.mark.parametrize(("wahl", "erwartet"), [
+    (None, None), ("thunderbird", None),
+    ("outlook", "Microsoft Outlook legt einen Entwurf nur mit Fenster an"),
+], ids=["vorgabe", "thunderbird", "outlook"])
+def test_die_absage_ohne_fenster_kommt_aus_der_programmtabelle(wahl, erwartet):
+    """#515, Befund 5: Ob `kein_fenster` geht, entscheidet der Weg in
+    `ENTWURFSPROGRAMME`, nicht ein Vergleich mit dem Wort „outlook“."""
+    assert oeffnen.ohne_fenster_absage(wahl) == erwartet, \
+        f"Absage für {wahl!r}: {oeffnen.ohne_fenster_absage(wahl)!r}"
 
 
 def test_ein_verschluckter_anhang_faellt_auf():
