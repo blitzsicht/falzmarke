@@ -722,6 +722,8 @@ def test_entwurf_oeffnen_sieht_ein_fehlendes_cc(oeffne_befehl, monkeypatch, caps
 
 ALIAS = "alias@example.de"
 FREMD = "andere@example.org"          # Identität des zweiten Kontos in `_grundwerte`
+# Grund vorn in der Abweichung, gesetzt von `absender_pruefen` (#522, Punkt 10)
+AUSSERHALB = "das Fenster schickt von einer Identität außerhalb des Kontos"
 
 
 def _profil_mit_alias(monkeypatch, tmp_path):
@@ -783,7 +785,7 @@ def _fenster(identitaet: str, **mehr):
 @pytest.mark.parametrize("identitaet, geprueft, abweichung, hinweis", [
     (ABSENDER.upper(), True, "", ""),
     (ALIAS, True, "", f"{ALIAS} ist eine Identität im selben Konto wie {ABSENDER}"),
-    (FREMD, True, f"Fenster: {FREMD}, Nachricht: {ABSENDER}", ""),
+    (FREMD, True, f"{AUSSERHALB}: Fenster: {FREMD}, Nachricht: {ABSENDER}", ""),
     ("", False, "", "das Add-on meldet keinen Absender des Fensters"),
 ], ids=["gleich", "alias", "fremdes-konto", "ohne-meldung"])
 def test_absender_pruefen(identitaet, geprueft, abweichung, hinweis, monkeypatch, tmp_path):
@@ -810,7 +812,9 @@ def test_absender_pruefen_fragt_auch_das_konto_des_fensters(monkeypatch, tmp_pat
     ist eine Abweichung und nicht „nicht geprüft“."""
     _profil_mit_alias(monkeypatch, tmp_path)
     ergebnis = oeffnen.absender_pruefen(_fenster(FREMD), UNBEKANNT)
-    assert ergebnis.absender_abweichung == f"Fenster: {FREMD}, Nachricht: {UNBEKANNT}", \
+    assert ergebnis.absender_abweichung == (
+        f"{UNBEKANNT} gehört zu keinem Konto im Profil, {FREMD} schon: "
+        f"Fenster: {FREMD}, Nachricht: {UNBEKANNT}"), \
         "nur NICHT GEPRÜFT, obwohl das Fenster von einer Identität eines Kontos schickt"
     assert ergebnis.absender_geprueft
 
@@ -914,7 +918,7 @@ def test_email_oeffnen_liest_die_aliasse_aus_dem_profil_der_bruecke(monkeypatch,
     def abweichung(umgebung) -> str:
         return oeffnen._fenster_auf(lage, felder, umgebung).fenster.absender_abweichung
 
-    assert abweichung({}) == f"Fenster: {ALIAS}, Nachricht: {ABSENDER}", \
+    assert abweichung({}) == f"{AUSSERHALB}: Fenster: {ALIAS}, Nachricht: {ABSENDER}", \
         "der Zwilling kann gar nicht rot werden"
     assert abweichung({"FALZMARKE_BRUECKE_SOCKET": socket}) == "", \
         "email --oeffnen: der Alias aus dem Profil der Brücke gilt als fremd"
@@ -1033,7 +1037,8 @@ def test_nur_entwurfsbuch_fragt_oeffnen_nach_den_ordnern_der_identitaet():
 @pytest.mark.parametrize("fenster, pruefen, ungeprueft", [
     (bruecke.Oeffnung("geoeffnet", gelesen=True, identitaet=FREMD, lese_grund="Fenster lädt",
                       absender_geprueft=True,
-                      absender_abweichung=f"Fenster: {FREMD}, Nachricht: {ABSENDER}"),
+                      absender_abweichung=(f"{AUSSERHALB}: "
+                                           f"Fenster: {FREMD}, Nachricht: {ABSENDER}")),
      "ABSENDER PRÜFEN", "NICHT GEPRÜFT  Empfänger im Fenster: Fenster lädt"),
     (bruecke.Oeffnung("geoeffnet", gelesen=True, geprueft=True,
                       abweichung="Cc: fehlt c@example.org",
@@ -1060,7 +1065,8 @@ def test_neben_einem_pruefen_steht_was_die_andere_pruefung_nicht_verglich(fenste
      f"{ABSENDER})"),
     (bruecke.Oeffnung("geoeffnet", gelesen=True, geprueft=True, identitaet=FREMD,
                       an=("b@example.org",), absender_geprueft=True,
-                      absender_abweichung=f"Fenster: {FREMD}, Nachricht: {ABSENDER}"),
+                      absender_abweichung=(f"{AUSSERHALB}: "
+                                           f"Fenster: {FREMD}, Nachricht: {ABSENDER}")),
      "ABSENDER PRÜFEN", "OK  Empfänger im Fenster wie in der Nachricht: An 1, Cc 0, Bcc 0"),
 ], ids=["empfaenger-prueft-absender-alias", "absender-prueft-empfaenger-gleich"])
 def test_neben_einem_pruefen_steht_was_die_andere_pruefung_bestand(fenster, pruefen, bestanden,
@@ -1078,7 +1084,8 @@ def test_neben_einem_pruefen_steht_was_die_andere_pruefung_bestand(fenster, prue
     (bruecke.Oeffnung("geoeffnet", lese_grund="Add-on vor 0.3.8"), "OK  Empfänger"),
     (bruecke.Oeffnung("geoeffnet", gelesen=True, identitaet=FREMD, lese_grund="Fenster lädt",
                       absender_geprueft=True,
-                      absender_abweichung=f"Fenster: {FREMD}, Nachricht: {ABSENDER}"),
+                      absender_abweichung=(f"{AUSSERHALB}: "
+                                           f"Fenster: {FREMD}, Nachricht: {ABSENDER}")),
      "OK  Empfänger"),
     (bruecke.Oeffnung("geoeffnet", gelesen=True, geprueft=True,
                       abweichung="Cc: fehlt c@example.org"),

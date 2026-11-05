@@ -1437,6 +1437,12 @@ def absender_pruefen(fenster, soll: str, *, umgebung: Mapping[str, str] | None =
     `absender_geprueft` wahr und `absender_abweichung` gefüllt, wie `geprueft`
     und `abweichung` bei den Empfängern.
 
+    Die Abweichung beginnt mit ihrem Grund, denn nur hier steht fest, welcher es
+    ist: „außerhalb des Kontos“ oder „`soll` gehört zu keinem Konto“ (#522,
+    Punkt 10). Bis dahin leitete `cli` den Grund daraus ab, ob zugleich ein
+    Hinweis gesetzt war, und das stimmte nur, solange allein der zweite Fall
+    beide Felder setzte.
+
     Die Identitäten kommen aus dem Profil, aus dem die Brücke antwortet, über
     `entwurfsbuch.kontoleser`: `umgebung` bestimmt mit
     `FALZMARKE_BRUECKE_SOCKET` das Profil (#410). Fehlt es, steht der Grund aus
@@ -1462,9 +1468,9 @@ def absender_pruefen(fenster, soll: str, *, umgebung: Mapping[str, str] | None =
     konto = entwurfsbuch.kontoleser(umgebung)
     adressen, grund = konto(soll)
     if adressen is None and konto(ist)[0] is not None:
-        return fenster._replace(absender_geprueft=True, absender_hinweis=(
-            f"{soll} gehört zu keinem Konto im Profil, {ist} schon"),
-            absender_abweichung=f"Fenster: {ist}, Nachricht: {soll}")
+        return fenster._replace(absender_geprueft=True, absender_abweichung=(
+            f"{soll} gehört zu keinem Konto im Profil, {ist} schon: "
+            f"Fenster: {ist}, Nachricht: {soll}"))
     if adressen is None:
         return fenster._replace(absender_hinweis=(
             f"das Fenster schickt von {ist}, die Nachricht von {soll}; ob beide "
@@ -1472,8 +1478,9 @@ def absender_pruefen(fenster, soll: str, *, umgebung: Mapping[str, str] | None =
     if ist in adressen:
         return fenster._replace(absender_geprueft=True, absender_hinweis=(
             f"{ist} ist eine Identität im selben Konto wie {soll}"))
-    return fenster._replace(absender_geprueft=True,
-                            absender_abweichung=f"Fenster: {ist}, Nachricht: {soll}")
+    return fenster._replace(absender_geprueft=True, absender_abweichung=(
+        f"das Fenster schickt von einer Identität außerhalb des Kontos: "
+        f"Fenster: {ist}, Nachricht: {soll}"))
 
 
 def _fenster_auf(lage: Entwurfslage, felder: Mapping, umgebung: Mapping[str, str],

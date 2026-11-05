@@ -1737,13 +1737,10 @@ def _melde_fenster(fenster, ordner: str, betreff: str) -> None:
                       f"schließen und den\n"
                       f"         Entwurf unter „{ordner}“ neu öffnen.", file=sys.stderr)
             if fenster.absender_abweichung:
-                # Hinweis und Abweichung zugleich gibt es nur, wenn die Nachricht von
-                # außerhalb der Konten stammt und das Fenster von einem schickt. Dann ist
-                # der Hinweis der Grund, „außerhalb des Kontos“ wäre das Gegenteil (#500).
-                grund = (fenster.absender_hinweis
-                         or "das Fenster schickt von einer Identität außerhalb des Kontos")
+                # Der Grund steht vorn in der Abweichung: `absender_pruefen` kennt ihn,
+                # hier geraten war er falsch (#500) oder hing an einem Zufall (#522/10).
                 print(f"ABSENDER PRÜFEN  Entwurf offen in Thunderbird: {titel},\n"
-                      f"         aber {grund}: {fenster.absender_abweichung}\n"
+                      f"         aber {fenster.absender_abweichung}\n"
                       f"         Vor dem Senden den Absender im Fenster richten, oder es "
                       f"schließen und den\n"
                       f"         Entwurf unter „{ordner}“ neu öffnen.", file=sys.stderr)

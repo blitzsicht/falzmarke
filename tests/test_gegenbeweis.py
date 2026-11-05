@@ -3227,15 +3227,17 @@ def test_ohne_vergleich_steht_trotzdem_ok(monkeypatch, capsys, fall, alt, neu):
 
 def test_mit_dem_festen_satz_nennt_absender_pruefen_das_gegenteil(oeffne_befehl, monkeypatch,
                                                                   capsys, tmp_path):
-    from falzmarke import cli as _cli
+    """Seit #522 (Punkt 10) steht der Grund in der Abweichung, gesetzt in
+    `absender_pruefen`. Dort setzt die Sabotage den festen Satz, wie ihn `cli`
+    bis #500 für jede Abweichung nahm."""
     from test_postfach_entwurf import (
         test_from_ausserhalb_der_konten_nennt_den_richtigen_grund as probe)
 
     probe(oeffne_befehl, monkeypatch, capsys, tmp_path / "k")             # Kontrolle
-    monkeypatch.setattr(_cli, "_melde_fenster", _zeile_ersetzt(
-        _cli, "_melde_fenster",
-        '(fenster.absender_hinweis\n                         or "das Fenster',
-        '("das Fenster'))
+    monkeypatch.setattr(_oeffnen, "absender_pruefen", _zeile_ersetzt(
+        _oeffnen, "absender_pruefen",
+        'f"{soll} gehört zu keinem Konto im Profil, {ist} schon: "',
+        '"das Fenster schickt von einer Identität außerhalb des Kontos: "'))
     with pytest.raises(AssertionError, match="ABSENDER PRÜFEN verschweigt, dass die Nachricht"):
         probe(oeffne_befehl, monkeypatch, capsys, tmp_path / "s")
 
