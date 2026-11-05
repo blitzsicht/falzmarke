@@ -1149,6 +1149,16 @@ def entwurfsargumente(felder: Mapping, anhangpfade: list[str]) -> list[str]:
     ]
 
 
+#: Warum kein Entwurf entstand, in zwei Klassen (#505). Wer in einer Schleife
+#: aufruft, versucht es bei VORUEBERGEHEND im nächsten Lauf wieder und hört bei
+#: DAUERHAFT auf, bis jemand die Ursache behebt. Was sich nicht sicher als
+#: vorübergehend erkennen lässt, ist dauerhaft: Ein Fall zu viel, der liegen
+#: bleibt, kostet einen Handgriff; ein Fall zu viel in der Schleife kostet jeden
+#: Lauf aufs Neue.
+DAUERHAFT = "dauerhaft"
+VORUEBERGEHEND = "vorübergehend"
+
+
 class Entwurfslage(NamedTuple):
     """Was aus einem Entwurfsversuch wurde — mit einem dritten Zustand.
 
@@ -1213,6 +1223,10 @@ class Entwurfslage(NamedTuple):
     ersetzt_grund: str = ""
     #: `entwurfsablage.Bleibt` je passendem Entwurf, der nicht abgelöst werden durfte.
     bleibt: tuple = ()
+    #: Ohne Entwurf und nicht ungewiss: `DAUERHAFT` oder `VORUEBERGEHEND` (#505).
+    #: Leer, wenn ein Entwurf steht, die Lage ungewiss ist oder der Weg über
+    #: `-compose` lief, der ohne `--kein-fenster` die Datei nachschiebt.
+    dauer: str = ""
 
 
 class Postfachablage(NamedTuple):
@@ -1267,12 +1281,13 @@ def _ungewiss_ins_buch(adresse: str, ordner: str, felder, grund: str, umgebung) 
 
 def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
                       profilordner: Path | None, noch_ein_entwurf: bool,
-                      ersetzen: bool = False) -> tuple["Entwurfslage | None", str]:
+                      ersetzen: bool = False) -> tuple["Entwurfslage | None", str, str]:
     """Legt die `.eml` als Entwurf ins Postfach des Absenders (ADR 0051).
 
-    Rückgabe `(Lage, "")`, wenn der Weg zu Ende ging — abgelegt, schon da oder
-    ungewiss —, sonst `(None, Grund)`: Dann darf der Aufrufer `-compose`
-    nehmen, denn im Postfach ist nichts entstanden.
+    Rückgabe `(Lage, "", "")`, wenn der Weg zu Ende ging — abgelegt, schon da
+    oder ungewiss —, sonst `(None, Grund, Dauer)`: Dann darf der Aufrufer
+    `-compose` nehmen, denn im Postfach ist nichts entstanden. `Dauer` ist
+    `DAUERHAFT` oder `VORUEBERGEHEND` (#505).
 
     Die Reihenfolge ist die Zusage. Erst nachsehen, ob schon ein passender
     Entwurf liegt (dann keinen zweiten); dann ablegen; dann nachzählen. Was
@@ -1288,21 +1303,22 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
     from falzmarke import entwurfsablage, postfach
 
     if (umgebung.get("FALZMARKE_POSTFACH") or "").strip().lower() == "nie":
-        return None, "FALZMARKE_POSTFACH=nie ist gesetzt"
+        return None, "FALZMARKE_POSTFACH=nie ist gesetzt", DAUERHAFT
     roh = felder.get("roh")
     adresse = str(felder.get("absender") or "")
     if not roh or not adresse:
-        return None, ""
+        return None, "", DAUERHAFT
     ordner = thunderbird_ordner(adresse, "draft_folder", profilordner)
     try:
         sitzung = postfach.verbinde(adresse, umgebung=umgebung, frist=FRIST_POSTFACH_S)
     except postfach.PostfachFehler as fehler:
-        return None, str(fehler)
+        return None, str(fehler), _dauer(fehler)
     with sitzung:
         try:
             ordner = ordner or sitzung.sonderordner("\\Drafts")
             if not ordner:
-                return None, f"im Postfach von {adresse} ist kein Entwürfe-Ordner gekennzeichnet"
+                return (None, f"im Postfach von {adresse} ist kein Entwürfe-Ordner "
+                              "gekennzeichnet", DAUERHAFT)
             vorher = [k for k in sitzung.koepfe(ordner) if _gleicher_entwurf(k, felder)]
             soll_fassung = str(felder.get("fassung") or "").strip()
             derselbe = [k for k in vorher if soll_fassung and k.fassung == soll_fassung]
@@ -1312,7 +1328,7 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
                                                    umgebung=umgebung,
                                                    profilordner=profilordner)
         except postfach.PostfachFehler as fehler:
-            return None, str(fehler)
+            return None, str(fehler), _dauer(fehler)
         anzeige = postfach.utf7_dekodieren(ordner)
         if vorher and not noch_ein_entwurf and (derselbe or (wertung.bleibt and not ersetzen)):
             juengster = max(derselbe or vorher,
@@ -1322,7 +1338,7 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
             return Entwurfslage(None, "", schon_da=(
                 f"{zeit} „{juengster.betreff}“ in „{anzeige}“ von {adresse}"
                 + (f" ({len(vorher)} Stück)" if len(vorher) > 1 else "")),
-                schon_da_uid=str(juengster.uid), bleibt=wertung.bleibt), ""
+                schon_da_uid=str(juengster.uid), bleibt=wertung.bleibt), "", ""
         ersetzt, bleibt, ersetzt_grund, ersetzt_ziel = (), wertung.bleibt, "", ""
         try:
             sitzung.ablegen(ordner, bytes(roh))
@@ -1338,13 +1354,13 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
                      f"Entwurf in „{anzeige}“ angekommen ist, ist offen")
             return Entwurfslage(None, grund, ungewiss=True,
                                 buch_grund=_ungewiss_ins_buch(adresse, anzeige, felder,
-                                                              grund, umgebung)), ""
+                                                              grund, umgebung)), "", ""
     if len(nachher) != len(vorher) + 1:
         grund = (f"der Server nahm den Entwurf an, aber in „{anzeige}“ "
                  f"liegen danach {len(nachher)} passende statt {len(vorher) + 1}")
         return Entwurfslage(None, grund, ungewiss=True,
                             buch_grund=_ungewiss_ins_buch(adresse, anzeige, felder,
-                                                          grund, umgebung)), ""
+                                                          grund, umgebung)), "", ""
     alte = {k.uid for k in vorher}
     neu = max((k for k in nachher if k.uid not in alte), key=lambda k: int(k.uid))
     soll_bezug = str(felder.get("antwort_auf") or "").strip()
@@ -1359,7 +1375,12 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
     return Entwurfslage("Thunderbird", "", konto=adresse, postfach=ablage,
                         buch_grund=entwurfsbuch.eintragen(ablage, felder, umgebung=umgebung),
                         ersetzt=ersetzt, ersetzt_ziel=ersetzt_ziel,
-                        ersetzt_grund=ersetzt_grund, bleibt=bleibt), ""
+                        ersetzt_grund=ersetzt_grund, bleibt=bleibt), "", ""
+
+
+def _dauer(fehler) -> str:
+    """Die Klasse eines `PostfachFehler` (#505)."""
+    return VORUEBERGEHEND if getattr(fehler, "voruebergehend", False) else DAUERHAFT
 
 
 def empfaenger_pruefen(fenster, felder: Mapping | None, *, grund: str = ""):
@@ -1846,25 +1867,27 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
     """
     umgebung = os.environ if umgebung is None else umgebung
     if (umgebung.get("FALZMARKE_ENTWURF") or "").strip().lower() == "nie":
-        return Entwurfslage(None, "FALZMARKE_ENTWURF=nie ist gesetzt")
+        return Entwurfslage(None, "FALZMARKE_ENTWURF=nie ist gesetzt", dauer=DAUERHAFT)
     grund = kein_bildschirm(umgebung, plattform)
     if grund:
-        return Entwurfslage(None, grund)
+        return Entwurfslage(None, grund, dauer=DAUERHAFT)
     try:
         programm = entwurfsweg(plattform, laufen=laufen, wahl=wahl, binaer=binaer)
     except FileNotFoundError:
-        return Entwurfslage(None, "osascript gibt es auf diesem System nicht")
+        return Entwurfslage(None, "osascript gibt es auf diesem System nicht",
+                            dauer=DAUERHAFT)
     except subprocess.TimeoutExpired:
         # Gesehen am 13.09.2026, kurz nach dem Wechsel ins klassische Outlook:
         # Die Suche kam nach über 20 Sekunden zurück, und der Befehl endete mit
         # einem Traceback und Exit 1 — obwohl die `.eml` geprüft dalag. Hier ist
         # noch nichts angelegt, der Rückfall auf die Datei ist also sicher.
         return Entwurfslage(
-            None, f"das Mailprogramm antwortete nicht in {FRIST_S} Sekunden")
+            None, f"das Mailprogramm antwortete nicht in {FRIST_S} Sekunden",
+            dauer=VORUEBERGEHEND)
     if programm is None:
-        return Entwurfslage(None, _nicht_gefunden(wahl))
+        return Entwurfslage(None, _nicht_gefunden(wahl), dauer=DAUERHAFT)
     if programm.weg == "compose":
-        lage, grund = _entwurf_postfach(felder, umgebung=umgebung,
+        lage, grund, dauer = _entwurf_postfach(felder, umgebung=umgebung,
                                         profilordner=thunderbird_ordner,
                                         noch_ein_entwurf=noch_ein_entwurf,
                                         ersetzen=ersetzen)
@@ -1873,7 +1896,8 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
         if kein_fenster:
             # #441: `-compose` ist ein Fenster. Ein Abholer, der alle 180 s
             # kopflos aufruft, öffnete bei ausgefallenem Proxy sonst jedes Mal eins.
-            return Entwurfslage(None, f"kein Postfach-Entwurf: {grund}", postfach_grund=grund)
+            return Entwurfslage(None, f"kein Postfach-Entwurf: {grund}", postfach_grund=grund,
+                                dauer=dauer)
         return _entwurf_compose(programm, felder, laufen=laufen, ablage=ablage,
                                 thunderbird_ordner=thunderbird_ordner)._replace(
                                     postfach_grund=grund)
@@ -1884,7 +1908,8 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
         # Hier ist der Weg nie `compose`, die Absage also nie `None`.
         return Entwurfslage(
             None, f"{ohne_fenster_absage(programm.schluessel)}; "
-                  "mit --kein-fenster geht nur der Postfach-Entwurf über Thunderbird")
+                  "mit --kein-fenster geht nur der Postfach-Entwurf über Thunderbird",
+            dauer=DAUERHAFT)
 
     with tempfile.TemporaryDirectory(prefix="falzmarke-entwurf-") as ordner:
         pfade = _anhaenge_ausschreiben(ordner, felder.get("anhaenge") or [])
@@ -1894,7 +1919,8 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
         try:
             lauf = _lauf(argv, FRIST_ENTWURF_S, laufen)
         except FileNotFoundError:
-            return Entwurfslage(None, "osascript gibt es auf diesem System nicht")
+            return Entwurfslage(None, "osascript gibt es auf diesem System nicht",
+                                dauer=DAUERHAFT)
         except subprocess.TimeoutExpired:
             # Der dritte Zustand (#287): Das Skript ist nicht zurückgekehrt,
             # also ist UNBEKANNT, ob eine Nachricht entstand. Wer hier die
@@ -1907,7 +1933,7 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
     if lauf.returncode != 0:
         meldung = (lauf.stderr or "").strip().splitlines()
         letzte = meldung[-1] if meldung else f"osascript endete mit Code {lauf.returncode}"
-        return Entwurfslage(None, letzte[:200])
+        return Entwurfslage(None, letzte[:200], dauer=DAUERHAFT)
 
     kennung, _, fehler = zerlege_nachweis(lauf.stdout or "")
     schief = fehler or _nachweis_stimmt(lauf.stdout or "", felder)
@@ -1917,7 +1943,7 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
         # Aufrufer die `.eml` übergeben: ein Fenster, nicht zwei.
         if kennung:
             _steuere(programm.verwerfen, kennung, laufen=laufen)
-        return Entwurfslage(None, schief)
+        return Entwurfslage(None, schief, dauer=DAUERHAFT)
 
     nicht_geoeffnet = _steuere(programm.oeffnen, kennung, laufen=laufen)
     if nicht_geoeffnet:
@@ -1925,7 +1951,8 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
         # im Postfach zu lassen wäre die schlechteste Fassung: Der Aufrufer
         # übergibt gleich die `.eml`, und dann läge beides da.
         _steuere(programm.verwerfen, kennung, laufen=laufen)
-        return Entwurfslage(None, f"angelegt, aber nicht zu öffnen: {nicht_geoeffnet}")
+        return Entwurfslage(None, f"angelegt, aber nicht zu öffnen: {nicht_geoeffnet}",
+                            dauer=DAUERHAFT)
 
     return Entwurfslage(programm.name, "", konto=konto_aus_nachweis(lauf.stdout or ""),
                         suche=suche_aus_nachweis(lauf.stdout or ""))

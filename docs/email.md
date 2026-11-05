@@ -228,6 +228,13 @@ Vier Eigenschaften, die dazugehören:
   Pfad und lässt den Exit-Code bei 0. Ausnahme `--kein-fenster` (#441): Dort gibt es nur den
   Postfach-Entwurf. Liegt keiner, heißt es `KEIN ENTWURF  <Grund>` mit Exit 3, und weder
   `-compose` noch die Datei gehen auf. Eine Schleife soll sehen, dass nichts liegt.
+  Darunter steht `URSACHE  vorübergehend` oder `URSACHE  dauerhaft` (#505). Vorübergehend sind
+  ein Proxy, der nicht antwortet, eine abgerissene Leitung, ein Zeitlimit und ein Mailprogramm,
+  das nicht antwortet: Der nächste Lauf kann gelingen. Alles andere ist dauerhaft (abgeschaltet,
+  `CI`, kein Mailprogramm, Anmeldung abgelehnt, kein Entwürfe-Ordner) und bleibt, bis jemand die
+  Ursache behebt. Was sich nicht sicher zuordnen lässt, gilt als dauerhaft. Wer in einer
+  Schleife aufruft, liest diese Zeile statt des Wortlauts im Grund; die Zeile `KEIN ENTWURF`
+  selbst bleibt unverändert.
   `--kein-fenster` geht nicht mit `--programm outlook` (Exit 1): Outlook legt einen Entwurf nur
   mit Fenster an. Bleibt das Ablegen ungewiss (`HINWEIS … das Ablegen blieb ungewiss`), endet der
   Befehl auch mit `--kein-fenster` mit Exit 0, aber ohne `OK  Entwurf liegt in`. Ein erneuter
@@ -274,6 +281,7 @@ OK  Empfänger im Fenster wie in der Nachricht: An 1, Cc 0, Bcc 1
 | `HINWEIS  Es geht kein Fenster auf` + `Entwurfsbrücke: <Grund>` | den Entwurf unter „Entwürfe“ öffnen |
 | `HINWEIS  Fenster ungewiss` | in Thunderbird nachsehen, **nicht** noch einmal öffnen |
 | `KEIN ENTWURF  <Grund>` (Exit 3, nur mit `--kein-fenster`) | es liegt kein Entwurf, weder Fenster noch Datei sind aufgegangen: Grund beheben (meist der IMAP-Proxy) und erneut aufrufen |
+| `URSACHE  vorübergehend` / `URSACHE  dauerhaft` (unter `KEIN ENTWURF`) | vorübergehend: später erneut aufrufen; dauerhaft: erst die Ursache beheben, ein neuer Aufruf ändert nichts |
 
 Einen Entwurf, der schon liegt, öffnet `falzmarke entwurf-oeffnen --absender <adresse>
 --betreff <teil>` (oder `--uid`); ohne beides listet der Befehl die Entwürfe und nennt die

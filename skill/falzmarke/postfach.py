@@ -78,7 +78,18 @@ KOPFZEILEN = ("DATE", "FROM", "TO", "CC", "BCC", "SUBJECT", "IN-REPLY-TO", "X-FA
 
 
 class PostfachFehler(Exception):
-    """Ein Grund in einem Satz — er wandert unverändert in die Ausgabe."""
+    """Ein Grund in einem Satz — er wandert unverändert in die Ausgabe.
+
+    `voruebergehend` ist wahr, wenn die Ursache von selbst vergehen kann: Der
+    Proxy antwortet nicht, die Leitung reißt ab, die Zeit ist um. Falsch heißt:
+    Sie bleibt, bis jemand etwas ändert (Anmeldung abgelehnt, Server sagt NO,
+    falsche Adresse). Ein Aufrufer in einer Schleife entscheidet daran, ob er
+    es beim nächsten Lauf wieder versucht (#505). Unbekanntes gilt als bleibend.
+    """
+
+    def __init__(self, grund: str = "", *, voruebergehend: bool = False):
+        super().__init__(grund)
+        self.voruebergehend = voruebergehend
 
 
 # ── Ordnernamen ─────────────────────────────────────────────────────────────
@@ -419,7 +430,8 @@ class Postfach:
         """Die verbleibende Zeit auf den Socket legen — oder abbrechen."""
         rest = self._bis - time.monotonic()
         if rest <= 0:
-            raise PostfachFehler(f"Zeitlimit von {self.frist:g} s überschritten")
+            raise PostfachFehler(f"Zeitlimit von {self.frist:g} s überschritten",
+                                 voruebergehend=True)
         sock = getattr(self._v, "sock", None)
         if sock is not None:
             sock.settimeout(rest)
@@ -434,7 +446,10 @@ class Postfach:
             # („NUL, CR and LF not allowed“). Beides wirft, bevor etwas gesendet
             # ist, und ist kein IMAP-Fehler. Entkäme es hier, stünde ein
             # Traceback da, und `verbinde` meldete nicht ab (Review von #460).
-            raise PostfachFehler(f"{was}: {_kurz(fehler)}") from None
+            # Socket und abgerissene Verbindung (`IMAP4.abort`) vergehen, eine
+            # Antwort NO/BAD (`IMAP4.error`) und ein Kodierfehler bleiben (#505).
+            raise PostfachFehler(f"{was}: {_kurz(fehler)}", voruebergehend=isinstance(
+                fehler, (OSError, imaplib.IMAP4.abort))) from None
         if typ != "OK":
             raise PostfachFehler(f"{was}: {_kurz(daten)}")
         return daten
@@ -659,11 +674,14 @@ def verbinde(adresse: str, *, umgebung: Mapping[str, str] | None = None,
     try:
         verbindung = IMAP_KLASSE(host, port, timeout=frist)
     except ConnectionRefusedError:
-        raise PostfachFehler(f"kein IMAP-Proxy unter {wo} (Verbindung abgelehnt)") from None
+        raise PostfachFehler(f"kein IMAP-Proxy unter {wo} (Verbindung abgelehnt)",
+                             voruebergehend=True) from None
     except TimeoutError:
-        raise PostfachFehler(f"keine Antwort von {wo} in {frist:g} s") from None
+        raise PostfachFehler(f"keine Antwort von {wo} in {frist:g} s",
+                             voruebergehend=True) from None
     except (OSError, imaplib.IMAP4.error) as fehler:
-        raise PostfachFehler(f"keine Verbindung zu {wo}: {_kurz(fehler)}") from None
+        raise PostfachFehler(f"keine Verbindung zu {wo}: {_kurz(fehler)}",
+                             voruebergehend=True) from None
     postfach = Postfach(verbindung, adresse, frist)
     try:
         postfach._befehl(f"Anmeldung als {adresse} an {wo} abgelehnt",
