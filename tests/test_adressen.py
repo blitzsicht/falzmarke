@@ -16,6 +16,7 @@ SPF, DKIM und Spamfiltern ab, also von Dingen, die falzmarke nie kontrolliert
 
 from __future__ import annotations
 
+import re
 from email.utils import parseaddr
 
 import pytest
@@ -228,3 +229,71 @@ def test_gegenprobe_umlaut_im_namen_bleibt():
 def test_gegenprobe_gequotetes_komma_lintet_sauber(tmp_path):
     bericht = linte_an(tmp_path, '\\"Muster, Max\\" <max@example.org>')
     assert not [b for b in bericht.befunde if b.regel == "an"], bericht.befunde
+
+
+# ── Folge aus dem Review an PR #523 ──────────────────────────────────────────
+# Zwei Adressen in einem Eintrag sehen für den Komma-Ausdruck aus wie ein Name
+# mit Komma. Die Abhilfe „Namen quoten“ machte daraus EINEN Empfänger, die
+# erste Adresse fiele still weg.
+
+ZWEI = "a@example.org, Erika <c@example.org>"
+
+
+def test_zwei_adressen_in_einem_eintrag_raten_zur_liste(tmp_path):
+    bericht = linte_an(tmp_path, ZWEI)
+    befunde = [b for b in bericht.befunde if b.regel == "an"]
+    assert len(befunde) == 1, befunde
+    assert '"a@example.org, Erika"' not in befunde[0].korrektur
+    assert "- a@example.org" in befunde[0].korrektur
+    assert "- Erika <c@example.org>" in befunde[0].korrektur
+
+
+def test_apostroph_im_namen_hinweis_ist_gueltiges_yaml(tmp_path):
+    import yaml
+    bericht = linte_an(tmp_path, "O'Brien, Max <max@example.org>")
+    korrektur = [b for b in bericht.befunde if b.regel == "an"][0].korrektur
+    zeile = re.search(r"`(an: .+?)`(?:$|[ ,.])", korrektur)
+    assert zeile, korrektur
+    wert = yaml.safe_load(zeile.group(1))["an"]
+    assert wert == "\"O'Brien, Max\" <max@example.org>"
+    # Die vorgeschlagene Zeile muss selbst sauber linten.
+    pfad = tmp_path / "vorschlag.md"
+    pfad.write_text(f"---\n{KOPF}{zeile.group(1)}\n---\nText.\n", encoding="utf-8")
+    nach = falzmarke.linte(pfad, profil_verzeichnis=PROFILE)
+    assert not [b for b in nach.befunde if b.regel == "an"], nach.befunde
+
+
+@pytest.mark.parametrize("eintrag, teil", [
+    (ZWEI, "zwei Adressen"),
+    ("Muster", "keine E-Mail-Adresse"),
+])
+def test_eml_bricht_ab_statt_falschem_kopf(eintrag, teil):
+    # „Muster“ ohne @ wurde bisher still zum To-Kopf „Muster“.
+    with pytest.raises(ValueError, match=teil):
+        eml._adressliste([eintrag])
+
+
+def test_eml_komma_im_namen_nennt_die_ursache():
+    with pytest.raises(ValueError, match="Anführungszeichen"):
+        eml._adressliste([KOMMA])
+
+
+def test_from_mit_komma_im_anzeigenamen():
+    # Der Anzeigename lief als Text durch parseaddr: „Siluri, Einkauf“ hätte
+    # jede Mail dieses Profils abgebrochen.
+    assert eml._from_kopf("Siluri, Einkauf", "order@example.org") == \
+        '"Siluri, Einkauf" <order@example.org>'
+
+
+@pytest.mark.parametrize("name, absender, erwartet", [
+    ("Max Muster", "max@example.org", "Max Muster <max@example.org>"),
+    (None, "max@example.org", "max@example.org"),
+    ("Jörg Müller", "joerg@example.org", "Jörg Müller <joerg@example.org>"),
+])
+def test_gegenprobe_from_wie_bisher(name, absender, erwartet):
+    assert eml._from_kopf(name, absender) == erwartet
+
+
+def test_from_ohne_adresse_bricht_ab():
+    with pytest.raises(ValueError, match="absender"):
+        eml._from_kopf("Siluri", "kein-at")
