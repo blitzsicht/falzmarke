@@ -251,3 +251,38 @@ Dazu drei Korrekturen am Text: Der Rat zu `--trotz-faehnchen` nennt jetzt `--uid
 sonst endete der Befehl auf Exit 1. Der Wechselgrund sagt nur noch „ohne --machen“, wenn der Lauf
 `--machen` hatte, und nennt, dass `--uidvalidity` für die Neuanzeige wegfällt. Bei einem Wechsel
 geht kein LIST mehr zum Jahresordner.
+
+## Nachtrag (05.11.2026, #541)
+
+**Entschieden: `aufraeumen --alle` nimmt die Konten aus den Profilen, und beim Zeitplan
+übernimmt der gespeicherte Bericht das „Zeigen“.** Der Anlass ist eine Messung vom 05.11.2026:
+Ein Probelauf ohne `--machen` fand im Arbeitskonto sechs beantwortete Mails, die seit bis zu zehn
+Tagen im Eingang lagen. Der Befehl wirkt nur, wenn ihn jemand aufruft, und das tut im Alltag
+niemand. Gemeldet hat es auch niemand, denn ohne Lauf gibt es keine Meldung.
+
+1. **Die Liste der Konten steht an einer Stelle, in den Profilen.** `--alle` läuft über jede
+   Absenderadresse, für die ein Profil `email.ablage` nennt (derselbe Suchweg wie `--absender`).
+   Eine Adresse ohne `ablage` wird übersprungen und im Bericht als übersprungen genannt, nicht als
+   `NICHT GEPRÜFT`: Konten, deren Eingang ein anderes System abholt, bekommen absichtlich keine
+   Ablage. Nennen zwei Profile derselben Adresse verschiedene `ablage`, bleibt es ein Grund (#438).
+2. **Je Konto gelten dieselben Regeln.** Nur über `In-Reply-To`, das Fähnchen hält die Mail im
+   Eingang, kein Ordner wird angelegt, ein fehlender Jahresordner hält den Lauf dieses Kontos an
+   (#478). Ein Konto mit `NICHT GEPRÜFT` hält die übrigen nicht an; der Exit-Code ist 3, sobald
+   irgendeines nicht geprüft wurde. Findet `--alle` kein einziges Konto mit `ablage`, ist das
+   ebenfalls Exit 3, weil ein Zeitplan, der nichts prüft, nicht grün aussehen darf. `--uid`,
+   `--uidvalidity`, `--trotz-faehnchen`, `--entwuerfe` und `--absender` gehören nicht zu `--alle`:
+   Sie meinen ein Konto oder eine Mail, und eine UID gilt nur im Postfach, in dem die Anzeige sie
+   nannte.
+3. **„Erst zeigen, dann tun“ gilt für den Handlauf.** Beim Zeitplan übernimmt der gespeicherte
+   Bericht (`--json` in eine Protokolldatei) die Rolle des Zeigens. Das trägt, weil jeder Zug sich
+   von Hand zurückholen lässt: Die Mail wird nur verschoben, nicht gelöscht, und der Bericht nennt
+   je Zug UID, Ziel und Ordner. Ohne `--machen` bewegt auch `--alle` nichts.
+4. **Der Zeitplan selbst liegt beim Betreiber, nicht im Repo.** `docs/email.md` zeigt ein
+   launchd-Beispiel mit Platzhaltern.
+
+**Offen: Wer sieht ein `NICHT GEPRÜFT` aus dem Zeitplan?** Am 01.01. fehlt der neue Jahresordner,
+bis jemand einmal archiviert. Bis dahin bleibt jeder Lauf dieses Kontos stehen, und das ist
+gewollt (Nachtrag #478). Eine Protokolldatei allein liest niemand. Der Vorschlag im Vorgang: Der
+Job meldet einen Exit-Code ungleich 0 an den Kanal, den der Betreiber ohnehin liest; der Kanal
+liegt außerhalb des Repos. **Das ist hier nicht entschieden.** `--alle` liefert den Exit-Code und
+`nicht_geprueft` im Bericht, mehr nicht.
