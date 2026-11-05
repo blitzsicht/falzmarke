@@ -229,12 +229,21 @@ def _lesbar(wunsch: str) -> str:
     mit `&` („R&D-Projekte“, „AT&T-Rechnungen“) ist kein gültiges UTF-7; dann
     bleibt er, wie er ist, statt den Lauf mit einem Traceback zu beenden.
 
-    Bekannte Grenze (#515, Befund 4): Ein lesbarer Name mit `&-` oder mit einer
-    gültigen Base64-Folge zwischen `&` und `-` ist zugleich gültiges UTF-7 und wird
-    still dekodiert („Kunden &-Co“ → „Kunden &Co“). Welche Schreibweise gemeint war,
-    sagt erst die Ordnerliste. Gemessen am 05.11.2026: In zehn Profilen steht bei
-    `email.ablage` kein `&`. Der Fall kommt nicht vor, und `ziel_server` bleibt
-    davon unberührt, gezeigt wird nur der Name.
+    Bekannte Grenze (#515, Befund 4; genauer #522, Punkt 1): Ein lesbarer Name
+    ist zugleich gültiges UTF-7 und wird still dekodiert, wenn er `&-` trägt
+    („Kunden &-Co“ → „Kunden &Co“) oder zwischen `&` und `-` eine Base64-Folge,
+    die ganze UTF-16-Einheiten ergibt. Das hängt an der Länge n der Folge: 6·n
+    Bits, und der Rest nach den 16er-Einheiten muss unter 6 bleiben, also
+    n = 3, 6, 8, 11 … Drei Buchstaben reichen: Aus „R&Dev-Team“ wird „R“, U+0DEB,
+    „Team“, aus „B&Bau-Rechnungen“ „B“, U+05AB, „Rechnungen“. Bei 1, 2, 4, 5, 7
+    oder 9 Zeichen bleibt der Name stehen („R&D-Projekte“, „Q&A-Ablage“,
+    „R&Devs-Team“). Gemessen am 05.11.2026 an je 2000 Zufallsfolgen aus
+    Buchstaben: 3 → 100 %, 6 → 96 %, 8 → 95 %, die übrigen Längen 0 %. Die
+    abgelehnten Folgen bei 6 und 8 ergaben alle eine Surrogat-Einheit.
+
+    Welche Schreibweise gemeint war, sagt erst die Ordnerliste. Gemessen am
+    05.11.2026: In zehn Profilen steht bei `email.ablage` kein `&`. Der Fall kommt
+    nicht vor, und `ziel_server` bleibt davon unberührt, gezeigt wird nur der Name.
     """
     try:
         return postfach.utf7_dekodieren(wunsch)
