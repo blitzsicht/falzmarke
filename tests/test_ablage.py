@@ -1115,19 +1115,31 @@ def test_ohne_ankunftsdatum_bleibt_die_mail_bei_jahr_liegen(monkeypatch):
     assert zug.uid == "101" and grund == "ohne Ankunftsdatum, das Jahr für „Archiv/{jahr}“ fehlt"
 
 
-@pytest.mark.parametrize("name", ["R&D-Projekte", "F&E-Archiv", "AT&T-Rechnungen",
-                                  "Q&A-Ablage", "Kunden & Co", "A&B", "Müller&Söhne"])
+@pytest.mark.parametrize("name", [
+    # Zwischen `&` und `-` stehen 1, 2 oder 4 Base64-Zeichen: kein ganzes UTF-16.
+    "R&D-Projekte", "F&E-Archiv", "AT&T-Rechnungen", "Q&A-Ablage", "R&De-Team",
+    "R&Devs-Team",
+    # Ohne `-` nach dem `&` greift die Dekodierung nie. Diese drei können nicht
+    # rot werden; sie stehen für die häufigste Schreibweise und bleiben (#522/2).
+    "Kunden & Co", "A&B", "Müller&Söhne"])
 def test_ein_lesbarer_name_mit_und_zeichen_bleibt_wie_er_ist(name):
     """#515, Befund 4: Übliche Namen mit `&` sind kein gültiges UTF-7 oder dekodieren
-    auf sich selbst. Still verändert würde nur `&-` oder eine Base64-Folge wie `&AOQ-`."""
+    auf sich selbst. Wann still verändert wird, steht im Docstring von `_lesbar`."""
     assert ablage._lesbar(name) == name
 
 
-def test_die_bekannte_grenze_von_lesbar_ist_das_und_minus():
+def test_die_bekannte_grenze_von_lesbar():
     """Hält die Grenze aus dem Docstring fest: Ändert sich das Verhalten, muss auch
-    die Begründung der Streichung von #515, Befund 4 neu gelesen werden."""
-    assert ablage._lesbar("Kunden &-Co") == "Kunden &Co"
-    assert ablage._lesbar("Gesch&AOQ-ft") == "Geschäft"
+    die Begründung der Streichung von #515, Befund 4 neu gelesen werden.
+
+    „R&Dev-Team“ und „B&Bau-Rechnungen“ sind dokumentierte Fehlfälle (#522,
+    Punkt 1): lesbar gemeint, als UTF-7 gelesen. Drei Buchstaben reichen."""
+    # Ausgeschrieben, weil U+0DEB und das kombinierende U+05AB im Quelltext unlesbar sind.
+    for name, gelesen in (("R&Dev-Team", "R\u0debTeam"),
+                          ("B&Bau-Rechnungen", "B\u05abRechnungen"),
+                          ("Kunden &-Co", "Kunden &Co"), ("Gesch&AOQ-ft", "Geschäft")):
+        assert ablage._lesbar(name) == gelesen, \
+            f"Grenze verschoben: {name!r} → {ablage._lesbar(name)!r}"
 
 
 def test_jahr_in_server_schreibweise_steht_lesbar_in_text_und_json():
