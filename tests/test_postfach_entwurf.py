@@ -939,7 +939,9 @@ def test_ohne_profil_am_socket_nennt_nicht_geprueft_den_grund_der_bruecke(monkey
 
 @pytest.mark.parametrize("modul", ["oeffnen", "cli"])
 def test_nur_entwurfsbuch_setzt_profil_der_bruecke_und_konto_zusammen(modul):
-    """#500, Befund 2: Die Zusammensetzung steht nur in `entwurfsbuch.kontoadressen`.
+    """#500, Befund 2: `oeffnen` und `cli` lösen das Profil der Brücke nicht selbst
+    auf, sie fragen `entwurfsbuch` (`kontoleser`, `profiladressen`,
+    `thunderbird_ordner`). Geprüft sind nur diese beiden Module, nicht das Paket.
     Über `ast`, nicht als Textsuche: Docstrings dürfen den Namen nennen."""
     import ast
 
