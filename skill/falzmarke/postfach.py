@@ -544,10 +544,10 @@ class Postfach:
             return []
         grenze = SUCHGRENZE
         if len(uids) > grenze:
-            # Je Ordner und Kennung ein Eintrag: Beantworten drei Antworten dieselbe
-            # Kennung, stand derselbe Satz sonst dreimal im Bericht (#515, Befund 2).
-            if not any((o, k) == (ordner, kennung) for o, k, *_ in self.suchkappungen):
-                self.suchkappungen.append((ordner, kennung, len(uids), grenze))
+            # Jede gekappte Suche ein Eintrag. Dass dieselbe Kennung nicht zweimal
+            # gesucht wird, regelt der Aufrufer (`ablage.plane`, #522 Befund 3); die
+            # Doppelprüfung aus #515/2 stand hier und verglich die Kennung roh.
+            self.suchkappungen.append((ordner, kennung, len(uids), grenze))
             uids = uids[-grenze:]
         return [kopf for kopf in self.koepfe(ordner, uids=uids, grenze=grenze)
                 if gleiche_kennung(kennung, kopf.kennung)]
