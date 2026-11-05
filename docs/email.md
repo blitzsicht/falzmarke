@@ -462,6 +462,69 @@ der Server sie zu jeder Nachricht führt. Eine Mail vom 31.12. um 23:50, die ers
 ankommt, liegt deshalb im neuen Jahr. Fehlt einer der Jahresordner, wandert keine Mail des
 Laufs, und `NICHT GEPRÜFT` nennt den fehlenden Ordner.
 
+**Ohne Zutun: `--alle`.** Ein Befehl, den niemand aufruft, räumt nichts auf. `--alle` läuft über
+jede Absenderadresse, für die ein Profil `email.ablage` nennt, und braucht weder `--absender` noch
+eine Liste im Zeitplan: Die Konten stehen an einer Stelle, in den Profilen.
+
+```bash
+falzmarke aufraeumen --alle                      # nur zeigen
+falzmarke aufraeumen --alle --machen --json      # verschieben, Bericht je Konto als JSON
+```
+
+- Je Konto gelten dieselben Regeln wie mit `--absender`: nur über `In-Reply-To`, das Fähnchen hält
+  die Mail im Eingang, kein Ordner wird angelegt, ein fehlender Jahresordner hält den Lauf **dieses**
+  Kontos an. Nennen zwei Profile für eine Adresse verschiedene `ablage`, ist das für diese Adresse
+  ein Grund, kein Rückfall auf `\Archive`.
+- Eine Adresse **ohne** `email.ablage` wird übersprungen (`ÜBERSPRUNGEN …`, unter `--json` in der
+  Liste `uebersprungen`). Das ist kein `NICHT GEPRÜFT`: So bekommt ein Konto, dessen Eingang ein
+  anderes System abholt, absichtlich keine Ablage und bleibt unberührt.
+- Ein Konto mit `NICHT GEPRÜFT` hält die übrigen nicht an. **Exit 3, sobald irgendein Konto nicht
+  geprüft wurde.** Findet der Lauf gar kein Konto mit `ablage`, ist das ebenfalls Exit 3: Ein
+  Zeitplan, der nichts prüft, soll nicht grün aussehen.
+- `--json` ist hier ein Objekt: `konten` (der Bericht je Konto, wie bei `--absender`),
+  `uebersprungen` und `nicht_geprueft` (Zahl der Konten mit Grund).
+- Ohne `--machen` bewegt auch `--alle` nichts. `--seit`, `--machen`, `--profiles` und `--json`
+  gelten wie sonst; `--absender`, `--uid` und `--entwuerfe` gehören nicht dazu (Exit 1).
+
+Der Zeitplan liegt beim Betreiber, nicht im Repo. Ein Beispiel für launchd auf macOS, täglich um
+7:30 Uhr (Pfade und Benutzer anpassen; `/PFAD/ZU/` steht für die eigene Installation):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>de.example.falzmarke-aufraeumen</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/PFAD/ZU/falzmarke</string>
+    <string>aufraeumen</string>
+    <string>--alle</string>
+    <string>--machen</string>
+    <string>--json</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>7</integer>
+    <key>Minute</key><integer>30</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>/PFAD/ZU/aufraeumen.log</string>
+  <key>StandardErrorPath</key>
+  <string>/PFAD/ZU/aufraeumen.err.log</string>
+</dict>
+</plist>
+```
+
+Die Datei kommt nach `~/Library/LaunchAgents/`, geladen wird sie mit
+`launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/de.example.falzmarke-aufraeumen.plist`.
+Der IMAP-Proxy muss dann zur Laufzeit erreichbar sein; ist er es nicht, steht je Konto
+`NICHT GEPRÜFT` im Protokoll, und der Lauf endet mit Exit 3. **Der gespeicherte Bericht
+ersetzt das Zeigen:** Jeder Zug lässt sich von Hand zurückholen, weil die Mail nur verschoben wird
+(ADR 0061, Nachtrag #541). Wer ein `NICHT GEPRÜFT` aus dem Zeitplan zu sehen bekommt, ist offen
+(dort als Frage benannt).
+
 **Eine Antwort darf mehrere Nachrichten erledigen.** `In-Reply-To` trägt nach RFC 5322 eine
 Liste, und ein langer Wert liegt über mehrere Zeilen gefaltet in der Nachricht. Gesucht wird
 deshalb je Kennung einzeln; eine Antwort zählt erst als „längst weggeräumt“, wenn **keine** ihrer

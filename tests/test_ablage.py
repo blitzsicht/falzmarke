@@ -1459,6 +1459,186 @@ def test_der_grund_kostet_exit_3_und_der_saubere_lauf_nicht(monkeypatch, capsys)
     assert attrappe.befehle("UID MOVE") == []
 
 
+# ── `aufraeumen --alle`: die Konten kommen aus den Profilen (#541) ──────────
+#
+# Drei Konten, drei Attrappen: Der Lauf öffnet sie in der Reihenfolge der
+# Adressen (alphabetisch), `_konten` reicht sie in dieser Reihenfolge herein.
+
+def _jetzt_eingang(kennung, betreff="Angebot S1"):
+    from datetime import datetime, timedelta, timezone
+
+    jetzt = datetime.now(timezone.utc)
+    return (nachricht(an="a@example.de", von="kunde@example.de", betreff=betreff,
+                      datum=jetzt - timedelta(days=5), kennung=kennung),
+            jetzt - timedelta(days=5))
+
+
+def _jetzt_antwort(auf):
+    from datetime import datetime, timedelta, timezone
+
+    zeit = datetime.now(timezone.utc) - timedelta(days=1)
+    return (nachricht(an="kunde@example.de", betreff="AW: Angebot S1", datum=zeit,
+                      kennung="<eigene-1@example.de>", kopf={"In-Reply-To": auf}), zeit)
+
+
+def _konto(*, kennung, ordner=("Archiv",), verschieben=True):
+    """Ein Konto mit einer beantworteten Mail im Eingang."""
+    sonder = {"INBOX": "", "Gesendete Elemente": "\\Sent", **{o: "" for o in ordner}}
+    return ImapAttrappe({"INBOX": [_jetzt_eingang(kennung)],
+                         "Gesendete Elemente": [_jetzt_antwort(kennung)]},
+                        sonder=sonder, verschieben_erlaubt=verschieben)
+
+
+def _profile(verzeichnis, monkeypatch, **konten):
+    """`name=(absender, ablage)`; `ablage=None` lässt die Zeile weg.
+
+    Der Suchweg der Profile reicht bis in `~/.config` des Rechners, auf dem der
+    Test läuft: Ohne diese Einengung liefe `--alle` über die echten Konten des
+    Betreibers. Hier sieht es nur `verzeichnis`.
+    """
+    from falzmarke import cli as falzmarke
+
+    monkeypatch.setattr(falzmarke, "profil_verzeichnisse", lambda *a, **kw: [verzeichnis])
+    for name, (absender, ablage_wert) in konten.items():
+        zeile = f"  ablage: {ablage_wert}\n" if ablage_wert else ""
+        (verzeichnis / f"{name}.yaml").write_text(
+            f"email:\n  absender: {absender}\n{zeile}", encoding="utf-8")
+
+
+def _konten(monkeypatch, *attrappen):
+    """Reicht die Attrappen nacheinander als Verbindung herein."""
+    rest = list(attrappen)
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", lambda *a, **kw: rest.pop(0)(*a, **kw))
+    return rest
+
+
+def test_alle_prueft_zwei_konten_und_nennt_das_dritte_als_uebersprungen(
+        monkeypatch, tmp_path, capsys):
+    """Abnahme 1 (#541): drei Profile, eines ohne `ablage` — zwei Konten werden
+    geprüft, das dritte steht als übersprungen da und ist kein Fehler. Es wird
+    auch kein Postfach dafür geöffnet: Die Attrappen sind nur zwei."""
+    import json
+
+    from falzmarke import cli as falzmarke
+
+    _profile(tmp_path, monkeypatch, eins=("a@example.de", "Archiv"), zwei=("b@example.de", "Archiv"),
+             drei=("c@example.de", None))
+    a, b = _konto(kennung="<a@example.de>"), _konto(kennung="<b@example.de>")
+    rest = _konten(monkeypatch, a, b)
+    code = falzmarke.main(["aufraeumen", "--alle", "--profiles", str(tmp_path), "--json"])
+    bericht = json.loads(capsys.readouterr().out)
+    assert code == falzmarke.EXIT_OK and rest == []
+    assert [k["absender"] for k in bericht["konten"]] == ["a@example.de", "b@example.de"]
+    assert [len(k["zuege"]) for k in bericht["konten"]] == [1, 1]
+    assert bericht["uebersprungen"] == ["c@example.de"] and bericht["nicht_geprueft"] == 0
+    assert not any(k["grund"] for k in bericht["konten"])
+
+
+def test_alle_nennt_uebersprungene_im_text_nicht_als_nicht_geprueft(
+        monkeypatch, tmp_path, capsys):
+    from falzmarke import cli as falzmarke
+
+    _profile(tmp_path, monkeypatch, eins=("a@example.de", "Archiv"), drei=("c@example.de", None))
+    _konten(monkeypatch, _konto(kennung="<a@example.de>"))
+    code = falzmarke.main(["aufraeumen", "--alle", "--profiles", str(tmp_path)])
+    ausgabe = capsys.readouterr()
+    assert code == falzmarke.EXIT_OK
+    assert "ÜBERSPRUNGEN  c@example.de" in ausgabe.out
+    assert "NICHT GEPRÜFT" not in ausgabe.out + ausgabe.err
+
+
+def test_alle_ein_konto_ohne_jahresordner_haelt_die_anderen_nicht_an(
+        monkeypatch, tmp_path, capsys):
+    """Abnahme 2 (#541): Das erste Konto meldet `NICHT GEPRÜFT` (kein Jahresordner),
+    das zweite verschiebt trotzdem, der Exit-Code ist 3."""
+    import json
+
+    from falzmarke import cli as falzmarke
+
+    _profile(tmp_path, monkeypatch, eins=("a@example.de", "Archiv/{jahr}"), zwei=("b@example.de", "Archiv"))
+    kaputt = _konto(kennung="<a@example.de>", ordner=("Archiv/1999",))
+    heil = _konto(kennung="<b@example.de>")
+    _konten(monkeypatch, kaputt, heil)
+    code = falzmarke.main(["aufraeumen", "--alle", "--machen", "--json",
+                           "--profiles", str(tmp_path)])
+    bericht = json.loads(capsys.readouterr().out)
+    assert code == falzmarke.EXIT_UMGEBUNG
+    assert bericht["nicht_geprueft"] == 1
+    assert "Jahresordner" in (bericht["konten"][0]["grund"] or ""), bericht["konten"][0]["grund"]
+    assert bericht["konten"][1]["grund"] is None and bericht["konten"][1]["verschoben"] == 1
+    assert len(kaputt.ordner["INBOX"]) == 1 and not kaputt.befehle("UID MOVE")
+    assert len(heil.ordner["INBOX"]) == 0 and len(heil.ordner["Archiv"]) == 1
+
+
+def test_alle_ohne_machen_bewegt_nichts(monkeypatch, tmp_path, capsys):
+    """Abnahme 3 (#541): Beide Attrappen verbieten jedes Verschieben. Der Lauf
+    ist nur grün, wenn er es nicht einmal versucht."""
+    from falzmarke import cli as falzmarke
+
+    _profile(tmp_path, monkeypatch, eins=("a@example.de", "Archiv"), zwei=("b@example.de", "Archiv"))
+    a = _konto(kennung="<a@example.de>", verschieben=False)
+    b = _konto(kennung="<b@example.de>", verschieben=False)
+    _konten(monkeypatch, a, b)
+    code = falzmarke.main(["aufraeumen", "--alle", "--profiles", str(tmp_path)])
+    assert code == falzmarke.EXIT_OK
+    assert len(a.ordner["INBOX"]) == 1 and len(b.ordner["INBOX"]) == 1
+    assert "nichts bewegt" in capsys.readouterr().out
+
+
+def test_alle_zwei_profile_mit_verschiedener_ablage_sind_ein_grund(
+        monkeypatch, tmp_path, capsys):
+    """Abnahme 4 (#541): Wie bei `--absender` (#438) — für diese Adresse ein
+    Grund, kein Rückfall auf `\\Archive`, kein Postfach geöffnet; das andere
+    Konto läuft weiter."""
+    import json
+
+    from falzmarke import cli as falzmarke
+
+    _profile(tmp_path, monkeypatch, eins=("a@example.de", "Archiv/A"), zwei=("a@example.de", "Archiv/B"),
+             drei=("b@example.de", "Archiv"))
+    heil = _konto(kennung="<b@example.de>")
+    rest = _konten(monkeypatch, heil)
+    code = falzmarke.main(["aufraeumen", "--alle", "--machen", "--json",
+                           "--profiles", str(tmp_path)])
+    bericht = json.loads(capsys.readouterr().out)
+    assert code == falzmarke.EXIT_UMGEBUNG and rest == []
+    assert "verschiedene `email.ablage`" in bericht["konten"][0]["grund"]
+    assert bericht["konten"][1]["verschoben"] == 1
+
+
+def test_alle_ohne_ein_einziges_konto_ist_nicht_gruen(monkeypatch, tmp_path, capsys):
+    """Ein Zeitplan, der nichts prüft, meldet Exit 3 statt 0."""
+    from falzmarke import cli as falzmarke
+
+    _profile(tmp_path, monkeypatch, drei=("c@example.de", None))
+    code = falzmarke.main(["aufraeumen", "--alle", "--profiles", str(tmp_path)])
+    assert code == falzmarke.EXIT_UMGEBUNG
+    assert capsys.readouterr().err.startswith("NICHT GEPRÜFT  kein Profil nennt")
+
+
+@pytest.mark.parametrize("zusatz", [
+    ["--absender", "a@example.de"], ["--uid", "101"], ["--entwuerfe"],
+    ["--uidvalidity", "3"], ["--trotz-faehnchen"],
+], ids=["absender", "uid", "entwuerfe", "uidvalidity", "trotz-faehnchen"])
+def test_alle_ist_mit_einzelkonto_schaltern_unvereinbar(zusatz, monkeypatch, tmp_path, capsys):
+    from falzmarke import cli as falzmarke
+
+    _profile(tmp_path, monkeypatch, eins=("a@example.de", "Archiv"))
+    attrappe = _konto(kennung="<a@example.de>")
+    _konten(monkeypatch, attrappe)
+    code = falzmarke.main(["aufraeumen", "--alle", "--profiles", str(tmp_path), *zusatz])
+    assert code == falzmarke.EXIT_EINGABE
+    assert capsys.readouterr().err.startswith(f"FEHLER  --alle gilt nicht mit {zusatz[0]}")
+    assert not attrappe.verbindungen
+
+
+def test_aufraeumen_braucht_absender_oder_alle(capsys):
+    from falzmarke import cli as falzmarke
+
+    assert falzmarke.main(["aufraeumen"]) == falzmarke.EXIT_EINGABE
+    assert "--absender ADRESSE oder --alle" in capsys.readouterr().err
+
+
 def test_ein_abgebrochener_bericht_steht_ganz_auf_stderr(monkeypatch, capsys):
     """Die Plan- und UID-Zeilen gehören zu ihrem Grund (Review von #459).
 
