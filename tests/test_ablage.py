@@ -885,9 +885,12 @@ def test_bliebe_eine_benannte_mail_liegen_wandert_keine():
                                                  "\\Seen \\Flagged")])
     bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
                                 uidvalidity="1", uids=["101", "102"])
-    assert bericht.grund == ("UID 102 bliebe liegen (Fähnchen) — verschoben wird nur, wenn "
-                             "jede genannte UID wandern kann; --trotz-faehnchen hebt das "
-                             "Fähnchen für diesen Lauf auf")
+    # #504, Befund 1: Der Rat nennt die UIDVALIDITY, sonst endet der Befehl auf Exit 1.
+    assert bericht.grund.startswith("UID 102 bliebe liegen (Fähnchen) — verschoben wird nur, "
+                                    "wenn jede genannte UID wandern kann; ")
+    rat = bericht.grund.rsplit("; ", 1)[-1]
+    assert "--trotz-faehnchen" in rat and "--uidvalidity 1" in rat, rat
+    assert rat.endswith("hebt das Fähnchen für diesen Lauf auf"), rat
     assert bericht.verschoben == 0 and not attrappe.befehle("UID MOVE")
     assert _uids(attrappe) == [101, 102]
     text = ablage.zeilen(bericht)
