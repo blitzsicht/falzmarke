@@ -812,6 +812,20 @@ def test_absender_pruefen_fragt_auch_das_konto_des_fensters(monkeypatch, tmp_pat
     assert ergebnis.absender_geprueft
 
 
+def test_absender_pruefen_liest_das_profil_einmal_fuer_beide_adressen(monkeypatch, tmp_path):
+    """#515, Befund 6: Der Rückfall auf das Konto des Fensters fragt eine zweite
+    Adresse. Bis dahin löste jede Frage das Profil neu auf und las `prefs.js`
+    und `user.js` noch einmal."""
+    _profil_mit_alias(monkeypatch, tmp_path)
+    gelesen = []
+    echt = oeffnen.thunderbird_einstellungen
+    monkeypatch.setattr(oeffnen, "thunderbird_einstellungen",
+                        lambda profil: gelesen.append(profil) or echt(profil))
+    ergebnis = oeffnen.absender_pruefen(_fenster(FREMD), UNBEKANNT)
+    assert ergebnis.absender_abweichung, "Kontrolle: beide Adressen wurden gefragt"
+    assert len(gelesen) == 1, f"das Profil wurde {len(gelesen)}-mal gelesen"
+
+
 def test_absender_pruefen_kennt_das_profil_keine_der_beiden_bleibt_es_ungeprueft(monkeypatch,
                                                                                 tmp_path):
     """Zwilling: Kennt das Profil auch die Adresse des Fensters nicht, wird nicht geraten."""
@@ -832,6 +846,24 @@ def test_entwurf_oeffnen_mit_from_ausserhalb_der_konten_ist_exit_3(oeffne_befehl
                                      identitaet=FREMD))
     assert oeffne_befehl("--betreff", "wappen") == 3
     assert f"Fenster: {FREMD}, Nachricht: {UNBEKANNT}" in capsys.readouterr().err
+
+
+def test_from_ausserhalb_der_konten_nennt_den_richtigen_grund(oeffne_befehl, monkeypatch,
+                                                              capsys, tmp_path):
+    """#500, Befund 1: Das Fenster schickt von einer Identität eines Kontos, die
+    Nachricht stammt von einer Adresse außerhalb. Bis dahin stand „Identität
+    außerhalb des Kontos“, also das Gegenteil, und der richtige Grund fiel weg."""
+    _profil_mit_alias(monkeypatch, tmp_path)
+    zeit = datetime(2026, 10, 21, 18, 31, tzinfo=timezone.utc)
+    _server(monkeypatch, [(nachricht(an="b@example.org", betreff="Vektor S2: Wappen", datum=zeit,
+                                     von=UNBEKANNT), zeit)])
+    _bruecke(monkeypatch, _offen_mit(an=("b@example.org",), betreff="Vektor S2: Wappen",
+                                     identitaet=FREMD))
+    assert oeffne_befehl("--betreff", "wappen") == 3
+    fehler = capsys.readouterr().err
+    assert f"{UNBEKANNT} gehört zu keinem Konto im Profil, {FREMD} schon" in fehler, \
+        "ABSENDER PRÜFEN verschweigt, dass die Nachricht von außerhalb der Konten stammt"
+    assert "Identität außerhalb des Kontos" not in fehler, fehler
 
 
 def _alias_nur_am_socket(monkeypatch, tmp_path) -> str:
@@ -885,6 +917,37 @@ def test_email_oeffnen_liest_die_aliasse_aus_dem_profil_der_bruecke(monkeypatch,
         "email --oeffnen: der Alias aus dem Profil der Brücke gilt als fremd"
 
 
+def test_ohne_profil_am_socket_nennt_nicht_geprueft_den_grund_der_bruecke(monkeypatch, tmp_path):
+    """#500, Befund 2: Liegt der Socket außerhalb eines Profils, und es gibt kein
+    Standardprofil, sagt `bruecken_profil` genau das. Bis dahin ging der Satz
+    verloren, und die Zeile nannte nur „kein Thunderbird-Profil unter …“."""
+    ohne = tmp_path / "kein-profil"
+    ohne.mkdir(parents=True)
+    _bruecke(monkeypatch, _offen_mit(identitaet=FREMD))
+    lage = oeffnen.Entwurfslage(None, "", schon_da="Di 18:31", schon_da_uid="7")
+    felder = {"absender": ABSENDER, "an": ["paula@example.org"]}
+    fenster = oeffnen._fenster_auf(lage, felder,
+                                   {"FALZMARKE_BRUECKE_SOCKET": str(ohne / "falzmarke.sock")}
+                                   ).fenster
+    assert not fenster.absender_geprueft and not fenster.absender_abweichung
+    assert f"der Socket liegt in {ohne}, das ist kein Thunderbird-Profil" \
+        in fenster.absender_hinweis, fenster.absender_hinweis
+
+
+@pytest.mark.parametrize("modul", ["oeffnen", "cli"])
+def test_nur_entwurfsbuch_setzt_profil_der_bruecke_und_konto_zusammen(modul):
+    """#500, Befund 2: Die Zusammensetzung steht nur in `entwurfsbuch.kontoadressen`.
+    Über `ast`, nicht als Textsuche: Docstrings dürfen den Namen nennen."""
+    import ast
+
+    import falzmarke as paket
+
+    baum = ast.parse((Path(paket.__file__).parent / f"{modul}.py").read_text(encoding="utf-8"))
+    aufrufe = [k.lineno for k in ast.walk(baum) if isinstance(k, ast.Call)
+               and getattr(k.func, "attr", getattr(k.func, "id", "")) == "bruecken_profil"]
+    assert aufrufe == [], f"{modul}.py ruft bruecken_profil selbst auf, Z. {aufrufe}"
+
+
 @pytest.mark.parametrize("fenster, pruefen, ungeprueft", [
     (bruecke.Oeffnung("geoeffnet", gelesen=True, identitaet=FREMD, lese_grund="Fenster lädt",
                       absender_geprueft=True,
@@ -904,6 +967,29 @@ def test_neben_einem_pruefen_steht_was_die_andere_pruefung_nicht_verglich(fenste
     fehler = capsys.readouterr().err
     assert pruefen in fehler
     assert ungeprueft in fehler, f"neben {pruefen} fehlt „{ungeprueft}“"
+
+
+@pytest.mark.parametrize("fenster, pruefen, bestanden", [
+    (bruecke.Oeffnung("geoeffnet", gelesen=True, geprueft=True, identitaet=ALIAS,
+                      abweichung="Cc: fehlt c@example.org", absender_geprueft=True,
+                      absender_hinweis=f"{ALIAS} ist eine Identität im selben Konto wie {ABSENDER}"),
+     "EMPFÄNGER PRÜFEN",
+     f"OK  Absender im Fenster: {ALIAS} ({ALIAS} ist eine Identität im selben Konto wie "
+     f"{ABSENDER})"),
+    (bruecke.Oeffnung("geoeffnet", gelesen=True, geprueft=True, identitaet=FREMD,
+                      an=("b@example.org",), absender_geprueft=True,
+                      absender_abweichung=f"Fenster: {FREMD}, Nachricht: {ABSENDER}"),
+     "ABSENDER PRÜFEN", "OK  Empfänger im Fenster wie in der Nachricht: An 1, Cc 0, Bcc 0"),
+], ids=["empfaenger-prueft-absender-alias", "absender-prueft-empfaenger-gleich"])
+def test_neben_einem_pruefen_steht_was_die_andere_pruefung_bestand(fenster, pruefen, bestanden,
+                                                                   capsys):
+    """#500, Befund 3: Bestand die andere Prüfung, fehlte ihre Zeile ganz, und
+    „bestanden“ war von „vergessen“ nicht zu unterscheiden."""
+    falzmarke._melde_fenster(fenster, "Entwürfe", "Vektor S2: Wappen")
+    ausgabe = capsys.readouterr()
+    assert pruefen in ausgabe.err
+    assert bestanden in ausgabe.out, f"neben {pruefen} fehlt „{bestanden}“"
+    assert "OK  Entwurf offen" not in ausgabe.out
 
 
 def test_absender_pruefen_ohne_lesung_laesst_das_fenster_wie_es_ist(monkeypatch, tmp_path):

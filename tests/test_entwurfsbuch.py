@@ -1833,6 +1833,18 @@ def test_kennt_das_profil_das_konto_steht_der_hinweis_nicht(monkeypatch, tmp_pat
     assert not [h for h in _stand().hinweise if "Identitäten des Kontos" in h]
 
 
+def test_ohne_profilwissen_zaehlt_ein_fenster_ohne_entwurf_hier_nicht(monkeypatch, tmp_path):
+    """#500, Befund 4: Das fremde Fenster trägt eine UID, die kein Entwurf dieses
+    Kontos hat. Bis dahin stand der Hinweis trotzdem da, bei mehreren Konten bei
+    jedem. Zwilling zu `test_ohne_profilwissen_sagt_status_warum_…`."""
+    _profil_des_kontos(monkeypatch, tmp_path, mit_konto=False)
+    server = _postfach(monkeypatch, entwuerfe=[_mail()])
+    assert server.ordner[ENTWUERFE][0].uid != "9999"
+    _mit_fenstern(monkeypatch, _fenster("9999", identitaet=ANDERES_KONTO))
+    hinweise = [h for h in _stand().hinweise if "Identitäten des Kontos" in h]
+    assert not hinweise, f"status zählt ein Fenster ohne Entwurf dieses Kontos: {hinweise}"
+
+
 def _alias_nur_am_socket(monkeypatch, tmp_path) -> dict:
     """Das Standardprofil führt Konto 1 ohne den Alias, das Profil am Socket der
     Brücke mit ihm. Gibt die Umgebung mit `FALZMARKE_BRUECKE_SOCKET`."""
