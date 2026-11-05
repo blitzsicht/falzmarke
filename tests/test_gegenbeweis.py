@@ -3204,7 +3204,8 @@ def test_mit_dem_festen_satz_nennt_absender_pruefen_das_gegenteil(oeffne_befehl,
 
 def test_mit_eigener_profilaufloesung_geht_der_grund_der_bruecke_verloren(monkeypatch, tmp_path):
     """Baut den Stand vor #500 nach: `oeffnen.kontoadressen` ohne Profil liest das
-    Standardprofil und begründet mit dessen Fehlen, nicht mit dem Socket."""
+    Standardprofil und begründet mit dessen Fehlen, nicht mit dem Socket. Die
+    Funktion ist mit #522 (Punkt 7) entfallen; die Sabotage schreibt aus, was sie tat."""
     from test_postfach_entwurf import (
         test_ohne_profil_am_socket_nennt_nicht_geprueft_den_grund_der_bruecke as probe)
 
@@ -3214,8 +3215,10 @@ def test_mit_eigener_profilaufloesung_geht_der_grund_der_bruecke_verloren(monkey
         "    konto = entwurfsbuch.kontoleser(umgebung)\n"
         "    adressen, grund = konto(soll)\n"
         "    if adressen is None and konto(ist)[0] is not None:",
-        "    adressen, grund = kontoadressen(soll)\n"
-        "    if adressen is None and kontoadressen(ist)[0] is not None:"))
+        "    konto = lambda a: (lambda p: konto_in(thunderbird_einstellungen(p[0]), p[0].name, a)\n"
+        "                       if p[0] else (None, p[1]))(_profil_aus(None, None))\n"
+        "    adressen, grund = konto(soll)\n"
+        "    if adressen is None and konto(ist)[0] is not None:"))
     with pytest.raises(AssertionError, match="kein Thunderbird-Profil unter"):
         probe(monkeypatch, tmp_path / "s")
 

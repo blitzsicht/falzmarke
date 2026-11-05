@@ -733,7 +733,7 @@ def fenster_des_kontos(fenster: list[dict], adresse: str,
     in der URI entscheidet nur noch, wenn zwei Fenster dieselbe UID melden.
 
     Kennt der Aufrufer die Identitäten des Kontos (`kontoadressen`, aus
-    `oeffnen.kontoadressen`), trennt das die beiden Fälle einer fremden Meldung
+    `kontoleser`), trennt das die beiden Fälle einer fremden Meldung
     (#466): Ein Alias darin ist so sicher zugeordnet wie die eigene Adresse und
     trägt `ALIAS_DES_KONTOS`. Eine Adresse außerhalb ist ein Fenster eines
     anderen Kontos, das nur die UID-Zahl teilt, und fällt heraus. Ohne dieses
