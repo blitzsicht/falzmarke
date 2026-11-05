@@ -1851,10 +1851,14 @@ def befehl_email(args) -> int:
 
     # Nachreview #491, Befund 1: Outlook öffnet jeden Entwurf als Fenster. Wer
     # beides verlangt, bekäme sonst ein Fenster oder gar nichts, je nachdem.
-    if args.kein_fenster and args.programm == "outlook":
-        print("FEHLER  --kein-fenster geht nicht mit --programm outlook: Outlook legt "
-              "einen Entwurf nur mit Fenster an", file=sys.stderr)
-        return EXIT_EINGABE
+    # Welches Programm das betrifft und wie der Satz lautet, sagt `oeffnen` (#515/5).
+    if args.kein_fenster:
+        from falzmarke import oeffnen as oeffnen_modul
+        absage = oeffnen_modul.ohne_fenster_absage(args.programm)
+        if absage:
+            print(f"FEHLER  --kein-fenster geht nicht mit --programm {args.programm}: "
+                  f"{absage}", file=sys.stderr)
+            return EXIT_EINGABE
 
     # Dieselbe Reihenfolge wie beim Brief: Ein Eingabefehler soll Exit 1
     # ergeben und kein Setzen kosten.

@@ -346,6 +346,8 @@ def test_kein_fenster_mit_outlook_wird_abgewiesen(befehl, monkeypatch, capsys):
     assert code == falzmarke.EXIT_EINGABE, \
         f"Exit {code}, --programm outlook --kein-fenster nicht abgewiesen"
     assert fehler.startswith("FEHLER  --kein-fenster geht nicht mit --programm outlook")
+    assert oeffnen.ohne_fenster_absage("outlook") in fehler, \
+        f"Abweisung mit eigener Fassung: {fehler}"
     assert uebergeben == [] and befehl.tb.compose == []
 
 
