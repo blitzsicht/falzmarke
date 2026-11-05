@@ -2064,6 +2064,98 @@ def test_ohne_sperre_im_befehl_geht_mit_kein_fenster_die_datei_auf(_email_befehl
 
 
 @pytest.fixture
+def _felder_505(tmp_path):
+    """`felder` aus `test_postfach_entwurf.py`, hier nachgebaut wie `_email_befehl_441`."""
+    from falzmarke import eml as _eml
+    from test_postfach_entwurf import MAIL
+
+    quelle = tmp_path / "antwort.md"
+    quelle.write_text(MAIL, encoding="utf-8")
+    pfad, _ = falzmarke.setze_email(quelle, tmp_path / "antwort", profil_verzeichnis=PROFILE)
+    return _eml.entwurfsfelder(pfad)
+
+
+import imaplib as _imaplib                                         # noqa: E402
+import socket as _socket                                           # noqa: E402
+
+
+@pytest.mark.parametrize("ziel, anker, ersatz, probe_name, args, meldung", [
+    ("entwurf", '"FALZMARKE_ENTWURF=nie ist gesetzt", dauer=DAUERHAFT)',
+     '"FALZMARKE_ENTWURF=nie ist gesetzt", dauer=VORUEBERGEHEND)',
+     "test_abgeschaltet_ist_dauerhaft", ({"FALZMARKE_ENTWURF": "nie"}, "FALZMARKE_ENTWURF=nie"),
+     "FALZMARKE_ENTWURF=nie: 'vorübergehend'"),
+    ("_entwurf_postfach", '"gekennzeichnet", DAUERHAFT)', '"gekennzeichnet", VORUEBERGEHEND)',
+     "test_ohne_entwuerfe_ordner_ist_dauerhaft", (), "kein Entwürfe-Ordner"),
+    ("Postfach._befehl", "voruebergehend=_vergeht(fehler)) from None",
+     "voruebergehend=True) from None",
+     "test_eine_abgelehnte_anmeldung_ist_dauerhaft", (), "Anmeldung"),
+    ("_vergeht", "return fehler.errno == socket.EAI_AGAIN", "return True",
+     "test_ein_falsches_ziel_ist_dauerhaft", (_socket.gaierror(_socket.EAI_NONAME, "unbekannt"),),
+     "keine Verbindung zu"),
+    ("verbinde", "voruebergehend=_vergeht(fehler)) from None", "voruebergehend=True) from None",
+     "test_ein_falsches_ziel_ist_dauerhaft", (_imaplib.IMAP4.error("* NO kein IMAP-Dienst"),),
+     "keine Verbindung zu"),
+], ids=["entwurf-abgeschaltet", "postfach-ohne-ordner", "postfach-anmeldung",
+        "unbekannter-host", "begruessung-nein"])
+def test_ein_dauerhafter_grund_als_voruebergehend_wird_rot(monkeypatch, _felder_505, ziel, anker,
+                                                           ersatz, probe_name, args, meldung):
+    """#505, Abnahme 2: Wer eine bleibende Ursache als vorübergehend markiert,
+    schickt den Abholer in eine Schleife alle 180 s. Je Sabotage genau die Probe,
+    die diese Stelle bewacht, rot mit ihrem eigenen Text."""
+    import test_kein_entwurf_ursache as _probe_modul
+    from falzmarke import postfach as _postfach
+
+    probe = getattr(_probe_modul, probe_name)
+    probe(monkeypatch, _felder_505, *args)                                      # Kontrolle
+    if ziel == "Postfach._befehl":
+        monkeypatch.setattr(_postfach.Postfach, "_befehl",
+                            _zeile_ersetzt(_postfach, ziel, anker, ersatz))
+    elif ziel in ("_vergeht", "verbinde"):
+        monkeypatch.setattr(_postfach, ziel, _zeile_ersetzt(_postfach, ziel, anker, ersatz))
+    else:
+        monkeypatch.setattr(_oeffnen, ziel, _zeile_ersetzt(_oeffnen, ziel, anker, ersatz))
+    with pytest.raises(AssertionError, match=meldung):
+        probe(monkeypatch, _felder_505, *args)
+
+
+@pytest.mark.parametrize("ersatz, probe_name, meldung", [
+    ("if True:", "test_befehl_mit_abgeschaltetem_entwurf_meldet_dauerhaft",
+     "URSACHE  vorübergehend"),
+    ("if False:", "test_befehl_ohne_proxy_meldet_vorübergehend", "URSACHE  dauerhaft"),
+], ids=["immer-voruebergehend", "nie-voruebergehend"])
+def test_die_ursache_zeile_folgt_der_klasse(_email_befehl_441, monkeypatch, capsys, ersatz,
+                                            probe_name, meldung):
+    """#505: Die Zeile `URSACHE` druckt die Klasse der Lage, nicht einen festen Wert."""
+    import test_kein_entwurf_ursache as _probe_modul
+
+    probe = getattr(_probe_modul, probe_name)
+    probe(_email_befehl_441, monkeypatch, capsys)                               # Kontrolle
+    monkeypatch.setattr(falzmarke, "befehl_email", _zeile_ersetzt(
+        falzmarke, "befehl_email", "if lage.dauer == oeffnen_modul.VORUEBERGEHEND:", ersatz))
+    with pytest.raises(AssertionError, match=meldung):
+        probe(_email_befehl_441, monkeypatch, capsys)
+
+
+@pytest.mark.parametrize("alt, neu, erwartet", [
+    ("import socket\n", "import socket\nsocket.create_connection(('smtp.example.org', 25))\n",
+     "socket.create_connection"),
+    ("import socket\n", "import socket as _netz\n", "import socket as _netz"),
+    ("import socket\n", "from socket import create_connection\nimport socket\n",
+     "from socket import create_connection"),
+], ids=["verbindung", "alias", "from-import"])
+def test_ein_netzweg_aus_socket_in_postfach_wird_rot(alt, neu, erwartet):
+    """#505: `postfach` darf `socket` nur für zwei Fehlernamen lesen. Je ein
+    Weg daran vorbei, und die Prüfung nennt genau ihn."""
+    from falzmarke import postfach as _postfach
+    from test_postfach import socket_ausser_fehlerklassen
+
+    quelle = Path(_postfach.__file__).read_text(encoding="utf-8")
+    assert socket_ausser_fehlerklassen(quelle) == set()                          # Kontrolle
+    assert quelle.count(alt) == 1
+    assert erwartet in socket_ausser_fehlerklassen(quelle.replace(alt, neu))
+
+
+@pytest.fixture
 def eigene_441(tmp_path) -> Path:
     return _eigene_mail(tmp_path)
 

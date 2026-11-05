@@ -248,6 +248,24 @@ def test_zwei_adressen_in_einem_eintrag_raten_zur_liste(tmp_path):
     assert "- Erika <c@example.org>" in befunde[0].korrektur
 
 
+@pytest.mark.parametrize("name", ["Dr. Erika Muster", "Erika (Einkauf)", "Mr. O'Brien"])
+def test_listenzeilen_sind_gueltiges_yaml(tmp_path, name):
+    # Review an PR #528: Address setzt einen Namen mit Punkt, Klammer oder Semikolon in
+    # Anführungszeichen. Als Listenzeile `- "Dr. Erika Muster" <c@example.org>` brach YAML ab.
+    import yaml
+    bericht = linte_an(tmp_path, f"a@example.org, {name} <c@example.org>")
+    korrektur = [b for b in bericht.befunde if b.regel == "an"][0].korrektur
+    zeilen = re.findall(r"`(- .+?)`(?= und |$)", korrektur)
+    assert len(zeilen) == 2, korrektur
+    kopf = "an:\n" + "".join(f"  {z}\n" for z in zeilen)
+    assert len(yaml.safe_load(kopf)["an"]) == 2
+    # Die vorgeschlagene Liste muss selbst sauber linten.
+    pfad = tmp_path / "vorschlag.md"
+    pfad.write_text(f"---\n{KOPF}{kopf}---\nText.\n", encoding="utf-8")
+    nach = falzmarke.linte(pfad, profil_verzeichnis=PROFILE)
+    assert not [b for b in nach.befunde if b.regel == "an"], nach.befunde
+
+
 def test_apostroph_im_namen_hinweis_ist_gueltiges_yaml(tmp_path):
     import yaml
     bericht = linte_an(tmp_path, "O'Brien, Max <max@example.org>")

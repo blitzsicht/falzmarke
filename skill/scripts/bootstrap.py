@@ -38,7 +38,7 @@ from pathlib import Path
 # PyMuPDF wäre technisch geeignet, ist aber AGPL-3.0 und hätte jede Firma, die
 # falzmarke einbaut, in die AGPL gezwungen.
 DEPS = {
-    "typst": "typst>=0.15,<0.16",
+    "typst": "typst>=0.15,<0.15.1",
     "yaml": "pyyaml>=6",
     "pdfplumber": "pdfplumber>=0.11",
     "pypdf": "pypdf>=5",
