@@ -3360,6 +3360,93 @@ def test_der_hinweis_nennt_das_gelesene_profil_und_zwar_verschieden(monkeypatch,
                                         str(a / _bruecke.SOCKET_DATEI)})
     assert b.name in aus_b and a.name not in aus_b
     assert a.name in aus_a and b.name not in aus_a
+
+
+# ── Die Ordner der Identität aus dem Profil der Brücke (#522, Punkt 6) ──────
+#
+# Eine Sabotage, der alte Code: `entwurfsbuch.thunderbird_ordner` liest wieder
+# das Standardprofil, wie bis dahin alle vier Aufrufer. Jeder Weg hat seine
+# eigene Probe, und jede muss mit ihrem eigenen Satz scheitern. Ein Weg, der
+# grün bliebe, hinge nicht an dieser Stelle.
+
+_ALTES_PROFIL_522 = (
+    "profil, _ = bruecken_profil(profilordner, umgebung)",
+    ("profil = oeffnen.thunderbird_standardprofil("
+     "oeffnen.THUNDERBIRD_ORDNER if profilordner is None else Path(profilordner))"))
+
+
+def _altes_profil_522(monkeypatch):
+    from falzmarke import entwurfsbuch as _buch
+
+    monkeypatch.setattr(_buch, "thunderbird_ordner", _zeile_ersetzt(
+        _buch, "thunderbird_ordner", *_ALTES_PROFIL_522))
+
+
+def test_mit_dem_standardprofil_nennt_die_identitaet_den_falschen_ordner(monkeypatch, tmp_path):
+    from test_entwurfsbuch import (
+        test_die_ordner_der_identitaet_kommen_aus_dem_profil_der_bruecke as probe,
+    )
+
+    werte = ("draft_folder", "Entw&APw-rfe", "Alt-Entwuerfe")
+    probe(monkeypatch, tmp_path / "k", *werte)                             # Kontrolle
+    _altes_profil_522(monkeypatch)
+    with pytest.raises(AssertionError, match="der Ordner kommt nicht aus dem Profil der Brücke"):
+        probe(monkeypatch, tmp_path / "s", *werte)
+
+
+def test_mit_dem_standardprofil_liest_abgleich_den_falschen_entwuerfe_ordner(monkeypatch,
+                                                                           tmp_path):
+    from test_entwurfsbuch import (
+        test_abgleich_liest_die_entwuerfe_aus_dem_profil_der_bruecke as probe,
+    )
+
+    probe(monkeypatch, tmp_path / "k")                                     # Kontrolle
+    _altes_profil_522(monkeypatch)
+    with pytest.raises(AssertionError, match="abgleich liest den Entwürfe-Ordner am Profil"):
+        probe(monkeypatch, tmp_path / "s")
+
+
+def test_mit_dem_standardprofil_listet_entwurf_oeffnen_den_falschen_ordner(oeffne_befehl,
+                                                                         monkeypatch, capsys,
+                                                                         tmp_path):
+    from test_postfach_entwurf import (
+        test_entwurf_oeffnen_liest_den_ordner_aus_dem_profil_der_bruecke as probe,
+    )
+
+    probe(oeffne_befehl, monkeypatch, capsys, tmp_path / "k")             # Kontrolle
+    _altes_profil_522(monkeypatch)
+    with pytest.raises(AssertionError, match="entwurf-oeffnen liest den Entwürfe-Ordner"):
+        probe(oeffne_befehl, monkeypatch, capsys, tmp_path / "s")
+
+
+def test_mit_dem_standardprofil_legt_email_oeffnen_im_falschen_ordner_ab(monkeypatch, tmp_path):
+    from falzmarke import eml as _eml
+    from test_postfach_entwurf import MAIL
+    from test_postfach_entwurf import (
+        test_email_oeffnen_legt_in_den_ordner_aus_dem_profil_der_bruecke as probe,
+    )
+
+    quelle = tmp_path / "antwort.md"
+    quelle.write_text(MAIL, encoding="utf-8")
+    pfad, _ = falzmarke.setze_email(quelle, tmp_path / "antwort", profil_verzeichnis=PROFILE)
+    felder = _eml.entwurfsfelder(pfad)
+    probe(monkeypatch, felder, tmp_path / "k")                             # Kontrolle
+    _altes_profil_522(monkeypatch)
+    with pytest.raises(AssertionError, match="email --oeffnen legt am Profil der Brücke vorbei"):
+        probe(monkeypatch, felder, tmp_path / "s")
+
+
+def test_mit_dem_standardprofil_liest_die_sperre_den_falschen_gesendet_ordner(monkeypatch,
+                                                                            tmp_path):
+    from test_gesendet import test_der_gesendet_ordner_kommt_aus_dem_profil_der_bruecke as probe
+
+    eigene = _eigene_mail(tmp_path)
+    probe(eigene, monkeypatch, tmp_path / "k")                             # Kontrolle
+    _altes_profil_522(monkeypatch)
+    with pytest.raises(AssertionError, match="die Sperre liest den Gesendet-Ordner am Profil"):
+        probe(eigene, monkeypatch, tmp_path / "s")
+
+
 # ── Die Review-Funde an der Ablage (#438) ──────────────────────────────────
 #
 # Vier Zusagen, die #435 nicht hatte, und zu jeder die Frage, ob sie rot werden

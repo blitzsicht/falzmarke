@@ -950,6 +950,83 @@ def test_nur_entwurfsbuch_setzt_profil_der_bruecke_und_konto_zusammen(modul):
     assert aufrufe == [], f"{modul}.py ruft bruecken_profil selbst auf, Z. {aufrufe}"
 
 
+# ── Die Ordner der Identität aus dem Profil der Brücke (#522, Punkt 6) ──────
+
+def _entwuerfe_nur_am_socket(monkeypatch, tmp_path) -> str:
+    """Standardprofil A nennt „Alt“ als Entwürfe-Ordner, Profil B am Socket
+    „Entwürfe“. Gibt den Socketpfad für `FALZMARKE_BRUECKE_SOCKET`."""
+    from test_thunderbird_signatur import _attrappe, _grundwerte
+
+    konto = "imap://muster%40example.de@outlook.office365.com/"
+    monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER",
+                        _attrappe(tmp_path / "a", _grundwerte(draft_folder=konto + "Alt")))
+    profil_b = (_attrappe(tmp_path / "b", _grundwerte(draft_folder=konto + "Entw&APw-rfe"))
+                / "Profiles" / "abcd1234.default-release")
+    return str(profil_b / bruecke.SOCKET_DATEI)
+
+
+def test_entwurf_oeffnen_liest_den_ordner_aus_dem_profil_der_bruecke(oeffne_befehl, monkeypatch,
+                                                                     capsys, tmp_path):
+    """#522, Punkt 6: Die Brücke öffnet aus dem Entwürfe-Ordner ihres Profils, also
+    muss die UID auch aus diesem Ordner stammen. Zwilling ohne Schalter: Ordner aus A."""
+    socket = _entwuerfe_nur_am_socket(monkeypatch, tmp_path / "p6")
+    _bruecke(monkeypatch)
+
+    def liste() -> str:
+        server = ImapAttrappe({"Entw&APw-rfe": [_vorhanden()], "Alt": []})
+        monkeypatch.setattr(postfach, "IMAP_KLASSE", server)
+        assert oeffne_befehl() == 0
+        return capsys.readouterr().out
+
+    monkeypatch.setenv("FALZMARKE_BRUECKE_SOCKET", socket)
+    assert "1 Entwürfe in „Entwürfe“" in liste(), \
+        "entwurf-oeffnen liest den Entwürfe-Ordner am Profil der Brücke vorbei"
+    monkeypatch.delenv("FALZMARKE_BRUECKE_SOCKET")
+    assert "0 Entwürfe in „Alt“" in liste(), "der Zwilling kann gar nicht rot werden"
+
+
+def test_email_oeffnen_legt_in_den_ordner_aus_dem_profil_der_bruecke(monkeypatch, felder,
+                                                                     tmp_path):
+    """Derselbe Fall am Weg von `email --oeffnen`: Abgelegt wird, wo die Brücke danach
+    öffnet. Die Umgebung des Laufs bestimmt den Socket und damit das Profil."""
+    socket = _entwuerfe_nur_am_socket(monkeypatch, tmp_path)
+
+    def abgelegt(umgebung) -> list[str]:
+        server = ImapAttrappe({"Entw&APw-rfe": [], "Alt": []})
+        monkeypatch.setattr(postfach, "IMAP_KLASSE", server)
+        oeffnen.entwurf(felder, plattform="darwin", umgebung={"DISPLAY": ":0", **umgebung},
+                        laufen=Thunderbird(), binaer=lambda: THUNDERBIRD_PFAD)
+        return [befehl[1] for befehl in server.befehle("APPEND")]
+
+    assert abgelegt({"FALZMARKE_BRUECKE_SOCKET": socket}) == ["Entw&APw-rfe"], \
+        "email --oeffnen legt am Profil der Brücke vorbei ab"
+    assert abgelegt({}) == ["Alt"], "der Zwilling kann gar nicht rot werden"
+
+
+def test_nur_entwurfsbuch_fragt_oeffnen_nach_den_ordnern_der_identitaet():
+    """#522, Punkt 6: `oeffnen.thunderbird_ordner` liest das Profil, das man ihm gibt.
+    Wer es direkt ruft, nimmt das Standardprofil statt des Profils der Brücke. Die
+    Zusammensetzung steht deshalb nur in `entwurfsbuch.thunderbird_ordner`."""
+    import ast
+
+    import falzmarke as paket
+
+    funde = []
+    for datei in sorted(Path(paket.__file__).parent.glob("*.py")):
+        if datei.name == "entwurfsbuch.py":
+            continue
+        for knoten in ast.walk(ast.parse(datei.read_text(encoding="utf-8"))):
+            if not isinstance(knoten, ast.Call):
+                continue
+            ziel = knoten.func
+            direkt = isinstance(ziel, ast.Name) and ziel.id == "thunderbird_ordner"
+            ueber_modul = (isinstance(ziel, ast.Attribute) and ziel.attr == "thunderbird_ordner"
+                           and getattr(ziel.value, "id", "") != "entwurfsbuch")
+            if direkt or ueber_modul:
+                funde.append(f"{datei.name}:{knoten.lineno}")
+    assert funde == [], f"Ordner der Identität am Profil der Brücke vorbei: {funde}"
+
+
 @pytest.mark.parametrize("fenster, pruefen, ungeprueft", [
     (bruecke.Oeffnung("geoeffnet", gelesen=True, identitaet=FREMD, lese_grund="Fenster lädt",
                       absender_geprueft=True,
