@@ -199,7 +199,7 @@ def ablageordner(sitzung: postfach.Postfach, wunsch: str | None) -> tuple[str | 
         name = wunsch if wunsch in nach_name else postfach.utf7_kodieren(wunsch)
         if name not in nach_name:
             vorhanden = ", ".join(f"„{postfach.utf7_dekodieren(n)}“" for n, _ in liste[:12])
-            return None, (f"den Ordner „{wunsch}“ aus `email.ablage` gibt es im Postfach nicht "
+            return None, (f"den Ordner „{_lesbar(wunsch)}“ aus `email.ablage` gibt es im Postfach nicht "
                           f"— falzmarke legt keinen an. Vorhanden sind: {vorhanden}")
         herkunft = "`email.ablage`"
     else:

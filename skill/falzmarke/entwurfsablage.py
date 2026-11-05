@@ -373,7 +373,7 @@ def _werte_alte_aus(sitzung: postfach.Postfach, ordner: str, koepfe: list, felde
     stand = entwurfsbuch.lesen(umgebung)
     eintraege, tagebuch_grund = entwurfsbuch.tagebuch(profilordner, umgebung)
     offen, offen_grund = entwurfsbuch._offene_uids(adresse, umgebung, profilordner)
-    bericht =entwurfsbuch.Bericht(adresse, fenster_grund=offen_grund, beleg_grund=" · ".join(
+    bericht = entwurfsbuch.Bericht(adresse, fenster_grund=offen_grund, beleg_grund=" · ".join(
         g for g in (tagebuch_grund, f"{stand.unlesbar} Zeilen im Entwurfsbuch unlesbar"
                     if stand.unlesbar else "") if g))
     neu = postfach.kopf_aus(bytes(felder.get("roh") or b""), "0", None)
