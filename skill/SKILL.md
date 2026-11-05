@@ -132,8 +132,9 @@ Was dabei nicht fehlen darf, weil es gemessen ist:
   `--noch-ein-entwurf` nur, wenn der Mensch ausdrücklich
   einen zweiten will. Ist der Proxy nicht da, geht es weiter wie im nächsten Punkt, mit einer
   Zeile `kein Postfach-Entwurf: <Grund>`. **Mit `--kein-fenster` nicht:** Dann geht weder
-  `-compose` noch die Datei auf, sondern es heißt `KEIN ENTWURF  <Grund>` mit Exit 3. Es liegt
-  dann kein Entwurf, das so melden und nicht von Hand ein Fenster öffnen. Mit `--programm
+  `-compose` noch die Datei auf, sondern es heißt `KEIN ENTWURF  <Grund>` mit Exit 3, darunter
+  `URSACHE  vorübergehend` oder `URSACHE  dauerhaft`. Es liegt dann kein Entwurf, das so melden
+  und nicht von Hand ein Fenster öffnen. Mit `--programm
   outlook` geht `--kein-fenster` nicht (Exit 1): Outlook öffnet jeden Entwurf.
 - Sonst entsteht der Entwurf als Fenster in **Thunderbird** (`-compose`), wenn es installiert
   ist; `from=` wählt dort die Identität, der Absender stimmt (ADR 0049). Thunderbird meldet nichts zurück — Exit 0 heißt

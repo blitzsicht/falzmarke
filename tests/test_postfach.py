@@ -360,7 +360,40 @@ def test_das_modul_kennt_keinen_aendernden_befehl():
         elif isinstance(knoten, ast.ImportFrom):
             importe.add((knoten.module or "").split(".")[0])
     assert "imaplib" in importe, importe
-    assert not importe & {"smtplib", "subprocess", "socket"}, importe
+    assert not importe & {"smtplib", "subprocess"}, importe
+    assert socket_ausser_fehlerklassen(quelle) == set()
+
+
+SOCKET_ERLAUBT = frozenset({"gaierror", "EAI_AGAIN"})
+
+
+def socket_ausser_fehlerklassen(quelle: str) -> set[str]:
+    """Was `postfach` aus `socket` nimmt, außer zwei Namen für die Klasse eines
+    Fehlers. Bis #505 war `socket` ganz verboten; seitdem unterscheidet
+    `_vergeht` einen vertippten Host (`gaierror`, bleibt) von einer gestörten
+    Namensauflösung (`EAI_AGAIN`, vergeht). Eine eigene Verbindung, ein
+    `from socket import …` und ein Alias bleiben verboten: Jeder davon wäre ein
+    Netzweg neben IMAP oder versteckte ihn vor dieser Prüfung."""
+    import ast
+
+    baum = ast.parse(quelle)
+    funde: set[str] = set()
+    gelesen: set[str] = set()
+    for knoten in ast.walk(baum):
+        if isinstance(knoten, ast.ImportFrom) and (knoten.module or "").split(".")[0] == "socket":
+            funde.add(f"from socket import {', '.join(a.name for a in knoten.names)}")
+        elif isinstance(knoten, ast.Import):
+            funde |= {f"import socket as {a.asname}" for a in knoten.names
+                      if a.name == "socket" and a.asname}
+        elif (isinstance(knoten, ast.Attribute) and isinstance(knoten.value, ast.Name)
+              and knoten.value.id == "socket"):
+            gelesen.add(knoten.attr)
+    funde |= {f"socket.{name}" for name in gelesen - SOCKET_ERLAUBT}
+    # Die Prüfung muss sehen, was sie erlaubt — sonst bliebe sie auch leer,
+    # wenn sie gar keinen Zugriff fände.
+    if "import socket" in quelle and not gelesen:
+        funde.add("socket importiert, aber kein Zugriff gefunden")
+    return funde
 
 
 def test_imaplib_fehler_werden_zum_grund(server, monkeypatch):
