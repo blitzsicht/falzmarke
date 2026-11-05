@@ -725,9 +725,17 @@ def pruefe_adressfeld(wert, feld: str, kopf_roh: str, bericht: Bericht) -> None:
         _, adresse = parseaddr(eintrag)
         ort = _feldzeile(kopf_roh, feld)
         if not adresse or not EMAIL_MUSTER.match(adresse):
+            # „Muster, Max <max@example.org>“ hat die Klammerform, aber das
+            # Komma trennt für RFC 5322 zwei Einträge (#519). Die allgemeine
+            # Abhilfe empfähle genau die Form, die schon dasteht.
+            komma = re.fullmatch(r"\s*([^\"<>]*,[^\"<>]*?)\s*<([^<>\s]+@[^<>\s]+)>\s*", eintrag)
             bericht.fehler(
                 ort, feld,
                 f"„{eintrag}“ ist keine E-Mail-Adresse",
+                f"Komma im Namen: Namen in Anführungszeichen setzen, "
+                f"`\"{komma.group(1)}\" <{komma.group(2)}>`, im Frontmatter in "
+                f"einfache Anführungszeichen gefasst"
+                if komma else
                 "erwartet wird `name@beispiel.de` oder `Name <name@beispiel.de>`")
             continue
         grund = adresse_grund(eintrag, adresse)

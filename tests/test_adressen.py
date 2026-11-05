@@ -183,3 +183,48 @@ def test_die_pruefung_braucht_kein_netz_und_keine_neue_abhaengigkeit():
     verboten = {"dns", "dnspython", "socket", "requests", "urllib3", "http",
                 "email_validator", "idna"}
     assert not (module & verboten), sorted(module & verboten)
+
+
+# ── Komma im Anzeigenamen ohne Anführungszeichen (#519) ─────────────────────
+# „Nachname, Vorname <adresse>“ ist in Firmenadressbüchern üblich. `parseaddr`
+# zerlegt das zu einer leeren Adresse, und `_adressliste` schrieb daraus den
+# To-Header `<>`: eine .eml ohne Empfänger, die erst beim Senden auffällt.
+
+from falzmarke import eml  # noqa: E402
+
+KOMMA = "Muster, Max <max@example.org>"
+
+
+def test_komma_im_namen_lint_nennt_eintrag_und_abhilfe(tmp_path):
+    bericht = linte_an(tmp_path, KOMMA)
+    befunde = [b for b in bericht.befunde if b.regel == "an"]
+    assert len(befunde) == 1, befunde
+    assert KOMMA in befunde[0].meldung
+    # Die alte Abhilfe empfahl genau die Form, die schon dastand.
+    assert '"Muster, Max" <max@example.org>' in befunde[0].korrektur
+
+
+def test_komma_im_namen_eml_bricht_ab_statt_leerem_to():
+    with pytest.raises(ValueError, match="Muster, Max"):
+        eml._adressliste([KOMMA])
+
+
+@pytest.mark.parametrize("eintrag, erwartet", [
+    ('"Muster, Max" <max@example.org>', '"Muster, Max" <max@example.org>'),
+    ("Max Muster <max@example.org>", "Max Muster <max@example.org>"),
+    ("max@example.org", "max@example.org"),
+])
+def test_gegenprobe_gueltige_formen_unveraendert(eintrag, erwartet):
+    assert eml._adressliste([eintrag]) == erwartet
+
+
+def test_gegenprobe_umlaut_im_namen_bleibt():
+    from email.message import EmailMessage
+    nachricht = EmailMessage()
+    nachricht["To"] = eml._adressliste(["Jörg Müller <joerg@example.org>"])
+    assert str(nachricht["To"]) == "Jörg Müller <joerg@example.org>"
+
+
+def test_gegenprobe_gequotetes_komma_lintet_sauber(tmp_path):
+    bericht = linte_an(tmp_path, '\\"Muster, Max\\" <max@example.org>')
+    assert not [b for b in bericht.befunde if b.regel == "an"], bericht.befunde
