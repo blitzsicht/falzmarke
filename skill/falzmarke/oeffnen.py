@@ -675,12 +675,20 @@ def kontosignatur(adresse: str, ordner: Path | None = None) -> Signaturlage:
     return lagen[0]
 
 
-def thunderbird_ordner(adresse: str, art: str, ordner: Path | None = None) -> str | None:
+def thunderbird_ordner(adresse: str, art: str, ordner: Path | None = None, *,
+                       profil: Path | None = None) -> str | None:
     """Der IMAP-Name des Entwürfe- oder Gesendet-Ordners dieser Identität — oder None.
 
-    `art` ist `draft_folder` oder `fcc_folder`. Gelesen wird dasselbe
-    Standardprofil wie für die Signatur (ADR 0050), nur lesend. None heißt
-    „Thunderbird sagt nichts Verwertbares“: kein Profil, keine oder
+    `art` ist `draft_folder` oder `fcc_folder`, nur lesend. `profil` ist das
+    Profilverzeichnis selbst und geht vor `ordner`, ohne beides gilt das
+    Standardprofil (`_profil_aus`). Von außen geht es über
+    `entwurfsbuch.thunderbird_ordner`: Dort kommt das Profil aus
+    `bruecken_profil`, also aus demselben Profil, aus dem die Brücke öffnet.
+    Bis #522, Punkt 6, lasen alle vier Aufrufer hier das Standardprofil. Zeigte
+    `FALZMARKE_BRUECKE_SOCKET` auf ein zweites Profil, stammten Ordner und
+    Fenster aus zwei verschiedenen Profilen.
+
+    None heißt „Thunderbird sagt nichts Verwertbares“: kein Profil, keine oder
     mehrdeutige Identität, kein Eintrag — oder ein Ordner in einem **anderen**
     Konto. Dort ist die Sitzung nicht angemeldet; der Aufrufer fragt dann den
     Server nach dem Kennzeichen (`\\Drafts`, `\\Sent`).
@@ -690,9 +698,8 @@ def thunderbird_ordner(adresse: str, art: str, ordner: Path | None = None) -> st
     adresse = (adresse or "").strip().lower()
     if not adresse:
         return None
-    ordner = THUNDERBIRD_ORDNER if ordner is None else Path(ordner)
-    profil = thunderbird_standardprofil(ordner)
-    if profil is None or not profil.is_dir():
+    profil, _ = _profil_aus(ordner, profil)
+    if profil is None:
         return None
     werte = thunderbird_einstellungen(profil)
     gefunden = set()
@@ -1285,7 +1292,7 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
     und `ersetzen` legt den neuen trotzdem an und lässt stehen, was nicht weg
     darf. Weggeräumt wird erst nach dem Nachzählen.
     """
-    from falzmarke import entwurfsablage, postfach
+    from falzmarke import entwurfsablage, entwurfsbuch, postfach
 
     if (umgebung.get("FALZMARKE_POSTFACH") or "").strip().lower() == "nie":
         return None, "FALZMARKE_POSTFACH=nie ist gesetzt"
@@ -1293,7 +1300,8 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
     adresse = str(felder.get("absender") or "")
     if not roh or not adresse:
         return None, ""
-    ordner = thunderbird_ordner(adresse, "draft_folder", profilordner)
+    # Aus dem Profil der Brücke: Sie öffnet den Entwurf danach aus diesem Ordner (#522/6).
+    ordner = entwurfsbuch.thunderbird_ordner(adresse, "draft_folder", umgebung, profilordner)
     try:
         sitzung = postfach.verbinde(adresse, umgebung=umgebung, frist=FRIST_POSTFACH_S)
     except postfach.PostfachFehler as fehler:

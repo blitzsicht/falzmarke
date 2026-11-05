@@ -2137,11 +2137,12 @@ def befehl_entwurf_oeffnen(args) -> int:
 
     Für die Frage, die bis dahin an den Menschen ging: „Ich konnte den Entwurf
     nicht öffnen, klick ihn bitte selbst an.“ Gesucht wird im Entwürfe-Ordner,
-    den Thunderbird für die Adresse führt — derselbe Ordner, in den `email
-    --oeffnen` ablegt. Ohne `--betreff` und `--uid` wird nur aufgelistet.
-    Mehrere Treffer öffnen nichts: Welcher gemeint ist, sagt `--uid`.
+    den Thunderbird für die Adresse führt, und zwar im Profil der Entwurfsbrücke
+    (#522, Punkt 6) — derselbe Ordner, in den `email --oeffnen` ablegt. Ohne
+    `--betreff` und `--uid` wird nur aufgelistet. Mehrere Treffer öffnen
+    nichts: Welcher gemeint ist, sagt `--uid`.
     """
-    from falzmarke import bruecke, postfach
+    from falzmarke import bruecke, entwurfsbuch, postfach
     from falzmarke import oeffnen as oeffnen_modul
 
     adresse = args.absender.strip()
@@ -2152,7 +2153,8 @@ def befehl_entwurf_oeffnen(args) -> int:
         return EXIT_UMGEBUNG
     with sitzung:
         try:
-            aus_thunderbird = oeffnen_modul.thunderbird_ordner(adresse, "draft_folder")
+            # Aus dem Profil der Brücke: Sie öffnet die UID aus diesem Ordner (#522/6).
+            aus_thunderbird = entwurfsbuch.thunderbird_ordner(adresse, "draft_folder")
             ordner = aus_thunderbird or sitzung.sonderordner("\\Drafts")
             koepfe = sitzung.koepfe(ordner) if ordner else []
         except postfach.PostfachFehler as fehler:
