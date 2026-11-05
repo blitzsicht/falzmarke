@@ -4692,25 +4692,37 @@ def test_ohne_eigenen_satz_bleibt_die_gekappte_suche_stumm(monkeypatch):
         probe(monkeypatch)
 
 
-# #515, Befund 2: je Ordner und Kennung ein Eintrag in `suchkappungen`.
-_DOPPEL_515 = "if not any((o, k) == (ordner, kennung) for o, k, *_ in self.suchkappungen):"
+# #522, Befund 3: je Kennung eine Suche in `ablage.plane`. Bis dahin entdoppelte
+# eine Prüfung in `Postfach.suche_kennung` nur den Bericht (#515, Befund 2), die
+# Suche lief je Antwort. Sie ist mit #522 entfallen, der Schutz liegt jetzt hier.
+_EINMAL_522 = "if schluessel not in gesucht_je_kennung:"
+_SCHLUESSEL_522 = "schluessel = postfach._ohne_klammerpaar(kennung)"
 
 
-@pytest.mark.parametrize("ersatz, probe_name, meldung", [
-    ("if True:", "test_eine_gekappte_suche_steht_nur_einmal_im_bericht", "3-mal gemeldet"),
-    ("if not any(o == ordner for o, k, *_ in self.suchkappungen):",
+@pytest.mark.parametrize("anker, ersatz, probe_name, meldung", [
+    (_EINMAL_522, "if True:",
+     "test_drei_antworten_auf_eine_kennung_suchen_einmal", "3 Suchen für eine Kennung"),
+    (_EINMAL_522, "if True:",
+     "test_eine_gekappte_suche_steht_nur_einmal_im_bericht", "3-mal gemeldet"),
+    (_SCHLUESSEL_522, "schluessel = kennung",
+     "test_eine_kennung_mit_und_ohne_klammern_sucht_einmal", "2 Suchen für eine Message-ID"),
+    (_SCHLUESSEL_522, 'schluessel = ""',
+     "test_zwei_kennungen_suchen_zweimal", "gesucht: "),
+    (_SCHLUESSEL_522, 'schluessel = ""',
      "test_eine_zweite_gekappte_kennung_bekommt_ihren_eigenen_satz", "456: 0-mal gemeldet"),
-], ids=["ohne-doppelpruefung", "nur-der-ordner-zaehlt"])
-def test_ohne_die_doppelpruefung_der_suchkappung(monkeypatch, ersatz, probe_name, meldung):
-    """Die erste Sabotage baut den Stand vor #515 nach, die zweite eine Sperre, die
-    jede weitere Kappung im selben Ordner schluckte. Jede kippt genau ihren Test."""
+], ids=["ohne-merken-zaehlt", "ohne-merken-bericht", "roher-schluessel",
+        "ein-schluessel-zaehlt", "ein-schluessel-bericht"])
+def test_ohne_das_merken_je_kennung(monkeypatch, anker, ersatz, probe_name, meldung):
+    """„ohne-merken“ baut den Stand vor #522 nach, ohne die Prüfung aus #515: Jede
+    Antwort sucht neu, jede Kappung steht im Bericht. „roher-schluessel“ ist der
+    Klammer-Befund (#522/11), „ein-schluessel“ eine Sperre, die jede weitere
+    Kennung auf die erste Suche wirft (die Sabotage aus #515 „nur-der-ordner-zaehlt“)."""
     import test_ablage
-    from falzmarke import postfach as _postfach_modul
+    from falzmarke import ablage as _ablage
     probe = getattr(test_ablage, probe_name)
 
     probe(monkeypatch)                                                            # Kontrolle
-    monkeypatch.setattr(_postfach_modul.Postfach, "suche_kennung", _zeile_ersetzt(
-        _postfach_modul, "Postfach.suche_kennung", _DOPPEL_515, ersatz))
+    monkeypatch.setattr(_ablage, "plane", _zeile_ersetzt(_ablage, "plane", anker, ersatz))
     with pytest.raises(AssertionError, match=meldung):
         probe(monkeypatch)
 

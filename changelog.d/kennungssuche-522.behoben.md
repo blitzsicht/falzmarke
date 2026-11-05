@@ -1,0 +1,1 @@
+- **`aufraeumen`: Jede Kennung wird nur noch einmal im Eingang gesucht.** Bisher liefen Suche und Abruf für jede Antwort neu, auch wenn mehrere Antworten dieselbe Nachricht beantworteten. Das kostete Zeit von der Frist. Eine Kennung mit spitzen Klammern und dieselbe ohne Klammern gelten dabei als eine Kennung, für die Suche und für den Hinweis auf eine gekappte Suche (#522).

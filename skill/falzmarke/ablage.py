@@ -439,6 +439,11 @@ def plane(sitzung: postfach.Postfach, *, wunsch: str | None = None,
     # Mehrere Antworten auf dieselbe Nachricht ergeben einen Zug, nicht zwei.
     # Die jüngste Antwort steht dann im Bericht.
     gefunden: dict[str, Zug] = {}
+    # Je Kennung eine Suche, auch wenn mehrere Antworten sie tragen (#522, Befund 3).
+    # Geschlüsselt ohne Klammerpaar, so wie `gleiche_kennung` vergleicht: `<abc@x>`
+    # und `abc@x` sind eine Message-ID und kosten eine Suche, nicht zwei (#522/11).
+    # Dieselbe Kennung trägt dann auch nur einen Satz in `suchkappungen`.
+    gesucht_je_kennung: dict[str, list[postfach.Kopf]] = {}
     nicht_im_eingang = 0
     unsendbar = 0
     for antwort in antworten:
@@ -454,7 +459,10 @@ def plane(sitzung: postfach.Postfach, *, wunsch: str | None = None,
             gesucht = True
             # Der Server sucht Teilketten, verschoben wird nur der exakte Treffer (#442).
             # `suche_kennung` vergleicht selbst und kappt nicht vorher (#468).
-            for kopf in sitzung.suche_kennung(EINGANG, kennung):
+            schluessel = postfach._ohne_klammerpaar(kennung)
+            if schluessel not in gesucht_je_kennung:
+                gesucht_je_kennung[schluessel] = sitzung.suche_kennung(EINGANG, kennung)
+            for kopf in gesucht_je_kennung[schluessel]:
                 traf = True
                 vorher = gefunden.get(kopf.uid)
                 if vorher is not None and _spaeter(vorher.antwort_datum, antwort.datum):

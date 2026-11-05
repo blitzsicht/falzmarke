@@ -227,6 +227,60 @@ def test_eine_zweite_gekappte_kennung_bekommt_ihren_eigenen_satz(monkeypatch):
         assert len(saetze) == 1, f"{kennung}: {len(saetze)}-mal gemeldet: {bericht.hinweise}"
 
 
+def _suchen_zaehlen(monkeypatch, sitzung):
+    """Jeder Aufruf von `suche_kennung` an dieser Sitzung, mit der Kennung. Die
+    echte Suche läuft weiter; gezählt wird mit, nicht über eine Ausnahme."""
+    aufrufe = []
+    echt = sitzung.suche_kennung
+
+    def zaehlend(ordner, kennung):
+        aufrufe.append(kennung)
+        return echt(ordner, kennung)
+
+    monkeypatch.setattr(sitzung, "suche_kennung", zaehlend)
+    return aufrufe
+
+
+def test_drei_antworten_auf_eine_kennung_suchen_einmal(monkeypatch):
+    """#522, Befund 3: Bis dahin liefen Suche und Abruf je Antwort, nicht je Kennung.
+    Alle drei Antworten finden die Nachricht trotzdem, die jüngste steht im Zug."""
+    _, sitzung = _postfach(eingang=[_eingegangen()],
+                           gesendet=[_antwort(tage=t) for t in (1, 2, 3)])
+    with sitzung:
+        aufrufe = _suchen_zaehlen(monkeypatch, sitzung)
+        bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+    assert len(aufrufe) == 1, f"{len(aufrufe)} Suchen für eine Kennung: {aufrufe}"
+    assert bericht.antworten == 3 and bericht.nicht_im_eingang == 0
+    (zug,) = bericht.zuege
+    assert zug.antwort_datum == HEUTE - timedelta(days=1)
+
+
+def test_eine_kennung_mit_und_ohne_klammern_sucht_einmal(monkeypatch):
+    """#522, Punkt 11: `<abc@x>` und `abc@x` sind für `gleiche_kennung` eine
+    Message-ID. Roh geschlüsselt kosteten sie zwei Suchen und zwei Kappungssätze."""
+    ohne_klammern = QUELLE[1:-1]
+    _, sitzung = _postfach(eingang=[_eingegangen()],
+                           gesendet=[_antwort(QUELLE, tage=1), _antwort(ohne_klammern, tage=2)])
+    with sitzung:
+        aufrufe = _suchen_zaehlen(monkeypatch, sitzung)
+        bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+    assert len(aufrufe) == 1, f"{len(aufrufe)} Suchen für eine Message-ID: {aufrufe}"
+    assert bericht.nicht_im_eingang == 0 and len(bericht.zuege) == 1
+
+
+def test_zwei_kennungen_suchen_zweimal(monkeypatch):
+    """Gegenstück: Ein Schlüssel, der alle Kennungen zusammenwirft, bestünde die
+    beiden Proben darüber auch."""
+    zweite = "<kunde-2@example.org>"
+    _, sitzung = _postfach(eingang=[_eingegangen(), _eingegangen(zweite, betreff="Angebot S2")],
+                           gesendet=[_antwort(tage=1), _antwort(zweite, tage=2)])
+    with sitzung:
+        aufrufe = _suchen_zaehlen(monkeypatch, sitzung)
+        bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+    assert sorted(aufrufe) == sorted([QUELLE, zweite]), f"gesucht: {aufrufe}"
+    assert len(bericht.zuege) == 2, f"Züge: {bericht.zuege}"
+
+
 def test_eine_suche_ueberschreibt_die_kappung_des_ordners_nicht(monkeypatch):
     """Nachreview von #492, Befund 1, die zweite Folge: Die Suche schrieb unter
     demselben Ordnernamen und löschte eine echte Ordnerkappung aus dem Bericht."""
