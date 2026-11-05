@@ -226,8 +226,15 @@ def _lesbar(wunsch: str) -> str:
     """Der Wunsch aus dem Profil in Klartext — er darf in beiden Schreibweisen dastehen.
 
     `ablageordner` nimmt den Namen wörtlich oder kodiert ihn. Ein lesbarer Name
-    mit `&` („Kunden &Co-…“) ist kein gültiges UTF-7; dann bleibt er, wie er ist,
-    statt den Lauf mit einem Traceback zu beenden.
+    mit `&` („R&D-Projekte“, „AT&T-Rechnungen“) ist kein gültiges UTF-7; dann
+    bleibt er, wie er ist, statt den Lauf mit einem Traceback zu beenden.
+
+    Bekannte Grenze (#515, Befund 4): Ein lesbarer Name mit `&-` oder mit einer
+    gültigen Base64-Folge zwischen `&` und `-` ist zugleich gültiges UTF-7 und wird
+    still dekodiert („Kunden &-Co“ → „Kunden &Co“). Welche Schreibweise gemeint war,
+    sagt erst die Ordnerliste. Gemessen am 05.11.2026: In zehn Profilen steht bei
+    `email.ablage` kein `&`. Der Fall kommt nicht vor, und `ziel_server` bleibt
+    davon unberührt, gezeigt wird nur der Name.
     """
     try:
         return postfach.utf7_dekodieren(wunsch)

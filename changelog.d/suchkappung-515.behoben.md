@@ -1,0 +1,1 @@
+- **`aufraeumen`: eine gekappte Kennungssuche steht nur noch einmal im Bericht.** Beantworteten mehrere Antworten dieselbe Kennung, deren Suche gekappt wurde, stand derselbe Hinweis bisher je Antwort einmal da. Jetzt gibt es je Ordner und Kennung einen Eintrag (#515).
