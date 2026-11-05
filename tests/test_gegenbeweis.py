@@ -2064,6 +2064,98 @@ def test_ohne_sperre_im_befehl_geht_mit_kein_fenster_die_datei_auf(_email_befehl
 
 
 @pytest.fixture
+def _felder_505(tmp_path):
+    """`felder` aus `test_postfach_entwurf.py`, hier nachgebaut wie `_email_befehl_441`."""
+    from falzmarke import eml as _eml
+    from test_postfach_entwurf import MAIL
+
+    quelle = tmp_path / "antwort.md"
+    quelle.write_text(MAIL, encoding="utf-8")
+    pfad, _ = falzmarke.setze_email(quelle, tmp_path / "antwort", profil_verzeichnis=PROFILE)
+    return _eml.entwurfsfelder(pfad)
+
+
+import imaplib as _imaplib                                         # noqa: E402
+import socket as _socket                                           # noqa: E402
+
+
+@pytest.mark.parametrize("ziel, anker, ersatz, probe_name, args, meldung", [
+    ("entwurf", '"FALZMARKE_ENTWURF=nie ist gesetzt", dauer=DAUERHAFT)',
+     '"FALZMARKE_ENTWURF=nie ist gesetzt", dauer=VORUEBERGEHEND)',
+     "test_abgeschaltet_ist_dauerhaft", ({"FALZMARKE_ENTWURF": "nie"}, "FALZMARKE_ENTWURF=nie"),
+     "FALZMARKE_ENTWURF=nie: 'vorübergehend'"),
+    ("_entwurf_postfach", '"gekennzeichnet", DAUERHAFT)', '"gekennzeichnet", VORUEBERGEHEND)',
+     "test_ohne_entwuerfe_ordner_ist_dauerhaft", (), "kein Entwürfe-Ordner"),
+    ("Postfach._befehl", "voruebergehend=_vergeht(fehler)) from None",
+     "voruebergehend=True) from None",
+     "test_eine_abgelehnte_anmeldung_ist_dauerhaft", (), "Anmeldung"),
+    ("_vergeht", "return fehler.errno == socket.EAI_AGAIN", "return True",
+     "test_ein_falsches_ziel_ist_dauerhaft", (_socket.gaierror(_socket.EAI_NONAME, "unbekannt"),),
+     "keine Verbindung zu"),
+    ("verbinde", "voruebergehend=_vergeht(fehler)) from None", "voruebergehend=True) from None",
+     "test_ein_falsches_ziel_ist_dauerhaft", (_imaplib.IMAP4.error("* NO kein IMAP-Dienst"),),
+     "keine Verbindung zu"),
+], ids=["entwurf-abgeschaltet", "postfach-ohne-ordner", "postfach-anmeldung",
+        "unbekannter-host", "begruessung-nein"])
+def test_ein_dauerhafter_grund_als_voruebergehend_wird_rot(monkeypatch, _felder_505, ziel, anker,
+                                                           ersatz, probe_name, args, meldung):
+    """#505, Abnahme 2: Wer eine bleibende Ursache als vorübergehend markiert,
+    schickt den Abholer in eine Schleife alle 180 s. Je Sabotage genau die Probe,
+    die diese Stelle bewacht, rot mit ihrem eigenen Text."""
+    import test_kein_entwurf_ursache as _probe_modul
+    from falzmarke import postfach as _postfach
+
+    probe = getattr(_probe_modul, probe_name)
+    probe(monkeypatch, _felder_505, *args)                                      # Kontrolle
+    if ziel == "Postfach._befehl":
+        monkeypatch.setattr(_postfach.Postfach, "_befehl",
+                            _zeile_ersetzt(_postfach, ziel, anker, ersatz))
+    elif ziel in ("_vergeht", "verbinde"):
+        monkeypatch.setattr(_postfach, ziel, _zeile_ersetzt(_postfach, ziel, anker, ersatz))
+    else:
+        monkeypatch.setattr(_oeffnen, ziel, _zeile_ersetzt(_oeffnen, ziel, anker, ersatz))
+    with pytest.raises(AssertionError, match=meldung):
+        probe(monkeypatch, _felder_505, *args)
+
+
+@pytest.mark.parametrize("ersatz, probe_name, meldung", [
+    ("if True:", "test_befehl_mit_abgeschaltetem_entwurf_meldet_dauerhaft",
+     "URSACHE  vorübergehend"),
+    ("if False:", "test_befehl_ohne_proxy_meldet_vorübergehend", "URSACHE  dauerhaft"),
+], ids=["immer-voruebergehend", "nie-voruebergehend"])
+def test_die_ursache_zeile_folgt_der_klasse(_email_befehl_441, monkeypatch, capsys, ersatz,
+                                            probe_name, meldung):
+    """#505: Die Zeile `URSACHE` druckt die Klasse der Lage, nicht einen festen Wert."""
+    import test_kein_entwurf_ursache as _probe_modul
+
+    probe = getattr(_probe_modul, probe_name)
+    probe(_email_befehl_441, monkeypatch, capsys)                               # Kontrolle
+    monkeypatch.setattr(falzmarke, "befehl_email", _zeile_ersetzt(
+        falzmarke, "befehl_email", "if lage.dauer == oeffnen_modul.VORUEBERGEHEND:", ersatz))
+    with pytest.raises(AssertionError, match=meldung):
+        probe(_email_befehl_441, monkeypatch, capsys)
+
+
+@pytest.mark.parametrize("alt, neu, erwartet", [
+    ("import socket\n", "import socket\nsocket.create_connection(('smtp.example.org', 25))\n",
+     "socket.create_connection"),
+    ("import socket\n", "import socket as _netz\n", "import socket as _netz"),
+    ("import socket\n", "from socket import create_connection\nimport socket\n",
+     "from socket import create_connection"),
+], ids=["verbindung", "alias", "from-import"])
+def test_ein_netzweg_aus_socket_in_postfach_wird_rot(alt, neu, erwartet):
+    """#505: `postfach` darf `socket` nur für zwei Fehlernamen lesen. Je ein
+    Weg daran vorbei, und die Prüfung nennt genau ihn."""
+    from falzmarke import postfach as _postfach
+    from test_postfach import socket_ausser_fehlerklassen
+
+    quelle = Path(_postfach.__file__).read_text(encoding="utf-8")
+    assert socket_ausser_fehlerklassen(quelle) == set()                          # Kontrolle
+    assert quelle.count(alt) == 1
+    assert erwartet in socket_ausser_fehlerklassen(quelle.replace(alt, neu))
+
+
+@pytest.fixture
 def eigene_441(tmp_path) -> Path:
     return _eigene_mail(tmp_path)
 
@@ -4013,22 +4105,43 @@ def test_ohne_dekodieren_steht_das_ziel_je_zug_in_server_schreibweise_im_json(mo
 
     probe()                                                                # Kontrolle
     monkeypatch.setattr(_ablage, "_ziele_zuordnen", _zeile_ersetzt(
-        _ablage, "_ziele_zuordnen", "ziel=_lesbar(name)", "ziel=name"))
+        _ablage, "_ziele_zuordnen", "ziel=lesbar, ziel_server", "ziel=name, ziel_server"))
     with pytest.raises(AssertionError, match=r"Ziele im JSON: \['Gesch&AOQ-ft/2025'"):
         probe()
 
 
-def test_ohne_dekodieren_verschiebt_sich_die_grenze_von_lesbar(monkeypatch):
+@pytest.mark.parametrize("ersatz, meldung", [
+    ("return wunsch", r"Grenze verschoben: 'R&Dev-Team' → 'R&Dev-Team'"),
+    (('return wunsch if __import__("re").search(r"&[^-]{9,}-", wunsch) '
+      "else postfach.utf7_dekodieren(wunsch)"),
+     r"Grenze verschoben: 'A&Projektakte-B' → 'A&Projektakte-B'"),
+], ids=["gar-nicht", "nur-bis-acht"])
+def test_ohne_dekodieren_verschiebt_sich_die_grenze_von_lesbar(monkeypatch, ersatz, meldung):
     """#522, Punkt 1: Die Probe hält die gemessene Grenze fest, nicht nur `&-`.
-    Dekodiert `_lesbar` gar nicht mehr, muss sie zuerst am Drei-Buchstaben-Fall anschlagen."""
+    Dekodiert `_lesbar` gar nicht mehr, muss sie zuerst am Drei-Buchstaben-Fall anschlagen.
+    „nur-bis-acht“ lässt Folgen ab neun Zeichen stehen, so weit reichte die erste
+    Messung; die Probe muss am Fall mit elf anschlagen (Nachreview von #527, Befund 7)."""
     from falzmarke import ablage as _ablage
     from test_ablage import test_die_bekannte_grenze_von_lesbar as probe
 
     probe()                                                                # Kontrolle
     monkeypatch.setattr(_ablage, "_lesbar", _zeile_ersetzt(
-        _ablage, "_lesbar", "return postfach.utf7_dekodieren(wunsch)", "return wunsch"))
-    with pytest.raises(AssertionError,
-                       match=r"Grenze verschoben: 'R&Dev-Team' → 'R&Dev-Team'"):
+        _ablage, "_lesbar", "return postfach.utf7_dekodieren(wunsch)", ersatz))
+    with pytest.raises(AssertionError, match=meldung):
+        probe()
+
+
+def test_ohne_den_gefundenen_ordner_raet_die_anzeige_je_zug(monkeypatch):
+    """Nachreview von #527, Befund 3: der Stand von #527, Wort für Wort."""
+    from falzmarke import ablage as _ablage
+    from test_ablage import test_mit_jahr_zeigt_der_zug_den_gefundenen_ordner as probe
+
+    probe()                                                                # Kontrolle
+    monkeypatch.setattr(_ablage, "_ziele_zuordnen", _zeile_ersetzt(
+        _ablage, "_ziele_zuordnen",
+        "lesbar = postfach.utf7_dekodieren(ordner) if ordner else _lesbar(name)",
+        "lesbar = _lesbar(name)"))
+    with pytest.raises(AssertionError, match=r"angezeigt: \['R\u0debTeam/2025'"):
         probe()
 
 
@@ -4826,6 +4939,32 @@ def test_ohne_das_merken_je_kennung(monkeypatch, anker, ersatz, probe_name, meld
     monkeypatch.setattr(_ablage, "plane", _zeile_ersetzt(_ablage, "plane", anker, ersatz))
     with pytest.raises(AssertionError, match=meldung):
         probe(monkeypatch)
+
+
+# Nachreview von #524, Befund 1: gesucht wird mit dem Schlüssel, nicht mit der
+# Form der ersten Antwort. „erste-form“ ist der Code aus #524 Wort für Wort.
+_SUCHE_524 = "EINGANG, schluessel or kennung)"
+
+
+@pytest.mark.parametrize("ersatz, probe_name, argumente, meldung", [
+    ("EINGANG, kennung)",
+     "test_eine_kopfzeile_ohne_klammern_findet_sich_in_jeder_reihenfolge", (True,),
+     "Kopfzeile ohne Klammern nicht gefunden"),
+    ("EINGANG, schluessel)",
+     "test_leere_klammern_suchen_nicht_nach_nichts", (), "gesucht: "),
+], ids=["erste-form", "leerer-schluessel"])
+def test_ohne_die_suche_mit_dem_schluessel(monkeypatch, ersatz, probe_name, argumente, meldung):
+    """„erste-form“ stellt #524 wieder her: `<abc@x>` zuerst, die Kopfzeile trägt
+    `abc@x`, und die zweite Antwort erbt das leere Ergebnis. „leerer-schluessel“
+    nimmt den Rückfall auf die rohe Kennung bei `<>` weg."""
+    import test_ablage
+    from falzmarke import ablage as _ablage
+    probe = getattr(test_ablage, probe_name)
+
+    probe(monkeypatch, *argumente)                                                # Kontrolle
+    monkeypatch.setattr(_ablage, "plane", _zeile_ersetzt(_ablage, "plane", _SUCHE_524, ersatz))
+    with pytest.raises(AssertionError, match=meldung):
+        probe(monkeypatch, *argumente)
 
 
 def test_ohne_das_abfangen_reisst_der_workflowfehler_den_waechter_ab(tmp_path, monkeypatch):

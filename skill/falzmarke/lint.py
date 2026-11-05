@@ -712,6 +712,24 @@ def _adressen(wert) -> list[str]:
     return [wert] if isinstance(wert, str) else [str(z) for z in (wert or [])]
 
 
+def _yaml_skalar(text: str) -> str:
+    """`text` so, dass YAML ihn als genau diesen String zurückliest.
+
+    `Erika <c@example.org>` bleibt, wie es ist. Beginnt der Text mit einem
+    Anführungszeichen, etwa `"Dr. Erika Muster" <c@example.org>`, liest YAML
+    das als gequoteten Wert mit Rest dahinter und bricht ab (Review an PR #528).
+    Dann kommt er in einfache Anführungszeichen, ein Apostroph verdoppelt.
+    """
+    import yaml
+
+    try:
+        if yaml.safe_load(text) == text:
+            return text
+    except yaml.YAMLError:
+        pass
+    return "'" + text.replace("'", "''") + "'"
+
+
 def _komma_abhilfe(eintrag: str, feld: str) -> str:
     """Abhilfe für einen Adresseintrag, den `parseaddr` nicht zerlegt.
 
@@ -727,7 +745,8 @@ def _komma_abhilfe(eintrag: str, feld: str) -> str:
     teile = getaddresses([eintrag])
     if len(teile) > 1 and all("@" in adresse for _, adresse in teile):
         zeilen = " und ".join(
-            f"`- {Address(name, *adresse.split('@', 1))}`" for name, adresse in teile)
+            f"`- {_yaml_skalar(str(Address(name, *adresse.split('@', 1))))}`"
+            for name, adresse in teile)
         return f"zwei Adressen in einem Eintrag: je Adresse eine Zeile der Liste unter `{feld}:`, {zeilen}"
     komma = re.fullmatch(r"\s*([^\"<>@]*,[^\"<>@]*?)\s*<([^<>\s]+@[^<>\s]+)>\s*", eintrag)
     if not komma:

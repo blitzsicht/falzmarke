@@ -1,0 +1,1 @@
+- **typst bleibt vorerst auf 0.15.0.** Die am 05.11.2026 erschienene Version 0.15.2 setzt Rechnungen mit anderen Bytes als die geprüften Vorlagen, und die CI wurde rot. Die Grenze ist jetzt `typst>=0.15,<0.15.1`, in `pyproject.toml`, `skill/requirements.txt` und im Bootstrap des Skills gleich. Gehoben wird erst, wenn der Unterschied gelesen ist (#533).
