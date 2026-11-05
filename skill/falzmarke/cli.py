@@ -2098,6 +2098,15 @@ def befehl_email(args) -> int:
                   "         Mit --kein-fenster geht weder ein Verfassen-Fenster noch die "
                   "Datei auf.\n"
                   f"         Die geprüfte Nachricht liegt hier: {eml_pfad}", file=sys.stderr)
+            # #505: maschinenlesbar, ob es sich lohnt, es wieder zu versuchen.
+            # Eine eigene Zeile, damit `KEIN ENTWURF  <Grund>` wortgleich bleibt.
+            # Ohne Angabe dauerhaft, siehe `oeffnen.DAUERHAFT`.
+            if lage.dauer == oeffnen_modul.VORUEBERGEHEND:
+                print(f"URSACHE  {oeffnen_modul.VORUEBERGEHEND} — vergeht von selbst, "
+                      "später erneut aufrufen", file=sys.stderr)
+            else:
+                print(f"URSACHE  {oeffnen_modul.DAUERHAFT} — bleibt, bis sie behoben ist; "
+                      "ein neuer Aufruf ändert nichts", file=sys.stderr)
             if befund.zustand == "nicht_geprueft":
                 print(gesendet_modul.meldung(befund), file=sys.stderr)
             return EXIT_UMGEBUNG
