@@ -3914,6 +3914,127 @@ def test_ohne_die_leerpruefung_ist_ein_lauf_ohne_konten_gruen(monkeypatch, tmp_p
         probe("sabotiert")
 
 
+# ── Review #542: `--alle` gegen echte Profile ───────────────────────────────
+#
+# Jede Sabotage stellt an genau einer Stelle den Stand von #541 wieder her:
+# Beispiele zählen mit, eine kaputte Datei bricht den Lauf ab, ein unlesbares
+# Profil bleibt grün, der Text verschweigt die übersprungenen Adressen.
+
+def test_ohne_den_beispielfilter_meldet_alle_das_musterkonto(monkeypatch, tmp_path, capsys):
+    """Sabotage an genau einer Stelle: `_email_abschnitte` liest auch die
+    mitgelieferten Beispiele. Dann steht `muster@example.de` im Bericht, wie im
+    ersten Zeitplanlauf vom 05.11.2026."""
+    import json
+
+    from falzmarke import cli as _cli
+
+    def probe(unterverzeichnis):
+        wurzel = tmp_path / unterverzeichnis
+        typst = wurzel / "typst"
+        (typst / "profiles").mkdir(parents=True)
+        (wurzel / "vorgang").mkdir()
+        (typst / "profiles" / "example.yaml").write_text(
+            "email:\n  absender: muster@example.de\n", encoding="utf-8")
+        monkeypatch.setattr(_cli, "TYPST_DIR", typst)
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(wurzel / "xdg"))
+        monkeypatch.delenv("FALZMARKE_PROFILES", raising=False)
+        monkeypatch.chdir(wurzel / "vorgang")
+        code = _cli.main(["aufraeumen", "--alle", "--json"])
+        bericht = json.loads(capsys.readouterr().out)
+        assert "muster@example.de" not in bericht["uebersprungen"], \
+            f"das Beispielprofil zählt als Konto: {bericht}"
+        assert code == _cli.EXIT_UMGEBUNG, "Kontrollprobe: ohne eigenes Profil kein Konto"
+
+    probe("heil")
+    monkeypatch.setattr(_cli, "_email_abschnitte", _zeile_ersetzt(
+        _cli, "_email_abschnitte", "if pfad.parent.resolve() == beispiele:", "if False:"))
+    with pytest.raises(AssertionError, match="Beispielprofil zählt als Konto"):
+        probe("sabotiert")
+
+
+def _alle_542_kaputt(monkeypatch, tmp_path, capsys, unterverzeichnis, datei, inhalt: bytes):
+    """Ein heiles Konto und eine kaputte Datei daneben; zurück kommen Exit und Bericht."""
+    import json
+
+    ziel = tmp_path / unterverzeichnis
+    ziel.mkdir()
+    (ziel / datei).write_bytes(inhalt)
+    code, aus = _alle_541(monkeypatch, ziel, capsys, profile={"eins": ("a@example.de", "Archiv")},
+                          attrappen=[_konto_541("<a@example.de>")])
+    return code, json.loads(aus)
+
+
+def test_ohne_unicodedecodeerror_bricht_ein_latin1_profil_den_lauf_ab(
+        monkeypatch, tmp_path, capsys):
+    """Sabotage an genau einer Stelle: Das `except` fängt `UnicodeDecodeError`
+    nicht mehr — wie in #541, wo nur `OSError` und `yaml.YAMLError` standen."""
+    from falzmarke import cli as _cli
+
+    latin = "email:\n  absender: jörg@example.de\n".encode("latin-1")
+    code, bericht = _alle_542_kaputt(monkeypatch, tmp_path, capsys, "heil", "latin.yaml", latin)
+    assert code == _cli.EXIT_UMGEBUNG and bericht["unlesbar"] == ["latin.yaml: kein UTF-8"], \
+        f"Kontrollprobe: {code}, {bericht}"
+    monkeypatch.setattr(_cli, "_email_abschnitte", _zeile_ersetzt(
+        _cli, "_email_abschnitte", "except UnicodeDecodeError:", "except LookupError:"))
+    with pytest.raises(UnicodeDecodeError):
+        _alle_542_kaputt(monkeypatch, tmp_path, capsys, "sabotiert", "latin.yaml", latin)
+
+
+def test_ohne_den_abschnitt_waechter_bricht_ein_listenprofil_den_lauf_ab(
+        monkeypatch, tmp_path, capsys):
+    """Sabotage an genau einer Stelle: Die oberste Ebene wird nicht mehr geprüft —
+    der Stand von `ablage_aus_profil` in #541. `list.get` bricht dann alles ab."""
+    from falzmarke import cli as _cli
+
+    liste = b"- a@example.de\n"
+    code, bericht = _alle_542_kaputt(monkeypatch, tmp_path, capsys, "heil", "liste.yaml", liste)
+    assert code == _cli.EXIT_UMGEBUNG and bericht["konten"][0]["grund"] is None, \
+        f"Kontrollprobe: {code}, {bericht}"
+    monkeypatch.setattr(_cli, "_email_abschnitte", _zeile_ersetzt(
+        _cli, "_email_abschnitte", "if not isinstance(profil, dict):", "if False:"))
+    with pytest.raises(AttributeError, match="'list' object has no attribute 'get'"):
+        _alle_542_kaputt(monkeypatch, tmp_path, capsys, "sabotiert", "liste.yaml", liste)
+
+
+def test_ohne_den_exit_code_bleibt_ein_unlesbares_profil_gruen(monkeypatch, tmp_path, capsys):
+    """Sabotage an genau einer Stelle: Ein unlesbares Profil ändert den Exit-Code
+    nicht. Dann meldet der Zeitplan grün, obwohl ein Konto fehlen kann."""
+    from falzmarke import cli as _cli
+
+    def probe(unterverzeichnis):
+        code, bericht = _alle_542_kaputt(monkeypatch, tmp_path, capsys, unterverzeichnis,
+                                         "liste.yaml", b"- a@example.de\n")
+        assert bericht["unlesbar"], f"Kontrollprobe: nichts als unlesbar gemeldet: {bericht}"
+        assert code == _cli.EXIT_UMGEBUNG, f"Exit {code} trotz unlesbarem Profil"
+
+    probe("heil")
+    monkeypatch.setattr(_cli, "befehl_aufraeumen", _zeile_ersetzt(
+        _cli, "befehl_aufraeumen", "if unlesbar:", "if False:"))
+    with pytest.raises(AssertionError, match="trotz unlesbarem Profil"):
+        probe("sabotiert")
+
+
+def test_ohne_die_meldung_im_leeren_zweig_fehlen_die_uebersprungenen(
+        monkeypatch, tmp_path, capsys):
+    """Sabotage an genau einer Stelle: Der Zweig ohne Konto mit Ablage kehrt
+    zurück, ohne die ÜBERSPRUNGEN-Zeilen zu schreiben — der Stand von #541."""
+    from falzmarke import cli as _cli
+
+    def probe_text(unterverzeichnis):
+        ziel = tmp_path / unterverzeichnis
+        ziel.mkdir()
+        code, aus = _alle_541(monkeypatch, ziel, capsys,
+                              profile={"drei": ("c@example.de", None)}, attrappen=[], argumente=())
+        assert code == _cli.EXIT_UMGEBUNG, f"Kontrollprobe: Exit {code}"
+        assert "ÜBERSPRUNGEN  c@example.de" in aus, f"ÜBERSPRUNGEN fehlt im Text: {aus!r}"
+
+    probe_text("heil")
+    monkeypatch.setattr(_cli, "befehl_aufraeumen", _zeile_ersetzt(
+        _cli, "befehl_aufraeumen", "if not args.json:", "if False:"))
+    with pytest.raises(AssertionError, match="ÜBERSPRUNGEN fehlt im Text"):
+        probe_text("sabotiert")
+
+
 # ── #478: Fähnchen, benannte Mails, Jahresordner ────────────────────────────
 #
 # Jede Sabotage baut den Stand vor #478 an genau einer Stelle nach: Die Mail
