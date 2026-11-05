@@ -268,6 +268,27 @@ def test_eine_kennung_mit_und_ohne_klammern_sucht_einmal(monkeypatch):
     assert bericht.nicht_im_eingang == 0 and len(bericht.zuege) == 1
 
 
+@pytest.mark.parametrize("zuerst_mit_klammern", [True, False], ids=["mit-zuerst", "ohne-zuerst"])
+def test_eine_kopfzeile_ohne_klammern_findet_sich_in_jeder_reihenfolge(
+        monkeypatch, zuerst_mit_klammern):
+    """Nachreview von #524, Befund 1: Geschlüsselt wurde ohne Klammern, gesucht mit
+    der Form der ersten Antwort. Trägt die Nachricht im Eingang `abc@x` und nennt
+    die erste Antwort `<abc@x>`, findet die Teilkettensuche nichts, und die zweite
+    Antwort mit `abc@x` bekam dieses leere Ergebnis. Vor #524 fand sie die Mail.
+    Beide Reihenfolgen, weil der Fehler nur in einer auftrat."""
+    ohne_klammern = QUELLE[1:-1]
+    formen = [QUELLE, ohne_klammern] if zuerst_mit_klammern else [ohne_klammern, QUELLE]
+    _, sitzung = _postfach(eingang=[_eingegangen(ohne_klammern)],
+                           gesendet=[_antwort(formen[0], tage=1), _antwort(formen[1], tage=2)])
+    with sitzung:
+        aufrufe = _suchen_zaehlen(monkeypatch, sitzung)
+        bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+    assert len(bericht.zuege) == 1, (
+        f"Kopfzeile ohne Klammern nicht gefunden, gesucht: {aufrufe}, "
+        f"nicht im Eingang: {bericht.nicht_im_eingang}")
+    assert bericht.nicht_im_eingang == 0 and len(aufrufe) == 1
+
+
 def test_zwei_kennungen_suchen_zweimal(monkeypatch):
     """Gegenstück: Ein Schlüssel, der alle Kennungen zusammenwirft, bestünde die
     beiden Proben darüber auch."""
@@ -277,8 +298,20 @@ def test_zwei_kennungen_suchen_zweimal(monkeypatch):
     with sitzung:
         aufrufe = _suchen_zaehlen(monkeypatch, sitzung)
         bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
-    assert sorted(aufrufe) == sorted([QUELLE, zweite]), f"gesucht: {aufrufe}"
+    # Gesucht wird ohne Klammerpaar (Nachreview von #524, Befund 1).
+    assert sorted(aufrufe) == sorted([QUELLE[1:-1], zweite[1:-1]]), f"gesucht: {aufrufe}"
     assert len(bericht.zuege) == 2, f"Züge: {bericht.zuege}"
+
+
+def test_leere_klammern_suchen_nicht_nach_nichts(monkeypatch):
+    """`<>` hat ohne Klammerpaar einen leeren Schlüssel. Die Teilkettensuche nach
+    „“ träfe jede Mail im Eingang und liefe in `SUCHGRENZE`; gesucht wird dann `<>`."""
+    _, sitzung = _postfach(eingang=[_eingegangen()], gesendet=[_antwort("<>", tage=1)])
+    with sitzung:
+        aufrufe = _suchen_zaehlen(monkeypatch, sitzung)
+        bericht = ablage.plane(sitzung, wunsch="Archiv", heute=HEUTE.date())
+    assert aufrufe == ["<>"], f"gesucht: {aufrufe}"
+    assert not bericht.zuege
 
 
 def test_eine_suche_ueberschreibt_die_kappung_des_ordners_nicht(monkeypatch):
@@ -1077,6 +1110,19 @@ def test_jahr_im_ziel_legt_jede_mail_in_das_jahr_ihrer_ankunft():
     assert any(z.endswith("→ „Archiv/2025“") for z in ablage.zeilen(bericht))
 
 
+def test_mit_jahr_zeigt_der_zug_den_gefundenen_ordner():
+    """Nachreview von #527, Befund 3: Ist der Jahresordner auf dem Server gefunden,
+    kommt der angezeigte Name aus ihm, nicht aus `_lesbar(name)`. „R&Dev-Team“
+    ist ein dokumentierter Fehlfall von `_lesbar` und erschien so verstümmelt."""
+    _, sitzung = _postfach(**_jahr_lage(ordner=("R&-Dev-Team/2025", "R&-Dev-Team/2026")))
+    with sitzung:
+        bericht = ablage.plane(sitzung, wunsch="R&Dev-Team/{jahr}", heute=HEUTE.date())
+    assert bericht.grund is None
+    assert [(z.ziel, z.ziel_server) for z in bericht.zuege] == [
+        ("R&Dev-Team/2025", "R&-Dev-Team/2025"), ("R&Dev-Team/2026", "R&-Dev-Team/2026")], \
+        f"angezeigt: {[z.ziel for z in bericht.zuege]}"
+
+
 def test_fehlt_ein_jahresordner_wandert_keine_mail_des_laufs():
     """Abnahme aus #478: Fehlt `Archiv/2025`, geht auch die Mail von 2026 nicht."""
     attrappe, _ = _postfach(**_jahr_lage(ordner=("Archiv/2026",)))
@@ -1137,6 +1183,8 @@ def test_die_bekannte_grenze_von_lesbar():
     # Ausgeschrieben, weil U+0DEB und das kombinierende U+05AB im Quelltext unlesbar sind.
     for name, gelesen in (("R&Dev-Team", "R\u0debTeam"),
                           ("B&Bau-Rechnungen", "B\u05abRechnungen"),
+                          # Elf Zeichen: n = 3, 6, 8, 11 … (Nachreview von #527, Befund 7).
+                          ("A&Projektakte-B", "A\u3eba\u237a\u4b5a\u92d7B"),
                           ("Kunden &-Co", "Kunden &Co"), ("Gesch&AOQ-ft", "Geschäft")):
         assert ablage._lesbar(name) == gelesen, \
             f"Grenze verschoben: {name!r} → {ablage._lesbar(name)!r}"

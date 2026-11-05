@@ -234,16 +234,20 @@ def _lesbar(wunsch: str) -> str:
     („Kunden &-Co“ → „Kunden &Co“) oder zwischen `&` und `-` eine Base64-Folge,
     die ganze UTF-16-Einheiten ergibt. Das hängt an der Länge n der Folge: 6·n
     Bits, und der Rest nach den 16er-Einheiten muss unter 6 bleiben, also
-    n = 3, 6, 8, 11 … Drei Buchstaben reichen: Aus „R&Dev-Team“ wird „R“, U+0DEB,
-    „Team“, aus „B&Bau-Rechnungen“ „B“, U+05AB, „Rechnungen“. Bei 1, 2, 4, 5, 7
-    oder 9 Zeichen bleibt der Name stehen („R&D-Projekte“, „Q&A-Ablage“,
+    n = 3, 6, 8, 11, 14, 16, 19 … Drei Buchstaben reichen: Aus „R&Dev-Team“ wird
+    „R“, U+0DEB, „Team“, aus „B&Bau-Rechnungen“ „B“, U+05AB, „Rechnungen“. Bei
+    allen anderen Längen bleibt der Name stehen („R&D-Projekte“, „Q&A-Ablage“,
     „R&Devs-Team“). Gemessen am 05.11.2026 an je 2000 Zufallsfolgen aus
-    Buchstaben: 3 → 100 %, 6 → 96 %, 8 → 95 %, die übrigen Längen 0 %. Die
-    abgelehnten Folgen bei 6 und 8 ergaben alle eine Surrogat-Einheit.
+    Buchstaben, n = 1 bis 16: 3 → 100 %, 6 → 96 %, 8 → 94 %, 11 → 95 %,
+    14 → 90 %, 16 → 89 %, alle übrigen 0 %. Die abgelehnten Folgen ergaben eine
+    Surrogat-Einheit (geprüft bei 6 und 8).
 
     Welche Schreibweise gemeint war, sagt erst die Ordnerliste. Gemessen am
     05.11.2026: In zehn Profilen steht bei `email.ablage` kein `&`. Der Fall kommt
     nicht vor, und `ziel_server` bleibt davon unberührt, gezeigt wird nur der Name.
+    Ist der Ordner gefunden, zeigt `_ziele_zuordnen` seinen Servernamen dekodiert;
+    geraten wird hier nur noch für den Kopf des Berichts und für einen fehlenden
+    Ordner (Nachreview von #527, Befund 3).
     """
     try:
         return postfach.utf7_dekodieren(wunsch)
@@ -312,7 +316,10 @@ def _ziele_zuordnen(sitzung: postfach.Postfach, wunsch: str | None, zuege: list[
         ordner, grund = geprueft[name]
         if ordner is None and grund not in fehlend:
             fehlend.append(grund)
-        zugeordnet.append(zug._replace(ziel=_lesbar(name), ziel_server=ordner))
+        # Gefunden sagt der Server, wie der Ordner heißt; `_lesbar` rät nur, wenn er
+        # fehlt (Nachreview von #527, Befund 3).
+        lesbar = postfach.utf7_dekodieren(ordner) if ordner else _lesbar(name)
+        zugeordnet.append(zug._replace(ziel=lesbar, ziel_server=ordner))
     grund = None
     if fehlend:
         grund = ("; ".join(fehlend) + " — keine Mail dieses Laufs wandert, auch nicht "
@@ -452,6 +459,12 @@ def plane(sitzung: postfach.Postfach, *, wunsch: str | None = None,
     # Geschlüsselt ohne Klammerpaar, so wie `gleiche_kennung` vergleicht: `<abc@x>`
     # und `abc@x` sind eine Message-ID und kosten eine Suche, nicht zwei (#522/11).
     # Dieselbe Kennung trägt dann auch nur einen Satz in `suchkappungen`.
+    # Gesucht wird mit dem Schlüssel, nicht mit der Form der ersten Antwort: Die
+    # Teilkettensuche nach `abc@x` trifft beide Schreibweisen im Eingang, die nach
+    # `<abc@x>` nur eine. Mit der ersten Form gesucht, bekam die zweite Antwort ein
+    # leeres Ergebnis, wenn die Kopfzeile keine Klammern trug (Nachreview von #524,
+    # Befund 1). Die breitere Suche kann mehr fremde Treffer bringen; über
+    # `SUCHGRENZE` (2000) kommt das bei einer echten Message-ID nicht.
     gesucht_je_kennung: dict[str, list[postfach.Kopf]] = {}
     nicht_im_eingang = 0
     unsendbar = 0
@@ -470,7 +483,9 @@ def plane(sitzung: postfach.Postfach, *, wunsch: str | None = None,
             # `suche_kennung` vergleicht selbst und kappt nicht vorher (#468).
             schluessel = postfach._ohne_klammerpaar(kennung)
             if schluessel not in gesucht_je_kennung:
-                gesucht_je_kennung[schluessel] = sitzung.suche_kennung(EINGANG, kennung)
+                # `<>` hat einen leeren Schlüssel, und die Suche nach „“ träfe jede Mail.
+                gesucht_je_kennung[schluessel] = sitzung.suche_kennung(
+                    EINGANG, schluessel or kennung)
             for kopf in gesucht_je_kennung[schluessel]:
                 traf = True
                 vorher = gefunden.get(kopf.uid)

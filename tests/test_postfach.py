@@ -268,10 +268,10 @@ def test_nur_postfach_ruft_die_teilkettensuche():
 
 def test_gegenprobe_der_alte_aufruf_in_ablage_wird_gemeldet():
     quellen = _paketquellen()
-    neu = "sitzung.suche_kennung(EINGANG, kennung)"
+    # Nur der Name: Die Argumente stehen seit dem Nachreview von #524 auf eigener Zeile.
+    neu = "sitzung.suche_kennung("
     assert quellen["ablage.py"].count(neu) == 1, "die Sabotage findet ihren Anker nicht"
-    quellen["ablage.py"] = quellen["ablage.py"].replace(
-        neu, 'sitzung.suche_kopfzeile(EINGANG, "Message-ID", kennung)')
+    quellen["ablage.py"] = quellen["ablage.py"].replace(neu, "sitzung.suche_kopfzeile(")
     (fund,) = aufrufe_der_teilkettensuche(quellen)
     assert fund.startswith("ablage.py:")
 
