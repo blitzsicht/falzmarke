@@ -2018,6 +2018,88 @@ def test_die_eigene_adresse_zaehlt_auch_ohne_ihr_konto_im_profil(monkeypatch, tm
     assert _einziger(bericht).art == "wartet" and bericht.fremde == 1, bericht
 
 
+# ── Die Ordner der Identität kommen aus dem Profil der Brücke (#522, Punkt 6) ─
+#
+# Tagebuch und Fenster kamen schon aus dem Profil am Socket (#410, #488), die
+# Ordner der Identität aber weiter aus dem Standardprofil. Zeigt
+# `FALZMARKE_BRUECKE_SOCKET` auf ein zweites Profil, las `abgleich` einen
+# Entwürfe-Ordner, den die Brücke nicht meint: Ordner und Fenster aus zwei
+# verschiedenen Profilen.
+
+ALT_E, ALT_G = "Alt-Entwuerfe", "Alt-Gesendet"
+
+
+def _ordner_nur_am_socket(monkeypatch, tmp_path) -> dict:
+    """Standardprofil A nennt die alten Ordner, Profil B am Socket die echten.
+    Gibt die Umgebung mit `FALZMARKE_BRUECKE_SOCKET`."""
+    from test_thunderbird_signatur import _attrappe
+
+    def werte(entwuerfe: str, gesendet: str) -> dict:
+        konto = "imap://order%40example.de@outlook.office365.com/"
+        return {"mail.accountmanager.accounts": "account1",
+                "mail.account.account1.identities": "id1",
+                "mail.identity.id1.useremail": VON,
+                "mail.identity.id1.draft_folder": konto + entwuerfe,
+                "mail.identity.id1.fcc_folder": konto + gesendet}
+
+    monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER",
+                        _attrappe(tmp_path / "a", werte(ALT_E, ALT_G)))
+    profil_b = (_attrappe(tmp_path / "b", werte(ENTWUERFE, GESENDET))
+                / "Profiles" / "abcd1234.default-release")
+    return {"FALZMARKE_BRUECKE_SOCKET": str(profil_b / bruecke.SOCKET_DATEI)}
+
+
+@pytest.mark.parametrize("art, aus_b, aus_a", [
+    ("draft_folder", ENTWUERFE, ALT_E), ("fcc_folder", GESENDET, ALT_G)])
+def test_die_ordner_der_identitaet_kommen_aus_dem_profil_der_bruecke(monkeypatch, tmp_path,
+                                                                     art, aus_b, aus_a):
+    """Zwilling ohne Schalter: Dann gilt das Standardprofil, und derselbe Aufbau
+    nennt den anderen Ordner. Ohne ihn wäre nicht zu sehen, ob der Socket wirkt."""
+    umgebung = _ordner_nur_am_socket(monkeypatch, tmp_path)
+    assert entwurfsbuch.thunderbird_ordner(VON, art, umgebung) == aus_b, \
+        "der Ordner kommt nicht aus dem Profil der Brücke"
+    assert entwurfsbuch.thunderbird_ordner(VON, art, {}) == aus_a, \
+        "der Zwilling kann gar nicht rot werden"
+
+
+def test_ein_socket_ausserhalb_eines_profils_laesst_die_ordner_beim_standardprofil(
+        monkeypatch, tmp_path):
+    """ADR 0059: Der Schalter legt den Socket auch aus dem Profil **heraus** (104 Byte).
+    Dann ist sein Verzeichnis kein Profil, und es gilt das Standardprofil."""
+    _ordner_nur_am_socket(monkeypatch, tmp_path)
+    kurz = tmp_path / "s"
+    kurz.mkdir()
+    umgebung = {"FALZMARKE_BRUECKE_SOCKET": str(kurz / bruecke.SOCKET_DATEI)}
+    assert entwurfsbuch.thunderbird_ordner(VON, "draft_folder", umgebung) == ALT_E
+
+
+def test_ein_ausdruecklicher_profilordner_geht_vor_den_socket(monkeypatch, tmp_path):
+    """Wie bei `tagebuch`: `profilordner` sticht. Daran hängen `gesendet` und die Proben."""
+    umgebung = _ordner_nur_am_socket(monkeypatch, tmp_path)
+    assert entwurfsbuch.thunderbird_ordner(
+        VON, "draft_folder", umgebung, oeffnen.THUNDERBIRD_ORDNER) == ALT_E
+
+
+def test_abgleich_liest_die_entwuerfe_aus_dem_profil_der_bruecke(monkeypatch, tmp_path):
+    """#522, Punkt 6, am Weg von `status`: Mit Schalter wird der Entwürfe-Ordner aus
+    Profil B gelesen, ohne ihn der aus A. Beide liegen auf dem Server."""
+    umgebung = _ordner_nur_am_socket(monkeypatch, tmp_path)
+
+    def gelesen(umgebung) -> set[str]:
+        attrappe = ImapAttrappe(
+            {ENTWUERFE: [_mail()], GESENDET: [], PAPIERKORB: [], ALT_E: [], ALT_G: []},
+            sonder={"INBOX": "", GESENDET: "\\Sent", ENTWUERFE: "\\Drafts",
+                    PAPIERKORB: "\\Trash"})
+        monkeypatch.setattr(postfach, "IMAP_KLASSE", attrappe)
+        entwurfsbuch.abgleich(VON, jetzt=JETZT, umgebung=umgebung)
+        return {p[1] for p in attrappe.protokoll if p[0] in ("SELECT", "EXAMINE")}
+
+    mit, ohne = gelesen(umgebung), gelesen({})
+    assert ENTWUERFE in mit and ALT_E not in mit, \
+        f"abgleich liest den Entwürfe-Ordner am Profil der Brücke vorbei: {mit}"
+    assert ALT_E in ohne and ENTWUERFE not in ohne, f"der Zwilling kann nicht rot werden: {ohne}"
+
+
 # ── Das Tagebuch kommt aus dem Profil des Sockets (#410) ────────────────────
 #
 # Vorher las `tagebuch()` stur das Standardprofil, während `bruecke.socketpfad`

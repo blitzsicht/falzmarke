@@ -388,9 +388,9 @@ def pruefe_datei(eml_pfad, *, umgebung: Mapping[str, str] | None = None, verbind
     absender = parseaddr(str(nachricht.get("From") or ""))[1].strip()
     ordner, eigene, eigene_grund = None, None, ""
     if absender:
-        from falzmarke import oeffnen
-
-        ordner = oeffnen.thunderbird_ordner(absender, "fcc_folder", thunderbird_ordner)
+        # Ordner und Identitäten aus demselben Profil wie das Tagebuch (#522, Punkt 6).
+        ordner = entwurfsbuch.thunderbird_ordner(absender, "fcc_folder", umgebung,
+                                                 thunderbird_ordner)
         eigene, eigene_grund = entwurfsbuch.profiladressen(umgebung, thunderbird_ordner)
     # `umgebung` mit: Sie bestimmt über `FALZMARKE_BRUECKE_SOCKET`, aus welchem
     # Thunderbird-Profil das Tagebuch kommt (#410).

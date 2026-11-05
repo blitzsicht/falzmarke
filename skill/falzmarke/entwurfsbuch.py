@@ -829,6 +829,25 @@ def profiladressen(umgebung: Mapping[str, str] | None = None,
     return oeffnen.profiladressen(profil=profil)
 
 
+def thunderbird_ordner(adresse: str, art: str, umgebung: Mapping[str, str] | None = None,
+                       profilordner: Path | None = None) -> str | None:
+    """Der Entwürfe- oder Gesendet-Ordner der Identität im Profil, aus dem die Brücke antwortet.
+
+    `oeffnen.thunderbird_ordner` am Profil von `bruecken_profil`, wie
+    `profiladressen`. Die Brücke öffnet einen Entwurf aus dem Entwürfe-Ordner
+    ihres Profils; eine UID aus dem Ordner eines anderen Profils kann dort eine
+    andere Mail sein. Ebenso Tagebuch und Gesendet-Ordner: Beide gehören zu
+    demselben Thunderbird (#522, Punkt 6). Ohne Profil None, wie ohne Identität:
+    Dann fragt der Aufrufer den Server nach dem Kennzeichen.
+    """
+    from falzmarke import oeffnen
+
+    profil, _ = bruecken_profil(profilordner, umgebung)
+    if profil is None:
+        return None
+    return oeffnen.thunderbird_ordner(adresse, art, profil=profil)
+
+
 def _offene_fenster(umgebung: Mapping[str, str]) -> tuple[list[dict], str]:
     """Die offenen Verfassen-Fenster der Brücke, oder der Grund, warum keine Liste kam."""
     from falzmarke import bruecke
@@ -1025,7 +1044,7 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
     Wirft nichts: Ist das Postfach nicht zu erreichen, trägt der Bericht den
     Grund, und kein Entwurf gilt als geprüft.
     """
-    from falzmarke import gesendet, oeffnen, postfach
+    from falzmarke import gesendet, postfach
 
     umgebung = os.environ if umgebung is None else umgebung
     adresse = adresse.strip().lower()
@@ -1072,9 +1091,10 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
         return leer._replace(grund=str(fehler))
     with sitzung:
         try:
-            ordner_e = (oeffnen.thunderbird_ordner(adresse, "draft_folder", profilordner)
+            # Aus demselben Profil wie Tagebuch und Fenster (#522, Punkt 6).
+            ordner_e = (thunderbird_ordner(adresse, "draft_folder", umgebung, profilordner)
                         or sitzung.sonderordner("\\Drafts"))
-            ordner_g = (oeffnen.thunderbird_ordner(adresse, "fcc_folder", profilordner)
+            ordner_g = (thunderbird_ordner(adresse, "fcc_folder", umgebung, profilordner)
                         or sitzung.sonderordner("\\Sent") or "Gesendete Elemente")
             ordner_p = sitzung.sonderordner("\\Trash")
             if not ordner_e:

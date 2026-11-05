@@ -591,6 +591,31 @@ def test_die_identitaeten_kommen_aus_dem_profil_der_bruecke(eigene, monkeypatch,
     assert befund.zustand == "frei" and befund.fremde == 1
 
 
+def test_der_gesendet_ordner_kommt_aus_dem_profil_der_bruecke(eigene, monkeypatch, tmp_path):
+    """#522, Punkt 6, hier für die Sperre: Die Identitäten kamen schon aus Profil B am
+    Socket, der Gesendet-Ordner noch aus dem Standardprofil A. Zwilling ohne Schalter:
+    Dann gilt A, und es wird der andere Ordner gelesen."""
+    from falzmarke import bruecke, oeffnen
+    from test_thunderbird_signatur import _attrappe, _grundwerte
+
+    konto = "imap://muster%40example.de@outlook.office365.com/"
+    monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER", _attrappe(
+        tmp_path / "a", _grundwerte(fcc_folder=konto + "Alt-Gesendet")))
+    b = _attrappe(tmp_path / "b", _grundwerte(fcc_folder=konto + "Gesendete%20Elemente")
+                  ) / "Profiles" / "abcd1234.default-release"
+
+    def gelesen(umgebung) -> tuple[str, set[str]]:
+        server = ImapAttrappe({"Gesendete Elemente": [_gesendet()], "Alt-Gesendet": []})
+        monkeypatch.setattr(postfach, "IMAP_KLASSE", server)
+        befund = gesendet.pruefe_datei(eigene, umgebung=umgebung, jetzt=JETZT)
+        return befund.zustand, {p[1] for p in server.protokoll if p[0] in ("SELECT", "EXAMINE")}
+
+    umgebung = {"FALZMARKE_BRUECKE_SOCKET": str(b / bruecke.SOCKET_DATEI)}
+    assert gelesen(umgebung) == ("gesendet", {"Gesendete Elemente"}), \
+        "die Sperre liest den Gesendet-Ordner am Profil der Brücke vorbei"
+    assert gelesen({}) == ("frei", {"Alt-Gesendet"}), "der Zwilling kann gar nicht rot werden"
+
+
 def _profil_ohne_absender(tmp_path) -> Path:
     """Das Profil kennt nur Konto 2 (andere@), nicht muster@, den Absender des Entwurfs."""
     from test_thunderbird_signatur import _attrappe, _grundwerte
