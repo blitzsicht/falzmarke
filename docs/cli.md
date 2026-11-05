@@ -15,6 +15,7 @@ falzmarke entwurf-oeffnen --absender ADRESSE [--betreff "..."] [--uid N]
 falzmarke aufraeumen  --absender ADRESSE [--seit 30] [--machen] [--json]   # --seit: 1 bis 3650
 falzmarke aufraeumen  --absender ADRESSE --uid N [N …] [--trotz-faehnchen] [--machen --uidvalidity V] [--json]
 falzmarke aufraeumen  --absender ADRESSE --entwuerfe [--seit 30] [--machen] [--json]
+falzmarke aufraeumen  --alle [--seit 30] [--machen] [--json] [--profiles VERZEICHNIS]   # Konten aus den Profilen; Exit 3, wenn ein Konto nicht geprüft wurde
 falzmarke einlesen    AUS.pdf [-o GERUEST.md] [--ueberschreiben] [--json]
 falzmarke mcp
 falzmarke preview     BRIEF.md [-o AUS.png] [--ppi 120]

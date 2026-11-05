@@ -2146,11 +2146,12 @@ def befehl_entwurf_oeffnen(args) -> int:
 
     Für die Frage, die bis dahin an den Menschen ging: „Ich konnte den Entwurf
     nicht öffnen, klick ihn bitte selbst an.“ Gesucht wird im Entwürfe-Ordner,
-    den Thunderbird für die Adresse führt — derselbe Ordner, in den `email
-    --oeffnen` ablegt. Ohne `--betreff` und `--uid` wird nur aufgelistet.
-    Mehrere Treffer öffnen nichts: Welcher gemeint ist, sagt `--uid`.
+    den Thunderbird für die Adresse führt, und zwar im Profil der Entwurfsbrücke
+    (#522, Punkt 6) — derselbe Ordner, in den `email --oeffnen` ablegt. Ohne
+    `--betreff` und `--uid` wird nur aufgelistet. Mehrere Treffer öffnen
+    nichts: Welcher gemeint ist, sagt `--uid`.
     """
-    from falzmarke import bruecke, postfach
+    from falzmarke import bruecke, entwurfsbuch, postfach
     from falzmarke import oeffnen as oeffnen_modul
 
     adresse = args.absender.strip()
@@ -2161,7 +2162,8 @@ def befehl_entwurf_oeffnen(args) -> int:
         return EXIT_UMGEBUNG
     with sitzung:
         try:
-            aus_thunderbird = oeffnen_modul.thunderbird_ordner(adresse, "draft_folder")
+            # Aus dem Profil der Brücke: Sie öffnet die UID aus diesem Ordner (#522/6).
+            aus_thunderbird = entwurfsbuch.thunderbird_ordner(adresse, "draft_folder")
             ordner = aus_thunderbird or sitzung.sonderordner("\\Drafts")
             koepfe = sitzung.koepfe(ordner) if ordner else []
         except postfach.PostfachFehler as fehler:
@@ -2280,6 +2282,41 @@ def ablage_aus_profil(adresse: str, zusatz=None) -> tuple[str | None, str | None
     return (werte.pop() if werte else None), None
 
 
+def konten_aus_profilen(zusatz=None) -> tuple[list[str], list[str]]:
+    """Alle Absenderadressen der Profile, getrennt in `(mit_ablage, ohne_ablage)` (#541).
+
+    Gleicher Suchweg wie `ablage_aus_profil`. Eine Adresse zählt als „mit“,
+    sobald **irgendein** Profil sie mit `email.ablage` nennt; ob die Profile
+    sich einig sind, entscheidet danach `ablage_aus_profil` und macht daraus
+    bei Streit einen Grund. Ohne `ablage` hat der Betreiber dem Konto absichtlich
+    keine Ablage gegeben (etwa weil ein anderes System den Eingang abholt):
+    Es wird übersprungen und geöffnet wird nichts. Gleiche Adressen in anderer
+    Schreibweise sind ein Konto; die Schreibweise des ersten Profils bleibt.
+    """
+    import yaml
+
+    schreibweise: dict[str, str] = {}
+    mit: set[str] = set()
+    for _, pfad in finde_profile(zusatz).items():
+        try:
+            profil = yaml.safe_load(pfad.read_text(encoding="utf-8")) or {}
+        except (OSError, yaml.YAMLError):
+            continue
+        abschnitt = profil.get("email") if isinstance(profil, dict) else None
+        if not isinstance(abschnitt, dict):
+            continue
+        adresse = str(abschnitt.get("absender") or "").strip()
+        if not adresse:
+            continue
+        schluessel = adresse.casefold()
+        schreibweise.setdefault(schluessel, adresse)
+        wert = abschnitt.get("ablage")
+        if isinstance(wert, str) and wert.strip():
+            mit.add(schluessel)
+    return ([schreibweise[k] for k in sorted(mit)],
+            [schreibweise[k] for k in sorted(set(schreibweise) - mit)])
+
+
 def _raeume_entwuerfe(args) -> int:
     """`aufraeumen --entwuerfe`: ein Bericht je Konto, Exit 3 bei `NICHT GEPRÜFT`."""
     import json
@@ -2314,6 +2351,20 @@ def befehl_aufraeumen(args) -> int:
 
     from falzmarke import ablage as ablage_modul
 
+    if args.alle:
+        # #541: Die Konten stehen in den Profilen. Jede Zusatzangabe, die ein
+        # einzelnes Konto oder eine einzelne Mail meint, wäre hier mehrdeutig.
+        for schalter, gesetzt in (("--absender", args.absender), ("--uid", args.uid),
+                                  ("--entwuerfe", args.entwuerfe),
+                                  ("--uidvalidity", args.uidvalidity),
+                                  ("--trotz-faehnchen", args.trotz_faehnchen)):
+            if gesetzt:
+                print(f"FEHLER  --alle gilt nicht mit {schalter}: die Konten kommen aus den "
+                      "Profilen", file=sys.stderr)
+                return EXIT_EINGABE
+    elif not args.absender:
+        print("FEHLER  aufraeumen braucht --absender ADRESSE oder --alle", file=sys.stderr)
+        return EXIT_EINGABE
     if args.uid is not None and args.seit is not None:
         # Nachreview von #494, Befund 6: Mit `--uid` gibt es kein Fenster. Ein
         # gesetztes `--seit` würde still übergangen, also wird es abgewiesen —
@@ -2363,8 +2414,24 @@ def befehl_aufraeumen(args) -> int:
             return EXIT_EINGABE
         return _raeume_entwuerfe(args)
     zusatz = Path(args.profiles) if args.profiles else None
+    uebersprungen: list[str] = []
+    if args.alle:
+        adressen, uebersprungen = konten_aus_profilen(zusatz)
+        if not adressen:
+            # Ein Zeitplan, der nichts prüft, darf nicht grün aussehen: Zeigt der
+            # Suchweg auf ein leeres Verzeichnis, wäre der Lauf sonst „fertig“.
+            print("NICHT GEPRÜFT  kein Profil nennt `email.ablage` — nichts zu tun, oder der "
+                  "Suchweg der Profile (--profiles, FALZMARKE_PROFILES) zeigt woandershin",
+                  file=sys.stderr)
+            if args.json:
+                print(json.dumps({"konten": [], "uebersprungen": uebersprungen,
+                                  "nicht_geprueft": 0, "grund": "kein Profil nennt `email.ablage`"},
+                                 ensure_ascii=False, indent=2))
+            return EXIT_UMGEBUNG
+    else:
+        adressen = args.absender
     berichte = []
-    for adresse in args.absender:
+    for adresse in adressen:
         wunsch, grund = ablage_aus_profil(adresse, zusatz)
         if grund:
             # Ohne Ziel ist nichts zu planen — dann wird auch kein Postfach
@@ -2381,9 +2448,17 @@ def befehl_aufraeumen(args) -> int:
             trotz_faehnchen=args.trotz_faehnchen,
             uidvalidity=str(args.uidvalidity) if args.uidvalidity is not None else None))
     if args.json:
-        print(json.dumps([ablage_modul.als_json(b) for b in berichte], ensure_ascii=False,
-                         indent=2))
+        konten = [ablage_modul.als_json(b) for b in berichte]
+        if args.alle:
+            # Ein Zeitplan liest den Bericht später: Wer übersprungen wurde und wie
+            # viele Konten nicht geprüft sind, steht deshalb im Bericht selbst.
+            konten = {"konten": konten, "uebersprungen": uebersprungen,
+                      "nicht_geprueft": sum(1 for b in berichte if b.grund)}
+        print(json.dumps(konten, ensure_ascii=False, indent=2))
     else:
+        for adresse in uebersprungen:
+            print(f"ÜBERSPRUNGEN  {adresse}: kein `email.ablage` im Profil — "
+                  "dieses Konto wird nicht aufgeräumt")
         for bericht in berichte:
             # Ein Bericht mit Grund geht ganz auf stderr: Die Plan- und
             # UID-Zeilen hinter `NICHT GEPRÜFT` gehören zu ihm (Review von #459).
@@ -3012,8 +3087,13 @@ def main(argv: list[str] | None = None) -> int:
         "aufraeumen",
         help="beantwortete Eingangspost in die Ablage legen, mit --entwuerfe "
              "überholte Entwürfe in den Papierkorb")
-    p.add_argument("--absender", required=True, action="append",
-                   help="die Adresse des Kontos; mehrfach für mehrere Konten")
+    p.add_argument("--absender", action="append",
+                   help="die Adresse des Kontos; mehrfach für mehrere Konten "
+                        "(Pflicht, außer mit --alle)")
+    p.add_argument("--alle", action="store_true",
+                   help="jedes Konto, dessen Profil `email.ablage` nennt; ohne `ablage` "
+                        "wird übersprungen. Für den Zeitplan; nicht mit --absender, --uid "
+                        "und --entwuerfe")
     # `default=None`, nicht 30: Nur so ist „gesetzt“ von „Vorgabe“ zu trennen,
     # und mit `--uid` ist ein gesetztes `--seit` ein Fehler (Nachreview #494).
     p.add_argument("--seit", type=int, default=None,

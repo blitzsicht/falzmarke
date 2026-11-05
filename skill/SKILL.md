@@ -340,6 +340,10 @@ Eingang oder bliebe eine liegen (Fähnchen), wandert keine; `--seit` gibt es dab
 Server die UIDs neu vergeben, und es wandert keine.
 `ablage: Archiv/{jahr}` legt nach dem Jahr der Ankunft ab; fehlt ein Jahresordner, wandert keine
 Mail des Laufs.
+**`aufraeumen --alle`** läuft über jede Absenderadresse, für die ein Profil `email.ablage` nennt, und
+ist für den Zeitplan gedacht (`--alle --machen --json`). Adressen ohne `ablage` werden übersprungen
+und im Bericht genannt, kein `NICHT GEPRÜFT`. Ein nicht geprüftes Konto hält die anderen nicht
+an; der Exit-Code ist dann 3. Nicht mit `--absender`, `--uid` oder `--entwuerfe`.
 
 **`aufraeumen --entwuerfe` — überholte Entwürfe in den Papierkorb.** Niemand soll einen Entwurf von
 Hand löschen; das geschieht bei jedem `email --oeffnen` von selbst für den eigenen Absender.
