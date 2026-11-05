@@ -1,0 +1,1 @@
+- **Der Glama-Eintrag lässt sich beanspruchen.** Für Repositorys einer Organisation verlangt Glama eine `glama.json` im Wurzelverzeichnis, die die Maintainer nennt. Ohne sie endete der Claim auf der Willkommensseite, und der Eintrag in awesome-mcp-servers wartete darauf (#525).
