@@ -2625,8 +2625,8 @@ def test_mit_dem_standardprofil_statt_dem_der_bruecke_faellt_der_alias_heraus(mo
     from test_entwurfsbuch import test_die_aliasse_kommen_aus_dem_profil_der_bruecke as probe
 
     probe(monkeypatch, tmp_path / "k")                                     # Kontrolle
-    monkeypatch.setattr(_buch, "kontoadressen", _zeile_ersetzt(
-        _buch, "kontoadressen", "profil, grund = bruecken_profil(profilordner, umgebung)",
+    monkeypatch.setattr(_buch, "kontoleser", _zeile_ersetzt(
+        _buch, "kontoleser", "profil, grund = bruecken_profil(profilordner, umgebung)",
         "profil, grund = oeffnen.thunderbird_standardprofil(oeffnen.THUNDERBIRD_ORDNER), ''"))
     with pytest.raises(AssertionError, match="der Alias aus dem Profil der Brücke hält den "
                                              "Entwurf nicht offen"):
@@ -2640,9 +2640,9 @@ def test_ohne_den_hinweis_verschweigt_status_den_grund(monkeypatch, tmp_path):
         as probe)
 
     probe(monkeypatch, tmp_path / "k")                                     # Kontrolle
-    monkeypatch.setattr(_buch, "_offene_uids", _zeile_ersetzt(
-        _buch, "_offene_uids", "if adressen is None and hinweise is not None and any(",
-        "if False and any("))
+    # Seit #500 schreibt `abgleich` den Hinweis, an den Entwürfen des Kontos.
+    monkeypatch.setattr(_buch, "abgleich", _zeile_ersetzt(
+        _buch, "abgleich", "if ohne_identitaeten and any(", "if False and any("))
     with pytest.raises(AssertionError, match="status verschweigt, warum das fremde Fenster"):
         probe(monkeypatch, tmp_path / "s")
 
@@ -2657,8 +2657,8 @@ def test_eine_strenge_sperre_vor_dem_zug_laesst_das_fenster_ausserhalb_des_konto
 
     probe(monkeypatch, tmp_path / "k")                                     # Kontrolle
     monkeypatch.setattr(_ablage, "_ziehe", _zeile_ersetzt(
-        _ablage, "_ziehe", "entwurfsbuch._offene_uids(adresse, umgebung, streng=False)",
-        "entwurfsbuch._offene_uids(adresse, umgebung, streng=True)"))
+        _ablage, "_ziehe", "entwurfsbuch._offene_uids_nachsichtig(adresse, umgebung)",
+        "entwurfsbuch._offene_uids(adresse, umgebung)"))
     with pytest.raises(AssertionError, match="das Fenster außerhalb des Kontos hält den Zug "
                                              "nicht"):
         probe(monkeypatch, tmp_path / "s")
@@ -2907,8 +2907,9 @@ def test_ohne_aliasse_aus_dem_profil_wird_der_alias_rot(oeffne_befehl, monkeypat
     from test_postfach_entwurf import test_entwurf_oeffnen_unter_einem_alias_ist_gruen as alias
 
     alias(oeffne_befehl, monkeypatch, capsys, tmp_path / "k")             # Kontrolle
-    monkeypatch.setattr(_oeffnen, "kontoadressen", _zeile_ersetzt(
-        _oeffnen, "kontoadressen", "adressen |= im_konto", "adressen |= im_konto & {adresse}"))
+    # Seit #515/6 steht die Schleife in `konto_in`, das beide Wege rufen.
+    monkeypatch.setattr(_oeffnen, "konto_in", _zeile_ersetzt(
+        _oeffnen, "konto_in", "adressen |= im_konto", "adressen |= im_konto & {adresse}"))
     with pytest.raises(AssertionError, match=r"assert 3 == 0"):
         alias(oeffne_befehl, monkeypatch, capsys, tmp_path / "s")
 
@@ -2922,7 +2923,7 @@ def test_ohne_aufruf_meldet_entwurf_oeffnen_die_fremde_identitaet_nicht(
     fremd(oeffne_befehl, monkeypatch, capsys, tmp_path / "k")             # Kontrolle
     monkeypatch.setattr(_cli, "befehl_entwurf_oeffnen", _zeile_ersetzt(
         _cli, "befehl_entwurf_oeffnen",
-        "oeffnung = oeffnen_modul.absender_pruefen(oeffnung, kopf.von, profil=profil)",
+        "oeffnung = oeffnen_modul.absender_pruefen(oeffnung, kopf.von)",
         "pass"))
     with pytest.raises(AssertionError, match=r"assert 0 == 3"):
         fremd(oeffne_befehl, monkeypatch, capsys, tmp_path / "s")
@@ -2961,7 +2962,7 @@ def test_ohne_rueckfall_auf_das_konto_des_fensters_bleibt_es_bei_nicht_geprueft(
     probe(monkeypatch, tmp_path / "k")                                     # Kontrolle
     monkeypatch.setattr(_oeffnen, "absender_pruefen", _zeile_ersetzt(
         _oeffnen, "absender_pruefen",
-        "if adressen is None and kontoadressen(ist, ordner, profil=profil)[0] is not None:",
+        "if adressen is None and konto(ist)[0] is not None:",
         "if False:"))
     with pytest.raises(AssertionError, match="nur NICHT GEPRÜFT, obwohl das Fenster"):
         probe(monkeypatch, tmp_path / "s")
@@ -2978,8 +2979,11 @@ def test_ohne_profil_der_bruecke_gilt_der_alias_bei_entwurf_oeffnen_als_fremd(
 
     probe(oeffne_befehl, monkeypatch, capsys, tmp_path / "k")             # Kontrolle
     monkeypatch.setattr(_cli, "befehl_entwurf_oeffnen", _zeile_ersetzt(
-        _cli, "befehl_entwurf_oeffnen", "profil, _ = entwurfsbuch.bruecken_profil()",
-        "profil = None"))
+        # Seit #500 löst `absender_pruefen` das Profil auf; eine leere Umgebung
+        # übergeht den Socket wie früher `profil = None`.
+        _cli, "befehl_entwurf_oeffnen",
+        "oeffnung = oeffnen_modul.absender_pruefen(oeffnung, kopf.von)",
+        "oeffnung = oeffnen_modul.absender_pruefen(oeffnung, kopf.von, umgebung={})"))
     with pytest.raises(AssertionError, match="der Alias aus dem Profil der Brücke gilt als "
                                              "fremd"):
         probe(oeffne_befehl, monkeypatch, capsys, tmp_path / "s")
@@ -2992,8 +2996,7 @@ def test_ohne_profil_der_bruecke_gilt_der_alias_bei_email_oeffnen_als_fremd(monk
 
     probe(monkeypatch, tmp_path / "k")                                     # Kontrolle
     monkeypatch.setattr(_oeffnen, "_fenster_auf", _zeile_ersetzt(
-        _oeffnen, "_fenster_auf", "profil, _ = entwurfsbuch.bruecken_profil(None, umgebung)",
-        "profil = None"))
+        _oeffnen, "_fenster_auf", "umgebung=umgebung))", "umgebung={}))"))
     with pytest.raises(AssertionError, match="email --oeffnen: der Alias aus dem Profil"):
         probe(monkeypatch, tmp_path / "s")
 
@@ -3015,7 +3018,9 @@ def test_ohne_die_zeile_der_anderen_pruefung_verschweigt_pruefen_sie(monkeypatch
     faelle = _faelle_der_anderen_pruefung()
     for werte in faelle.values():                                          # Kontrolle
         probe(*werte, capsys)
-    monkeypatch.setattr(_cli, "_melde_fenster", _zeile_ersetzt(_cli, "_melde_fenster", alt, ""))
+    # Seit #500 folgt ein `elif` mit der OK-Zeile: die Bedingung kippen, nicht den Block löschen.
+    monkeypatch.setattr(_cli, "_melde_fenster", _zeile_ersetzt(
+        _cli, "_melde_fenster", alt, alt.replace("if ", "if False and ", 1)))
     with pytest.raises(AssertionError, match="neben .* PRÜFEN fehlt „NICHT GEPRÜFT"):
         probe(*faelle[fall], capsys)
     for anderer, werte in faelle.items():
@@ -3029,6 +3034,90 @@ def _faelle_der_anderen_pruefung():
 
     marke = next(m for m in probe.pytestmark if m.name == "parametrize")
     return dict(zip(marke.kwargs["ids"], marke.args[1], strict=True))
+
+
+# #500 (05.11.2026): der richtige Grund bei ABSENDER PRÜFEN, der Grund der Brücke
+# bei NICHT GEPRÜFT, die OK-Zeile neben einem PRÜFEN, der Hinweis nur am eigenen Entwurf.
+
+def test_mit_dem_festen_satz_nennt_absender_pruefen_das_gegenteil(oeffne_befehl, monkeypatch,
+                                                                  capsys, tmp_path):
+    from falzmarke import cli as _cli
+    from test_postfach_entwurf import (
+        test_from_ausserhalb_der_konten_nennt_den_richtigen_grund as probe)
+
+    probe(oeffne_befehl, monkeypatch, capsys, tmp_path / "k")             # Kontrolle
+    monkeypatch.setattr(_cli, "_melde_fenster", _zeile_ersetzt(
+        _cli, "_melde_fenster",
+        '(fenster.absender_hinweis\n                         or "das Fenster',
+        '("das Fenster'))
+    with pytest.raises(AssertionError, match="ABSENDER PRÜFEN verschweigt, dass die Nachricht"):
+        probe(oeffne_befehl, monkeypatch, capsys, tmp_path / "s")
+
+
+def test_mit_eigener_profilaufloesung_geht_der_grund_der_bruecke_verloren(monkeypatch, tmp_path):
+    """Baut den Stand vor #500 nach: `oeffnen.kontoadressen` ohne Profil liest das
+    Standardprofil und begründet mit dessen Fehlen, nicht mit dem Socket."""
+    from test_postfach_entwurf import (
+        test_ohne_profil_am_socket_nennt_nicht_geprueft_den_grund_der_bruecke as probe)
+
+    probe(monkeypatch, tmp_path / "k")                                     # Kontrolle
+    monkeypatch.setattr(_oeffnen, "absender_pruefen", _zeile_ersetzt(
+        _oeffnen, "absender_pruefen",
+        "    konto = entwurfsbuch.kontoleser(umgebung)\n"
+        "    adressen, grund = konto(soll)\n"
+        "    if adressen is None and konto(ist)[0] is not None:",
+        "    adressen, grund = kontoadressen(soll)\n"
+        "    if adressen is None and kontoadressen(ist)[0] is not None:"))
+    with pytest.raises(AssertionError, match="kein Thunderbird-Profil unter"):
+        probe(monkeypatch, tmp_path / "s")
+
+
+@pytest.mark.parametrize("fall, alt", [
+    ("absender-prueft-empfaenger-gleich",
+     "            elif not fenster.abweichung:\n                _empfaenger_ok(fenster)\n"),
+    ("empfaenger-prueft-absender-alias",
+     ("            elif fenster.absender_geprueft and not fenster.absender_abweichung:\n"
+      "                _absender_ok(fenster)\n")),
+], ids=["empfaengerzeile", "absenderzeile"])
+def test_ohne_die_ok_zeile_der_anderen_pruefung_verschweigt_pruefen_sie(monkeypatch, capsys,
+                                                                        fall, alt):
+    """Je Richtung eine Sabotage; die andere Richtung bleibt dabei grün."""
+    from falzmarke import cli as _cli
+    from test_postfach_entwurf import (
+        test_neben_einem_pruefen_steht_was_die_andere_pruefung_bestand as probe)
+
+    marke = next(m for m in probe.pytestmark if m.name == "parametrize")
+    faelle = dict(zip(marke.kwargs["ids"], marke.args[1], strict=True))
+    for werte in faelle.values():                                          # Kontrolle
+        probe(*werte, capsys)
+    monkeypatch.setattr(_cli, "_melde_fenster", _zeile_ersetzt(_cli, "_melde_fenster", alt, ""))
+    with pytest.raises(AssertionError, match="neben .* PRÜFEN fehlt „OK  "):
+        probe(*faelle[fall], capsys)
+    for anderer, werte in faelle.items():
+        if anderer != fall:
+            probe(*werte, capsys)
+
+
+def test_ueber_alle_fenster_gezaehlt_steht_der_hinweis_bei_jedem_konto(monkeypatch, tmp_path):
+    """Baut den Stand vor #500 nach: irgendein fremdes Fenster genügte, ob seine UID
+    hier liegt oder nicht. Der Zwilling mit der UID des Entwurfs bleibt grün."""
+    from falzmarke import entwurfsbuch as _buch
+    from test_entwurfsbuch import (
+        test_ohne_profilwissen_sagt_status_warum_das_fremde_fenster_nur_ueber_die_uid_zaehlt
+        as zwilling)
+    from test_entwurfsbuch import (
+        test_ohne_profilwissen_zaehlt_ein_fenster_ohne_entwurf_hier_nicht as probe)
+
+    probe(monkeypatch, tmp_path / "k")                                     # Kontrolle
+    monkeypatch.setattr(_buch, "abgleich", _zeile_ersetzt(
+        _buch, "abgleich",
+        "if ohne_identitaeten and any(fremde_identitaet(offen.get(k.uid), adresse)\n"
+        "                                         for k in liegend):",
+        "if ohne_identitaeten and any(fremde_identitaet(f, adresse)\n"
+        "                                         for f in offen.values()):"))
+    with pytest.raises(AssertionError, match="status zählt ein Fenster ohne Entwurf"):
+        probe(monkeypatch, tmp_path / "s")
+    zwilling(monkeypatch, tmp_path / "z")
 
 
 # ── Das Profil, aus dem die Brücke antwortet (#410) ─────────────────────────

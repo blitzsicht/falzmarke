@@ -267,7 +267,7 @@ def _ziehe(sitzung: postfach.Postfach, ordner: str, ziel: str, zug: Zug, *, adre
     Planung (`_werte_alte_aus`) und `status` bleiben streng (ADR 0060, Nachtrag
     vom 04.11.2026).
     """
-    offen, grund = entwurfsbuch._offene_uids(adresse, umgebung, streng=False)
+    offen, grund = entwurfsbuch._offene_uids_nachsichtig(adresse, umgebung)
     if grund:
         return grund
     if zug.uid in offen or zug.kette & set(offen):

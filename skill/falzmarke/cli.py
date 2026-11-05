@@ -1693,6 +1693,16 @@ def _absender_ungeprueft(fenster) -> None:
           "vergleichen.", file=sys.stderr)
 
 
+def _empfaenger_ok(fenster) -> None:
+    print(f"OK  Empfänger im Fenster wie in der Nachricht: An {len(fenster.an)}, "
+          f"Cc {len(fenster.kopie)}, Bcc {len(fenster.blindkopie)}")
+
+
+def _absender_ok(fenster) -> None:
+    zusatz = f" ({fenster.absender_hinweis})" if fenster.absender_hinweis else ""
+    print(f"OK  Absender im Fenster: {fenster.identitaet.strip().lower()}{zusatz}")
+
+
 def _melde_fenster(fenster, ordner: str, betreff: str) -> None:
     """Sagt, ob der Postfach-Entwurf als Fenster aufging (ADR 0054) und ob das
     Fenster die Empfänger der Nachricht zeigt (#464).
@@ -1709,8 +1719,10 @@ def _melde_fenster(fenster, ordner: str, betreff: str) -> None:
     Identität, die nicht zum Konto der Nachricht gehört, steht `ABSENDER
     PRÜFEN` statt `OK`. Ein Alias desselben Kontos ist grün und wird genannt.
 
-    Neben einem PRÜFEN steht die `NICHT GEPRÜFT`-Zeile der anderen Prüfung,
-    wenn sie nicht vergleichen konnte (Nachreview #487, Nr. 3).
+    Neben einem PRÜFEN steht die Zeile der anderen Prüfung: `NICHT GEPRÜFT`,
+    wenn sie nicht vergleichen konnte (Nachreview #487, Nr. 3), sonst ihre
+    OK-Zeile (#500, Befund 3). Ohne sie war „bestanden“ nicht von „vergessen“
+    zu unterscheiden, und ein Alias fiel ungenannt weg.
     """
     if fenster is not None and fenster.offen:
         schon = " (war schon offen)" if fenster.zustand == "schon_offen" else ""
@@ -1725,9 +1737,13 @@ def _melde_fenster(fenster, ordner: str, betreff: str) -> None:
                       f"schließen und den\n"
                       f"         Entwurf unter „{ordner}“ neu öffnen.", file=sys.stderr)
             if fenster.absender_abweichung:
+                # Hinweis und Abweichung zugleich gibt es nur, wenn die Nachricht von
+                # außerhalb der Konten stammt und das Fenster von einem schickt. Dann ist
+                # der Hinweis der Grund, „außerhalb des Kontos“ wäre das Gegenteil (#500).
+                grund = (fenster.absender_hinweis
+                         or "das Fenster schickt von einer Identität außerhalb des Kontos")
                 print(f"ABSENDER PRÜFEN  Entwurf offen in Thunderbird: {titel},\n"
-                      f"         aber das Fenster schickt von einer Identität außerhalb des "
-                      f"Kontos: {fenster.absender_abweichung}\n"
+                      f"         aber {grund}: {fenster.absender_abweichung}\n"
                       f"         Vor dem Senden den Absender im Fenster richten, oder es "
                       f"schließen und den\n"
                       f"         Entwurf unter „{ordner}“ neu öffnen.", file=sys.stderr)
@@ -1735,18 +1751,20 @@ def _melde_fenster(fenster, ordner: str, betreff: str) -> None:
             # Bis zum Nachreview von #487 (Nr. 3) ging die Zeile mit dem PRÜFEN verloren.
             if not fenster.geprueft:
                 _empfaenger_ungeprueft(fenster)
+            elif not fenster.abweichung:
+                _empfaenger_ok(fenster)
             if not fenster.absender_geprueft and fenster.absender_hinweis:
                 _absender_ungeprueft(fenster)
+            elif fenster.absender_geprueft and not fenster.absender_abweichung:
+                _absender_ok(fenster)
             return
         print(f"OK  Entwurf offen in Thunderbird: {titel}")
         if fenster.geprueft:
-            print(f"OK  Empfänger im Fenster wie in der Nachricht: An {len(fenster.an)}, "
-                  f"Cc {len(fenster.kopie)}, Bcc {len(fenster.blindkopie)}")
+            _empfaenger_ok(fenster)
         else:
             _empfaenger_ungeprueft(fenster)
         if fenster.absender_geprueft:
-            zusatz = f" ({fenster.absender_hinweis})" if fenster.absender_hinweis else ""
-            print(f"OK  Absender im Fenster: {fenster.identitaet.strip().lower()}{zusatz}")
+            _absender_ok(fenster)
         elif fenster.absender_hinweis:
             _absender_ungeprueft(fenster)
         return
@@ -2201,11 +2219,9 @@ def befehl_entwurf_oeffnen(args) -> int:
                                                 "wurden nicht gelesen")
     # Der Absender gegen den `From` des Entwurfs, nicht gegen `--absender`: Der
     # nennt das Postfach, und ein Entwurf darin darf von einem Alias stammen (#482).
-    # Die Identitäten aus dem Profil, aus dem die Brücke antwortet (#410).
-    from falzmarke import entwurfsbuch
-
-    profil, _ = entwurfsbuch.bruecken_profil()
-    oeffnung = oeffnen_modul.absender_pruefen(oeffnung, kopf.von, profil=profil)
+    # Die Identitäten aus dem Profil, aus dem die Brücke antwortet (#410); das
+    # löst `absender_pruefen` selbst auf, samt Grund, wenn es fehlt (#500).
+    oeffnung = oeffnen_modul.absender_pruefen(oeffnung, kopf.von)
     _melde_fenster(oeffnung, anzeige, kopf.betreff)
     # Ein Fenster mit anderen Empfängern oder einem fremden Absender ist nicht das
     # bestellte: Exit 3 wie ohne Fenster.
