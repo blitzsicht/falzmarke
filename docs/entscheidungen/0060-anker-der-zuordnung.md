@@ -244,7 +244,8 @@ Anker, den Ordner aus der URI, bringt erst #443.
 
 Die Gegenrichtung vom 03.11. wird enger, wo das Thunderbird-Profil die Identitäten des Kontos
 nennt. `prefs.js` führt sie unter `mail.account.<konto>.identities`, und `oeffnen.kontoadressen`
-liest sie dort (eingeführt mit #482 für die Absenderprüfung im Fenster). `_offene_uids` gibt
+liest sie dort (eingeführt mit #482 für die Absenderprüfung im Fenster; seit #522, Punkt 7,
+`oeffnen.konto_in` über `entwurfsbuch.kontoleser`). `_offene_uids` gibt
 sie an `fenster_des_kontos` weiter.
 
 **Entschieden:**

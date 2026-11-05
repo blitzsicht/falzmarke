@@ -1,0 +1,1 @@
+- **`oeffnen.kontoadressen` ist entfallen.** Außer in Tests rief die Funktion niemand mehr auf. Ihr Docstring riet obendrein, das Profil der Entwurfsbrücke von Hand zu übergeben, und damit wäre der Weg zurückgekommen, den #500 entfernt hat. Die Konten eines Profils fragt man über `entwurfsbuch.kontoleser`, die Begründungen stehen jetzt bei `oeffnen.konto_in` (#522).

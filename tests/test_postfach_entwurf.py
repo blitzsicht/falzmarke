@@ -25,7 +25,7 @@ import pytest
 
 from bruecke_attrappe import BrueckenAttrappe
 from conftest import PROFILE
-from falzmarke import bruecke
+from falzmarke import bruecke, entwurfsbuch
 from falzmarke import cli as falzmarke
 from falzmarke import eml as eml_modul
 from falzmarke import oeffnen, postfach
@@ -736,17 +736,20 @@ def _profil_mit_alias(monkeypatch, tmp_path):
 
 
 def test_kontoadressen_nennt_die_identitaeten_eines_kontos(monkeypatch, tmp_path):
+    """Über `kontoleser`, wie `_offene_uids` und `absender_pruefen` fragen. Bis #522
+    (Punkt 7) prüfte diese Probe `oeffnen.kontoadressen`, das niemand mehr aufrief."""
     _profil_mit_alias(monkeypatch, tmp_path)
-    assert oeffnen.kontoadressen(ABSENDER) == (frozenset({ABSENDER, ALIAS}), "")
-    assert oeffnen.kontoadressen(ALIAS) == (frozenset({ABSENDER, ALIAS}), "")
-    assert oeffnen.kontoadressen(FREMD) == (frozenset({FREMD}), "")
-    adressen, grund = oeffnen.kontoadressen("niemand@example.net")
+    konto = entwurfsbuch.kontoleser({})
+    assert konto(ABSENDER) == (frozenset({ABSENDER, ALIAS}), "")
+    assert konto(ALIAS) == (frozenset({ABSENDER, ALIAS}), "")
+    assert konto(FREMD) == (frozenset({FREMD}), "")
+    adressen, grund = konto("niemand@example.net")
     assert adressen is None and "kein Konto mit niemand@example.net" in grund
 
 
 def test_kontoadressen_ohne_profil_raet_nicht(tmp_path):
-    adressen, grund = oeffnen.kontoadressen(ABSENDER, tmp_path / "kein-profil")
-    assert adressen is None and "kein Thunderbird-Profil" in grund
+    adressen, grund = entwurfsbuch.kontoadressen(ABSENDER, {}, tmp_path / "kein-profil")
+    assert adressen is None and "kein Thunderbird-Standardprofil" in grund
 
 
 def test_kontoadressen_ohne_kontoliste_raet_nicht(monkeypatch, tmp_path):
@@ -758,21 +761,19 @@ def test_kontoadressen_ohne_kontoliste_raet_nicht(monkeypatch, tmp_path):
     ordner = _attrappe(tmp_path / "ohne-liste", werte)
     profil = ordner / "Profiles" / "abcd1234.default-release"
     assert oeffnen._identitaeten(oeffnen.thunderbird_einstellungen(profil)) == ["id1", "id2"]
-    adressen, grund = oeffnen.kontoadressen(ABSENDER, ordner)
+    adressen, grund = oeffnen.konto_in(oeffnen.thunderbird_einstellungen(profil),
+                                       profil.name, ABSENDER)
     assert adressen is None and "nennt keine Konten" in grund
 
 
-@pytest.mark.parametrize("aufruf", [
-    lambda ordner=None, profil=None: oeffnen.kontoadressen(ABSENDER, ordner, profil=profil),
-    lambda ordner=None, profil=None: oeffnen.profiladressen(ordner, profil=profil),
-], ids=["kontoadressen", "profiladressen"])
-def test_ohne_profil_nennen_beide_den_grund_wortgleich(aufruf, tmp_path):
-    """#506, Befund 7: Beide Funktionen lösen das Profil gleich auf und begründen ein
-    Fehlen mit denselben Sätzen. Der Wortlaut steht hier ganz, nicht als Teilstück."""
+def test_ohne_profil_nennen_beide_den_grund_wortgleich(tmp_path):
+    """#506, Befund 7: `profiladressen` und `kontoleser` lösen das Profil über
+    `_profil_aus` auf und begründen ein Fehlen gleich. Der Wortlaut steht hier ganz.
+    Die zweite Funktion, `oeffnen.kontoadressen`, ist mit #522 (Punkt 7) entfallen."""
     ordner = tmp_path / "kein-profil"
-    assert aufruf(ordner=ordner) == (None, f"kein Thunderbird-Profil unter {ordner}")
+    assert oeffnen.profiladressen(ordner) == (None, f"kein Thunderbird-Profil unter {ordner}")
     fehlt = tmp_path / "weg.default-release"
-    assert aufruf(profil=fehlt) == (None, f"das Thunderbird-Profil {fehlt} fehlt")
+    assert oeffnen.profiladressen(profil=fehlt) == (None, f"das Thunderbird-Profil {fehlt} fehlt")
 
 
 def _fenster(identitaet: str, **mehr):

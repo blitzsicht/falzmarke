@@ -598,7 +598,7 @@ def thunderbird_einstellungen(profil: Path) -> dict:
 def _kontoliste(werte: dict) -> list[str]:
     """Die Konten aus `mail.accountmanager.accounts`, in deren Reihenfolge.
 
-    Eine Stelle für `_identitaeten` und `kontoadressen` (Nachreview #487, Nr. 6).
+    Eine Stelle für `_identitaeten` und `konto_in` (Nachreview #487, Nr. 6).
     Was eine leere Liste bedeutet, entscheidet jeder Aufrufer selbst.
     """
     return [k.strip() for k in str(werte.get("mail.accountmanager.accounts") or "").split(",")
@@ -714,7 +714,7 @@ def thunderbird_ordner(adresse: str, art: str, ordner: Path | None = None, *,
 
 
 def _profil_aus(ordner: Path | None, profil: Path | None) -> tuple[Path | None, str]:
-    """Das Profilverzeichnis für `kontoadressen` und `profiladressen` — oder `(None, grund)`.
+    """Das Profil für `profiladressen` und `entwurfsbuch.kontoleser`, oder `(None, grund)`.
 
     `profil` geht vor `ordner`; ohne beides gilt das Standardprofil unter
     `THUNDERBIRD_ORDNER`. Eine Stelle für beide, damit sie das Profil gleich
@@ -730,21 +730,24 @@ def _profil_aus(ordner: Path | None, profil: Path | None) -> tuple[Path | None, 
     return Path(profil), ""
 
 
-def kontoadressen(adresse: str, ordner: Path | None = None, *,
-                  profil: Path | None = None) -> tuple[frozenset[str] | None, str]:
+def konto_in(werte: dict, profilname: str,
+             adresse: str) -> tuple[frozenset[str] | None, str]:
     """Die Adressen aller Identitäten in dem Konto, zu dem `adresse` gehört (#482).
 
     Ein Alias ist eine weitere Identität desselben Kontos. Thunderbird führt
     die Zuordnung in `prefs.js` (`mail.account.<konto>.identities`). Das ist
     dieselbe Datei, aus der schon Ordner und Signatur kommen, und dieselbe
     Kontoliste wie in `_identitaeten` (`_kontoliste`). Gibt `(adressen, "")`
-    oder `(None, grund)`, wenn das Profil es nicht sagt: kein Profil, keine
-    Kontoliste, oder kein Konto mit dieser Adresse.
+    oder `(None, grund)`, wenn das Profil es nicht sagt: keine Kontoliste, oder
+    kein Konto mit dieser Adresse. `werte` sind die schon gelesenen
+    Einstellungen (`thunderbird_einstellungen`), `profilname` steht nur im Grund.
 
-    `profil` ist das Profilverzeichnis selbst und geht vor `ordner`. Wer die
-    Fenster der Entwurfsbrücke beurteilt, muss das Profil nehmen, aus dem sie
-    antwortet (`entwurfsbuch.bruecken_profil`), nicht das Standardprofil
-    (Nachreview #487 Nr. 2, #488 Nr. 1).
+    Gefragt wird über `entwurfsbuch.kontoleser`: Wer die Fenster der
+    Entwurfsbrücke beurteilt, muss das Profil nehmen, aus dem sie antwortet,
+    nicht das Standardprofil (Nachreview #487 Nr. 2, #488 Nr. 1), und wer
+    mehrere Adressen fragt, liest es so nur einmal (#515, Befund 6). Bis #522
+    (Punkt 7) gab es daneben `kontoadressen` hier im Modul, das auch das
+    Standardprofil las; außer Tests rief es niemand mehr auf.
 
     Fehlt die Kontoliste, bleibt es bei `None`. `_identitaeten` zählt dann alle
     Identitäten, denn dort ist das Mehr harmlos: Signatur und Ordner werden nur
@@ -757,21 +760,6 @@ def kontoadressen(adresse: str, ordner: Path | None = None, *,
     Adressen beider. Das ist die nachsichtige Richtung: ein übersehener
     Fremdabsender statt eines Fehlalarms am eigenen Alias. Gemessen ist der
     Fall nicht.
-    """
-    if not (adresse or "").strip():
-        return None, "ohne Absenderadresse kein Konto"
-    profil, grund = _profil_aus(ordner, profil)
-    if profil is None:
-        return None, grund
-    return konto_in(thunderbird_einstellungen(profil), profil.name, adresse)
-
-
-def konto_in(werte: dict, profilname: str,
-             adresse: str) -> tuple[frozenset[str] | None, str]:
-    """`kontoadressen` an schon gelesenen Einstellungen (`thunderbird_einstellungen`).
-
-    Wer mehrere Adressen gegen dasselbe Profil fragt, liest es so nur einmal
-    (`entwurfsbuch.kontoleser`, #515 Befund 6). `profilname` steht nur im Grund.
     """
     adresse = (adresse or "").strip().lower()
     if not adresse:
@@ -796,7 +784,7 @@ def profiladressen(ordner: Path | None = None, *,
     """Die Adressen aller Identitäten des Profils, über alle Konten (#434).
 
     Der Maßstab dafür, ob eine Mail im Gesendet-Ordner von hier hinausging.
-    Nicht nur das Konto (`kontoadressen`): Odoo verschickt von buchhaltung@
+    Nicht nur das Konto (`konto_in`): Odoo verschickt von buchhaltung@
     über das Postfach von order@, beides Konten desselben Profils — die Mail
     liegt in „Gesendete Elemente“ von order@ und trägt `From: buchhaltung@`.
     Gemessen am 04.11.2026: 651 von 3000 Mails dort. Nur das Konto zu nehmen
@@ -805,7 +793,7 @@ def profiladressen(ordner: Path | None = None, *,
     `_identitaeten` liefert die Kennungen; fehlt die Kontoliste, zählen dort
     alle, und das ist hier das Richtige: Jede Adresse, von der dieses
     Thunderbird senden kann, ist „wir“. Gibt `(adressen, "")` oder
-    `(None, grund)`; `profil` geht vor `ordner`, wie bei `kontoadressen`.
+    `(None, grund)`; `profil` geht vor `ordner` (`_profil_aus`).
     """
     profil, grund = _profil_aus(ordner, profil)
     if profil is None:
@@ -1434,7 +1422,7 @@ def absender_pruefen(fenster, soll: str, *, umgebung: Mapping[str, str] | None =
     von welcher Adresse das Fenster schicken würde. Eine andere Adresse ist
     nicht schon ein Fehler: Unter einer Alias-Identität desselben Kontos meldet
     auch das richtige Fenster eine andere (#462). Deshalb entscheidet das Konto
-    (`kontoadressen`). Gehört die gemeldete Adresse zu einer Identität darin,
+    (`entwurfsbuch.kontoleser`). Gehört die gemeldete Adresse zu einer Identität darin,
     ist der Absender geprüft, und `absender_hinweis` nennt den Alias. Sonst
     steht der Unterschied in `absender_abweichung`.
 
