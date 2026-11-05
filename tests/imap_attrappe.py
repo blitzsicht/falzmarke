@@ -121,7 +121,7 @@ class ImapAttrappe:
                  verschieben_erlaubt: bool = False,
                  faehigkeiten: tuple[str, ...] = ("IMAP4REV1", "UIDPLUS", "MOVE"),
                  flags_hinten: bool = False, ohne_flags: bool = False,
-                 uid_hinten: bool = False, uidvalidity: str | None = "1",
+                 uid_hinten: bool | str = False, uidvalidity: str | None = "1",
                  uidvalidity_select: str | None = None):
         self.ordner: dict[str, list[Eintrag]] = {}
         self._naechste_uid = 100
@@ -266,10 +266,19 @@ class ImapAttrappe:
                     if re.search(r"\bFLAGS\b", teile) and not self.ohne_flags:
                         fahnen = f"FLAGS ({n.flags})"
                     vorn = f"{fahnen} " if fahnen and not self.flags_hinten else ""
-                    kennung = f'UID {n.uid} INTERNALDATE "{_internaldate(n.angekommen)}"'
-                    meta = (f'{nummer} ({"" if self.uid_hinten else kennung + " "}'
+                    uid_teil = f"UID {n.uid}"
+                    datum_teil = f'INTERNALDATE "{_internaldate(n.angekommen)}"'
+                    # `True`: beide hinten; "uid" / "ankunft": nur dieses eine,
+                    # das andere bleibt vor dem Literal (#501, Befund 9).
+                    uid_weg = self.uid_hinten is True or self.uid_hinten == "uid"
+                    datum_weg = self.uid_hinten is True or self.uid_hinten == "ankunft"
+                    vorne = " ".join(t for t, weg in ((uid_teil, uid_weg),
+                                                      (datum_teil, datum_weg)) if not weg)
+                    nachher = " ".join(t for t, weg in ((uid_teil, uid_weg),
+                                                        (datum_teil, datum_weg)) if weg)
+                    meta = (f'{nummer} ({vorne + " " if vorne else ""}'
                             f'{vorn}BODY[HEADER.FIELDS ({" ".join(felder)})] {{{len(literal)}}}')
-                    hinten = " ".join(t for t in (kennung if self.uid_hinten else "",
+                    hinten = " ".join(t for t in (nachher,
                                                   fahnen if self.flags_hinten else "") if t)
                     schluss = (f" {hinten})" if hinten else ")").encode()
                 else:
