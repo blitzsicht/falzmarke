@@ -1,6 +1,6 @@
 # Listings: Einreichungen zum Abhaken
 
-Stand: 02.11.2026. Grundlage ist die [Bestandsaufnahme](bestandsaufnahme-distribution.md). Die
+Stand: 05.11.2026. Grundlage ist die [Bestandsaufnahme](bestandsaufnahme-distribution.md). Die
 Einreichungen erledigt der Betreiber von Hand. Jeder Einreichtext hat höchstens 300 Zeichen und
 trägt den Vorbehalt zur Quellenlage (ADR 0032); `tests/test_verzeichnis_metadaten.py` hält beides.
 
@@ -12,8 +12,8 @@ verlangen, und keine Mehrfacheinreichung.
 | Anthropic-Plugin-Verzeichnis | einreichbar | im Portal **Validate**, dann einreichen |
 | mcp.so | nicht gelistet | anmelden, kostenlosen Weg suchen, nicht zahlen |
 | Smithery | **abgeschaltet** am 31.10.2026 | nichts tun |
-| Glama | gelistet, nicht beansprucht | Eintrag beanspruchen |
-| awesome-mcp-servers | PR offen, hängt an Glama | erledigt sich nach Glama |
+| Glama | beansprucht, Score A (05.11.2026) | Reiter „Admin ⚠“ ansehen |
+| awesome-mcp-servers | PR offen, Glama-Bedingungen erfüllt | Maintainer im PR Bescheid geben |
 | awesome-claude-skills | **gesperrt**, 1 von 10 Sternen | Default: nicht verfolgen; `travisvn` bei 10 Sternen neu bewerten |
 | GitHub Topics | 20 von 20 gesetzt | nichts zu tun |
 
@@ -105,15 +105,18 @@ falzmarke typesets German DIN 5008 letters from Markdown as PDF/A and measures e
 
 ## Glama
 
-- [ ] Eintrag beansprucht
-- [ ] Quality Score ausgewertet
+- [x] Eintrag beansprucht (Screenshot des Betreibers, 05.11.2026 15:43)
+- [x] Quality Score ausgewertet
+- [ ] Reiter „Admin ⚠“: was das Warndreieck bemängelt
 
 **Ziel-URL:** https://glama.ai/mcp/servers/blitzsicht/falzmarke
 
 **Konto:** Glama, Anmeldung mit GitHub; das Konto muss Zugriff auf `blitzsicht/falzmarke` haben.
 
-Der Eintrag und der Badge antworten 200. Es fehlen die beiden Schritte oben, und genau die verlangt
-der Maintainer im PR bei awesome-mcp-servers. Glama baut aus dem `Dockerfile` im Wurzelverzeichnis.
+Gemessen am 05.11.2026: Das Score-Badge (`…/badges/score.svg`) antwortet 200 und trägt den Text
+„claimed by its maintainer, maintenance rated A“. Damit sind beide Schritte erfüllt, die der
+Maintainer im PR bei awesome-mcp-servers verlangt. Glama baut aus dem `Dockerfile` im
+Wurzelverzeichnis.
 
 **Link:** https://falzmarke.com/?utm_source=listing&utm_medium=directory&utm_campaign=glama-202611
 
@@ -131,7 +134,8 @@ German DIN 5008 business letters from Markdown: render PDF/A, build .eml, verify
 
 ## awesome-mcp-servers
 
-- [ ] Glama erledigt (Abschnitt oben)
+- [x] Glama erledigt (Abschnitt oben)
+- [ ] Maintainer im PR Bescheid geben
 - [ ] Merge abwarten, kein neuer PR
 
 **Ziel-URL:** https://github.com/punkpeye/awesome-mcp-servers/pull/13221 (offen seit 30.08.2026)
