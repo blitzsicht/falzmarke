@@ -106,15 +106,36 @@ def _adressliste(wert) -> str:
     teile = []
     for eintrag in _als_liste(wert):
         name, adresse = parseaddr(eintrag)
-        if not adresse:
+        if "@" not in adresse:
             # „Muster, Max <max@example.org>“: parseaddr liefert keine Adresse,
             # Address() schriebe daraus „<>“, eine Mail ohne Empfänger (#519).
-            # lint fängt das vorher ab; hier bleibt es ein Abbruch, kein Kopf.
+            # „Muster“ ohne @ würde still zum Kopf „Muster“ (Review an PR #523).
+            # lint fängt beides vorher ab; hier bleibt es ein Abbruch, kein Kopf.
+            zerlegt = getaddresses([eintrag])
+            if len(zerlegt) > 1 and all("@" in a for _, a in zerlegt):
+                raise ValueError(f"„{eintrag}“ enthält zwei Adressen in einem Eintrag. "
+                                 f"Jede Adresse gehört in eine eigene Zeile der Liste.")
             raise ValueError(f"„{eintrag}“ ist keine E-Mail-Adresse. Steht ein Komma "
                              f"im Namen, gehört der Name in Anführungszeichen.")
         nutzer, _, wirt = adresse.partition("@")
         teile.append(str(Address(name, nutzer, wirt)))
     return ", ".join(teile)
+
+
+def _from_kopf(anzeigename, absender) -> str:
+    """From aus `email.anzeigename` und `email.absender` des Profils.
+
+    Der Name geht als Feld in `Address`, nicht als Text durch `parseaddr`: Ein
+    Komma darin („Siluri, Einkauf“) hätte sonst jede Mail des Profils
+    abgebrochen (Review an PR #523).
+    """
+    if not anzeigename:
+        return _adressliste(absender)
+    _, adresse = parseaddr(str(absender))
+    if "@" not in adresse:
+        raise ValueError(f"`email.absender: {absender}` im Profil ist keine E-Mail-Adresse.")
+    nutzer, _, wirt = adresse.partition("@")
+    return str(Address(str(anzeigename), nutzer, wirt))
 
 
 def signatur_bloecke(profil: dict, kopf: dict) -> list[list[str]]:
@@ -958,8 +979,7 @@ def baue(kopf: dict, profil: dict, quelle_md: str, bloecke, *,
 
     sprache = str(kopf.get("sprache") or profil.get("sprache") or "de")
     nachricht = EmailMessage()
-    nachricht["From"] = _adressliste(
-        f"{email_teil['anzeigename']} <{absender}>" if email_teil.get("anzeigename") else absender)
+    nachricht["From"] = _from_kopf(email_teil.get("anzeigename"), absender)
     nachricht["To"] = _adressliste(kopf.get("an"))
     if kopf.get("cc"):
         nachricht["Cc"] = _adressliste(kopf["cc"])
