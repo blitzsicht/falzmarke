@@ -2119,6 +2119,58 @@ def test_ein_dauerhafter_grund_als_voruebergehend_wird_rot(monkeypatch, _felder_
         probe(monkeypatch, _felder_505, *args)
 
 
+#: Die Zeilen der Positivliste in `_vergeht` (Nachreview von #530) und davor
+#: die eine Zeile, die bis dahin dort stand.
+_VERGEHT_HEUTE = ("    if isinstance(fehler, (ConnectionError, TimeoutError, imaplib.IMAP4.abort)):\n"
+                  "        return True\n"
+                  "    return isinstance(fehler, OSError) and fehler.errno in _NETZ_WEG\n")
+_VERGEHT_VOR_530 = "    return isinstance(fehler, (OSError, imaplib.IMAP4.abort))\n"
+
+
+@pytest.mark.parametrize("weg", ["_vergeht", "verbinde"])
+def test_jeder_oserror_als_voruebergehend_wird_rot(monkeypatch, _felder_505, weg):
+    """Nachreview von #530: `_vergeht` nahm jeden `OSError` außer `gaierror` als
+    vorübergehend, auch `PermissionError`. Die Sabotage setzt genau die alte
+    Zeile zurück; die Probe am Helfer und die am Verbindungsaufbau werden rot,
+    jede mit ihrem eigenen Text."""
+    import errno as _errno
+
+    import test_kein_entwurf_ursache as _probe_modul
+    from falzmarke import postfach as _postfach
+
+    fehler = PermissionError(_errno.EACCES, "Permission denied")
+    if weg == "_vergeht":
+        def probe():
+            _probe_modul.test_ein_anderer_oserror_bleibt(fehler)
+        meldung = re.escape(f"{fehler!r} gilt als vorübergehend")
+    else:
+        def probe():
+            _probe_modul.test_ein_falsches_ziel_ist_dauerhaft(monkeypatch, _felder_505, fehler)
+        meldung = rf"\[Errno {_errno.EACCES}\] Permission.*dauer='vorübergehend'"
+    probe()                                                                     # Kontrolle
+    monkeypatch.setattr(_postfach, "_vergeht", _zeile_ersetzt(
+        _postfach, "_vergeht", _VERGEHT_HEUTE, _VERGEHT_VOR_530))
+    with pytest.raises(AssertionError, match=meldung):
+        probe()
+
+
+def test_eine_zu_enge_positivliste_wird_rot(monkeypatch):
+    """Nachreview von #530, die Gegenrichtung: Fehlt `ConnectionError` in der
+    Liste, gälte eine zurückgesetzte Verbindung als bleibend, und der Abholer
+    gäbe beim ersten Wackler auf."""
+    import errno as _errno
+
+    import test_kein_entwurf_ursache as _probe_modul
+    from falzmarke import postfach as _postfach
+
+    fehler = ConnectionResetError(_errno.ECONNRESET, "Connection reset by peer")
+    _probe_modul.test_ein_bekannter_netzfehler_vergeht(fehler)                  # Kontrolle
+    monkeypatch.setattr(_postfach, "_vergeht", _zeile_ersetzt(
+        _postfach, "_vergeht", "(ConnectionError, TimeoutError,", "(TimeoutError,"))
+    with pytest.raises(AssertionError, match="ConnectionResetError gilt als bleibend"):
+        _probe_modul.test_ein_bekannter_netzfehler_vergeht(fehler)
+
+
 @pytest.mark.parametrize("ersatz, probe_name, meldung", [
     ("if True:", "test_befehl_mit_abgeschaltetem_entwurf_meldet_dauerhaft",
      "URSACHE  vorübergehend"),
