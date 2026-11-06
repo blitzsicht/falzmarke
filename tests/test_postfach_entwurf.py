@@ -381,7 +381,6 @@ def test_befehl_ohne_antwort_auf_fragt_nach_keinem_faehnchen(befehl, monkeypatch
         not in server.protokoll
 
 
-
 def test_befehl_setzt_das_faehnchen_auch_bei_ungewissem_entwurf(befehl, monkeypatch, capsys):
     """Code-Review #553: Ungewiss heißt, ein Entwurf mit `In-Reply-To` kann im
     Postfach liegen. Wird er gesendet, legte `aufraeumen` die Ursprungsmail ohne
@@ -405,6 +404,19 @@ def test_befehl_setzt_das_faehnchen_auch_beim_rueckfall_auf_die_datei(
     assert len(uebergeben) == 1, "Vorbedingung: die Datei ging nicht auf"
     assert server.befehle("UID STORE") == [("UID STORE", "101", "+FLAGS", "(\\Flagged)")], \
         "kein Fähnchen beim Rückfall auf die Datei"
+
+
+def test_befehl_ohne_entwurf_mit_kein_fenster_setzt_kein_faehnchen(befehl, monkeypatch, capsys):
+    """Exit 3 ohne Entwurf: Nichts ist sendbar, der nächste Aufruf setzt es (ADR 0063,
+    Nachtrag Code-Review #553). Die Gegenprobe ohne Schalter ist der Test direkt
+    darüber: derselbe Aufbau ohne `--kein-fenster`, genau ein STORE."""
+    server = _mit_ursprung(monkeypatch)
+    monkeypatch.setattr(oeffnen, "entwurf",
+                        lambda felder, **k: oeffnen.Entwurfslage(None, "kein Mailprogramm"))
+    assert befehl("--kein-fenster") == falzmarke.EXIT_UMGEBUNG
+    assert "KEIN ENTWURF" in capsys.readouterr().err, "Vorbedingung: nicht der Exit-3-Zweig"
+    assert server.befehle("UID STORE") == [], "Fähnchen, obwohl kein Entwurf entstand"
+
 
 # ── --kein-fenster ohne Postfach (#441) ─────────────────────────────────────
 #
