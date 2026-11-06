@@ -2433,6 +2433,42 @@ def test_ohne_sperre_im_befehl_geht_bei_abgeschaltetem_entwurf_die_datei_auf(
         probe(_email_befehl_441, monkeypatch, capsys)
 
 
+@pytest.mark.parametrize(("probe_name", "meldung"), [
+    ("test_kein_fenster_ohne_oeffnen_legt_den_entwurf_ab",
+     "--kein-fenster ohne --oeffnen legte keinen Entwurf ab"),
+    ("test_kein_fenster_ohne_oeffnen_und_ohne_proxy_endet_mit_exit_3",
+     "Exit 0: --kein-fenster ohne --oeffnen endete ohne KEIN ENTWURF"),
+], ids=["abgelegt", "ohne-proxy"])
+def test_ohne_kopplung_tut_kein_fenster_ohne_oeffnen_nichts(tmp_path, monkeypatch, capsys,
+                                                            probe_name, meldung):
+    """#538: die Bedingung vor dem Entwurf wie vor dem Fix, ohne `--kein-fenster`.
+    Dann schreibt der Befehl nur die `.eml` und endet mit Exit 0."""
+    import test_postfach_entwurf
+
+    probe = getattr(test_postfach_entwurf, probe_name)
+    probe(tmp_path, monkeypatch, capsys)                                   # Kontrolle
+    monkeypatch.setattr(falzmarke, "befehl_email", _zeile_ersetzt(
+        falzmarke, "befehl_email", "or args.ersetzen or args.kein_fenster:",
+        "or args.ersetzen:"))
+    with pytest.raises(AssertionError, match=re.escape(meldung)):
+        probe(tmp_path, monkeypatch, capsys)
+
+
+def test_ohne_kopplung_in_der_hilfe_schweigt_kein_fenster_dazu(monkeypatch, capsys):
+    """#538, Abnahme 3: der Hilfetext von `--kein-fenster` wie vor dem Fix. Der
+    Parser entsteht in `main`; bei `--programm` steht der Satz weiter, die Probe
+    liest aber nur den Abschnitt von `--kein-fenster`."""
+    from test_befehl_email import test_die_hilfe_nennt_bei_kein_fenster_die_kopplung as probe
+
+    probe(capsys)                                                          # Kontrolle
+    monkeypatch.setattr(falzmarke, "main", _zeile_ersetzt(
+        falzmarke, "main", '"Nicht mit --programm outlook; schließt --oeffnen ein")',
+        '"Nicht mit --programm outlook")'))
+    with pytest.raises(AssertionError, match="--kein-fenster nennt die Kopplung nicht: "
+                                             "den Entwurf ablegen"):
+        probe(capsys)
+
+
 def test_ohne_signaturklasse_findet_die_pruefung_keine_signatur(tmp_path, monkeypatch):
     """Sabotage: Die Hülle der Signatur trägt eine andere Klasse. Dann findet
     die Prüfung aus `test_moz_signatur.py` kein Element mehr — und Thunderbirds
