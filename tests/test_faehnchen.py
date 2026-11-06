@@ -220,6 +220,15 @@ def test_erledigt_verspricht_nicht_das_ablegen_eines_frueheren_faehnchens():
     assert "früher gesetztes bleibt stehen" in zeile
 
 
+def test_erledigt_verspricht_das_ablegen_nur_fuer_eine_antwort_mit_bezug():
+    """Code-Review #553: Ein Entwurf aus dem Verfassen-Fenster trägt kein
+    `In-Reply-To`, `aufraeumen` legt die Ursprungsmail dann nie ab. Die Zeile
+    darf das Ablegen nicht für jede gesendete Antwort versprechen."""
+    zeile = faehnchen.zeile(faehnchen.Faehnchen("nicht_noetig"), ADRESSE)
+    assert "sobald die Antwort gesendet ist" not in zeile, zeile
+    assert "mit `In-Reply-To`" in zeile, zeile
+
+
 # ── Die Attrappe selbst ─────────────────────────────────────────────────────
 
 def test_gegenprobe_das_markieren_ist_einzeln_einzuschalten():
