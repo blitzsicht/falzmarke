@@ -913,7 +913,9 @@ def pruefe_email_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> Non
             "eine Message-ID steht in spitzen Klammern: `<kennung@beispiel.de>`")
 
     # `erledigt` gilt nur für eine Antwort (#549). Warnung, kein Fehler: Ein
-    # falscher Wert setzt das Fähnchen, und das ist die sichere Seite.
+    # falscher Wert setzt das Fähnchen, und das ist die sichere Seite. Geprüft
+    # wird der Typ, nicht der Wert: `1 in (True, False)` ist wahr, `1` zählt für
+    # `faehnchen.ist_erledigt` aber nicht als Ja (Nachreview #553).
     if "erledigt" in kopf:
         erledigt = kopf.get("erledigt")
         if not antwort:
@@ -923,7 +925,7 @@ def pruefe_email_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> Non
                 "an der ein Fähnchen stünde",
                 "`antwort_auf` mit der Message-ID der beantworteten Mail ergänzen, "
                 "oder die Zeile weglassen")
-        if not (erledigt in (True, False)
+        if not (isinstance(erledigt, bool)
                 or (isinstance(erledigt, str) and erledigt.strip().casefold() in ("ja", "nein"))):
             bericht.warnung(
                 _feldzeile(kopf_roh, "erledigt"), "erledigt",

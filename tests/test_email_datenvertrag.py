@@ -190,6 +190,20 @@ def test_antwort_auf_ist_eine_message_id(tmp_path, wert, sauber):
     assert ("antwort_auf" in regeln(bericht)) != sauber
 
 
+@pytest.mark.parametrize("wert, sauber", [
+    ("ja", True), ("nein", True), ("Ja", True), ("true", True), ("yes", True), ("false", True),
+    ('"yes"', False), ("1", False), ("0", False), ("vielleicht", False), ("", False),
+], ids=lambda w: str(w) or "leer")
+def test_erledigt_warnt_bei_jedem_wert_ausser_ja_und_nein(tmp_path, wert, sauber):
+    """Die Warnung muss genau dort anschlagen, wo `faehnchen.ist_erledigt` den
+    Wert anders liest, als er gemeint sein dürfte. `1` ist in YAML eine Zahl und
+    `1 == True` — zählt für das Fähnchen aber nicht als Ja (Nachreview #553)."""
+    bericht = linte(tmp_path, MAIL + 'antwort_auf: "<frage@example.de>"\n'
+                    + f"erledigt: {wert}\n")
+    assert ("erledigt" in regeln(bericht)) != sauber, (
+        f"erledigt: {wert!r} — Warnung erwartet: {not sauber}")
+
+
 # ── Das Profil ──────────────────────────────────────────────────────────────
 
 def test_das_beispielprofil_traegt_den_abschnitt():
