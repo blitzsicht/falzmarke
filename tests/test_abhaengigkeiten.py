@@ -135,8 +135,11 @@ def test_die_typst_grenze_ist_eine_echte_grenze():
     Minor-Fassung kann mehr ändern als die Kennung, die ihr Vergleich überdeckt (#533)."""
     kanon = _grenzen_aus_pyproject_text(PYPROJECT.read_text(encoding="utf-8"))
     teile = kanon["typst"].split(",")
-    assert any(t.startswith(">=") for t in teile), kanon["typst"]
-    assert any(t.startswith("<") and not t.startswith("<=") for t in teile), kanon["typst"]
+    grenze = kanon["typst"] or "ohne Grenze"
+    assert any(t.startswith(">=") for t in teile), \
+        f"typst ohne Untergrenze in pyproject.toml: „{grenze}“"
+    assert any(t.startswith("<") and not t.startswith("<=") for t in teile), \
+        f"typst ohne echte Obergrenze in pyproject.toml: „{grenze}“"
 
 
 def test_requirements_und_deps_tragen_dieselben_grenzen_wie_pyproject():
