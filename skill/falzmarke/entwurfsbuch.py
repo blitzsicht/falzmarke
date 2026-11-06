@@ -784,8 +784,9 @@ def kontoleser(umgebung: Mapping[str, str] | None = None, profilordner: Path | N
                ) -> Callable[[str], tuple[frozenset[str] | None, str]]:
     """Fragt Adressen gegen die Konten im Profil, aus dem die Brücke antwortet.
 
-    Die einzige Stelle, die `bruecken_profil` und die Konten aus `prefs.js`
-    zusammensetzt (#500, Befund 2). Liegt der Socket der Brücke in einem anderen
+    `oeffnen` und `cli` fragen die Konten hier, statt `bruecken_profil` selbst
+    aufzurufen (#500, Befund 2; geprüft per `ast` in `test_postfach_entwurf`, nur
+    für diese beiden Module). Liegt der Socket der Brücke in einem anderen
     Profil als dem Standardprofil, kennt nur dieses die Aliasse (Nachreview
     #488, Nr. 1). Das Profil wird einmal aufgelöst und gelesen, auch wenn der
     Aufrufer mehrere Adressen fragt (#515, Befund 6). Jede Frage gibt

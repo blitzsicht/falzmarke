@@ -116,8 +116,9 @@ class Oeffnung(NamedTuple):
     `oeffnen.empfaenger_pruefen` nach dem Vergleich mit dem Entwurf.
 
     Den Absender vergleicht `oeffnen.absender_pruefen` (#482): `absender_geprueft`,
-    `absender_abweichung` bei einer fremden Identität, `absender_hinweis` für
-    einen Alias desselben Kontos oder den Grund, warum nicht verglichen wurde.
+    `absender_abweichung` bei einer fremden Identität, mit ihrem Grund vorn,
+    `absender_hinweis` für einen Alias desselben Kontos oder den Grund, warum
+    nicht verglichen wurde.
     """
 
     zustand: str
