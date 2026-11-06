@@ -59,6 +59,40 @@ RECHNUNG_BEISPIELE = sorted(p for p in BEISPIELE if _typ(p) == "rechnung")
 #: etwas änderte (#467). Gelesen von den Tests und von `scripts/golden_rechnung.py`.
 GOLDEN_VERSION = "0.0.0+golden"
 
+_TYPST_FASSUNG = re.compile(rb"<xmp:CreatorTool>Typst ([^<]+)</xmp:CreatorTool>")
+_TYPST_INSTANZ = re.compile(rb"<xmpMM:InstanceID>([^<]+)</xmpMM:InstanceID>")
+
+
+def ohne_typst_kennung(pdf: bytes) -> bytes:
+    """Die Bytes eines PDF, in denen typsts Fassung und InstanceID überdeckt sind.
+
+    Beides schreibt typst selbst, und beides wechselt mit jeder Fassung: die Fassung
+    in `/Creator`, `xmp:CreatorTool` und `stEvt:softwareAgent`, die davon abgeleitete
+    InstanceID dreimal im XMP und hexkodiert im zweiten Eintrag von `/ID`. typst 0.15.2
+    änderte genau diese Stellen. Alle sechs Rechnungs-Goldens kippten, Seitenbild und
+    XML blieben gleich (#533). `/Producer` hält `GOLDEN_VERSION` fest. Diese Stellen
+    stammen aus typst, nicht aus falzmarke, deshalb deckt sie erst der Vergleich ab.
+
+    Jede Stelle wird gleich lang durch `#` ersetzt, und jede mit ihrer erwarteten
+    Anzahl. Weicht eine Anzahl ab, bricht die Funktion ab. Eine Maske, die still nichts
+    mehr trifft, ließe den Vergleich wieder an der Fassung scheitern. Eine, die mehr
+    trifft, könnte eine echte Änderung verdecken. Das Ergebnis ist nur zum Vergleichen
+    da, kein lesbares PDF. Ändert eine neue Fassung die Länge ihres Namens, kippt das
+    Golden trotzdem: Alle Versätze dahinter verschieben sich.
+    """
+    fassung, instanz = _TYPST_FASSUNG.search(pdf), _TYPST_INSTANZ.search(pdf)
+    assert fassung and instanz, "keine typst-Kennung im XMP — hat typst das Format geändert?"
+    for alt, anzahl, wo in (
+            (b"Typst " + fassung[1], 2, "xmp:CreatorTool und stEvt:softwareAgent"),
+            # In `/Creator` steht der Punkt als Oktal-Escape `\056`.
+            (b"/Creator (Typst " + fassung[1].replace(b".", rb"\056") + b")", 1, "/Creator"),
+            (instanz[1], 3, "InstanceID im XMP"),
+            (instanz[1].hex().encode(), 1, "/ID")):
+        assert pdf.count(alt) == anzahl, (
+            f"typst-Kennung in {wo}: {pdf.count(alt)}-mal statt {anzahl}-mal")
+        pdf = pdf.replace(alt, b"#" * len(alt))
+    return pdf
+
 #: Die ausgelieferten Profile. Ein Beispiel darf sein Profil auch neben sich
 #: legen — `cli.finde_profile` sucht dort zuerst (Punkt 3 der Suchreihenfolge).
 PROFILE = SKILL / "falzmarke" / "typst" / "profiles"

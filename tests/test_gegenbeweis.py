@@ -5209,6 +5209,29 @@ def test_eine_abweichende_typst_grenze_macht_den_abgleich_rot(tmp_path, monkeypa
         probe()
 
 
+# ── #533: Die Maske deckt jede Stelle der typst-Kennung ─────────────────────
+#
+# Je Lauf fehlt der Maske genau eine der vier Stellen, so als wäre sie nie
+# eingetragen worden. Dann muss der Nachweis, dass eine andere typst-Fassung kein
+# Golden kippt, an genau dieser Lücke rot werden.
+
+@pytest.mark.parametrize("stelle", ["xmp:CreatorTool und stEvt:softwareAgent",
+                                    "/Creator", "InstanceID im XMP", "/ID"])
+def test_eine_luecke_in_der_typst_maske_kippt_das_golden(monkeypatch, stelle):
+    import conftest
+    import test_rechnung_beispiele as _rb
+
+    beispiel = _rb.RECHNUNG_BEISPIELE[0]
+    _rb.test_eine_andere_typst_fassung_kippt_kein_golden(beispiel)          # Kontrolle
+    monkeypatch.setattr(_rb, "ohne_typst_kennung", _zeile_ersetzt(
+        conftest, "ohne_typst_kennung",
+        '        pdf = pdf.replace(alt, b"#" * len(alt))',
+        f'        pdf = pdf if wo == "{stelle}" else pdf.replace(alt, b"#" * len(alt))'))
+    with pytest.raises(AssertionError, match=re.escape(
+            f"{beispiel.stem}: die Maske deckt die typst-Kennung nicht ganz ab")):
+        _rb.test_eine_andere_typst_fassung_kippt_kein_golden(beispiel)
+
+
 # ── #467: Der Handschlag verlangt eine Version in `serverInfo` ──────────────
 
 def test_ein_server_ohne_version_faellt_beim_handschlag_durch(tmp_path):

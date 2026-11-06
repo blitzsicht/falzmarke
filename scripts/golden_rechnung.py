@@ -15,6 +15,11 @@ Ebenso fest ist die Fassung in `/Producer` und `/falzmarke_Version`
 Golden mehr. Meldet das Skript nach einem Release „erneuert“, hat sich etwas
 anderes geändert.
 
+Was typst selbst ins PDF schreibt und mit jeder Fassung wechselt (Fassung in
+`/Creator` und XMP, InstanceID), vergleicht das Skript wie die Tests nur maskiert
+(`conftest.ohne_typst_kennung`, #533). Eine neue typst-Fassung ohne sichtbare
+Änderung schreibt deshalb kein Golden neu.
+
     python3 scripts/golden_rechnung.py            # schreibt Goldens neu
     python3 scripts/golden_rechnung.py --pruefen  # meldet nur Abweichungen
 
@@ -35,7 +40,8 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "skill"))
 sys.path.insert(0, str(REPO / "tests"))
 
-from conftest import GOLDEN_VERSION, RECHNUNG_BEISPIELE, PROFILE  # noqa: E402
+from conftest import (GOLDEN_VERSION, RECHNUNG_BEISPIELE, PROFILE,  # noqa: E402
+                      ohne_typst_kennung)
 
 #: Derselbe Zeitpunkt wie in `scripts/golden_email.py` und in den Tests.
 EPOCH = "1788134400"
@@ -72,10 +78,12 @@ def erzeuge(quelle: Path) -> tuple[bytes, bytes]:
             os.environ["SOURCE_DATE_EPOCH"] = alt
 
 
-def _aktualisiere(pfad: Path, neu: bytes, nur_pruefen: bool) -> bool:
-    """Schreibt `pfad`, falls nötig. Gibt zurück, ob es eine Abweichung gab."""
+def _aktualisiere(pfad: Path, neu: bytes, nur_pruefen: bool, *, maske=None) -> bool:
+    """Schreibt `pfad`, falls nötig. Gibt zurück, ob es eine Abweichung gab.
+
+    Mit `maske` werden beide Seiten erst durch sie verglichen."""
     alt = pfad.read_bytes() if pfad.exists() else None
-    if alt == neu:
+    if alt is not None and (maske(alt) == maske(neu) if maske else alt == neu):
         print(f"gleich     {pfad.relative_to(REPO)}")
         return False
     if nur_pruefen:
@@ -99,7 +107,8 @@ def main(argv: list[str]) -> int:
 
     for quelle in RECHNUNG_BEISPIELE:
         pdf_bytes, xml_bytes = erzeuge(quelle)
-        if _aktualisiere(ZIEL / f"{quelle.stem}.pdf", pdf_bytes, nur_pruefen):
+        if _aktualisiere(ZIEL / f"{quelle.stem}.pdf", pdf_bytes, nur_pruefen,
+                        maske=ohne_typst_kennung):
             abweichungen += 1
         if _aktualisiere(ZIEL / f"{quelle.stem}.xml", xml_bytes, nur_pruefen):
             abweichungen += 1

@@ -130,7 +130,8 @@ def test_requirements_und_deps_nennen_dieselben_pakete_wie_pyproject():
 def test_die_typst_grenze_ist_eine_echte_grenze():
     """Ohne diese Zeile wäre der Grenzvergleich unten auch grün, wenn alle drei Stellen
     `typst` ohne Grenze nennen — leer gleich leer. typst braucht eine Unter- und eine
-    Obergrenze: Die Byte-Goldens der Rechnungen hängen an der Fassung (#533)."""
+    Obergrenze: Die Byte-Goldens der Rechnungen stammen aus einer Fassung, und eine
+    Minor-Fassung kann mehr ändern als die Kennung, die ihr Vergleich überdeckt (#533)."""
     kanon = _grenzen_aus_pyproject_text(PYPROJECT.read_text(encoding="utf-8"))
     teile = kanon["typst"].split(",")
     assert any(t.startswith(">=") for t in teile), kanon["typst"]
