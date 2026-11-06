@@ -257,14 +257,15 @@ Vier Eigenschaften, die dazugehören:
   Vorübergehend sind ein Proxy, der nicht antwortet, eine abgerissene Leitung, ein Netz, das
   gerade nicht trägt, ein Zeitlimit und ein Mailprogramm, das nicht antwortet: Der nächste Lauf
   kann gelingen. Alles andere ist dauerhaft (abgeschaltet, `CI`, kein Mailprogramm, Anmeldung
-  abgelehnt, kein Entwürfe-Ordner, ein unbekannter Hostname in `FALZMARKE_GESENDET_IMAP`, eine
-  fehlende Berechtigung) und bleibt, bis jemand die Ursache behebt. Was sich nicht sicher zuordnen
-  lässt, gilt als dauerhaft. Zwei Grenzfälle sind so entschieden (#540): Ein vertippter Port
-  meldet sich als vorübergehend, weil er von außen aussieht wie ein Proxy, der gerade nicht läuft
-  (#548). Ein unbekannter Hostname bleibt dauerhaft, auch wenn macOS dieselbe Meldung womöglich
-  ohne Netz gibt (ungemessen); die Vorgabe `127.0.0.1` löst keinen Namen auf. Wer in einer
-  Schleife aufruft, liest diese Zeile statt des Wortlauts im Grund; die Zeile `KEIN ENTWURF`
-  selbst bleibt unverändert.
+  abgelehnt, kein Entwürfe-Ordner, ein unbekannter Hostname in `FALZMARKE_GESENDET_IMAP`, ein Port
+  außerhalb von 1 bis 65535, eine fehlende Berechtigung) und bleibt, bis jemand die Ursache behebt.
+  Was sich nicht sicher zuordnen lässt, gilt als dauerhaft. Zwei Grenzfälle sind so entschieden
+  (#540): Ein vertippter Port, auf dem niemand lauscht, meldet sich als vorübergehend, weil er von
+  außen aussieht wie ein Proxy, der gerade nicht läuft. Ein unbekannter Hostname bleibt dauerhaft,
+  auch wenn macOS dieselbe Meldung womöglich ohne Netz gibt (ungemessen). Das betrifft jeden
+  Hostnamen, auch einen im eigenen Netz; eine IP wie die Vorgabe `127.0.0.1` wird nicht aufgelöst.
+  Wer in einer Schleife aufruft, liest diese Zeile statt des Wortlauts im Grund; die Zeile
+  `KEIN ENTWURF` selbst bleibt unverändert.
   `--kein-fenster` schließt `--oeffnen` ein, wie `--programm` (#538): Ohne `--oeffnen` endete der
   Schalter bis dahin mit Exit 0, ohne Entwurf und ohne Hinweis. Damit sieht `--kein-fenster`
   allein auch vorher im Gesendet-Ordner nach, wie `--oeffnen`

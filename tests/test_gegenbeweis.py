@@ -2172,6 +2172,74 @@ def test_eine_zu_enge_positivliste_wird_rot(monkeypatch):
         _probe_modul.test_ein_bekannter_netzfehler_vergeht(fehler)
 
 
+@pytest.mark.parametrize("weg", ["verbinde", "_vergeht"])
+def test_ein_abgelehnter_port_als_dauerhaft_wird_rot(monkeypatch, _felder_505, weg):
+    """Nachreview von #569: Der Grenzfall aus #540 (ein vertippter Port, auf dem
+    niemand lauscht, gilt als vorübergehend) hatte keine eigene Gegenprobe. Am
+    Verbindungsaufbau entscheidet der Zweig `except ConnectionRefusedError` in
+    `verbinde`, nach einem abgerissenen Befehl `_vergeht`. Beide Stellen werden
+    je für sich auf „bleibt“ gedreht, und die passende Probe wird rot."""
+    import errno as _errno
+
+    import test_kein_entwurf_ursache as _probe_modul
+    from falzmarke import postfach as _postfach
+
+    fehler = ConnectionRefusedError(_errno.ECONNREFUSED, "Connection refused")
+    if weg == "verbinde":
+        def probe():
+            _probe_modul.test_ein_proxy_der_nicht_antwortet_ist_voruebergehend(
+                monkeypatch, _felder_505, fehler)
+        alt = '(Verbindung abgelehnt)",\n                             voruebergehend=True)'
+        neu = alt.replace("voruebergehend=True", "voruebergehend=False")
+        meldung = "dauer='dauerhaft'"
+    else:
+        # Über den Befehlsweg (`Postfach._befehl`), nicht am Helfer allein: So
+        # fiele auch ein `_befehl` auf, der `_vergeht` gar nicht mehr fragt
+        # (Review von #572).
+        def probe():
+            _probe_modul.test_ein_abgerissener_befehl_vergeht_eine_absage_bleibt(fehler, True)
+        alt = "    if isinstance(fehler, socket.gaierror):\n"
+        neu = "    if isinstance(fehler, ConnectionRefusedError):\n        return False\n" + alt
+        meldung = "ConnectionRefusedError nach einem Befehl: voruebergehend=False"
+    probe()                                                                     # Kontrolle
+    monkeypatch.setattr(_postfach, weg, _zeile_ersetzt(_postfach, weg, alt, neu))
+    with pytest.raises(AssertionError, match=meldung):
+        probe()
+
+
+@pytest.mark.parametrize("alt, neu, probe_name, argumente", [
+    ("not (port.isascii() and port.isdigit())", "not port.isdigit()",
+     "test_nur_ascii_ziffern_sind_ein_port", ("²",)),
+    ("if len(ziffern) <= 5 else 0", "if True else 0",
+     "test_ein_ueberlanger_port_ist_ein_grund_kein_absturz", ()),
+], ids=["nur-ascii", "laengengrenze"])
+def test_ein_port_der_int_sprengt_wird_rot(monkeypatch, alt, neu, probe_name, argumente):
+    """Review von #572: Ohne ASCII-Prüfung wirft `int('²')`, ohne Längengrenze
+    `int` bei 5000 Ziffern einen `ValueError` statt eines Grundes."""
+    import test_postfach as _probe_modul
+    from falzmarke import postfach as _postfach
+
+    probe = getattr(_probe_modul, probe_name)
+    probe(*argumente)                                                           # Kontrolle
+    monkeypatch.setattr(_postfach, "ziel", _zeile_ersetzt(_postfach, "ziel", alt, neu))
+    with pytest.raises(ValueError):
+        probe(*argumente)
+
+
+def test_ein_port_ohne_bereichspruefung_wird_rot(monkeypatch):
+    """Nachreview von #569: Ohne die Prüfung in `ziel` ginge `127.0.0.1:99999`
+    durch und endete als scheinbar unbekannter Host."""
+    import test_postfach as _probe_modul
+    from falzmarke import postfach as _postfach
+
+    probe = _probe_modul.test_ein_port_ausserhalb_des_bereichs_ist_ein_bleibender_grund
+    probe("99999")                                                              # Kontrolle
+    monkeypatch.setattr(_postfach, "ziel", _zeile_ersetzt(
+        _postfach, "ziel", "    if not 1 <= nummer <= 65535:\n", "    if False:\n"))
+    with pytest.raises(pytest.fail.Exception, match="DID NOT RAISE"):
+        probe("99999")
+
+
 @pytest.mark.parametrize("ersatz, probe_name, meldung", [
     ("if True:", "test_befehl_mit_abgeschaltetem_entwurf_meldet_dauerhaft",
      "URSACHE  vorübergehend"),
