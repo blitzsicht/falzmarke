@@ -25,7 +25,12 @@ classifiers = [
     "Topic :: Text Processing :: Markup :: Markdown",
 ]
 dependencies = [
-    "typst>=0.15,<0.15.1",  # 0.15.2 ändert die Bytes der Rechnungs-Goldens (#533)
+    # Ab 0.15.2: Die Rechnungs-Goldens stammen von dieser Fassung (#533). Was typst
+    # mit seiner Fassung ändert (/Creator, XMP, InstanceID), überdeckt der Vergleich
+    # (`tests/conftest.py`, ohne_typst_kennung); eine Minor-Fassung kann mehr ändern.
+    # Dieselbe Grenze in skill/requirements.txt und bootstrap.py,
+    # `tests/test_abhaengigkeiten.py` hält sie gleich.
+    "typst>=0.15.2,<0.16",
     "pyyaml>=6",
     "pdfplumber>=0.11",
     "pypdf>=5",

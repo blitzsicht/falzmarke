@@ -193,6 +193,9 @@ Packen aus `pyproject.toml` (`scripts/plugin_packen.py`).
 `/Producer` und `/falzmarke_Version`. Bis 0.11.2 stand dort die Paketversion, und jedes Release
 erzeugte sechs Binär-Diffs ohne inhaltliche Änderung. Seit #467 tragen die Goldens eine feste
 Fassung (`GOLDEN_VERSION` in `tests/conftest.py`), so wie `SOURCE_DATE_EPOCH` die Zeit festhält.
+Was typst selbst ins PDF schreibt (seine Fassung in `/Creator` und im XMP, die InstanceID),
+überdeckt der Vergleich seit #533 (`ohne_typst_kennung`, ebenda). Eine typst-Fassung, die nur
+diese Kennung ändert, kippt also kein Golden mehr.
 Wird beim Release ein Rechnungs-Golden rot, hat sich an einer Rechnung etwas geändert. Dann
 gehört der Diff gelesen, bevor `python3 scripts/golden_rechnung.py` ihn überschreibt.
 

@@ -64,7 +64,7 @@ import pytest
 
 from falzmarke import cli as falzmarke
 from conftest import (GOLDEN_VERSION, REPO, PROFILE, RECHNUNG_BEISPIELE,
-                      ohne_typografiehinweise)
+                      ohne_typografiehinweise, ohne_typst_kennung)
 
 GOLDEN = REPO / "tests" / "golden" / "rechnung"
 
@@ -156,11 +156,50 @@ def test_zu_jedem_beispiel_ein_xml_golden():
 
 @pytest.mark.parametrize("beispiel", RECHNUNG_BEISPIELE, **IDS)
 def test_das_pdf_entspricht_seinem_golden(beispiel, tmp_path):
+    """Byteweise bis auf typsts eigene Kennung (`conftest.ohne_typst_kennung`, #533)."""
     pdf = _setze(beispiel, tmp_path)
     soll = GOLDEN / f"{beispiel.stem}.pdf"
-    assert pdf.read_bytes() == soll.read_bytes(), (
+    assert ohne_typst_kennung(pdf.read_bytes()) == ohne_typst_kennung(soll.read_bytes()), (
         f"{beispiel.name} rendert andere Bytes als sein Golden — bei einer gewollten "
         "Änderung das Golden neu erzeugen und den Diff mitlesen.")
+
+
+def _andere_typst_fassung(pdf: bytes) -> bytes:
+    """Dasselbe PDF, als hätte es eine andere typst-Fassung gleicher Namenslänge
+    geschrieben: letzte Ziffer der Fassung und InstanceID an allen Stellen gedreht."""
+    fassung = re.search(rb"<xmp:CreatorTool>Typst ([^<]+)<", pdf)[1]
+    instanz = re.search(rb"<xmpMM:InstanceID>([^<]+)<", pdf)[1]
+    andere = fassung[:-1] + (b"8" if fassung[-1:] == b"9" else b"9")
+    gedreht = instanz[1:] + instanz[:1]
+    assert gedreht != instanz, "die InstanceID lässt sich so nicht drehen"
+    for alt, neu in ((b"Typst " + fassung, b"Typst " + andere),
+                     (fassung.replace(b".", rb"\056"), andere.replace(b".", rb"\056")),
+                     (instanz, gedreht), (instanz.hex().encode(), gedreht.hex().encode())):
+        assert alt in pdf, f"„{alt!r}“ fehlt im Golden — die Nachbildung greift nicht"
+        pdf = pdf.replace(alt, neu)
+    return pdf
+
+
+@pytest.mark.parametrize("beispiel", RECHNUNG_BEISPIELE, **IDS)
+def test_eine_andere_typst_fassung_kippt_kein_golden(beispiel):
+    """typst 0.15.2 kippte alle sechs Goldens über seine Kennung allein (#533). Eine
+    Fassung, die nur die Kennung ändert, muss der Vergleich oben durchlassen."""
+    golden = (GOLDEN / f"{beispiel.stem}.pdf").read_bytes()
+    andere = _andere_typst_fassung(golden)
+    assert andere != golden, "die Nachbildung ändert nichts — so belegt der Test nichts"
+    assert ohne_typst_kennung(andere) == ohne_typst_kennung(golden), (
+        f"{beispiel.stem}: die Maske deckt die typst-Kennung nicht ganz ab")
+
+
+def test_ein_pdf_ohne_typst_kennung_bricht_den_vergleich_ab():
+    """Trifft die Maske nichts mehr, etwa weil typst sein XMP umbaut, soll das laut
+    scheitern statt still den rohen Vergleich zurückzubringen."""
+    golden = (GOLDEN / f"{RECHNUNG_BEISPIELE[0].stem}.pdf").read_bytes()
+    ohne = golden.replace(b"<stEvt:softwareAgent>Typst ", b"<stEvt:softwareAgent>Tipst ")
+    assert ohne != golden
+    with pytest.raises(AssertionError, match="typst-Kennung in xmp:CreatorTool und "
+                                             "stEvt:softwareAgent: 1-mal statt 2-mal"):
+        ohne_typst_kennung(ohne)
 
 
 @pytest.mark.parametrize("beispiel", RECHNUNG_BEISPIELE, **IDS)
@@ -172,12 +211,13 @@ def test_die_eingebettete_xml_entspricht_ihrem_golden(beispiel, tmp_path):
 
 
 def test_der_pdf_vergleich_kann_rot_werden(tmp_path):
-    """Gegenprobe: eine geänderte Quelle darf nicht zum alten Golden passen."""
+    """Gegenprobe: eine geänderte Quelle darf nicht zum alten Golden passen — auch
+    nicht durch die Maske, mit der der Vergleich oben arbeitet."""
     beispiel = RECHNUNG_BEISPIELE[0]
     sabotiert = _kopie(beispiel, tmp_path, "betreff: ", "betreff: Nachtrag — ")
     ist = _setze(sabotiert, tmp_path).read_bytes()
     soll = (GOLDEN / f"{beispiel.stem}.pdf").read_bytes()
-    assert ist != soll
+    assert ohne_typst_kennung(ist) != ohne_typst_kennung(soll)
 
 
 def test_zwei_laeufe_ueber_dasselbe_beispiel_sind_bytegleich(tmp_path):
