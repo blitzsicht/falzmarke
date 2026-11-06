@@ -481,10 +481,17 @@ falzmarke aufraeumen --alle --machen --json      # verschieben, Bericht je Konto
 - Ein Konto mit `NICHT GEPRÜFT` hält die übrigen nicht an. **Exit 3, sobald irgendein Konto nicht
   geprüft wurde.** Findet der Lauf gar kein Konto mit `ablage`, ist das ebenfalls Exit 3: Ein
   Zeitplan, der nichts prüft, soll nicht grün aussehen.
+- Die mitgelieferten Beispielprofile (`example.yaml` und Geschwister) zählen nicht: Ihre Adressen
+  sind keine Konten. Ein eigenes Profil gleichen Namens weiter vorn im Suchweg zählt.
+- Ein Profil, das sich nicht lesen lässt (kein UTF-8, kein gültiges YAML, eine Liste als oberste
+  Ebene), steht als `UNLESBAR <datei>: <grund>` auf stderr und ergibt **Exit 3**: Dahinter kann ein
+  Konto mit Ablage stehen, das der Lauf dann nicht aufräumt. Die übrigen Konten laufen weiter.
 - `--json` ist hier ein Objekt: `konten` (der Bericht je Konto, wie bei `--absender`),
-  `uebersprungen` und `nicht_geprueft` (Zahl der Konten mit Grund).
+  `uebersprungen`, `unlesbar` (Dateiname und Grund) und `nicht_geprueft` (Zahl der Konten mit
+  Grund).
 - Ohne `--machen` bewegt auch `--alle` nichts. `--seit`, `--machen`, `--profiles` und `--json`
-  gelten wie sonst; `--absender`, `--uid` und `--entwuerfe` gehören nicht dazu (Exit 1).
+  gelten wie sonst; `--absender`, `--uid`, `--uidvalidity`, `--trotz-faehnchen` und `--entwuerfe`
+  gehören nicht dazu (Exit 1).
 
 Der Zeitplan liegt beim Betreiber, nicht im Repo. Ein Beispiel für launchd auf macOS, täglich um
 7:30 Uhr (Pfade und Benutzer anpassen; `/PFAD/ZU/` steht für die eigene Installation):
