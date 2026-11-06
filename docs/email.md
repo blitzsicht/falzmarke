@@ -504,8 +504,10 @@ falzmarke aufraeumen --alle --machen --json      # verschieben, Bericht je Konto
 - Die mitgelieferten Beispielprofile (`example.yaml` und Geschwister) zählen nicht: Ihre Adressen
   sind keine Konten. Ein eigenes Profil gleichen Namens weiter vorn im Suchweg zählt.
 - Ein Profil, das sich nicht lesen lässt (kein UTF-8, kein gültiges YAML, eine Liste als oberste
-  Ebene), steht als `UNLESBAR <datei>: <grund>` auf stderr und ergibt **Exit 3**: Dahinter kann ein
-  Konto mit Ablage stehen, das der Lauf dann nicht aufräumt. Die übrigen Konten laufen weiter.
+  Ebene, auch ein Datum, das es nicht gibt), steht als `UNLESBAR <datei>: <grund>` auf stderr und
+  ergibt **Exit 3**. **Solange wird nichts verschoben**, auch unter `--absender`: Die Datei kann
+  für ein Konto die einzige oder eine andere `ablage` nennen. Jedes Konto trägt dann einen Grund,
+  der die Datei nennt (ADR 0061, Nachtrag #551).
 - `--json` ist hier ein Objekt: `konten` (der Bericht je Konto, wie bei `--absender`),
   `uebersprungen`, `unlesbar` (Dateiname und Grund) und `nicht_geprueft` (Zahl der Konten mit
   Grund).

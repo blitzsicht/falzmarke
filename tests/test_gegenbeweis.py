@@ -4081,20 +4081,29 @@ def _alle_542_kaputt(monkeypatch, tmp_path, capsys, unterverzeichnis, datei, inh
     return code, json.loads(aus)
 
 
-def test_ohne_unicodedecodeerror_bricht_ein_latin1_profil_den_lauf_ab(
+def test_ohne_unicodedecodeerror_nennt_ein_latin1_profil_den_falschen_grund(
         monkeypatch, tmp_path, capsys):
     """Sabotage an genau einer Stelle: Das `except` fängt `UnicodeDecodeError`
-    nicht mehr — wie in #541, wo nur `OSError` und `yaml.YAMLError` standen."""
+    nicht mehr — wie in #541, wo nur `OSError` und `yaml.YAMLError` standen.
+
+    Bis #551 brach der Lauf dann ab. Seitdem fängt der `ValueError`-Zweig auch
+    `UnicodeDecodeError` (eine Unterklasse), und was bleibt, ist der Grund: Der
+    Betreiber soll „kein UTF-8“ lesen, nicht „kein gültiges YAML“."""
     from falzmarke import cli as _cli
 
     latin = "email:\n  absender: jörg@example.de\n".encode("latin-1")
-    code, bericht = _alle_542_kaputt(monkeypatch, tmp_path, capsys, "heil", "latin.yaml", latin)
-    assert code == _cli.EXIT_UMGEBUNG and bericht["unlesbar"] == ["latin.yaml: kein UTF-8"], \
-        f"Kontrollprobe: {code}, {bericht}"
+
+    def probe(unterverzeichnis):
+        code, bericht = _alle_542_kaputt(monkeypatch, tmp_path, capsys, unterverzeichnis,
+                                         "latin.yaml", latin)
+        assert code == _cli.EXIT_UMGEBUNG, f"Kontrollprobe: Exit {code}"
+        assert bericht["unlesbar"] == ["latin.yaml: kein UTF-8"], f"falscher Grund: {bericht}"
+
+    probe("heil")
     monkeypatch.setattr(_cli, "_email_abschnitte", _zeile_ersetzt(
         _cli, "_email_abschnitte", "except UnicodeDecodeError:", "except LookupError:"))
-    with pytest.raises(UnicodeDecodeError):
-        _alle_542_kaputt(monkeypatch, tmp_path, capsys, "sabotiert", "latin.yaml", latin)
+    with pytest.raises(AssertionError, match="falscher Grund"):
+        probe("sabotiert")
 
 
 def test_ohne_den_abschnitt_waechter_bricht_ein_listenprofil_den_lauf_ab(
@@ -4105,17 +4114,22 @@ def test_ohne_den_abschnitt_waechter_bricht_ein_listenprofil_den_lauf_ab(
 
     liste = b"- a@example.de\n"
     code, bericht = _alle_542_kaputt(monkeypatch, tmp_path, capsys, "heil", "liste.yaml", liste)
-    assert code == _cli.EXIT_UMGEBUNG and bericht["konten"][0]["grund"] is None, \
-        f"Kontrollprobe: {code}, {bericht}"
+    assert code == _cli.EXIT_UMGEBUNG and bericht["unlesbar"] == [
+        "liste.yaml: oberste Ebene ist list, kein Abschnitt"], f"Kontrollprobe: {code}, {bericht}"
     monkeypatch.setattr(_cli, "_email_abschnitte", _zeile_ersetzt(
         _cli, "_email_abschnitte", "if not isinstance(profil, dict):", "if False:"))
     with pytest.raises(AttributeError, match="'list' object has no attribute 'get'"):
         _alle_542_kaputt(monkeypatch, tmp_path, capsys, "sabotiert", "liste.yaml", liste)
 
 
-def test_ohne_den_exit_code_bleibt_ein_unlesbares_profil_gruen(monkeypatch, tmp_path, capsys):
+def test_ohne_die_unlesbar_sperre_bleibt_ein_unlesbares_profil_gruen(
+        monkeypatch, tmp_path, capsys):
     """Sabotage an genau einer Stelle: Ein unlesbares Profil ändert den Exit-Code
-    nicht. Dann meldet der Zeitplan grün, obwohl ein Konto fehlen kann."""
+    nicht. Dann meldet der Zeitplan grün, obwohl ein Konto fehlen kann.
+
+    Bis #551 hing der Exit-Code an einer eigenen Abfrage in `befehl_aufraeumen`.
+    Seitdem trägt jeder Bericht den Grund aus `ablage_aus_profil`; die Abfrage
+    war tot und ist entfallen. Gekippt wird deshalb die Sperre selbst."""
     from falzmarke import cli as _cli
 
     def probe(unterverzeichnis):
@@ -4125,8 +4139,8 @@ def test_ohne_den_exit_code_bleibt_ein_unlesbares_profil_gruen(monkeypatch, tmp_
         assert code == _cli.EXIT_UMGEBUNG, f"Exit {code} trotz unlesbarem Profil"
 
     probe("heil")
-    monkeypatch.setattr(_cli, "befehl_aufraeumen", _zeile_ersetzt(
-        _cli, "befehl_aufraeumen", "if unlesbar:", "if False:"))
+    monkeypatch.setattr(_cli, "ablage_aus_profil", _zeile_ersetzt(
+        _cli, "ablage_aus_profil", "    if unlesbar:", "    if False:"))
     with pytest.raises(AssertionError, match="trotz unlesbarem Profil"):
         probe("sabotiert")
 
@@ -4147,9 +4161,61 @@ def test_ohne_die_meldung_im_leeren_zweig_fehlen_die_uebersprungenen(
 
     probe_text("heil")
     monkeypatch.setattr(_cli, "befehl_aufraeumen", _zeile_ersetzt(
-        _cli, "befehl_aufraeumen", "if not args.json:", "if False:"))
+        _cli, "befehl_aufraeumen",
+        "_melde_uebersprungen(uebersprungen, unlesbar)\n                sys.stdout.flush()",
+        "pass\n                sys.stdout.flush()"))
     with pytest.raises(AssertionError, match="ÜBERSPRUNGEN fehlt im Text"):
         probe_text("sabotiert")
+
+
+# ── Nachreview #546 (#551): unlesbar heißt nichts verschieben ──────────────
+#
+# Jede Sabotage stellt an genau einer Stelle den Stand von #546 wieder her.
+
+def test_ohne_valueerror_bricht_ein_profil_mit_ungueltigem_datum_den_lauf_ab(
+        monkeypatch, tmp_path, capsys):
+    """Sabotage an genau einer Stelle: Das `except` fängt `ValueError` nicht mehr.
+    `yaml.safe_load` wirft es bei `datum: 2026-02-30` nackt, nicht als `YAMLError`."""
+    from falzmarke import cli as _cli
+
+    datum = b"datum: 2026-02-30\n"
+    code, bericht = _alle_542_kaputt(monkeypatch, tmp_path, capsys, "heil", "datum.yaml", datum)
+    assert code == _cli.EXIT_UMGEBUNG and bericht["unlesbar"] == [
+        "datum.yaml: kein gültiges YAML"], f"Kontrollprobe: {code}, {bericht}"
+    monkeypatch.setattr(_cli, "_email_abschnitte", _zeile_ersetzt(
+        _cli, "_email_abschnitte", "except (yaml.YAMLError, ValueError):",
+        "except yaml.YAMLError:"))
+    with pytest.raises(ValueError, match="out of range"):
+        _alle_542_kaputt(monkeypatch, tmp_path, capsys, "sabotiert", "datum.yaml", datum)
+
+
+def test_ohne_die_unlesbar_sperre_verschiebt_alle_trotz_verdecktem_profil(
+        monkeypatch, tmp_path, capsys):
+    """Sabotage an genau einer Stelle: `ablage_aus_profil` übergeht unlesbare
+    Profile wieder — der Stand von #546. Dann verschiebt `--machen` das lesbare
+    Konto, obwohl die Latin-1-Datei für dieselbe Adresse eine andere Ablage nennt."""
+    import json
+
+    from falzmarke import cli as _cli
+
+    latin = "email:\n  absender: a@example.de\n  ablage: Jörg\n".encode("latin-1")
+
+    def probe(unterverzeichnis):
+        ziel = tmp_path / unterverzeichnis
+        ziel.mkdir()
+        (ziel / "latin.yaml").write_bytes(latin)
+        code, aus = _alle_541(monkeypatch, ziel, capsys, profile={"eins": ("a@example.de", "Archiv")},
+                              argumente=("--machen", "--json"),
+                              attrappen=[_konto_541("<a@example.de>")])
+        konto = json.loads(aus)["konten"][0]
+        assert konto["verschoben"] == 0, f"verschoben trotz unlesbarem Profil: {konto}"
+        assert "latin.yaml" in konto["grund"], f"Kontrollprobe: {code}, {konto}"
+
+    probe("heil")
+    monkeypatch.setattr(_cli, "ablage_aus_profil", _zeile_ersetzt(
+        _cli, "ablage_aus_profil", "    if unlesbar:", "    if False:"))
+    with pytest.raises(AssertionError, match="verschoben trotz unlesbarem Profil"):
+        probe("sabotiert")
 
 
 # ── #478: Fähnchen, benannte Mails, Jahresordner ────────────────────────────

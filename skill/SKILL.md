@@ -350,7 +350,8 @@ Mail des Laufs.
 ist für den Zeitplan gedacht (`--alle --machen --json`). Adressen ohne `ablage` werden übersprungen
 und im Bericht genannt, kein `NICHT GEPRÜFT`. Ein nicht geprüftes Konto hält die anderen nicht
 an; der Exit-Code ist dann 3. Die mitgelieferten Beispielprofile zählen nicht. Ein unlesbares Profil
-steht als `UNLESBAR` im Bericht und ergibt ebenfalls Exit 3. Nicht mit `--absender`, `--uid`,
+steht als `UNLESBAR` im Bericht; solange wird für kein Konto etwas verschoben, auch nicht unter
+`--absender`, und der Exit-Code ist 3. Nicht mit `--absender`, `--uid`,
 `--uidvalidity`, `--trotz-faehnchen` oder `--entwuerfe`.
 
 **`aufraeumen --entwuerfe` — überholte Entwürfe in den Papierkorb.** Niemand soll einen Entwurf von

@@ -2293,6 +2293,8 @@ def _email_abschnitte(zusatz=None) -> tuple[list[tuple[str, str, object]], list[
       kein gültiges YAML oder eine Liste als oberste Ebene: Dahinter kann ein
       Konto mit Ablage stehen, das der Lauf dann nicht aufräumt. Genannt wird nur
       der Dateiname, nicht der Pfad: Der Bericht geht an einen Kanal.
+      `ValueError` gehört dazu (Nachreview #546, #551): `yaml.safe_load` wirft es
+      nackt, nicht als `YAMLError`, etwa bei `datum: 2026-02-30` oder `!!int abc`.
 
     Der Rohwert von `ablage` bleibt roh: Was als gesetzt gilt, entscheidet jeder
     Aufrufer an seiner eigenen Zeile.
@@ -2310,7 +2312,7 @@ def _email_abschnitte(zusatz=None) -> tuple[list[tuple[str, str, object]], list[
         except UnicodeDecodeError:
             unlesbar.append(f"{pfad.name}: kein UTF-8")
             continue
-        except yaml.YAMLError:
+        except (yaml.YAMLError, ValueError):
             unlesbar.append(f"{pfad.name}: kein gültiges YAML")
             continue
         except OSError as fehler:
@@ -2341,12 +2343,23 @@ def ablage_aus_profil(adresse: str, zusatz=None) -> tuple[str | None, str | None
     mit `--machen` in einen Ordner, den keines der beiden Profile verlangt
     hatte — während die Ausgabe sagte, es sei keines genommen worden (#438).
 
-    Unlesbare Profile meldet `--alle` (`konten_aus_profilen`); hier zählen sie
-    nicht, damit eine kaputte fremde Datei nicht jeden `--absender`-Lauf anhält.
+    Ein unlesbares Profil im Suchweg ist ebenfalls ein **Grund**, für jede
+    Adresse (Nachreview #546, #551). Was darin steht, ist nicht zu lesen: Es
+    kann die einzige `email.ablage` dieses Kontos sein, dann nähme der Lauf
+    `\\Archive`, oder eine andere als die lesbaren Profile, dann wäre der Streit
+    von #438 verdeckt. Bis die Datei lesbar ist, wird deshalb nichts verschoben.
+    Im Zweifel bleibt die Mail im Eingang (Entscheidung des Betreibers,
+    06.11.2026); #546 hatte die Datei hier noch übergangen.
     """
+    lesbar, unlesbar = _email_abschnitte(zusatz)
+    if unlesbar:
+        dateien = ", ".join(zeile.split(":", 1)[0] for zeile in unlesbar)
+        return None, (f"ein Profil im Suchweg ist unlesbar ({dateien}) — es kann für "
+                      f"{adresse} eine andere `email.ablage` nennen; verschoben wird erst, "
+                      "wenn die Datei lesbar ist")
     gesucht = adresse.strip().casefold()
     treffer: dict[str, str] = {}
-    for name, absender, wert in _email_abschnitte(zusatz)[0]:
+    for name, absender, wert in lesbar:
         if absender.casefold() != gesucht:
             continue
         if isinstance(wert, str) and wert.strip():
@@ -2395,7 +2408,8 @@ def _melde_uebersprungen(uebersprungen: list[str], unlesbar: list[str]) -> None:
         print(f"ÜBERSPRUNGEN  {adresse}: kein `email.ablage` im Profil — "
               "dieses Konto wird nicht aufgeräumt")
     for zeile in unlesbar:
-        print(f"UNLESBAR  {zeile} — ein Konto darin wird nicht aufgeräumt", file=sys.stderr)
+        print(f"UNLESBAR  {zeile} — kann ein Konto mit Ablage sein; solange wird nichts "
+              "verschoben", file=sys.stderr)
 
 
 def _raeume_entwuerfe(args) -> int:
@@ -2502,16 +2516,18 @@ def befehl_aufraeumen(args) -> int:
         if not adressen:
             # Ein Zeitplan, der nichts prüft, darf nicht grün aussehen: Zeigt der
             # Suchweg auf ein leeres Verzeichnis, wäre der Lauf sonst „fertig“.
-            print("NICHT GEPRÜFT  kein Profil nennt `email.ablage` — nichts zu tun, oder der "
-                  "Suchweg der Profile (--profiles, FALZMARKE_PROFILES) zeigt woandershin",
-                  file=sys.stderr)
+            # Die erklärenden Zeilen stehen davor, wie auf dem Weg mit Konten (#551).
             if args.json:
                 print(json.dumps({"konten": [], "uebersprungen": uebersprungen,
                                   "unlesbar": unlesbar, "nicht_geprueft": 0,
                                   "grund": "kein Profil nennt `email.ablage`"},
                                  ensure_ascii=False, indent=2))
-            if not args.json:
+            else:
                 _melde_uebersprungen(uebersprungen, unlesbar)
+                sys.stdout.flush()
+            print("NICHT GEPRÜFT  kein Profil nennt `email.ablage` — nichts zu tun, oder der "
+                  "Suchweg der Profile (--profiles, FALZMARKE_PROFILES) zeigt woandershin",
+                  file=sys.stderr)
             return EXIT_UMGEBUNG
     else:
         adressen = args.absender
@@ -2552,8 +2568,8 @@ def befehl_aufraeumen(args) -> int:
                 ziel = (sys.stderr if bericht.grund
                         or zeile.startswith(("NICHT GEPRÜFT", "HINWEIS")) else sys.stdout)
                 print(zeile, file=ziel)
-    if unlesbar:
-        return EXIT_UMGEBUNG
+    # Ein unlesbares Profil macht den Lauf nicht grün: Seit #551 trägt dann jeder
+    # Bericht einen Grund, eine eigene Abfrage von `unlesbar` wäre hier tot.
     return EXIT_UMGEBUNG if any(b.grund for b in berichte) else EXIT_OK
 
 
