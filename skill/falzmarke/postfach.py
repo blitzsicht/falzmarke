@@ -116,6 +116,14 @@ def _vergeht(fehler: BaseException) -> bool:
     `FALZMARKE_GESENDET_IMAP` berichtigen muss, eine fehlende Berechtigung und
     jeder `OSError`, den diese Liste nicht nennt. Bis dahin galt jeder
     `OSError` außer `gaierror` als vorübergehend, auch `PermissionError`.
+
+    Zwei Grenzfälle, bewusst so entschieden (#540): Ein vertippter Port endet
+    in `ConnectionRefusedError` und gilt damit als vorübergehend, denn von
+    außen sieht er aus wie ein Proxy, der gerade nicht läuft, und das ist der
+    häufigere Fall (#548). Ein unbekannter Host (`EAI_NONAME`) bleibt
+    dauerhaft, auch wenn macOS dieselbe Nummer womöglich ohne Netz meldet;
+    gemessen ist das nicht. Die Vorgabe `127.0.0.1` löst keinen Namen auf, es
+    trifft also nur einen entfernten Host.
     """
     if isinstance(fehler, socket.gaierror):
         return fehler.errno == socket.EAI_AGAIN
