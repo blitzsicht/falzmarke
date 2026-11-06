@@ -1113,28 +1113,71 @@ def test_email_oeffnen_legt_in_den_ordner_aus_dem_profil_der_bruecke(monkeypatch
     assert abgelegt({}) == ["Alt"], "der Zwilling kann gar nicht rot werden"
 
 
+def test_entwurf_oeffnen_ohne_profil_der_bruecke_nennt_den_grund(oeffne_befehl, monkeypatch,
+                                                                capsys, tmp_path):
+    """Nachreview #534, Befund B: Liegt der Socket außerhalb eines Profils, und es
+    gibt kein Standardprofil, sagt `bruecken_profil` genau das. Bis dahin warf
+    `entwurfsbuch.thunderbird_ordner` den Grund weg, und `entwurf-oeffnen` meldete
+    „Thunderbird nennt keinen eindeutigen Entwürfe-Ordner“ — eine Ursache, die es
+    nicht gab."""
+    monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER", tmp_path / "kein-profil")
+    ohne = tmp_path / "kein-profil-am-socket"
+    ohne.mkdir(parents=True)
+    monkeypatch.setenv("FALZMARKE_BRUECKE_SOCKET", str(ohne / bruecke.SOCKET_DATEI))
+    server = _zwei_entwuerfe(monkeypatch)
+    tb_bruecke = _bruecke(monkeypatch)
+    assert oeffne_befehl("--uid", str(server.ordner["Entw&APw-rfe"][0].uid)) == 3
+    fehler = capsys.readouterr().err
+    assert "NICHT GEÖFFNET" in fehler and tb_bruecke.anfragen == []
+    assert f"der Socket liegt in {ohne}, das ist kein Thunderbird-Profil" in fehler, \
+        f"entwurf-oeffnen verliert den Grund aus bruecken_profil: {fehler}"
+    assert "keinen eindeutigen Entwürfe-Ordner" not in fehler, fehler
+
+
+def _paketquellen() -> dict[str, str]:
+    """Der Quelltext jedes Moduls im Paket, nach Dateiname."""
+    import falzmarke as paket
+
+    return {datei.name: datei.read_text(encoding="utf-8")
+            for datei in sorted(Path(paket.__file__).parent.glob("*.py"))}
+
+
+def _pruefe_ordneraufrufe(quelltexte: dict[str, str]) -> None:
+    """Der Wächter zu #522, Punkt 6, getrennt vom Lesen der Dateien: So kann die
+    Gegenprobe ihn mit sabotiertem Quelltext füttern (Nachreview #534, Befund A).
+
+    In `entwurfsbuch.py` ist ein bloßes `thunderbird_ordner(…)` die eigene
+    Funktion und erlaubt; `oeffnen.thunderbird_ordner` darf dort nur in ihr
+    stehen. Bis dahin übersprang der Wächter die Datei ganz, und ein Aufruf in
+    `abgleich`, dem alten Verursacher, blieb grün."""
+    import ast
+
+    funde = []
+    for name, text in sorted(quelltexte.items()):
+        for oben in ast.parse(text).body:
+            funktion = getattr(oben, "name", "Modulebene")
+            for knoten in ast.walk(oben):
+                if not isinstance(knoten, ast.Call):
+                    continue
+                ziel = knoten.func
+                direkt = isinstance(ziel, ast.Name) and ziel.id == "thunderbird_ordner"
+                ueber_modul = (isinstance(ziel, ast.Attribute)
+                               and ziel.attr == "thunderbird_ordner"
+                               and getattr(ziel.value, "id", "") != "entwurfsbuch")
+                if name == "entwurfsbuch.py":
+                    verboten = ueber_modul and funktion != "thunderbird_ordner"
+                else:
+                    verboten = direkt or ueber_modul
+                if verboten:
+                    funde.append(f"{name}:{knoten.lineno} in {funktion}")
+    assert funde == [], f"Ordner der Identität am Profil der Brücke vorbei: {funde}"
+
+
 def test_nur_entwurfsbuch_fragt_oeffnen_nach_den_ordnern_der_identitaet():
     """#522, Punkt 6: `oeffnen.thunderbird_ordner` liest das Profil, das man ihm gibt.
     Wer es direkt ruft, nimmt das Standardprofil statt des Profils der Brücke. Die
     Zusammensetzung steht deshalb nur in `entwurfsbuch.thunderbird_ordner`."""
-    import ast
-
-    import falzmarke as paket
-
-    funde = []
-    for datei in sorted(Path(paket.__file__).parent.glob("*.py")):
-        if datei.name == "entwurfsbuch.py":
-            continue
-        for knoten in ast.walk(ast.parse(datei.read_text(encoding="utf-8"))):
-            if not isinstance(knoten, ast.Call):
-                continue
-            ziel = knoten.func
-            direkt = isinstance(ziel, ast.Name) and ziel.id == "thunderbird_ordner"
-            ueber_modul = (isinstance(ziel, ast.Attribute) and ziel.attr == "thunderbird_ordner"
-                           and getattr(ziel.value, "id", "") != "entwurfsbuch")
-            if direkt or ueber_modul:
-                funde.append(f"{datei.name}:{knoten.lineno}")
-    assert funde == [], f"Ordner der Identität am Profil der Brücke vorbei: {funde}"
+    _pruefe_ordneraufrufe(_paketquellen())
 
 
 @pytest.mark.parametrize("fenster, pruefen, ungeprueft", [
@@ -1300,12 +1343,15 @@ def test_entwurf_oeffnen_ohne_bildschirm_ruft_niemanden(oeffne_befehl, monkeypat
 def test_entwurf_oeffnen_ohne_thunderbird_profil_oeffnet_nichts(oeffne_befehl, monkeypatch,
                                                                  capsys, tmp_path):
     """Ohne Profil kommt der Ordner vom Server. Ob Thunderbird dieselbe UID
-    im selben Ordner führt, weiß dann niemand."""
+    im selben Ordner führt, weiß dann niemand. Bis Nachreview #534 (Befund B)
+    hielt dieser Test „Thunderbird nennt für …“ fest — eine Aussage über ein
+    Profil, das es hier gar nicht gibt."""
     monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER", tmp_path / "kein-profil")
     server = _zwei_entwuerfe(monkeypatch)
     tb_bruecke = _bruecke(monkeypatch)
     assert oeffne_befehl("--uid", str(server.ordner["Entw&APw-rfe"][0].uid)) == 3
-    assert "NICHT GEÖFFNET  Thunderbird nennt für" in capsys.readouterr().err
+    assert ("NICHT GEÖFFNET  Profil der Entwurfsbrücke nicht gefunden: "
+            "kein Thunderbird-Standardprofil unter") in capsys.readouterr().err
     assert tb_bruecke.anfragen == []
 
 

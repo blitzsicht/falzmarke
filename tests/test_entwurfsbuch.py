@@ -2056,9 +2056,9 @@ def test_die_ordner_der_identitaet_kommen_aus_dem_profil_der_bruecke(monkeypatch
     """Zwilling ohne Schalter: Dann gilt das Standardprofil, und derselbe Aufbau
     nennt den anderen Ordner. Ohne ihn wäre nicht zu sehen, ob der Socket wirkt."""
     umgebung = _ordner_nur_am_socket(monkeypatch, tmp_path)
-    assert entwurfsbuch.thunderbird_ordner(VON, art, umgebung) == aus_b, \
+    assert entwurfsbuch.thunderbird_ordner(VON, art, umgebung=umgebung) == (aus_b, ""), \
         "der Ordner kommt nicht aus dem Profil der Brücke"
-    assert entwurfsbuch.thunderbird_ordner(VON, art, {}) == aus_a, \
+    assert entwurfsbuch.thunderbird_ordner(VON, art, umgebung={}) == (aus_a, ""), \
         "der Zwilling kann gar nicht rot werden"
 
 
@@ -2070,14 +2070,29 @@ def test_ein_socket_ausserhalb_eines_profils_laesst_die_ordner_beim_standardprof
     kurz = tmp_path / "s"
     kurz.mkdir()
     umgebung = {"FALZMARKE_BRUECKE_SOCKET": str(kurz / bruecke.SOCKET_DATEI)}
-    assert entwurfsbuch.thunderbird_ordner(VON, "draft_folder", umgebung) == ALT_E
+    assert entwurfsbuch.thunderbird_ordner(VON, "draft_folder", umgebung=umgebung) == (ALT_E, "")
 
 
 def test_ein_ausdruecklicher_profilordner_geht_vor_den_socket(monkeypatch, tmp_path):
     """Wie bei `tagebuch`: `profilordner` sticht. Daran hängen `gesendet` und die Proben."""
     umgebung = _ordner_nur_am_socket(monkeypatch, tmp_path)
     assert entwurfsbuch.thunderbird_ordner(
-        VON, "draft_folder", umgebung, oeffnen.THUNDERBIRD_ORDNER) == ALT_E
+        VON, "draft_folder", umgebung=umgebung,
+        profilordner=oeffnen.THUNDERBIRD_ORDNER) == (ALT_E, "")
+
+
+def test_thunderbird_ordner_nimmt_umgebung_und_profilordner_nur_als_schluesselwort(monkeypatch,
+                                                                                   tmp_path):
+    """Nachreview #534, Befund C: Der dritte Positionsparameter heißt in
+    `oeffnen.thunderbird_ordner` `ordner` und ist ein Pfad, hier wäre er die
+    Umgebung. Ein Tausch der beiden Aufrufe liefe sonst still mit dem falschen Wert."""
+    # Läuft der Aufruf doch durch, dann nicht gegen das echte Thunderbird.
+    monkeypatch.setattr(oeffnen, "THUNDERBIRD_ORDNER", tmp_path / "kein-profil")
+    try:
+        entwurfsbuch.thunderbird_ordner(VON, "draft_folder", {})
+    except TypeError:
+        return
+    raise AssertionError("thunderbird_ordner nimmt die Umgebung als Positionsparameter")
 
 
 def test_abgleich_liest_die_entwuerfe_aus_dem_profil_der_bruecke(monkeypatch, tmp_path):
