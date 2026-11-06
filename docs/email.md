@@ -266,7 +266,12 @@ Vier Eigenschaften, die dazugehören:
   Schleife aufruft, liest diese Zeile statt des Wortlauts im Grund; die Zeile `KEIN ENTWURF`
   selbst bleibt unverändert.
   `--kein-fenster` schließt `--oeffnen` ein, wie `--programm` (#538): Ohne `--oeffnen` endete der
-  Schalter bis dahin mit Exit 0, ohne Entwurf und ohne Hinweis.
+  Schalter bis dahin mit Exit 0, ohne Entwurf und ohne Hinweis. Damit sieht `--kein-fenster`
+  allein auch vorher im Gesendet-Ordner nach, wie `--oeffnen`
+  ([ADR 0051](entscheidungen/0051-gesendet-sperre-und-postfach-entwurf.md)): Ging dieselbe
+  Nachricht in den letzten 24 Stunden schon hinaus, heißt es `SCHON GESENDET` oder
+  `GEÄNDERTE FASSUNG`, es entsteht kein Entwurf, und der Befehl endet mit **Exit 4**, nicht 3.
+  Wer sie wirklich noch einmal will, ruft mit `--trotz-gesendet` erneut auf.
   `--kein-fenster` geht nicht mit `--programm outlook` (Exit 1): Outlook legt einen Entwurf nur
   mit Fenster an. Bleibt das Ablegen ungewiss (`HINWEIS … das Ablegen blieb ungewiss`), endet der
   Befehl auch mit `--kein-fenster` mit Exit 0, aber ohne `OK  Entwurf liegt in`. Ein erneuter
@@ -277,8 +282,16 @@ Vier Eigenschaften, die dazugehören:
 Auf einem Rechner ohne Bildschirm — gesetztes `CI`, unter Linux fehlendes `DISPLAY` — wird gar
 nicht erst gestartet. `FALZMARKE_ENTWURF=nie` schaltet **nur den Entwurf** ab und lässt die
 Dateiübergabe stehen; `FALZMARKE_OEFFNEN=nie` schaltet beides ab, `=immer` überstimmt die
-Erkennung. Mit `--kein-fenster` gibt es keine Dateiübergabe: Ein abgeschalteter Entwurf, `CI` oder
-ein fehlendes `DISPLAY` enden dort mit `KEIN ENTWURF  <Grund>` und Exit 3.
+Erkennung. Mit `--kein-fenster` gibt es keine Dateiübergabe. Zwei Lagen enden dort mit
+`KEIN ENTWURF  <Grund>` und Exit 3, und sie sind nicht dieselbe:
+
+- **Ohne Bildschirm** (`CI`, fehlendes `DISPLAY`, `FALZMARKE_OEFFNEN=nie`): Es kann nichts
+  aufgehen, also fragt der Befehl auch den Gesendet-Ordner nicht. Exit 3, selbst wenn die
+  Nachricht schon hinausging.
+- **Entwurf abgeschaltet** (`FALZMARKE_ENTWURF=nie`): Das ist kein Rechner ohne Bildschirm, nur
+  der Entwurf fällt weg. Der Gesendet-Ordner wird vorher trotzdem gefragt. Ging die Nachricht
+  schon hinaus, endet der Befehl mit Exit 4, sonst mit `KEIN ENTWURF  FALZMARKE_ENTWURF=nie ist
+  gesetzt` und Exit 3.
 
 **Kein Versand.** Es gibt im Paket keinen Weg, eine Nachricht abzuschicken — auch nicht im
 Steuerskript. ADR 0034 gilt unverändert, und ein Test misst es am ganzen Paket.
