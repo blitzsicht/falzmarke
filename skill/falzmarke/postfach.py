@@ -87,10 +87,11 @@ class PostfachFehler(Exception):
     `voruebergehend` ist wahr, wenn die Ursache von selbst vergehen kann: Der
     Proxy antwortet nicht, die Leitung reißt ab, die Zeit ist um. Falsch heißt:
     Sie bleibt, bis jemand etwas ändert (Anmeldung abgelehnt, Server sagt NO,
-    falsche Adresse, keine Berechtigung). Ein Aufrufer in einer Schleife
-    entscheidet daran, ob er es beim nächsten Lauf wieder versucht (#505).
-    Unbekanntes gilt als bleibend; welche Fehler vergehen, zählt `_vergeht`
-    einzeln auf.
+    unbekannter Hostname, kein gültiger Port, keine Berechtigung). Ein Aufrufer
+    in einer Schleife entscheidet daran, ob er es beim nächsten Lauf wieder
+    versucht (#505). Unbekanntes gilt als bleibend; welche Fehler vergehen,
+    zählt `_vergeht` einzeln auf. Ein Port, auf dem niemand lauscht, gilt als
+    vorübergehend, auch wenn er nur vertippt ist (#540, siehe `verbinde`).
     """
 
     def __init__(self, grund: str = "", *, voruebergehend: bool = False):
@@ -117,13 +118,12 @@ def _vergeht(fehler: BaseException) -> bool:
     jeder `OSError`, den diese Liste nicht nennt. Bis dahin galt jeder
     `OSError` außer `gaierror` als vorübergehend, auch `PermissionError`.
 
-    Zwei Grenzfälle, bewusst so entschieden (#540): Ein vertippter Port endet
-    in `ConnectionRefusedError` und gilt damit als vorübergehend, denn von
-    außen sieht er aus wie ein Proxy, der gerade nicht läuft, und das ist der
-    häufigere Fall (#548). Ein unbekannter Host (`EAI_NONAME`) bleibt
-    dauerhaft, auch wenn macOS dieselbe Nummer womöglich ohne Netz meldet;
-    gemessen ist das nicht. Die Vorgabe `127.0.0.1` löst keinen Namen auf, es
-    trifft also nur einen entfernten Host.
+    Ein unbekannter Host (`EAI_NONAME`) bleibt dauerhaft, auch wenn macOS
+    dieselbe Nummer womöglich ohne Netz meldet; gemessen ist das nicht (#540).
+    Betroffen ist nur ein Hostname in `FALZMARKE_GESENDET_IMAP`, auch einer im
+    eigenen Netz; eine IP wie die Vorgabe `127.0.0.1` wird nicht aufgelöst.
+    Eine abgelehnte Verbindung entscheidet nicht diese Funktion, sondern
+    `verbinde` (dort steht der Grenzfall des vertippten Ports).
     """
     if isinstance(fehler, socket.gaierror):
         return fehler.errno == socket.EAI_AGAIN
@@ -306,11 +306,20 @@ def _ohne_klammerpaar(kennung: str) -> str:
 # ── Ziel ────────────────────────────────────────────────────────────────────
 
 def ziel(umgebung: Mapping[str, str]) -> tuple[str, int]:
-    """Host und Port aus `FALZMARKE_GESENDET_IMAP`, Vorgabe `127.0.0.1:1993`."""
+    """Host und Port aus `FALZMARKE_GESENDET_IMAP`, Vorgabe `127.0.0.1:1993`.
+
+    Ein Port außerhalb von 1 bis 65535 ist ein bleibender Fehler mit eigenem
+    Grund (Nachreview von #569). Ohne diese Prüfung meldete macOS `99999` als
+    „nodename nor servname provided“, also wie einen falschen Host, und Port 0
+    als „Can't assign requested address“.
+    """
     wert = (umgebung.get("FALZMARKE_GESENDET_IMAP") or ZIEL_VORGABE).strip()
     host, _, port = wert.rpartition(":")
     if not host or not port.isdigit():
         raise PostfachFehler(f"FALZMARKE_GESENDET_IMAP={wert} ist kein host:port")
+    if not 1 <= int(port) <= 65535:
+        raise PostfachFehler(
+            f"FALZMARKE_GESENDET_IMAP={wert}: Port {int(port)} liegt nicht zwischen 1 und 65535")
     return host, int(port)
 
 
@@ -733,6 +742,10 @@ def verbinde(adresse: str, *, umgebung: Mapping[str, str] | None = None,
     try:
         verbindung = IMAP_KLASSE(host, port, timeout=frist)
     except ConnectionRefusedError:
+        # Grenzfall, bewusst so entschieden (#540): Auch ein vertippter Port
+        # endet hier und gilt als vorübergehend. Von außen sieht er aus wie ein
+        # Proxy, der gerade nicht läuft, und das ist der häufigere Fall. Ein
+        # Port außerhalb von 1 bis 65535 kommt nicht bis hierher (`ziel`).
         raise PostfachFehler(f"kein IMAP-Proxy unter {wo} (Verbindung abgelehnt)",
                              voruebergehend=True) from None
     except TimeoutError:
