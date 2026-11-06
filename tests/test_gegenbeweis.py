@@ -2303,6 +2303,28 @@ def test_ohne_den_filter_weicht_kein_fenster_auf_outlook_aus(monkeypatch):
         probe(monkeypatch)
 
 
+def test_ohne_den_schalter_im_grund_raet_kein_fenster_zu_outlook():
+    """Nachreview von #547: `_nicht_gefunden` wie vor dem Fix, ohne `kein_fenster`.
+    Der Grund nennt dann `--programm outlook`, das der Befehl mit `--kein-fenster`
+    abweist. Der Zwilling ohne Schalter hält die Probe vorher grün."""
+    from test_oeffnen import (
+        test_ohne_fenster_und_ohne_thunderbird_verweist_der_grund_nicht_auf_outlook as probe,
+    )
+
+    probe()                                                                # Kontrolle
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(_oeffnen, "_nicht_gefunden", _zeile_ersetzt(
+            _oeffnen, "_nicht_gefunden",
+            "    if kein_fenster:\n"
+            '        grund += "; mit --kein-fenster geht nur der Postfach-Entwurf über Thunderbird"\n'
+            "    elif wahl is None:\n",
+            "    if wahl is None:\n"))
+        with pytest.raises(AssertionError, match="mit kein_fenster ein Weg, den der Befehl "
+                                                 "abweist: Thunderbird .*; Outlook nur auf "
+                                                 "Wahl mit --programm outlook"):
+            probe()
+
+
 def test_ohne_absage_am_eintrag_steht_none_im_grund(monkeypatch):
     """12a: Fehlt die Absage am Eintrag, wie früher bei einer Suche über einen
     leeren `schluessel`, kommt die zweite Sperre in `entwurf` zum Zug und setzt

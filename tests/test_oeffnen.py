@@ -481,7 +481,30 @@ def test_kein_fenster_weicht_nicht_auf_ein_programm_mit_fenster_aus(monkeypatch)
     assert antwort.aufrufe == [], \
         f"mit kein_fenster nach einem Programm mit Fenster gesucht: {antwort.aufrufe}"
     assert lage.grund.startswith("Thunderbird ist nicht installiert"), lage.grund
+    assert "--programm outlook" not in lage.grund, \
+        f"mit kein_fenster verweist der Grund auf Outlook: {lage.grund}"
     assert oeffnen.ohne_fenster_absage(None) is None, "Vorprüfung und Weg urteilen verschieden"
+
+
+def test_ohne_fenster_und_ohne_thunderbird_verweist_der_grund_nicht_auf_outlook():
+    """Nachreview von #547: Der Grund riet zu `--programm outlook`, und genau das
+    weist der Befehl mit `--kein-fenster` ab (Exit 1). Ohne den Schalter bleibt
+    der Hinweis — dort ist Outlook der Weg, den er nennt."""
+    def grund(**schalter) -> str:
+        lage = oeffnen.entwurf(FELDER, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                               laufen=Antwortet(gefunden=True), binaer=_kein_thunderbird,
+                               **schalter)
+        assert lage.programm is None
+        return lage.grund
+
+    gesucht = ("Thunderbird ist nicht installiert — weder unter "
+               f"{oeffnen.THUNDERBIRD_MACOS} noch als `thunderbird` im PATH")
+    assert grund() == f"{gesucht}; Outlook nur auf Wahl mit --programm outlook (ADR 0049)", \
+        "ohne kein_fenster fehlt der Hinweis auf Outlook"
+    ohne_fenster = grund(kein_fenster=True)
+    assert ohne_fenster == (
+        f"{gesucht}; mit --kein-fenster geht nur der Postfach-Entwurf über Thunderbird"), \
+        f"mit kein_fenster ein Weg, den der Befehl abweist: {ohne_fenster}"
 
 
 def test_ein_eintrag_ohne_schluessel_nennt_seine_absage(monkeypatch):
