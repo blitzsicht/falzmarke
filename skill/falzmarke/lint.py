@@ -629,13 +629,27 @@ def _feldzeile(kopf_roh: str, feld: str) -> int:
     als Zeile 7 gemeldet. Niemandem aufgefallen, weil kein Test die gemeldete
     Zahl je gegen die Datei gehalten hat — `tests/test_lint.py` tut das jetzt.
     """
-    for nummer, zeile in enumerate(kopf_roh.splitlines(), start=1):
+    return _feldstelle(kopf_roh, feld)[0]
+
+
+def _feldstelle(kopf_roh: str, feld: str) -> tuple[int, str]:
+    """Zeile und roher Wert eines Feldes im Frontmatter, in einem Durchgang.
+
+    Der Wert ist, was hinter `feld:` steht. Steht dort nichts, ist es die
+    nächste nicht-leere Zeile: `an:` mit `[ … ]` auf der Folgezeile ist eine
+    Flow-Liste wie `an: [ … ]` (Review an PR #573).
+    """
+    zeilen = kopf_roh.splitlines()
+    for nummer, zeile in enumerate(zeilen, start=1):
         if zeile.strip().startswith(f"{feld}:"):
-            return nummer
+            rest = zeile.strip()[len(feld) + 1:].strip()
+            if not rest:
+                rest = next((z.strip() for z in zeilen[nummer:] if z.strip()), "")
+            return nummer, rest
     # Ohne Frontmatter-Text — zwei Aufrufer geben `""` mit — bleibt nur der
     # Dateianfang. Das ist keine Fundstelle, sondern das Eingeständnis, keine
     # zu haben.
-    return 1
+    return 1, ""
 
 
 def pruefe_datum(wert, zeile: int, bericht: Bericht) -> None:
@@ -712,91 +726,189 @@ def _melde_unbekannte(
 
 
 def _adressen(wert) -> list[str]:
-    return [wert] if isinstance(wert, str) else [str(z) for z in (wert or [])]
+    """Die Einträge eines Feldes, das einen Wert oder eine Liste davon nimmt.
+
+    Ein Wahrheitswert oder eine Zahl (`cc: yes`, `an: 42`) kommt als ein Eintrag
+    zurück, statt mit TypeError abzubrechen (Nachreview #571). Alles andere wie
+    bisher, auch für `anlagen_dateien`: Eine Zuordnung liefert ihre Schlüssel
+    (Review an PR #573). Den Typ eines Adressfeldes meldet `pruefe_adressfeld`
+    selbst, bevor es Einträge liest.
+    """
+    if isinstance(wert, str):
+        return [wert]
+    if isinstance(wert, (bool, int, float)):
+        return [str(wert)] if wert else []
+    return [str(z) for z in (wert or [])]
 
 
-def _yaml_skalar(text: str) -> str:
+def _yaml_skalar(text: str, *, flow: bool = False) -> str:
     """`text` so, dass YAML ihn als genau diesen String zurückliest.
 
     `Erika <c@example.org>` bleibt, wie es ist. Beginnt der Text mit einem
     Anführungszeichen, etwa `"Dr. Erika Muster" <c@example.org>`, liest YAML
     das als gequoteten Wert mit Rest dahinter und bricht ab (Review an PR #528).
     Dann kommt er in einfache Anführungszeichen, ein Apostroph verdoppelt.
+
+    `flow` prüft den Text als Eintrag einer Liste in eckigen Klammern: Dort
+    trennt schon ein Komma, was als Zeilenwert noch ein Text war.
     """
     import yaml
 
     try:
-        if yaml.safe_load(text) == text:
+        if flow:
+            if yaml.safe_load(f"[{text}]") == [text]:
+                return text
+        elif yaml.safe_load(text) == text:
             return text
     except yaml.YAMLError:
         pass
     return "'" + text.replace("'", "''") + "'"
 
 
-def _komma_abhilfe(eintrag: str, feld: str, *, in_liste: bool = False) -> str:
+def _art(wert) -> str:
+    """Wie YAML einen Wert gelesen hat, der keine Adresse ist, für die Meldung."""
+    if isinstance(wert, bool):
+        return "ein Wahrheitswert (YAML liest `yes`, `no`, `on`, `off` so)"
+    if isinstance(wert, (int, float)):
+        return "eine Zahl"
+    if isinstance(wert, list):
+        return "eine Liste"
+    if isinstance(wert, dict):
+        return "eine Zuordnung `name: wert`"
+    if wert is None:
+        return "leer"
+    return f"ein Wert vom Typ {type(wert).__name__}"
+
+
+def _typ_abhilfe(wert, feld: str, form: str) -> str:
+    """Abhilfe für einen Wert unter `an`, `cc` oder `bcc`, der kein Text ist.
+
+    `form` ist die Stelle wie bei `_komma_abhilfe`. Eine Zuordnung mit genau
+    einem Paar ist fast immer ein Name mit Doppelpunkt, `Firma: Muster <…>`:
+    YAML liest den Doppelpunkt mit Leerzeichen als Trenner. Der Rat setzt den
+    Namen in Anführungszeichen, denn auch `parseaddr` liest einen Doppelpunkt
+    ohne sie als Gruppe und verlöre „Firma“ (Review an PR #573).
+    """
+    if isinstance(wert, dict) and len(wert) == 1:
+        (schluessel, rest), = wert.items()
+        if isinstance(schluessel, str) and isinstance(rest, str):
+            klammer = re.fullmatch(r"(.*?)\s*<([^<>\s]+@[^<>\s]+)>\s*", rest)
+            text = (f'"{schluessel}: {klammer.group(1)}" <{klammer.group(2)}>' if klammer
+                    else f"{schluessel}: {rest}")
+            wert_yaml = _yaml_skalar(text, flow=form == "flow")
+            rat = "Doppelpunkt mit Leerzeichen dahinter: YAML liest den Eintrag als Zuordnung, "
+            if form == "block":
+                return rat + f"in der Liste unter `{feld}:` nur diesen Eintrag ersetzen durch `- {wert_yaml}`"
+            if form == "flow":
+                return rat + f"in der Liste `{feld}: [ … ]` nur diesen Eintrag ersetzen durch `{wert_yaml}`"
+            return rat + f"im Frontmatter `{feld}: {wert_yaml}`"
+    if isinstance(wert, dict):
+        return "Doppelpunkt mit Leerzeichen dahinter: YAML liest den Wert als Zuordnung, ihn in Anführungszeichen setzen"
+    if form == "skalar":
+        return f"`{feld}: name@beispiel.de` oder je Adresse eine Zeile `- name@beispiel.de` darunter"
+    return f"in der Liste unter `{feld}:` an dieser Stelle eine Adresse eintragen oder den Eintrag entfernen"
+
+
+def _komma_abhilfe(eintrag: str, feld: str, *, form: str = "skalar",
+                   ort: str = "frontmatter") -> str:
     """Abhilfe für einen Adresseintrag, den `parseaddr` nicht zerlegt.
 
     Ein Komma trennt für RFC 5322 zwei Einträge (#519). Steht links davon schon
-    eine Adresse, sind es wirklich zwei Empfänger: Sie gehören in zwei Zeilen
+    eine Adresse, sind es wirklich zwei Empfänger: Sie gehören in zwei Einträge
     der Liste. Quoten machte daraus einen, die erste Adresse fiele still weg
-    (Review an PR #523). Sonst ist es ein Name mit Komma. Die vorgeschlagene
-    Zeile steht YAML-fertig da, ein Apostroph im Namen ist verdoppelt.
+    (Review an PR #523). Sonst ist es ein Name mit Komma. Der vorgeschlagene
+    Wert steht YAML-fertig da, ein Apostroph im Namen ist verdoppelt.
 
-    Die Zeile passt zu der Stelle, an der der Eintrag steht (#544): In einer
-    Liste ersetzt sie nur diesen Eintrag. Eine Zeile `an: …` für das ganze Feld
-    hätte die übrigen Empfänger gelöscht, und `lint` hätte danach geschwiegen.
-    Ein Feld aus dem Profil (`email.absender`) heißt dort `absender:` unter
-    `email:`, nicht im Frontmatter.
+    Der Rat passt zu der Stelle, an der der Eintrag steht (#544). `form` ist
+    `skalar` (`an: …`), `block` (je Eintrag eine Zeile `- …`) oder `flow`
+    (`an: [ … ]`). In einer Liste ersetzt der Rat nur diesen Eintrag: Eine Zeile
+    `an: …` für das ganze Feld hätte die übrigen Empfänger gelöscht, und `lint`
+    hätte danach geschwiegen. In einer Flow-Liste steht der Eintrag ohne `- `,
+    sonst bricht das YAML (Nachreview #571). `ort` sagt der Aufrufer:
+    `profil` für `email.absender`, das dort `absender:` unter `email:` heißt.
     """
     from email.headerregistry import Address
     from email.utils import getaddresses
 
-    aus_profil = feld.startswith("email.")
+    flow = form == "flow"
     teile = getaddresses([eintrag])
     if len(teile) > 1 and all("@" in adresse for _, adresse in teile):
-        if aus_profil:
+        if ort == "profil":
             return f"zwei Adressen in einem Eintrag: `{feld}:` nimmt genau eine Adresse"
-        zeilen = " und ".join(
-            f"`- {_yaml_skalar(str(Address(name, *adresse.split('@', 1))))}`"
-            for name, adresse in teile)
-        return f"zwei Adressen in einem Eintrag: je Adresse eine Zeile der Liste unter `{feld}:`, {zeilen}"
+        werte = [_yaml_skalar(str(Address(name, *adresse.split("@", 1))), flow=flow)
+                 for name, adresse in teile]
+        if flow:
+            return ("zwei Adressen in einem Eintrag: in der Liste `" + feld + ": [ … ]` "
+                    "nur diesen Eintrag durch zwei ersetzen, "
+                    + " und ".join(f"`{w}`" for w in werte))
+        zeilen = " und ".join(f"`- {w}`" for w in werte)
+        if form != "skalar":
+            return (f"zwei Adressen in einem Eintrag: in der Liste unter `{feld}:` nur diesen "
+                    f"Eintrag durch zwei Zeilen ersetzen, {zeilen}")
+        return (f"zwei Adressen in einem Eintrag: aus `{feld}: …` wird der Listenkopf `{feld}:` "
+                f"allein, darunter je Adresse eine Zeile, {zeilen}")
     komma = re.fullmatch(r"\s*([^\"<>@]*,[^\"<>@]*?)\s*<([^<>\s]+@[^<>\s]+)>\s*", eintrag)
     if not komma:
         return "erwartet wird `name@beispiel.de` oder `Name <name@beispiel.de>`"
-    yaml_wert = _yaml_skalar(f'"{komma.group(1)}" <{komma.group(2)}>')
+    yaml_wert = _yaml_skalar(f'"{komma.group(1)}" <{komma.group(2)}>', flow=flow)
     rat = "Komma im Namen: Namen in Anführungszeichen setzen, "
-    if in_liste:
+    if form == "block":
         return rat + f"in der Liste unter `{feld}:` nur diesen Eintrag ersetzen durch `- {yaml_wert}`"
-    if aus_profil:
+    if flow:
+        return rat + f"in der Liste `{feld}: [ … ]` nur diesen Eintrag ersetzen durch `{yaml_wert}`"
+    if ort == "profil":
         return rat + f"im Profil unter `email:` die Zeile `{feld.split('.', 1)[1]}: {yaml_wert}`"
     return rat + f"im Frontmatter `{feld}: {yaml_wert}`"
 
 
-def pruefe_adressfeld(wert, feld: str, kopf_roh: str, bericht: Bericht) -> None:
+def pruefe_adressfeld(wert, feld: str, kopf_roh: str, bericht: Bericht, *,
+                      ort: str = "frontmatter") -> None:
     """`erika@example.de` oder `Muster GmbH <post@example.de>` — sonst nichts.
 
     Geparst wird mit `email.utils.parseaddr` aus der Standardbibliothek, nicht
     mit einem eigenen Ausdruck: Die Klammerform ist in RFC 5322 festgelegt und
     hat mehr Fälle, als ein handgeschriebenes Muster trifft.
+
+    `ort` sagt der Aufrufer, nicht der Feldname: `frontmatter` für `an`, `cc`
+    und `bcc`, die eine Adresse oder eine Liste nehmen, `profil` für
+    `email.absender`, das genau eine Adresse nimmt. Eine Liste dort ging bisher
+    ohne Befund durch und wurde beim Versand zu `str(list)`, also zu einem
+    kaputten Absender (Nachreview #571).
     """
     from email.utils import parseaddr
 
-    in_liste = not isinstance(wert, str)
-    for eintrag in _adressen(wert):
+    zeile, roh = _feldstelle(kopf_roh, feld)
+    if ort == "profil" and not isinstance(wert, str):
+        name = feld.split(".", 1)[1]
+        bericht.fehler(zeile, feld, f"`{name}:` nimmt genau eine Adresse, im Profil steht {_art(wert)}",
+                       f"im Profil unter `email:` eine Zeile `{name}: name@beispiel.de`")
+        return
+    if not isinstance(wert, (str, list)):
+        bericht.fehler(zeile, feld, f"`{feld}:` ist weder eine Adresse noch eine Liste, sondern {_art(wert)}",
+                       _typ_abhilfe(wert, feld, "skalar"))
+        return
+    if isinstance(wert, str):
+        form = "skalar"
+    else:
+        form = "flow" if roh.startswith("[") else "block"
+    for eintrag in [wert] if isinstance(wert, str) else wert:
+        if not isinstance(eintrag, str):
+            bericht.fehler(zeile, feld, f"ein Eintrag unter `{feld}:` ist keine Adresse, sondern {_art(eintrag)}",
+                           _typ_abhilfe(eintrag, feld, form))
+            continue
         _, adresse = parseaddr(eintrag)
-        ort = _feldzeile(kopf_roh, feld)
         if not adresse or not EMAIL_MUSTER.match(adresse):
-            bericht.fehler(ort, feld, f"„{eintrag}“ ist keine E-Mail-Adresse",
-                           _komma_abhilfe(eintrag, feld, in_liste=in_liste))
+            bericht.fehler(zeile, feld, f"„{eintrag}“ ist keine E-Mail-Adresse",
+                           _komma_abhilfe(eintrag, feld, form=form, ort=ort))
             continue
         grund = adresse_grund(eintrag, adresse)
         if grund:
-            bericht.fehler(ort, feld, f"„{eintrag}“ {grund}",
+            bericht.fehler(zeile, feld, f"„{eintrag}“ {grund}",
                            "erwartet wird `name@beispiel.de` oder `Name <name@beispiel.de>`")
             continue
         if adresse_ist_international(adresse):
             bericht.warnung(
-                ort, "email.adresse_international",
+                zeile, "email.adresse_international",
                 f"„{adresse}“ enthält Zeichen ausserhalb von ASCII",
                 "nach RFC 6531 zulässig, aber viele Server nehmen solche Adressen nicht an")
 
@@ -870,7 +982,8 @@ def pruefe_email_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> Non
         pruefe_begleitbrief(kopf, kopf_roh, bericht)
 
     for feld in ("an", "cc", "bcc"):
-        if kopf.get(feld):
+        # `cc: no` und `cc: 0` sind falsch, aber kein leeres Feld (Review an PR #573).
+        if kopf.get(feld) not in (None, ""):
             pruefe_adressfeld(kopf[feld], feld, kopf_roh, bericht)
 
     betreff = str(kopf.get("betreff") or "").strip()
@@ -1201,7 +1314,8 @@ def pruefe_email_profil(profil: dict, bericht: Bericht,
             1, "email.absender", "`email.absender:` fehlt im Profil",
             "die Absenderadresse steht im Profil, nicht im einzelnen Schreiben")
     else:
-        pruefe_adressfeld(abschnitt["absender"], "email.absender", "", bericht)
+        pruefe_adressfeld(abschnitt["absender"], "email.absender", "", bericht,
+                          ort="profil")
 
     anrede = abschnitt.get("anrede")
     if anrede is not None and str(anrede).strip().lower() not in ANREDEN:
