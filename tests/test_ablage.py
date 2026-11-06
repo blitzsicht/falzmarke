@@ -1698,25 +1698,28 @@ def _kaputte_profile(verzeichnis):
         "email:\n  absender: jörg@example.de\n  ablage: Archiv\n".encode("latin-1"))
 
 
-def test_alle_nennt_unlesbare_profile_und_ist_nicht_gruen(monkeypatch, tmp_path, capsys):
-    """Review #542, Befunde 2 und 3 und der offene Punkt aus der Übergabe: Beide
-    Dateien brachen den Lauf vorher ab (AttributeError, UnicodeDecodeError) oder
-    fielen still weg. Jetzt läuft das lesbare Konto, die unlesbaren stehen im
-    Bericht, und der Exit-Code ist 3: Dahinter kann ein Konto mit Ablage stehen."""
+def test_alle_nennt_unlesbare_profile_und_verschiebt_nichts(monkeypatch, tmp_path, capsys):
+    """Review #542, Befunde 2 und 3: Beide Dateien brachen den Lauf vorher ab
+    (AttributeError, UnicodeDecodeError). Sie stehen jetzt im Bericht, und der
+    Exit-Code ist 3. Nachreview #546 (#551): Das lesbare Konto wird trotzdem
+    nicht verschoben — `latin.yaml` kann eine andere Ablage nennen. Es wird auch
+    kein Postfach geöffnet: Die Attrappe bleibt unbenutzt."""
     import json
 
     from falzmarke import cli as falzmarke
 
     _profile(tmp_path, monkeypatch, eins=("a@example.de", "Archiv"))
     _kaputte_profile(tmp_path)
-    rest = _konten(monkeypatch, _konto(kennung="<a@example.de>"))
+    attrappe = _konto(kennung="<a@example.de>")
+    rest = _konten(monkeypatch, attrappe)
     code = falzmarke.main(["aufraeumen", "--alle", "--machen", "--json",
                            "--profiles", str(tmp_path)])
     bericht = json.loads(capsys.readouterr().out)
-    assert code == falzmarke.EXIT_UMGEBUNG and rest == []
+    assert code == falzmarke.EXIT_UMGEBUNG and rest == [attrappe]
     assert bericht["unlesbar"] == ["latin.yaml: kein UTF-8",
                                    "liste.yaml: oberste Ebene ist list, kein Abschnitt"]
-    assert bericht["nicht_geprueft"] == 0 and bericht["konten"][0]["verschoben"] == 1
+    assert bericht["nicht_geprueft"] == 1 and bericht["konten"][0]["verschoben"] == 0
+    assert "unlesbar (latin.yaml, liste.yaml)" in bericht["konten"][0]["grund"]
 
 
 def test_alle_nennt_unlesbare_profile_im_text_auf_stderr(monkeypatch, tmp_path, capsys):
@@ -1734,14 +1737,68 @@ def test_alle_nennt_unlesbare_profile_im_text_auf_stderr(monkeypatch, tmp_path, 
     assert str(tmp_path) not in ausgabe.err
 
 
-def test_absender_haelt_ein_kaputtes_fremdes_profil_nicht_an(monkeypatch, tmp_path):
-    """Der Weg mit `--absender` liest dieselben Dateien. Eine fremde, kaputte darf
-    ihn nicht abbrechen (vorher: `list.get` → AttributeError)."""
+def test_absender_bricht_an_einem_kaputten_profil_nicht_ab_und_nennt_es(monkeypatch, tmp_path):
+    """Der Weg mit `--absender` liest dieselben Dateien. Eine kaputte bricht ihn
+    nicht ab (vorher: `list.get` → AttributeError), sie wird aber auch nicht
+    mehr übergangen (#551): Sie ist ein Grund, keine Ablage wird geraten."""
     from falzmarke import cli as falzmarke
 
     _profile(tmp_path, monkeypatch, eins=("a@example.de", "Archiv"))
     _kaputte_profile(tmp_path)
-    assert falzmarke.ablage_aus_profil("a@example.de") == ("Archiv", None)
+    ablage, grund = falzmarke.ablage_aus_profil("a@example.de")
+    assert ablage is None and "unlesbar (latin.yaml, liste.yaml)" in grund
+
+
+def test_absender_verschiebt_nicht_nach_archive_wenn_das_ablageprofil_unlesbar_ist(
+        monkeypatch, tmp_path, capsys):
+    """Nachreview #546, Befund 2: Das einzige Profil mit `email.ablage` liegt in
+    Latin-1. Vorher kam `(None, None)` zurück, und `--machen` verschob nach
+    `\\Archive` — in einen Ordner, den kein Profil verlangt hatte (wie #438)."""
+    import json
+
+    from falzmarke import cli as falzmarke
+
+    _profile(tmp_path, monkeypatch)
+    (tmp_path / "latin.yaml").write_bytes(
+        "email:\n  absender: a@example.de\n  ablage: Jörg/2026\n".encode("latin-1"))
+    attrappe = _konto(kennung="<a@example.de>", ordner=("Archiv",))
+    rest = _konten(monkeypatch, attrappe)
+    code = falzmarke.main(["aufraeumen", "--absender", "a@example.de", "--machen", "--json",
+                           "--profiles", str(tmp_path)])
+    bericht = json.loads(capsys.readouterr().out)
+    assert code == falzmarke.EXIT_UMGEBUNG and rest == [attrappe]
+    assert bericht[0]["verschoben"] == 0 and "latin.yaml" in bericht[0]["grund"]
+
+
+def test_alle_meldet_ein_profil_mit_ungueltigem_datum_als_unlesbar(
+        monkeypatch, tmp_path, capsys):
+    """Nachreview #546, Befund 1: `yaml.safe_load` wirft bei einem Datum, das es
+    nicht gibt, ein nacktes `ValueError` und kein `YAMLError`. Der Lauf brach
+    damit weiter ab, ohne Bericht."""
+    import json
+
+    from falzmarke import cli as falzmarke
+
+    _profile(tmp_path, monkeypatch, eins=("a@example.de", "Archiv"))
+    (tmp_path / "datum.yaml").write_text("datum: 2026-02-30\n", encoding="utf-8")
+    _konten(monkeypatch, _konto(kennung="<a@example.de>"))
+    code = falzmarke.main(["aufraeumen", "--alle", "--json", "--profiles", str(tmp_path)])
+    bericht = json.loads(capsys.readouterr().out)
+    assert code == falzmarke.EXIT_UMGEBUNG
+    assert bericht["unlesbar"] == ["datum.yaml: kein gültiges YAML"]
+
+
+def test_alle_ohne_konto_erklaert_vor_dem_nicht_geprueft(monkeypatch, tmp_path, capsys):
+    """Nachreview #546, Befund 5: Die UNLESBAR-Zeilen erklären das `NICHT GEPRÜFT`
+    und stehen deshalb davor, wie auf dem Weg mit Konten."""
+    from falzmarke import cli as falzmarke
+
+    _profile(tmp_path, monkeypatch, drei=("c@example.de", None))
+    (tmp_path / "liste.yaml").write_text("- c@example.de\n", encoding="utf-8")
+    code = falzmarke.main(["aufraeumen", "--alle", "--profiles", str(tmp_path)])
+    fehler = capsys.readouterr().err
+    assert code == falzmarke.EXIT_UMGEBUNG
+    assert 0 <= fehler.index("UNLESBAR  liste.yaml") < fehler.index("NICHT GEPRÜFT"), fehler
 
 
 @pytest.mark.parametrize("zusatz", [
