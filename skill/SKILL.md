@@ -343,7 +343,9 @@ Mail des Laufs.
 **`aufraeumen --alle`** läuft über jede Absenderadresse, für die ein Profil `email.ablage` nennt, und
 ist für den Zeitplan gedacht (`--alle --machen --json`). Adressen ohne `ablage` werden übersprungen
 und im Bericht genannt, kein `NICHT GEPRÜFT`. Ein nicht geprüftes Konto hält die anderen nicht
-an; der Exit-Code ist dann 3. Nicht mit `--absender`, `--uid` oder `--entwuerfe`.
+an; der Exit-Code ist dann 3. Die mitgelieferten Beispielprofile zählen nicht. Ein unlesbares Profil
+steht als `UNLESBAR` im Bericht und ergibt ebenfalls Exit 3. Nicht mit `--absender`, `--uid`,
+`--uidvalidity`, `--trotz-faehnchen` oder `--entwuerfe`.
 
 **`aufraeumen --entwuerfe` — überholte Entwürfe in den Papierkorb.** Niemand soll einen Entwurf von
 Hand löschen; das geschieht bei jedem `email --oeffnen` von selbst für den eigenen Absender.

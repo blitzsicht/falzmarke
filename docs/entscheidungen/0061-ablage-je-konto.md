@@ -286,3 +286,26 @@ gewollt (Nachtrag #478). Eine Protokolldatei allein liest niemand. Der Vorschlag
 Job meldet einen Exit-Code ungleich 0 an den Kanal, den der Betreiber ohnehin liest; der Kanal
 liegt außerhalb des Repos. **Das ist hier nicht entschieden.** `--alle` liefert den Exit-Code und
 `nicht_geprueft` im Bericht, mehr nicht.
+
+## Nachtrag (05.11.2026, Review von #542)
+
+**Entschieden: Die mitgelieferten Beispielprofile zählen für `--alle` und `--absender` nicht, und
+ein unlesbares Profil macht den Lauf nicht grün.** Der Anlass ist der erste Lauf im Zeitplan
+(05.11.2026): Er meldete `muster@example.de` aus `example.yaml` als übersprungenes Konto, und das
+täglich.
+
+1. **Beispiele sind keine Konten.** Profile im mitgelieferten Verzeichnis `typst/profiles` werden
+   nicht gelesen. Ein eigenes Profil gleichen Namens weiter vorn im Suchweg verschattet das
+   Beispiel und zählt.
+2. **Ein unlesbares Profil wird genannt, nicht übergangen.** Kein UTF-8, kein gültiges YAML oder
+   keine Zuordnung als oberste Ebene: Unter `--alle` steht die Datei als `UNLESBAR` im Bericht
+   (`--json`: `unlesbar`), und der Exit-Code ist 3. Dahinter kann ein Konto mit Ablage stehen, das
+   sonst still nicht aufgeräumt würde. Die übrigen Konten laufen weiter. Genannt wird nur der
+   Dateiname. Unter `--absender` zählt eine fremde unlesbare Datei nicht; sie bricht den Lauf auch
+   nicht mehr ab.
+3. **Ein Leser für beide Wege.** `ablage_aus_profil` und `konten_aus_profilen` lesen über dieselbe
+   Funktion. Die beiden Schleifen waren schon auseinandergelaufen: Nur eine prüfte die oberste
+   Ebene.
+
+Verworfen: jedes Profil je Konto nur einmal zu lesen (Befund des Reviews). Bei einer Handvoll
+Profile kostet das Millisekunden, und drei bestehende Tests ersetzen `ablage_aus_profil` je Konto.

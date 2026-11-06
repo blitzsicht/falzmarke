@@ -2241,6 +2241,57 @@ def befehl_entwurf_oeffnen(args) -> int:
     return EXIT_OK if oeffnung.offen and stimmt else EXIT_UMGEBUNG
 
 
+def _email_abschnitte(zusatz=None) -> tuple[list[tuple[str, str, object]], list[str]]:
+    """Je lesbarem Profil `(name, absender, ablage-Rohwert)`, dazu die unlesbaren (Review #542).
+
+    Der einzige Leser für `ablage_aus_profil` und `konten_aus_profilen`. Bis
+    dahin hatte jede ihre eigene Schleife, und die beiden waren schon
+    auseinandergelaufen: Nur eine prüfte, ob die oberste Ebene ein Abschnitt ist.
+
+    - **Mitgelieferte Beispiele zählen nicht.** `example.yaml` nennt
+      `muster@example.de`; der erste Zeitplanlauf (05.11.2026) meldete diese
+      Adresse jeden Tag als übersprungenes Konto. Ein Beispiel darf auch nie den
+      Ablageordner eines echten Kontos bestimmen. Ein eigenes Profil gleichen
+      Namens weiter vorn im Suchweg verschattet das Beispiel und zählt.
+    - **Ein unlesbares Profil wird genannt, nicht still übergangen.** Kein UTF-8,
+      kein gültiges YAML oder eine Liste als oberste Ebene: Dahinter kann ein
+      Konto mit Ablage stehen, das der Lauf dann nicht aufräumt. Genannt wird nur
+      der Dateiname, nicht der Pfad: Der Bericht geht an einen Kanal.
+
+    Der Rohwert von `ablage` bleibt roh: Was als gesetzt gilt, entscheidet jeder
+    Aufrufer an seiner eigenen Zeile.
+    """
+    import yaml
+
+    beispiele = (TYPST_DIR / "profiles").resolve()
+    lesbar: list[tuple[str, str, object]] = []
+    unlesbar: list[str] = []
+    for name, pfad in finde_profile(zusatz).items():
+        if pfad.parent.resolve() == beispiele:
+            continue
+        try:
+            profil = yaml.safe_load(pfad.read_text(encoding="utf-8")) or {}
+        except UnicodeDecodeError:
+            unlesbar.append(f"{pfad.name}: kein UTF-8")
+            continue
+        except yaml.YAMLError:
+            unlesbar.append(f"{pfad.name}: kein gültiges YAML")
+            continue
+        except OSError as fehler:
+            unlesbar.append(f"{pfad.name}: nicht lesbar ({fehler.strerror or type(fehler).__name__})")
+            continue
+        if not isinstance(profil, dict):
+            unlesbar.append(f"{pfad.name}: oberste Ebene ist {type(profil).__name__}, kein Abschnitt")
+            continue
+        abschnitt = profil.get("email")
+        if not isinstance(abschnitt, dict):
+            continue
+        adresse = str(abschnitt.get("absender") or "").strip()
+        if adresse:
+            lesbar.append((name, adresse, abschnitt.get("ablage")))
+    return lesbar, unlesbar
+
+
 def ablage_aus_profil(adresse: str, zusatz=None) -> tuple[str | None, str | None]:
     """`email.ablage` des Profils, dessen `email.absender` die Adresse ist.
 
@@ -2253,22 +2304,15 @@ def ablage_aus_profil(adresse: str, zusatz=None) -> tuple[str | None, str | None
     Feld“ zu unterscheiden: Der Lauf nahm dann `\\Archive` und verschob die Post
     mit `--machen` in einen Ordner, den keines der beiden Profile verlangt
     hatte — während die Ausgabe sagte, es sei keines genommen worden (#438).
-    """
-    import yaml
 
+    Unlesbare Profile meldet `--alle` (`konten_aus_profilen`); hier zählen sie
+    nicht, damit eine kaputte fremde Datei nicht jeden `--absender`-Lauf anhält.
+    """
     gesucht = adresse.strip().casefold()
     treffer: dict[str, str] = {}
-    for name, pfad in finde_profile(zusatz).items():
-        try:
-            profil = yaml.safe_load(pfad.read_text(encoding="utf-8")) or {}
-        except (OSError, yaml.YAMLError):
+    for name, absender, wert in _email_abschnitte(zusatz)[0]:
+        if absender.casefold() != gesucht:
             continue
-        abschnitt = profil.get("email")
-        if not isinstance(abschnitt, dict):
-            continue
-        if str(abschnitt.get("absender") or "").strip().casefold() != gesucht:
-            continue
-        wert = abschnitt.get("ablage")
         if isinstance(wert, str) and wert.strip():
             treffer[name] = wert.strip()
     werte = set(treffer.values())
@@ -2279,8 +2323,8 @@ def ablage_aus_profil(adresse: str, zusatz=None) -> tuple[str | None, str | None
     return (werte.pop() if werte else None), None
 
 
-def konten_aus_profilen(zusatz=None) -> tuple[list[str], list[str]]:
-    """Alle Absenderadressen der Profile, getrennt in `(mit_ablage, ohne_ablage)` (#541).
+def konten_aus_profilen(zusatz=None) -> tuple[list[str], list[str], list[str]]:
+    """Alle Absenderadressen der Profile: `(mit_ablage, ohne_ablage, unlesbar)` (#541).
 
     Gleicher Suchweg wie `ablage_aus_profil`. Eine Adresse zählt als „mit“,
     sobald **irgendein** Profil sie mit `email.ablage` nennt; ob die Profile
@@ -2289,29 +2333,33 @@ def konten_aus_profilen(zusatz=None) -> tuple[list[str], list[str]]:
     keine Ablage gegeben (etwa weil ein anderes System den Eingang abholt):
     Es wird übersprungen und geöffnet wird nichts. Gleiche Adressen in anderer
     Schreibweise sind ein Konto; die Schreibweise des ersten Profils bleibt.
+    `unlesbar` nennt je Datei, warum sie nicht gelesen wurde (Review #542).
     """
-    import yaml
-
     schreibweise: dict[str, str] = {}
     mit: set[str] = set()
-    for _, pfad in finde_profile(zusatz).items():
-        try:
-            profil = yaml.safe_load(pfad.read_text(encoding="utf-8")) or {}
-        except (OSError, yaml.YAMLError):
-            continue
-        abschnitt = profil.get("email") if isinstance(profil, dict) else None
-        if not isinstance(abschnitt, dict):
-            continue
-        adresse = str(abschnitt.get("absender") or "").strip()
-        if not adresse:
-            continue
+    lesbar, unlesbar = _email_abschnitte(zusatz)
+    for _, adresse, wert in lesbar:
         schluessel = adresse.casefold()
         schreibweise.setdefault(schluessel, adresse)
-        wert = abschnitt.get("ablage")
         if isinstance(wert, str) and wert.strip():
             mit.add(schluessel)
     return ([schreibweise[k] for k in sorted(mit)],
-            [schreibweise[k] for k in sorted(set(schreibweise) - mit)])
+            [schreibweise[k] for k in sorted(set(schreibweise) - mit)],
+            unlesbar)
+
+
+def _melde_uebersprungen(uebersprungen: list[str], unlesbar: list[str]) -> None:
+    """Die Zeilen vor den Berichten unter `--alle`, im Text auf beiden Wegen gleich.
+
+    Auch der Lauf ohne ein einziges Konto mit Ablage braucht sie (Review #542):
+    Erst sie trennen „Suchweg zeigt woandershin“ (keine Adresse gefunden) von
+    „Profile gefunden, aber keines nennt eine Ablage“.
+    """
+    for adresse in uebersprungen:
+        print(f"ÜBERSPRUNGEN  {adresse}: kein `email.ablage` im Profil — "
+              "dieses Konto wird nicht aufgeräumt")
+    for zeile in unlesbar:
+        print(f"UNLESBAR  {zeile} — ein Konto darin wird nicht aufgeräumt", file=sys.stderr)
 
 
 def _raeume_entwuerfe(args) -> int:
@@ -2412,8 +2460,9 @@ def befehl_aufraeumen(args) -> int:
         return _raeume_entwuerfe(args)
     zusatz = Path(args.profiles) if args.profiles else None
     uebersprungen: list[str] = []
+    unlesbar: list[str] = []
     if args.alle:
-        adressen, uebersprungen = konten_aus_profilen(zusatz)
+        adressen, uebersprungen, unlesbar = konten_aus_profilen(zusatz)
         if not adressen:
             # Ein Zeitplan, der nichts prüft, darf nicht grün aussehen: Zeigt der
             # Suchweg auf ein leeres Verzeichnis, wäre der Lauf sonst „fertig“.
@@ -2422,8 +2471,11 @@ def befehl_aufraeumen(args) -> int:
                   file=sys.stderr)
             if args.json:
                 print(json.dumps({"konten": [], "uebersprungen": uebersprungen,
-                                  "nicht_geprueft": 0, "grund": "kein Profil nennt `email.ablage`"},
+                                  "unlesbar": unlesbar, "nicht_geprueft": 0,
+                                  "grund": "kein Profil nennt `email.ablage`"},
                                  ensure_ascii=False, indent=2))
+            if not args.json:
+                _melde_uebersprungen(uebersprungen, unlesbar)
             return EXIT_UMGEBUNG
     else:
         adressen = args.absender
@@ -2449,13 +2501,14 @@ def befehl_aufraeumen(args) -> int:
         if args.alle:
             # Ein Zeitplan liest den Bericht später: Wer übersprungen wurde und wie
             # viele Konten nicht geprüft sind, steht deshalb im Bericht selbst.
+            # `unlesbar` (Review #542): Ein Profil, das nicht zu lesen war, kann
+            # ein Konto mit Ablage sein. Es macht den Lauf deshalb nicht grün.
             konten = {"konten": konten, "uebersprungen": uebersprungen,
+                      "unlesbar": unlesbar,
                       "nicht_geprueft": sum(1 for b in berichte if b.grund)}
         print(json.dumps(konten, ensure_ascii=False, indent=2))
     else:
-        for adresse in uebersprungen:
-            print(f"ÜBERSPRUNGEN  {adresse}: kein `email.ablage` im Profil — "
-                  "dieses Konto wird nicht aufgeräumt")
+        _melde_uebersprungen(uebersprungen, unlesbar)
         for bericht in berichte:
             # Ein Bericht mit Grund geht ganz auf stderr: Die Plan- und
             # UID-Zeilen hinter `NICHT GEPRÜFT` gehören zu ihm (Review von #459).
@@ -2463,6 +2516,8 @@ def befehl_aufraeumen(args) -> int:
                 ziel = (sys.stderr if bericht.grund
                         or zeile.startswith(("NICHT GEPRÜFT", "HINWEIS")) else sys.stdout)
                 print(zeile, file=ziel)
+    if unlesbar:
+        return EXIT_UMGEBUNG
     return EXIT_UMGEBUNG if any(b.grund for b in berichte) else EXIT_OK
 
 
@@ -3089,8 +3144,9 @@ def main(argv: list[str] | None = None) -> int:
                         "(Pflicht, außer mit --alle)")
     p.add_argument("--alle", action="store_true",
                    help="jedes Konto, dessen Profil `email.ablage` nennt; ohne `ablage` "
-                        "wird übersprungen. Für den Zeitplan; nicht mit --absender, --uid "
-                        "und --entwuerfe")
+                        "wird übersprungen, ein unlesbares Profil ergibt Exit 3. Für den "
+                        "Zeitplan; nicht mit --absender, --uid, --uidvalidity, "
+                        "--trotz-faehnchen und --entwuerfe")
     # `default=None`, nicht 30: Nur so ist „gesetzt“ von „Vorgabe“ zu trennen,
     # und mit `--uid` ist ein gesetztes `--seit` ein Fehler (Nachreview #494).
     p.add_argument("--seit", type=int, default=None,

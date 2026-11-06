@@ -1616,6 +1616,134 @@ def test_alle_ohne_ein_einziges_konto_ist_nicht_gruen(monkeypatch, tmp_path, cap
     assert capsys.readouterr().err.startswith("NICHT GEPRÜFT  kein Profil nennt")
 
 
+def test_alle_ohne_konto_nennt_die_uebersprungenen_auch_im_text(monkeypatch, tmp_path, capsys):
+    """Review #542, Befund 4: Gerade wenn kein Konto eine Ablage hat, trennen die
+    ÜBERSPRUNGEN-Zeilen „Suchweg falsch“ von „Profile da, aber ohne Ablage“.
+    Unter `--json` standen sie schon, im Text kehrte der Lauf vorher zurück."""
+    from falzmarke import cli as falzmarke
+
+    _profile(tmp_path, monkeypatch, drei=("c@example.de", None))
+    code = falzmarke.main(["aufraeumen", "--alle", "--profiles", str(tmp_path)])
+    ausgabe = capsys.readouterr()
+    assert code == falzmarke.EXIT_UMGEBUNG
+    assert "ÜBERSPRUNGEN  c@example.de" in ausgabe.out, ausgabe
+
+
+def _echter_suchweg(tmp_path, monkeypatch):
+    """Der Suchweg wie im Betrieb, nur unter `tmp_path`: Beispiele, `~/.config`, `./profiles`.
+
+    Die übrigen Tests ersetzen `profil_verzeichnisse` ganz und sehen deshalb
+    weder die mitgelieferten Beispiele noch die Verschattung gleichnamiger
+    Profile (Review #542). Zurück kommen `(beispiele, eigene)`.
+    """
+    from falzmarke import cli as falzmarke
+
+    typst = tmp_path / "typst"
+    beispiele, eigene = typst / "profiles", tmp_path / "xdg" / "falzmarke" / "profiles"
+    beispiele.mkdir(parents=True)
+    eigene.mkdir(parents=True)
+    (tmp_path / "vorgang").mkdir()
+    monkeypatch.setattr(falzmarke, "TYPST_DIR", typst)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
+    monkeypatch.delenv("FALZMARKE_PROFILES", raising=False)
+    monkeypatch.chdir(tmp_path / "vorgang")
+    (beispiele / "example.yaml").write_text(
+        "email:\n  absender: muster@example.de\n", encoding="utf-8")
+    return beispiele, eigene
+
+
+def test_alle_zaehlt_die_mitgelieferten_beispiele_nicht(monkeypatch, tmp_path, capsys):
+    """Review #542, Befund 1: Der erste Zeitplanlauf (05.11.2026) meldete
+    `muster@example.de` aus `example.yaml` jeden Tag als übersprungenes Konto."""
+    import json
+
+    from falzmarke import cli as falzmarke
+
+    _, eigene = _echter_suchweg(tmp_path, monkeypatch)
+    (eigene / "eigen.yaml").write_text(
+        "email:\n  absender: a@example.de\n  ablage: Archiv\n", encoding="utf-8")
+    rest = _konten(monkeypatch, _konto(kennung="<a@example.de>"))
+    code = falzmarke.main(["aufraeumen", "--alle", "--json"])
+    ausgabe = capsys.readouterr()
+    bericht = json.loads(ausgabe.out)
+    assert code == falzmarke.EXIT_OK and rest == []
+    assert [k["absender"] for k in bericht["konten"]] == ["a@example.de"]
+    assert bericht["uebersprungen"] == [] and bericht["unlesbar"] == []
+    assert "muster@example.de" not in ausgabe.out + ausgabe.err
+
+
+def test_alle_eigenes_profil_verschattet_das_beispiel_gleichen_namens(
+        monkeypatch, tmp_path, capsys):
+    """Ein eigenes `example.yaml` weiter vorn im Suchweg ist kein Beispiel: Es zählt,
+    und das mitgelieferte gleichen Namens wird gar nicht erst gelesen."""
+    import json
+
+    from falzmarke import cli as falzmarke
+
+    _, eigene = _echter_suchweg(tmp_path, monkeypatch)
+    (eigene / "example.yaml").write_text(
+        "email:\n  absender: b@example.de\n  ablage: Archiv\n", encoding="utf-8")
+    _konten(monkeypatch, _konto(kennung="<b@example.de>"))
+    code = falzmarke.main(["aufraeumen", "--alle", "--json"])
+    bericht = json.loads(capsys.readouterr().out)
+    assert code == falzmarke.EXIT_OK
+    assert [k["absender"] for k in bericht["konten"]] == ["b@example.de"]
+    assert bericht["uebersprungen"] == []
+
+
+def _kaputte_profile(verzeichnis):
+    """Eine Liste als oberste Ebene und eine Datei in Latin-1."""
+    (verzeichnis / "liste.yaml").write_text("- a@example.de\n- b@example.de\n", encoding="utf-8")
+    (verzeichnis / "latin.yaml").write_bytes(
+        "email:\n  absender: jörg@example.de\n  ablage: Archiv\n".encode("latin-1"))
+
+
+def test_alle_nennt_unlesbare_profile_und_ist_nicht_gruen(monkeypatch, tmp_path, capsys):
+    """Review #542, Befunde 2 und 3 und der offene Punkt aus der Übergabe: Beide
+    Dateien brachen den Lauf vorher ab (AttributeError, UnicodeDecodeError) oder
+    fielen still weg. Jetzt läuft das lesbare Konto, die unlesbaren stehen im
+    Bericht, und der Exit-Code ist 3: Dahinter kann ein Konto mit Ablage stehen."""
+    import json
+
+    from falzmarke import cli as falzmarke
+
+    _profile(tmp_path, monkeypatch, eins=("a@example.de", "Archiv"))
+    _kaputte_profile(tmp_path)
+    rest = _konten(monkeypatch, _konto(kennung="<a@example.de>"))
+    code = falzmarke.main(["aufraeumen", "--alle", "--machen", "--json",
+                           "--profiles", str(tmp_path)])
+    bericht = json.loads(capsys.readouterr().out)
+    assert code == falzmarke.EXIT_UMGEBUNG and rest == []
+    assert bericht["unlesbar"] == ["latin.yaml: kein UTF-8",
+                                   "liste.yaml: oberste Ebene ist list, kein Abschnitt"]
+    assert bericht["nicht_geprueft"] == 0 and bericht["konten"][0]["verschoben"] == 1
+
+
+def test_alle_nennt_unlesbare_profile_im_text_auf_stderr(monkeypatch, tmp_path, capsys):
+    from falzmarke import cli as falzmarke
+
+    _profile(tmp_path, monkeypatch, eins=("a@example.de", "Archiv"))
+    _kaputte_profile(tmp_path)
+    _konten(monkeypatch, _konto(kennung="<a@example.de>"))
+    code = falzmarke.main(["aufraeumen", "--alle", "--profiles", str(tmp_path)])
+    ausgabe = capsys.readouterr()
+    assert code == falzmarke.EXIT_UMGEBUNG
+    assert "UNLESBAR  latin.yaml: kein UTF-8" in ausgabe.err
+    assert "UNLESBAR  liste.yaml" in ausgabe.err and "UNLESBAR" not in ausgabe.out
+    # Nur der Dateiname: Der Bericht geht an einen Kanal, der Pfad verrät Ordner.
+    assert str(tmp_path) not in ausgabe.err
+
+
+def test_absender_haelt_ein_kaputtes_fremdes_profil_nicht_an(monkeypatch, tmp_path):
+    """Der Weg mit `--absender` liest dieselben Dateien. Eine fremde, kaputte darf
+    ihn nicht abbrechen (vorher: `list.get` → AttributeError)."""
+    from falzmarke import cli as falzmarke
+
+    _profile(tmp_path, monkeypatch, eins=("a@example.de", "Archiv"))
+    _kaputte_profile(tmp_path)
+    assert falzmarke.ablage_aus_profil("a@example.de") == ("Archiv", None)
+
+
 @pytest.mark.parametrize("zusatz", [
     ["--absender", "a@example.de"], ["--uid", "101"], ["--entwuerfe"],
     ["--uidvalidity", "3"], ["--trotz-faehnchen"],
