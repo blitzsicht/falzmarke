@@ -808,6 +808,21 @@ def test_die_wahl_schliesst_oeffnen_ein(tmp_path, monkeypatch):
     assert code == 0 and gesehen["wahl"] == "thunderbird"
 
 
+def test_die_hilfe_nennt_bei_kein_fenster_die_kopplung(capsys):
+    """Abnahme #538, Punkt 3: `--kein-fenster` schließt `--oeffnen` ein, und die
+    Hilfe sagt es dort. Gelesen wird nur der Abschnitt von `--kein-fenster` bis
+    zur nächsten Option: Bei `--programm` steht derselbe Satz schon, er zählt
+    hier nicht. Im Prozess statt im Kindprozess, wegen des „ß“: Unter Windows
+    schriebe das Kind in der Codepage des Systems."""
+    with pytest.raises(SystemExit):
+        falzmarke.main(["email", "--help"])
+    hilfe = capsys.readouterr().out
+    abschnitt = re.search(r"^ +--kein-fenster\b(.*?)^ +-", hilfe, re.DOTALL | re.MULTILINE)
+    assert abschnitt, hilfe
+    text = " ".join(abschnitt.group(1).split())
+    assert "schließt --oeffnen ein" in text, f"--kein-fenster nennt die Kopplung nicht: {text}"
+
+
 def test_gegenprobe_ohne_beides_wird_kein_entwurf_versucht(tmp_path, monkeypatch):
     gesehen = _entwurf_merkt_sich(monkeypatch)
     falzmarke.main(["email", str(_schreibe(tmp_path)), "--profiles", str(PROFILE)])

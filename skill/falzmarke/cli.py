@@ -1955,8 +1955,10 @@ def befehl_email(args) -> int:
     # `falzmarke.cli` lädt — der MCP-Dienst tut das auf Modulebene.
     # `--programm` schließt `--oeffnen` ein: Wer ein Programm nennt, will den
     # Entwurf. Ein Schalter, der gesetzt ist und nichts bewirkt, wäre der
-    # schlechtere Fall.
-    if args.oeffnen or args.programm or args.ersetzen:
+    # schlechtere Fall. Dasselbe gilt für `--kein-fenster` (#538): Er verspricht
+    # einen abgelegten Entwurf. Ohne `--oeffnen` endete er bis dahin mit Exit 0,
+    # ohne Entwurf und ohne Hinweis.
+    if args.oeffnen or args.programm or args.ersetzen or args.kein_fenster:
         from falzmarke import gesendet as gesendet_modul
         from falzmarke import oeffnen as oeffnen_modul
 
@@ -3160,7 +3162,7 @@ def main(argv: list[str] | None = None) -> int:
                         "Thunderbird nicht nach vorn holen (für Schleifen über viele Briefe). "
                         "Lässt sich der Entwurf nicht im Postfach ablegen, geht weder "
                         "-compose noch die Datei auf: KEIN ENTWURF mit Grund, Exit 3. "
-                        "Nicht mit --programm outlook")
+                        "Nicht mit --programm outlook; schließt --oeffnen ein")
     p.add_argument("--programm", choices=["thunderbird", "outlook"],
                    help="Mailprogramm für den Entwurf (ohne Angabe Thunderbird; "
                         "Outlook nur auf Wahl); schließt --oeffnen ein")

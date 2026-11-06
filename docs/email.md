@@ -260,6 +260,8 @@ Vier Eigenschaften, die dazugehören:
   fehlende Berechtigung) und bleibt, bis jemand die Ursache behebt. Was sich nicht sicher zuordnen
   lässt, gilt als dauerhaft. Wer in einer Schleife aufruft, liest diese Zeile statt des Wortlauts
   im Grund; die Zeile `KEIN ENTWURF` selbst bleibt unverändert.
+  `--kein-fenster` schließt `--oeffnen` ein, wie `--programm` (#538): Ohne `--oeffnen` endete der
+  Schalter bis dahin mit Exit 0, ohne Entwurf und ohne Hinweis.
   `--kein-fenster` geht nicht mit `--programm outlook` (Exit 1): Outlook legt einen Entwurf nur
   mit Fenster an. Bleibt das Ablegen ungewiss (`HINWEIS … das Ablegen blieb ungewiss`), endet der
   Befehl auch mit `--kein-fenster` mit Exit 0, aber ohne `OK  Entwurf liegt in`. Ein erneuter
