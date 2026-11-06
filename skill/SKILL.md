@@ -137,6 +137,7 @@ Was dabei nicht fehlen darf, weil es gemessen ist:
   nach `URSACHE` zählt, der Rest erläutert. Es liegt dann kein Entwurf, das so melden
   und nicht von Hand ein Fenster öffnen. Mit `--programm
   outlook` geht `--kein-fenster` nicht (Exit 1): Outlook öffnet jeden Entwurf.
+  `--kein-fenster` schließt `--oeffnen` ein, wie `--programm` (#538).
 - Sonst entsteht der Entwurf als Fenster in **Thunderbird** (`-compose`), wenn es installiert
   ist; `from=` wählt dort die Identität, der Absender stimmt (ADR 0049). Thunderbird meldet nichts zurück — Exit 0 heißt
   „angenommen“, und der Befehl sagt, dass **nichts nachgezählt** ist: Empfänger, Anhänge und

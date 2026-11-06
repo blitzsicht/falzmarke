@@ -134,7 +134,9 @@ einem Menschen (#263).
 `antwort_auf:`, setzt `--oeffnen` nach dem Entwurf `\Flagged` an genau der Mail im Eingang des
 Absenderkontos, deren `Message-ID` dort steht. `aufraeumen` lässt sie dann liegen, auch wenn die
 Antwort gesendet ist. Wer mit der Antwort abschließt, schreibt `erledigt: ja` ins Frontmatter: Dann
-wird nichts gesetzt, und die Mail wird abgelegt, sobald die Antwort hinaus ist. Ein Fähnchen, das
+wird nichts gesetzt, und die Mail wird abgelegt, sobald eine Antwort mit `In-Reply-To` hinaus ist.
+Der Entwurf im Postfach trägt es, ein Verfassen-Fenster nicht: Dort bleibt die Mail ohnehin
+liegen. Ein Fähnchen, das
 ein früherer Entwurf ohne `erledigt` schon gesetzt hat, bleibt allerdings stehen, bis du es
 entfernst.
 
@@ -258,6 +260,8 @@ Vier Eigenschaften, die dazugehören:
   fehlende Berechtigung) und bleibt, bis jemand die Ursache behebt. Was sich nicht sicher zuordnen
   lässt, gilt als dauerhaft. Wer in einer Schleife aufruft, liest diese Zeile statt des Wortlauts
   im Grund; die Zeile `KEIN ENTWURF` selbst bleibt unverändert.
+  `--kein-fenster` schließt `--oeffnen` ein, wie `--programm` (#538): Ohne `--oeffnen` endete der
+  Schalter bis dahin mit Exit 0, ohne Entwurf und ohne Hinweis.
   `--kein-fenster` geht nicht mit `--programm outlook` (Exit 1): Outlook legt einen Entwurf nur
   mit Fenster an. Bleibt das Ablegen ungewiss (`HINWEIS … das Ablegen blieb ungewiss`), endet der
   Befehl auch mit `--kein-fenster` mit Exit 0, aber ohne `OK  Entwurf liegt in`. Ein erneuter

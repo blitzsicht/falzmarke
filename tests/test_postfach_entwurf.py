@@ -381,6 +381,31 @@ def test_befehl_ohne_antwort_auf_fragt_nach_keinem_faehnchen(befehl, monkeypatch
         not in server.protokoll
 
 
+
+def test_befehl_setzt_das_faehnchen_auch_bei_ungewissem_entwurf(befehl, monkeypatch, capsys):
+    """Code-Review #553: Ungewiss heißt, ein Entwurf mit `In-Reply-To` kann im
+    Postfach liegen. Wird er gesendet, legte `aufraeumen` die Ursprungsmail ohne
+    Fähnchen ab."""
+    server = _mit_ursprung(monkeypatch, append_wirkt=False)
+    assert befehl() == 0
+    assert "Entwurf ungewiss" in capsys.readouterr().err, "Vorbedingung: nicht ungewiss"
+    assert server.befehle("UID STORE") == [("UID STORE", "101", "+FLAGS", "(\\Flagged)")], \
+        "kein Fähnchen bei ungewissem Entwurf"
+
+
+def test_befehl_setzt_das_faehnchen_auch_beim_rueckfall_auf_die_datei(
+        befehl, monkeypatch, capsys):
+    """Code-Review #553: Die Datei trägt `In-Reply-To`. Wer sie versendet,
+    beantwortet die Ursprungsmail wie mit einem Entwurf."""
+    server = _mit_ursprung(monkeypatch)
+    monkeypatch.setattr(oeffnen, "entwurf",
+                        lambda felder, **k: oeffnen.Entwurfslage(None, "kein Mailprogramm"))
+    uebergeben = _datei_uebergaben(monkeypatch)
+    assert befehl() == 0
+    assert len(uebergeben) == 1, "Vorbedingung: die Datei ging nicht auf"
+    assert server.befehle("UID STORE") == [("UID STORE", "101", "+FLAGS", "(\\Flagged)")], \
+        "kein Fähnchen beim Rückfall auf die Datei"
+
 # ── --kein-fenster ohne Postfach (#441) ─────────────────────────────────────
 #
 # Der Abholer in siluri-angebote ruft alle 180 s kopflos auf. Fällt der Proxy
@@ -470,6 +495,85 @@ def test_kein_fenster_mit_abgeschaltetem_entwurf_endet_mit_exit_3(befehl, monkey
     assert code == falzmarke.EXIT_UMGEBUNG, f"Exit {code} ohne Entwurf"
     assert "KEIN ENTWURF  FALZMARKE_ENTWURF=nie ist gesetzt" in capsys.readouterr().err
     assert befehl.tb.compose == []
+
+
+# ── --kein-fenster schließt --oeffnen ein (#538) ────────────────────────────
+#
+# Gemessen am 05.11.2026: `email <md> --kein-fenster` ohne `--oeffnen` schrieb
+# die `.eml`, legte keinen Entwurf an und endete mit Exit 0, ohne Hinweis. Der
+# Schalter verspricht einen abgelegten Entwurf. Seit #538 schließt er
+# `--oeffnen` ein, wie `--programm`.
+
+def _email_ohne_oeffnen(tmp_path, monkeypatch):
+    """Wie die Fixture `befehl`, nur steht `--oeffnen` nicht im Aufruf.
+
+    Eine Funktion statt einer Fixture: Die Gegenproben in `test_gegenbeweis.py`
+    rufen die Proben mit `tmp_path`, `monkeypatch` und `capsys` auf.
+    """
+    monkeypatch.delenv("CI", raising=False)
+    monkeypatch.delenv("FALZMARKE_OEFFNEN", raising=False)
+    monkeypatch.setenv("DISPLAY", ":0")
+    tb = Thunderbird()
+    monkeypatch.setattr(oeffnen, "entwurf", functools.partial(
+        oeffnen.entwurf, plattform="darwin", umgebung={"DISPLAY": ":0"}, laufen=tb,
+        binaer=lambda: THUNDERBIRD_PFAD))
+    quelle = tmp_path / "antwort.md"
+    quelle.write_text(MAIL, encoding="utf-8")
+
+    def lauf(*extra):
+        return falzmarke.main(["email", str(quelle), "--profiles", str(PROFILE), *extra])
+    lauf.tb = tb
+    return lauf
+
+
+def test_kein_fenster_ohne_oeffnen_legt_den_entwurf_ab(tmp_path, monkeypatch, capsys):
+    """Abnahme #538, Punkt 1: Der Schalter allein legt den Entwurf ins Postfach."""
+    server = _server(monkeypatch)
+    tb_bruecke = _bruecke(monkeypatch)
+    lauf = _email_ohne_oeffnen(tmp_path, monkeypatch)
+    code = lauf("--kein-fenster")
+    ausgabe = capsys.readouterr()
+    assert len(server.befehle("APPEND")) == 1, \
+        "--kein-fenster ohne --oeffnen legte keinen Entwurf ab"
+    assert code == 0, f"Exit {code}: {ausgabe.err}"
+    assert f"OK  Entwurf liegt in „Entwürfe“ von {ABSENDER}: {BETREFF}" in ausgabe.out
+    assert tb_bruecke.adressen == [] and lauf.tb.compose == [], "ein Fenster trotz --kein-fenster"
+
+
+def test_kein_fenster_ohne_oeffnen_und_ohne_proxy_endet_mit_exit_3(tmp_path, monkeypatch,
+                                                                    capsys):
+    """Abnahme #538, Punkt 1: Fehlt das Postfach, heißt es `KEIN ENTWURF` mit Exit 3."""
+    monkeypatch.setattr(postfach, "IMAP_KLASSE",
+                        ImapAttrappe(verbindungsfehler=ConnectionRefusedError(61, "refused")))
+    uebergeben = _datei_uebergaben(monkeypatch)
+    lauf = _email_ohne_oeffnen(tmp_path, monkeypatch)
+    code = lauf("--kein-fenster")
+    ausgabe = capsys.readouterr()
+    assert code == falzmarke.EXIT_UMGEBUNG, \
+        f"Exit {code}: --kein-fenster ohne --oeffnen endete ohne KEIN ENTWURF"
+    assert "KEIN ENTWURF  kein Postfach-Entwurf: kein IMAP-Proxy unter" in ausgabe.err
+    assert "Die geprüfte Nachricht liegt hier:" in ausgabe.err
+    assert lauf.tb.compose == [] and uebergeben == [], "ein Fenster trotz --kein-fenster"
+
+
+@pytest.mark.parametrize("mit_postfach", [True, False], ids=["mit-postfach", "ohne-proxy"])
+def test_ohne_beide_schalter_bleibt_es_bei_der_datei(tmp_path, monkeypatch, capsys,
+                                                     mit_postfach):
+    """Zwilling der beiden Proben darüber: derselbe Aufbau ohne `--kein-fenster`.
+
+    Kein Entwurf, kein Postfach gefragt, nichts geöffnet, Exit 0 — wie vor #538.
+    """
+    server = (_server(monkeypatch) if mit_postfach else ImapAttrappe(
+        verbindungsfehler=ConnectionRefusedError(61, "refused")))
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", server)
+    uebergeben = _datei_uebergaben(monkeypatch)
+    lauf = _email_ohne_oeffnen(tmp_path, monkeypatch)
+    code = lauf()
+    ausgabe = capsys.readouterr()
+    assert code == 0, f"Exit {code}: {ausgabe.err}"
+    assert server.verbindungen == [], "ohne beide Schalter wurde das Postfach gefragt"
+    assert "OK  Entwurf" not in ausgabe.out and "KEIN ENTWURF" not in ausgabe.err
+    assert lauf.tb.compose == [] and uebergeben == []
 
 
 def test_die_abgelegte_datei_ist_die_gemessene(eml_pfad, felder, monkeypatch):

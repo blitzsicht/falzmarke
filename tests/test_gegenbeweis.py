@@ -2433,6 +2433,42 @@ def test_ohne_sperre_im_befehl_geht_bei_abgeschaltetem_entwurf_die_datei_auf(
         probe(_email_befehl_441, monkeypatch, capsys)
 
 
+@pytest.mark.parametrize(("probe_name", "meldung"), [
+    ("test_kein_fenster_ohne_oeffnen_legt_den_entwurf_ab",
+     "--kein-fenster ohne --oeffnen legte keinen Entwurf ab"),
+    ("test_kein_fenster_ohne_oeffnen_und_ohne_proxy_endet_mit_exit_3",
+     "Exit 0: --kein-fenster ohne --oeffnen endete ohne KEIN ENTWURF"),
+], ids=["abgelegt", "ohne-proxy"])
+def test_ohne_kopplung_tut_kein_fenster_ohne_oeffnen_nichts(tmp_path, monkeypatch, capsys,
+                                                            probe_name, meldung):
+    """#538: die Bedingung vor dem Entwurf wie vor dem Fix, ohne `--kein-fenster`.
+    Dann schreibt der Befehl nur die `.eml` und endet mit Exit 0."""
+    import test_postfach_entwurf
+
+    probe = getattr(test_postfach_entwurf, probe_name)
+    probe(tmp_path, monkeypatch, capsys)                                   # Kontrolle
+    monkeypatch.setattr(falzmarke, "befehl_email", _zeile_ersetzt(
+        falzmarke, "befehl_email", "or args.ersetzen or args.kein_fenster:",
+        "or args.ersetzen:"))
+    with pytest.raises(AssertionError, match=re.escape(meldung)):
+        probe(tmp_path, monkeypatch, capsys)
+
+
+def test_ohne_kopplung_in_der_hilfe_schweigt_kein_fenster_dazu(monkeypatch, capsys):
+    """#538, Abnahme 3: der Hilfetext von `--kein-fenster` wie vor dem Fix. Der
+    Parser entsteht in `main`; bei `--programm` steht der Satz weiter, die Probe
+    liest aber nur den Abschnitt von `--kein-fenster`."""
+    from test_befehl_email import test_die_hilfe_nennt_bei_kein_fenster_die_kopplung as probe
+
+    probe(capsys)                                                          # Kontrolle
+    monkeypatch.setattr(falzmarke, "main", _zeile_ersetzt(
+        falzmarke, "main", '"Nicht mit --programm outlook; schließt --oeffnen ein")',
+        '"Nicht mit --programm outlook")'))
+    with pytest.raises(AssertionError, match="--kein-fenster nennt die Kopplung nicht: "
+                                             "den Entwurf ablegen"):
+        probe(capsys)
+
+
 def test_ohne_signaturklasse_findet_die_pruefung_keine_signatur(tmp_path, monkeypatch):
     """Sabotage: Die Hülle der Signatur trägt eine andere Klasse. Dann findet
     die Prüfung aus `test_moz_signatur.py` kein Element mehr — und Thunderbirds
@@ -5129,6 +5165,43 @@ def test_ohne_die_typpruefung_bleibt_ein_falscher_erledigt_wert_still(
     with pytest.raises(AssertionError, match=re.escape(f"erledigt: {wert!r} — Warnung erwartet")):
         probe(tmp_path, wert, False)
 
+
+
+# Code-Review #553: Das Fähnchen auch bei ungewissem Entwurf und beim Rückfall
+# auf die Datei, und die Warnung für `erledigt` ohne `antwort_auf`.
+
+@pytest.mark.parametrize("alt, probe_name, meldung", [
+    ("            # liegen und gesendet werden (ADR 0063, Nachtrag Code-Review #553).\n"
+     "            _setze_faehnchen_mit(brief, felder)\n",
+     "test_befehl_setzt_das_faehnchen_auch_bei_ungewissem_entwurf",
+     "kein Fähnchen bei ungewissem Entwurf"),
+    ("            # Ursprungsmail wie mit einem Entwurf (ADR 0063, Nachtrag).\n"
+     "            _setze_faehnchen_mit(brief, felder)\n",
+     "test_befehl_setzt_das_faehnchen_auch_beim_rueckfall_auf_die_datei",
+     "kein Fähnchen beim Rückfall auf die Datei"),
+], ids=["ungewiss", "datei"])
+def test_ohne_den_aufruf_im_zweig_bleibt_die_ursprungsmail_ohne_faehnchen(
+        befehl, monkeypatch, capsys, alt, probe_name, meldung):
+    """Sabotage an genau einer Stelle je Zweig: Der Aufruf fällt weg."""
+    import test_postfach_entwurf
+
+    probe = getattr(test_postfach_entwurf, probe_name)
+    probe(befehl, monkeypatch, capsys)                                      # Kontrolle
+    neu = alt.replace("_setze_faehnchen_mit(brief, felder)", "pass")
+    monkeypatch.setattr(falzmarke, "befehl_email", _zeile_ersetzt(
+        falzmarke, "befehl_email", alt, neu))
+    with pytest.raises(AssertionError, match=re.escape(meldung)):
+        probe(befehl, monkeypatch, capsys)
+
+
+def test_ohne_die_warnung_bleibt_erledigt_ohne_antwort_auf_still(monkeypatch, tmp_path):
+    from test_email_datenvertrag import test_erledigt_ohne_antwort_auf_warnt as probe
+
+    probe(tmp_path)                                                         # Kontrolle
+    monkeypatch.setattr(_lint, "pruefe_email_frontmatter", _zeile_ersetzt(
+        _lint, "pruefe_email_frontmatter", "        if not antwort:\n", "        if False:\n"))
+    with pytest.raises(AssertionError, match=re.escape("`erledigt` ohne `antwort_auf` blieb still")):
+        probe(tmp_path)
 
 # ── #454: Der Plugin-Ordner bleibt aus dem Skill-Paket ──────────────────────
 

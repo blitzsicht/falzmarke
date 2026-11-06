@@ -204,6 +204,18 @@ def test_erledigt_warnt_bei_jedem_wert_ausser_ja_und_nein(tmp_path, wert, sauber
         f"erledigt: {wert!r} — Warnung erwartet: {not sauber}")
 
 
+
+def test_erledigt_ohne_antwort_auf_warnt(tmp_path):
+    """Ohne `antwort_auf` gibt es keine Ursprungsmail und kein Fähnchen; `erledigt`
+    bewirkt dann nichts (Code-Review #553: die Warnung war ungeprüft)."""
+    bericht = linte(tmp_path, MAIL + "erledigt: ja\n")
+    meldungen = [b.meldung for b in bericht.befunde if b.regel == "erledigt"]
+    assert any("ohne `antwort_auf` bewirkt nichts" in m for m in meldungen), (
+        f"`erledigt` ohne `antwort_auf` blieb still: {meldungen}")
+    assert "erledigt" in warnungen(bericht) and bericht.anzahl_fehler == 0
+    mit = linte(tmp_path, MAIL + 'antwort_auf: "<frage@example.de>"\nerledigt: ja\n')
+    assert "erledigt" not in regeln(mit)                                    # Gegenprobe
+
 # ── Das Profil ──────────────────────────────────────────────────────────────
 
 def test_das_beispielprofil_traegt_den_abschnitt():

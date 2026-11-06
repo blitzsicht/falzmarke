@@ -67,9 +67,8 @@ Der zweite Weg ist der Knopf, und er dauert fünf Minuten:
 1. Auf [glama.ai](https://glama.ai) anmelden (GitHub-Login genügt).
 2. Auf `glama.ai/mcp/servers` den Knopf **Add Server** drücken.
 3. Das Repository angeben: `blitzsicht/falzmarke`. **Korrektur 06.11.2026:** Glama baut es
-   nicht von selbst. Die Serverseite meldet „This server cannot be deployed“, und der Bot bei
-   awesome-mcp-servers verlangt, das Dockerfile direkt in Glama einzutragen. Das `Dockerfile` im
-   Wurzelverzeichnis dient dafür als Vorlage ([listings.md](listings.md#glama)).
+   nicht aus unserem `Dockerfile`, sondern aus den Feldern unter Admin → Dockerfile. Welche Werte
+   dort tragen, steht in [listings.md](listings.md#glama).
 4. Fertig, wenn `glama.ai/mcp/servers/blitzsicht/falzmarke` **200** statt 404 liefert:
 
    ```bash
