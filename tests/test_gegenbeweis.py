@@ -2192,15 +2192,37 @@ def test_ein_abgelehnter_port_als_dauerhaft_wird_rot(monkeypatch, _felder_505, w
         neu = alt.replace("voruebergehend=True", "voruebergehend=False")
         meldung = "dauer='dauerhaft'"
     else:
+        # Über den Befehlsweg (`Postfach._befehl`), nicht am Helfer allein: So
+        # fiele auch ein `_befehl` auf, der `_vergeht` gar nicht mehr fragt
+        # (Review von #572).
         def probe():
-            _probe_modul.test_ein_bekannter_netzfehler_vergeht(fehler)
+            _probe_modul.test_ein_abgerissener_befehl_vergeht_eine_absage_bleibt(fehler, True)
         alt = "    if isinstance(fehler, socket.gaierror):\n"
         neu = "    if isinstance(fehler, ConnectionRefusedError):\n        return False\n" + alt
-        meldung = "ConnectionRefusedError gilt als bleibend"
+        meldung = "ConnectionRefusedError nach einem Befehl: voruebergehend=False"
     probe()                                                                     # Kontrolle
     monkeypatch.setattr(_postfach, weg, _zeile_ersetzt(_postfach, weg, alt, neu))
     with pytest.raises(AssertionError, match=meldung):
         probe()
+
+
+@pytest.mark.parametrize("alt, neu, probe_name, argumente", [
+    ("not (port.isascii() and port.isdigit())", "not port.isdigit()",
+     "test_nur_ascii_ziffern_sind_ein_port", ("²",)),
+    ("if len(ziffern) <= 5 else 0", "if True else 0",
+     "test_ein_ueberlanger_port_ist_ein_grund_kein_absturz", ()),
+], ids=["nur-ascii", "laengengrenze"])
+def test_ein_port_der_int_sprengt_wird_rot(monkeypatch, alt, neu, probe_name, argumente):
+    """Review von #572: Ohne ASCII-Prüfung wirft `int('²')`, ohne Längengrenze
+    `int` bei 5000 Ziffern einen `ValueError` statt eines Grundes."""
+    import test_postfach as _probe_modul
+    from falzmarke import postfach as _postfach
+
+    probe = getattr(_probe_modul, probe_name)
+    probe(*argumente)                                                           # Kontrolle
+    monkeypatch.setattr(_postfach, "ziel", _zeile_ersetzt(_postfach, "ziel", alt, neu))
+    with pytest.raises(ValueError):
+        probe(*argumente)
 
 
 def test_ein_port_ohne_bereichspruefung_wird_rot(monkeypatch):
@@ -2212,7 +2234,7 @@ def test_ein_port_ohne_bereichspruefung_wird_rot(monkeypatch):
     probe = _probe_modul.test_ein_port_ausserhalb_des_bereichs_ist_ein_bleibender_grund
     probe("99999")                                                              # Kontrolle
     monkeypatch.setattr(_postfach, "ziel", _zeile_ersetzt(
-        _postfach, "ziel", "    if not 1 <= int(port) <= 65535:\n", "    if False:\n"))
+        _postfach, "ziel", "    if not 1 <= nummer <= 65535:\n", "    if False:\n"))
     with pytest.raises(pytest.fail.Exception, match="DID NOT RAISE"):
         probe("99999")
 

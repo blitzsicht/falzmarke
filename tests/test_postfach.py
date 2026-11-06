@@ -87,9 +87,25 @@ def test_ein_port_ausserhalb_des_bereichs_ist_ein_bleibender_grund(port):
     assert fehler.value.voruebergehend is False
 
 
-@pytest.mark.parametrize("port", [1, 65535])
-def test_die_grenzen_des_portbereichs_gelten(port):
-    assert postfach.ziel({"FALZMARKE_GESENDET_IMAP": f"127.0.0.1:{port}"}) == ("127.0.0.1", port)
+@pytest.mark.parametrize("port, erwartet", [("1", 1), ("65535", 65535), ("01993", 1993),
+                                            ("0000001993", 1993)])
+def test_die_grenzen_des_portbereichs_gelten(port, erwartet):
+    assert postfach.ziel({"FALZMARKE_GESENDET_IMAP": f"127.0.0.1:{port}"}) == ("127.0.0.1", erwartet)
+
+
+@pytest.mark.parametrize("port", ["²", "١٩٩٣", "1993\u0660"], ids=["hochzahl", "arabisch", "gemischt"])
+def test_nur_ascii_ziffern_sind_ein_port(port):
+    """Review von #572: `'²'.isdigit()` ist wahr, `int('²')` wirft einen
+    `ValueError`, und `١٩٩٣` würde still zu 1993."""
+    with pytest.raises(postfach.PostfachFehler, match="ist kein host:port"):
+        postfach.ziel({"FALZMARKE_GESENDET_IMAP": f"127.0.0.1:{port}"})
+
+
+def test_ein_ueberlanger_port_ist_ein_grund_kein_absturz():
+    """Review von #572: Ab 4300 Ziffern wirft `int` einen `ValueError`."""
+    with pytest.raises(postfach.PostfachFehler, match="liegt nicht zwischen 1 und 65535") as f:
+        postfach.ziel({"FALZMARKE_GESENDET_IMAP": "127.0.0.1:" + "9" * 5000})
+    assert len(str(f.value)) < 200
 
 
 # ── Verbinden ───────────────────────────────────────────────────────────────

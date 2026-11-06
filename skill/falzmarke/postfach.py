@@ -122,8 +122,9 @@ def _vergeht(fehler: BaseException) -> bool:
     dieselbe Nummer womöglich ohne Netz meldet; gemessen ist das nicht (#540).
     Betroffen ist nur ein Hostname in `FALZMARKE_GESENDET_IMAP`, auch einer im
     eigenen Netz; eine IP wie die Vorgabe `127.0.0.1` wird nicht aufgelöst.
-    Eine abgelehnte Verbindung entscheidet nicht diese Funktion, sondern
-    `verbinde` (dort steht der Grenzfall des vertippten Ports).
+    Eine abgelehnte Verbindung (`ConnectionRefusedError`) gilt auch hier als
+    vorübergehend, etwa nach einem abgerissenen Befehl. Beim Verbindungsaufbau
+    fängt `verbinde` sie selbst ab; dort steht der Grenzfall des vertippten Ports.
     """
     if isinstance(fehler, socket.gaierror):
         return fehler.errno == socket.EAI_AGAIN
@@ -311,16 +312,22 @@ def ziel(umgebung: Mapping[str, str]) -> tuple[str, int]:
     Ein Port außerhalb von 1 bis 65535 ist ein bleibender Fehler mit eigenem
     Grund (Nachreview von #569). Ohne diese Prüfung meldete macOS `99999` als
     „nodename nor servname provided“, also wie einen falschen Host, und Port 0
-    als „Can't assign requested address“.
+    als „Can't assign requested address“. Nur ASCII-Ziffern zählen: `'²'` ist
+    für `isdigit` eine Ziffer, für `int` nicht, und `١٩٩٣` würde still zu 1993
+    (Review von #572). Die Länge wird vor `int` begrenzt, ab 4300 Ziffern wirft
+    `int` sonst einen `ValueError` statt eines Grundes.
     """
     wert = (umgebung.get("FALZMARKE_GESENDET_IMAP") or ZIEL_VORGABE).strip()
     host, _, port = wert.rpartition(":")
-    if not host or not port.isdigit():
+    if not host or not (port.isascii() and port.isdigit()):
         raise PostfachFehler(f"FALZMARKE_GESENDET_IMAP={wert} ist kein host:port")
-    if not 1 <= int(port) <= 65535:
+    ziffern = port.lstrip("0") or "0"
+    nummer = int(ziffern) if len(ziffern) <= 5 else 0
+    if not 1 <= nummer <= 65535:
+        anzeige = ziffern if len(ziffern) <= 12 else ziffern[:12] + "…"
         raise PostfachFehler(
-            f"FALZMARKE_GESENDET_IMAP={wert}: Port {int(port)} liegt nicht zwischen 1 und 65535")
-    return host, int(port)
+            f"FALZMARKE_GESENDET_IMAP={wert[:60]}: Port {anzeige} liegt nicht zwischen 1 und 65535")
+    return host, nummer
 
 
 # ── Kopfzeilen ──────────────────────────────────────────────────────────────
