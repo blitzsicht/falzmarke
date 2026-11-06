@@ -166,6 +166,12 @@ Was dabei nicht fehlen darf, weil es gemessen ist:
   `set source` und die Angabe beim Anlegen, alle drei abgelehnt). Die Mail aus dem Entwurf
   beginnt deshalb einen neuen Thread. Der Befehl sagt es, wenn es zutrifft; wer im alten Faden
   bleiben muss, versendet die `.eml` statt des Entwurfs.
+- **Eine Antwort setzt das Fähnchen an der Ursprungsmail, außer `erledigt: ja`.** Mit
+  `antwort_auf:` setzt `--oeffnen` `\Flagged` an genau der Mail im Eingang des Absenderkontos, auf
+  die geantwortet wird, damit `aufraeumen` sie nicht ablegt (#549). `erledigt: ja` nur, wenn die
+  Antwort die Sache abschließt; bei Rückfrage, Zwischenstand oder offenem Termin weglassen. Die
+  Zeile `OK  Fähnchen gesetzt …` oder `HINWEIS  Fähnchen nicht gesetzt: <Grund>` gehört in die
+  Antwort an den Menschen, wenn das Fähnchen fehlt.
 - Geht gar nichts auf, ist die Datei trotzdem fertig; der Befehl endet mit 0 und nennt den Pfad.
   Kehrt das Mailprogramm gar nicht zurück, wird **nichts nachgeschoben**: Ob ein Fenster offen
   ist, weiß dann niemand, und ein zweites wäre genau der Fehler, den #287 behoben hat.

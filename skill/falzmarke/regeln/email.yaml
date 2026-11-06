@@ -140,6 +140,19 @@ regeln:
         (msg-id) syntax is a limited version of the addr-spec construct
         enclosed in the angle bracket characters, '<' and '>'.“
 
+  - id: email.erledigt
+    titel: erledigt steht nur mit antwort_auf und heißt ja oder nein
+    lint: erledigt
+    ebene: werkzeug
+    herkunft: werkzeug
+    quellen: []
+    wirkung: warnung
+    bemerkung: >-
+      Ohne `erledigt: ja` setzt `email --oeffnen` das Fähnchen an der
+      Ursprungsmail, damit `aufraeumen` sie liegen lässt (#549, ADR 0063).
+      Ohne `antwort_auf` gibt es keine Ursprungsmail. Warnung statt Fehler:
+      Ein unklarer Wert setzt das Fähnchen, und das ist die sichere Seite.
+
   # ── Recht: das Werkzeug erinnert, es prüft nicht ─────────────────────────
 
   - id: email.pflichtangaben

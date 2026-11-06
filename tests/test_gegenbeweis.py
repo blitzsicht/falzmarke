@@ -24,6 +24,7 @@ from falzmarke import regeln as _regeln
 from conftest import PROFILE, REPO
 from sabotage import zeile_ersetzt as _zeile_ersetzt
 from test_postfach_entwurf import oeffne_befehl                 # noqa: F401 — Fixture, siehe #481
+from test_postfach_entwurf import befehl                        # noqa: F401 — Fixture, #549
 
 BEISPIEL = REPO / "examples" / "brief-form-b.md"
 
@@ -4698,6 +4699,70 @@ def test_mit_der_alten_regel_raet_der_grund_zum_schon_gesetzten_schalter(monkeyp
         _ablage, "plane_benannt", "        if not trotz_faehnchen and any(", "        if any("))
     with pytest.raises(AssertionError, match="Rat trotz Schalter"):
         probe(monkeypatch)
+
+
+# ── #549: Der Antwortentwurf setzt das Fähnchen an der Ursprungsmail ───────
+#
+# Jede Probe ist ein Test aus `test_postfach_entwurf.py`, der `email --oeffnen`
+# ganz durchfährt. Gekippt wird je eine Zeile; die Probe muss mit ihrer
+# eigenen Meldung anschlagen, nicht mit irgendeiner. Die Attrappe wirft bei
+# einem falschen STORE, aber `faehnchen.setze` fängt jeden Fehler — deshalb
+# prüfen die Proben das Protokoll der Attrappe, nie eine Ausnahme.
+
+def test_ohne_den_aufruf_fehlt_das_faehnchen_an_der_antwort(befehl, monkeypatch, capsys):
+    """Sabotage an genau einer Stelle: `_setze_faehnchen_mit` kehrt immer um."""
+    from test_postfach_entwurf import test_befehl_setzt_das_faehnchen_an_der_beantworteten_mail \
+        as probe
+
+    probe(befehl, monkeypatch, capsys)                                      # Kontrolle
+    monkeypatch.setattr(falzmarke, "_setze_faehnchen_mit", _zeile_ersetzt(
+        falzmarke, "_setze_faehnchen_mit", "if not antwort_auf:", "if True:"))
+    with pytest.raises(AssertionError, match="kein Fähnchen gesetzt"):
+        probe(befehl, monkeypatch, capsys)
+
+
+def test_ohne_die_erledigt_pruefung_setzt_es_das_faehnchen_trotzdem(
+        befehl, monkeypatch, capsys, tmp_path):
+    """Sabotage an genau einer Stelle: `erledigt: ja` wird übergangen."""
+    from falzmarke import faehnchen as _faehnchen
+    from test_postfach_entwurf import test_befehl_mit_erledigt_setzt_kein_faehnchen as probe
+
+    probe(befehl, monkeypatch, capsys, tmp_path)                            # Kontrolle
+    monkeypatch.setattr(_faehnchen, "setze", _zeile_ersetzt(
+        _faehnchen, "setze", "if erledigt:", "if False:"))
+    with pytest.raises(AssertionError, match="Fähnchen trotz `erledigt: ja`"):
+        probe(befehl, monkeypatch, capsys, tmp_path)
+
+
+def test_mit_einer_verrutschten_uid_trifft_das_faehnchen_die_falsche_mail(
+        befehl, monkeypatch, capsys):
+    """Sabotage an genau einer Stelle: Die UID des Treffers wird um eins
+    verschoben. Das Nachlesen danach liest dieselbe falsche UID und meldet
+    „gesetzt“ — nur das Protokoll zeigt den Fehler."""
+    from falzmarke import faehnchen as _faehnchen
+    from test_postfach_entwurf import test_befehl_setzt_das_faehnchen_an_der_beantworteten_mail \
+        as probe
+
+    probe(befehl, monkeypatch, capsys)                                      # Kontrolle
+    monkeypatch.setattr(_faehnchen, "_setze_in", _zeile_ersetzt(
+        _faehnchen, "_setze_in", "kopf = treffer[0]",
+        "kopf = treffer[0]._replace(uid=str(int(treffer[0].uid) + 1))"))
+    with pytest.raises(AssertionError, match="falsches STORE"):
+        probe(befehl, monkeypatch, capsys)
+
+
+def test_mit_einem_zweiten_flag_geht_mehr_als_das_faehnchen_hinaus(befehl, monkeypatch, capsys):
+    """Sabotage an genau einer Stelle: `\\Seen` geht mit. Die Attrappe wirft,
+    `setze` fängt es — rot wird die Probe am Protokoll."""
+    from falzmarke import faehnchen as _faehnchen
+    from test_postfach_entwurf import test_befehl_setzt_das_faehnchen_an_der_beantworteten_mail \
+        as probe
+
+    probe(befehl, monkeypatch, capsys)                                      # Kontrolle
+    monkeypatch.setattr(_faehnchen, "_setze_in", _zeile_ersetzt(
+        _faehnchen, "_setze_in", 'f"({FLAG})"', 'f"({FLAG} \\\\Seen)"'))
+    with pytest.raises(AssertionError, match="falsches STORE"):
+        probe(befehl, monkeypatch, capsys)
 
 
 # ── #454: Der Plugin-Ordner bleibt aus dem Skill-Paket ──────────────────────

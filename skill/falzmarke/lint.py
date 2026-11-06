@@ -110,6 +110,9 @@ EINBETTUNG_PFLICHT = ("datei", "typ", "beschreibung")
 EMAIL_FRONTMATTER_FELDER = frozenset({
     "profil", "typ", "dialekt", "sprache", "an", "cc", "bcc", "betreff", "anrede", "gruss",
     "unterzeichner", "anlagen_dateien", "antwort_auf", "brief",
+    # Schließt die Antwort ab? Ohne `ja` setzt `email --oeffnen` das Fähnchen an
+    # der Ursprungsmail (#549, ADR 0063).
+    "erledigt",
     # `datum` ist hier bekannt, damit es die eigene Warnung auslöst statt als
     # unbekanntes Feld zu gelten. Der Wert wird nicht übernommen: Die Kopfzeile
     # `Date` entsteht seit #236 beim Setzen der Nachricht und beschreibt diese,
@@ -908,6 +911,25 @@ def pruefe_email_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> Non
             _feldzeile(kopf_roh, "antwort_auf"), "antwort_auf",
             f"„{antwort}“ ist keine Message-ID",
             "eine Message-ID steht in spitzen Klammern: `<kennung@beispiel.de>`")
+
+    # `erledigt` gilt nur für eine Antwort (#549). Warnung, kein Fehler: Ein
+    # falscher Wert setzt das Fähnchen, und das ist die sichere Seite.
+    if "erledigt" in kopf:
+        erledigt = kopf.get("erledigt")
+        if not antwort:
+            bericht.warnung(
+                _feldzeile(kopf_roh, "erledigt"), "erledigt",
+                "`erledigt` ohne `antwort_auf` bewirkt nichts — es gibt keine Ursprungsmail, "
+                "an der ein Fähnchen stünde",
+                "`antwort_auf` mit der Message-ID der beantworteten Mail ergänzen, "
+                "oder die Zeile weglassen")
+        if not (erledigt in (True, False)
+                or (isinstance(erledigt, str) and erledigt.strip().casefold() in ("ja", "nein"))):
+            bericht.warnung(
+                _feldzeile(kopf_roh, "erledigt"), "erledigt",
+                f"`erledigt: {erledigt}` ist weder `ja` noch `nein` — gilt als nicht erledigt, "
+                "das Fähnchen wird gesetzt",
+                "`erledigt: ja`, wenn die Antwort die Sache abschließt, sonst die Zeile weglassen")
 
 
 #: Höflichkeitsformen, großgeschrieben. `Ihr` fehlt bewusst: „Ihr“ ist auch

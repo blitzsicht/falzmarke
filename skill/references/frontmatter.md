@@ -89,11 +89,20 @@ brief: kuendigung.md                    # optional, der Brief, der mitreist
 anlagen_dateien:                        # optional, als Anhang der Mail
   - angebot-2026-0815.pdf
 antwort_auf: "<kennung@example.de>"     # optional, wird zu In-Reply-To
+erledigt: ja                            # optional, nur mit antwort_auf — siehe unten
 dialekt: "1.1"                          # wie beim Brief; der HTML-Teil setzt 1.1 noch nicht
 sprache: de
 datum: 2026-08-25                       # wird NICHT übernommen — `lint` warnt, siehe unten
 ---
 ```
+
+**`erledigt: ja` heißt: Diese Antwort schließt die Sache ab** (#549). Fehlt das Feld, setzt
+`email --oeffnen` das Fähnchen (`\Flagged`) an der Mail, auf die geantwortet wird, und
+`aufraeumen` lässt sie im Eingang liegen. `ja` gehört zu einer Antwort, die erledigt: die Zusage,
+die Rechnung, die vollständige Auskunft. Kein `ja` bei einer Rückfrage, einem Zwischenstand
+(„melde mich Freitag“) oder einem offenen Termin. Im Zweifel weglassen: Eine Mail zu viel im
+Eingang ist schnell abgelegt, eine zu wenig fällt niemandem auf. Ohne `antwort_auf` bewirkt das
+Feld nichts, und `lint` warnt.
 
 **Die beiden Welten schließen sich aus.** `empfaenger:` in einer Mail ist ein Fehler mit Hinweis
 auf `an:`, `an:` in einem Brief einer mit Hinweis auf `empfaenger:`. Das ist kein Formalismus:
