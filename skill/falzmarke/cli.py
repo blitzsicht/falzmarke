@@ -1853,8 +1853,10 @@ def befehl_email(args) -> int:
         from falzmarke import oeffnen as oeffnen_modul
         absage = oeffnen_modul.ohne_fenster_absage(args.programm)
         if absage:
-            print(f"FEHLER  --kein-fenster geht nicht mit --programm {args.programm}: "
-                  f"{absage}", file=sys.stderr)
+            # Ohne `--programm` nicht „--programm None“ nennen (#522, Punkt 12c).
+            womit = (f"mit --programm {args.programm}" if args.programm
+                     else "mit dem vorgegebenen Programm")
+            print(f"FEHLER  --kein-fenster geht nicht {womit}: {absage}", file=sys.stderr)
             return EXIT_EINGABE
 
     # Dieselbe Reihenfolge wie beim Brief: Ein Eingabefehler soll Exit 1

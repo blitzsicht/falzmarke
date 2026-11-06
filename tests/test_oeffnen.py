@@ -449,6 +449,69 @@ def test_die_absage_ohne_fenster_kommt_aus_der_programmtabelle(wahl, erwartet):
         f"Absage für {wahl!r}: {oeffnen.ohne_fenster_absage(wahl)!r}"
 
 
+# #522, Punkt 12: Tabellen, die es heute nicht gibt — Thunderbird ist die einzige
+# Vorgabe. Die Einträge entstehen erst im Test aus `ENTWURFSPROGRAMME`, damit eine
+# Gegenprobe, die die Klasse neu übersetzt, auch sie trifft.
+
+def _eintrag(kennung: str):
+    """Über die Kennung, nicht den Index: Die Gegenprobe ruft eine Probe zweimal,
+    und nach dem ersten Lauf steht schon die Tabelle der Probe da."""
+    return next(p for p in oeffnen.ENTWURFSPROGRAMME if p.kennung == kennung)
+
+
+def _outlook_als_vorgabe(**felder):
+    return _eintrag("com.microsoft.Outlook")._replace(vorgabe=True, **felder)
+
+
+def test_kein_fenster_weicht_nicht_auf_ein_programm_mit_fenster_aus(monkeypatch):
+    """12b: Fehlt Thunderbird, wich `entwurfsweg` auf die nächste Vorgabe aus,
+    auch wenn sie nur mit Fenster anlegt, und `entwurf` sagte danach ab. Die
+    Vorprüfung im Befehl sah nur die erste Vorgabe und ließ den Aufruf durch."""
+    thunderbird = _eintrag("thunderbird")
+    monkeypatch.setattr(oeffnen, "ENTWURFSPROGRAMME", (thunderbird, _outlook_als_vorgabe()))
+
+    zwilling = Antwortet()
+    oeffnen.entwurf(FELDER, plattform="darwin", umgebung={"DISPLAY": ":0"}, laufen=zwilling,
+                    binaer=_kein_thunderbird)
+    assert zwilling.aufrufe, "der Zwilling ohne kein_fenster sucht Outlook nicht"
+
+    antwort = Antwortet()
+    lage = oeffnen.entwurf(FELDER, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=antwort, binaer=_kein_thunderbird, kein_fenster=True)
+    assert antwort.aufrufe == [], \
+        f"mit kein_fenster nach einem Programm mit Fenster gesucht: {antwort.aufrufe}"
+    assert lage.grund.startswith("Thunderbird ist nicht installiert"), lage.grund
+    assert oeffnen.ohne_fenster_absage(None) is None, "Vorprüfung und Weg urteilen verschieden"
+
+
+def test_ein_eintrag_ohne_schluessel_nennt_seine_absage(monkeypatch):
+    """12a: Die Absage wurde über `schluessel` neu gesucht. Ohne ihn traf die Suche
+    den ersten Eintrag ohne Schlüssel, hier einen fensterlosen, und der Grund
+    lautete „None; mit --kein-fenster …“. Allein in der Tabelle hätte sich der
+    Eintrag selbst gefunden: gemessen, die Probe blieb so auf dem alten Stand grün."""
+    fensterlos = _eintrag("thunderbird")._replace(schluessel="", vorgabe=False)
+    monkeypatch.setattr(oeffnen, "ENTWURFSPROGRAMME",
+                        (fensterlos, _outlook_als_vorgabe(schluessel="")))
+    lage = oeffnen.entwurf(FELDER, plattform="darwin", umgebung={"DISPLAY": ":0"},
+                           laufen=Antwortet(), kein_fenster=True)
+    assert lage.programm is None
+    assert lage.grund.startswith("Microsoft Outlook legt einen Entwurf nur mit Fenster an;"), \
+        f"Absage ohne Schlüssel: {lage.grund}"
+
+
+def test_ein_unbekanntes_programm_ist_fuer_absage_und_weg_derselbe_fehler():
+    """12d: Für ein Wort, das kein Programm trägt, meldete die Absage „geht ohne
+    Fenster“, der Weg einen `ValueError`."""
+    with pytest.raises(ValueError) as weg:
+        oeffnen.entwurfsweg("darwin", laufen=Rekorder(), wahl="mail")
+    try:
+        ergebnis = oeffnen.ohne_fenster_absage("mail")
+    except ValueError as fehler:
+        ergebnis = fehler
+    assert isinstance(ergebnis, ValueError) and str(ergebnis) == str(weg.value), \
+        f"„mail“ gilt der Absage als {ergebnis!r}, dem Weg als Fehler"
+
+
 def test_ein_verschluckter_anhang_faellt_auf():
     """Der Fall, den ein Exit-Code allein nie zeigt: Das Skript läuft durch,
     aber die Anlage fehlt."""

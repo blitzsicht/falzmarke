@@ -2187,11 +2187,19 @@ def test_ohne_sperre_im_befehl_geht_ohne_proxy_die_datei_auf(_email_befehl_441,
 
 
 def test_ohne_sperre_im_outlook_weg_geht_mit_kein_fenster_ein_fenster_auf(monkeypatch):
-    """Nachreview von #491, Befund 1: der Outlook-Weg wie vor der Nacharbeit."""
+    """Nachreview von #491, Befund 1: der Outlook-Weg wie vor der Nacharbeit.
+
+    Seit #522 (Punkt 12) sperrt es dreimal: `_kandidaten` lässt mit
+    `kein_fenster` kein Programm mit Fenster zu, daraus folgen die Absage vor
+    der Suche und der Filter in `entwurfsweg`; danach sperrt `entwurf` noch am
+    Programm. Vor der Nacharbeit gab es keine davon, die Sabotage nimmt alle weg."""
     from test_oeffnen import (
         test_outlook_mit_kein_fenster_legt_nichts_an_und_oeffnet_nichts as probe)
 
     probe()                                                                # Kontrolle
+    monkeypatch.setattr(_oeffnen, "_kandidaten", _zeile_ersetzt(
+        _oeffnen, "_kandidaten",
+        "\n                 and not (kein_fenster and programm.ohne_fenster_absage))", ")"))
     monkeypatch.setattr(_oeffnen, "entwurf", _zeile_ersetzt(
         _oeffnen, "entwurf", "\n    if kein_fenster:\n", "\n    if False:\n"))
     with pytest.raises(AssertionError, match=r"Outlook-Fenster trotz kein_fenster: \['oeffnen'\]"):
@@ -2220,9 +2228,9 @@ def test_mit_eigener_fassung_im_outlook_weg_laufen_die_absagen_auseinander(monke
         test_outlook_mit_kein_fenster_legt_nichts_an_und_oeffnet_nichts as probe)
 
     probe()                                                                # Kontrolle
-    monkeypatch.setattr(_oeffnen, "entwurf", _zeile_ersetzt(
-        _oeffnen, "entwurf", "{ohne_fenster_absage(programm.schluessel)}",
-        "Outlook legt einen Entwurf nur mit Fenster an"))
+    monkeypatch.setattr(_oeffnen, "_ohne_fenster_abgesagt", _zeile_ersetzt(
+        _oeffnen, "_ohne_fenster_abgesagt", 'f"{absage}; mit',
+        'f"Outlook legt einen Entwurf nur mit Fenster an; mit'))
     with pytest.raises(AssertionError, match="eigene Fassung der Absage: Outlook legt"):
         probe()
 
@@ -2234,10 +2242,20 @@ def test_mit_eigener_fassung_im_befehl_laufen_die_absagen_auseinander(_email_bef
 
     probe(_email_befehl_441, monkeypatch, capsys)                          # Kontrolle
     monkeypatch.setattr(falzmarke, "befehl_email", _zeile_ersetzt(
-        falzmarke, "befehl_email", 'f"{absage}", file=sys.stderr)',
-        '"Outlook legt einen Entwurf nur mit Fenster an", file=sys.stderr)'))
+        falzmarke, "befehl_email", '{womit}: {absage}"',
+        '{womit}: Outlook legt einen Entwurf nur mit Fenster an"'))
     with pytest.raises(AssertionError, match="Abweisung mit eigener Fassung"):
         probe(_email_befehl_441, monkeypatch, capsys)
+
+
+def _tabelle_mit(monkeypatch, alt: str, neu: str) -> None:
+    """`Entwurfsprogramm` mit `alt` → `neu` übersetzt, und `ENTWURFSPROGRAMME`
+    aus der neuen Klasse gebaut: Die Einträge der Tabelle sind Instanzen der
+    alten, eine Eigenschaft daran lässt sich nur so sabotieren."""
+    klasse = _zeile_ersetzt(_oeffnen, "Entwurfsprogramm", alt, neu)
+    monkeypatch.setattr(_oeffnen, "Entwurfsprogramm", klasse)
+    monkeypatch.setattr(_oeffnen, "ENTWURFSPROGRAMME",
+                        tuple(klasse(*eintrag) for eintrag in _oeffnen.ENTWURFSPROGRAMME))
 
 
 @pytest.mark.parametrize("probe_name", [
@@ -2246,8 +2264,9 @@ def test_mit_eigener_fassung_im_befehl_laufen_die_absagen_auseinander(_email_bef
 ])
 def test_ohne_den_weg_aus_der_tabelle_geht_outlook_ohne_fenster_durch(
         _email_befehl_441, monkeypatch, capsys, probe_name):
-    """#515, Befund 5: Fragt `ohne_fenster_absage` nicht nach dem Weg, gilt jedes
-    Programm als fensterlos — der Befehl nimmt Outlook dann an."""
+    """#515, Befund 5: Fragt die Absage nicht nach dem Weg, gilt jedes Programm
+    als fensterlos — der Befehl nimmt Outlook dann an. Seit #522 (Punkt 12)
+    steht die Frage an `Entwurfsprogramm`, nicht mehr in `ohne_fenster_absage`."""
     import test_oeffnen
     import test_postfach_entwurf
 
@@ -2263,10 +2282,67 @@ def test_ohne_den_weg_aus_der_tabelle_geht_outlook_ohne_fenster_durch(
         meldung = "Absage für 'outlook': None"
 
     probe()                                                                # Kontrolle
-    monkeypatch.setattr(_oeffnen, "ohne_fenster_absage", _zeile_ersetzt(
-        _oeffnen, "ohne_fenster_absage", 'if programm.weg == "compose":', "if True:"))
+    _tabelle_mit(monkeypatch, 'if self.weg == "compose":', "if True:")
     with pytest.raises(AssertionError, match=meldung):
         probe()
+
+
+# #522, Punkt 12 (06.11.2026): je Befund der alte Zustand im neuen Code.
+
+def test_ohne_den_filter_weicht_kein_fenster_auf_outlook_aus(monkeypatch):
+    """12b: `_kandidaten` lässt mit `kein_fenster` wieder jedes Programm zu."""
+    from test_oeffnen import test_kein_fenster_weicht_nicht_auf_ein_programm_mit_fenster_aus as probe
+
+    probe(monkeypatch)                                                     # Kontrolle
+    monkeypatch.setattr(_oeffnen, "_kandidaten", _zeile_ersetzt(
+        _oeffnen, "_kandidaten",
+        "\n                 and not (kein_fenster and programm.ohne_fenster_absage))", ")"))
+    with pytest.raises(AssertionError,
+                       match="mit kein_fenster nach einem Programm mit Fenster gesucht"):
+        probe(monkeypatch)
+
+
+def test_ohne_absage_am_eintrag_steht_none_im_grund(monkeypatch):
+    """12a: Fehlt die Absage am Eintrag, wie früher bei einer Suche über einen
+    leeren `schluessel`, kommt die zweite Sperre in `entwurf` zum Zug und setzt
+    „None“ in den Grund."""
+    from test_oeffnen import test_ein_eintrag_ohne_schluessel_nennt_seine_absage as probe
+
+    probe(monkeypatch)                                                     # Kontrolle
+    _tabelle_mit(monkeypatch, 'return f"{self.name} legt einen Entwurf nur mit Fenster an"',
+                 "return None")
+    with pytest.raises(AssertionError, match="Absage ohne Schlüssel: None; mit --kein-fenster"):
+        probe(monkeypatch)
+
+
+def test_ohne_eigene_fassung_ohne_programm_nennt_der_befehl_programm_none(_email_befehl_441,
+                                                                          monkeypatch, capsys):
+    """12c: die Abweisung wie vor #522, mit `--programm {args.programm}` in jedem Fall."""
+    from test_postfach_entwurf import (
+        test_kein_fenster_ohne_programm_nennt_kein_programm_none as probe)
+
+    probe(_email_befehl_441, monkeypatch, capsys)                          # Kontrolle
+    monkeypatch.setattr(falzmarke, "befehl_email", _zeile_ersetzt(
+        falzmarke, "befehl_email",
+        '" if args.programm\n                     else "mit dem vorgegebenen Programm")', '")'))
+    with pytest.raises(AssertionError, match="nennt eine Option, die keiner angab"):
+        probe(_email_befehl_441, monkeypatch, capsys)
+
+
+def test_ohne_pruefung_des_worts_geht_ein_unbekanntes_programm_ohne_fenster():
+    """12d: Die Absage prüft das Wort nicht, wie vor #522: Was keinen Eintrag
+    trifft, „geht ohne Fenster“, während der Weg einen Fehler wirft."""
+    from test_oeffnen import test_ein_unbekanntes_programm_ist_fuer_absage_und_weg_derselbe_fehler as probe
+
+    probe()                                                                # Kontrolle
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(_oeffnen, "ohne_fenster_absage", _zeile_ersetzt(
+            _oeffnen, "ohne_fenster_absage", "    alle = _kandidaten(wahl)\n",
+            "    if wahl not in {p.schluessel for p in ENTWURFSPROGRAMME} | {None}:\n"
+            "        return None\n"
+            "    alle = _kandidaten(wahl)\n"))
+        with pytest.raises(AssertionError, match="„mail“ gilt der Absage als None"):
+            probe()
 
 
 def test_ohne_sperre_im_befehl_geht_bei_abgeschaltetem_entwurf_die_datei_auf(

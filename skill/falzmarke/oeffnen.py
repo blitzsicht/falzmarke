@@ -1033,6 +1033,20 @@ class Entwurfsprogramm(NamedTuple):
     #: Nur `compose`: das gefundene Binary, von `entwurfsweg()` eingesetzt.
     pfad: str = ""
 
+    @property
+    def ohne_fenster_absage(self) -> str | None:
+        """Warum dieses Programm mit `kein_fenster` keinen Entwurf anlegt; `None`, wenn es geht.
+
+        Nur der Weg `compose` kommt ohne Fenster aus (der Postfach-Entwurf über
+        Thunderbird); der AppleScript-Weg öffnet jeden Entwurf, den er anlegt
+        (`programm.oeffnen`). Am Eintrag abgelesen, nicht über `schluessel` neu
+        gesucht: Ein Eintrag ohne `schluessel` ergab sonst die Absage `None`
+        (#522, Punkt 12a).
+        """
+        if self.weg == "compose":
+            return None
+        return f"{self.name} legt einen Entwurf nur mit Fenster an"
+
 
 #: Programme, die hier einen Entwurf annehmen — in der Reihenfolge, in der sie
 #: ohne `--programm` befragt werden.
@@ -1058,35 +1072,59 @@ ENTWURFSPROGRAMME = (
 )
 
 
-def ohne_fenster_absage(wahl: str | None) -> str | None:
-    """Warum das Programm zu `wahl` mit `kein_fenster` keinen Entwurf anlegt; `None`, wenn es geht.
+def _kandidaten(wahl: str | None, *,
+                kein_fenster: bool = False) -> tuple[Entwurfsprogramm, ...]:
+    """Die Programme, die zu `wahl` in Frage kommen, in der Reihenfolge der Tabelle.
 
-    `wahl` ist das Wort aus `--programm`, `None` heißt die Vorgabe. Nur der Weg
-    `compose` kommt ohne Fenster aus (der Postfach-Entwurf über Thunderbird); der
-    AppleScript-Weg öffnet jeden Entwurf, den er anlegt (`programm.oeffnen`).
+    `wahl` ist das Wort aus `--programm`, `None` heißt die Vorgabe. Mit
+    `kein_fenster` fallen die Programme weg, die nur mit Fenster anlegen. Ein
+    Wort, das kein Programm trägt, ist ein Programmierfehler, kein Grund:
+    `argparse` lässt es nicht bis hierher.
+
+    `entwurfsweg` und `ohne_fenster_absage` fragen beide hier (#522, Punkt 12).
+    Bis dahin suchte jede für sich: Die Absage sah nur das erste Programm mit
+    `vorgabe`, der Weg wich auf das nächste aus, und ein unbekanntes Wort galt
+    der einen als „geht ohne Fenster“, der anderen als Fehler.
+    """
+    bekannt = {programm.schluessel for programm in ENTWURFSPROGRAMME}
+    if wahl is not None and wahl not in bekannt:
+        raise ValueError(f"kein Entwurfsprogramm „{wahl}“ — bekannt: "
+                         + ", ".join(sorted(bekannt)))
+    return tuple(programm for programm in ENTWURFSPROGRAMME
+                 if (programm.vorgabe if wahl is None else programm.schluessel == wahl)
+                 and not (kein_fenster and programm.ohne_fenster_absage))
+
+
+def ohne_fenster_absage(wahl: str | None) -> str | None:
+    """Warum `wahl` mit `kein_fenster` keinen Entwurf anlegt; `None`, wenn es geht.
+
+    Es geht, sobald eines der Programme, die in Frage kommen, ohne Fenster
+    auskommt: Mit `kein_fenster` sucht `entwurfsweg` nur unter diesen. Sonst
+    nennt die Absage das erste, so wie `Entwurfsprogramm.ohne_fenster_absage` sie
+    formuliert. Kommt gar keines in Frage, gibt es nichts abzusagen; dann fehlt
+    das Programm, und das sagt `entwurf`.
 
     Die Absage stand bis #515 (Befund 5) zweimal da, in `befehl_email` als
     Vergleich mit „outlook“ und in `entwurf` als eigener Satz. Beide fragen jetzt
     hier, und die Antwort kommt aus `ENTWURFSPROGRAMME`.
     """
-    for programm in ENTWURFSPROGRAMME:
-        if programm.vorgabe if wahl is None else programm.schluessel == wahl:
-            if programm.weg == "compose":
-                return None
-            return f"{programm.name} legt einen Entwurf nur mit Fenster an"
-    return None
+    alle = _kandidaten(wahl)
+    if not alle or _kandidaten(wahl, kein_fenster=True):
+        return None
+    return alle[0].ohne_fenster_absage
 
 
 def entwurfsweg(plattform: str = sys.platform, *, laufen=subprocess.run,
-                wahl: str | None = None,
+                wahl: str | None = None, kein_fenster: bool = False,
                 binaer=thunderbird_binaer) -> Entwurfsprogramm | None:
     """Welches Programm hier einen Entwurf annimmt — als Angabe, nicht als Tat.
 
     `wahl` ist das Wort aus `--programm`. Ohne Wahl kommen nur die Programme
     mit `vorgabe` in Frage — also Thunderbird; Outlook braucht die Wahl, aus
-    dem Grund, der bei `ENTWURFSPROGRAMME` steht. Ein Wort, das kein Programm
-    trägt, ist ein Programmierfehler, kein Grund: `argparse` lässt es nicht
-    bis hierher.
+    dem Grund, der bei `ENTWURFSPROGRAMME` steht. Mit `kein_fenster` nur die,
+    die ohne Fenster anlegen: Fehlt Thunderbird, wird nicht auf eines
+    ausgewichen, das danach abgesagt würde (#522, Punkt 12b). Welche es sind,
+    sagt `_kandidaten`.
 
     Für Thunderbird wird kein Prozess gestartet — `binaer` sieht nur ins
     Dateisystem (`thunderbird_binaer`). Für Outlook wird das System gefragt,
@@ -1103,16 +1141,10 @@ def entwurfsweg(plattform: str = sys.platform, *, laufen=subprocess.run,
     Nur macOS. Für Windows gibt es einen Weg über COM und für Linux keinen;
     beide sind ungemessen und werden deshalb nicht behauptet (#108).
     """
-    bekannt = {programm.schluessel for programm in ENTWURFSPROGRAMME}
-    if wahl is not None and wahl not in bekannt:
-        raise ValueError(f"kein Entwurfsprogramm „{wahl}“ — bekannt: "
-                         + ", ".join(sorted(bekannt)))
+    kandidaten = _kandidaten(wahl, kein_fenster=kein_fenster)
     if not plattform.startswith("darwin"):
         return None
-    for programm in ENTWURFSPROGRAMME:
-        if (wahl is None and not programm.vorgabe) or (wahl is not None
-                                                       and programm.schluessel != wahl):
-            continue
+    for programm in kandidaten:
         if programm.weg == "compose":
             pfad = binaer()
             if pfad:
@@ -1706,6 +1738,13 @@ def _nicht_gefunden(wahl: str | None) -> str:
     return grund
 
 
+def _ohne_fenster_abgesagt(absage: str) -> Entwurfslage:
+    """Kein Entwurf, weil `kein_fenster` verlangt ist und das Programm nur mit Fenster anlegt."""
+    return Entwurfslage(
+        None, f"{absage}; mit --kein-fenster geht nur der Postfach-Entwurf über Thunderbird",
+        dauer=DAUERHAFT)
+
+
 def _signatur_im_entwurf(roh: str, rumpf: str, felder: Mapping, inline,
                          ordner: Path | None) -> tuple[Signaturlage, str, str]:
     """Welche Signatur der Entwurf trägt — und der `body=`-Wert dazu (ADR 0050).
@@ -1874,8 +1913,15 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
     grund = kein_bildschirm(umgebung, plattform)
     if grund:
         return Entwurfslage(None, grund, dauer=DAUERHAFT)
+    # Vor der Suche: Mit `kein_fenster` sucht `entwurfsweg` nur unter den
+    # fensterlosen Programmen und meldete für `--programm outlook` sonst
+    # „nicht zu finden“ statt der Absage (#522, Punkt 12).
+    absage = ohne_fenster_absage(wahl) if kein_fenster else None
+    if absage:
+        return _ohne_fenster_abgesagt(absage)
     try:
-        programm = entwurfsweg(plattform, laufen=laufen, wahl=wahl, binaer=binaer)
+        programm = entwurfsweg(plattform, laufen=laufen, wahl=wahl,
+                               kein_fenster=kein_fenster, binaer=binaer)
     except FileNotFoundError:
         return Entwurfslage(None, "osascript gibt es auf diesem System nicht",
                             dauer=DAUERHAFT)
@@ -1908,11 +1954,9 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
         # Nachreview #491, Befund 1: Der AppleScript-Weg legt die Nachricht an
         # und öffnet sie danach ohne Ausnahme (`programm.oeffnen`). Ein Entwurf
         # ohne Fenster ist dort nicht zu haben, also wird gar keiner angelegt.
-        # Hier ist der Weg nie `compose`, die Absage also nie `None`.
-        return Entwurfslage(
-            None, f"{ohne_fenster_absage(programm.schluessel)}; "
-                  "mit --kein-fenster geht nur der Postfach-Entwurf über Thunderbird",
-            dauer=DAUERHAFT)
+        # Die zweite Sperre: `entwurfsweg` liefert mit `kein_fenster` schon kein
+        # solches Programm. Hier ist der Weg nie `compose`, die Absage nie `None`.
+        return _ohne_fenster_abgesagt(programm.ohne_fenster_absage)
 
     with tempfile.TemporaryDirectory(prefix="falzmarke-entwurf-") as ordner:
         pfade = _anhaenge_ausschreiben(ordner, felder.get("anhaenge") or [])
