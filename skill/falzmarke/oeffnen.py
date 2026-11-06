@@ -1336,7 +1336,8 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
     if not roh or not adresse:
         return None, "", DAUERHAFT
     # Aus dem Profil der Brücke: Sie öffnet den Entwurf danach aus diesem Ordner (#522/6).
-    ordner = entwurfsbuch.thunderbird_ordner(adresse, "draft_folder", umgebung, profilordner)
+    ordner, _ = entwurfsbuch.thunderbird_ordner(adresse, "draft_folder", umgebung=umgebung,
+                                                profilordner=profilordner)
     try:
         sitzung = postfach.verbinde(adresse, umgebung=umgebung, frist=FRIST_POSTFACH_S)
     except postfach.PostfachFehler as fehler:
@@ -1723,17 +1724,21 @@ def _zahl(n: int) -> str:
     return f"{n:,}".replace(",", ".")
 
 
-def _nicht_gefunden(wahl: str | None) -> str:
+def _nicht_gefunden(wahl: str | None, *, kein_fenster: bool = False) -> str:
     """Der Grund, wenn kein Programm da ist — und er nennt, was gesucht wurde.
 
     „kein Mailprogramm gefunden“ wäre auf einem Rechner mit Outlook eine
-    Lüge: Es ist da, es wurde nur nicht gewählt.
+    Lüge: Es ist da, es wurde nur nicht gewählt. Mit `kein_fenster` wäre der
+    Verweis auf `--programm outlook` eine Sackgasse: Der Befehl weist genau
+    diese Verbindung ab, weil Outlook jeden Entwurf öffnet (Nachreview #547).
     """
     if wahl == "outlook":
         return "Microsoft Outlook ist auf diesem Rechner nicht zu finden"
     grund = ("Thunderbird ist nicht installiert — weder unter "
              f"{THUNDERBIRD_MACOS} noch als `thunderbird` im PATH")
-    if wahl is None:
+    if kein_fenster:
+        grund += "; mit --kein-fenster geht nur der Postfach-Entwurf über Thunderbird"
+    elif wahl is None:
         grund += "; Outlook nur auf Wahl mit --programm outlook (ADR 0049)"
     return grund
 
@@ -1934,7 +1939,8 @@ def entwurf(felder: Mapping, *, plattform: str = sys.platform,
             None, f"das Mailprogramm antwortete nicht in {FRIST_S} Sekunden",
             dauer=VORUEBERGEHEND)
     if programm is None:
-        return Entwurfslage(None, _nicht_gefunden(wahl), dauer=DAUERHAFT)
+        return Entwurfslage(None, _nicht_gefunden(wahl, kein_fenster=kein_fenster),
+                            dauer=DAUERHAFT)
     if programm.weg == "compose":
         lage, grund, dauer = _entwurf_postfach(felder, umgebung=umgebung,
                                         profilordner=thunderbird_ordner,

@@ -170,7 +170,8 @@ Was dabei nicht fehlen darf, weil es gemessen ist:
 - **Eine Antwort setzt das Fähnchen an der Ursprungsmail, außer `erledigt: ja`.** Mit
   `antwort_auf:` setzt `--oeffnen` `\Flagged` an genau der Mail im Eingang des Absenderkontos, auf
   die geantwortet wird, damit `aufraeumen` sie nicht ablegt (#549). `erledigt: ja` nur, wenn die
-  Antwort die Sache abschließt; bei Rückfrage, Zwischenstand oder offenem Termin weglassen. Die
+  Antwort die Sache abschließt; bei Rückfrage, Zwischenstand oder offenem Termin weglassen.
+  Ein Fähnchen aus einem früheren Entwurf entfernt `ja` nicht. Die
   Zeile `OK  Fähnchen gesetzt …` oder `HINWEIS  Fähnchen nicht gesetzt: <Grund>` gehört in die
   Antwort an den Menschen, wenn das Fähnchen fehlt.
 - Geht gar nichts auf, ist die Datei trotzdem fertig; der Befehl endet mit 0 und nennt den Pfad.

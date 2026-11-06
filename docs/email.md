@@ -134,13 +134,15 @@ einem Menschen (#263).
 `antwort_auf:`, setzt `--oeffnen` nach dem Entwurf `\Flagged` an genau der Mail im Eingang des
 Absenderkontos, deren `Message-ID` dort steht. `aufraeumen` lässt sie dann liegen, auch wenn die
 Antwort gesendet ist. Wer mit der Antwort abschließt, schreibt `erledigt: ja` ins Frontmatter: Dann
-wird nichts gesetzt, und die Mail wird abgelegt, sobald die Antwort hinaus ist.
+wird nichts gesetzt, und die Mail wird abgelegt, sobald die Antwort hinaus ist. Ein Fähnchen, das
+ein früherer Entwurf ohne `erledigt` schon gesetzt hat, bleibt allerdings stehen, bis du es
+entfernst.
 
 | Zeile | heißt |
 |---|---|
 | `OK  Fähnchen gesetzt an „…“` | gesetzt und am Server nachgelesen |
 | `OK  Fähnchen stand schon an „…“` | war schon da, unverändert |
-| `HINWEIS  erledigt: ja — kein Fähnchen gesetzt` | gewollt, nichts geändert |
+| `HINWEIS  erledigt: ja — kein Fähnchen gesetzt` | gewollt, nichts geändert; ein früher gesetztes bleibt |
 | `HINWEIS  Fähnchen nicht gesetzt: <Grund>` | nicht im Eingang, mehrdeutig, Postfach nicht erreichbar … — von Hand setzen, wenn die Mail bleiben soll |
 
 Nur dieses eine Flag, nur hinzufügen, an einer Mail. Entfernt wird es nie. Liegt die Ursprungsmail

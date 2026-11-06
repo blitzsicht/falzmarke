@@ -70,8 +70,9 @@ def test_mit_erledigt_wird_nichts_gesetzt_und_nichts_geoeffnet(server):
 def test_ein_stehendes_faehnchen_bleibt_unberuehrt(server):
     attrappe = server(_eingang((URSPRUNG, "\\Flagged \\Seen")))
     ergebnis = faehnchen.setze(ADRESSE, URSPRUNG, erledigt=False, umgebung={})
+    assert _stores(attrappe) == [], "STORE an einem Fähnchen, das schon stand"
     assert ergebnis.zustand == "schon_da" and ergebnis.uid == "101"
-    assert _stores(attrappe) == [] and attrappe.befehle("SELECT") == []
+    assert attrappe.befehle("SELECT") == []
 
 
 def test_unbekannte_flags_werden_gesetzt_aber_nicht_als_nachgelesen_gemeldet(server):
@@ -95,9 +96,10 @@ def test_nicht_im_eingang_aendert_nichts(server):
 def test_zwei_mails_mit_derselben_kennung_aendern_nichts(server):
     attrappe = server(_eingang((URSPRUNG, ""), (URSPRUNG, "")))
     ergebnis = faehnchen.setze(ADRESSE, URSPRUNG, erledigt=False, umgebung={})
+    assert _stores(attrappe) == [], "STORE, obwohl zwei Mails dieselbe Kennung tragen"
     assert ergebnis.zustand == "nicht_gesetzt" and "2 Mails" in ergebnis.grund
     assert "101, 102" in ergebnis.grund
-    assert _stores(attrappe) == [] and attrappe.befehle("SELECT") == []
+    assert attrappe.befehle("SELECT") == []
 
 
 def test_ein_teiltreffer_ist_nicht_die_ursprungsmail(server):
@@ -105,15 +107,16 @@ def test_ein_teiltreffer_ist_nicht_die_ursprungsmail(server):
     nicht, aber `frage-1@kunde.example` ohne Klammern schon (#442)."""
     attrappe = server(_eingang(("<x-frage-1@kunde.example>", "")))
     ergebnis = faehnchen.setze(ADRESSE, "frage-1@kunde.example", erledigt=False, umgebung={})
-    assert ergebnis.zustand == "nicht_gesetzt"
     assert _stores(attrappe) == []
+    # Der Grund legt den Weg fest: abgewiesen hat der exakte Vergleich, nicht etwas davor.
+    assert ergebnis.zustand == "nicht_gesetzt" and "nicht im Eingang" in ergebnis.grund
 
 
 def test_ein_wechsel_der_uidvalidity_verhindert_das_setzen(server):
     attrappe = server(_eingang((URSPRUNG, ""), uidvalidity="7", uidvalidity_select="8"))
     ergebnis = faehnchen.setze(ADRESSE, URSPRUNG, erledigt=False, umgebung={})
+    assert _stores(attrappe) == [], "STORE trotz gewechselter UIDVALIDITY"
     assert ergebnis.zustand == "nicht_gesetzt" and "7 → 8" in ergebnis.grund
-    assert _stores(attrappe) == []
 
 
 def test_ohne_uidvalidity_wird_nicht_gesetzt(server):
@@ -134,7 +137,8 @@ def test_ein_store_ohne_wirkung_wird_beim_nachlesen_entdeckt(server):
     """`OK` heißt angenommen, nicht gesetzt."""
     attrappe = server(_eingang((URSPRUNG, ""), store_wirkt=False))
     ergebnis = faehnchen.setze(ADRESSE, URSPRUNG, erledigt=False, umgebung={})
-    assert ergebnis.zustand == "nicht_gesetzt" and "kein Fähnchen" in ergebnis.grund
+    assert ergebnis.zustand == "nicht_gesetzt", "ein STORE ohne Wirkung als gesetzt gemeldet"
+    assert "kein Fähnchen" in ergebnis.grund
     assert _stores(attrappe) == [STORE_RICHTIG]
 
 
@@ -158,8 +162,8 @@ def test_ein_umbruch_in_der_kennung_kommt_nie_auf_die_leitung(server):
 def test_eine_kennung_ausserhalb_von_ascii_wird_nicht_gesucht(server):
     attrappe = server(_eingang((URSPRUNG, "")))
     ergebnis = faehnchen.setze(ADRESSE, "<jörg@kunde.example>", erledigt=False, umgebung={})
+    assert attrappe.verbindungen == [], "Verbindung für eine Kennung, die nicht sendbar ist"
     assert ergebnis.zustand == "nicht_gesetzt" and "ASCII" in ergebnis.grund
-    assert attrappe.verbindungen == []
 
 
 def test_ein_angehaengter_befehl_hinter_der_kennung_wird_nicht_gesendet(server):
@@ -207,6 +211,13 @@ def test_als_erledigt_zaehlt_nur_ein_eindeutiges_ja(wert, erwartet):
 ], ids=["gesetzt", "schon_da", "nicht_noetig", "nicht_gesetzt"])
 def test_jeder_zustand_hat_seine_eigene_zeile(ergebnis, anfang):
     assert faehnchen.zeile(ergebnis, ADRESSE).startswith(anfang)
+
+
+def test_erledigt_verspricht_nicht_das_ablegen_eines_frueheren_faehnchens():
+    """Nachreview #553: `erledigt: ja` sieht nicht nach. Ein früherer Entwurf
+    ohne `erledigt` kann das Fähnchen gesetzt haben; die Zeile sagt, dass es bleibt."""
+    zeile = faehnchen.zeile(faehnchen.Faehnchen("nicht_noetig"), ADRESSE)
+    assert "früher gesetztes bleibt stehen" in zeile
 
 
 # ── Die Attrappe selbst ─────────────────────────────────────────────────────
