@@ -229,9 +229,8 @@ es.
 Sekunden warten (`IMAP_KLASSE(…, timeout=frist)` in `postfach.verbinde`), erst danach beginnt das
 Budget für die Befehle, noch einmal `frist`. Gesendet-Prüfung (`postfach.FRIST_S`, 30 s) und
 Postfach-Entwurf (`oeffnen.FRIST_POSTFACH_S`, 30 s) laufen nacheinander, jede in eigener Sitzung.
-Ein hängender Proxy kann `--oeffnen` also im schlimmsten Fall rund 120 s aufhalten. Das ist aus
-dem Quelltext abgeleitet, nicht gemessen. Ob der Abholer in siluri-angebote mit seinem
-180-s-Takt das verträgt, ist eine eigene Frage.
+Ein hängender Proxy kann `--oeffnen` also im schlimmsten Fall rund 120 s aufhalten. Gemessen sind
+116 s, und der Abholer in siluri-angebote verträgt das: siehe Nachtrag vom 06.11.2026.
 
 ## Nachtrag 04.11.2026 — Der Absender der gefundenen Mail (#434)
 
@@ -279,3 +278,34 @@ Gegenproben in `tests/test_gegenbeweis.py`, Abschnitt ADR 0051: Ohne den Filter 
 eingegangene Mail wieder `GEÄNDERTE FASSUNG` beziehungsweise `SCHON RAUS`; die eigene Mail als
 Kontrolle sperrt vorher wie nachher. Für das Add-on steht die Sabotage in
 `tests/test_entwurfsbruecke_hintergrund.py`.
+
+## Nachtrag 06.11.2026 — Die 120 s sind gemessen
+
+Gemessen wurde `email --oeffnen --kein-fenster` mit dem Profil siluri-order auf main `4c6bf77`.
+Über `FALZMARKE_GESENDET_IMAP` war der Befehl auf einen lokalen Schein-Server umgelenkt, der
+echte Proxy blieb unberührt. Gemessen sind drei Arten von Hängen:
+
+| Schein-Server | Dauer | Exit |
+|---|---|---|
+| nimmt an und schweigt | 60 s | 3 |
+| grüßt, beantwortet `CAPABILITY` nicht | 61 s | 3 |
+| grüßt nach 28 s, beantwortet `CAPABILITY`, schweigt bei `LOGIN` | 116 s | 3 |
+
+Jede Art öffnete zwei Sitzungen: erst die Gesendet-Prüfung, dann den Postfach-Entwurf.
+
+**Wann das Budget für die Befehle dazukommt.** Die Frist des Verbindungsaufbaus umfasst die
+Begrüßung und `CAPABILITY`, denn `imaplib` liest beides im Konstruktor. Schweigt der Proxy
+schon dort, endet jede Sitzung nach 30 s. Das Budget für die Befehle läuft erst an, wenn der Aufbau
+knapp unter der Frist fertig wird. Rund 120 s sind also der echte schlimmste Fall und keine bloße
+Rechnung. In allen drei Fällen endete der Befehl mit `KEIN ENTWURF`, `URSACHE  vorübergehend`
+und `GESENDET NICHT GEPRÜFT`. Weder ein Fenster noch die Datei gingen auf.
+
+**Der Abholer verträgt das.** siluri-angebote hat denselben Fall am 04.11.2026 selbst gemessen,
+mit 120,3 s. Der Zeitdeckel seines Mail-Aufrufs liegt darüber: `vektor_eingang.ZEIT_MAIL` = 150 s,
+und der Test `TestFristen` verlangt mindestens 15 s Abstand zu 120,3 s. Der ganze Lauf darf
+720 s dauern (`abholer_zeitplan.VEKTOR_GRENZE`). Der 180-s-Takt ist der Abstand der Starts, keine
+Frist für einen Lauf.
+
+Am echten Proxy dauerte derselbe Befehl ohne `--kein-fenster` 36 s mit Exit 0. Das Fenster
+zeigte An 1, Cc 0, Bcc 1, wie in der Nachricht, und den Absender order@siluri.de: Die Prüfung aus
+#464 trägt auch am zweiten Postfach.
