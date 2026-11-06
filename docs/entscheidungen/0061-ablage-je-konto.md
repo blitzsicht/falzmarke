@@ -309,3 +309,28 @@ täglich.
 
 Verworfen: jedes Profil je Konto nur einmal zu lesen (Befund des Reviews). Bei einer Handvoll
 Profile kostet das Millisekunden, und drei bestehende Tests ersetzen `ablage_aus_profil` je Konto.
+
+## Nachtrag (06.11.2026, Nachreview von #546, #551)
+
+**Entschieden: Ein unlesbares Profil im Suchweg stoppt jedes Verschieben.** Das ersetzt den
+Satz aus dem Nachtrag zum Review von #542, wonach die übrigen Konten weiterlaufen und eine fremde
+unlesbare Datei unter `--absender` nicht zählt.
+
+1. **Warum.** Was in einer unlesbaren Datei steht, ist nicht zu wissen. Ist sie das einzige
+   Profil mit `email.ablage` für ein Konto, liefert `ablage_aus_profil` sonst `None`, und
+   `--absender --machen` verschiebt nach `\Archive` – in einen Ordner, den kein Profil verlangt
+   hat. Nennt sie eine andere Ablage als ein lesbares Profil, ist der Streit verdeckt, den der
+   Nachtrag zu #438 zum Grund gemacht hat, und `--alle --machen` verschiebt nach der lesbaren.
+   Beides ist die Fehlzielklasse von #438. Im Zweifel bleibt die Mail im Eingang.
+2. **Wie.** `ablage_aus_profil` gibt für jede Adresse einen Grund zurück, solange eine Datei
+   unlesbar ist; der Grund nennt die Dateinamen. Es wird kein Postfach geöffnet, der Bericht
+   zählt das Konto unter `nicht_geprueft`, der Exit-Code ist 3. Die eigene Abfrage von
+   `unlesbar` vor dem Exit-Code ist damit entfallen: Sie konnte nicht mehr anders ausgehen.
+3. **Der Preis.** Eine kaputte Briefdatei im Suchweg hält den ganzen Zeitplan an, bis sie
+   repariert ist. Das ist gewollt: Die `UNLESBAR`-Zeile sagt, welche Datei, und eine Mail zu viel
+   im Eingang ist reparabel, eine im falschen Ordner fällt niemandem auf.
+4. **`ValueError` zählt als ungültiges YAML.** `yaml.safe_load` wirft bei `datum: 2026-02-30`
+   oder `!!int abc` ein nacktes `ValueError`, kein `YAMLError`. Der Lauf brach daran weiter ab.
+
+Verworfen, ebenfalls aus dem Nachreview: Ein unlesbares Profil ohne `email`-Abschnitt anders zu
+behandeln – ob es einen hat, ist gerade nicht zu lesen.
