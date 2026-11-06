@@ -120,6 +120,50 @@ def test_der_eingang_ist_nicht_seine_eigene_ablage():
     assert ordner is None and "eigene Ablage" in grund
 
 
+#: Ein Ordnername, den ein nicht konformer Server wörtlich liefert: kein gültiges
+#: modified UTF-7, `utf7_dekodieren` wirft daran (Nachreview von #535, Befund 1).
+UNGUELTIG = "AT&T-Rechnungen"
+
+
+def test_ungueltiger_servername_in_der_ordnerliste_bricht_den_grund_nicht_ab():
+    """Fehlt der Wunsch, nennt der Grund die vorhandenen Ordner. Einer davon ist
+    kein gültiges UTF-7; er steht dort, wie der Server ihn liefert."""
+    _, sitzung = _postfach(sonder={"INBOX": "", "Gesendete Elemente": "\\Sent", UNGUELTIG: ""})
+    with sitzung:
+        ordner, grund = ablage.ablageordner(sitzung, "Erledigt")
+    assert ordner is None and "gibt es im Postfach nicht" in grund
+    assert f"„{UNGUELTIG}“" in grund, f"Grund: {grund}"
+
+
+def test_ungueltiger_servername_eines_gesperrten_ordners_bricht_den_grund_nicht_ab():
+    _, sitzung = _postfach(sonder={"INBOX": "", "Gesendete Elemente": "\\Sent",
+                                   "AT&T-Spam": "\\Junk"})
+    with sitzung:
+        ordner, grund = ablage.ablageordner(sitzung, "AT&T-Spam")
+    assert ordner is None and "\\junk" in grund
+    assert grund.startswith("„AT&T-Spam“"), f"Grund: {grund}"
+
+
+def test_ungueltiger_servername_als_ablage_wandert_und_steht_wie_geliefert():
+    """Ohne `{jahr}`: `_ziel_vorab` und das MOVE zeigen den Servernamen."""
+    attrappe, _ = _postfach(eingang=[_eingegangen()], gesendet=[_antwort()],
+                            sonder={"INBOX": "", "Gesendete Elemente": "\\Sent", UNGUELTIG: ""})
+    bericht = ablage.raeume_auf("joe@example.org", wunsch=UNGUELTIG, machen=True, umgebung={})
+    assert bericht.grund is None and bericht.verschoben == 1
+    assert ablage.als_json(bericht)["ablage"] == UNGUELTIG
+    assert [b[1:] for b in attrappe.befehle("UID MOVE")] == [("101", f'"{UNGUELTIG}"')]
+
+
+def test_ungueltiger_servername_im_kappungshinweis_steht_wie_geliefert():
+    _, sitzung = _postfach()
+    with sitzung:
+        sitzung.gekappt[UNGUELTIG] = (500, 200)
+        sitzung.suchkappungen.append((UNGUELTIG, QUELLE, 30, 20))
+        hinweise = ablage._kappungen(sitzung)
+    assert hinweise[0].startswith(f"„{UNGUELTIG}“: nur die neuesten 200 von 500"), hinweise
+    assert f"in „{UNGUELTIG}“: nur 20 von 30" in hinweise[1], hinweise
+
+
 # ── Der Plan ────────────────────────────────────────────────────────────────
 
 def test_die_beantwortete_nachricht_wird_gefunden():
@@ -1121,6 +1165,20 @@ def test_mit_jahr_zeigt_der_zug_den_gefundenen_ordner():
     assert [(z.ziel, z.ziel_server) for z in bericht.zuege] == [
         ("R&Dev-Team/2025", "R&-Dev-Team/2025"), ("R&Dev-Team/2026", "R&-Dev-Team/2026")], \
         f"angezeigt: {[z.ziel for z in bericht.zuege]}"
+
+
+def test_mit_jahr_bricht_ein_ungueltiger_servername_den_lauf_nicht_ab():
+    """Nachreview von #535, Befund 1: Der Server führt den Jahresordner als
+    „AT&T-Rechnungen/2025“, kein gültiges UTF-7. Betroffen ist nur der
+    angezeigte Name; er steht da, wie der Server ihn liefert, und der Lauf geht weiter."""
+    ordner = (f"{UNGUELTIG}/2025", f"{UNGUELTIG}/2026")
+    attrappe, _ = _postfach(**_jahr_lage(ordner=ordner))
+    bericht = ablage.raeume_auf("joe@example.org", wunsch=f"{UNGUELTIG}/{{jahr}}", machen=True,
+                                umgebung={})
+    assert bericht.grund is None and bericht.verschoben == 2
+    assert [(z.ziel, z.ziel_server) for z in bericht.zuege] == [(n, n) for n in ordner], \
+        f"angezeigt: {[z.ziel for z in bericht.zuege]}"
+    assert _uids(attrappe, ordner[0]) == [101] and _uids(attrappe, ordner[1]) == [102]
 
 
 def test_fehlt_ein_jahresordner_wandert_keine_mail_des_laufs():

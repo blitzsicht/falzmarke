@@ -286,6 +286,52 @@ def test_die_quellen_reichen_in_die_unterpakete(tmp_path):
     assert aufrufe_der_teilkettensuche(_paketquellen(tmp_path)) == ["unter/x.py:1"]
 
 
+def zugriffe_auf_utf7_dekodieren(quellen: dict[str, str]) -> tuple[list[str], int]:
+    """`(funde, erlaubt)`: je Zugriff auf `utf7_dekodieren` ein `datei:zeile in funktion`,
+    dazu die Zahl der Zugriffe an der einen erlaubten Stelle.
+
+    Erlaubt ist allein der Rumpf von `postfach.utf7_anzeige`, nicht die ganze Datei
+    (Nachreview von #535, Befund 1). Gelesen über `ast`: Kommentare und Docstrings,
+    die die Funktion nennen, sind kein Zugriff. Gezählt wird jeder Name und jedes
+    Attribut, nicht nur ein Aufruf; auch `map(utf7_dekodieren, …)` dekodiert ohne
+    Rückfall.
+    """
+    import ast
+
+    funde: list[str] = []
+    erlaubt = 0
+
+    def besuche(knoten, datei: str, funktion: str) -> None:
+        nonlocal erlaubt
+        if isinstance(knoten, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            funktion = knoten.name
+        name = (knoten.id if isinstance(knoten, ast.Name)
+                else knoten.attr if isinstance(knoten, ast.Attribute) else None)
+        if name == "utf7_dekodieren":
+            if datei == "postfach.py" and funktion == "utf7_anzeige":
+                erlaubt += 1
+            else:
+                funde.append(f"{datei}:{knoten.lineno} in {funktion or '<modul>'}")
+        for kind in ast.iter_child_nodes(knoten):
+            besuche(kind, datei, funktion)
+
+    for datei, text in sorted(quellen.items()):
+        besuche(ast.parse(text), datei, "")
+    return funde, erlaubt
+
+
+def test_nur_utf7_anzeige_dekodiert_ordnernamen():
+    """Nachreview von #535, Befund 1: Jeder dekodierte Ordnername dient nur der
+    Anzeige. Ein Server, der „AT&T-Rechnungen“ wörtlich führt, ließ das blanke
+    `utf7_dekodieren` werfen, und mit ihm SELECT, APPEND und ganze Läufe. Von außen
+    dekodiert deshalb nur `utf7_anzeige`, die bei ungültigem UTF-7 den Namen lässt."""
+    quellen = _paketquellen()
+    assert {"postfach.py", "ablage.py", "regeln/__init__.py"} <= set(quellen), sorted(quellen)
+    funde, erlaubt = zugriffe_auf_utf7_dekodieren(quellen)
+    assert funde == [], f"utf7_dekodieren ohne Rückfall: {funde}"
+    assert erlaubt == 1, f"utf7_anzeige ruft utf7_dekodieren {erlaubt}-mal, erwartet 1"
+
+
 # ── Ablegen: der einzige schreibende Befehl ────────────────────────────────
 
 def test_ablegen_als_entwurf_mit_draft_und_seen(server):
@@ -301,6 +347,41 @@ def test_ein_abgelehntes_ablegen_ist_ein_grund(server):
     with postfach.verbinde("joe@example.org", umgebung={}) as pf:
         with pytest.raises(postfach.PostfachFehler, match="APPEND"):
             pf.ablegen("Gibtsnicht", b"x")
+
+
+#: Ein Ordnername, den ein nicht konformer Server wörtlich führt: kein gültiges
+#: modified UTF-7 (Nachreview von #535, Befund 1).
+UNGUELTIG = "AT&T-Entwurf"
+
+
+def test_ablegen_in_einen_ordner_mit_ungueltigem_utf7_namen(server):
+    """Der Text zum APPEND wird gebaut, bevor der Befehl läuft. Mit dem blanken
+    `utf7_dekodieren` brach er das APPEND ab, das der Server ausgeführt hätte."""
+    server.ordner[UNGUELTIG] = []
+    roh = nachricht(betreff="Neu")
+    with postfach.verbinde("joe@example.org", umgebung={}, frist=30) as pf:
+        pf.ablegen(UNGUELTIG, roh)
+    (append,) = server.befehle("APPEND")
+    assert append[1] == UNGUELTIG
+    assert server.ordner[UNGUELTIG][-1].roh == roh
+
+
+def test_lesen_aus_einem_ordner_mit_ungueltigem_utf7_namen(monkeypatch):
+    """Dasselbe für das EXAMINE in `_waehle`."""
+    attrappe = ImapAttrappe({UNGUELTIG: [(nachricht(betreff="Liegt", datum=JETZT), JETZT)]})
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", attrappe)
+    with postfach.verbinde("joe@example.org", umgebung={}, frist=30) as pf:
+        koepfe = pf.koepfe(UNGUELTIG)
+    assert [k.betreff for k in koepfe] == ["Liegt"]
+    assert ("EXAMINE", UNGUELTIG) in attrappe.protokoll
+
+
+def test_ungueltiger_ordnername_wird_angezeigt_wie_geliefert():
+    assert postfach.utf7_anzeige(UNGUELTIG) == UNGUELTIG
+    assert postfach.utf7_anzeige("Entw&APw-rfe") == "Entwürfe"
+    assert postfach.utf7_anzeige("A&-B") == "A&B"
+    with pytest.raises(ValueError, match="Invalid base64-encoded string"):
+        postfach.utf7_dekodieren(UNGUELTIG)
 
 
 def test_gegenprobe_die_attrappe_wirft_bei_aendernden_befehlen():
