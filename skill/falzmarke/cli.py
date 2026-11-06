@@ -2206,7 +2206,7 @@ def befehl_entwurf_oeffnen(args) -> int:
         print(f"FEHLER  im Postfach von {adresse} ist kein Entwürfe-Ordner gekennzeichnet",
               file=sys.stderr)
         return EXIT_UMGEBUNG
-    anzeige = postfach.utf7_dekodieren(ordner)
+    anzeige = postfach.utf7_anzeige(ordner)
 
     def zeile(kopf) -> str:
         zeit = kopf.datum.astimezone().strftime("%d.%m.%Y %H:%M") if kopf.datum else "ohne Datum"

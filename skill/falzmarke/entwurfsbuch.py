@@ -1133,7 +1133,7 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                     hinweise.append(
                         f"Identitäten des Profils nicht gelesen ({eigene_grund}): "
                         f"{andere} Mail{'s' if andere != 1 else ''} in "
-                        f"„{postfach.utf7_dekodieren(ordner_g)}“ mit anderem Absender "
+                        f"„{postfach.utf7_anzeige(ordner_g)}“ mit anderem Absender "
                         f"{'zählen' if andere != 1 else 'zählt'} als gesendet")
             weg = (sitzung.koepfe(ordner_p, seit=grenze.date(), grenze=GRENZE_GESENDET)
                    if ordner_p else [])
@@ -1143,7 +1143,7 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
                 if name and name in sitzung.gekappt:
                     gefunden, angesehen = sitzung.gekappt[name]
                     hinweise.append(
-                        f"„{postfach.utf7_dekodieren(name)}“: nur die neuesten "
+                        f"„{postfach.utf7_anzeige(name)}“: nur die neuesten "
                         f"{angesehen} von {gefunden} Mails angesehen — "
                         "was davor liegt, fehlt im Abgleich")
             gleiche: dict[tuple, list] = {}
@@ -1311,9 +1311,9 @@ def abgleich(adresse: str, *, tage: int = TAGE_VORGABE, mit_diff: bool = False,
             return leer._replace(grund=str(fehler), hinweise=tuple(hinweise))
 
     zustaende.sort(key=lambda z: _sortzeit(z.angelegt), reverse=True)
-    return Bericht(adresse, tuple(zustaende), entwuerfe=postfach.utf7_dekodieren(ordner_e),
-                   gesendet=postfach.utf7_dekodieren(ordner_g),
-                   papierkorb=postfach.utf7_dekodieren(ordner_p) if ordner_p else "",
+    return Bericht(adresse, tuple(zustaende), entwuerfe=postfach.utf7_anzeige(ordner_e),
+                   gesendet=postfach.utf7_anzeige(ordner_g),
+                   papierkorb=postfach.utf7_anzeige(ordner_p) if ordner_p else "",
                    angesehen=len(raus) + len(fremde), fremde=len(fremde), tage=tage,
                    im_buch=len(buch), tagebuch=tagebuch_eigene, hinweise=tuple(hinweise),
                    unlesbar=stand.unlesbar, ungewiss=ungewiss, ohne_zuordnung=verwaist,

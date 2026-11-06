@@ -239,9 +239,9 @@ def verschiebe(sitzung: postfach.Postfach, quelle: str, ziel: str, uid: str) -> 
     geöffneten Ordner nichts bewegt.
     """
     zitiert = postfach._zitiert
-    sitzung._befehl(f"Ordner „{postfach.utf7_dekodieren(quelle)}“ nicht wählbar",
+    sitzung._befehl(f"Ordner „{postfach.utf7_anzeige(quelle)}“ nicht wählbar",
                     sitzung._v.select, zitiert(quelle))
-    sitzung._befehl(f"MOVE nach „{postfach.utf7_dekodieren(ziel)}“",
+    sitzung._befehl(f"MOVE nach „{postfach.utf7_anzeige(ziel)}“",
                     sitzung._v.uid, "MOVE", str(uid), zitiert(ziel))
 
 

@@ -4606,7 +4606,7 @@ def test_ohne_dekodieren_steht_das_ziel_je_zug_in_server_schreibweise_im_json(mo
 @pytest.mark.parametrize("ersatz, meldung", [
     ("return wunsch", r"Grenze verschoben: 'R&Dev-Team' → 'R&Dev-Team'"),
     (('return wunsch if __import__("re").search(r"&[^-]{9,}-", wunsch) '
-      "else postfach.utf7_dekodieren(wunsch)"),
+      "else postfach.utf7_anzeige(wunsch)"),
      r"Grenze verschoben: 'A&Projektakte-B' → 'A&Projektakte-B'"),
 ], ids=["gar-nicht", "nur-bis-acht"])
 def test_ohne_dekodieren_verschiebt_sich_die_grenze_von_lesbar(monkeypatch, ersatz, meldung):
@@ -4619,7 +4619,7 @@ def test_ohne_dekodieren_verschiebt_sich_die_grenze_von_lesbar(monkeypatch, ersa
 
     probe()                                                                # Kontrolle
     monkeypatch.setattr(_ablage, "_lesbar", _zeile_ersetzt(
-        _ablage, "_lesbar", "return postfach.utf7_dekodieren(wunsch)", ersatz))
+        _ablage, "_lesbar", "return postfach.utf7_anzeige(wunsch)", ersatz))
     with pytest.raises(AssertionError, match=meldung):
         probe()
 
@@ -4632,7 +4632,7 @@ def test_ohne_den_gefundenen_ordner_raet_die_anzeige_je_zug(monkeypatch):
     probe()                                                                # Kontrolle
     monkeypatch.setattr(_ablage, "_ziele_zuordnen", _zeile_ersetzt(
         _ablage, "_ziele_zuordnen",
-        "lesbar = _servername(ordner) if ordner else _lesbar(name)",
+        "lesbar = postfach.utf7_anzeige(ordner) if ordner else _lesbar(name)",
         "lesbar = _lesbar(name)"))
     with pytest.raises(AssertionError, match=r"angezeigt: \['R\u0debTeam/2025'"):
         probe()
@@ -4640,31 +4640,31 @@ def test_ohne_den_gefundenen_ordner_raet_die_anzeige_je_zug(monkeypatch):
 
 @pytest.mark.parametrize("funktion, probe_name, neu, alt", [
     ("ablageordner", "test_ungueltiger_servername_in_der_ordnerliste_bricht_den_grund_nicht_ab",
-     'f"\u201e{_servername(n)}\u201c" for n, _ in liste[:12]',
-     'f"\u201e{postfach.utf7_dekodieren(n)}\u201c" for n, _ in liste[:12]'),
+     'f"„{postfach.utf7_anzeige(n)}“" for n, _ in liste[:12]',
+     'f"„{postfach.utf7_dekodieren(n)}“" for n, _ in liste[:12]'),
     ("ablageordner",
      "test_ungueltiger_servername_eines_gesperrten_ordners_bricht_den_grund_nicht_ab",
-     'f"\u201e{_servername(name)}\u201c ({herkunft}) tr\u00e4gt "',
-     'f"\u201e{postfach.utf7_dekodieren(name)}\u201c ({herkunft}) tr\u00e4gt "'),
+     'f"„{postfach.utf7_anzeige(name)}“ ({herkunft}) trägt "',
+     'f"„{postfach.utf7_dekodieren(name)}“ ({herkunft}) trägt "'),
     ("_ziel_vorab", "test_ungueltiger_servername_als_ablage_wandert_und_steht_wie_geliefert",
-     "return _servername(ziel), ziel, None",
+     "return postfach.utf7_anzeige(ziel), ziel, None",
      "return postfach.utf7_dekodieren(ziel), ziel, None"),
     ("verschiebe", "test_ungueltiger_servername_als_ablage_wandert_und_steht_wie_geliefert",
-     'f"MOVE nach \u201e{_servername(ziel)}\u201c"', 'f"MOVE nach \u201e{postfach.utf7_dekodieren(ziel)}\u201c"'),
+     'f"MOVE nach „{postfach.utf7_anzeige(ziel)}“"', 'f"MOVE nach „{postfach.utf7_dekodieren(ziel)}“"'),
     ("_ziele_zuordnen", "test_mit_jahr_bricht_ein_ungueltiger_servername_den_lauf_nicht_ab",
-     "lesbar = _servername(ordner) if ordner else _lesbar(name)",
+     "lesbar = postfach.utf7_anzeige(ordner) if ordner else _lesbar(name)",
      "lesbar = postfach.utf7_dekodieren(ordner) if ordner else _lesbar(name)"),
     ("_kappungen", "test_ungueltiger_servername_im_kappungshinweis_steht_wie_geliefert",
-     'f"\u201e{_servername(ordner)}\u201c: nur die neuesten',
-     'f"\u201e{postfach.utf7_dekodieren(ordner)}\u201c: nur die neuesten'),
+     'f"„{postfach.utf7_anzeige(ordner)}“: nur die neuesten',
+     'f"„{postfach.utf7_dekodieren(ordner)}“: nur die neuesten'),
     ("_kappungen", "test_ungueltiger_servername_im_kappungshinweis_steht_wie_geliefert",
-     "in \u201e{_servername(ordner)}\u201c: nur {verglichen}",
-     "in \u201e{postfach.utf7_dekodieren(ordner)}\u201c: nur {verglichen}"),
+     "in „{postfach.utf7_anzeige(ordner)}“: nur {verglichen}",
+     "in „{postfach.utf7_dekodieren(ordner)}“: nur {verglichen}"),
 ], ids=["ordnerliste", "gesperrt", "ziel-vorab", "move", "je-zug", "kappung", "suchkappung"])
 def test_ungueltiger_servername_ohne_rueckfall_endet_im_traceback(monkeypatch, funktion,
                                                                   probe_name, neu, alt):
     """Nachreview von #535, Befund 1: Jede Stelle bekommt einzeln die Zeile von
-    vorher zur\u00fcck, das blanke `utf7_dekodieren`. Am Ordner \u201eAT&T-Rechnungen\u201c eines
+    vorher zurück, das blanke `utf7_dekodieren`. Am Ordner „AT&T-Rechnungen“ eines
     nicht konformen Servers endet der Lauf dann mit genau dem Traceback aus dem
     Review, nicht mit einer verfehlten Zusicherung."""
     import binascii
@@ -4676,6 +4676,62 @@ def test_ungueltiger_servername_ohne_rueckfall_endet_im_traceback(monkeypatch, f
     probe()                                                                # Kontrolle
     monkeypatch.setattr(_ablage, funktion, _zeile_ersetzt(_ablage, funktion, neu, alt))
     with pytest.raises(binascii.Error, match="Invalid base64-encoded string"):
+        probe()
+
+
+@pytest.mark.parametrize("datei, alt, neu, meldung", [
+    ("postfach.py", "„{utf7_anzeige(ordner)}“\", self._v.append",
+     "„{utf7_dekodieren(ordner)}“\", self._v.append", r"'postfach\.py:\d+ in ablegen'"),
+    ("postfach.py", "„{utf7_anzeige(ordner)}“ nicht lesbar",
+     "„{utf7_dekodieren(ordner)}“ nicht lesbar", r"'postfach\.py:\d+ in _waehle'"),
+    ("gesendet.py", "anzeige = postfach.utf7_anzeige(ordner)",
+     "anzeige = postfach.utf7_dekodieren(ordner)", r"'gesendet\.py:\d+ in pruefe'"),
+    ("ablage.py", "return postfach.utf7_anzeige(wunsch)",
+     "return postfach.utf7_dekodieren(wunsch)", r"'ablage\.py:\d+ in _lesbar'"),
+    ("regeln/__init__.py", None, "\n_dekodiert = utf7_dekodieren\n",
+     r"'regeln/__init__\.py:\d+ in <modul>'"),
+    ("postfach.py", "        return utf7_dekodieren(name)\n", "        return name\n",
+     "utf7_anzeige ruft utf7_dekodieren 0-mal, erwartet 1"),
+], ids=["append", "examine", "gesendet", "lesbar", "unterpaket", "anzeige-ohne-dekodieren"])
+def test_der_waechter_ueber_utf7_dekodieren_schlaegt_an(monkeypatch, datei, alt, neu, meldung):
+    """Nachreview von #535, Befund 1: Der Wächter läuft unverändert, nur über
+    sabotierten Quelltext. Jede Sabotage setzt an genau einer Stelle das blanke
+    `utf7_dekodieren` zurück, und der Wächter muss genau diese Stelle nennen.
+    Die Ausnahme gilt einer Funktion, nicht der Datei: Eine zweite Stelle in
+    `postfach.py` wird gemeldet. „anzeige-ohne-dekodieren“ belegt die Zählung:
+    Ruft `utf7_anzeige` nichts mehr, wäre ein leerer Fundbericht kein Beleg.
+
+    Die Kontrolle läuft über dieselbe umgeleitete Quellenfunktion, ergänzt um
+    einen Kommentar und einen Docstring, die `utf7_dekodieren` nennen: Prosa
+    zählt nicht, gelesen wird über `ast`."""
+    import test_postfach as tp
+
+    echt = tp._paketquellen
+    probe = tp.test_nur_utf7_anzeige_dekodiert_ordnernamen
+
+    def mit(aenderung):
+        def quellen(ordner=None):
+            ergebnis = echt(ordner)
+            if ordner is None:
+                aenderung(ergebnis)
+            return ergebnis
+        return quellen
+
+    def nur_prosa(quellen):
+        quellen["cli.py"] += ('\n# utf7_dekodieren(ordner) steht hier nur im Kommentar\n'
+                              '"""utf7_dekodieren(ordner) im Docstring"""\n')
+
+    def sabotage(quellen):
+        if alt is None:
+            quellen[datei] += neu
+            return
+        assert quellen[datei].count(alt) == 1, f"die Sabotage findet „{alt.strip()}“ nicht"
+        quellen[datei] = quellen[datei].replace(alt, neu)
+
+    monkeypatch.setattr(tp, "_paketquellen", mit(nur_prosa))
+    probe()                                                                # Kontrolle
+    monkeypatch.setattr(tp, "_paketquellen", mit(sabotage))
+    with pytest.raises(AssertionError, match=meldung):
         probe()
 
 

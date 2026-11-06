@@ -1357,7 +1357,7 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
                                                    profilordner=profilordner)
         except postfach.PostfachFehler as fehler:
             return None, str(fehler), _dauer(fehler)
-        anzeige = postfach.utf7_dekodieren(ordner)
+        anzeige = postfach.utf7_anzeige(ordner)
         if vorher and not noch_ein_entwurf and (derselbe or (wertung.bleibt and not ersetzen)):
             juengster = max(derselbe or vorher,
                             key=lambda k: (k.datum is not None, k.datum, int(k.uid)))
@@ -1376,7 +1376,7 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
                     sitzung, ordner, wertung.weg, adresse=adresse.strip().lower(),
                     umgebung=umgebung)
                 bleibt += gehalten
-                ersetzt_ziel = postfach.utf7_dekodieren(ziel)
+                ersetzt_ziel = postfach.utf7_anzeige(ziel)
         except postfach.PostfachFehler as fehler:
             grund = (f"Ablegen im Postfach abgebrochen ({fehler}) — ob der "
                      f"Entwurf in „{anzeige}“ angekommen ist, ist offen")

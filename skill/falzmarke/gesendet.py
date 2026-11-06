@@ -328,7 +328,7 @@ def pruefe(eigen: Merkmale, absender: str, *, verbindung=None, ordner: str | Non
         return Befund("nicht_geprueft", str(fehler), adresse=absender, stunden=stunden)
     try:
         ordner = ordner or verbindung.sonderordner("\\Sent") or "Gesendete Elemente"
-        anzeige = postfach.utf7_dekodieren(ordner)
+        anzeige = postfach.utf7_anzeige(ordner)
         koepfe = [k for k in verbindung.koepfe(ordner, seit=grenze.date())
                   if k.datum is None or k.datum >= grenze]
         geaendert = None
