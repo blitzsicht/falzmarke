@@ -5247,6 +5247,95 @@ def test_ohne_dereferenzieren_loescht_das_packen_die_quelle(tmp_path):
         "ohne -L trifft das `rm` die Quelle — sonst hielte -L nichts"
 
 
+# ── #533: Die typst-Grenze steht an allen drei Stellen gleich ───────────────
+
+#: Die heutige Grenze und ihre Sabotage: die Untergrenze vor #533. Genau dieser Fehler
+#: blieb bis dahin grün, weil `test_abhaengigkeiten` nur Paketnamen verglich.
+_TYPST_GRENZE = "typst>=0.15.2,<0.16"
+_TYPST_GRENZE_ALT = "typst>=0.15,<0.16"
+_GRENZ_STELLEN = {"PYPROJECT": "pyproject.toml",
+                  "REQUIREMENTS": "skill/requirements.txt",
+                  "BOOTSTRAP": "skill/scripts/bootstrap.py"}
+
+
+def _grenzen_in_kopie(tmp_path, monkeypatch, sabotiert: str | None):
+    """Alle drei Stellen als Kopie, an höchstens einer die Grenze zurückgesetzt."""
+    import test_abhaengigkeiten
+
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    for konstante, relativ in _GRENZ_STELLEN.items():
+        text = (REPO / relativ).read_text(encoding="utf-8")
+        assert text.count(_TYPST_GRENZE) == 1, (
+            f"„{_TYPST_GRENZE}“ steht nicht genau einmal in {relativ} — "
+            "wurde die Grenze gehoben, hier nachziehen")
+        if konstante == sabotiert:
+            text = text.replace(_TYPST_GRENZE, _TYPST_GRENZE_ALT, 1)
+            assert _TYPST_GRENZE not in text, "die Sabotage greift nicht"
+        ziel = tmp_path / relativ.replace("/", "_")
+        ziel.write_text(text, encoding="utf-8")
+        monkeypatch.setattr(test_abhaengigkeiten, konstante, ziel)
+    return test_abhaengigkeiten.test_requirements_und_deps_tragen_dieselben_grenzen_wie_pyproject
+
+
+_NEU, _ALT = "„<0.16,>=0.15.2“", "„<0.16,>=0.15“"
+
+
+@pytest.mark.parametrize("stelle, zeilen", [
+    ("REQUIREMENTS", [f"skill/requirements.txt: typst verlangt {_ALT}, pyproject.toml {_NEU}"]),
+    ("BOOTSTRAP", [f"skill/scripts/bootstrap.py DEPS: typst verlangt {_ALT}, pyproject.toml {_NEU}"]),
+    # Weicht die kanonische Quelle ab, weichen beide anderen von ihr ab — beide Zeilen.
+    ("PYPROJECT", [f"skill/requirements.txt: typst verlangt {_NEU}, pyproject.toml {_ALT}",
+                   f"skill/scripts/bootstrap.py DEPS: typst verlangt {_NEU}, pyproject.toml {_ALT}"]),
+])
+def test_eine_abweichende_typst_grenze_macht_den_abgleich_rot(tmp_path, monkeypatch,
+                                                              stelle, zeilen):
+    _grenzen_in_kopie(tmp_path / "kontrolle", monkeypatch, None)()           # Kontrolle
+    probe = _grenzen_in_kopie(tmp_path, monkeypatch, stelle)
+    # pytest rückt die Folgezeilen einer Meldung ein, daher `\n\s*` zwischen den Zeilen.
+    with pytest.raises(AssertionError, match=r"\n\s*".join(map(re.escape, zeilen))):
+        probe()
+
+
+def test_das_offline_wheel_fuer_python_38_macht_den_abgleich_rot(tmp_path, monkeypatch):
+    """Der Wert vor #533. Mit ihm fand `pip download` ab typst 0.15.2 kein Wheel mehr."""
+    import test_abhaengigkeiten
+
+    probe = test_abhaengigkeiten.test_das_offline_wheel_wird_fuer_die_python_untergrenze_angefragt
+    probe()                                                                   # Kontrolle
+    text = test_abhaengigkeiten.PACKEN.read_text(encoding="utf-8")
+    assert text.count('PYTHON_FASSUNG="3.11"') == 1, "die Sabotage findet ihre Zeile nicht"
+    kopie = tmp_path / "skill_packen.sh"
+    kopie.write_text(text.replace('PYTHON_FASSUNG="3.11"', 'PYTHON_FASSUNG="3.8"'),
+                     encoding="utf-8")
+    monkeypatch.setattr(test_abhaengigkeiten, "PACKEN", kopie)
+    with pytest.raises(AssertionError, match=re.escape(
+            "skill_packen.sh fragt das Wheel für Python 3.8 an, requires-python verlangt 3.11")):
+        probe()
+
+
+# ── #533: Die Maske deckt jede Stelle der typst-Kennung ─────────────────────
+#
+# Je Lauf fehlt der Maske genau eine der vier Stellen, so als wäre sie nie
+# eingetragen worden. Dann muss der Nachweis, dass eine andere typst-Fassung kein
+# Golden kippt, an genau dieser Lücke rot werden.
+
+@pytest.mark.parametrize("stelle", ["xmp:CreatorTool und stEvt:softwareAgent",
+                                    "/Creator", "InstanceID im XMP", "/ID"])
+def test_eine_luecke_in_der_typst_maske_kippt_das_golden(monkeypatch, stelle):
+    import conftest
+    import test_rechnung_beispiele as _rb
+
+    beispiel = _rb.RECHNUNG_BEISPIELE[0]
+    _rb.test_eine_andere_typst_fassung_kippt_kein_golden(beispiel)          # Kontrolle
+    monkeypatch.setattr(_rb, "ohne_typst_kennung", _zeile_ersetzt(
+        conftest, "ohne_typst_kennung",
+        '        pdf = pdf.replace(alt, b"#" * len(alt))',
+        f'        pdf = pdf if wo == "{stelle}" else pdf.replace(alt, b"#" * len(alt))'))
+    with pytest.raises(AssertionError, match=re.escape(
+            f"{beispiel.stem}: die Maske deckt die typst-Kennung nicht ganz ab")):
+        _rb.test_eine_andere_typst_fassung_kippt_kein_golden(beispiel)
+
+
 # ── #467: Der Handschlag verlangt eine Version in `serverInfo` ──────────────
 
 def test_ein_server_ohne_version_faellt_beim_handschlag_durch(tmp_path):

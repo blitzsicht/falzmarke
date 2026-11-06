@@ -17,8 +17,9 @@ passiert.
 **Warum ausgerechnet typst.** Von den fünf Abhängigkeiten ist es die einzige mit
 nativem Binärkern und damit die, die in einer Sandbox als Erste fehlt. Die
 übrigen vier sind verbreitet genug, dass eine Analyse-Umgebung sie meist schon
-mitbringt. Gewählt wird das `cp38-abi3`-Wheel: Es gilt für jedes Python ab 3.8
-statt für eine einzelne Fassung.
+mitbringt. Gewählt wird das `abi3`-Wheel (ab typst 0.15.2 `cp39-abi3`): Es gilt für
+jedes Python ab seiner Fassung statt für eine einzelne. Angefragt wird mit
+3.11, der Untergrenze aus `requires-python`.
 
 Wer offline arbeitet und mehr braucht, legt weitere Wheels hierher —
 `bootstrap.py` nimmt jedes, das passt.
@@ -54,7 +55,7 @@ Wer offline arbeiten muss und nur den Quellbaum hat, legt das Wheel von Hand hie
 
 ```bash
 python3 -m pip download --only-binary=:all: --no-deps \
-  --platform manylinux_2_17_x86_64 --python-version 3.8 --implementation cp --abi abi3 \
+  --platform manylinux_2_17_x86_64 --python-version 3.11 --implementation cp --abi abi3 \
   --dest skill/vendor "$(grep -E '^typst' skill/requirements.txt)"
 ```
 

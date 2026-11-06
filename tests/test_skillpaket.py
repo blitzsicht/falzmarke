@@ -330,7 +330,8 @@ def test_bootstrap_fragt_je_paket_einzeln_ohne_index(tmp_path, monkeypatch):
 def _vorhanden_in_version(b, monkeypatch, versionen: dict[str, str]):
     """Alle Module gelten als importierbar; `importlib.metadata.version` liefert
     je Paketname die vorgegebene Version, sonst eine passende."""
-    passend = {"typst": "0.15.0", "pyyaml": "6.0.2", "pdfplumber": "0.11.4",
+    # typst muss die Untergrenze aus DEPS erfüllen, seit #533 also mindestens 0.15.2.
+    passend = {"typst": "0.15.2", "pyyaml": "6.0.2", "pdfplumber": "0.11.4",
                "pypdf": "5.1.0", "markdown-it-py": "4.0.0", "pillow": "11.0.0"}
     passend.update(versionen)
     monkeypatch.setattr(b.importlib.util, "find_spec", lambda m: object())
