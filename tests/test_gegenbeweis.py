@@ -5209,6 +5209,23 @@ def test_eine_abweichende_typst_grenze_macht_den_abgleich_rot(tmp_path, monkeypa
         probe()
 
 
+def test_das_offline_wheel_fuer_python_38_macht_den_abgleich_rot(tmp_path, monkeypatch):
+    """Der Wert vor #533. Mit ihm fand `pip download` ab typst 0.15.2 kein Wheel mehr."""
+    import test_abhaengigkeiten
+
+    probe = test_abhaengigkeiten.test_das_offline_wheel_wird_fuer_die_python_untergrenze_angefragt
+    probe()                                                                   # Kontrolle
+    text = test_abhaengigkeiten.PACKEN.read_text(encoding="utf-8")
+    assert text.count('PYTHON_FASSUNG="3.11"') == 1, "die Sabotage findet ihre Zeile nicht"
+    kopie = tmp_path / "skill_packen.sh"
+    kopie.write_text(text.replace('PYTHON_FASSUNG="3.11"', 'PYTHON_FASSUNG="3.8"'),
+                     encoding="utf-8")
+    monkeypatch.setattr(test_abhaengigkeiten, "PACKEN", kopie)
+    with pytest.raises(AssertionError, match=re.escape(
+            "skill_packen.sh fragt das Wheel für Python 3.8 an, requires-python verlangt 3.11")):
+        probe()
+
+
 # ── #533: Die Maske deckt jede Stelle der typst-Kennung ─────────────────────
 #
 # Je Lauf fehlt der Maske genau eine der vier Stellen, so als wäre sie nie

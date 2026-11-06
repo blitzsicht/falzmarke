@@ -27,6 +27,7 @@ from conftest import REPO
 PYPROJECT = REPO / "pyproject.toml"
 REQUIREMENTS = REPO / "skill" / "requirements.txt"
 BOOTSTRAP = REPO / "skill" / "scripts" / "bootstrap.py"
+PACKEN = REPO / "scripts" / "skill_packen.sh"
 
 # Anfang einer PEP-508-Anforderung: der Paketname, vor Version/Marker/Extras.
 _NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*")
@@ -149,6 +150,19 @@ def test_requirements_und_deps_tragen_dieselben_grenzen_wie_pyproject():
         + _grenz_abweichungen(kanon, aus_deps, "skill/scripts/bootstrap.py DEPS")
     )
     assert not meldungen, "\n".join(meldungen)
+
+
+def test_das_offline_wheel_wird_fuer_die_python_untergrenze_angefragt():
+    """`skill_packen.sh` fragt das typst-Wheel für eine Python-Fassung an. Stand sie auf 3.8,
+    fand pip ab typst 0.15.2 keine Fassung mehr: Diese baut `cp39-abi3`, und das Offline-Paket
+    fiel in der CI (#533). Angefragt wird deshalb mit der Untergrenze aus `requires-python`."""
+    fassung = re.search(r'^PYTHON_FASSUNG="([^"]+)"', PACKEN.read_text(encoding="utf-8"), re.M)
+    untergrenze = re.fullmatch(r">=\s*(\d+\.\d+)", tomllib.loads(
+        PYPROJECT.read_text(encoding="utf-8"))["project"]["requires-python"])
+    assert fassung and untergrenze, "PYTHON_FASSUNG oder requires-python nicht lesbar"
+    assert fassung[1] == untergrenze[1], (
+        f"skill_packen.sh fragt das Wheel für Python {fassung[1]} an, "
+        f"requires-python verlangt {untergrenze[1]}")
 
 
 def test_gleiche_grenze_in_anderer_schreibweise_ist_keine_abweichung():
