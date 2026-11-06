@@ -2438,7 +2438,9 @@ def test_ohne_sperre_im_befehl_geht_bei_abgeschaltetem_entwurf_die_datei_auf(
      "--kein-fenster ohne --oeffnen legte keinen Entwurf ab"),
     ("test_kein_fenster_ohne_oeffnen_und_ohne_proxy_endet_mit_exit_3",
      "Exit 0: --kein-fenster ohne --oeffnen endete ohne KEIN ENTWURF"),
-], ids=["abgelegt", "ohne-proxy"])
+    ("test_kein_fenster_ohne_oeffnen_sperrt_die_schon_gesendete_mit_exit_4",
+     "Exit 0: --kein-fenster ohne --oeffnen sperrte die gesendete Nachricht nicht"),
+], ids=["abgelegt", "ohne-proxy", "schon-gesendet"])
 def test_ohne_kopplung_tut_kein_fenster_ohne_oeffnen_nichts(tmp_path, monkeypatch, capsys,
                                                             probe_name, meldung):
     """#538: die Bedingung vor dem Entwurf wie vor dem Fix, ohne `--kein-fenster`.
@@ -2457,16 +2459,21 @@ def test_ohne_kopplung_tut_kein_fenster_ohne_oeffnen_nichts(tmp_path, monkeypatc
 def test_ohne_kopplung_in_der_hilfe_schweigt_kein_fenster_dazu(monkeypatch, capsys):
     """#538, Abnahme 3: der Hilfetext von `--kein-fenster` wie vor dem Fix. Der
     Parser entsteht in `main`; bei `--programm` steht der Satz weiter, die Probe
-    liest aber nur den Abschnitt von `--kein-fenster`."""
-    from test_befehl_email import test_die_hilfe_nennt_bei_kein_fenster_die_kopplung as probe
+    liest aber nur den Abschnitt von `--kein-fenster`. Je Breite einzeln: Die
+    Probe bräche sonst schon an der ersten ab, und ein Abschnitt, der bei einer
+    späteren Breite bis `--programm` reicht, bliebe unbemerkt (Review #562)."""
+    import test_befehl_email as modul
 
-    probe(capsys)                                                          # Kontrolle
+    probe = modul.test_die_hilfe_nennt_bei_kein_fenster_die_kopplung
+    probe(monkeypatch, capsys)                                             # Kontrolle
     monkeypatch.setattr(falzmarke, "main", _zeile_ersetzt(
         falzmarke, "main", '"Nicht mit --programm outlook; schließt --oeffnen ein")',
         '"Nicht mit --programm outlook")'))
-    with pytest.raises(AssertionError, match="--kein-fenster nennt die Kopplung nicht: "
-                                             "den Entwurf ablegen"):
-        probe(capsys)
+    for breite in modul.HILFE_BREITEN:
+        monkeypatch.setattr(modul, "HILFE_BREITEN", (breite,))
+        with pytest.raises(AssertionError, match="--kein-fenster nennt die Kopplung nicht: "
+                                                 "den Entwurf ablegen"):
+            probe(monkeypatch, capsys)
 
 
 def test_ohne_signaturklasse_findet_die_pruefung_keine_signatur(tmp_path, monkeypatch):

@@ -181,7 +181,8 @@ Was dabei nicht fehlen darf, weil es gemessen ist:
 
 ### Schon gesendet? `--oeffnen` sieht vorher nach
 
-Bevor ein Entwurf entsteht, sieht `--oeffnen` im Gesendet-Ordner des Absenders nach: Ging in
+Bevor ein Entwurf entsteht, sieht `--oeffnen` im Gesendet-Ordner des Absenders nach, ebenso
+`--kein-fenster`, `--programm` und `--ersetzen`, die `--oeffnen` einschließen: Ging in
 den letzten 24 Stunden eine Mail an denselben Empfänger mit demselben Betreff, demselben Text
 oder derselben Fassung (`X-Falzmarke-Fassung`) hinaus, entsteht **kein Entwurf**, und der
 Befehl endet mit **Exit 4**:
@@ -505,7 +506,7 @@ sich also zusammen in einen Chat legen.
 | 1 | Eingabefehler. Die Meldung nennt Feld und Zeile — dort korrigieren und erneut `lint`. |
 | 2 | Verifikation. Den Bericht wörtlich weitergeben — er nennt bei einem Überlauf auch die `Ursache:` und was daran zu tun wäre. Diese eine Änderung an der **Eingabe** machen und erneut rendern. Sonst **aufhören**, nicht am Layout herumprobieren. |
 | 3 | Umgebung. `python3 scripts/bootstrap.py`, danach abbrechen, wenn es wieder scheitert. |
-| 4 | `SCHON GESENDET` oder `GEÄNDERTE FASSUNG` bei `email --oeffnen`. Die Zeile wörtlich an den Menschen geben und fragen; `--trotz-gesendet` nur auf sein Ja. |
+| 4 | `SCHON GESENDET` oder `GEÄNDERTE FASSUNG` bei `email --oeffnen` (auch `--kein-fenster`, `--programm`, `--ersetzen`). Die Zeile wörtlich an den Menschen geben und fragen; `--trotz-gesendet` nur auf sein Ja. |
 
 ### Was bei Exit 2 nicht geändert wird
 
