@@ -102,7 +102,9 @@ datum: 2026-08-25                       # wird NICHT übernommen — `lint` warn
 die Rechnung, die vollständige Auskunft. Kein `ja` bei einer Rückfrage, einem Zwischenstand
 („melde mich Freitag“) oder einem offenen Termin. Im Zweifel weglassen: Eine Mail zu viel im
 Eingang ist schnell abgelegt, eine zu wenig fällt niemandem auf. Ohne `antwort_auf` bewirkt das
-Feld nichts, und `lint` warnt.
+Feld nichts, und `lint` warnt. `ja` entfernt kein Fähnchen, das ein früherer Entwurf derselben
+Antwort schon gesetzt hat. Als Ja zählt `ja` und ein YAML-Wahrwert (`true`, `yes` ohne
+Anführungszeichen); `"yes"` in Anführungszeichen oder `1` setzen das Fähnchen, und `lint` warnt.
 
 **Die beiden Welten schließen sich aus.** `empfaenger:` in einer Mail ist ein Fehler mit Hinweis
 auf `an:`, `an:` in einem Brief einer mit Hinweis auf `empfaenger:`. Das ist kein Formalismus:

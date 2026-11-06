@@ -4831,6 +4831,70 @@ def test_mit_einem_zweiten_flag_geht_mehr_als_das_faehnchen_hinaus(befehl, monke
         probe(befehl, monkeypatch, capsys)
 
 
+# Nachreview #553: Jede Schutzstelle in `faehnchen._setze_in` und `setze` und
+# die Typprüfung in `lint` bekommen ihre eigene Probe. Die Proben fahren die
+# Einzeltests aus `test_faehnchen.py` gegen die Attrappe; deren erste Zusicherung
+# trägt die Meldung, auf die hier gewartet wird.
+
+def _server_553(monkeypatch):
+    """Die Fixture `server` aus `test_faehnchen.py`, hier ohne Fixture-Import."""
+    from falzmarke import postfach as _postfach
+
+    def setzen(attrappe):
+        monkeypatch.setattr(_postfach, "IMAP_KLASSE", attrappe)
+        return attrappe
+    return setzen
+
+
+@pytest.mark.parametrize("funktion, alt, neu, probe_name, meldung", [
+    ("_setze_in", "if jetzt != geplant:", "if False:",
+     "test_ein_wechsel_der_uidvalidity_verhindert_das_setzen",
+     "STORE trotz gewechselter UIDVALIDITY"),
+    ("_setze_in", "if len(treffer) > 1:", "if False:",
+     "test_zwei_mails_mit_derselben_kennung_aendern_nichts",
+     "STORE, obwohl zwei Mails dieselbe Kennung tragen"),
+    ("_setze_in", 'if "\\\\flagged" not in fahnen:', "if False:",
+     "test_ein_store_ohne_wirkung_wird_beim_nachlesen_entdeckt",
+     "ein STORE ohne Wirkung als gesetzt gemeldet"),
+    ("_setze_in", 'if kopf.fahnen is not None and "\\\\flagged" in kopf.fahnen:', "if False:",
+     "test_ein_stehendes_faehnchen_bleibt_unberuehrt",
+     "STORE an einem Fähnchen, das schon stand"),
+    ("setze", "if not postfach.sendbar(kennung):", "if False:",
+     "test_eine_kennung_ausserhalb_von_ascii_wird_nicht_gesucht",
+     "Verbindung für eine Kennung, die nicht sendbar ist"),
+], ids=["uidvalidity", "zwei_treffer", "nachlesen", "schon_da", "sendbar"])
+def test_ohne_die_schutzstelle_aendert_das_faehnchen_zu_viel(
+        monkeypatch, funktion, alt, neu, probe_name, meldung):
+    """Sabotage an genau einer Stelle je Fall; die Probe muss mit ihrer eigenen
+    Meldung anschlagen."""
+    import test_faehnchen
+    from falzmarke import faehnchen as _faehnchen
+
+    probe = getattr(test_faehnchen, probe_name)
+    probe(_server_553(monkeypatch))                                         # Kontrolle
+    monkeypatch.setattr(_faehnchen, funktion, _zeile_ersetzt(_faehnchen, funktion, alt, neu))
+    with pytest.raises(AssertionError, match=re.escape(meldung)):
+        probe(_server_553(monkeypatch))
+
+
+@pytest.mark.parametrize("alt, neu, wert", [
+    # Der alte Fehler genau nachgebaut: `1 == True`, also galt `1` als gültig.
+    ("if not (isinstance(erledigt, bool)", "if not (erledigt in (True, False)", "1"),
+    # Der ganze zweite Zweig fällt weg.
+    ("if not (isinstance(erledigt, bool)", "if False and (isinstance(erledigt, bool)", "vielleicht"),
+], ids=["eins_als_bool", "zweig_weg"])
+def test_ohne_die_typpruefung_bleibt_ein_falscher_erledigt_wert_still(
+        monkeypatch, tmp_path, alt, neu, wert):
+    from test_email_datenvertrag import test_erledigt_warnt_bei_jedem_wert_ausser_ja_und_nein \
+        as probe
+
+    probe(tmp_path, wert, False)                                            # Kontrolle
+    monkeypatch.setattr(_lint, "pruefe_email_frontmatter", _zeile_ersetzt(
+        _lint, "pruefe_email_frontmatter", alt, neu))
+    with pytest.raises(AssertionError, match=re.escape(f"erledigt: {wert!r} — Warnung erwartet")):
+        probe(tmp_path, wert, False)
+
+
 # ── #454: Der Plugin-Ordner bleibt aus dem Skill-Paket ──────────────────────
 
 def test_ohne_ausschluss_landet_der_plugin_ordner_im_skill_paket(tmp_path):
