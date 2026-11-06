@@ -10,7 +10,7 @@ verlangen, und keine Mehrfacheinreichung.
 
 | Ziel | Stand | Nächster Schritt |
 |---|---|---|
-| Anthropic-Plugin-Verzeichnis | einreichbar | im Portal **Validate**, dann einreichen |
+| Anthropic-Plugin-Verzeichnis | eingereicht v0.11.2 @ 8d44c0d, Sicherheitsscan läuft, 2 Policy-Holds (06.11.2026) | Prüfung abwarten; Rückfragen kommen an servus@blitzsicht.com |
 | mcp.so | eingereicht per Issue [chatmcp/mcpso#6843](https://github.com/chatmcp/mcpso/issues/6843), offen, kein Kommentar (06.11.2026) | abwarten, nicht zahlen |
 | Smithery | **abgeschaltet** am 31.10.2026 | nichts tun |
 | Glama | beansprucht; Badge „maintenance rated B“; **nicht deploybar** (06.11.2026) | Dockerfile in Glama eintragen, Reiter „Admin ⚠“ ansehen |
@@ -22,7 +22,30 @@ verlangen, und keine Mehrfacheinreichung.
 
 - [x] Plugin-Ordner gebaut (`skill/.claude-plugin/plugin.json`, `skill/README.md`, Icon)
 - [x] `claude plugin validate ./skill` ohne Fehler; eine Warnung bleibt, siehe unten
-- [ ] im Portal **Validate** grün
+- [x] im Portal **Validate** ohne Fehler: 2 Warnungen, 2 Policy-Holds (06.11.2026)
+- [x] eingereicht am 06.11.2026 um 11:43 MEZ: v0.11.2, `main @ 8d44c0d`, Plugin path `skill`
+- [x] Push-Webhook in `blitzsicht/falzmarke` angelegt (nur push, `application/json`); Ping 200
+- [ ] Sicherheitsscan und Prüfung bestanden
+- [ ] veröffentlicht (die erste Version veröffentlicht der Betreiber oder ein Prüfer)
+
+Stand nach dem Einreichen (Screenshot des Betreibers, 06.11.2026): Status „Wird gescannt“, Kontakt
+`servus@blitzsicht.com`, gelistet werden soll es in Claude Code, Cowork und den Claude-Apps.
+Auto-Publish ist an, greift aber erst nach der ersten freigegebenen Version.
+
+**Antworten im Portal**, damit eine spätere Fassung sie nicht widerspricht:
+
+- Personenbezogene Daten: *Reads and stores*. Briefe tragen Namen und Anschriften, Absenderprofile
+  liegen als Dateien auf dem Rechner.
+- Daten an Dienste außerhalb der Konnektoren: *Yes — listed in README*. PyPI beim ersten Lauf und,
+  wenn eingerichtet, das eigene Postfach über den IMAP-Proxy (`skill/README.md`, „Wohin Daten
+  gehen“, #554). Ändert sich einer dieser Wege, muss das README mitwandern.
+- Aufbewahrung: *Not retained*. Unter 18: *Nein*.
+
+**Die zwei Policy-Holds:** Der Credential-Hold kommt von `referenzdienst.py`. Die Datei liegt im
+Plugin-Ordner, läuft aber nur auf falzmarke.com. Der Download-and-run-Hold ist ein Fehlalarm
+(`emit.py` erwähnt `#eval` nur in einem Kommentar, und die `.otf` ist eine Binärdatei). Ein Feld für
+eine Prüfer-Notiz gab es nicht. Fragt der Prüfer nach, steht die Antwort im Handoff vom 06.11.2026.
+Default: `referenzdienst.py` erst dann aus dem Plugin-Ordner nehmen, wenn er es beanstandet.
 
 **Ziel-URL:** https://claude.ai/directory/manage → Submit new → Plugin bundle
 
