@@ -56,7 +56,10 @@ im PDF — die Erstellungszeit einer Datei ist nicht das Briefdatum.
 
 from __future__ import annotations
 
+import os
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 import pypdf
@@ -64,7 +67,7 @@ import pytest
 
 from falzmarke import cli as falzmarke
 from conftest import (GOLDEN_VERSION, REPO, PROFILE, RECHNUNG_BEISPIELE,
-                      ohne_typografiehinweise, ohne_typst_kennung)
+                      TypstMaskeGreiftNicht, ohne_typografiehinweise, ohne_typst_kennung)
 
 GOLDEN = REPO / "tests" / "golden" / "rechnung"
 
@@ -197,9 +200,51 @@ def test_ein_pdf_ohne_typst_kennung_bricht_den_vergleich_ab():
     golden = (GOLDEN / f"{RECHNUNG_BEISPIELE[0].stem}.pdf").read_bytes()
     ohne = golden.replace(b"<stEvt:softwareAgent>Typst ", b"<stEvt:softwareAgent>Tipst ")
     assert ohne != golden
-    with pytest.raises(AssertionError, match="typst-Kennung in xmp:CreatorTool und "
-                                             "stEvt:softwareAgent: 1-mal statt 2-mal"):
+    with pytest.raises(TypstMaskeGreiftNicht, match="typst-Kennung in xmp:CreatorTool und "
+                                                    "stEvt:softwareAgent: 1-mal statt 2-mal"):
         ohne_typst_kennung(ohne)
+
+
+def test_ein_pdf_ganz_ohne_xmp_meldet_die_fehlende_kennung():
+    """Fehlt die Kennung ganz, kommt die Meldung, kein `TypeError` aus `fassung[1]`."""
+    with pytest.raises(TypstMaskeGreiftNicht, match="keine typst-Kennung im XMP"):
+        ohne_typst_kennung(b"%PDF-1.7\n%%EOF\n")
+
+
+#: Die Datei, aus der die Probe unter `python -O` die Maske lädt. Die Gegenprobe
+#: setzt hier eine sabotierte Kopie ein.
+KONFTEST = REPO / "tests" / "conftest.py"
+
+_UNTER_O = """\
+import importlib.util, sys
+if __debug__:
+    sys.exit("läuft nicht unter -O")
+spez = importlib.util.spec_from_file_location("conftest_unter_o", sys.argv[1])
+modul = importlib.util.module_from_spec(spez)
+spez.loader.exec_module(modul)
+try:
+    modul.ohne_typst_kennung(open(sys.argv[2], "rb").read())
+except Exception as fehler:
+    print(type(fehler).__name__, fehler)
+    sys.exit(3)
+"""
+
+
+def test_die_maske_prueft_auch_unter_python_O(tmp_path):
+    """Unter `python -O` fällt jedes `assert` weg (Review #568). Die Prüfungen der
+    Maske dürfen deshalb keine sein, sonst verdeckte sie dort still eine Änderung."""
+    golden = (GOLDEN / f"{RECHNUNG_BEISPIELE[0].stem}.pdf").read_bytes()
+    pdf = tmp_path / "ohne.pdf"
+    pdf.write_bytes(golden.replace(b"<stEvt:softwareAgent>Typst ",
+                                   b"<stEvt:softwareAgent>Tipst "))
+    lauf = subprocess.run([sys.executable, "-O", "-c", _UNTER_O, str(KONFTEST), str(pdf)],
+                          capture_output=True, text=True, encoding="utf-8", timeout=120,
+                          check=False, env={**os.environ, "PYTHONUTF8": "1"})
+    ausgabe = lauf.stdout + lauf.stderr
+    assert lauf.returncode in (0, 3), f"die Probe lief nicht: {ausgabe!r}"
+    assert lauf.returncode == 3 and "TypstMaskeGreiftNicht" in lauf.stdout \
+        and "1-mal statt 2-mal" in lauf.stdout, (
+            f"unter python -O blieb die Maske still: {ausgabe!r}")
 
 
 @pytest.mark.parametrize("beispiel", RECHNUNG_BEISPIELE, **IDS)

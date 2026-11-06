@@ -25,6 +25,7 @@ from conftest import PROFILE, REPO
 from sabotage import zeile_ersetzt as _zeile_ersetzt
 from test_postfach_entwurf import oeffne_befehl                 # noqa: F401 — Fixture, siehe #481
 from test_postfach_entwurf import befehl                        # noqa: F401 — Fixture, #549
+from test_postfach_frist import schein                         # noqa: F401 — Fixture, Review #570
 
 BEISPIEL = REPO / "examples" / "brief-form-b.md"
 
@@ -2629,6 +2630,60 @@ def test_in_der_schleife_gezaehlt_fehlt_die_fremde_hinter_dem_treffer(tmp_path, 
         "                continue\n"))
     befund = _pruefe(eml_pfad, thunderbird_ordner=ordner)
     assert (befund.zustand, befund.fremde) == ("gesendet", 0)
+
+
+# ── Die Frist gilt für die ganze Sitzung (Review von #570, ADR 0051) ───────
+
+@pytest.mark.parametrize("verhalten", ["troepfelt", "langsam"])
+def test_ohne_frist_am_socket_haelt_ein_haengender_server_die_sitzung(schein, monkeypatch,
+                                                                      verhalten):
+    """Der alte Stand genau nachgebaut: `imaplib` baut seinen Socket selbst, ohne
+    Hülle. Dann zählt das Zeitlimit wieder je Empfang, und die Sitzung läuft über
+    die Frist. Die Kontrolle davor zeigt dieselbe Probe mit Hülle unter der Frist."""
+    import imaplib
+
+    from falzmarke import imap_frist
+    from test_postfach_frist import FRIST, SPIEL, _dauer
+
+    dauer, _ = _dauer(schein(verhalten), mit_list=False)
+    assert dauer < FRIST + SPIEL, f"Kontrolle: {dauer:.2f} s"
+    monkeypatch.setattr(imap_frist.ImapMitFrist, "_create_socket",
+                        imaplib.IMAP4._create_socket)
+    dauer, _ = _dauer(schein(verhalten), mit_list=False)
+    assert dauer >= FRIST + SPIEL, f"{verhalten} ohne Hülle: {dauer:.2f} s, die Probe trennt nicht"
+
+
+def test_ohne_nachgestellte_restzeit_wartet_der_letzte_empfang_die_volle_frist(schein,
+                                                                              monkeypatch):
+    """Eine Zeile gekippt: Die Hülle prüft nur noch, ob die Frist um ist, und legt
+    die Restzeit nicht mehr auf den Socket. Der Gruß kommt nach 0,6 s, danach
+    wartet `CAPABILITY` wieder die volle Frist. Rot wird nur dieser Fall; die
+    übrigen enden auch so knapp über der Frist (nachgerechnet am 06.11.2026)."""
+    from falzmarke import imap_frist
+    from test_postfach_frist import FRIST, SPIEL, _dauer
+
+    dauer, _ = _dauer(schein("gruss_dann_stille"), mit_list=False)
+    assert dauer < FRIST + SPIEL, f"Kontrolle: {dauer:.2f} s"
+    monkeypatch.setattr(imap_frist._SocketMitFrist, "_restzeit", _zeile_ersetzt(
+        imap_frist, "_SocketMitFrist._restzeit", "self._sock.settimeout(rest)", "pass"))
+    dauer, _ = _dauer(schein("gruss_dann_stille"), mit_list=False)
+    assert dauer >= FRIST + SPIEL, f"ohne Restzeit: {dauer:.2f} s, die Probe trennt nicht"
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 14),
+                    reason="ab 3.14 liest imaplib über sock.recv, nicht über makefile")
+def test_ohne_eigenes_makefile_liest_imaplib_an_der_huelle_vorbei(schein, monkeypatch):
+    """Bis 3.13 liest `imaplib` über `sock.makefile`. Reicht die Hülle das an den
+    echten Socket durch, gilt dort wieder das Zeitlimit je Empfang."""
+    from falzmarke import imap_frist
+    from test_postfach_frist import FRIST, SPIEL, _dauer
+
+    dauer, _ = _dauer(schein("troepfelt"), mit_list=False)
+    assert dauer < FRIST + SPIEL, f"Kontrolle: {dauer:.2f} s"
+    monkeypatch.setattr(imap_frist._SocketMitFrist, "makefile",
+                        lambda self, mode="rb": self._sock.makefile(mode))
+    dauer, _ = _dauer(schein("troepfelt"), mit_list=False)
+    assert dauer >= FRIST + SPIEL, f"makefile vorbei: {dauer:.2f} s, die Probe trennt nicht"
 
 
 # ── Die Ablage je Konto (#431, ADR 0061) ───────────────────────────────────
@@ -5334,6 +5389,31 @@ def test_eine_abweichende_typst_grenze_macht_den_abgleich_rot(tmp_path, monkeypa
         probe()
 
 
+#: Je Lauf fehlt in pyproject.toml ein Teil der typst-Grenze. Der Abgleich der drei
+#: Stellen bliebe dabei grün, wenn alle drei gleich sabotiert wären („leer gleich leer“).
+@pytest.mark.parametrize("sabotage, meldung", [
+    ("typst", "typst ohne Untergrenze in pyproject.toml: „ohne Grenze“"),
+    ("typst<0.16", "typst ohne Untergrenze in pyproject.toml: „<0.16“"),
+    ("typst>=0.15.2", "typst ohne echte Obergrenze in pyproject.toml: „>=0.15.2“"),
+    ("typst>=0.15.2,<=0.16",
+     "typst ohne echte Obergrenze in pyproject.toml: „<=0.16,>=0.15.2“"),
+], ids=["ohne-grenze", "ohne-untergrenze", "ohne-obergrenze", "obergrenze-einschliessend"])
+def test_eine_unvollstaendige_typst_grenze_ist_keine_echte_grenze(tmp_path, monkeypatch,
+                                                                  sabotage, meldung):
+    import test_abhaengigkeiten
+
+    probe = test_abhaengigkeiten.test_die_typst_grenze_ist_eine_echte_grenze
+    probe()                                                                   # Kontrolle
+    text = test_abhaengigkeiten.PYPROJECT.read_text(encoding="utf-8")
+    zeile = f'"{_TYPST_GRENZE}"'
+    assert text.count(zeile) == 1, "die Sabotage findet ihre Zeile nicht"
+    kopie = tmp_path / "pyproject.toml"
+    kopie.write_text(text.replace(zeile, f'"{sabotage}"'), encoding="utf-8")
+    monkeypatch.setattr(test_abhaengigkeiten, "PYPROJECT", kopie)
+    with pytest.raises(AssertionError, match=re.escape(meldung)):
+        probe()
+
+
 def test_das_offline_wheel_fuer_python_38_macht_den_abgleich_rot(tmp_path, monkeypatch):
     """Der Wert vor #533. Mit ihm fand `pip download` ab typst 0.15.2 kein Wheel mehr."""
     import test_abhaengigkeiten
@@ -5372,6 +5452,96 @@ def test_eine_luecke_in_der_typst_maske_kippt_das_golden(monkeypatch, stelle):
     with pytest.raises(AssertionError, match=re.escape(
             f"{beispiel.stem}: die Maske deckt die typst-Kennung nicht ganz ab")):
         _rb.test_eine_andere_typst_fassung_kippt_kein_golden(beispiel)
+
+
+# ── Review #568: Die Maske hält das Neu-Erzeugen nicht auf und prüft unter -O ──
+
+def test_der_alte_vergleich_haelt_das_neu_erzeugen_an_der_maske_auf(tmp_path, monkeypatch,
+                                                                     capsys):
+    """Nachbau des Vergleichs vor Review #568: die Maske ohne Ausweg."""
+    import conftest
+    import test_golden_rechnung as _gr
+
+    monkeypatch.setattr(_gr.golden_rechnung, "REPO", tmp_path)
+    _gr.test_eine_maske_die_nicht_greift_haelt_das_schreiben_nicht_auf(
+        tmp_path / "kontrolle.pdf", capsys)                                  # Kontrolle
+    monkeypatch.setattr(_gr.golden_rechnung, "_gleich",
+                        lambda alt, neu, maske, *_: (maske(alt) == maske(neu) if maske
+                                                     else alt == neu))
+    with pytest.raises(conftest.TypstMaskeGreiftNicht, match="keine typst-Kennung im XMP"):
+        _gr.test_eine_maske_die_nicht_greift_haelt_das_schreiben_nicht_auf(
+            tmp_path / "rechnung.pdf", capsys)
+
+
+def test_ein_verschluckter_maskenfehler_meldet_mit_pruefen_gleich(tmp_path, monkeypatch):
+    import test_golden_rechnung as _gr
+
+    monkeypatch.setattr(_gr.golden_rechnung, "REPO", tmp_path)
+    _gr.test_mit_pruefen_scheitert_eine_maske_die_nicht_greift_laut(
+        tmp_path / "kontrolle.pdf")                                          # Kontrolle
+    monkeypatch.setattr(_gr.golden_rechnung, "_gleich", _zeile_ersetzt(
+        _gr.golden_rechnung, "_gleich", "            raise\n", "            return True\n"))
+    with pytest.raises(pytest.fail.Exception, match="DID NOT RAISE"):
+        _gr.test_mit_pruefen_scheitert_eine_maske_die_nicht_greift_laut(tmp_path / "rechnung.pdf")
+
+
+def test_ohne_maske_gilt_eine_andere_typst_fassung_als_abweichung(tmp_path, monkeypatch,
+                                                                   capsys):
+    """Der Ausweg darf die Maske nicht ersetzen: Vergleicht `_gleich` immer roh, muss
+    die Kontrolle in `test_golden_rechnung` rot werden."""
+    import test_golden_rechnung as _gr
+
+    monkeypatch.setattr(_gr.golden_rechnung, "REPO", tmp_path)
+    _gr.test_eine_greifende_maske_laesst_eine_andere_typst_fassung_durch(
+        tmp_path / "kontrolle.pdf", capsys)                                  # Kontrolle
+    monkeypatch.setattr(_gr.golden_rechnung, "_gleich", _zeile_ersetzt(
+        _gr.golden_rechnung, "_gleich", "        return maske(alt) == maske(neu)\n",
+        "        return alt == neu\n"))
+    with pytest.raises(AssertionError, match=re.escape(
+            "eine andere typst-Fassung gilt als Abweichung — die Maske greift nicht mehr")):
+        _gr.test_eine_greifende_maske_laesst_eine_andere_typst_fassung_durch(
+            tmp_path / "rechnung.pdf", capsys)
+
+
+def test_ohne_vorpruefung_wirft_ein_pdf_ohne_xmp_einen_typeerror(monkeypatch):
+    """So lief die Maske vor Review #568 unter `python -O`: `fassung[1]` auf None."""
+    import conftest
+    import test_rechnung_beispiele as _rb
+
+    _rb.test_ein_pdf_ganz_ohne_xmp_meldet_die_fehlende_kennung()             # Kontrolle
+    monkeypatch.setattr(_rb, "ohne_typst_kennung", _zeile_ersetzt(
+        conftest, "ohne_typst_kennung", "    if not (fassung and instanz):\n", "    if False:\n"))
+    with pytest.raises(TypeError, match="'NoneType' object is not subscriptable"):
+        _rb.test_ein_pdf_ganz_ohne_xmp_meldet_die_fehlende_kennung()
+
+
+def test_mit_assert_bleibt_die_maske_unter_python_O_still(tmp_path, monkeypatch):
+    """Nachbau der Maske vor Review #568: dieselben Prüfungen als `assert`, in einer
+    Kopie der conftest, die die Probe in einem eigenen Prozess unter `-O` lädt."""
+    import test_rechnung_beispiele as _rb
+
+    (tmp_path / "kontrolle").mkdir()
+    _rb.test_die_maske_prueft_auch_unter_python_O(tmp_path / "kontrolle")    # Kontrolle
+    text = _rb.KONFTEST.read_text(encoding="utf-8")
+    for alt, neu in (
+            ("""    if not (fassung and instanz):
+        raise TypstMaskeGreiftNicht(
+            "keine typst-Kennung im XMP — hat typst das Format geändert?")
+""", """    assert fassung and instanz, "keine typst-Kennung im XMP — hat typst das Format geändert?"
+"""),
+            ("""        if pdf.count(alt) != anzahl:
+            raise TypstMaskeGreiftNicht(
+                f"typst-Kennung in {wo}: {pdf.count(alt)}-mal statt {anzahl}-mal")
+""", """        assert pdf.count(alt) == anzahl, (
+            f"typst-Kennung in {wo}: {pdf.count(alt)}-mal statt {anzahl}-mal")
+""")):
+        assert text.count(alt) == 1, f"„{alt.strip()}“ steht nicht genau einmal in der conftest"
+        text = text.replace(alt, neu)
+    kopie = tmp_path / "conftest.py"
+    kopie.write_text(text, encoding="utf-8")
+    monkeypatch.setattr(_rb, "KONFTEST", kopie)
+    with pytest.raises(AssertionError, match="unter python -O blieb die Maske still"):
+        _rb.test_die_maske_prueft_auch_unter_python_O(tmp_path)
 
 
 # ── #467: Der Handschlag verlangt eine Version in `serverInfo` ──────────────
