@@ -57,6 +57,22 @@ abschließt, und der Entwurf kennt die Ursprungsmail über `antwort_auf`.
 - **Gegen einen echten Server ist der Weg nicht gemessen** (Stand 06.11.2026), nur gegen die
   IMAP-Attrappe. Der erste Lauf gegen den emailproxy wird hier mit Datum nachgetragen.
 
+## Nachtrag: Code-Review #553 (06.11.2026)
+
+- **Auch bei ungewissem Entwurf und beim Rückfall auf die Datei.** Ist nach einem abgerissenen
+  `APPEND` ungewiss, ob der Entwurf liegt, oder geht statt eines Entwurfs die `.eml` auf, wird das
+  Fähnchen ebenfalls gesetzt. Beide können mit `In-Reply-To` gesendet werden; ohne Fähnchen legte
+  `aufraeumen` die Ursprungsmail dann ab. Das ist Punkt 2: im Zweifel eine Mail zu viel im Eingang.
+  Kein Fähnchen gibt es weiter, wo kein Entwurf entsteht: Gesendet-Sperre und `--kein-fenster`
+  ohne Entwurf (Exit 3; der nächste Aufruf setzt es).
+- **`erledigt: ja` verspricht das Ablegen nur für eine Antwort mit `In-Reply-To`.** Ein Entwurf aus
+  dem Verfassen-Fenster trägt den Bezug nicht; die Ursprungsmail bleibt dann ohnehin liegen.
+- **Verworfen:** das Fähnchen im Fenster-Zweig weglassen. Ob Thunderbird den Bezug über `-compose`
+  annimmt, ist nicht gemessen (gemessen ist nur Outlook für Mac, 11.09.2026); ein überflüssiges
+  Fähnchen ist sichtbar und mit einem Klick weg. Ebenso verworfen: das Fähnchen in der Sitzung des
+  Entwurfs setzen statt in einer eigenen. Das spart eine Anmeldung, bindet aber den ändernden
+  Befehl an `oeffnen`, und Punkt 7 hält ihn in einem eigenen Modul.
+
 ## Warum dieses Flag und warum ein voller Eingang
 
 Das ist der erste Schreibzugriff auf eine **fremde** Mail im Eingang. `ablage` verschiebt nur, was

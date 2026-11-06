@@ -5166,6 +5166,43 @@ def test_ohne_die_typpruefung_bleibt_ein_falscher_erledigt_wert_still(
         probe(tmp_path, wert, False)
 
 
+
+# Code-Review #553: Das Fähnchen auch bei ungewissem Entwurf und beim Rückfall
+# auf die Datei, und die Warnung für `erledigt` ohne `antwort_auf`.
+
+@pytest.mark.parametrize("alt, probe_name, meldung", [
+    ("            # liegen und gesendet werden (ADR 0063, Nachtrag Code-Review #553).\n"
+     "            _setze_faehnchen_mit(brief, felder)\n",
+     "test_befehl_setzt_das_faehnchen_auch_bei_ungewissem_entwurf",
+     "kein Fähnchen bei ungewissem Entwurf"),
+    ("            # Ursprungsmail wie mit einem Entwurf (ADR 0063, Nachtrag).\n"
+     "            _setze_faehnchen_mit(brief, felder)\n",
+     "test_befehl_setzt_das_faehnchen_auch_beim_rueckfall_auf_die_datei",
+     "kein Fähnchen beim Rückfall auf die Datei"),
+], ids=["ungewiss", "datei"])
+def test_ohne_den_aufruf_im_zweig_bleibt_die_ursprungsmail_ohne_faehnchen(
+        befehl, monkeypatch, capsys, alt, probe_name, meldung):
+    """Sabotage an genau einer Stelle je Zweig: Der Aufruf fällt weg."""
+    import test_postfach_entwurf
+
+    probe = getattr(test_postfach_entwurf, probe_name)
+    probe(befehl, monkeypatch, capsys)                                      # Kontrolle
+    neu = alt.replace("_setze_faehnchen_mit(brief, felder)", "pass")
+    monkeypatch.setattr(falzmarke, "befehl_email", _zeile_ersetzt(
+        falzmarke, "befehl_email", alt, neu))
+    with pytest.raises(AssertionError, match=re.escape(meldung)):
+        probe(befehl, monkeypatch, capsys)
+
+
+def test_ohne_die_warnung_bleibt_erledigt_ohne_antwort_auf_still(monkeypatch, tmp_path):
+    from test_email_datenvertrag import test_erledigt_ohne_antwort_auf_warnt as probe
+
+    probe(tmp_path)                                                         # Kontrolle
+    monkeypatch.setattr(_lint, "pruefe_email_frontmatter", _zeile_ersetzt(
+        _lint, "pruefe_email_frontmatter", "        if not antwort:\n", "        if False:\n"))
+    with pytest.raises(AssertionError, match=re.escape("`erledigt` ohne `antwort_auf` blieb still")):
+        probe(tmp_path)
+
 # ── #454: Der Plugin-Ordner bleibt aus dem Skill-Paket ──────────────────────
 
 def test_ohne_ausschluss_landet_der_plugin_ordner_im_skill_paket(tmp_path):

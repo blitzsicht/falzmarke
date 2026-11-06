@@ -2078,6 +2078,7 @@ def befehl_email(args) -> int:
                       "         neuen Thread. Wer im alten bleiben muss, versendet "
                       f"stattdessen die Datei:\n         {eml_pfad}",
                       file=sys.stderr)
+            _setze_faehnchen_mit(brief, felder)
             # Als LETZTE Zeile (#305): Ein falsches Konto, das zwischen den
             # Hinweisen steht, wird überlesen — genau der Fehler, den der
             # Betreiber gemeldet hat. `flush` vorher, sonst schiebt sich
@@ -2085,7 +2086,6 @@ def befehl_email(args) -> int:
             # Nur, wo das Programm ein Konto zurückmeldet: Für Thunderbird gibt
             # es nichts zu vergleichen, und die Zeile riete, in Outlook „Von“
             # umzustellen — in einem Programm, das gar nicht offen ist.
-            _setze_faehnchen_mit(brief, felder)
             warnung = oeffnen_modul.absender_warnung(
                 felder.get("absender") or "", lage.konto, lage.suche) if lage.nachgezaehlt else None
             if warnung:
@@ -2118,6 +2118,9 @@ def befehl_email(args) -> int:
                   "         damit kein zweites Fenster aufgeht. Die geprüfte "
                   f"Nachricht liegt hier:\n         {eml_pfad}",
                   file=sys.stderr)
+            # Ungewiss heißt: Ein Entwurf mit `In-Reply-To` kann im Postfach
+            # liegen und gesendet werden (ADR 0063, Nachtrag Code-Review #553).
+            _setze_faehnchen_mit(brief, felder)
             # Auch der ungewisse Lauf steht im Buch (#411) — ohne UID, mit Vermerk.
             # Scheitert das, weiß `status` später nicht einmal, dass es diesen Lauf gab.
             if lage.buch_grund:
@@ -2152,6 +2155,9 @@ def befehl_email(args) -> int:
             # weil seit #287 kein Entwurfsfenster offen sein kann, wenn wir
             # hier ankommen.
             print(f"HINWEIS  kein Entwurf: {lage.grund}", file=sys.stderr)
+            # Die Datei trägt `In-Reply-To`; wer sie versendet, beantwortet die
+            # Ursprungsmail wie mit einem Entwurf (ADR 0063, Nachtrag).
+            _setze_faehnchen_mit(brief, felder)
             grund_datei = oeffnen_modul.oeffne(eml_pfad)
             if grund_datei:
                 print(f"HINWEIS  nicht geöffnet: {grund_datei}\n"

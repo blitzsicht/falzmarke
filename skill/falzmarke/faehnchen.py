@@ -161,7 +161,7 @@ def zeile(ergebnis: Faehnchen, adresse: str) -> str:
         # Nachgesehen wird nicht: Ein früherer Entwurf ohne `erledigt` kann das
         # Fähnchen schon gesetzt haben, und entfernt wird es nie (Nachreview #553).
         return ("HINWEIS  erledigt: ja — kein Fähnchen gesetzt. Ohne Fähnchen legt "
-                "`aufraeumen` die Ursprungsmail ab, sobald die Antwort gesendet ist;\n"
-                "         ein früher gesetztes bleibt stehen, bis du es entfernst")
+                "`aufraeumen` die Ursprungsmail ab, sobald eine Antwort mit `In-Reply-To`\n"
+                "         gesendet ist; ein früher gesetztes bleibt stehen, bis du es entfernst")
     return (f"HINWEIS  Fähnchen nicht gesetzt: {ergebnis.grund}\n"
             "         Soll die Mail im Eingang bleiben, das Fähnchen von Hand setzen.")
