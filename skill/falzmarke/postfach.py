@@ -142,6 +142,27 @@ def utf7_dekodieren(name: str) -> str:
     return _UTF7.sub(ersetze, name)
 
 
+def utf7_anzeige(name: str) -> str:
+    """Ein Ordnername, wie der Server ihn führt, in Klartext — nur für die Anzeige.
+
+    Der Server schreibt modified UTF-7 (RFC 3501, 5.1.3), was gültig dekodiert,
+    ist so gemeint. Ein nicht konformer Server liefert aber auch
+    „AT&T-Rechnungen“ wörtlich; daran wirft `utf7_dekodieren` (`binascii.Error`,
+    ein `ValueError`). Dann steht der Name da, wie er kam, statt den Lauf mit
+    einem Traceback zu beenden. Betroffen ist nur die Anzeige, ausgeführt wird
+    weiter mit dem Servernamen selbst (Nachreview von #535, Befund 1).
+
+    Außer hier ruft kein Modul `utf7_dekodieren`; das hält
+    `test_nur_utf7_anzeige_dekodiert_ordnernamen` fest. Auch der Text zu
+    `_befehl` gehört dazu: Er wird gebaut, bevor der Befehl läuft, und ein
+    Fehler darin brach EXAMINE und APPEND ab, die der Server ausgeführt hätte.
+    """
+    try:
+        return utf7_dekodieren(name)
+    except ValueError:
+        return name
+
+
 def utf7_kodieren(name: str) -> str:
     """Klartext in modified UTF-7: `Entwürfe` → `Entw&APw-rfe`, `&` → `&-`.
 
@@ -523,7 +544,7 @@ class Postfach:
 
     def _waehle(self, ordner: str) -> None:
         """`EXAMINE` — nur lesend. Ein `SELECT` gibt es in diesem Modul nicht."""
-        self._befehl(f"Ordner „{utf7_dekodieren(ordner)}“ nicht lesbar",
+        self._befehl(f"Ordner „{utf7_anzeige(ordner)}“ nicht lesbar",
                      self._v.select, _zitiert(ordner), readonly=True)
         self.uidvalidity.setdefault(ordner, self._lies_uidvalidity())
 
@@ -654,7 +675,7 @@ class Postfach:
 
     def ablegen(self, ordner: str, roh: bytes) -> None:
         """Legt die Bytes als gelesenen Entwurf in den Ordner. Der einzige schreibende Befehl."""
-        self._befehl(f"APPEND in „{utf7_dekodieren(ordner)}“", self._v.append,
+        self._befehl(f"APPEND in „{utf7_anzeige(ordner)}“", self._v.append,
                      _zitiert(ordner), "(\\Draft \\Seen)",
                      imaplib.Time2Internaldate(time.time()), roh)
 
