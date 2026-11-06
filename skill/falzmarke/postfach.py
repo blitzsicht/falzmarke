@@ -44,18 +44,22 @@ from email.utils import getaddresses, parsedate_to_datetime
 from typing import NamedTuple
 from urllib.parse import unquote, urlsplit
 
+from falzmarke.imap_frist import ImapMitFrist
+
 #: Die Klasse, die verbindet. Eine Modulkonstante, damit die Tests sie durch
 #: die Attrappe ersetzen können — und `conftest.py` sie für alle anderen
-#: Tests durch eine, die jede Verbindung ablehnt.
-IMAP_KLASSE = imaplib.IMAP4
+#: Tests durch eine, die jede Verbindung ablehnt. `ImapMitFrist` hält die Frist
+#: über die ganze Sitzung, nicht je Empfang (Review von #570).
+IMAP_KLASSE = ImapMitFrist
 
 ZIEL_VORGABE = "127.0.0.1:1993"
 
-#: Zeitlimit der Gesendet-Prüfung, für die ganze Sitzung — nicht je Befehl.
-#: Ein hängender Proxy darf `--oeffnen` nicht länger aufhalten als das. Bis
-#: #441 waren es 5 s. Anmeldung und LIST am Proxy dauerten am 30.10.2026
-#: einmal 20,6 s, einmal 18,1 s und einmal 3,6 s, und die Prüfung endete oft
-#: in „GESENDET NICHT GEPRÜFT“, obwohl der Proxy gesund war.
+#: Zeitlimit der Gesendet-Prüfung, für die ganze Sitzung samt Verbindungsaufbau
+#: und Abmelden — nicht je Befehl (`ImapMitFrist`). Bis #441 waren es 5 s.
+#: Anmeldung und LIST am Proxy dauerten am 30.10.2026 einmal 20,6 s, einmal
+#: 18,1 s und einmal 3,6 s, und die Prüfung endete oft in „GESENDET NICHT
+#: GEPRÜFT“, obwohl der Proxy gesund war. Eine Sitzung, nicht `--oeffnen`: Dort
+#: laufen bis zu drei nacheinander, siehe ADR 0051, Nachtrag vom 06.11.2026.
 FRIST_S = 30
 
 #: Der Proxy nimmt jedes Kennwort; sein Kennwort ist das OAuth-Token. Derselbe
@@ -708,8 +712,12 @@ def verbinde(adresse: str, *, umgebung: Mapping[str, str] | None = None,
              frist: float = FRIST_S) -> Postfach:
     """Meldet sich als `adresse` am Proxy an — oder wirft `PostfachFehler` mit Grund.
 
-    Die Frist gilt für die ganze Sitzung: Verbindungsaufbau, Anmeldung und
-    jeder Befehl danach ziehen von derselben Zeit ab.
+    Die Frist gilt für die ganze Sitzung: Verbindungsaufbau, Begrüßung,
+    Anmeldung, jeder Befehl danach und das Abmelden ziehen von derselben Zeit
+    ab. Das hält `ImapMitFrist` am Socket fest. `Postfach._rest` bricht
+    zusätzlich vor einem Befehl ab, dessen Zeit schon um ist; seine Uhr beginnt
+    erst nach dem Aufbau, ist also nie die strengere. Eine Sitzung, nicht ein
+    Befehl wie `email --oeffnen`, der bis zu drei nacheinander öffnet.
 
     Der Anmeldename geht durch `_zitiert`, vor dem Verbindungsaufbau.
     `imaplib.login` zitiert nur das Kennwort, den Namen setzt es roh in den

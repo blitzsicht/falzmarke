@@ -25,6 +25,7 @@ from conftest import PROFILE, REPO
 from sabotage import zeile_ersetzt as _zeile_ersetzt
 from test_postfach_entwurf import oeffne_befehl                 # noqa: F401 — Fixture, siehe #481
 from test_postfach_entwurf import befehl                        # noqa: F401 — Fixture, #549
+from test_postfach_frist import schein                         # noqa: F401 — Fixture, Review #570
 
 BEISPIEL = REPO / "examples" / "brief-form-b.md"
 
@@ -2622,6 +2623,60 @@ def test_in_der_schleife_gezaehlt_fehlt_die_fremde_hinter_dem_treffer(tmp_path, 
         "                continue\n"))
     befund = _pruefe(eml_pfad, thunderbird_ordner=ordner)
     assert (befund.zustand, befund.fremde) == ("gesendet", 0)
+
+
+# ── Die Frist gilt für die ganze Sitzung (Review von #570, ADR 0051) ───────
+
+@pytest.mark.parametrize("verhalten", ["troepfelt", "langsam"])
+def test_ohne_frist_am_socket_haelt_ein_haengender_server_die_sitzung(schein, monkeypatch,
+                                                                      verhalten):
+    """Der alte Stand genau nachgebaut: `imaplib` baut seinen Socket selbst, ohne
+    Hülle. Dann zählt das Zeitlimit wieder je Empfang, und die Sitzung läuft über
+    die Frist. Die Kontrolle davor zeigt dieselbe Probe mit Hülle unter der Frist."""
+    import imaplib
+
+    from falzmarke import imap_frist
+    from test_postfach_frist import FRIST, SPIEL, _dauer
+
+    dauer, _ = _dauer(schein(verhalten), mit_list=False)
+    assert dauer < FRIST + SPIEL, f"Kontrolle: {dauer:.2f} s"
+    monkeypatch.setattr(imap_frist.ImapMitFrist, "_create_socket",
+                        imaplib.IMAP4._create_socket)
+    dauer, _ = _dauer(schein(verhalten), mit_list=False)
+    assert dauer >= FRIST + SPIEL, f"{verhalten} ohne Hülle: {dauer:.2f} s, die Probe trennt nicht"
+
+
+def test_ohne_nachgestellte_restzeit_wartet_der_letzte_empfang_die_volle_frist(schein,
+                                                                              monkeypatch):
+    """Eine Zeile gekippt: Die Hülle prüft nur noch, ob die Frist um ist, und legt
+    die Restzeit nicht mehr auf den Socket. Der Gruß kommt nach 0,6 s, danach
+    wartet `CAPABILITY` wieder die volle Frist. Rot wird nur dieser Fall; die
+    übrigen enden auch so knapp über der Frist (nachgerechnet am 06.11.2026)."""
+    from falzmarke import imap_frist
+    from test_postfach_frist import FRIST, SPIEL, _dauer
+
+    dauer, _ = _dauer(schein("gruss_dann_stille"), mit_list=False)
+    assert dauer < FRIST + SPIEL, f"Kontrolle: {dauer:.2f} s"
+    monkeypatch.setattr(imap_frist._SocketMitFrist, "_restzeit", _zeile_ersetzt(
+        imap_frist, "_SocketMitFrist._restzeit", "self._sock.settimeout(rest)", "pass"))
+    dauer, _ = _dauer(schein("gruss_dann_stille"), mit_list=False)
+    assert dauer >= FRIST + SPIEL, f"ohne Restzeit: {dauer:.2f} s, die Probe trennt nicht"
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 14),
+                    reason="ab 3.14 liest imaplib über sock.recv, nicht über makefile")
+def test_ohne_eigenes_makefile_liest_imaplib_an_der_huelle_vorbei(schein, monkeypatch):
+    """Bis 3.13 liest `imaplib` über `sock.makefile`. Reicht die Hülle das an den
+    echten Socket durch, gilt dort wieder das Zeitlimit je Empfang."""
+    from falzmarke import imap_frist
+    from test_postfach_frist import FRIST, SPIEL, _dauer
+
+    dauer, _ = _dauer(schein("troepfelt"), mit_list=False)
+    assert dauer < FRIST + SPIEL, f"Kontrolle: {dauer:.2f} s"
+    monkeypatch.setattr(imap_frist._SocketMitFrist, "makefile",
+                        lambda self, mode="rb": self._sock.makefile(mode))
+    dauer, _ = _dauer(schein("troepfelt"), mit_list=False)
+    assert dauer >= FRIST + SPIEL, f"makefile vorbei: {dauer:.2f} s, die Probe trennt nicht"
 
 
 # ── Die Ablage je Konto (#431, ADR 0061) ───────────────────────────────────
