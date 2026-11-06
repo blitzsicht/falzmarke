@@ -733,7 +733,7 @@ def _yaml_skalar(text: str) -> str:
     return "'" + text.replace("'", "''") + "'"
 
 
-def _komma_abhilfe(eintrag: str, feld: str) -> str:
+def _komma_abhilfe(eintrag: str, feld: str, *, in_liste: bool = False) -> str:
     """Abhilfe für einen Adresseintrag, den `parseaddr` nicht zerlegt.
 
     Ein Komma trennt für RFC 5322 zwei Einträge (#519). Steht links davon schon
@@ -741,12 +741,21 @@ def _komma_abhilfe(eintrag: str, feld: str) -> str:
     der Liste. Quoten machte daraus einen, die erste Adresse fiele still weg
     (Review an PR #523). Sonst ist es ein Name mit Komma. Die vorgeschlagene
     Zeile steht YAML-fertig da, ein Apostroph im Namen ist verdoppelt.
+
+    Die Zeile passt zu der Stelle, an der der Eintrag steht (#544): In einer
+    Liste ersetzt sie nur diesen Eintrag. Eine Zeile `an: …` für das ganze Feld
+    hätte die übrigen Empfänger gelöscht, und `lint` hätte danach geschwiegen.
+    Ein Feld aus dem Profil (`email.absender`) heißt dort `absender:` unter
+    `email:`, nicht im Frontmatter.
     """
     from email.headerregistry import Address
     from email.utils import getaddresses
 
+    aus_profil = feld.startswith("email.")
     teile = getaddresses([eintrag])
     if len(teile) > 1 and all("@" in adresse for _, adresse in teile):
+        if aus_profil:
+            return f"zwei Adressen in einem Eintrag: `{feld}:` nimmt genau eine Adresse"
         zeilen = " und ".join(
             f"`- {_yaml_skalar(str(Address(name, *adresse.split('@', 1))))}`"
             for name, adresse in teile)
@@ -754,9 +763,13 @@ def _komma_abhilfe(eintrag: str, feld: str) -> str:
     komma = re.fullmatch(r"\s*([^\"<>@]*,[^\"<>@]*?)\s*<([^<>\s]+@[^<>\s]+)>\s*", eintrag)
     if not komma:
         return "erwartet wird `name@beispiel.de` oder `Name <name@beispiel.de>`"
-    gequotet = f'"{komma.group(1)}" <{komma.group(2)}>'
-    yaml_wert = "'" + gequotet.replace("'", "''") + "'"
-    return f"Komma im Namen: Namen in Anführungszeichen setzen, im Frontmatter `{feld}: {yaml_wert}`"
+    yaml_wert = _yaml_skalar(f'"{komma.group(1)}" <{komma.group(2)}>')
+    rat = "Komma im Namen: Namen in Anführungszeichen setzen, "
+    if in_liste:
+        return rat + f"in der Liste unter `{feld}:` nur diesen Eintrag ersetzen durch `- {yaml_wert}`"
+    if aus_profil:
+        return rat + f"im Profil unter `email:` die Zeile `{feld.split('.', 1)[1]}: {yaml_wert}`"
+    return rat + f"im Frontmatter `{feld}: {yaml_wert}`"
 
 
 def pruefe_adressfeld(wert, feld: str, kopf_roh: str, bericht: Bericht) -> None:
@@ -768,12 +781,13 @@ def pruefe_adressfeld(wert, feld: str, kopf_roh: str, bericht: Bericht) -> None:
     """
     from email.utils import parseaddr
 
+    in_liste = not isinstance(wert, str)
     for eintrag in _adressen(wert):
         _, adresse = parseaddr(eintrag)
         ort = _feldzeile(kopf_roh, feld)
         if not adresse or not EMAIL_MUSTER.match(adresse):
             bericht.fehler(ort, feld, f"„{eintrag}“ ist keine E-Mail-Adresse",
-                           _komma_abhilfe(eintrag, feld))
+                           _komma_abhilfe(eintrag, feld, in_liste=in_liste))
             continue
         grund = adresse_grund(eintrag, adresse)
         if grund:

@@ -4798,6 +4798,37 @@ def test_ohne_dekodieren_verschiebt_sich_die_grenze_von_lesbar(monkeypatch, ersa
         probe()
 
 
+def test_ohne_listenkontext_raet_lint_zur_feldzeile(monkeypatch, tmp_path):
+    """#544, AC 3: Ohne den Listenkontext kommt der alte Skalar-Rat `an: '…'`
+    zurück. Die Probe muss daran anschlagen, bevor jemand ihn übernimmt und zwei
+    Empfänger verliert."""
+    from falzmarke import lint as _lint
+    from test_adressen import test_komma_in_einer_liste_ersetzt_nur_diesen_eintrag as probe
+
+    (tmp_path / "kontrolle").mkdir()
+    probe(tmp_path / "kontrolle")                                          # Kontrolle
+    monkeypatch.setattr(_lint, "pruefe_adressfeld", _zeile_ersetzt(
+        _lint, "pruefe_adressfeld", "in_liste = not isinstance(wert, str)", "in_liste = False"))
+    (tmp_path / "sabotage").mkdir()
+    with pytest.raises(AssertionError, match=r"kein Listeneintrag im Rat: .*im Frontmatter `an: "):
+        probe(tmp_path / "sabotage")
+
+
+def test_ohne_profilkontext_nennt_der_rat_das_frontmatter(monkeypatch, tmp_path):
+    """#544, AC 2: Kippt die Unterscheidung nach Profil, nennt der Rat für
+    `email.absender` wieder das Frontmatter."""
+    from falzmarke import lint as _lint
+    from test_adressen import test_komma_im_absender_nennt_das_profil as probe
+
+    (tmp_path / "kontrolle").mkdir()
+    probe(tmp_path / "kontrolle")                                          # Kontrolle
+    monkeypatch.setattr(_lint, "_komma_abhilfe", _zeile_ersetzt(
+        _lint, "_komma_abhilfe", 'aus_profil = feld.startswith("email.")', "aus_profil = False"))
+    (tmp_path / "sabotage").mkdir()
+    with pytest.raises(AssertionError, match="Frontmatter"):
+        probe(tmp_path / "sabotage")
+
+
 def test_ohne_den_gefundenen_ordner_raet_die_anzeige_je_zug(monkeypatch):
     """Nachreview von #527, Befund 3: der Stand von #527, Wort für Wort."""
     from falzmarke import ablage as _ablage

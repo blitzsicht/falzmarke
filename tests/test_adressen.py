@@ -281,6 +281,82 @@ def test_apostroph_im_namen_hinweis_ist_gueltiges_yaml(tmp_path):
     assert not [b for b in nach.befunde if b.regel == "an"], nach.befunde
 
 
+# ── Folge aus dem Review an PR #528 (#544) ───────────────────────────────────
+# Der Rat kannte nur den Feldnamen. Stand der Eintrag in einer Liste, empfahl
+# er `an: '…'` für das ganze Feld: Wer das übernahm, verlor die übrigen
+# Empfänger, und `lint` meldete danach nichts mehr. Für `email.absender` nannte
+# er das Frontmatter, obwohl das Feld im Profil steht.
+
+LISTE_MIT_KOMMA = "an:\n  - x@example.de\n  - 'Muster, Max <c@example.org>'\n  - z@example.de\n"
+
+
+def _linte_kopf(tmp_path, kopf: str, profile=PROFILE):
+    pfad = tmp_path / "mail.md"
+    pfad.write_text(f"---\n{KOPF}{kopf}---\nText.\n", encoding="utf-8")
+    return falzmarke.linte(pfad, profil_verzeichnis=profile)
+
+
+def test_komma_in_einer_liste_ersetzt_nur_diesen_eintrag(tmp_path):
+    import yaml
+    bericht = _linte_kopf(tmp_path, LISTE_MIT_KOMMA)
+    befunde = [b for b in bericht.befunde if b.regel == "an"]
+    assert len(befunde) == 1, befunde
+    korrektur = befunde[0].korrektur
+    zeile = re.search(r"`(- [^`]+)`$", korrektur)
+    assert zeile, f"kein Listeneintrag im Rat: {korrektur}"
+    # Den Rat so übernehmen, wie er dasteht: nur der fehlerhafte Eintrag wird ersetzt.
+    kopf = LISTE_MIT_KOMMA.replace("- 'Muster, Max <c@example.org>'", zeile.group(1))
+    assert yaml.safe_load(kopf)["an"] == [
+        "x@example.de", '"Muster, Max" <c@example.org>', "z@example.de"]
+    nach = _linte_kopf(tmp_path, kopf)
+    assert not [b for b in nach.befunde if b.regel == "an"], nach.befunde
+
+
+def test_gegenprobe_ein_einzelner_wert_behaelt_die_feldzeile(tmp_path):
+    """Steht das Feld als Skalar da, bleibt der Rat `an: '…'`: Dort geht nichts verloren."""
+    bericht = linte_an(tmp_path, KOMMA)
+    korrektur = [b for b in bericht.befunde if b.regel == "an"][0].korrektur
+    assert "im Frontmatter `an: '\"Muster, Max\" <max@example.org>'`" in korrektur
+    assert "`- " not in korrektur
+
+
+def _profile_mit_absender(tmp_path, absender: str):
+    import shutil
+    ziel = tmp_path / "profiles"
+    shutil.copytree(PROFILE, ziel)
+    datei = ziel / "example.yaml"
+    alt = "  absender: muster@example.de\n"
+    text = datei.read_text(encoding="utf-8")
+    assert text.count(alt) == 1, "example.yaml hat die Zeile `absender:` unter `email:` nicht mehr"
+    datei.write_text(text.replace(alt, f"  absender: {absender}\n"), encoding="utf-8")
+    return ziel, datei, alt
+
+
+def test_komma_im_absender_nennt_das_profil(tmp_path):
+    profile, datei, _ = _profile_mit_absender(tmp_path, "'Muster, Max <muster@example.de>'")
+    bericht = _linte_kopf(tmp_path, "an: x@example.de\n", profile)
+    befunde = [b for b in bericht.befunde if b.regel == "email.absender"]
+    assert len(befunde) == 1, bericht.befunde
+    korrektur = befunde[0].korrektur
+    assert "Frontmatter" not in korrektur
+    zeile = re.search(r"im Profil unter `email:` die Zeile `(absender: [^`]+)`$", korrektur)
+    assert zeile, korrektur
+    # Die vorgeschlagene Zeile im Profil eingesetzt, lintet sauber.
+    text = datei.read_text(encoding="utf-8")
+    datei.write_text(text.replace("  absender: 'Muster, Max <muster@example.de>'\n",
+                                  f"  {zeile.group(1)}\n"), encoding="utf-8")
+    nach = _linte_kopf(tmp_path, "an: x@example.de\n", profile)
+    assert not [b for b in nach.befunde if b.regel == "email.absender"], nach.befunde
+
+
+def test_zwei_adressen_im_absender_raten_nicht_zur_liste(tmp_path):
+    profile, _, _ = _profile_mit_absender(tmp_path, "'a@example.de, b@example.de'")
+    bericht = _linte_kopf(tmp_path, "an: x@example.de\n", profile)
+    korrektur = [b for b in bericht.befunde if b.regel == "email.absender"][0].korrektur
+    assert "genau eine Adresse" in korrektur
+    assert "Liste" not in korrektur
+
+
 @pytest.mark.parametrize("eintrag, teil", [
     (ZWEI, "zwei Adressen"),
     ("Muster", "keine E-Mail-Adresse"),
