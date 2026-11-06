@@ -94,7 +94,7 @@ Ergänzungen berührt eine der Zahlen darunter: Die Regeln der Urkunde und die b
 Netzadress-Prüfungen berufen sich auf keine Quelle, also kann auch keine zu ihr schweigen; die
 Zeichenprüfung nennt zwei Unicode-Quellen, und zu beiden ist nachgelesen worden — sie stehen mit
 Wortlaut in `belegt_durch` und zählen deshalb weder als schweigend noch als ungeprüft; die
-Prüfung des Ablageordners beruft sich auf keine Quelle. Die Zahlen kommen aus
+Prüfung des Ablageordners beruft sich auf keine Quelle, ebenso wenig die von `erledigt`. Die Zahlen kommen aus
 der Regeldatei; `tests/test_textkanon.py` zählt sie bei jedem Lauf nach und wird rot, sobald
 dieser Abschnitt ihnen nicht mehr folgt.
 
@@ -104,7 +104,7 @@ Regel **nachweislich schweigen**: Sie zählen nicht mehr mit.
 
 | | |
 |---|---|
-| 146 | Regeln insgesamt — sechzehn davon seit dem 07.10.2026 für die Urkunde ([ADR 0048](entscheidungen/0048-urkunde-ein-schriftstueck-ohne-anschriftfeld.md)), alle `herkunft: werkzeug`; eine seit dem 17.10.2026 für getrennte Netzadressen, ebenso `werkzeug`; zwei seit dem 25.10.2026 für die Zeichenprüfung ([ADR 0052](entscheidungen/0052-unsichtbare-zeichen-melden-nicht-aendern.md)) und drei vom selben Tag für den Schreibstil im Profil ([ADR 0053](entscheidungen/0053-email-stil-im-profil.md)), auch sie `werkzeug`; eine seit dem 28.10.2026 für den Ablageordner ([ADR 0061](entscheidungen/0061-ablage-je-konto.md)), ebenfalls `werkzeug` |
+| 147 | Regeln insgesamt — sechzehn davon seit dem 07.10.2026 für die Urkunde ([ADR 0048](entscheidungen/0048-urkunde-ein-schriftstueck-ohne-anschriftfeld.md)), alle `herkunft: werkzeug`; eine seit dem 17.10.2026 für getrennte Netzadressen, ebenso `werkzeug`; zwei seit dem 25.10.2026 für die Zeichenprüfung ([ADR 0052](entscheidungen/0052-unsichtbare-zeichen-melden-nicht-aendern.md)) und drei vom selben Tag für den Schreibstil im Profil ([ADR 0053](entscheidungen/0053-email-stil-im-profil.md)), auch sie `werkzeug`; eine seit dem 28.10.2026 für den Ablageordner ([ADR 0061](entscheidungen/0061-ablage-je-konto.md)), ebenfalls `werkzeug`; eine seit dem 06.11.2026 für `erledigt` im Antwortentwurf ([ADR 0063](entscheidungen/0063-faehnchen-beim-antwortentwurf.md)), ebenso `werkzeug` |
 | 16 | Quelle-Regel-Paare, bei denen die Quelle **nachweislich schweigt** — zehn davon `onlineprinters` ([Befund](quellenpruefung-onlineprinters-2026-08-27.md)), seit dem 22.09.2026 dazu die Zeichnung `massskizze_b` bei `text.vermerke_max_3`, seit dem 25.09.2026 fünf weitere aus der Nachlese zu den Marken und zur Höhe des Informationsblocks |
 | 7 | der betroffenen Regeln führen jetzt `herkunft: werkzeug` — eine Setzgewohnheit des Werkzeugs, keine Aussage der Norm |
 | 4 | stehen auf `einzeln belegt`. Drei fielen dorthin von Fehler herab: `schreibweise.datum`, `schreibweise.abkuerzungen`, `text.vermerke_max_3` — ihre zweite volle Quelle schwieg, es bleibt eine. Der Typografie-Pass meldet Datum und Abkürzungen seither nur noch, er ersetzt sie nicht mehr. Die vierte, `text.anschrift_ohne_leerzeilen`, ist umgekehrt **gestiegen** — von `werkzeug`, am 22.09.2026 mit [#344](https://github.com/blitzsicht/falzmarke/issues/344) |

@@ -50,3 +50,4 @@ gelesen wird und die niemand nachpflegt.
 | [0060](0060-anker-der-zuordnung.md) | Der Anker der Zuordnung hat zwei Wege und nennt seinen | 28.10.2026 |
 | [0061](0061-ablage-je-konto.md) | Die Ablage je Konto: `In-Reply-To` sagt, was erledigt ist | 28.10.2026 |
 | [0062](0062-ueberholte-entwuerfe-wegraeumen.md) | Überholte Entwürfe gehen von selbst in den Papierkorb | 02.11.2026 |
+| [0063](0063-faehnchen-beim-antwortentwurf.md) | Ein Antwortentwurf setzt das Fähnchen an der Ursprungsmail | 06.11.2026 |

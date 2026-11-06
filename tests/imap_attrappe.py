@@ -17,6 +17,11 @@ das eine beantwortete Nachricht aus dem Eingang legt, und für
 die Attrappe beides weiter, und `test_postfach.py` prüft genau das: Sonst wäre
 die Erweiterung hier eine Hintertür für jeden anderen Test.
 
+**Eine zweite, ebenso einzeln:** `markieren_erlaubt=True` öffnet `SELECT` ohne
+`readonly` und genau `UID STORE <uid> +FLAGS (\\Flagged)` — für
+`falzmarke.faehnchen` (#549). Jede andere Form von `STORE` wirft auch dann:
+anderes Flag, `-FLAGS`, `FLAGS` ohne Vorzeichen, mehrere UIDs.
+
 **Sie ist an drei Stellen strenger als ein bequemer Nachbau** (#438, #442), und
 alle sind gemessen, nicht vorsorglich: Kopfzeilen werden vor dem Vergleich
 entfaltet, weil ein Server den ganzen Feldwert sucht und nicht dessen erste Zeile;
@@ -122,7 +127,10 @@ class ImapAttrappe:
                  faehigkeiten: tuple[str, ...] = ("IMAP4REV1", "UIDPLUS", "MOVE"),
                  flags_hinten: bool = False, ohne_flags: bool = False,
                  uid_hinten: bool | str = False, uidvalidity: str | None = "1",
-                 uidvalidity_select: str | None = None):
+                 uidvalidity_select: str | None = None,
+                 markieren_erlaubt: bool = False,
+                 store_fehler: str | None = None,
+                 store_wirkt: bool = True):
         self.ordner: dict[str, list[Eintrag]] = {}
         self._naechste_uid = 100
         for name, nachrichten in (ordner or {}).items():
@@ -140,6 +148,13 @@ class ImapAttrappe:
         self.append_wirkt = append_wirkt
         self.append_fehler = append_fehler
         self.verschieben_erlaubt = verschieben_erlaubt
+        #: `UID STORE +FLAGS (\\Flagged)` an einer UID — und nichts sonst (#549).
+        self.markieren_erlaubt = markieren_erlaubt
+        #: Antwortet auf das STORE mit `NO` und diesem Text.
+        self.store_fehler = store_fehler
+        #: `False`: Das STORE wird mit `OK` beantwortet, ändert aber nichts —
+        #: der Server, dem man nicht glauben darf.
+        self.store_wirkt = store_wirkt
         #: Wie `imaplib.IMAP4.capabilities` — `falzmarke.ablage` liest daraus,
         #: ob der Server `MOVE` kennt, statt es anzunehmen.
         self.capabilities = tuple(faehigkeiten)
@@ -212,7 +227,7 @@ class ImapAttrappe:
         self._pruefe(mailbox)
         name = self._name(mailbox)
         self.protokoll.append(("EXAMINE" if readonly else "SELECT", name))
-        if not readonly and not self.verschieben_erlaubt:
+        if not readonly and not (self.verschieben_erlaubt or self.markieren_erlaubt):
             raise AssertionError(f"SELECT ohne readonly auf {name} — das Postfach wird nur gelesen")
         # Wie `imaplib`: Jedes SELECT/EXAMINE verwirft die alten Antwortcodes.
         self._antwortcodes = {}
@@ -299,6 +314,19 @@ class ImapAttrappe:
             self.ordner[self.ausgewaehlt] = [n for n in nachrichten if n.uid not in uids]
             self.ordner[ziel].extend(bewegt)
             return "OK", [f"[COPYUID 1 {menge} {menge}] MOVE completed.".encode()]
+        if befehl == "STORE":
+            if not self.markieren_erlaubt:
+                raise AssertionError("UID STORE ändert Flags — verboten")
+            menge, art, flags = args
+            if not str(menge).isdigit() or art != "+FLAGS" or flags != "(\\Flagged)":
+                raise AssertionError(f"UID STORE nur als `<uid> +FLAGS (\\Flagged)`: {args}")
+            if self.store_fehler is not None:
+                return "NO", [self.store_fehler.encode()]
+            for n in nachrichten:
+                if n.uid == int(menge) and self.store_wirkt:
+                    if "\\flagged" not in n.flags.lower().split():
+                        n.flags = " ".join(f for f in (n.flags, "\\Flagged") if f)
+            return "OK", [b"STORE completed."]
         raise AssertionError(f"UID {befehl} ist hier nicht vorgesehen")
 
     def append(self, mailbox, flags, date_time, message):

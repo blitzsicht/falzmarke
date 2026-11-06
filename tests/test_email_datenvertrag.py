@@ -476,6 +476,9 @@ def _loese_aus(regel: str, tmp_path):
         return linte(tmp_path, MAIL, "Ich hoffe, es geht Ihnen gut.\n\nAnbei das Angebot.\n")
     if regel == "email.versalien":
         return linte(tmp_path, MAIL, "Das ist WIRKLICH dringend.\n")
+    if regel == "erledigt":
+        # Ohne `antwort_auf` gibt es keine Ursprungsmail für das Fähnchen (#549).
+        return linte(tmp_path, MAIL + "erledigt: ja\n")
     if regel == "antwort_auf":
         # Message-IDs stehen nach RFC 5322 in spitzen Klammern.
         return linte(tmp_path, MAIL + "antwort_auf: ohne-spitze-klammern@example.de\n")

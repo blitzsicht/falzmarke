@@ -293,6 +293,94 @@ def test_befehl_ohne_proxy_sagt_warum_compose(befehl, monkeypatch, capsys):
     assert len(befehl.tb.compose) == 1
 
 
+# ── Das Fähnchen an der Ursprungsmail (#549) ────────────────────────────────
+
+def _mit_ursprung(monkeypatch, entwuerfe=(), *, flags="\\Seen", **k) -> ImapAttrappe:
+    """Entwürfe-Ordner wie `_server`, dazu der Eingang mit der beantworteten Mail
+    (UID 101) und einer fremden daneben (UID 102)."""
+    zeit = datetime(2026, 11, 5, 8, 0, tzinfo=timezone.utc)
+    attrappe = ImapAttrappe({
+        "INBOX": [(nachricht(kennung="<vorher@example.org>", betreff="Sommerfest",
+                             von="paula@example.org", an=ABSENDER), zeit, flags),
+                  (nachricht(kennung="<fremd@example.org>", betreff="Anderes",
+                             von="paula@example.org", an=ABSENDER), zeit, "")],
+        "Entw&APw-rfe": list(entwuerfe)}, markieren_erlaubt=True, **k)
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", attrappe)
+    return attrappe
+
+
+def test_befehl_setzt_das_faehnchen_an_der_beantworteten_mail(befehl, monkeypatch, capsys):
+    server = _mit_ursprung(monkeypatch)
+    assert befehl() == 0
+    ausgabe = capsys.readouterr()
+    stores = server.befehle("UID STORE")
+    assert stores, "kein Fähnchen gesetzt, obwohl `erledigt` fehlt"
+    assert stores == [("UID STORE", "101", "+FLAGS", "(\\Flagged)")], \
+        f"falsches STORE: {stores}"
+    assert [n.flags for n in server.ordner["INBOX"]] == ["\\Seen \\Flagged", ""], \
+        f"falsche Mail markiert: {[n.flags for n in server.ordner['INBOX']]}"
+    assert f"OK  Fähnchen gesetzt an „Sommerfest“ im Eingang von {ABSENDER}" in ausgabe.out
+    assert len(server.befehle("APPEND")) == 1, "der Entwurf selbst fehlt"
+
+
+def test_befehl_mit_erledigt_setzt_kein_faehnchen(befehl, monkeypatch, capsys, tmp_path):
+    (tmp_path / "antwort.md").write_text(
+        MAIL.replace("anrede:", "erledigt: ja\nanrede:", 1), encoding="utf-8")
+    server = _mit_ursprung(monkeypatch)
+    assert befehl() == 0
+    ausgabe = capsys.readouterr()
+    assert server.befehle("UID STORE") == [] and server.befehle("SELECT") == [], \
+        "Fähnchen trotz `erledigt: ja`"
+    assert [n.flags for n in server.ordner["INBOX"]] == ["\\Seen", ""]
+    assert "HINWEIS  erledigt: ja — kein Fähnchen gesetzt" in ausgabe.err
+
+
+def test_befehl_setzt_das_faehnchen_auch_bei_liegendem_entwurf(befehl, monkeypatch, capsys):
+    server = _mit_ursprung(monkeypatch, [_vorhanden()])
+    assert befehl() == 0
+    assert "ENTWURF LIEGT SCHON" in capsys.readouterr().err
+    assert server.befehle("UID STORE") == [("UID STORE", "101", "+FLAGS", "(\\Flagged)")]
+
+
+def test_befehl_laesst_ein_stehendes_faehnchen_stehen(befehl, monkeypatch, capsys):
+    server = _mit_ursprung(monkeypatch, flags="\\Flagged")
+    assert befehl() == 0
+    assert "OK  Fähnchen stand schon an „Sommerfest“" in capsys.readouterr().out
+    assert server.befehle("UID STORE") == []
+
+
+def test_befehl_ein_fehler_beim_faehnchen_aendert_den_exit_code_nicht(befehl, monkeypatch, capsys):
+    server = _mit_ursprung(monkeypatch, store_fehler="NO permission")
+    assert befehl() == 0
+    ausgabe = capsys.readouterr()
+    assert "HINWEIS  Fähnchen nicht gesetzt:" in ausgabe.err and "permission" in ausgabe.err
+    assert len(server.befehle("APPEND")) == 1
+
+
+def test_befehl_ohne_proxy_nennt_das_fehlende_faehnchen(befehl, monkeypatch, capsys):
+    """Kein Postfach: Der Entwurf geht als Fenster auf, das Fähnchen kann nicht
+    gesetzt werden, und das steht da — der Mensch setzt es dann von Hand."""
+    monkeypatch.setattr(postfach, "IMAP_KLASSE",
+                        ImapAttrappe(verbindungsfehler=ConnectionRefusedError(61, "refused")))
+    assert befehl() == 0
+    ausgabe = capsys.readouterr()
+    assert "OK  Entwurf angelegt: Thunderbird" in ausgabe.out
+    assert "HINWEIS  Fähnchen nicht gesetzt: kein IMAP-Proxy" in ausgabe.err
+
+
+def test_befehl_ohne_antwort_auf_fragt_nach_keinem_faehnchen(befehl, monkeypatch, capsys,
+                                                            tmp_path):
+    (tmp_path / "antwort.md").write_text(
+        MAIL.replace('antwort_auf: "<vorher@example.org>"\n', ""), encoding="utf-8")
+    server = _mit_ursprung(monkeypatch)
+    assert befehl() == 0
+    ausgabe = capsys.readouterr()
+    assert "Fähnchen" not in ausgabe.out + ausgabe.err
+    assert server.befehle("UID STORE") == []
+    assert ("UID SEARCH", "HEADER", "Message-ID", '"<vorher@example.org>"') \
+        not in server.protokoll
+
+
 # ── --kein-fenster ohne Postfach (#441) ─────────────────────────────────────
 #
 # Der Abholer in siluri-angebote ruft alle 180 s kopflos auf. Fällt der Proxy

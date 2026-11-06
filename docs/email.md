@@ -129,6 +129,25 @@ Legt auf macOS einen **Entwurf** im Mailprogramm an — Absender, Empfänger, Ko
 **Blindkopie**, Betreff, den HTML-Rumpf und alle Anhänge. Mit Senden-Knopf; gedrückt wird er von
 einem Menschen (#263).
 
+**Eine Antwort setzt das Fähnchen an der Ursprungsmail** (#549,
+[ADR 0063](entscheidungen/0063-faehnchen-beim-antwortentwurf.md)). Trägt die Nachricht
+`antwort_auf:`, setzt `--oeffnen` nach dem Entwurf `\Flagged` an genau der Mail im Eingang des
+Absenderkontos, deren `Message-ID` dort steht. `aufraeumen` lässt sie dann liegen, auch wenn die
+Antwort gesendet ist. Wer mit der Antwort abschließt, schreibt `erledigt: ja` ins Frontmatter: Dann
+wird nichts gesetzt, und die Mail wird abgelegt, sobald die Antwort hinaus ist.
+
+| Zeile | heißt |
+|---|---|
+| `OK  Fähnchen gesetzt an „…“` | gesetzt und am Server nachgelesen |
+| `OK  Fähnchen stand schon an „…“` | war schon da, unverändert |
+| `HINWEIS  erledigt: ja — kein Fähnchen gesetzt` | gewollt, nichts geändert |
+| `HINWEIS  Fähnchen nicht gesetzt: <Grund>` | nicht im Eingang, mehrdeutig, Postfach nicht erreichbar … — von Hand setzen, wenn die Mail bleiben soll |
+
+Nur dieses eine Flag, nur hinzufügen, an einer Mail. Entfernt wird es nie. Liegt die Ursprungsmail
+nicht im Eingang oder tragen mehrere dieselbe `Message-ID`, wird nichts geändert. Ein Fehler beim
+Setzen hält den Entwurf nicht an und ändert den Exit-Code nicht. Eine Antwort, die direkt in
+Thunderbird geschrieben wird, bekommt kein Fähnchen; dort bleibt es Handarbeit.
+
 **Welches Programm.** Seit dem 13.10.2026 ist es **Thunderbird**, wenn es installiert ist
 ([ADR 0049](entscheidungen/0049-entwurf-in-thunderbird.md)). Der Entwurf entsteht über dessen
 Befehlszeile (`-compose`), und `from=` wählt dort die Identität — der Absender stimmt. Outlook
@@ -420,7 +439,8 @@ zurück angesehen werden (Vorgabe 30 Tage).
 **Das Fähnchen hält eine Mail im Eingang.** Eine Mail mit `\Flagged` wartet auf etwas, auch wenn
 sie beantwortet ist. Sie bleibt liegen, und die Ausgabe nennt sie mit „liegt, Fähnchen“. Nennt der
 Server keine Flags, bleibt sie ebenfalls. `--trotz-faehnchen` legt sie für diesen einen Lauf
-trotzdem ab.
+trotzdem ab. Eine mit falzmarke entworfene Antwort setzt das Fähnchen selbst, außer sie trägt
+`erledigt: ja` (#549, siehe `--oeffnen`).
 
 **Erledigt ohne Antwort: `--uid`.** Eine Abschlussmail, die keine Antwort braucht, legt man über
 ihre UID aus der Liste ab:

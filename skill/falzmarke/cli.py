@@ -1840,6 +1840,37 @@ def _raeume_entwuerfe_mit(adresse: str, *, kein_fenster: bool = False,
         print(zeile, file=sys.stdout if zeile.startswith("OK") else sys.stderr)
 
 
+def _setze_faehnchen_mit(brief: Path, felder: dict) -> None:
+    """Das Fähnchen an der Ursprungsmail eines Antwortentwurfs (#549, ADR 0063).
+
+    Ändert nie den Exit-Code: Der Entwurf steht schon. Ohne `antwort_auf` ist es
+    keine Antwort, und es gibt nichts zu sagen. `erledigt` kommt aus dem
+    Frontmatter der Nachricht selbst, nicht aus einem `brief:`, den sie
+    mitnimmt: Ob diese Antwort abschließt, sagt nur sie. Der Bezug kommt aus der
+    `.eml` (`entwurfsfelder`), wie für den Entwurf auch.
+    """
+    antwort_auf = str(felder.get("antwort_auf") or "").strip()
+    if not antwort_auf:
+        return
+    # Erst hier: Die MCP-Dienste laden `cli`, und der Lesepfad soll das Modul
+    # mit dem ändernden Befehl nicht mitnehmen.
+    from falzmarke import faehnchen
+
+    adresse = str(felder.get("absender") or "")
+    try:
+        kopf, _, _ = lies_brief(brief)
+        ergebnis = faehnchen.setze(adresse, antwort_auf,
+                                   erledigt=faehnchen.ist_erledigt(kopf.get("erledigt")))
+    except Exception as fehler:  # noqa: BLE001 — der Entwurf steht, nichts darf abbrechen
+        ergebnis = faehnchen.Faehnchen("nicht_gesetzt", f"{type(fehler).__name__}: {fehler}")
+    zeile = faehnchen.zeile(ergebnis, adresse)
+    if zeile.startswith("OK"):
+        print(zeile)
+    else:
+        sys.stdout.flush()
+        print(zeile, file=sys.stderr)
+
+
 def befehl_email(args) -> int:
     from falzmarke import pruefung_eml
 
@@ -1981,6 +2012,7 @@ def befehl_email(args) -> int:
             elif ablage.bezug is False and felder.get("antwort_auf"):
                 print("HINWEIS  Im abgelegten Entwurf fehlt In-Reply-To — die Mail beginnt "
                       "einen neuen Thread.", file=sys.stderr)
+            _setze_faehnchen_mit(brief, felder)
             _melde_ersetzt(lage)
             _melde_fenster(lage.fenster, ablage.ordner, ablage.betreff)
             if lage.buch_grund:
@@ -2051,6 +2083,7 @@ def befehl_email(args) -> int:
             # Nur, wo das Programm ein Konto zurückmeldet: Für Thunderbird gibt
             # es nichts zu vergleichen, und die Zeile riete, in Outlook „Von“
             # umzustellen — in einem Programm, das gar nicht offen ist.
+            _setze_faehnchen_mit(brief, felder)
             warnung = oeffnen_modul.absender_warnung(
                 felder.get("absender") or "", lage.konto, lage.suche) if lage.nachgezaehlt else None
             if warnung:
@@ -2064,6 +2097,7 @@ def befehl_email(args) -> int:
             print(f"ENTWURF LIEGT SCHON  {lage.schon_da}\n"
                   "         Keinen zweiten angelegt. Trotzdem noch einen: --noch-ein-entwurf",
                   file=sys.stderr)
+            _setze_faehnchen_mit(brief, felder)
             _melde_ersetzt(lage)
             # Der liegende ist der, den es zu senden gilt — also ihn öffnen.
             if lage.fenster is not None:
