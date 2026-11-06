@@ -230,7 +230,8 @@ Sekunden warten (`IMAP_KLASSE(…, timeout=frist)` in `postfach.verbinde`), erst
 Budget für die Befehle, noch einmal `frist`. Gesendet-Prüfung (`postfach.FRIST_S`, 30 s) und
 Postfach-Entwurf (`oeffnen.FRIST_POSTFACH_S`, 30 s) laufen nacheinander, jede in eigener Sitzung.
 Ein hängender Proxy kann `--oeffnen` also im schlimmsten Fall rund 120 s aufhalten. Gemessen sind
-116 s, und der Abholer in siluri-angebote verträgt das: siehe Nachtrag vom 06.11.2026.
+116 s. Das war nicht der schlimmste Fall; seit dem Review von #570 begrenzt die Frist jede Sitzung
+hart, siehe die beiden Nachträge vom 06.11.2026.
 
 ## Nachtrag 04.11.2026 — Der Absender der gefundenen Mail (#434)
 
@@ -293,19 +294,57 @@ echte Proxy blieb unberührt. Gemessen sind drei Arten von Hängen:
 
 Jede Art öffnete zwei Sitzungen: erst die Gesendet-Prüfung, dann den Postfach-Entwurf.
 
-**Wann das Budget für die Befehle dazukommt.** Die Frist des Verbindungsaufbaus umfasst die
-Begrüßung und `CAPABILITY`, denn `imaplib` liest beides im Konstruktor. Schweigt der Proxy
-schon dort, endet jede Sitzung nach 30 s. Das Budget für die Befehle läuft erst an, wenn der Aufbau
-knapp unter der Frist fertig wird. Rund 120 s sind also der echte schlimmste Fall und keine bloße
-Rechnung. In allen drei Fällen endete der Befehl mit `KEIN ENTWURF`, `URSACHE  vorübergehend`
-und `GESENDET NICHT GEPRÜFT`. Weder ein Fenster noch die Datei gingen auf.
+**Wann das Budget für die Befehle dazukommt.** Schweigt der Proxy schon beim Aufbau, endet jede
+Sitzung nach 30 s. Das Budget für die Befehle läuft erst an, wenn der Aufbau knapp unter der Frist
+fertig wird. In allen drei Fällen endete der Befehl mit `KEIN ENTWURF`, `URSACHE  vorübergehend`
+und `GESENDET NICHT GEPRÜFT`. Weder ein Fenster noch die Datei gingen auf. Diese drei Fälle waren
+nicht die schlimmsten. Der folgende Nachtrag berichtigt das.
 
-**Der Abholer verträgt das.** siluri-angebote hat denselben Fall am 04.11.2026 selbst gemessen,
-mit 120,3 s. Der Zeitdeckel seines Mail-Aufrufs liegt darüber: `vektor_eingang.ZEIT_MAIL` = 150 s,
-und der Test `TestFristen` verlangt mindestens 15 s Abstand zu 120,3 s. Der ganze Lauf darf
-720 s dauern (`abholer_zeitplan.VEKTOR_GRENZE`). Der 180-s-Takt ist der Abstand der Starts, keine
-Frist für einen Lauf.
+**Was der Abholer verlangt.** siluri-angebote hat am 04.11.2026 selbst 120,3 s gemessen. Der
+Zeitdeckel seines Mail-Aufrufs ist `vektor_eingang.ZEIT_MAIL` = 150 s, und der Test `TestFristen`
+verlangt mindestens 15 s Abstand zu 120,3 s. Der ganze Lauf darf 720 s dauern
+(`abholer_zeitplan.VEKTOR_GRENZE`). Der 180-s-Takt ist der Abstand der Starts, keine Frist für
+einen Lauf.
 
 Am echten Proxy dauerte derselbe Befehl ohne `--kein-fenster` 36 s mit Exit 0. Das Fenster
 zeigte An 1, Cc 0, Bcc 1, wie in der Nachricht, und den Absender order@siluri.de: Die Prüfung aus
 #464 trägt auch am zweiten Postfach.
+
+## Nachtrag 06.11.2026, Review von #570 — Die Frist ist jetzt eine Obergrenze
+
+Das Review von #570 fand, dass die 120 s nicht der schlimmste Fall waren. `imaplib` legt sein
+`timeout` auf jeden einzelnen Empfang, und die Frist von `postfach.verbinde` begann erst nach dem
+Konstruktor. Begrüßung und `CAPABILITY` durften deshalb je die volle Frist brauchen. Unter Python
+3.14 wartet `logout` nach einem Zeitlimit noch einmal. Ein Server, der knapp unter dem Zeitlimit
+Byte für Byte tröpfelt, hielt die Sitzung beliebig lange offen.
+
+Gemessen am selben Aufbau wie oben, mit lokalem Schein-Server, der echte Proxy blieb unberührt.
+Einzelne Sitzung mit einer Frist von 3 s:
+
+| Schein-Server | 3.12 vorher | 3.14 vorher | nachher (beide) |
+|---|---|---|---|
+| Gruß nach 2,9 s, `CAPABILITY` nach 2,9 s, schweigt bei `LOGIN` | 8,8 s | 11,8 s | 3,0 s |
+| grüßt sofort, nimmt `LOGIN`, schweigt bei `LIST` und `LOGOUT` | 3,0 s | 6,0 s | 3,0 s |
+| tröpfelt den Gruß, 1 Byte je 2,5 s | 35,6 s | 35,6 s | 3,0 s |
+
+`email --oeffnen --kein-fenster` in voller Größe (Frist 30 s, Python 3.12, Gruß und
+`CAPABILITY` je nach 29 s, `LOGIN` schweigt): **vorher 176,4 s, nachher 60,4 s**, Exit 3 in
+beiden Fällen. Vorher lag der Aufruf damit über `ZEIT_MAIL` = 150 s, und der Abholer hätte ihn
+abgebrochen, bevor er sein Ergebnis meldet. Die 120,3 s aus siluri-angebote passen vermutlich zur
+zweiten Zeile unter 3.14: zwei Sitzungen mit je zweimal 30 s. Nachgestellt ist das nicht.
+
+**Entscheidung.** Die Frist gilt jetzt für die ganze Sitzung. `falzmarke.imap_frist.ImapMitFrist`
+umhüllt den Socket, den `imaplib` selbst aufbaut, und legt vor jedem Empfangen und Senden nur
+noch die Restzeit darauf. Die Frist beginnt vor dem Verbindungsaufbau, Abmelden eingeschlossen.
+Ein eigenes Modul, weil `postfach` zusagt, `socket` nur für zwei Fehlerklassen zu lesen.
+
+**Was daraus für `--oeffnen` folgt.** Auf dem Weg von `email --oeffnen` laufen bis zu drei
+Sitzungen zu je 30 s nacheinander: die Gesendet-Prüfung, der Postfach-Entwurf und bei einer
+Antwort mit `antwort_auf` das Fähnchen (ADR 0063), wenn der Entwurf liegt oder ungewiss blieb.
+Die Obergrenze für IMAP liegt damit bei 90 s. Dazu kommt, was der Befehl ohne Postfach braucht.
+Der Abholer liegt mit 150 s darüber. Bekommt der Weg eine vierte Sitzung, muss `ZEIT_MAIL` in
+siluri-angebote mitwachsen.
+
+Tests in `tests/test_postfach_frist.py`, Gegenproben in `tests/test_gegenbeweis.py`, Abschnitt
+„Die Frist gilt für die ganze Sitzung“: ohne Hülle, ohne nachgestellte Restzeit und (bis 3.13)
+mit einem `makefile`, das an der Hülle vorbeiliest.

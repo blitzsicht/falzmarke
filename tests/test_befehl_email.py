@@ -808,19 +808,34 @@ def test_die_wahl_schliesst_oeffnen_ein(tmp_path, monkeypatch):
     assert code == 0 and gesehen["wahl"] == "thunderbird"
 
 
-def test_die_hilfe_nennt_bei_kein_fenster_die_kopplung(capsys):
+#: Breiten, unter denen die Hilfe gelesen wird. argparse bricht nach `COLUMNS` um;
+#: bei 60, 70 und 100 begann eine Folgezeile mit „-“ („-compose“, „--oeffnen ein“),
+#: und eine Abgrenzung an „irgendeiner Zeile mit -“ schnitt den Abschnitt zu früh ab
+#: (Review #562). Bei 40 ist die Spalte der Optionsnamen zu schmal: Der Hilfetext
+#: steht unter dem Namen statt daneben.
+HILFE_BREITEN = (40, 60, 70, 80, 100, 150)
+
+
+def test_die_hilfe_nennt_bei_kein_fenster_die_kopplung(monkeypatch, capsys):
     """Abnahme #538, Punkt 3: `--kein-fenster` schließt `--oeffnen` ein, und die
     Hilfe sagt es dort. Gelesen wird nur der Abschnitt von `--kein-fenster` bis
     zur nächsten Option: Bei `--programm` steht derselbe Satz schon, er zählt
-    hier nicht. Im Prozess statt im Kindprozess, wegen des „ß“: Unter Windows
-    schriebe das Kind in der Codepage des Systems."""
-    with pytest.raises(SystemExit):
-        falzmarke.main(["email", "--help"])
-    hilfe = capsys.readouterr().out
-    abschnitt = re.search(r"^ +--kein-fenster\b(.*?)^ +-", hilfe, re.DOTALL | re.MULTILINE)
-    assert abschnitt, hilfe
-    text = " ".join(abschnitt.group(1).split())
-    assert "schließt --oeffnen ein" in text, f"--kein-fenster nennt die Kopplung nicht: {text}"
+    hier nicht. Die nächste Option ist eine Zeile mit genau der Einrückung der
+    Optionszeile und einem „-“ dahinter; Folgezeilen des Hilfetexts stehen
+    tiefer, auch wenn sie mit „-“ beginnen. Gelesen unter jeder Breite aus
+    `HILFE_BREITEN`, damit das Terminal des Laufs nichts entscheidet. Im Prozess
+    statt im Kindprozess, wegen des „ß“: Unter Windows schriebe das Kind in der
+    Codepage des Systems."""
+    for breite in HILFE_BREITEN:
+        monkeypatch.setenv("COLUMNS", str(breite))
+        with pytest.raises(SystemExit):
+            falzmarke.main(["email", "--help"])
+        hilfe = capsys.readouterr().out
+        abschnitt = re.search(r"^( +)--kein-fenster\b(.*?)(?=^\1-|\Z)", hilfe,
+                              re.DOTALL | re.MULTILINE)
+        assert abschnitt, f"COLUMNS={breite}: {hilfe}"
+        text = " ".join(abschnitt.group(2).split())
+        assert "schließt --oeffnen ein" in text, f"--kein-fenster nennt die Kopplung nicht: {text}"
 
 
 def test_gegenprobe_ohne_beides_wird_kein_entwurf_versucht(tmp_path, monkeypatch):

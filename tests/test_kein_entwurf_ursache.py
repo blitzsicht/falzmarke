@@ -204,16 +204,18 @@ class _Leitung:
 
 @pytest.mark.parametrize("fehler, erwartet", [
     (ConnectionResetError(errno.ECONNRESET, "Connection reset by peer"), True),
+    (ConnectionRefusedError(errno.ECONNREFUSED, "Connection refused"), True),
     (TimeoutError("timed out"), True),
     (imaplib.IMAP4.abort("socket error: EOF"), True),
     (imaplib.IMAP4.error("SELECT failed"), False),
     (UnicodeEncodeError("ascii", "ü", 0, 1, "nein"), False),
-], ids=["reset", "timeout", "abort", "nein-vom-server", "kodierung"])
+], ids=["reset", "abgelehnt", "timeout", "abort", "nein-vom-server", "kodierung"])
 def test_ein_abgerissener_befehl_vergeht_eine_absage_bleibt(fehler, erwartet):
     sitzung = postfach.Postfach(_Leitung(fehler), "a@example.org", 30)
     with pytest.raises(postfach.PostfachFehler) as gefangen:
         sitzung._befehl("NOOP", sitzung._v.noop)
-    assert gefangen.value.voruebergehend is erwartet
+    assert gefangen.value.voruebergehend is erwartet, (
+        f"{type(fehler).__name__} nach einem Befehl: voruebergehend={gefangen.value.voruebergehend}")
 
 
 def test_ein_server_der_nein_sagt_bleibt():
