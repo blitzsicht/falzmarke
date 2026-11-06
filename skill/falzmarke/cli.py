@@ -2196,7 +2196,8 @@ def befehl_entwurf_oeffnen(args) -> int:
     with sitzung:
         try:
             # Aus dem Profil der Brücke: Sie öffnet die UID aus diesem Ordner (#522/6).
-            aus_thunderbird = entwurfsbuch.thunderbird_ordner(adresse, "draft_folder")
+            aus_thunderbird, ordner_grund = entwurfsbuch.thunderbird_ordner(adresse,
+                                                                            "draft_folder")
             ordner = aus_thunderbird or sitzung.sonderordner("\\Drafts")
             koepfe = sitzung.koepfe(ordner) if ordner else []
         except postfach.PostfachFehler as fehler:
@@ -2247,9 +2248,12 @@ def befehl_entwurf_oeffnen(args) -> int:
     if not aus_thunderbird:
         # Die Brücke öffnet aus dem Entwürfe-Ordner der Identität in Thunderbird. Nennt
         # das Profil keinen eindeutigen im eigenen Konto, kann dieselbe UID dort eine
-        # andere Mail sein.
-        print(f"NICHT GEÖFFNET  Thunderbird nennt für {adresse} keinen eindeutigen "
-              f"Entwürfe-Ordner in diesem Konto. Die UID gilt für „{anzeige}“ auf dem "
+        # andere Mail sein. Fehlt das Profil, sagt `bruecken_profil`, warum — nicht
+        # Thunderbird (Nachreview #534, Befund B).
+        ursache = (f"Profil der Entwurfsbrücke nicht gefunden: {ordner_grund}" if ordner_grund
+                   else f"Thunderbird nennt für {adresse} keinen eindeutigen Entwürfe-Ordner "
+                        "in diesem Konto")
+        print(f"NICHT GEÖFFNET  {ursache}. Die UID gilt für „{anzeige}“ auf dem "
               f"Server, nicht sicher für Thunderbird. Bitte dort selbst öffnen:\n"
               f"{zeile(kopf)}", file=sys.stderr)
         return EXIT_UMGEBUNG

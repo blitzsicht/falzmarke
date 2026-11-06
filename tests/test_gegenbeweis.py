@@ -3490,9 +3490,9 @@ def test_der_hinweis_nennt_das_gelesene_profil_und_zwar_verschieden(monkeypatch,
 # grün bliebe, hinge nicht an dieser Stelle.
 
 _ALTES_PROFIL_522 = (
-    "profil, _ = bruecken_profil(profilordner, umgebung)",
-    ("profil = oeffnen.thunderbird_standardprofil("
-     "oeffnen.THUNDERBIRD_ORDNER if profilordner is None else Path(profilordner))"))
+    "profil, grund = bruecken_profil(profilordner, umgebung)",
+    ("profil, grund = oeffnen.thunderbird_standardprofil("
+     "oeffnen.THUNDERBIRD_ORDNER if profilordner is None else Path(profilordner)), \"\""))
 
 
 def _altes_profil_522(monkeypatch):
@@ -3565,6 +3565,70 @@ def test_mit_dem_standardprofil_liest_die_sperre_den_falschen_gesendet_ordner(mo
     _altes_profil_522(monkeypatch)
     with pytest.raises(AssertionError, match="die Sperre liest den Gesendet-Ordner am Profil"):
         probe(eigene, monkeypatch, tmp_path / "s")
+
+
+# Nachreview #534, Befund A: Der Wächter übersprang `entwurfsbuch.py` ganz, und
+# gerade dort hatte `abgleich` den Ordner bis #522 selbst am Standardprofil
+# gelesen. Je eine Sabotage im Quelltext, den der Wächter liest: der direkte
+# Aufruf in `abgleich` und einer in `oeffnen`, wo die alte Regel galt. Jeder Fund
+# muss Datei und Funktion nennen.
+
+@pytest.mark.parametrize("datei, alt, neu, erwartet", [
+    ("entwurfsbuch.py", "ordner_e = (thunderbird_ordner(",
+     "ordner_e = (oeffnen.thunderbird_ordner(", r"entwurfsbuch\.py:\d+ in abgleich'"),
+    ("oeffnen.py", '= entwurfsbuch.thunderbird_ordner(adresse, "draft_folder"',
+     '= thunderbird_ordner(adresse, "draft_folder"', r"oeffnen\.py:\d+ in _entwurf_postfach'"),
+], ids=["entwurfsbuch-abgleich", "oeffnen-entwurf-postfach"])
+def test_der_ordnerwaechter_sieht_den_direkten_aufruf(datei, alt, neu, erwartet):
+    from test_postfach_entwurf import _paketquellen, _pruefe_ordneraufrufe
+
+    quellen = _paketquellen()
+    _pruefe_ordneraufrufe(quellen)                                         # Kontrolle
+    assert quellen[datei].count(alt) == 1, f"„{alt}“ steht nicht genau einmal in {datei}"
+    sabotiert = {**quellen, datei: quellen[datei].replace(alt, neu)}
+    with pytest.raises(AssertionError, match=erwartet):
+        _pruefe_ordneraufrufe(sabotiert)
+
+
+# Nachreview #534, Befund B: der alte Code, an die Schnittstelle mit Grund
+# angepasst — `profil, _ =`, und ohne Profil kommt kein Grund mit.
+
+_GRUND_VERWORFEN_534 = (
+    ("profil, grund = bruecken_profil(profilordner, umgebung)\n"
+     "    if profil is None:\n"
+     "        return None, grund\n"),
+    ("profil, _ = bruecken_profil(profilordner, umgebung)\n"
+     "    if profil is None:\n"
+     "        return None, \"\"\n"))
+
+
+def test_ohne_den_grund_nennt_entwurf_oeffnen_die_falsche_ursache(oeffne_befehl, monkeypatch,
+                                                                  capsys, tmp_path):
+    from falzmarke import entwurfsbuch as _buch
+    from test_postfach_entwurf import (
+        test_entwurf_oeffnen_ohne_profil_der_bruecke_nennt_den_grund as probe,
+    )
+
+    probe(oeffne_befehl, monkeypatch, capsys, tmp_path / "k")             # Kontrolle
+    monkeypatch.setattr(_buch, "thunderbird_ordner", _zeile_ersetzt(
+        _buch, "thunderbird_ordner", *_GRUND_VERWORFEN_534))
+    with pytest.raises(AssertionError,
+                       match="entwurf-oeffnen verliert den Grund aus bruecken_profil"):
+        probe(oeffne_befehl, monkeypatch, capsys, tmp_path / "s")
+
+
+def test_mit_umgebung_als_positionsparameter_wird_die_signaturprobe_rot(monkeypatch, tmp_path):
+    """Befund C: `umgebung` wieder als dritter Positionsparameter, wie bis dahin."""
+    from falzmarke import entwurfsbuch as _buch
+    from test_entwurfsbuch import (
+        test_thunderbird_ordner_nimmt_umgebung_und_profilordner_nur_als_schluesselwort as probe,
+    )
+
+    probe(monkeypatch, tmp_path / "k")                                     # Kontrolle
+    monkeypatch.setattr(_buch, "thunderbird_ordner", _zeile_ersetzt(
+        _buch, "thunderbird_ordner", "art: str, *, umgebung", "art: str, umgebung"))
+    with pytest.raises(AssertionError, match="nimmt die Umgebung als Positionsparameter"):
+        probe(monkeypatch, tmp_path / "s")
 
 
 # ── Die Review-Funde an der Ablage (#438) ──────────────────────────────────

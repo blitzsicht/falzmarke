@@ -1336,7 +1336,8 @@ def _entwurf_postfach(felder: Mapping, *, umgebung: Mapping[str, str],
     if not roh or not adresse:
         return None, "", DAUERHAFT
     # Aus dem Profil der Brücke: Sie öffnet den Entwurf danach aus diesem Ordner (#522/6).
-    ordner = entwurfsbuch.thunderbird_ordner(adresse, "draft_folder", umgebung, profilordner)
+    ordner, _ = entwurfsbuch.thunderbird_ordner(adresse, "draft_folder", umgebung=umgebung,
+                                                profilordner=profilordner)
     try:
         sitzung = postfach.verbinde(adresse, umgebung=umgebung, frist=FRIST_POSTFACH_S)
     except postfach.PostfachFehler as fehler:
