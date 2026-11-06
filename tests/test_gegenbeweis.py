@@ -4632,9 +4632,50 @@ def test_ohne_den_gefundenen_ordner_raet_die_anzeige_je_zug(monkeypatch):
     probe()                                                                # Kontrolle
     monkeypatch.setattr(_ablage, "_ziele_zuordnen", _zeile_ersetzt(
         _ablage, "_ziele_zuordnen",
-        "lesbar = postfach.utf7_dekodieren(ordner) if ordner else _lesbar(name)",
+        "lesbar = _servername(ordner) if ordner else _lesbar(name)",
         "lesbar = _lesbar(name)"))
     with pytest.raises(AssertionError, match=r"angezeigt: \['R\u0debTeam/2025'"):
+        probe()
+
+
+@pytest.mark.parametrize("funktion, probe_name, neu, alt", [
+    ("ablageordner", "test_ungueltiger_servername_in_der_ordnerliste_bricht_den_grund_nicht_ab",
+     'f"\u201e{_servername(n)}\u201c" for n, _ in liste[:12]',
+     'f"\u201e{postfach.utf7_dekodieren(n)}\u201c" for n, _ in liste[:12]'),
+    ("ablageordner",
+     "test_ungueltiger_servername_eines_gesperrten_ordners_bricht_den_grund_nicht_ab",
+     'f"\u201e{_servername(name)}\u201c ({herkunft}) tr\u00e4gt "',
+     'f"\u201e{postfach.utf7_dekodieren(name)}\u201c ({herkunft}) tr\u00e4gt "'),
+    ("_ziel_vorab", "test_ungueltiger_servername_als_ablage_wandert_und_steht_wie_geliefert",
+     "return _servername(ziel), ziel, None",
+     "return postfach.utf7_dekodieren(ziel), ziel, None"),
+    ("verschiebe", "test_ungueltiger_servername_als_ablage_wandert_und_steht_wie_geliefert",
+     'f"MOVE nach \u201e{_servername(ziel)}\u201c"', 'f"MOVE nach \u201e{postfach.utf7_dekodieren(ziel)}\u201c"'),
+    ("_ziele_zuordnen", "test_mit_jahr_bricht_ein_ungueltiger_servername_den_lauf_nicht_ab",
+     "lesbar = _servername(ordner) if ordner else _lesbar(name)",
+     "lesbar = postfach.utf7_dekodieren(ordner) if ordner else _lesbar(name)"),
+    ("_kappungen", "test_ungueltiger_servername_im_kappungshinweis_steht_wie_geliefert",
+     'f"\u201e{_servername(ordner)}\u201c: nur die neuesten',
+     'f"\u201e{postfach.utf7_dekodieren(ordner)}\u201c: nur die neuesten'),
+    ("_kappungen", "test_ungueltiger_servername_im_kappungshinweis_steht_wie_geliefert",
+     "in \u201e{_servername(ordner)}\u201c: nur {verglichen}",
+     "in \u201e{postfach.utf7_dekodieren(ordner)}\u201c: nur {verglichen}"),
+], ids=["ordnerliste", "gesperrt", "ziel-vorab", "move", "je-zug", "kappung", "suchkappung"])
+def test_ungueltiger_servername_ohne_rueckfall_endet_im_traceback(monkeypatch, funktion,
+                                                                  probe_name, neu, alt):
+    """Nachreview von #535, Befund 1: Jede Stelle bekommt einzeln die Zeile von
+    vorher zur\u00fcck, das blanke `utf7_dekodieren`. Am Ordner \u201eAT&T-Rechnungen\u201c eines
+    nicht konformen Servers endet der Lauf dann mit genau dem Traceback aus dem
+    Review, nicht mit einer verfehlten Zusicherung."""
+    import binascii
+
+    import test_ablage
+    from falzmarke import ablage as _ablage
+
+    probe = getattr(test_ablage, probe_name)
+    probe()                                                                # Kontrolle
+    monkeypatch.setattr(_ablage, funktion, _zeile_ersetzt(_ablage, funktion, neu, alt))
+    with pytest.raises(binascii.Error, match="Invalid base64-encoded string"):
         probe()
 
 

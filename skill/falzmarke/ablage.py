@@ -198,7 +198,7 @@ def ablageordner(sitzung: postfach.Postfach, wunsch: str | None) -> tuple[str | 
     if wunsch:
         name = wunsch if wunsch in nach_name else postfach.utf7_kodieren(wunsch)
         if name not in nach_name:
-            vorhanden = ", ".join(f"„{postfach.utf7_dekodieren(n)}“" for n, _ in liste[:12])
+            vorhanden = ", ".join(f"„{_servername(n)}“" for n, _ in liste[:12])
             return None, (f"den Ordner „{_lesbar(wunsch)}“ aus `email.ablage` gibt es im Postfach nicht "
                           f"— falzmarke legt keinen an. Vorhanden sind: {vorhanden}")
         herkunft = "`email.ablage`"
@@ -213,7 +213,7 @@ def ablageordner(sitzung: postfach.Postfach, wunsch: str | None) -> tuple[str | 
     kennzeichen = nach_name.get(name, ())
     for verboten, grund in VERBOTENE_ZIELE.items():
         if verboten in kennzeichen:
-            return None, (f"„{postfach.utf7_dekodieren(name)}“ ({herkunft}) trägt "
+            return None, (f"„{_servername(name)}“ ({herkunft}) trägt "
                           f"`{verboten}`: {grund}")
     if name.upper() == EINGANG:
         return None, "der Eingang kann nicht seine eigene Ablage sein"
@@ -255,6 +255,23 @@ def _lesbar(wunsch: str) -> str:
         return wunsch
 
 
+def _servername(name: str) -> str:
+    """Ein Ordnername, wie der Server ihn führt, in Klartext — nur für die Anzeige.
+
+    Anders als bei `_lesbar` gibt es hier keine Grenze: Der Server schreibt
+    modified UTF-7 (RFC 3501, 5.1.3), was gültig dekodiert, ist so gemeint.
+    Ein nicht konformer Server liefert aber auch „AT&T-Rechnungen“ wörtlich;
+    daran wirft `utf7_dekodieren` (`binascii.Error`, ein `ValueError`). Dann
+    steht der Name da, wie er kam, statt den Lauf mit einem Traceback zu
+    beenden — betroffen ist nur die Anzeige, ausgeführt wird weiter mit dem
+    Servernamen selbst (Nachreview von #535, Befund 1).
+    """
+    try:
+        return postfach.utf7_dekodieren(name)
+    except ValueError:
+        return name
+
+
 def _ziel_vorab(sitzung: postfach.Postfach,
                 wunsch: str | None) -> tuple[str | None, str | None, str | None]:
     """`(lesbar, server, grund)` — das Ziel des Laufs, bevor gelesen wird.
@@ -271,7 +288,7 @@ def _ziel_vorab(sitzung: postfach.Postfach,
     ziel, grund = ablageordner(sitzung, wunsch)
     if ziel is None:
         return None, None, grund
-    return postfach.utf7_dekodieren(ziel), ziel, None
+    return _servername(ziel), ziel, None
 
 
 def _als_zug(kopf: postfach.Kopf, *, kennung: str = "", antwort: postfach.Kopf | None = None,
@@ -318,7 +335,7 @@ def _ziele_zuordnen(sitzung: postfach.Postfach, wunsch: str | None, zuege: list[
             fehlend.append(grund)
         # Gefunden sagt der Server, wie der Ordner heißt; `_lesbar` rät nur, wenn er
         # fehlt (Nachreview von #527, Befund 3).
-        lesbar = postfach.utf7_dekodieren(ordner) if ordner else _lesbar(name)
+        lesbar = _servername(ordner) if ordner else _lesbar(name)
         zugeordnet.append(zug._replace(ziel=lesbar, ziel_server=ordner))
     grund = None
     if fehlend:
@@ -515,13 +532,13 @@ def _kappungen(sitzung: postfach.Postfach) -> tuple[str, ...]:
     Leser zwei verschiedene Lücken.
     """
     ordner_saetze = tuple(
-        f"„{postfach.utf7_dekodieren(ordner)}“: nur die neuesten {angesehen} von {alle} "
+        f"„{_servername(ordner)}“: nur die neuesten {angesehen} von {alle} "
         "Mails angesehen — was davor liegt, fehlt im Abgleich"
         for ordner, (alle, angesehen) in sorted(sitzung.gekappt.items()))
     # Eine gekappte Kennungssuche ist eine andere Lücke als ein gekappter Ordner
     # und bekommt ihren eigenen Satz (Nachreview von #492, Befund 1).
     such_saetze = tuple(
-        f"Kennung „{kennung}“ in „{postfach.utf7_dekodieren(ordner)}“: nur {verglichen} von "
+        f"Kennung „{kennung}“ in „{_servername(ordner)}“: nur {verglichen} von "
         f"{alle} Teiltreffern verglichen, die neuesten — eine ältere Nachricht mit dieser "
         "Kennung fehlt womöglich im Abgleich"
         for ordner, kennung, alle, verglichen in sitzung.suchkappungen)
@@ -587,7 +604,7 @@ def verschiebe(sitzung: postfach.Postfach, ziel: str, uids: list[str], *,
                                               quelle="der Plan dieses Laufs las",
                                               schluss=_SCHLUSS_AM_ZUG))
     try:
-        sitzung._befehl(f"MOVE nach „{postfach.utf7_dekodieren(ziel)}“",
+        sitzung._befehl(f"MOVE nach „{_servername(ziel)}“",
                         sitzung._v.uid, "MOVE", ",".join(uids), zitiert(ziel))
     except postfach.PostfachFehler as fehler:
         raise ZugAbgebrochen(str(fehler)) from None
