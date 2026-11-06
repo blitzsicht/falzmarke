@@ -14,8 +14,8 @@ braucht. Es ist bewusst eine Bestandsliste und keine Anleitung zum Bewerben. Die
 | Verzeichnis | Wie der Eintrag entsteht | Stand |
 |---|---|---|
 | **Offizielles MCP-Registry** | `server.json` + Job `mcp-registry` im Release-Lauf, OIDC | gelistet, v0.11.2 (03.11.2026); Startbefehl aus dem Eintrag gefahren, Handschlag, vier Werkzeuge und Brief mit 34/34 ([Finding 1](bestandsaufnahme-distribution.md)) |
-| **Glama** | Konto nötig, „Add Server“ in der Weboberfläche | gelistet, noch nicht beansprucht |
-| **awesome-mcp-servers** | PR [punkpeye/awesome-mcp-servers#13221](https://github.com/punkpeye/awesome-mcp-servers/pull/13221) | offen; der Maintainer verlangt Anspruch und Quality Score auf Glama |
+| **Glama** | Konto nötig, „Add Server“ in der Weboberfläche | Stand nur in [listings.md](listings.md#glama) |
+| **awesome-mcp-servers** | PR [punkpeye/awesome-mcp-servers#13221](https://github.com/punkpeye/awesome-mcp-servers/pull/13221) | Stand nur in [listings.md](listings.md#awesome-mcp-servers) |
 | Repo-Themen (`mcp`, `mcp-server`, `model-context-protocol`) | `scripts/topics.py`, Wächter `repo_pruefung.py` | erledigt |
 | `Dockerfile` im Wurzelverzeichnis | liegt dort; CI-Job „MCP-Dienst im Container“ baut und spricht ihn an | erledigt |
 | Englisches README | `README.en.md` | erledigt |
@@ -66,8 +66,10 @@ Der zweite Weg ist der Knopf, und er dauert fünf Minuten:
 
 1. Auf [glama.ai](https://glama.ai) anmelden (GitHub-Login genügt).
 2. Auf `glama.ai/mcp/servers` den Knopf **Add Server** drücken.
-3. Das Repository angeben: `blitzsicht/falzmarke`. Glama baut es selbst — das `Dockerfile`
-   liegt im Wurzelverzeichnis, genau dafür.
+3. Das Repository angeben: `blitzsicht/falzmarke`. **Korrektur 06.11.2026:** Glama baut es
+   nicht von selbst. Die Serverseite meldet „This server cannot be deployed“, und der Bot bei
+   awesome-mcp-servers verlangt, das Dockerfile direkt in Glama einzutragen. Das `Dockerfile` im
+   Wurzelverzeichnis dient dafür als Vorlage ([listings.md](listings.md#glama)).
 4. Fertig, wenn `glama.ai/mcp/servers/blitzsicht/falzmarke` **200** statt 404 liefert:
 
    ```bash
