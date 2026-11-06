@@ -1,6 +1,7 @@
 # Listings: Einreichungen zum Abhaken
 
-Stand: 05.11.2026. Grundlage ist die [Bestandsaufnahme](bestandsaufnahme-distribution.md). Die
+Der Stand gilt je Zeile, mit dem Datum seiner Messung; eine Zeile ohne Datum ist zuletzt am
+02.11.2026 gemessen. Grundlage ist die [Bestandsaufnahme](bestandsaufnahme-distribution.md). Die
 Einreichungen erledigt der Betreiber von Hand. Jeder Einreichtext hat höchstens 300 Zeichen und
 trägt den Vorbehalt zur Quellenlage (ADR 0032); `tests/test_verzeichnis_metadaten.py` hält beides.
 
@@ -10,10 +11,10 @@ verlangen, und keine Mehrfacheinreichung.
 | Ziel | Stand | Nächster Schritt |
 |---|---|---|
 | Anthropic-Plugin-Verzeichnis | einreichbar | im Portal **Validate**, dann einreichen |
-| mcp.so | nicht gelistet | anmelden, kostenlosen Weg suchen, nicht zahlen |
+| mcp.so | eingereicht per Issue [chatmcp/mcpso#6843](https://github.com/chatmcp/mcpso/issues/6843), offen, kein Kommentar (06.11.2026) | abwarten, nicht zahlen |
 | Smithery | **abgeschaltet** am 31.10.2026 | nichts tun |
-| Glama | beansprucht, Score A (05.11.2026) | Reiter „Admin ⚠“ ansehen |
-| awesome-mcp-servers | PR offen, Glama-Bedingungen erfüllt | Maintainer im PR Bescheid geben |
+| Glama | beansprucht; Badge „maintenance rated B“; **nicht deploybar** (06.11.2026) | Dockerfile in Glama eintragen, Reiter „Admin ⚠“ ansehen |
+| awesome-mcp-servers | PR offen; Anspruch erfüllt, Glama-Prüfung offen (06.11.2026) | erst Glama deploybar machen, dann Maintainer antworten |
 | awesome-claude-skills | **gesperrt**, 1 von 10 Sternen | Default: nicht verfolgen; `travisvn` bei 10 Sternen neu bewerten |
 | GitHub Topics | 20 von 20 gesetzt | nichts zu tun |
 
@@ -52,16 +53,21 @@ Create German DIN 5008 business letters in Claude: you describe the letter, falz
 
 ## mcp.so
 
-- [ ] angemeldet, kostenlosen Weg geprüft
+- [x] kostenlosen Weg gefunden: Einreichung als GitHub-Issue
+  ([chatmcp/mcpso#6843](https://github.com/chatmcp/mcpso/issues/6843), 06.11.2026 08:32Z)
 - [ ] Eintrag sichtbar
+
+Gemessen am 06.11.2026: Das Issue ist offen und ohne Kommentar. Die Betreiber arbeiten die
+Einreichungs-Issues von Hand ab; bei älteren dauerte das Tage bis Wochen. Nicht nachfassen und
+nicht zusätzlich über das Formular einreichen (Grundregel: keine Mehrfacheinreichung).
 
 **Ziel-URL:** https://mcp.so/submit?type=server
 
 **Konto:** Anmeldung über `mcp.so/sign-in`. Felder: Repository-URL (Pflicht), Name.
 
 Ohne Anmeldung zeigt das Formular nur **Paid submission, 39 $ einmalig**. Das ist eine Gegenleistung
-und fällt unter die Grundregel: nicht zahlen. Ob es nach der Anmeldung einen kostenlosen Weg gibt,
-ist nicht geprüft. Gibt es keinen, entfällt dieses Ziel.
+und fällt unter die Grundregel: nicht zahlen. Ob das Formular nach der Anmeldung kostenlos wird, ist
+nicht geprüft und seit dem Issue auch nicht mehr nötig.
 
 **Link:** https://falzmarke.com/?utm_source=listing&utm_medium=directory&utm_campaign=mcpso-202611
 
@@ -105,18 +111,26 @@ falzmarke typesets German DIN 5008 letters from Markdown as PDF/A and measures e
 
 ## Glama
 
-- [x] Eintrag beansprucht (Screenshot des Betreibers, 05.11.2026 15:43)
-- [x] Quality Score ausgewertet
+- [x] Eintrag beansprucht (Screenshot des Betreibers, 05.11.2026 15:43 Ortszeit)
+- [ ] Glama-Prüfung bestanden: Server startet in Glama und beantwortet die Introspektion
 - [ ] Reiter „Admin ⚠“: was das Warndreieck bemängelt
 
 **Ziel-URL:** https://glama.ai/mcp/servers/blitzsicht/falzmarke
 
 **Konto:** Glama, Anmeldung mit GitHub; das Konto muss Zugriff auf `blitzsicht/falzmarke` haben.
 
-Gemessen am 05.11.2026: Das Score-Badge (`…/badges/score.svg`) antwortet 200 und trägt den Text
-„claimed by its maintainer, maintenance rated A“. Damit sind beide Schritte erfüllt, die der
-Maintainer im PR bei awesome-mcp-servers verlangt. Glama baut aus dem `Dockerfile` im
-Wurzelverzeichnis.
+Gemessen am 06.11.2026: Das Score-Badge (`…/badges/score.svg`) trägt den Text „claimed by its
+maintainer, maintenance rated B“. Am 05.11.2026 stand dort „rated A“. Die Note ist die
+Wartungsnote, sie schwankt und ist kein fester Stand; deshalb steht sie hier nur mit Datum. Eine
+eigene Qualitäts- oder Lizenznote für falzmarke zeigt die Seite `…/score` nicht.
+
+Damit ist nur die erste Hälfte dessen erfüllt, was der Bot im PR bei awesome-mcp-servers verlangt
+(Kommentar vom 30.08.2026): gelistet und beansprucht. Die zweite Hälfte fehlt: Der Server soll
+„alle Prüfungen bestehen“, und dazu muss das Dockerfile **direkt in Glama** eingetragen werden.
+Glama übernimmt es nicht von selbst aus dem Repository. Am 06.11.2026 meldet die Serverseite
+„This server cannot be deployed“. Das `Dockerfile` im Wurzelverzeichnis taugt als Vorlage: Der
+CI-Job „MCP-Dienst im Container“ baut es und spricht den Dienst an. Ob das Warndreieck im Reiter
+„Admin“ genau das bemängelt, ist nicht geprüft.
 
 **Link:** https://falzmarke.com/?utm_source=listing&utm_medium=directory&utm_campaign=glama-202611
 
@@ -134,8 +148,11 @@ German DIN 5008 business letters from Markdown: render PDF/A, build .eml, verify
 
 ## awesome-mcp-servers
 
-- [x] Glama erledigt (Abschnitt oben)
-- [ ] Maintainer im PR Bescheid geben
+- [x] Glama beansprucht (Abschnitt oben)
+- [ ] Glama-Prüfung bestanden (Abschnitt oben)
+- [x] Maintainer im PR Bescheid gegeben (Kommentar 05.11.2026 15:34Z = 16:34 MEZ)
+- [ ] nach bestandener Glama-Prüfung im PR richtigstellen: Der Kommentar nennt „rated A“ und
+  „both Glama steps are done“; beides stimmt so nicht mehr (siehe Glama)
 - [ ] Merge abwarten, kein neuer PR
 
 **Ziel-URL:** https://github.com/punkpeye/awesome-mcp-servers/pull/13221 (offen seit 30.08.2026)
