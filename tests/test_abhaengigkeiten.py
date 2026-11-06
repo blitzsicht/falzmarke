@@ -10,6 +10,10 @@ es transitiv mitbrachte.
 
 `tests/test_vendor.py` prüft nur, dass zwei bestimmte Pakete *genannt* sind — kein
 Listenvergleich. Dieser Test hält alle drei Quellen gegeneinander.
+
+Seit #533 auch die Versionsgrenzen: Bis dahin verglich der Test nur Namen. Hob jemand die
+typst-Grenze nur in `pyproject.toml`, blieb alles grün, während CI, Offline-Wheel
+(`skill/requirements.txt`) und Bootstrap auf der alten Grenze blieben.
 """
 
 from __future__ import annotations
@@ -67,6 +71,43 @@ def _abweichungen(kanon: set[str], andere: set[str], quelle: str) -> list[str]:
     return meldungen
 
 
+def _grenze(anforderung: str) -> str:
+    """Versionsgrenze einer Requirement-Zeile, ohne Leerraum, Teilgrenzen sortiert.
+
+    `typst >= 0.15.2, <0.16` und `typst<0.16,>=0.15.2` sind dieselbe Grenze und sollen
+    nicht als Abweichung zählen; ein Marker hinter `;` bleibt Teil der Grenze.
+    """
+    rest = _NAME.sub("", anforderung.strip(), count=1)
+    rest = re.sub(r"\s+", "", rest)
+    versionen, trenner, marker = rest.partition(";")
+    teile = sorted(t for t in versionen.split(",") if t)
+    return ",".join(teile) + trenner + marker
+
+
+def _grenzen_aus_pyproject_text(text: str) -> dict[str, str]:
+    daten = tomllib.loads(text)
+    return {_name(z): _grenze(z) for z in daten["project"]["dependencies"]}
+
+
+def _grenzen_aus_requirements_text(text: str) -> dict[str, str]:
+    zeilen = (z.split(" #", 1)[0] for z in text.splitlines())
+    return {_name(z): _grenze(z) for z in zeilen if z.strip() and not z.strip().startswith("#")}
+
+
+def _grenzen_aus_deps(deps: dict[str, str]) -> dict[str, str]:
+    return {_name(z): _grenze(z) for z in deps.values()}
+
+
+def _grenz_abweichungen(kanon: dict[str, str], andere: dict[str, str], quelle: str) -> list[str]:
+    """Nur Pakete, die beide Seiten nennen — fehlende Namen meldet `_abweichungen`."""
+    return [
+        f"{quelle}: {name} verlangt „{andere[name] or 'ohne Grenze'}“, "
+        f"pyproject.toml „{kanon[name] or 'ohne Grenze'}“"
+        for name in sorted(kanon.keys() & andere.keys())
+        if kanon[name] != andere[name]
+    ]
+
+
 def test_pyproject_nennt_wirklich_mehrere_abhaengigkeiten():
     """Ohne diese Zeile wäre der Vergleich unten bei einer leeren Menge still grün."""
     kanon = _namen_aus_pyproject_text(PYPROJECT.read_text(encoding="utf-8"))
@@ -84,6 +125,38 @@ def test_requirements_und_deps_nennen_dieselben_pakete_wie_pyproject():
         + _abweichungen(kanon, aus_deps, "skill/scripts/bootstrap.py DEPS")
     )
     assert not meldungen, "\n".join(meldungen)
+
+
+def test_die_typst_grenze_ist_eine_echte_grenze():
+    """Ohne diese Zeile wäre der Grenzvergleich unten auch grün, wenn alle drei Stellen
+    `typst` ohne Grenze nennen — leer gleich leer. typst braucht eine Unter- und eine
+    Obergrenze: Die Byte-Goldens der Rechnungen hängen an der Fassung (#533)."""
+    kanon = _grenzen_aus_pyproject_text(PYPROJECT.read_text(encoding="utf-8"))
+    teile = kanon["typst"].split(",")
+    assert any(t.startswith(">=") for t in teile), kanon["typst"]
+    assert any(t.startswith("<") and not t.startswith("<=") for t in teile), kanon["typst"]
+
+
+def test_requirements_und_deps_tragen_dieselben_grenzen_wie_pyproject():
+    """Jede Versionsgrenze steht an allen drei Stellen gleich, nicht nur die von typst (#533)."""
+    kanon = _grenzen_aus_pyproject_text(PYPROJECT.read_text(encoding="utf-8"))
+    aus_requirements = _grenzen_aus_requirements_text(REQUIREMENTS.read_text(encoding="utf-8"))
+    aus_deps = _grenzen_aus_deps(_bootstrap_modul().DEPS)
+
+    meldungen = (
+        _grenz_abweichungen(kanon, aus_requirements, "skill/requirements.txt")
+        + _grenz_abweichungen(kanon, aus_deps, "skill/scripts/bootstrap.py DEPS")
+    )
+    assert not meldungen, "\n".join(meldungen)
+
+
+def test_gleiche_grenze_in_anderer_schreibweise_ist_keine_abweichung():
+    """Leerraum und Reihenfolge der Teilgrenzen sind keine andere Grenze. Sonst würde der
+    Vergleich oben an einer Umformatierung rot statt an einer Abweichung."""
+    assert _grenze("typst >= 0.15.2, <0.16") == _grenze("typst<0.16,>=0.15.2") == "<0.16,>=0.15.2"
+    assert _grenze("typst>=0.15,<0.16") != _grenze("typst>=0.15.2,<0.16")
+    assert _grenze("pillow>=10") == ">=10"
+    assert _grenze("pillow") == ""
 
 
 def test_die_pruefung_wuerde_ein_fehlendes_paket_bemerken():

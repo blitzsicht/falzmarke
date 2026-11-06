@@ -25,7 +25,11 @@ classifiers = [
     "Topic :: Text Processing :: Markup :: Markdown",
 ]
 dependencies = [
-    "typst>=0.15,<0.15.1",  # 0.15.2 ändert die Bytes der Rechnungs-Goldens (#533)
+    # Ab 0.15.2: Die Rechnungs-Goldens stammen von dieser Fassung. typst schreibt seine
+    # Fassung in /Creator und XMP (0.15.2 als „Typst 0.15.1“); eine andere ändert also
+    # deren Bytes, nicht das Bild (#533). Dieselbe Grenze in skill/requirements.txt
+    # und bootstrap.py, `tests/test_abhaengigkeiten.py` hält sie gleich.
+    "typst>=0.15.2,<0.16",
     "pyyaml>=6",
     "pdfplumber>=0.11",
     "pypdf>=5",
