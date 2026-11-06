@@ -381,6 +381,31 @@ def test_befehl_ohne_antwort_auf_fragt_nach_keinem_faehnchen(befehl, monkeypatch
         not in server.protokoll
 
 
+
+def test_befehl_setzt_das_faehnchen_auch_bei_ungewissem_entwurf(befehl, monkeypatch, capsys):
+    """Code-Review #553: Ungewiss heißt, ein Entwurf mit `In-Reply-To` kann im
+    Postfach liegen. Wird er gesendet, legte `aufraeumen` die Ursprungsmail ohne
+    Fähnchen ab."""
+    server = _mit_ursprung(monkeypatch, append_wirkt=False)
+    assert befehl() == 0
+    assert "Entwurf ungewiss" in capsys.readouterr().err, "Vorbedingung: nicht ungewiss"
+    assert server.befehle("UID STORE") == [("UID STORE", "101", "+FLAGS", "(\\Flagged)")], \
+        "kein Fähnchen bei ungewissem Entwurf"
+
+
+def test_befehl_setzt_das_faehnchen_auch_beim_rueckfall_auf_die_datei(
+        befehl, monkeypatch, capsys):
+    """Code-Review #553: Die Datei trägt `In-Reply-To`. Wer sie versendet,
+    beantwortet die Ursprungsmail wie mit einem Entwurf."""
+    server = _mit_ursprung(monkeypatch)
+    monkeypatch.setattr(oeffnen, "entwurf",
+                        lambda felder, **k: oeffnen.Entwurfslage(None, "kein Mailprogramm"))
+    uebergeben = _datei_uebergaben(monkeypatch)
+    assert befehl() == 0
+    assert len(uebergeben) == 1, "Vorbedingung: die Datei ging nicht auf"
+    assert server.befehle("UID STORE") == [("UID STORE", "101", "+FLAGS", "(\\Flagged)")], \
+        "kein Fähnchen beim Rückfall auf die Datei"
+
 # ── --kein-fenster ohne Postfach (#441) ─────────────────────────────────────
 #
 # Der Abholer in siluri-angebote ruft alle 180 s kopflos auf. Fällt der Proxy
