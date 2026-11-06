@@ -5166,16 +5166,15 @@ def test_ohne_die_typpruefung_bleibt_ein_falscher_erledigt_wert_still(
         probe(tmp_path, wert, False)
 
 
-
 # Code-Review #553: Das Fähnchen auch bei ungewissem Entwurf und beim Rückfall
 # auf die Datei, und die Warnung für `erledigt` ohne `antwort_auf`.
 
 @pytest.mark.parametrize("alt, probe_name, meldung", [
-    ("            # liegen und gesendet werden (ADR 0063, Nachtrag Code-Review #553).\n"
+    ("            # wie ein Erfolg des Entwurfs.\n"
      "            _setze_faehnchen_mit(brief, felder)\n",
      "test_befehl_setzt_das_faehnchen_auch_bei_ungewissem_entwurf",
      "kein Fähnchen bei ungewissem Entwurf"),
-    ("            # Ursprungsmail wie mit einem Entwurf (ADR 0063, Nachtrag).\n"
+    ("            # die Mail im Eingang (ADR 0063, Nachtrag).\n"
      "            _setze_faehnchen_mit(brief, felder)\n",
      "test_befehl_setzt_das_faehnchen_auch_beim_rueckfall_auf_die_datei",
      "kein Fähnchen beim Rückfall auf die Datei"),
@@ -5194,6 +5193,20 @@ def test_ohne_den_aufruf_im_zweig_bleibt_die_ursprungsmail_ohne_faehnchen(
         probe(befehl, monkeypatch, capsys)
 
 
+def test_mit_dem_aufruf_im_exit_3_zweig_markiert_es_ohne_entwurf(befehl, monkeypatch, capsys):
+    """Sabotage an genau einer Stelle: Der Zweig `--kein-fenster` ohne Entwurf
+    ruft das Fähnchen doch (Review #563)."""
+    from test_postfach_entwurf import \
+        test_befehl_ohne_entwurf_mit_kein_fenster_setzt_kein_faehnchen as probe
+
+    probe(befehl, monkeypatch, capsys)                                      # Kontrolle
+    monkeypatch.setattr(falzmarke, "befehl_email", _zeile_ersetzt(
+        falzmarke, "befehl_email", "        elif args.kein_fenster:\n",
+        "        elif args.kein_fenster:\n            _setze_faehnchen_mit(brief, felder)\n"))
+    with pytest.raises(AssertionError, match="Fähnchen, obwohl kein Entwurf entstand"):
+        probe(befehl, monkeypatch, capsys)
+
+
 def test_ohne_die_warnung_bleibt_erledigt_ohne_antwort_auf_still(monkeypatch, tmp_path):
     from test_email_datenvertrag import test_erledigt_ohne_antwort_auf_warnt as probe
 
@@ -5202,6 +5215,7 @@ def test_ohne_die_warnung_bleibt_erledigt_ohne_antwort_auf_still(monkeypatch, tm
         _lint, "pruefe_email_frontmatter", "        if not antwort:\n", "        if False:\n"))
     with pytest.raises(AssertionError, match=re.escape("`erledigt` ohne `antwort_auf` blieb still")):
         probe(tmp_path)
+
 
 # ── #454: Der Plugin-Ordner bleibt aus dem Skill-Paket ──────────────────────
 

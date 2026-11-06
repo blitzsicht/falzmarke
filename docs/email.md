@@ -132,12 +132,13 @@ einem Menschen (#263).
 **Eine Antwort setzt das Fähnchen an der Ursprungsmail** (#549,
 [ADR 0063](entscheidungen/0063-faehnchen-beim-antwortentwurf.md)). Trägt die Nachricht
 `antwort_auf:`, setzt `--oeffnen` nach dem Entwurf `\Flagged` an genau der Mail im Eingang des
-Absenderkontos, deren `Message-ID` dort steht. `aufraeumen` lässt sie dann liegen, auch wenn die
+Absenderkontos, deren `Message-ID` dort steht, auch wenn ungewiss ist, ob der Entwurf liegt, oder
+statt eines Entwurfs die Datei aufgeht. `aufraeumen` lässt die Mail dann liegen, auch wenn die
 Antwort gesendet ist. Wer mit der Antwort abschließt, schreibt `erledigt: ja` ins Frontmatter: Dann
 wird nichts gesetzt, und die Mail wird abgelegt, sobald eine Antwort mit `In-Reply-To` hinaus ist.
-Der Entwurf im Postfach trägt es, ein Verfassen-Fenster nicht: Dort bleibt die Mail ohnehin
-liegen. Ein Fähnchen, das
-ein früherer Entwurf ohne `erledigt` schon gesetzt hat, bleibt allerdings stehen, bis du es
+Der Entwurf im Postfach trägt den Bezug. Ob ein Verfassen-Fenster ihn übernimmt, ist nur für
+Outlook für Mac gemessen (dort nicht, 11.09.2026); ohne Bezug legt `aufraeumen` die Mail nie ab.
+Ein Fähnchen, das ein früherer Entwurf ohne `erledigt` schon gesetzt hat, bleibt stehen, bis du es
 entfernst.
 
 | Zeile | heißt |

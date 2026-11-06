@@ -2112,15 +2112,17 @@ def befehl_email(args) -> int:
             # niemand — und „nicht geprüft“ ist nicht „nichts da“. Die `.eml`
             # jetzt zu übergeben, wäre womöglich das zweite Fenster, das der
             # Betreiber am 11.09.2026 gemeldet hat.
+            # Ungewiss heißt: Ein Entwurf mit `In-Reply-To` kann im Postfach
+            # liegen und gesendet werden (ADR 0063, Nachtrag Code-Review #553).
+            # Vor dem Hinweis: Ein „OK  Fähnchen gesetzt“ darunter läse sich
+            # wie ein Erfolg des Entwurfs.
+            _setze_faehnchen_mit(brief, felder)
             print(f"HINWEIS  Entwurf ungewiss: {lage.grund}\n"
                   "         Im Postfach nachsehen, ob einer entstanden ist. "
                   "Es wird nichts nachgeschoben,\n"
                   "         damit kein zweites Fenster aufgeht. Die geprüfte "
                   f"Nachricht liegt hier:\n         {eml_pfad}",
                   file=sys.stderr)
-            # Ungewiss heißt: Ein Entwurf mit `In-Reply-To` kann im Postfach
-            # liegen und gesendet werden (ADR 0063, Nachtrag Code-Review #553).
-            _setze_faehnchen_mit(brief, felder)
             # Auch der ungewisse Lauf steht im Buch (#411) — ohne UID, mit Vermerk.
             # Scheitert das, weiß `status` später nicht einmal, dass es diesen Lauf gab.
             if lage.buch_grund:
@@ -2155,8 +2157,9 @@ def befehl_email(args) -> int:
             # weil seit #287 kein Entwurfsfenster offen sein kann, wenn wir
             # hier ankommen.
             print(f"HINWEIS  kein Entwurf: {lage.grund}", file=sys.stderr)
-            # Die Datei trägt `In-Reply-To`; wer sie versendet, beantwortet die
-            # Ursprungsmail wie mit einem Entwurf (ADR 0063, Nachtrag).
+            # Die Datei trägt `In-Reply-To`. Ob es beim Versenden aus dem
+            # Lesefenster erhalten bleibt, ist nicht gemessen; im Zweifel bleibt
+            # die Mail im Eingang (ADR 0063, Nachtrag).
             _setze_faehnchen_mit(brief, felder)
             grund_datei = oeffnen_modul.oeffne(eml_pfad)
             if grund_datei:

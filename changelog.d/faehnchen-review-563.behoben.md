@@ -1,0 +1,1 @@
+- **Doku zum Fähnchen berichtigt.** `docs/email.md` behauptete, ein Verfassen-Fenster trage kein `In-Reply-To`. Gemessen ist das nur für Outlook für Mac. Im ungewissen Zweig steht die Fähnchen-Zeile jetzt vor dem Hinweis „Entwurf ungewiss“, damit sie sich nicht wie ein Erfolg liest. Ein Test hält fest, dass `--kein-fenster` ohne Entwurf kein Fähnchen setzt (Review #563).
