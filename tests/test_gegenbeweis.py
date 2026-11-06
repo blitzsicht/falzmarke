@@ -3151,14 +3151,24 @@ def test_ohne_profil_der_bruecke_gilt_der_alias_bei_email_oeffnen_als_fremd(monk
 
 @pytest.mark.parametrize("fall, alt", [
     ("absender-prueft-empfaenger-offen",
-     "            if not fenster.geprueft:\n                _empfaenger_ungeprueft(fenster)\n"),
+     ("            if not fenster.geprueft:\n"
+      "                _empfaenger_ungeprueft(fenster)\n"
+      "            elif not fenster.abweichung:\n"
+      "                _empfaenger_ok(fenster)\n")),
     ("empfaenger-prueft-absender-offen",
      ("            if not fenster.absender_geprueft and fenster.absender_hinweis:\n"
-      "                _absender_ungeprueft(fenster)\n")),
+      "                _absender_ungeprueft(fenster)\n"
+      "            elif fenster.absender_geprueft and not fenster.absender_abweichung:\n"
+      "                _absender_ok(fenster)\n")),
 ], ids=["empfaengerzeile", "absenderzeile"])
 def test_ohne_die_zeile_der_anderen_pruefung_verschweigt_pruefen_sie(monkeypatch, capsys, fall,
                                                                      alt):
-    """Je Richtung eine Sabotage; die andere Richtung bleibt dabei grün."""
+    """Je Richtung eine Sabotage; die andere Richtung bleibt dabei grün.
+
+    Baut den Stand vor #497 nach (#522, Punkt 9): Der PRÜFEN-Block kehrte ohne
+    jede Zeile der anderen Prüfung zurück, die Sabotage streicht `if` und `elif`
+    zusammen. Die früher gekippte Bedingung druckte stattdessen eine falsche
+    OK-Zeile; die fängt `test_ohne_vergleich_steht_trotzdem_ok`."""
     from falzmarke import cli as _cli
     from test_postfach_entwurf import (
         test_neben_einem_pruefen_steht_was_die_andere_pruefung_nicht_verglich as probe)
@@ -3166,9 +3176,7 @@ def test_ohne_die_zeile_der_anderen_pruefung_verschweigt_pruefen_sie(monkeypatch
     faelle = _faelle_der_anderen_pruefung()
     for werte in faelle.values():                                          # Kontrolle
         probe(*werte, capsys)
-    # Seit #500 folgt ein `elif` mit der OK-Zeile: die Bedingung kippen, nicht den Block löschen.
-    monkeypatch.setattr(_cli, "_melde_fenster", _zeile_ersetzt(
-        _cli, "_melde_fenster", alt, alt.replace("if ", "if False and ", 1)))
+    monkeypatch.setattr(_cli, "_melde_fenster", _zeile_ersetzt(_cli, "_melde_fenster", alt, ""))
     with pytest.raises(AssertionError, match="neben .* PRÜFEN fehlt „NICHT GEPRÜFT"):
         probe(*faelle[fall], capsys)
     for anderer, werte in faelle.items():
@@ -3184,20 +3192,52 @@ def _faelle_der_anderen_pruefung():
     return dict(zip(marke.kwargs["ids"], marke.args[1], strict=True))
 
 
+@pytest.mark.parametrize("fall, alt, neu", [
+    ("ohne-pruefen",
+     "        if fenster.geprueft:\n            _empfaenger_ok(fenster)\n",
+     "        if True:\n            _empfaenger_ok(fenster)\n"),
+    ("absender-prueft",
+     "            if not fenster.geprueft:\n                _empfaenger_ungeprueft(fenster)\n",
+     "            if False:\n                _empfaenger_ungeprueft(fenster)\n"),
+    ("empfaenger-prueft",
+     "            elif fenster.absender_geprueft and not fenster.absender_abweichung:\n",
+     "            elif not fenster.absender_abweichung:\n"),
+], ids=["normalzweig", "pruefen-empfaenger", "pruefen-absender"])
+def test_ohne_vergleich_steht_trotzdem_ok(monkeypatch, capsys, fall, alt, neu):
+    """#522, Punkt 9: Je Zweig von `_melde_fenster` fällt die Bedingung weg, die
+    ein OK an den Vergleich bindet. Nur der Fall dieses Zweigs wird rot."""
+    from falzmarke import cli as _cli
+    from test_postfach_entwurf import (
+        test_was_nicht_verglichen_wurde_bekommt_nie_eine_ok_zeile as probe)
+
+    marke = next(m for m in probe.pytestmark if m.name == "parametrize")
+    faelle = dict(zip(marke.kwargs["ids"], marke.args[1], strict=True))
+    for werte in faelle.values():                                          # Kontrolle
+        probe(*werte, capsys)
+    monkeypatch.setattr(_cli, "_melde_fenster", _zeile_ersetzt(_cli, "_melde_fenster", alt, neu))
+    with pytest.raises(AssertionError, match=f"nicht verglichen, trotzdem .*{faelle[fall][1]}"):
+        probe(*faelle[fall], capsys)
+    for anderer, werte in faelle.items():
+        if anderer != fall:
+            probe(*werte, capsys)
+
+
 # #500 (05.11.2026): der richtige Grund bei ABSENDER PRÜFEN, der Grund der Brücke
 # bei NICHT GEPRÜFT, die OK-Zeile neben einem PRÜFEN, der Hinweis nur am eigenen Entwurf.
 
 def test_mit_dem_festen_satz_nennt_absender_pruefen_das_gegenteil(oeffne_befehl, monkeypatch,
                                                                   capsys, tmp_path):
-    from falzmarke import cli as _cli
+    """Seit #522 (Punkt 10) steht der Grund in der Abweichung, gesetzt in
+    `absender_pruefen`. Dort setzt die Sabotage den festen Satz, wie ihn `cli`
+    bis #500 für jede Abweichung nahm."""
     from test_postfach_entwurf import (
         test_from_ausserhalb_der_konten_nennt_den_richtigen_grund as probe)
 
     probe(oeffne_befehl, monkeypatch, capsys, tmp_path / "k")             # Kontrolle
-    monkeypatch.setattr(_cli, "_melde_fenster", _zeile_ersetzt(
-        _cli, "_melde_fenster",
-        '(fenster.absender_hinweis\n                         or "das Fenster',
-        '("das Fenster'))
+    monkeypatch.setattr(_oeffnen, "absender_pruefen", _zeile_ersetzt(
+        _oeffnen, "absender_pruefen",
+        'f"{soll} gehört zu keinem Konto im Profil, {ist} schon: "',
+        '"das Fenster schickt von einer Identität außerhalb des Kontos: "'))
     with pytest.raises(AssertionError, match="ABSENDER PRÜFEN verschweigt, dass die Nachricht"):
         probe(oeffne_befehl, monkeypatch, capsys, tmp_path / "s")
 
