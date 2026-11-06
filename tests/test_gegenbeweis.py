@@ -2119,6 +2119,58 @@ def test_ein_dauerhafter_grund_als_voruebergehend_wird_rot(monkeypatch, _felder_
         probe(monkeypatch, _felder_505, *args)
 
 
+#: Die Zeilen der Positivliste in `_vergeht` (Nachreview von #530) und davor
+#: die eine Zeile, die bis dahin dort stand.
+_VERGEHT_HEUTE = ("    if isinstance(fehler, (ConnectionError, TimeoutError, imaplib.IMAP4.abort)):\n"
+                  "        return True\n"
+                  "    return isinstance(fehler, OSError) and fehler.errno in _NETZ_WEG\n")
+_VERGEHT_VOR_530 = "    return isinstance(fehler, (OSError, imaplib.IMAP4.abort))\n"
+
+
+@pytest.mark.parametrize("weg", ["_vergeht", "verbinde"])
+def test_jeder_oserror_als_voruebergehend_wird_rot(monkeypatch, _felder_505, weg):
+    """Nachreview von #530: `_vergeht` nahm jeden `OSError` außer `gaierror` als
+    vorübergehend, auch `PermissionError`. Die Sabotage setzt genau die alte
+    Zeile zurück; die Probe am Helfer und die am Verbindungsaufbau werden rot,
+    jede mit ihrem eigenen Text."""
+    import errno as _errno
+
+    import test_kein_entwurf_ursache as _probe_modul
+    from falzmarke import postfach as _postfach
+
+    fehler = PermissionError(_errno.EACCES, "Permission denied")
+    if weg == "_vergeht":
+        def probe():
+            _probe_modul.test_ein_anderer_oserror_bleibt(fehler)
+        meldung = re.escape(f"{fehler!r} gilt als vorübergehend")
+    else:
+        def probe():
+            _probe_modul.test_ein_falsches_ziel_ist_dauerhaft(monkeypatch, _felder_505, fehler)
+        meldung = rf"\[Errno {_errno.EACCES}\] Permission.*dauer='vorübergehend'"
+    probe()                                                                     # Kontrolle
+    monkeypatch.setattr(_postfach, "_vergeht", _zeile_ersetzt(
+        _postfach, "_vergeht", _VERGEHT_HEUTE, _VERGEHT_VOR_530))
+    with pytest.raises(AssertionError, match=meldung):
+        probe()
+
+
+def test_eine_zu_enge_positivliste_wird_rot(monkeypatch):
+    """Nachreview von #530, die Gegenrichtung: Fehlt `ConnectionError` in der
+    Liste, gälte eine zurückgesetzte Verbindung als bleibend, und der Abholer
+    gäbe beim ersten Wackler auf."""
+    import errno as _errno
+
+    import test_kein_entwurf_ursache as _probe_modul
+    from falzmarke import postfach as _postfach
+
+    fehler = ConnectionResetError(_errno.ECONNRESET, "Connection reset by peer")
+    _probe_modul.test_ein_bekannter_netzfehler_vergeht(fehler)                  # Kontrolle
+    monkeypatch.setattr(_postfach, "_vergeht", _zeile_ersetzt(
+        _postfach, "_vergeht", "(ConnectionError, TimeoutError,", "(TimeoutError,"))
+    with pytest.raises(AssertionError, match="ConnectionResetError gilt als bleibend"):
+        _probe_modul.test_ein_bekannter_netzfehler_vergeht(fehler)
+
+
 @pytest.mark.parametrize("ersatz, probe_name, meldung", [
     ("if True:", "test_befehl_mit_abgeschaltetem_entwurf_meldet_dauerhaft",
      "URSACHE  vorübergehend"),
@@ -2301,6 +2353,28 @@ def test_ohne_den_filter_weicht_kein_fenster_auf_outlook_aus(monkeypatch):
     with pytest.raises(AssertionError,
                        match="mit kein_fenster nach einem Programm mit Fenster gesucht"):
         probe(monkeypatch)
+
+
+def test_ohne_den_schalter_im_grund_raet_kein_fenster_zu_outlook():
+    """Nachreview von #547: `_nicht_gefunden` wie vor dem Fix, ohne `kein_fenster`.
+    Der Grund nennt dann `--programm outlook`, das der Befehl mit `--kein-fenster`
+    abweist. Der Zwilling ohne Schalter hält die Probe vorher grün."""
+    from test_oeffnen import (
+        test_ohne_fenster_und_ohne_thunderbird_verweist_der_grund_nicht_auf_outlook as probe,
+    )
+
+    probe()                                                                # Kontrolle
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(_oeffnen, "_nicht_gefunden", _zeile_ersetzt(
+            _oeffnen, "_nicht_gefunden",
+            "    if kein_fenster:\n"
+            '        grund += "; mit --kein-fenster geht nur der Postfach-Entwurf über Thunderbird"\n'
+            "    elif wahl is None:\n",
+            "    if wahl is None:\n"))
+        with pytest.raises(AssertionError, match="mit kein_fenster ein Weg, den der Befehl "
+                                                 "abweist: Thunderbird .*; Outlook nur auf "
+                                                 "Wahl mit --programm outlook"):
+            probe()
 
 
 def test_ohne_absage_am_eintrag_steht_none_im_grund(monkeypatch):
@@ -3490,9 +3564,9 @@ def test_der_hinweis_nennt_das_gelesene_profil_und_zwar_verschieden(monkeypatch,
 # grün bliebe, hinge nicht an dieser Stelle.
 
 _ALTES_PROFIL_522 = (
-    "profil, _ = bruecken_profil(profilordner, umgebung)",
-    ("profil = oeffnen.thunderbird_standardprofil("
-     "oeffnen.THUNDERBIRD_ORDNER if profilordner is None else Path(profilordner))"))
+    "profil, grund = bruecken_profil(profilordner, umgebung)",
+    ("profil, grund = oeffnen.thunderbird_standardprofil("
+     "oeffnen.THUNDERBIRD_ORDNER if profilordner is None else Path(profilordner)), \"\""))
 
 
 def _altes_profil_522(monkeypatch):
@@ -3565,6 +3639,70 @@ def test_mit_dem_standardprofil_liest_die_sperre_den_falschen_gesendet_ordner(mo
     _altes_profil_522(monkeypatch)
     with pytest.raises(AssertionError, match="die Sperre liest den Gesendet-Ordner am Profil"):
         probe(eigene, monkeypatch, tmp_path / "s")
+
+
+# Nachreview #534, Befund A: Der Wächter übersprang `entwurfsbuch.py` ganz, und
+# gerade dort hatte `abgleich` den Ordner bis #522 selbst am Standardprofil
+# gelesen. Je eine Sabotage im Quelltext, den der Wächter liest: der direkte
+# Aufruf in `abgleich` und einer in `oeffnen`, wo die alte Regel galt. Jeder Fund
+# muss Datei und Funktion nennen.
+
+@pytest.mark.parametrize("datei, alt, neu, erwartet", [
+    ("entwurfsbuch.py", "ordner_e = (thunderbird_ordner(",
+     "ordner_e = (oeffnen.thunderbird_ordner(", r"entwurfsbuch\.py:\d+ in abgleich'"),
+    ("oeffnen.py", '= entwurfsbuch.thunderbird_ordner(adresse, "draft_folder"',
+     '= thunderbird_ordner(adresse, "draft_folder"', r"oeffnen\.py:\d+ in _entwurf_postfach'"),
+], ids=["entwurfsbuch-abgleich", "oeffnen-entwurf-postfach"])
+def test_der_ordnerwaechter_sieht_den_direkten_aufruf(datei, alt, neu, erwartet):
+    from test_postfach_entwurf import _paketquellen, _pruefe_ordneraufrufe
+
+    quellen = _paketquellen()
+    _pruefe_ordneraufrufe(quellen)                                         # Kontrolle
+    assert quellen[datei].count(alt) == 1, f"„{alt}“ steht nicht genau einmal in {datei}"
+    sabotiert = {**quellen, datei: quellen[datei].replace(alt, neu)}
+    with pytest.raises(AssertionError, match=erwartet):
+        _pruefe_ordneraufrufe(sabotiert)
+
+
+# Nachreview #534, Befund B: der alte Code, an die Schnittstelle mit Grund
+# angepasst — `profil, _ =`, und ohne Profil kommt kein Grund mit.
+
+_GRUND_VERWORFEN_534 = (
+    ("profil, grund = bruecken_profil(profilordner, umgebung)\n"
+     "    if profil is None:\n"
+     "        return None, grund\n"),
+    ("profil, _ = bruecken_profil(profilordner, umgebung)\n"
+     "    if profil is None:\n"
+     "        return None, \"\"\n"))
+
+
+def test_ohne_den_grund_nennt_entwurf_oeffnen_die_falsche_ursache(oeffne_befehl, monkeypatch,
+                                                                  capsys, tmp_path):
+    from falzmarke import entwurfsbuch as _buch
+    from test_postfach_entwurf import (
+        test_entwurf_oeffnen_ohne_profil_der_bruecke_nennt_den_grund as probe,
+    )
+
+    probe(oeffne_befehl, monkeypatch, capsys, tmp_path / "k")             # Kontrolle
+    monkeypatch.setattr(_buch, "thunderbird_ordner", _zeile_ersetzt(
+        _buch, "thunderbird_ordner", *_GRUND_VERWORFEN_534))
+    with pytest.raises(AssertionError,
+                       match="entwurf-oeffnen verliert den Grund aus bruecken_profil"):
+        probe(oeffne_befehl, monkeypatch, capsys, tmp_path / "s")
+
+
+def test_mit_umgebung_als_positionsparameter_wird_die_signaturprobe_rot(monkeypatch, tmp_path):
+    """Befund C: `umgebung` wieder als dritter Positionsparameter, wie bis dahin."""
+    from falzmarke import entwurfsbuch as _buch
+    from test_entwurfsbuch import (
+        test_thunderbird_ordner_nimmt_umgebung_und_profilordner_nur_als_schluesselwort as probe,
+    )
+
+    probe(monkeypatch, tmp_path / "k")                                     # Kontrolle
+    monkeypatch.setattr(_buch, "thunderbird_ordner", _zeile_ersetzt(
+        _buch, "thunderbird_ordner", "art: str, *, umgebung", "art: str, umgebung"))
+    with pytest.raises(AssertionError, match="nimmt die Umgebung als Positionsparameter"):
+        probe(monkeypatch, tmp_path / "s")
 
 
 # ── Die Review-Funde an der Ablage (#438) ──────────────────────────────────
@@ -4926,6 +5064,70 @@ def test_mit_einem_zweiten_flag_geht_mehr_als_das_faehnchen_hinaus(befehl, monke
         _faehnchen, "_setze_in", 'f"({FLAG})"', 'f"({FLAG} \\\\Seen)"'))
     with pytest.raises(AssertionError, match="falsches STORE"):
         probe(befehl, monkeypatch, capsys)
+
+
+# Nachreview #553: Jede Schutzstelle in `faehnchen._setze_in` und `setze` und
+# die Typprüfung in `lint` bekommen ihre eigene Probe. Die Proben fahren die
+# Einzeltests aus `test_faehnchen.py` gegen die Attrappe; deren erste Zusicherung
+# trägt die Meldung, auf die hier gewartet wird.
+
+def _server_553(monkeypatch):
+    """Die Fixture `server` aus `test_faehnchen.py`, hier ohne Fixture-Import."""
+    from falzmarke import postfach as _postfach
+
+    def setzen(attrappe):
+        monkeypatch.setattr(_postfach, "IMAP_KLASSE", attrappe)
+        return attrappe
+    return setzen
+
+
+@pytest.mark.parametrize("funktion, alt, neu, probe_name, meldung", [
+    ("_setze_in", "if jetzt != geplant:", "if False:",
+     "test_ein_wechsel_der_uidvalidity_verhindert_das_setzen",
+     "STORE trotz gewechselter UIDVALIDITY"),
+    ("_setze_in", "if len(treffer) > 1:", "if False:",
+     "test_zwei_mails_mit_derselben_kennung_aendern_nichts",
+     "STORE, obwohl zwei Mails dieselbe Kennung tragen"),
+    ("_setze_in", 'if "\\\\flagged" not in fahnen:', "if False:",
+     "test_ein_store_ohne_wirkung_wird_beim_nachlesen_entdeckt",
+     "ein STORE ohne Wirkung als gesetzt gemeldet"),
+    ("_setze_in", 'if kopf.fahnen is not None and "\\\\flagged" in kopf.fahnen:', "if False:",
+     "test_ein_stehendes_faehnchen_bleibt_unberuehrt",
+     "STORE an einem Fähnchen, das schon stand"),
+    ("setze", "if not postfach.sendbar(kennung):", "if False:",
+     "test_eine_kennung_ausserhalb_von_ascii_wird_nicht_gesucht",
+     "Verbindung für eine Kennung, die nicht sendbar ist"),
+], ids=["uidvalidity", "zwei_treffer", "nachlesen", "schon_da", "sendbar"])
+def test_ohne_die_schutzstelle_aendert_das_faehnchen_zu_viel(
+        monkeypatch, funktion, alt, neu, probe_name, meldung):
+    """Sabotage an genau einer Stelle je Fall; die Probe muss mit ihrer eigenen
+    Meldung anschlagen."""
+    import test_faehnchen
+    from falzmarke import faehnchen as _faehnchen
+
+    probe = getattr(test_faehnchen, probe_name)
+    probe(_server_553(monkeypatch))                                         # Kontrolle
+    monkeypatch.setattr(_faehnchen, funktion, _zeile_ersetzt(_faehnchen, funktion, alt, neu))
+    with pytest.raises(AssertionError, match=re.escape(meldung)):
+        probe(_server_553(monkeypatch))
+
+
+@pytest.mark.parametrize("alt, neu, wert", [
+    # Der alte Fehler genau nachgebaut: `1 == True`, also galt `1` als gültig.
+    ("if not (isinstance(erledigt, bool)", "if not (erledigt in (True, False)", "1"),
+    # Der ganze zweite Zweig fällt weg.
+    ("if not (isinstance(erledigt, bool)", "if False and (isinstance(erledigt, bool)", "vielleicht"),
+], ids=["eins_als_bool", "zweig_weg"])
+def test_ohne_die_typpruefung_bleibt_ein_falscher_erledigt_wert_still(
+        monkeypatch, tmp_path, alt, neu, wert):
+    from test_email_datenvertrag import test_erledigt_warnt_bei_jedem_wert_ausser_ja_und_nein \
+        as probe
+
+    probe(tmp_path, wert, False)                                            # Kontrolle
+    monkeypatch.setattr(_lint, "pruefe_email_frontmatter", _zeile_ersetzt(
+        _lint, "pruefe_email_frontmatter", alt, neu))
+    with pytest.raises(AssertionError, match=re.escape(f"erledigt: {wert!r} — Warnung erwartet")):
+        probe(tmp_path, wert, False)
 
 
 # ── #454: Der Plugin-Ordner bleibt aus dem Skill-Paket ──────────────────────

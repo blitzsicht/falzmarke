@@ -133,7 +133,8 @@ Was dabei nicht fehlen darf, weil es gemessen ist:
   einen zweiten will. Ist der Proxy nicht da, geht es weiter wie im nächsten Punkt, mit einer
   Zeile `kein Postfach-Entwurf: <Grund>`. **Mit `--kein-fenster` nicht:** Dann geht weder
   `-compose` noch die Datei auf, sondern es heißt `KEIN ENTWURF  <Grund>` mit Exit 3, darunter
-  `URSACHE  vorübergehend` oder `URSACHE  dauerhaft`. Es liegt dann kein Entwurf, das so melden
+  eine Zeile, die mit `URSACHE  vorübergehend` oder `URSACHE  dauerhaft` beginnt; das erste Wort
+  nach `URSACHE` zählt, der Rest erläutert. Es liegt dann kein Entwurf, das so melden
   und nicht von Hand ein Fenster öffnen. Mit `--programm
   outlook` geht `--kein-fenster` nicht (Exit 1): Outlook öffnet jeden Entwurf.
 - Sonst entsteht der Entwurf als Fenster in **Thunderbird** (`-compose`), wenn es installiert
@@ -169,7 +170,8 @@ Was dabei nicht fehlen darf, weil es gemessen ist:
 - **Eine Antwort setzt das Fähnchen an der Ursprungsmail, außer `erledigt: ja`.** Mit
   `antwort_auf:` setzt `--oeffnen` `\Flagged` an genau der Mail im Eingang des Absenderkontos, auf
   die geantwortet wird, damit `aufraeumen` sie nicht ablegt (#549). `erledigt: ja` nur, wenn die
-  Antwort die Sache abschließt; bei Rückfrage, Zwischenstand oder offenem Termin weglassen. Die
+  Antwort die Sache abschließt; bei Rückfrage, Zwischenstand oder offenem Termin weglassen.
+  Ein Fähnchen aus einem früheren Entwurf entfernt `ja` nicht. Die
   Zeile `OK  Fähnchen gesetzt …` oder `HINWEIS  Fähnchen nicht gesetzt: <Grund>` gehört in die
   Antwort an den Menschen, wenn das Fähnchen fehlt.
 - Geht gar nichts auf, ist die Datei trotzdem fertig; der Befehl endet mit 0 und nennt den Pfad.
