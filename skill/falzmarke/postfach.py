@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import base64
 import email
+import errno
 import imaplib
 import re
 import socket
@@ -86,8 +87,10 @@ class PostfachFehler(Exception):
     `voruebergehend` ist wahr, wenn die Ursache von selbst vergehen kann: Der
     Proxy antwortet nicht, die Leitung reißt ab, die Zeit ist um. Falsch heißt:
     Sie bleibt, bis jemand etwas ändert (Anmeldung abgelehnt, Server sagt NO,
-    falsche Adresse). Ein Aufrufer in einer Schleife entscheidet daran, ob er
-    es beim nächsten Lauf wieder versucht (#505). Unbekanntes gilt als bleibend.
+    falsche Adresse, keine Berechtigung). Ein Aufrufer in einer Schleife
+    entscheidet daran, ob er es beim nächsten Lauf wieder versucht (#505).
+    Unbekanntes gilt als bleibend; welche Fehler vergehen, zählt `_vergeht`
+    einzeln auf.
     """
 
     def __init__(self, grund: str = "", *, voruebergehend: bool = False):
@@ -95,18 +98,30 @@ class PostfachFehler(Exception):
         self.voruebergehend = voruebergehend
 
 
+#: Fehlernummern eines `OSError`, die ein Netz melden, das gerade nicht trägt:
+#: WLAN aus, VPN weg, keine Route. Python gibt ihnen keine eigene Klasse.
+_NETZ_WEG = frozenset({errno.ENETUNREACH, errno.EHOSTUNREACH, errno.ENETDOWN, errno.EHOSTDOWN})
+
+
 def _vergeht(fehler: BaseException) -> bool:
     """Kann die Ursache beim nächsten Lauf ausbleiben? (#505)
 
-    Socket und abgerissene Verbindung (`IMAP4.abort`) vergehen, eine Antwort
-    NO/BAD (`IMAP4.error`) und ein Kodierfehler bleiben. Ein unbekannter Host
-    (`socket.gaierror`) ist zwar ein `OSError`, bleibt aber, bis jemand den Namen
-    in `FALZMARKE_GESENDET_IMAP` berichtigt. Nur `EAI_AGAIN`, die gerade gestörte
-    Namensauflösung, vergeht.
+    Eine Positivliste (Nachreview von #530). Vorübergehend sind nur: eine
+    abgerissene, abgelehnte oder abgebrochene Verbindung (`ConnectionError`),
+    ein Zeitlimit (`TimeoutError`; `socket.timeout` ist seit 3.10 derselbe
+    Name), ein Netz, das gerade nicht trägt (`_NETZ_WEG`), ein Abbruch mitten
+    im Befehl (`IMAP4.abort`) und eine gerade gestörte Namensauflösung
+    (`gaierror` mit `EAI_AGAIN`). Alles andere bleibt: eine Antwort NO/BAD
+    (`IMAP4.error`), ein Kodierfehler, ein unbekannter Host, den erst jemand in
+    `FALZMARKE_GESENDET_IMAP` berichtigen muss, eine fehlende Berechtigung und
+    jeder `OSError`, den diese Liste nicht nennt. Bis dahin galt jeder
+    `OSError` außer `gaierror` als vorübergehend, auch `PermissionError`.
     """
     if isinstance(fehler, socket.gaierror):
         return fehler.errno == socket.EAI_AGAIN
-    return isinstance(fehler, (OSError, imaplib.IMAP4.abort))
+    if isinstance(fehler, (ConnectionError, TimeoutError, imaplib.IMAP4.abort)):
+        return True
+    return isinstance(fehler, OSError) and fehler.errno in _NETZ_WEG
 
 
 # ── Ordnernamen ─────────────────────────────────────────────────────────────

@@ -10,6 +10,7 @@ bleibt wortgleich, damit ein Leser des alten Formats weiterläuft.
 from __future__ import annotations
 
 import ast
+import errno
 import functools
 import imaplib
 import inspect
@@ -142,7 +143,7 @@ def test_der_applescript_weg_mit_kein_fenster_ist_dauerhaft(monkeypatch, felder)
 
 @pytest.mark.parametrize("fehler", [
     ConnectionRefusedError(61, "refused"), TimeoutError("timed out"),
-    OSError(65, "No route to host"),
+    OSError(errno.EHOSTUNREACH, "No route to host"),
     socket.gaierror(socket.EAI_AGAIN, "temporary failure in name resolution"),
 ], ids=["abgelehnt", "zeitlimit", "keine-route", "namensaufloesung-gestoert"])
 def test_ein_proxy_der_nicht_antwortet_ist_voruebergehend(monkeypatch, felder, fehler):
@@ -154,10 +155,12 @@ def test_ein_proxy_der_nicht_antwortet_ist_voruebergehend(monkeypatch, felder, f
 @pytest.mark.parametrize("fehler", [
     socket.gaierror(socket.EAI_NONAME, "nodename nor servname provided, or not known"),
     imaplib.IMAP4.error("* NO kein IMAP-Dienst"),
-], ids=["unbekannter-host", "begruessung-nein"])
+    PermissionError(errno.EACCES, "Permission denied"),
+], ids=["unbekannter-host", "begruessung-nein", "keine-berechtigung"])
 def test_ein_falsches_ziel_ist_dauerhaft(monkeypatch, felder, fehler):
     """Nachreview von #505: Ein vertippter Hostname ist ein `OSError`, vergeht aber
-    nicht. Als vorübergehend holte der Abholer ihn alle 180 s erneut."""
+    nicht. Als vorübergehend holte der Abholer ihn alle 180 s erneut. Eine
+    fehlende Berechtigung ebenso (Nachreview von #530)."""
     _server(monkeypatch, verbindungsfehler=fehler)
     lage = _entwurf(felder)
     assert lage.dauer == D, lage
@@ -200,7 +203,7 @@ class _Leitung:
 
 
 @pytest.mark.parametrize("fehler, erwartet", [
-    (OSError(54, "Connection reset by peer"), True),
+    (ConnectionResetError(errno.ECONNRESET, "Connection reset by peer"), True),
     (TimeoutError("timed out"), True),
     (imaplib.IMAP4.abort("socket error: EOF"), True),
     (imaplib.IMAP4.error("SELECT failed"), False),
@@ -232,6 +235,42 @@ def test_abgelaufene_zeit_vergeht():
 
 def test_ohne_angabe_bleibt_ein_postfachfehler():
     assert postfach.PostfachFehler("x").voruebergehend is False
+
+
+@pytest.mark.parametrize("fehler", [
+    ConnectionResetError(errno.ECONNRESET, "Connection reset by peer"),
+    ConnectionRefusedError(errno.ECONNREFUSED, "Connection refused"),
+    ConnectionAbortedError(errno.ECONNABORTED, "Software caused connection abort"),
+    BrokenPipeError(errno.EPIPE, "Broken pipe"),
+    TimeoutError("timed out"),
+    OSError(errno.ETIMEDOUT, "Operation timed out"),
+    OSError(errno.EHOSTUNREACH, "No route to host"),
+    OSError(errno.ENETUNREACH, "Network is unreachable"),
+    OSError(errno.ENETDOWN, "Network is down"),
+    imaplib.IMAP4.abort("socket error: EOF"),
+    socket.gaierror(socket.EAI_AGAIN, "temporary failure in name resolution"),
+], ids=["reset", "abgelehnt", "abgebrochen", "rohr", "zeitlimit", "etimedout", "keine-route",
+        "netz-unerreichbar", "netz-aus", "abort", "namensaufloesung-gestoert"])
+def test_ein_bekannter_netzfehler_vergeht(fehler):
+    assert postfach._vergeht(fehler) is True, f"{type(fehler).__name__} gilt als bleibend"
+
+
+@pytest.mark.parametrize("fehler", [
+    PermissionError(errno.EACCES, "Permission denied"),
+    OSError(errno.EADDRNOTAVAIL, "Can't assign requested address"),
+    FileNotFoundError(errno.ENOENT, "No such file or directory"),
+    OSError(errno.EINVAL, "Invalid argument"),
+    OSError("ohne Nummer"),
+    socket.gaierror(socket.EAI_NONAME, "nodename nor servname provided, or not known"),
+    imaplib.IMAP4.error("SELECT failed"),
+    UnicodeEncodeError("ascii", "ü", 0, 1, "nein"),
+], ids=["keine-berechtigung", "adresse-nicht-verfuegbar", "datei-fehlt", "ungueltig",
+        "oserror-ohne-nummer", "unbekannter-host", "nein-vom-server", "kodierung"])
+def test_ein_anderer_oserror_bleibt(fehler):
+    """Nachreview von #530: `_vergeht` nahm jeden `OSError` außer `gaierror` als
+    vorübergehend. Zugesagt ist das Gegenteil: Was sich nicht sicher zuordnen
+    lässt, gilt als dauerhaft. Eine fehlende Berechtigung vergeht nicht von selbst."""
+    assert postfach._vergeht(fehler) is False, f"{fehler!r} gilt als vorübergehend"
 
 
 # ── Der Befehl ──────────────────────────────────────────────────────────────
