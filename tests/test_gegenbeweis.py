@@ -4809,7 +4809,7 @@ def test_ohne_listenkontext_raet_lint_zur_feldzeile(monkeypatch, tmp_path):
     probe(tmp_path / "kontrolle")                                          # Kontrolle
     monkeypatch.setattr(_lint, "pruefe_adressfeld", _zeile_ersetzt(
         _lint, "pruefe_adressfeld",
-        'form = "flow" if _feldwert_roh(kopf_roh, feld).startswith("[") else "block"',
+        'form = "flow" if roh.startswith("[") else "block"',
         'form = "skalar"'))
     (tmp_path / "sabotage").mkdir()
     with pytest.raises(AssertionError, match=r"kein Listeneintrag im Rat: .*im Frontmatter `an: "):
@@ -4832,25 +4832,30 @@ def test_ohne_profilkontext_nennt_der_rat_das_frontmatter(monkeypatch, tmp_path)
         probe(tmp_path / "sabotage")
 
 
-def test_ohne_einzelpruefung_geht_eine_absenderliste_durch(monkeypatch, tmp_path):
+@pytest.mark.parametrize("absender, meldung", [
+    (["m@example.de"], r"assert 0 == 1"),
+    (["Muster, Max <m@example.de>"], r"nimmt genau eine Adresse, im Profil steht eine Liste"),
+], ids=["gueltig", "mit-komma"])
+def test_ohne_einzelpruefung_geht_eine_absenderliste_durch(monkeypatch, tmp_path, absender, meldung):
     """Nachreview von #571, Befunde 1 und 2: Fällt die Prüfung „genau eine
     Adresse“ weg, geht `absender: [m@example.de]` ohne Befund durch, und der
-    Versand machte daraus `str(list)`."""
+    Versand machte daraus `str(list)`. Mit Komma kommt statt des Typ-Befunds der
+    Listenrat zurück (Review an PR #573, Punkt 7)."""
     from falzmarke import lint as _lint
     from test_adressen import test_absender_als_liste_ist_ein_fehler as probe
 
     (tmp_path / "kontrolle").mkdir()
-    probe(tmp_path / "kontrolle", ["m@example.de"])                        # Kontrolle
+    probe(tmp_path / "kontrolle", absender)                                # Kontrolle
     monkeypatch.setattr(_lint, "pruefe_adressfeld", _zeile_ersetzt(
         _lint, "pruefe_adressfeld", 'if ort == "profil" and not isinstance(wert, str):', "if False:"))
     (tmp_path / "sabotage").mkdir()
-    with pytest.raises(AssertionError, match=r"assert 0 == 1"):
-        probe(tmp_path / "sabotage", ["m@example.de"])
+    with pytest.raises(AssertionError, match=meldung):
+        probe(tmp_path / "sabotage", absender)
 
 
-def test_ohne_typpruefung_wird_cc_yes_zur_adresse_true(monkeypatch, tmp_path):
-    """Nachreview von #571, Befund 4: Ohne die Typprüfung liest `lint` `cc: yes`
-    als Eintrag „True“ und rät zur Adressform statt zum Typ."""
+def test_ohne_typpruefung_stuerzt_lint_an_cc_yes_ab(monkeypatch, tmp_path):
+    """Nachreview von #571, Befund 4: Ohne die Typprüfung stürzt `lint` an
+    `cc: yes` ab, wie vor #573, statt einen Befund zu melden."""
     from falzmarke import lint as _lint
     from test_adressen import test_kein_text_und_keine_liste_ist_ein_befund as probe
 
@@ -4860,7 +4865,7 @@ def test_ohne_typpruefung_wird_cc_yes_zur_adresse_true(monkeypatch, tmp_path):
     monkeypatch.setattr(_lint, "pruefe_adressfeld", _zeile_ersetzt(
         _lint, "pruefe_adressfeld", "if not isinstance(wert, (str, list)):", "if False:"))
     (tmp_path / "sabotage").mkdir()
-    with pytest.raises(AssertionError, match="„True“ ist keine E-Mail-Adresse"):
+    with pytest.raises(TypeError, match="'bool' object is not iterable"):
         probe(tmp_path / "sabotage", *fall)
 
 
@@ -4874,7 +4879,7 @@ def test_ohne_flow_erkennung_raet_lint_zur_blockzeile(monkeypatch, tmp_path):
     probe(tmp_path / "kontrolle")                                          # Kontrolle
     monkeypatch.setattr(_lint, "pruefe_adressfeld", _zeile_ersetzt(
         _lint, "pruefe_adressfeld",
-        'form = "flow" if _feldwert_roh(kopf_roh, feld).startswith("[") else "block"',
+        'form = "flow" if roh.startswith("[") else "block"',
         'form = "block"'))
     (tmp_path / "sabotage").mkdir()
     with pytest.raises(AssertionError, match="Blockzeile in einer Flow-Liste"):
@@ -4892,8 +4897,89 @@ def test_ohne_listenrat_verliert_der_zwei_adressen_rat_den_eintrag(monkeypatch, 
     monkeypatch.setattr(_lint, "_komma_abhilfe", _zeile_ersetzt(
         _lint, "_komma_abhilfe", 'if form != "skalar":', "if False:"))
     (tmp_path / "sabotage").mkdir()
-    with pytest.raises(AssertionError, match="je Adresse eine Zeile der Liste"):
+    with pytest.raises(AssertionError, match="wird der Listenkopf"):
         probe(tmp_path / "sabotage")
+
+
+def test_ohne_folgezeile_wird_die_flow_liste_zur_blockliste(monkeypatch, tmp_path):
+    """Review an PR #573, Punkt 1: Sieht `_feldstelle` die Folgezeile nicht an,
+    gilt `an:` mit `[ … ]` darunter als Blockliste, und der Rat `- '…'` bricht das YAML."""
+    from falzmarke import lint as _lint
+    from test_adressen import test_flow_liste_auf_der_folgezeile_ersetzt_nur_diesen_eintrag as probe
+
+    (tmp_path / "kontrolle").mkdir()
+    probe(tmp_path / "kontrolle")                                          # Kontrolle
+    monkeypatch.setattr(_lint, "_feldstelle", _zeile_ersetzt(
+        _lint, "_feldstelle", "if not rest:", "if False:"))
+    (tmp_path / "sabotage").mkdir()
+    with pytest.raises(AssertionError, match="Blockzeile in einer Flow-Liste"):
+        probe(tmp_path / "sabotage")
+
+
+@pytest.mark.parametrize("probe_name, meldung", [
+    ("test_wahrheitswert_in_einem_listeneintrag_ist_ein_typbefund", "got 'bool'"),
+    ("test_doppelpunkt_in_einem_listeneintrag_raet_zum_quoten", "got 'dict'"),
+], ids=["wahrheitswert", "zuordnung"])
+def test_ohne_eintragstyp_stuerzt_der_adressrat_ab(monkeypatch, tmp_path, probe_name, meldung):
+    """Review an PR #573, Punkt 2: Ohne die Typprüfung je Eintrag laufen `- yes`
+    und `- Firma: Muster <…>` in den Adressrat, und der stürzt an einem Nicht-Text ab."""
+    import test_adressen
+    from falzmarke import lint as _lint
+
+    probe = getattr(test_adressen, probe_name)
+    (tmp_path / "kontrolle").mkdir()
+    probe(tmp_path / "kontrolle")                                          # Kontrolle
+    monkeypatch.setattr(_lint, "pruefe_adressfeld", _zeile_ersetzt(
+        _lint, "pruefe_adressfeld", "if not isinstance(eintrag, str):", "if False:"))
+    (tmp_path / "sabotage").mkdir()
+    with pytest.raises(TypeError, match=meldung):
+        probe(tmp_path / "sabotage")
+
+
+def test_mit_dem_alten_guard_bleibt_cc_no_still(monkeypatch, tmp_path):
+    """Review an PR #573, Punkt 3: Mit `if kopf.get(feld):` fallen `cc: no` und
+    `cc: 0` am Aufrufer durch und bekommen keinen Befund."""
+    from falzmarke import lint as _lint
+    from test_adressen import test_kein_text_und_keine_liste_ist_ein_befund as probe
+
+    fall = ("an: x@example.de\ncc: no\n", "cc", "ein Wahrheitswert")
+    (tmp_path / "kontrolle").mkdir()
+    probe(tmp_path / "kontrolle", *fall)                                   # Kontrolle
+    monkeypatch.setattr(_lint, "pruefe_email_frontmatter", _zeile_ersetzt(
+        _lint, "pruefe_email_frontmatter", 'if kopf.get(feld) not in (None, ""):', "if kopf.get(feld):"))
+    (tmp_path / "sabotage").mkdir()
+    with pytest.raises(AssertionError, match=r"assert 0 == 1"):
+        probe(tmp_path / "sabotage", *fall)
+
+
+def test_ohne_listenkopf_fehlt_im_skalarrat_der_umbau(monkeypatch, tmp_path):
+    """Review an PR #573, Punkt 6: Der Rat für `an: 'a, b'` sagte nicht, dass
+    `an: …` erst zum Listenkopf `an:` wird."""
+    from falzmarke import lint as _lint
+    from test_adressen import test_zwei_adressen_im_skalar_nennen_den_listenkopf as probe
+
+    (tmp_path / "kontrolle").mkdir()
+    probe(tmp_path / "kontrolle")                                          # Kontrolle
+    monkeypatch.setattr(_lint, "_komma_abhilfe", _zeile_ersetzt(
+        _lint, "_komma_abhilfe",
+        'return (f"zwei Adressen in einem Eintrag: aus `{feld}: …` wird der Listenkopf `{feld}:` "',
+        'return (f"zwei Adressen in einem Eintrag: je Adresse eine Zeile der Liste unter `{feld}:` "'))
+    (tmp_path / "sabotage").mkdir()
+    with pytest.raises(AssertionError, match="wird der Listenkopf"):
+        probe(tmp_path / "sabotage")
+
+
+def test_mit_str_dict_verlieren_die_anlagen_ihre_namen(monkeypatch):
+    """Review an PR #573, Punkt 5: Macht `_adressen` aus einer Zuordnung `str(dict)`,
+    meldet die Anlagen-Prüfung „{'angebot.pdf': None}“ statt „angebot.pdf“."""
+    from falzmarke import lint as _lint
+    from test_adressen import test_anlagen_als_zuordnung_liefern_ihre_schluessel as probe
+
+    probe()                                                                # Kontrolle
+    monkeypatch.setattr(_lint, "_adressen", _zeile_ersetzt(
+        _lint, "_adressen", "return [str(z) for z in (wert or [])]", "return [str(wert)]"))
+    with pytest.raises(AssertionError, match=r"\{'angebot.pdf': None\}"):
+        probe()
 
 
 def test_ohne_den_gefundenen_ordner_raet_die_anzeige_je_zug(monkeypatch):

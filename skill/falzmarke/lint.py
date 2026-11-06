@@ -629,13 +629,27 @@ def _feldzeile(kopf_roh: str, feld: str) -> int:
     als Zeile 7 gemeldet. Niemandem aufgefallen, weil kein Test die gemeldete
     Zahl je gegen die Datei gehalten hat — `tests/test_lint.py` tut das jetzt.
     """
-    for nummer, zeile in enumerate(kopf_roh.splitlines(), start=1):
+    return _feldstelle(kopf_roh, feld)[0]
+
+
+def _feldstelle(kopf_roh: str, feld: str) -> tuple[int, str]:
+    """Zeile und roher Wert eines Feldes im Frontmatter, in einem Durchgang.
+
+    Der Wert ist, was hinter `feld:` steht. Steht dort nichts, ist es die
+    nächste nicht-leere Zeile: `an:` mit `[ … ]` auf der Folgezeile ist eine
+    Flow-Liste wie `an: [ … ]` (Review an PR #573).
+    """
+    zeilen = kopf_roh.splitlines()
+    for nummer, zeile in enumerate(zeilen, start=1):
         if zeile.strip().startswith(f"{feld}:"):
-            return nummer
+            rest = zeile.strip()[len(feld) + 1:].strip()
+            if not rest:
+                rest = next((z.strip() for z in zeilen[nummer:] if z.strip()), "")
+            return nummer, rest
     # Ohne Frontmatter-Text — zwei Aufrufer geben `""` mit — bleibt nur der
     # Dateianfang. Das ist keine Fundstelle, sondern das Eingeständnis, keine
     # zu haben.
-    return 1
+    return 1, ""
 
 
 def pruefe_datum(wert, zeile: int, bericht: Bericht) -> None:
@@ -712,17 +726,19 @@ def _melde_unbekannte(
 
 
 def _adressen(wert) -> list[str]:
-    """Die Einträge eines Feldes, das eine Adresse oder eine Liste davon nimmt.
+    """Die Einträge eines Feldes, das einen Wert oder eine Liste davon nimmt.
 
-    Ein anderer Typ kommt als ein Eintrag zurück, nicht als TypeError: `cc: yes`
-    liest YAML als Wahrheitswert, und darüber stürzte `lint` ab, statt einen
-    Befund zu melden (Nachreview #571). Den Typ selbst meldet `pruefe_adressfeld`.
+    Ein Wahrheitswert oder eine Zahl (`cc: yes`, `an: 42`) kommt als ein Eintrag
+    zurück, statt mit TypeError abzubrechen (Nachreview #571). Alles andere wie
+    bisher, auch für `anlagen_dateien`: Eine Zuordnung liefert ihre Schlüssel
+    (Review an PR #573). Den Typ eines Adressfeldes meldet `pruefe_adressfeld`
+    selbst, bevor es Einträge liest.
     """
     if isinstance(wert, str):
         return [wert]
-    if isinstance(wert, list):
-        return [str(z) for z in wert]
-    return [str(wert)] if wert else []
+    if isinstance(wert, (bool, int, float)):
+        return [str(wert)] if wert else []
+    return [str(z) for z in (wert or [])]
 
 
 def _yaml_skalar(text: str, *, flow: bool = False) -> str:
@@ -749,14 +765,6 @@ def _yaml_skalar(text: str, *, flow: bool = False) -> str:
     return "'" + text.replace("'", "''") + "'"
 
 
-def _feldwert_roh(kopf_roh: str, feld: str) -> str:
-    """Was in der Zeile des Feldes hinter `feld:` steht, roh und ohne Leerraum."""
-    for zeile in kopf_roh.splitlines():
-        if zeile.strip().startswith(f"{feld}:"):
-            return zeile.strip()[len(feld) + 1:].strip()
-    return ""
-
-
 def _art(wert) -> str:
     """Wie YAML einen Wert gelesen hat, der keine Adresse ist, für die Meldung."""
     if isinstance(wert, bool):
@@ -767,7 +775,38 @@ def _art(wert) -> str:
         return "eine Liste"
     if isinstance(wert, dict):
         return "eine Zuordnung `name: wert`"
+    if wert is None:
+        return "leer"
     return f"ein Wert vom Typ {type(wert).__name__}"
+
+
+def _typ_abhilfe(wert, feld: str, form: str) -> str:
+    """Abhilfe für einen Wert unter `an`, `cc` oder `bcc`, der kein Text ist.
+
+    `form` ist die Stelle wie bei `_komma_abhilfe`. Eine Zuordnung mit genau
+    einem Paar ist fast immer ein Name mit Doppelpunkt, `Firma: Muster <…>`:
+    YAML liest den Doppelpunkt mit Leerzeichen als Trenner. Der Rat setzt den
+    Namen in Anführungszeichen, denn auch `parseaddr` liest einen Doppelpunkt
+    ohne sie als Gruppe und verlöre „Firma“ (Review an PR #573).
+    """
+    if isinstance(wert, dict) and len(wert) == 1:
+        (schluessel, rest), = wert.items()
+        if isinstance(schluessel, str) and isinstance(rest, str):
+            klammer = re.fullmatch(r"(.*?)\s*<([^<>\s]+@[^<>\s]+)>\s*", rest)
+            text = (f'"{schluessel}: {klammer.group(1)}" <{klammer.group(2)}>' if klammer
+                    else f"{schluessel}: {rest}")
+            wert_yaml = _yaml_skalar(text, flow=form == "flow")
+            rat = "Doppelpunkt mit Leerzeichen dahinter: YAML liest den Eintrag als Zuordnung, "
+            if form == "block":
+                return rat + f"in der Liste unter `{feld}:` nur diesen Eintrag ersetzen durch `- {wert_yaml}`"
+            if form == "flow":
+                return rat + f"in der Liste `{feld}: [ … ]` nur diesen Eintrag ersetzen durch `{wert_yaml}`"
+            return rat + f"im Frontmatter `{feld}: {wert_yaml}`"
+    if isinstance(wert, dict):
+        return "Doppelpunkt mit Leerzeichen dahinter: YAML liest den Wert als Zuordnung, ihn in Anführungszeichen setzen"
+    if form == "skalar":
+        return f"`{feld}: name@beispiel.de` oder je Adresse eine Zeile `- name@beispiel.de` darunter"
+    return f"in der Liste unter `{feld}:` an dieser Stelle eine Adresse eintragen oder den Eintrag entfernen"
 
 
 def _komma_abhilfe(eintrag: str, feld: str, *, form: str = "skalar",
@@ -806,7 +845,8 @@ def _komma_abhilfe(eintrag: str, feld: str, *, form: str = "skalar",
         if form != "skalar":
             return (f"zwei Adressen in einem Eintrag: in der Liste unter `{feld}:` nur diesen "
                     f"Eintrag durch zwei Zeilen ersetzen, {zeilen}")
-        return f"zwei Adressen in einem Eintrag: je Adresse eine Zeile der Liste unter `{feld}:`, {zeilen}"
+        return (f"zwei Adressen in einem Eintrag: aus `{feld}: …` wird der Listenkopf `{feld}:` "
+                f"allein, darunter je Adresse eine Zeile, {zeilen}")
     komma = re.fullmatch(r"\s*([^\"<>@]*,[^\"<>@]*?)\s*<([^<>\s]+@[^<>\s]+)>\s*", eintrag)
     if not komma:
         return "erwartet wird `name@beispiel.de` oder `Name <name@beispiel.de>`"
@@ -837,7 +877,7 @@ def pruefe_adressfeld(wert, feld: str, kopf_roh: str, bericht: Bericht, *,
     """
     from email.utils import parseaddr
 
-    zeile = _feldzeile(kopf_roh, feld)
+    zeile, roh = _feldstelle(kopf_roh, feld)
     if ort == "profil" and not isinstance(wert, str):
         name = feld.split(".", 1)[1]
         bericht.fehler(zeile, feld, f"`{name}:` nimmt genau eine Adresse, im Profil steht {_art(wert)}",
@@ -845,13 +885,17 @@ def pruefe_adressfeld(wert, feld: str, kopf_roh: str, bericht: Bericht, *,
         return
     if not isinstance(wert, (str, list)):
         bericht.fehler(zeile, feld, f"`{feld}:` ist weder eine Adresse noch eine Liste, sondern {_art(wert)}",
-                       f"`{feld}: name@beispiel.de` oder je Adresse eine Zeile `- name@beispiel.de` darunter")
+                       _typ_abhilfe(wert, feld, "skalar"))
         return
     if isinstance(wert, str):
         form = "skalar"
     else:
-        form = "flow" if _feldwert_roh(kopf_roh, feld).startswith("[") else "block"
-    for eintrag in _adressen(wert):
+        form = "flow" if roh.startswith("[") else "block"
+    for eintrag in [wert] if isinstance(wert, str) else wert:
+        if not isinstance(eintrag, str):
+            bericht.fehler(zeile, feld, f"ein Eintrag unter `{feld}:` ist keine Adresse, sondern {_art(eintrag)}",
+                           _typ_abhilfe(eintrag, feld, form))
+            continue
         _, adresse = parseaddr(eintrag)
         if not adresse or not EMAIL_MUSTER.match(adresse):
             bericht.fehler(zeile, feld, f"„{eintrag}“ ist keine E-Mail-Adresse",
@@ -938,7 +982,8 @@ def pruefe_email_frontmatter(kopf: dict, kopf_roh: str, bericht: Bericht) -> Non
         pruefe_begleitbrief(kopf, kopf_roh, bericht)
 
     for feld in ("an", "cc", "bcc"):
-        if kopf.get(feld):
+        # `cc: no` und `cc: 0` sind falsch, aber kein leeres Feld (Review an PR #573).
+        if kopf.get(feld) not in (None, ""):
             pruefe_adressfeld(kopf[feld], feld, kopf_roh, bericht)
 
     betreff = str(kopf.get("betreff") or "").strip()

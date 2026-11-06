@@ -384,7 +384,10 @@ def test_absender_als_liste_ist_ein_fehler(tmp_path, absender):
     ("an: x@example.de\ncc: yes\n", "cc", "ein Wahrheitswert"),
     ("an: 42\n", "an", "eine Zahl"),
     ("an: {Muster: Max <c@example.org>}\n", "an", "eine Zuordnung"),
-], ids=["cc-yes", "an-zahl", "an-zuordnung"])
+    ("an: x@example.de\ncc: no\n", "cc", "ein Wahrheitswert"),
+    ("an: x@example.de\ncc: 0\n", "cc", "eine Zahl"),
+    ("an: x@example.de\nbcc: off\n", "bcc", "ein Wahrheitswert"),
+], ids=["cc-yes", "an-zahl", "an-zuordnung", "cc-no", "cc-null-zahl", "bcc-off"])
 def test_kein_text_und_keine_liste_ist_ein_befund(tmp_path, kopf, feld, art):
     bericht = _linte_kopf(tmp_path, kopf)                  # bisher TypeError bei bool und int
     befunde = [b for b in bericht.befunde if b.regel == feld]
@@ -472,3 +475,73 @@ def test_gegenprobe_from_wie_bisher(name, absender, erwartet):
 def test_from_ohne_adresse_bricht_ab():
     with pytest.raises(ValueError, match="absender"):
         eml._from_kopf("Siluri", "kein-at")
+
+
+# ── Review an PR #573 ────────────────────────────────────────────────────────
+
+FLOW_FOLGEZEILE = "an:\n  [x@example.de, 'Muster, Max <c@example.org>']\n"
+
+
+def test_flow_liste_auf_der_folgezeile_ersetzt_nur_diesen_eintrag(tmp_path):
+    import yaml
+    korrektur = [b for b in _linte_kopf(tmp_path, FLOW_FOLGEZEILE).befunde if b.regel == "an"][0].korrektur
+    wert = re.search(r"nur diesen Eintrag ersetzen durch `([^`]+)`$", korrektur)
+    assert wert, korrektur
+    assert not wert.group(1).startswith("- "), f"Blockzeile in einer Flow-Liste: {korrektur}"
+    kopf = FLOW_FOLGEZEILE.replace("'Muster, Max <c@example.org>'", wert.group(1))
+    assert yaml.safe_load(kopf)["an"] == ["x@example.de", '"Muster, Max" <c@example.org>']
+    nach = _linte_kopf(tmp_path, kopf)
+    assert not [b for b in nach.befunde if b.regel == "an"], nach.befunde
+
+
+def test_wahrheitswert_in_einem_listeneintrag_ist_ein_typbefund(tmp_path):
+    bericht = _linte_kopf(tmp_path, "an:\n  - x@example.de\n  - yes\n")
+    befunde = [b for b in bericht.befunde if b.regel == "an"]
+    assert len(befunde) == 1, bericht.befunde
+    assert "ein Eintrag unter `an:` ist keine Adresse, sondern ein Wahrheitswert" in befunde[0].meldung
+    assert "an dieser Stelle eine Adresse eintragen" in befunde[0].korrektur
+
+
+def test_doppelpunkt_in_einem_listeneintrag_raet_zum_quoten(tmp_path):
+    import yaml
+    kopf = "an:\n  - x@example.de\n  - Firma: Muster <c@example.org>\n"
+    befunde = [b for b in _linte_kopf(tmp_path, kopf).befunde if b.regel == "an"]
+    assert len(befunde) == 1, befunde
+    assert "sondern eine Zuordnung" in befunde[0].meldung
+    zeile = re.search(r"nur diesen Eintrag ersetzen durch `(- [^`]+)`$", befunde[0].korrektur)
+    assert zeile, befunde[0].korrektur
+    neu = kopf.replace("- Firma: Muster <c@example.org>", zeile.group(1))
+    # „Firma“ bleibt erhalten: ohne Anführungszeichen läse parseaddr eine Gruppe.
+    assert yaml.safe_load(neu)["an"] == ["x@example.de", '"Firma: Muster" <c@example.org>']
+    nach = _linte_kopf(tmp_path, neu)
+    assert not [b for b in nach.befunde if b.regel == "an"], nach.befunde
+
+
+@pytest.mark.parametrize("kopf", ["cc: ''\n", "cc:\n"], ids=["leer", "null"])
+def test_ein_leeres_feld_bleibt_still(tmp_path, kopf):
+    bericht = _linte_kopf(tmp_path, "an: x@example.de\n" + kopf)
+    assert not [b for b in bericht.befunde if b.regel == "cc"], bericht.befunde
+
+
+SKALAR_ZWEI = "an: 'a@example.de, b@example.de'\n"
+
+
+def test_zwei_adressen_im_skalar_nennen_den_listenkopf(tmp_path):
+    import yaml
+    korrektur = [b for b in _linte_kopf(tmp_path, SKALAR_ZWEI).befunde if b.regel == "an"][0].korrektur
+    assert "aus `an: …` wird der Listenkopf `an:` allein" in korrektur, korrektur
+    zeilen = re.search(r"`(- [^`]+)` und `(- [^`]+)`$", korrektur)
+    assert zeilen, korrektur
+    neu = "an:\n" + "".join(f"  {z}\n" for z in zeilen.groups())
+    assert yaml.safe_load(neu)["an"] == ["a@example.de", "b@example.de"]
+    nach = _linte_kopf(tmp_path, neu)
+    assert not [b for b in nach.befunde if b.regel == "an"], nach.befunde
+
+
+def test_anlagen_als_zuordnung_liefern_ihre_schluessel():
+    """Die Typprüfung der Adressfelder darf `anlagen_dateien` nicht ändern: Eine
+    Zuordnung lieferte vor #573 ihre Schlüssel als Dateinamen, und das bleibt."""
+    from falzmarke.lint import Bericht, pruefe_email_anlagen
+    bericht = Bericht()
+    pruefe_email_anlagen({"anlagen_dateien": {"angebot.pdf": None}}, "kein Hinweis", "", bericht)
+    assert [b.meldung for b in bericht.befunde] == ["„angebot.pdf“ wird im Text nicht genannt"]
