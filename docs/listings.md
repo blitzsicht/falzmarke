@@ -13,8 +13,8 @@ verlangen, und keine Mehrfacheinreichung.
 | Anthropic-Plugin-Verzeichnis | eingereicht v0.11.2 @ 8d44c0d, Sicherheitsscan läuft, 2 Policy-Holds (06.11.2026) | Prüfung abwarten; Rückfragen kommen an servus@blitzsicht.com |
 | mcp.so | eingereicht per Issue [chatmcp/mcpso#6843](https://github.com/chatmcp/mcpso/issues/6843), offen, kein Kommentar (06.11.2026) | abwarten, nicht zahlen |
 | Smithery | **abgeschaltet** am 31.10.2026 | nichts tun |
-| Glama | beansprucht; Badge „maintenance rated B“; **nicht deploybar** (06.11.2026) | Dockerfile in Glama eintragen, Reiter „Admin ⚠“ ansehen |
-| awesome-mcp-servers | PR offen; Anspruch erfüllt, Glama-Prüfung offen (06.11.2026) | erst Glama deploybar machen, dann Maintainer antworten |
+| Glama | beansprucht, Build-Test grün, Release 0.11.2 veröffentlicht; Badge „4 tools, maintenance rated B“ (06.11.2026) | nichts; neue Versionen baut Auto-Release |
+| awesome-mcp-servers | PR offen; beide Glama-Bedingungen erfüllt, im PR gemeldet (06.11.2026) | Merge abwarten, nicht nachfassen |
 | awesome-claude-skills | **gesperrt**, 1 von 10 Sternen | Default: nicht verfolgen; `travisvn` bei 10 Sternen neu bewerten |
 | GitHub Topics | 20 von 20 gesetzt | nichts zu tun |
 
@@ -135,8 +135,10 @@ falzmarke typesets German DIN 5008 letters from Markdown as PDF/A and measures e
 ## Glama
 
 - [x] Eintrag beansprucht (Screenshot des Betreibers, 05.11.2026 15:43 Ortszeit)
-- [ ] Glama-Prüfung bestanden: Server startet in Glama und beantwortet die Introspektion
-- [ ] Reiter „Admin ⚠“: was das Warndreieck bemängelt
+- [x] Glama-Prüfung bestanden: Server startet in Glama und beantwortet die Introspektion
+  (Build-Test `01a1b09e`, 06.11.2026 12:29 MEZ: initialize und tools/list mit 4 Werkzeugen)
+- [x] Reiter „Admin ⚠“: Das Warndreieck meldete fünf rote Build-Tests und kein Release
+- [x] Release 0.11.2 veröffentlicht (06.11.2026 12:31 MEZ); Auto-Release ist an
 
 **Ziel-URL:** https://glama.ai/mcp/servers/blitzsicht/falzmarke
 
@@ -147,13 +149,27 @@ maintainer, maintenance rated B“. Am 05.11.2026 stand dort „rated A“. Die 
 Wartungsnote, sie schwankt und ist kein fester Stand; deshalb steht sie hier nur mit Datum. Eine
 eigene Qualitäts- oder Lizenznote für falzmarke zeigt die Seite `…/score` nicht.
 
-Damit ist nur die erste Hälfte dessen erfüllt, was der Bot im PR bei awesome-mcp-servers verlangt
-(Kommentar vom 30.08.2026): gelistet und beansprucht. Die zweite Hälfte fehlt: Der Server soll
-„alle Prüfungen bestehen“, und dazu muss das Dockerfile **direkt in Glama** eingetragen werden.
-Glama übernimmt es nicht von selbst aus dem Repository. Am 06.11.2026 meldet die Serverseite
-„This server cannot be deployed“. Das `Dockerfile` im Wurzelverzeichnis taugt als Vorlage: Der
-CI-Job „MCP-Dienst im Container“ baut es und spricht den Dienst an. Ob das Warndreieck im Reiter
-„Admin“ genau das bemängelt, ist nicht geprüft.
+Der Bot im PR bei awesome-mcp-servers verlangt (Kommentar vom 30.08.2026), dass der Server alle
+Prüfungen auf Glama besteht: Er muss starten und auf Introspektion antworten. Beides ist seit
+06.11.2026 erfüllt.
+
+**Glama baut nicht aus unserem `Dockerfile`.** Es erzeugt ein eigenes aus den Feldern unter Admin →
+Dockerfile: Debian, Node für `mcp-proxy`, uv, dann `git clone` des Repositorys. Vorbelegt waren
+`uv sync` und Python 3.15, und daran scheiterten alle fünf Tests bis zum 06.11.2026. `uv sync`
+lässt das Extra `mcp` weg, und `falzmarke` liegt danach in `/app/.venv/bin`, nicht im `PATH`. Diese
+Werte tragen:
+
+| Feld | Wert |
+|---|---|
+| Base image | `debian:trixie-slim` |
+| Node.js version | `24` |
+| Python version | `3.13` |
+| Build steps | `["uv sync --extra mcp"]` |
+| CMD arguments | `["/app/.venv/bin/falzmarke","mcp"]`, Glama setzt `mcp-proxy --` davor |
+
+Wird das Extra umbenannt oder der Einstiegspunkt verlegt, muss diese Tabelle mitwandern, sonst wird
+der nächste Auto-Release rot. Lokal nachgebaut am 06.11.2026 mit Gegenproben: Ohne `--extra mcp`
+endet `import mcp` mit `ModuleNotFoundError`, und ohne Pfad findet die Shell `falzmarke` nicht.
 
 **Link:** https://falzmarke.com/?utm_source=listing&utm_medium=directory&utm_campaign=glama-202611
 
@@ -172,10 +188,10 @@ German DIN 5008 business letters from Markdown: render PDF/A, build .eml, verify
 ## awesome-mcp-servers
 
 - [x] Glama beansprucht (Abschnitt oben)
-- [ ] Glama-Prüfung bestanden (Abschnitt oben)
+- [x] Glama-Prüfung bestanden (Abschnitt oben)
 - [x] Maintainer im PR Bescheid gegeben (Kommentar 05.11.2026 15:34Z = 16:34 MEZ)
-- [ ] nach bestandener Glama-Prüfung im PR richtigstellen: Der Kommentar nennt „rated A“ und
-  „both Glama steps are done“; beides stimmt so nicht mehr (siehe Glama)
+- [x] im PR richtiggestellt (Kommentar 06.11.2026 11:32Z): „rated A“ vom Vortag war verfrüht,
+  jetzt Build-Test grün und Release 0.11.2
 - [ ] Merge abwarten, kein neuer PR
 
 **Ziel-URL:** https://github.com/punkpeye/awesome-mcp-servers/pull/13221 (offen seit 30.08.2026)
