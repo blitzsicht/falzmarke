@@ -1,0 +1,1 @@
+- **Das Plugin-README verlinkt seinen Datenschutzabschnitt.** Das Anthropic-Verzeichnis sucht eine Zeile „Privacy“ mit Link; sie zeigt jetzt auf „Wohin Daten gehen“ im selben README, wo PyPI und das eigene Postfach als einzige Wege über das Netz stehen (#560).

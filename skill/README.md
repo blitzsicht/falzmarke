@@ -15,6 +15,7 @@ Beispiel: „Schreib eine Kündigung für meinen Mietvertrag zum Monatsende und 
 Website: [falzmarke.com](https://falzmarke.com/?utm_source=listing&utm_medium=directory&utm_campaign=anthropic-202611)
 Quelltext: [github.com/blitzsicht/falzmarke](https://github.com/blitzsicht/falzmarke)
 Lizenz: MIT
+Datenschutz (Privacy): [Wohin Daten gehen](https://github.com/blitzsicht/falzmarke/blob/main/skill/README.md#wohin-daten-gehen)
 
 ## Wohin Daten gehen
 
