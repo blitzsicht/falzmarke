@@ -351,6 +351,21 @@ def test_kein_fenster_mit_outlook_wird_abgewiesen(befehl, monkeypatch, capsys):
     assert uebergeben == [] and befehl.tb.compose == []
 
 
+def test_kein_fenster_ohne_programm_nennt_kein_programm_none(befehl, monkeypatch, capsys):
+    """#522, Punkt 12c: Ist die Vorgabe ein Programm mit Fenster (heute keine
+    Tabelle), nannte die Abweisung `--programm None`, das niemand angab."""
+    from test_oeffnen import _outlook_als_vorgabe
+
+    monkeypatch.setattr(oeffnen, "ENTWURFSPROGRAMME", (_outlook_als_vorgabe(),))
+    _server(monkeypatch)
+    code = befehl("--kein-fenster")
+    fehler = capsys.readouterr().err
+    assert code == falzmarke.EXIT_EINGABE, f"Exit {code}: {fehler}"
+    assert "--programm None" not in fehler, f"nennt eine Option, die keiner angab: {fehler}"
+    assert fehler.startswith("FEHLER  --kein-fenster geht nicht mit dem vorgegebenen Programm: "
+                             "Microsoft Outlook legt"), fehler
+
+
 def test_kein_fenster_mit_abgeschaltetem_entwurf_endet_mit_exit_3(befehl, monkeypatch, capsys):
     """Nachreview von #491, Befund 4: `FALZMARKE_ENTWURF=nie` lässt ohne Schalter
     die Datei aufgehen. Mit `--kein-fenster` gibt es die Datei nicht, also Exit 3."""
