@@ -472,6 +472,85 @@ def test_kein_fenster_mit_abgeschaltetem_entwurf_endet_mit_exit_3(befehl, monkey
     assert befehl.tb.compose == []
 
 
+# ── --kein-fenster schließt --oeffnen ein (#538) ────────────────────────────
+#
+# Gemessen am 05.11.2026: `email <md> --kein-fenster` ohne `--oeffnen` schrieb
+# die `.eml`, legte keinen Entwurf an und endete mit Exit 0, ohne Hinweis. Der
+# Schalter verspricht einen abgelegten Entwurf. Seit #538 schließt er
+# `--oeffnen` ein, wie `--programm`.
+
+def _email_ohne_oeffnen(tmp_path, monkeypatch):
+    """Wie die Fixture `befehl`, nur steht `--oeffnen` nicht im Aufruf.
+
+    Eine Funktion statt einer Fixture: Die Gegenproben in `test_gegenbeweis.py`
+    rufen die Proben mit `tmp_path`, `monkeypatch` und `capsys` auf.
+    """
+    monkeypatch.delenv("CI", raising=False)
+    monkeypatch.delenv("FALZMARKE_OEFFNEN", raising=False)
+    monkeypatch.setenv("DISPLAY", ":0")
+    tb = Thunderbird()
+    monkeypatch.setattr(oeffnen, "entwurf", functools.partial(
+        oeffnen.entwurf, plattform="darwin", umgebung={"DISPLAY": ":0"}, laufen=tb,
+        binaer=lambda: THUNDERBIRD_PFAD))
+    quelle = tmp_path / "antwort.md"
+    quelle.write_text(MAIL, encoding="utf-8")
+
+    def lauf(*extra):
+        return falzmarke.main(["email", str(quelle), "--profiles", str(PROFILE), *extra])
+    lauf.tb = tb
+    return lauf
+
+
+def test_kein_fenster_ohne_oeffnen_legt_den_entwurf_ab(tmp_path, monkeypatch, capsys):
+    """Abnahme #538, Punkt 1: Der Schalter allein legt den Entwurf ins Postfach."""
+    server = _server(monkeypatch)
+    tb_bruecke = _bruecke(monkeypatch)
+    lauf = _email_ohne_oeffnen(tmp_path, monkeypatch)
+    code = lauf("--kein-fenster")
+    ausgabe = capsys.readouterr()
+    assert len(server.befehle("APPEND")) == 1, \
+        "--kein-fenster ohne --oeffnen legte keinen Entwurf ab"
+    assert code == 0, f"Exit {code}: {ausgabe.err}"
+    assert f"OK  Entwurf liegt in „Entwürfe“ von {ABSENDER}: {BETREFF}" in ausgabe.out
+    assert tb_bruecke.adressen == [] and lauf.tb.compose == [], "ein Fenster trotz --kein-fenster"
+
+
+def test_kein_fenster_ohne_oeffnen_und_ohne_proxy_endet_mit_exit_3(tmp_path, monkeypatch,
+                                                                    capsys):
+    """Abnahme #538, Punkt 1: Fehlt das Postfach, heißt es `KEIN ENTWURF` mit Exit 3."""
+    monkeypatch.setattr(postfach, "IMAP_KLASSE",
+                        ImapAttrappe(verbindungsfehler=ConnectionRefusedError(61, "refused")))
+    uebergeben = _datei_uebergaben(monkeypatch)
+    lauf = _email_ohne_oeffnen(tmp_path, monkeypatch)
+    code = lauf("--kein-fenster")
+    ausgabe = capsys.readouterr()
+    assert code == falzmarke.EXIT_UMGEBUNG, \
+        f"Exit {code}: --kein-fenster ohne --oeffnen endete ohne KEIN ENTWURF"
+    assert "KEIN ENTWURF  kein Postfach-Entwurf: kein IMAP-Proxy unter" in ausgabe.err
+    assert "Die geprüfte Nachricht liegt hier:" in ausgabe.err
+    assert lauf.tb.compose == [] and uebergeben == [], "ein Fenster trotz --kein-fenster"
+
+
+@pytest.mark.parametrize("mit_postfach", [True, False], ids=["mit-postfach", "ohne-proxy"])
+def test_ohne_beide_schalter_bleibt_es_bei_der_datei(tmp_path, monkeypatch, capsys,
+                                                     mit_postfach):
+    """Zwilling der beiden Proben darüber: derselbe Aufbau ohne `--kein-fenster`.
+
+    Kein Entwurf, kein Postfach gefragt, nichts geöffnet, Exit 0 — wie vor #538.
+    """
+    server = (_server(monkeypatch) if mit_postfach else ImapAttrappe(
+        verbindungsfehler=ConnectionRefusedError(61, "refused")))
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", server)
+    uebergeben = _datei_uebergaben(monkeypatch)
+    lauf = _email_ohne_oeffnen(tmp_path, monkeypatch)
+    code = lauf()
+    ausgabe = capsys.readouterr()
+    assert code == 0, f"Exit {code}: {ausgabe.err}"
+    assert server.verbindungen == [], "ohne beide Schalter wurde das Postfach gefragt"
+    assert "OK  Entwurf" not in ausgabe.out and "KEIN ENTWURF" not in ausgabe.err
+    assert lauf.tb.compose == [] and uebergeben == []
+
+
 def test_die_abgelegte_datei_ist_die_gemessene(eml_pfad, felder, monkeypatch):
     """Was im Postfach liegt, ist byte-gleich die Datei, die `verify --email` maß —
     nicht eine zweite Ableitung."""
