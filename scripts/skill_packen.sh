@@ -38,10 +38,13 @@ cd "$(dirname "$0")/.."
 # Endung war nie das Problem.
 MAX_MB=30
 
-# Das Wheel gilt fuer jedes Python ab 3.8 (cp38-abi3) und fuer die Plattform,
+# Ein abi3-Wheel gilt fuer jedes Python ab seiner Fassung und fuer die Plattform,
 # auf der Skill-Sandboxen laufen. Eine Datei statt einer je Python-Fassung.
+# Gefragt wird mit der Untergrenze aus `requires-python` in pyproject.toml, nicht
+# mit der des Wheels: typst 0.15.2 baut cp39-abi3 statt cp38-abi3, und die
+# Anfrage mit 3.8 fand keine Fassung ab 0.15.2 mehr (#533).
 PLATTFORM="manylinux_2_17_x86_64"
-PYTHON_FASSUNG="3.8"
+PYTHON_FASSUNG="3.11"
 
 # Die Fassung steht in skill/requirements.txt und wird von dort gelesen, nicht
 # hier wiederholt. Zwei Stellen laufen auseinander, eine nicht.
