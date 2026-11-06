@@ -34,10 +34,14 @@ anrede: Sehr geehrte Damen und Herren,
 """
 
 
-def linte_an(tmp_path, adresse: str):
+def _linte_kopf(tmp_path, kopf: str, profile=PROFILE):
     pfad = tmp_path / "mail.md"
-    pfad.write_text(f'---\n{KOPF}an: "{adresse}"\n---\nText.\n', encoding="utf-8")
-    return falzmarke.linte(pfad, profil_verzeichnis=PROFILE)
+    pfad.write_text(f"---\n{KOPF}{kopf}---\nText.\n", encoding="utf-8")
+    return falzmarke.linte(pfad, profil_verzeichnis=profile)
+
+
+def linte_an(tmp_path, adresse: str):
+    return _linte_kopf(tmp_path, f'an: "{adresse}"\n')
 
 
 def _alte_pruefung(eintrag: str) -> bool:
@@ -290,12 +294,6 @@ def test_apostroph_im_namen_hinweis_ist_gueltiges_yaml(tmp_path):
 LISTE_MIT_KOMMA = "an:\n  - x@example.de\n  - 'Muster, Max <c@example.org>'\n  - z@example.de\n"
 
 
-def _linte_kopf(tmp_path, kopf: str, profile=PROFILE):
-    pfad = tmp_path / "mail.md"
-    pfad.write_text(f"---\n{KOPF}{kopf}---\nText.\n", encoding="utf-8")
-    return falzmarke.linte(pfad, profil_verzeichnis=profile)
-
-
 def test_komma_in_einer_liste_ersetzt_nur_diesen_eintrag(tmp_path):
     import yaml
     bericht = _linte_kopf(tmp_path, LISTE_MIT_KOMMA)
@@ -320,20 +318,27 @@ def test_gegenprobe_ein_einzelner_wert_behaelt_die_feldzeile(tmp_path):
     assert "`- " not in korrektur
 
 
-def _profile_mit_absender(tmp_path, absender: str):
+def _setze_absender(datei, absender) -> None:
+    """`email.absender` im Profil setzen, über YAML statt über eine feste Textzeile:
+    Eine andere Beispieladresse in example.yaml soll diese Tests nicht kippen."""
+    import yaml
+    daten = yaml.safe_load(datei.read_text(encoding="utf-8"))
+    daten["email"]["absender"] = absender
+    datei.write_text(yaml.safe_dump(daten, allow_unicode=True, sort_keys=False), encoding="utf-8")
+
+
+def _profile_mit_absender(tmp_path, absender):
     import shutil
     ziel = tmp_path / "profiles"
     shutil.copytree(PROFILE, ziel)
     datei = ziel / "example.yaml"
-    alt = "  absender: muster@example.de\n"
-    text = datei.read_text(encoding="utf-8")
-    assert text.count(alt) == 1, "example.yaml hat die Zeile `absender:` unter `email:` nicht mehr"
-    datei.write_text(text.replace(alt, f"  absender: {absender}\n"), encoding="utf-8")
-    return ziel, datei, alt
+    _setze_absender(datei, absender)
+    return ziel, datei
 
 
 def test_komma_im_absender_nennt_das_profil(tmp_path):
-    profile, datei, _ = _profile_mit_absender(tmp_path, "'Muster, Max <muster@example.de>'")
+    import yaml
+    profile, datei = _profile_mit_absender(tmp_path, "Muster, Max <muster@example.de>")
     bericht = _linte_kopf(tmp_path, "an: x@example.de\n", profile)
     befunde = [b for b in bericht.befunde if b.regel == "email.absender"]
     assert len(befunde) == 1, bericht.befunde
@@ -341,20 +346,96 @@ def test_komma_im_absender_nennt_das_profil(tmp_path):
     assert "Frontmatter" not in korrektur
     zeile = re.search(r"im Profil unter `email:` die Zeile `(absender: [^`]+)`$", korrektur)
     assert zeile, korrektur
-    # Die vorgeschlagene Zeile im Profil eingesetzt, lintet sauber.
-    text = datei.read_text(encoding="utf-8")
-    datei.write_text(text.replace("  absender: 'Muster, Max <muster@example.de>'\n",
-                                  f"  {zeile.group(1)}\n"), encoding="utf-8")
+    # Die vorgeschlagene Zeile ist YAML und, im Profil eingesetzt, lintet sie sauber.
+    _setze_absender(datei, yaml.safe_load(zeile.group(1))["absender"])
     nach = _linte_kopf(tmp_path, "an: x@example.de\n", profile)
     assert not [b for b in nach.befunde if b.regel == "email.absender"], nach.befunde
 
 
 def test_zwei_adressen_im_absender_raten_nicht_zur_liste(tmp_path):
-    profile, _, _ = _profile_mit_absender(tmp_path, "'a@example.de, b@example.de'")
+    profile, _ = _profile_mit_absender(tmp_path, "a@example.de, b@example.de")
     bericht = _linte_kopf(tmp_path, "an: x@example.de\n", profile)
     korrektur = [b for b in bericht.befunde if b.regel == "email.absender"][0].korrektur
     assert "genau eine Adresse" in korrektur
     assert "Liste" not in korrektur
+
+
+# ── Nachreview von #571 ──────────────────────────────────────────────────────
+# Eine Liste unter `email.absender` ging ohne Befund durch und wurde beim
+# Versand zu `str(list)`. `cc: yes` brachte `lint` zum Absturz. In einer
+# Flow-Liste und bei zwei Adressen in einem Listeneintrag passte der Rat nicht
+# zu der Stelle, an der der Eintrag steht.
+
+@pytest.mark.parametrize("absender", [
+    ["m@example.de"],
+    ["Muster, Max <m@example.de>"],
+], ids=["gueltig", "mit-komma"])
+def test_absender_als_liste_ist_ein_fehler(tmp_path, absender):
+    profile, _ = _profile_mit_absender(tmp_path, absender)
+    bericht = _linte_kopf(tmp_path, "an: x@example.de\n", profile)
+    befunde = [b for b in bericht.befunde if b.regel == "email.absender"]
+    assert len(befunde) == 1, bericht.befunde
+    assert "`absender:` nimmt genau eine Adresse, im Profil steht eine Liste" in befunde[0].meldung
+    assert "in der Liste" not in befunde[0].korrektur
+    assert "absender: name@beispiel.de" in befunde[0].korrektur
+
+
+@pytest.mark.parametrize("kopf, feld, art", [
+    ("an: x@example.de\ncc: yes\n", "cc", "ein Wahrheitswert"),
+    ("an: 42\n", "an", "eine Zahl"),
+    ("an: {Muster: Max <c@example.org>}\n", "an", "eine Zuordnung"),
+], ids=["cc-yes", "an-zahl", "an-zuordnung"])
+def test_kein_text_und_keine_liste_ist_ein_befund(tmp_path, kopf, feld, art):
+    bericht = _linte_kopf(tmp_path, kopf)                  # bisher TypeError bei bool und int
+    befunde = [b for b in bericht.befunde if b.regel == feld]
+    assert len(befunde) == 1, bericht.befunde
+    assert f"`{feld}:` ist weder eine Adresse noch eine Liste, sondern {art}" in befunde[0].meldung
+    assert "in der Liste" not in befunde[0].korrektur
+
+
+FLOW_MIT_KOMMA = "an: [x@example.de, 'Muster, Max <c@example.org>', z@example.de]\n"
+
+
+def test_komma_in_einer_flow_liste_ersetzt_nur_diesen_eintrag(tmp_path):
+    import yaml
+    bericht = _linte_kopf(tmp_path, FLOW_MIT_KOMMA)
+    korrektur = [b for b in bericht.befunde if b.regel == "an"][0].korrektur
+    wert = re.search(r"nur diesen Eintrag ersetzen durch `([^`]+)`$", korrektur)
+    assert wert, korrektur
+    assert not wert.group(1).startswith("- "), f"Blockzeile in einer Flow-Liste: {korrektur}"
+    kopf = FLOW_MIT_KOMMA.replace("'Muster, Max <c@example.org>'", wert.group(1))
+    assert yaml.safe_load(kopf)["an"] == [
+        "x@example.de", '"Muster, Max" <c@example.org>', "z@example.de"]
+    nach = _linte_kopf(tmp_path, kopf)
+    assert not [b for b in nach.befunde if b.regel == "an"], nach.befunde
+
+
+ZWEI_IN_BLOCK = "an:\n  - x@example.de\n  - 'b@example.de, c@example.de'\n"
+ZWEI_IN_FLOW = "an: [x@example.de, 'b@example.de, c@example.de']\n"
+
+
+def test_zwei_adressen_in_einer_blockliste_ersetzen_nur_diesen_eintrag(tmp_path):
+    import yaml
+    korrektur = [b for b in _linte_kopf(tmp_path, ZWEI_IN_BLOCK).befunde if b.regel == "an"][0].korrektur
+    zeilen = re.search(r"nur diesen Eintrag durch zwei Zeilen ersetzen, `(- [^`]+)` und `(- [^`]+)`$",
+                       korrektur)
+    assert zeilen, korrektur
+    neu = ZWEI_IN_BLOCK.replace("  - 'b@example.de, c@example.de'\n",
+                                "".join(f"  {z}\n" for z in zeilen.groups()))
+    assert yaml.safe_load(neu)["an"] == ["x@example.de", "b@example.de", "c@example.de"]
+    nach = _linte_kopf(tmp_path, neu)
+    assert not [b for b in nach.befunde if b.regel == "an"], nach.befunde
+
+
+def test_zwei_adressen_in_einer_flowliste_ersetzen_nur_diesen_eintrag(tmp_path):
+    import yaml
+    korrektur = [b for b in _linte_kopf(tmp_path, ZWEI_IN_FLOW).befunde if b.regel == "an"][0].korrektur
+    werte = re.search(r"nur diesen Eintrag durch zwei ersetzen, `([^`]+)` und `([^`]+)`$", korrektur)
+    assert werte, korrektur
+    neu = ZWEI_IN_FLOW.replace("'b@example.de, c@example.de'", ", ".join(werte.groups()))
+    assert yaml.safe_load(neu)["an"] == ["x@example.de", "b@example.de", "c@example.de"]
+    nach = _linte_kopf(tmp_path, neu)
+    assert not [b for b in nach.befunde if b.regel == "an"], nach.befunde
 
 
 @pytest.mark.parametrize("eintrag, teil", [
