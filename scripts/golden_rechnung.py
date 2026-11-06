@@ -20,6 +20,12 @@ Was typst selbst ins PDF schreibt und mit jeder Fassung wechselt (Fassung in
 (`conftest.ohne_typst_kennung`, #533). Eine neue typst-Fassung ohne sichtbare
 Änderung schreibt deshalb kein Golden neu.
 
+Greift die Maske nicht, weil typst sein XMP umgebaut hat, hält sie das Neu-Erzeugen
+nicht auf: Ohne Schalter wird roh verglichen und geschrieben, und eine Zeile auf
+stderr sagt, warum. Mit `--pruefen` bricht das Skript an dieser Stelle ab, statt
+„gleich“ zu melden (Review #568). Die Tests vergleichen weiter durch die Maske und
+bleiben rot, bis sie nachgezogen ist.
+
     python3 scripts/golden_rechnung.py            # schreibt Goldens neu
     python3 scripts/golden_rechnung.py --pruefen  # meldet nur Abweichungen
 
@@ -41,7 +47,7 @@ sys.path.insert(0, str(REPO / "skill"))
 sys.path.insert(0, str(REPO / "tests"))
 
 from conftest import (GOLDEN_VERSION, RECHNUNG_BEISPIELE, PROFILE,  # noqa: E402
-                      ohne_typst_kennung)
+                      TypstMaskeGreiftNicht, ohne_typst_kennung)
 
 #: Derselbe Zeitpunkt wie in `scripts/golden_email.py` und in den Tests.
 EPOCH = "1788134400"
@@ -78,12 +84,30 @@ def erzeuge(quelle: Path) -> tuple[bytes, bytes]:
             os.environ["SOURCE_DATE_EPOCH"] = alt
 
 
+def _gleich(alt: bytes, neu: bytes, maske, nur_pruefen: bool, pfad: Path) -> bool:
+    """Ob `alt` und `neu` gleich sind, mit `maske` durch sie verglichen.
+
+    Scheitert die Maske, gilt das nur mit `--pruefen` als Fehler. Ohne den Schalter
+    soll das Skript gerade dann schreiben können: Eine typst-Fassung, die ihr XMP
+    umbaut, bricht die Maske, und das Neu-Erzeugen ist die Antwort darauf."""
+    if maske is None:
+        return alt == neu
+    try:
+        return maske(alt) == maske(neu)
+    except TypstMaskeGreiftNicht as fehler:
+        if nur_pruefen:
+            raise
+        print(f"Maske griff nicht bei {pfad.relative_to(REPO)}, roh verglichen: {fehler}",
+              file=sys.stderr)
+        return alt == neu
+
+
 def _aktualisiere(pfad: Path, neu: bytes, nur_pruefen: bool, *, maske=None) -> bool:
     """Schreibt `pfad`, falls nötig. Gibt zurück, ob es eine Abweichung gab.
 
-    Mit `maske` werden beide Seiten erst durch sie verglichen."""
+    Mit `maske` werden beide Seiten erst durch sie verglichen (`_gleich`)."""
     alt = pfad.read_bytes() if pfad.exists() else None
-    if alt is not None and (maske(alt) == maske(neu) if maske else alt == neu):
+    if alt is not None and _gleich(alt, neu, maske, nur_pruefen, pfad):
         print(f"gleich     {pfad.relative_to(REPO)}")
         return False
     if nur_pruefen:
