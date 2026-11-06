@@ -23,8 +23,9 @@ abschließt, und der Entwurf kennt die Ursprungsmail über `antwort_auf`.
    `messagesUpdate`.
 2. **Im Zweifel bleibt die Mail im Eingang.** Jeder Antwortentwurf setzt `\Flagged` an der
    Ursprungsmail, **außer** das Frontmatter sagt `erledigt: ja`. Ein vergessenes Feld lässt eine
-   Mail zu viel im Eingang, keine zu wenig. Als erledigt zählt nur ein eindeutiges Ja (`ja`, `yes`,
-   `true`); jeder andere Wert setzt das Fähnchen, und `lint` warnt.
+   Mail zu viel im Eingang, keine zu wenig. Als erledigt zählt nur ein eindeutiges Ja: der Text `ja` oder
+   ein YAML-Wahrwert (`true`, `yes`, `on` ohne Anführungszeichen). `"yes"` in Anführungszeichen,
+   `1` oder jeder andere Wert setzt das Fähnchen, und `lint` warnt.
 3. **Nur dieses eine Flag, nur hinzufügen, an genau einer Mail.** Der ändernde Befehl ist
    `UID STORE <uid> +FLAGS (\Flagged)`. Kein `-FLAGS`, kein `\Seen`, kein `\Deleted`, kein
    Verschieben. Ein Fähnchen, das schon steht, wird nicht noch einmal gesetzt. Entfernt wird es
@@ -42,6 +43,19 @@ abschließt, und der Entwurf kennt die Ursprungsmail über `antwort_auf`.
    `postfach`: Dessen Zusage „nur lesend, der einzige schreibende Befehl ist `APPEND`“ bleibt wahr.
    `tests/test_faehnchen.py` liest am Syntaxbaum nach, dass `STORE` dort der einzige ändernde
    Befehl ist.
+
+## Nachtrag: Nachreview #553 (06.11.2026)
+
+- **Das Fähnchen kommt mit dem Entwurf, nicht mit dem Senden.** Im Zweig mit dem
+  Verfassen-Fenster (Thunderbird, Outlook) ist der Entwurf beim Setzen nur ein offenes Fenster.
+  Wer ihn verwirft, oder wer einen Entwurf mit `--ersetzen` austauscht, behält das Fähnchen an der
+  Ursprungsmail. Das ist die Richtung aus Punkt 2: eine Mail zu viel im Eingang.
+- **`erledigt: ja` sieht nicht nach.** Hat ein früherer Entwurf derselben Antwort ohne `erledigt`
+  das Fähnchen schon gesetzt, bleibt es (Punkt 3: entfernt wird nie). Die Zeile sagt das.
+- **Nennt der Server keine Flags, wird gesetzt.** Ob schon eines steht, ist dann unbekannt;
+  `+FLAGS` an einem stehenden ändert nichts. Die Zeile meldet „nicht nachgelesen“.
+- **Gegen einen echten Server ist der Weg nicht gemessen** (Stand 06.11.2026), nur gegen die
+  IMAP-Attrappe. Der erste Lauf gegen den emailproxy wird hier mit Datum nachgetragen.
 
 ## Warum dieses Flag und warum ein voller Eingang
 
