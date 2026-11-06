@@ -17,7 +17,7 @@ from __future__ import annotations
 import email
 import functools
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from email import policy
 from pathlib import Path
 
@@ -565,6 +565,32 @@ def test_kein_fenster_ohne_oeffnen_und_ohne_proxy_endet_mit_exit_3(tmp_path, mon
         f"Exit {code}: --kein-fenster ohne --oeffnen endete ohne KEIN ENTWURF"
     assert "KEIN ENTWURF  kein Postfach-Entwurf: kein IMAP-Proxy unter" in ausgabe.err
     assert "Die geprüfte Nachricht liegt hier:" in ausgabe.err
+    assert lauf.tb.compose == [] and uebergeben == [], "ein Fenster trotz --kein-fenster"
+
+
+def test_kein_fenster_ohne_oeffnen_sperrt_die_schon_gesendete_mit_exit_4(tmp_path, monkeypatch,
+                                                                         capsys):
+    """Review #562: Mit der Kopplung fragt `--kein-fenster` allein auch den
+    Gesendet-Ordner (ADR 0051), wie `--programm`. Ging vor drei Minuten eine Mail
+    mit demselben Betreff an denselben Empfänger hinaus, entsteht kein Entwurf,
+    und der Befehl endet mit Exit 4. Der Text der Attrappe ist ein anderer, also
+    heißt die Zeile `GEÄNDERTE FASSUNG`; sie sperrt wie `SCHON GESENDET`."""
+    monkeypatch.delenv("FALZMARKE_GESENDET", raising=False)       # conftest schaltet sie ab
+    zeit = datetime.now(timezone.utc) - timedelta(minutes=3)
+    server = ImapAttrappe({
+        "Entw&APw-rfe": [],
+        "Gesendete Elemente": [(nachricht(an="paula@example.org", betreff=BETREFF,
+                                          datum=zeit, von=ABSENDER), zeit)],
+    })
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", server)
+    uebergeben = _datei_uebergaben(monkeypatch)
+    lauf = _email_ohne_oeffnen(tmp_path, monkeypatch)
+    code = lauf("--kein-fenster")
+    ausgabe = capsys.readouterr()
+    assert code == falzmarke.EXIT_SCHON_GESENDET == 4, \
+        f"Exit {code}: --kein-fenster ohne --oeffnen sperrte die gesendete Nachricht nicht"
+    assert ausgabe.err.startswith("GEÄNDERTE FASSUNG  „AW: Sommerfest"), ausgabe.err
+    assert server.befehle("APPEND") == [], "trotz Treffer ein Entwurf"
     assert lauf.tb.compose == [] and uebergeben == [], "ein Fenster trotz --kein-fenster"
 
 
