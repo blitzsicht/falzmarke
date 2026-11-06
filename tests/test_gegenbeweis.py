@@ -2454,6 +2454,21 @@ def test_ohne_kopplung_tut_kein_fenster_ohne_oeffnen_nichts(tmp_path, monkeypatc
         probe(tmp_path, monkeypatch, capsys)
 
 
+def test_ohne_kopplung_in_der_hilfe_schweigt_kein_fenster_dazu(monkeypatch, capsys):
+    """#538, Abnahme 3: der Hilfetext von `--kein-fenster` wie vor dem Fix. Der
+    Parser entsteht in `main`; bei `--programm` steht der Satz weiter, die Probe
+    liest aber nur den Abschnitt von `--kein-fenster`."""
+    from test_befehl_email import test_die_hilfe_nennt_bei_kein_fenster_die_kopplung as probe
+
+    probe(capsys)                                                          # Kontrolle
+    monkeypatch.setattr(falzmarke, "main", _zeile_ersetzt(
+        falzmarke, "main", '"Nicht mit --programm outlook; schließt --oeffnen ein")',
+        '"Nicht mit --programm outlook")'))
+    with pytest.raises(AssertionError, match="--kein-fenster nennt die Kopplung nicht: "
+                                             "den Entwurf ablegen"):
+        probe(capsys)
+
+
 def test_ohne_signaturklasse_findet_die_pruefung_keine_signatur(tmp_path, monkeypatch):
     """Sabotage: Die Hülle der Signatur trägt eine andere Klasse. Dann findet
     die Prüfung aus `test_moz_signatur.py` kein Element mehr — und Thunderbirds
