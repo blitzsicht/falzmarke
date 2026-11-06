@@ -62,7 +62,9 @@ abschließt, und der Entwurf kennt die Ursprungsmail über `antwort_auf`.
 - **Auch bei ungewissem Entwurf und beim Rückfall auf die Datei.** Ist nach einem abgerissenen
   `APPEND` ungewiss, ob der Entwurf liegt, oder geht statt eines Entwurfs die `.eml` auf, wird das
   Fähnchen ebenfalls gesetzt. Beide können mit `In-Reply-To` gesendet werden; ohne Fähnchen legte
-  `aufraeumen` die Ursprungsmail dann ab. Das ist Punkt 2: im Zweifel eine Mail zu viel im Eingang.
+  `aufraeumen` die Ursprungsmail dann ab. Für die Datei ist das nicht gemessen: Sie geht als
+  Lesefenster auf, und ob „Weiterleiten“ oder „Als neu bearbeiten“ den Bezug übernimmt, hat
+  niemand nachgesehen. Das ist Punkt 2: im Zweifel eine Mail zu viel im Eingang.
   Kein Fähnchen gibt es weiter, wo kein Entwurf entsteht: Gesendet-Sperre und `--kein-fenster`
   ohne Entwurf (Exit 3; der nächste Aufruf setzt es).
 - **`erledigt: ja` verspricht das Ablegen nur für eine Antwort mit `In-Reply-To`.** Ein Entwurf aus
