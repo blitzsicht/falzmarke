@@ -450,6 +450,12 @@ def test_gegenprobe_das_verschieben_ist_einzeln_einzuschalten():
     assert offen.uid("MOVE", "1", '"Archiv"')[0] == "OK"
 
 
+#: Was eine Verbindung ändern oder senden würde. Gilt für `postfach` und für die
+#: Socket-Hülle in `imap_frist`, durch die seit Review #570 jedes Byte läuft.
+AENDERNDE_ZUGRIFFE = frozenset({"store", "expunge", "copy", "move", "delete", "rename",
+                                "send", "sendmail", "send_message"})
+
+
 def test_das_modul_kennt_keinen_aendernden_befehl():
     """Die Quelle selbst: kein STORE, EXPUNGE, COPY, MOVE, DELETE — und kein
     smtplib. Gelesen wird der Syntaxbaum, nicht die Doku."""
@@ -460,8 +466,7 @@ def test_das_modul_kennt_keinen_aendernden_befehl():
     # Jeder Attributzugriff, nicht nur Aufrufe: `postfach` reicht die Methode
     # der Verbindung weiter (`self._v.select`), statt sie dort aufzurufen.
     zugriffe = {k.attr for k in ast.walk(ast.parse(quelle)) if isinstance(k, ast.Attribute)}
-    assert not zugriffe & {"store", "expunge", "copy", "move", "delete", "rename", "send",
-                           "sendmail", "send_message"}, zugriffe
+    assert not zugriffe & AENDERNDE_ZUGRIFFE, zugriffe
     assert {"append", "select", "uid", "login"} <= zugriffe, "die Prüfung sieht die Zugriffe nicht"
     # Importe über den Baum, nicht als Text: Der Modulkopf erklärt, warum
     # `smtplib` und `subprocess` fehlen, und nennt sie dabei beim Namen.
@@ -505,6 +510,78 @@ def socket_ausser_fehlerklassen(quelle: str) -> set[str]:
     # wenn sie gar keinen Zugriff fände.
     if "import socket" in quelle and not gelesen:
         funde.add("socket importiert, aber kein Zugriff gefunden")
+    return funde
+
+
+def test_die_socket_huelle_kennt_keinen_aendernden_befehl_und_keinen_netzweg():
+    """`imap_frist` statt `postfach`: Seit Review #570 läuft jedes Byte einer
+    Sitzung durch `_SocketMitFrist`. Die Zusagen von `postfach`, nur zu lesen und
+    keinen Netzweg neben IMAP zu öffnen, hielten bis zum Nachreview von #574 nur
+    für das eine Modul. Ein `sendmail` oder ein eigenes `create_connection` in der
+    Hülle wäre an beiden Prüfungen vorbeigegangen, denn sie lasen nur
+    `postfach.py`. Gelesen wird auch hier der Syntaxbaum: Modulkopf und
+    Docstrings nennen `socket`, `makefile` und den Verbindungsaufbau beim Namen."""
+    import ast
+    from pathlib import Path
+
+    from falzmarke import imap_frist
+
+    quelle = Path(imap_frist.__file__).read_text(encoding="utf-8")
+    zugriffe = {k.attr for k in ast.walk(ast.parse(quelle)) if isinstance(k, ast.Attribute)}
+    assert not zugriffe & AENDERNDE_ZUGRIFFE, sorted(zugriffe & AENDERNDE_ZUGRIFFE)
+    # Die Hülle muss sehen, worüber sie wacht — sonst bliebe die Prüfung auch an
+    # einer leeren oder fremden Datei grün.
+    assert {"sendall", "recv", "recv_into", "_create_socket"} <= zugriffe, zugriffe
+    funde = netzweg_in_der_huelle(quelle)
+    assert funde == set(), sorted(funde)
+
+
+#: Was die Hülle aus `socket` lesen darf: den Typ `socket.socket` für die
+#: Annotation, nicht als Aufruf, und `SocketIO`, über das `makefile` liest.
+HUELLE_SOCKET_ERLAUBT = frozenset({"socket", "SocketIO"})
+#: Namen, über die ein eigener Netzweg entstünde, gleich an welchem Objekt:
+#: `socket.create_connection`, `self._sock.connect`, `super().create_connection`.
+NETZWEG = frozenset({"create_connection", "create_server", "connect", "connect_ex",
+                     "socketpair", "fromfd", "fromshare", "bind", "listen", "accept"})
+
+
+def netzweg_in_der_huelle(quelle: str) -> set[str]:
+    """Jeder Weg, auf dem `imap_frist` selbst eine Verbindung aufbauen könnte.
+
+    Erlaubt ist nur, den Socket zu umhüllen, den `imaplib` in `_create_socket`
+    öffnet, und ihn über `socket.SocketIO` zu lesen. Verboten sind ein eigener
+    `socket.socket(…)`, jeder Name aus `NETZWEG`, jeder andere Name aus `socket`
+    sowie `from socket import …` und ein Alias, die beides vor dieser Prüfung
+    verstecken würden. Wie `socket_ausser_fehlerklassen`, nur mit eigener
+    Erlaubnisliste, und dazu der Aufruf: `socket.socket` als Typ ist erlaubt,
+    `socket.socket()` nicht."""
+    import ast
+
+    baum = ast.parse(quelle)
+    funde: set[str] = set()
+    gelesen: set[str] = set()
+    for knoten in ast.walk(baum):
+        if isinstance(knoten, ast.ImportFrom) and (knoten.module or "").split(".")[0] == "socket":
+            funde.add(f"from socket import {', '.join(a.name for a in knoten.names)}")
+        elif isinstance(knoten, ast.Import):
+            funde |= {f"import socket as {a.asname}" for a in knoten.names
+                      if a.name == "socket" and a.asname}
+        elif (isinstance(knoten, ast.Call) and isinstance(knoten.func, ast.Attribute)
+              and isinstance(knoten.func.value, ast.Name) and knoten.func.value.id == "socket"
+              and knoten.func.attr == "socket"):
+            funde.add("socket.socket(…)")
+        if isinstance(knoten, ast.Attribute):
+            if isinstance(knoten.value, ast.Name) and knoten.value.id == "socket":
+                gelesen.add(knoten.attr)
+            if knoten.attr in NETZWEG:
+                funde.add(f".{knoten.attr}")
+        elif isinstance(knoten, ast.Name) and knoten.id in NETZWEG:
+            funde.add(knoten.id)
+    funde |= {f"socket.{name}" for name in gelesen - HUELLE_SOCKET_ERLAUBT}
+    # Die Prüfung muss sehen, was sie erlaubt: Ohne `SocketIO` im Baum läse sie
+    # eine andere Hülle als die, auf die sich diese Liste bezieht.
+    if "SocketIO" not in gelesen:
+        funde.add("socket.SocketIO nicht gefunden")
     return funde
 
 

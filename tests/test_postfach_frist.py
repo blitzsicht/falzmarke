@@ -197,3 +197,19 @@ def test_der_waechter_sperrt_neben_dem_schein_server_weiter(schein):
         postfach.ImapMitFrist("127.0.0.1", 1993, timeout=FRIST)
     assert conftest.ABGEFANGEN == ["imaplib.IMAP4 an 127.0.0.1:1993"]
     conftest.ABGEFANGEN.clear()
+
+
+def test_nach_abgelaufener_frist_schliesst_das_abmelden_die_verbindung(schein):
+    """`imaplib.logout` sendet erst `LOGOUT` und ruft danach `shutdown` (3.12 wie
+    3.14). Ist die Frist um, wirft schon das Senden `TimeoutError`, und `shutdown`
+    lief bis zum Nachreview von #574 nie: Die TCP-Verbindung blieb offen, bis die
+    Speicherbereinigung sie fand. Gemessen wird am inneren Socket, nicht an der
+    Hülle, denn deren `fileno` reicht `__getattr__` nur durch."""
+    umgebung = schein("schweigt_nach_login")
+    sitzung = postfach.verbinde("probe@example.invalid", umgebung=umgebung, frist=FRIST)
+    innen = sitzung._v.sock._sock
+    with pytest.raises(postfach.PostfachFehler):
+        sitzung.ordner_liste()
+    assert innen.fileno() != -1, "die Probe trennt nicht: der Socket ist schon vor dem Abmelden zu"
+    sitzung.abmelden()
+    assert innen.fileno() == -1, "nach dem Abmelden ist die Verbindung noch offen"

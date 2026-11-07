@@ -26,8 +26,14 @@ class _SocketMitFrist:
 
     Läuft die Frist ab, kommt `TimeoutError`, wie bei einem gewöhnlichen
     Zeitlimit. `postfach._vergeht` liest ihn deshalb als vorübergehend. Beide
-    Lesewege von `imaplib` laufen hier durch: bis 3.13 über `makefile`, ab 3.14
-    über `sock.recv`. Alles andere reicht `__getattr__` unverändert durch.
+    Lesewege von `imaplib` laufen hier durch. `IMAP4.open` ruft in jeder Fassung
+    `makefile('rb')`. Bis 3.13 liest `imaplib` aus dieser Datei, und `SocketIO`
+    holt die Bytes über `recv_into` der Hülle. Ab 3.14 liest es selbst über
+    `sock.recv`; die Datei liegt dann nur noch in `_file`, für die veraltete
+    Eigenschaft `file` und für `shutdown`, das sie schließt (gezählt am
+    07.11.2026: 3.12 je einmal `makefile` und dreimal `recv_into`, 3.14 einmal
+    `makefile` und dreimal `recv`). Alles andere reicht `__getattr__` unverändert
+    durch.
     """
 
     def __init__(self, sock: socket.socket, bis: float):

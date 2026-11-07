@@ -2811,10 +2811,15 @@ def test_ohne_nachgestellte_restzeit_wartet_der_letzte_empfang_die_volle_frist(s
 
 
 @pytest.mark.skipif(sys.version_info >= (3, 14),
-                    reason="ab 3.14 liest imaplib über sock.recv, nicht über makefile")
+                    reason="ab 3.14 ruft imaplib makefile weiter auf, liest aber über "
+                           "sock.recv; ein durchgereichtes makefile ändert am Lesen nichts")
 def test_ohne_eigenes_makefile_liest_imaplib_an_der_huelle_vorbei(schein, monkeypatch):
     """Bis 3.13 liest `imaplib` über `sock.makefile`. Reicht die Hülle das an den
-    echten Socket durch, gilt dort wieder das Zeitlimit je Empfang."""
+    echten Socket durch, gilt dort wieder das Zeitlimit je Empfang. Ab 3.14 ruft
+    `IMAP4.open` `makefile` zwar weiter auf, legt die Datei aber nur in `_file`
+    ab (für die Eigenschaft `file` und für `shutdown`) und liest über
+    `sock.recv`. Dort trennt diese Probe nicht, die Restzeit am Empfang deckt
+    `test_ohne_nachgestellte_restzeit_wartet_der_letzte_empfang_die_volle_frist`."""
     from falzmarke import imap_frist
     from test_postfach_frist import FRIST, SPIEL, _dauer
 
@@ -2824,6 +2829,72 @@ def test_ohne_eigenes_makefile_liest_imaplib_an_der_huelle_vorbei(schein, monkey
                         lambda self, mode="rb": self._sock.makefile(mode))
     dauer, _ = _dauer(schein("troepfelt"), mit_list=False)
     assert dauer >= FRIST + SPIEL, f"makefile vorbei: {dauer:.2f} s, die Probe trennt nicht"
+
+
+def test_ohne_schliessen_nach_gescheitertem_logout_bleibt_die_verbindung_offen(schein,
+                                                                              monkeypatch):
+    """Nachreview von #574, Befund 1: Eine Zeile gekippt, und `abmelden` schließt
+    nach einem gescheiterten `logout` nicht mehr. Das ist der Stand von #574:
+    Nach abgelaufener Frist blieb der innere Socket offen. Die Kontrolle davor ist
+    dieselbe Probe mit dem heutigen Code."""
+    from falzmarke import postfach
+    from test_postfach_frist import (
+        test_nach_abgelaufener_frist_schliesst_das_abmelden_die_verbindung as probe,
+    )
+
+    probe(schein)                                                               # Kontrolle
+    monkeypatch.setattr(postfach.Postfach, "abmelden", _zeile_ersetzt(
+        postfach, "Postfach.abmelden", "self._v.shutdown()", "pass"))
+    with pytest.raises(AssertionError, match="nach dem Abmelden ist die Verbindung noch offen"):
+        probe(schein)
+
+
+@pytest.mark.parametrize("alt, neu, erwartet", [
+    # Jede Sabotage fügt hinzu und nimmt nichts weg: Die Anker der Prüfung
+    # (`_create_socket`, `sendall`, `SocketIO`) bleiben stehen, sonst schlüge
+    # einer von ihnen an statt der Regel, um die es geht.
+    ("sock = super()._create_socket(timeout)\n",
+     "sock = super()._create_socket(timeout)\n        self.store('1:*', '+FLAGS', 'x')\n",
+     "'store'"),
+    ("sock = super()._create_socket(timeout)\n",
+     ("sock = super()._create_socket(timeout)\n"
+      "        socket.create_connection(('smtp.example.org', 25))\n"),
+     "'socket.create_connection'"),
+    ("sock = super()._create_socket(timeout)\n",
+     "sock = super()._create_socket(timeout)\n        socket.socket()\n",
+     "'socket.socket(…)'"),
+    ("return self._sock.sendall(*args)",
+     "self._sock.connect(('smtp.example.org', 25))\n        return self._sock.sendall(*args)",
+     "'.connect'"),
+    ("sock = super()._create_socket(timeout)\n",
+     "sock = super()._create_socket(timeout)\n        socket.create_server(('127.0.0.1', 0))\n",
+     "'socket.create_server'"),
+    ("import socket\n", "import socket as _netz\n", "'import socket as _netz'"),
+    ("import socket\n", "from socket import create_connection\nimport socket\n",
+     "'from socket import create_connection'"),
+], ids=["aendernder-befehl", "verbindung", "eigener-socket", "connect", "create-server",
+        "alias", "from-import"])
+def test_ein_netzweg_oder_aendernder_befehl_in_der_socket_huelle_wird_rot(tmp_path, monkeypatch,
+                                                                         alt, neu, erwartet):
+    """Nachreview von #574, Befund 2: Die Prüfung liest `imap_frist`, nicht nur
+    `postfach`. Sabotiert wird eine Kopie von `imap_frist.py`, auf die
+    `imap_frist.__file__` zeigt. Läse die Prüfung ein anderes Objekt, bliebe sie
+    grün. Die Kontrolle davor läuft gegen die echte Datei."""
+    import re
+
+    from falzmarke import imap_frist
+    from test_postfach import (
+        test_die_socket_huelle_kennt_keinen_aendernden_befehl_und_keinen_netzweg as probe,
+    )
+
+    probe()                                                                     # Kontrolle
+    quelle = Path(imap_frist.__file__).read_text(encoding="utf-8")
+    assert quelle.count(alt) == 1, f"Anker nicht genau einmal: {alt!r}"
+    kopie = tmp_path / "imap_frist.py"
+    kopie.write_text(quelle.replace(alt, neu), encoding="utf-8")
+    monkeypatch.setattr(imap_frist, "__file__", str(kopie))
+    with pytest.raises(AssertionError, match=re.escape(erwartet)):
+        probe()
 
 
 # ── Die Ablage je Konto (#431, ADR 0061) ───────────────────────────────────
@@ -5766,16 +5837,80 @@ def test_der_alte_vergleich_haelt_das_neu_erzeugen_an_der_maske_auf(tmp_path, mo
             tmp_path / "rechnung.pdf", capsys)
 
 
-def test_ein_verschluckter_maskenfehler_meldet_mit_pruefen_gleich(tmp_path, monkeypatch):
+def test_ein_verschluckter_maskenfehler_meldet_mit_pruefen_gleich(tmp_path, monkeypatch,
+                                                                   capsys):
     import test_golden_rechnung as _gr
 
     monkeypatch.setattr(_gr.golden_rechnung, "REPO", tmp_path)
-    _gr.test_mit_pruefen_scheitert_eine_maske_die_nicht_greift_laut(
-        tmp_path / "kontrolle.pdf")                                          # Kontrolle
+    _gr.test_mit_pruefen_zaehlt_eine_maske_die_nicht_greift_als_abweichung(
+        tmp_path / "kontrolle.pdf", capsys)                                  # Kontrolle
     monkeypatch.setattr(_gr.golden_rechnung, "_gleich", _zeile_ersetzt(
-        _gr.golden_rechnung, "_gleich", "            raise\n", "            return True\n"))
-    with pytest.raises(pytest.fail.Exception, match="DID NOT RAISE"):
-        _gr.test_mit_pruefen_scheitert_eine_maske_die_nicht_greift_laut(tmp_path / "rechnung.pdf")
+        _gr.golden_rechnung, "_gleich", "            return False\n", "            return True\n"))
+    with pytest.raises(AssertionError, match=re.escape(
+            "mit --pruefen gilt eine Datei, an der die Maske nicht greift, als „gleich“")):
+        _gr.test_mit_pruefen_zaehlt_eine_maske_die_nicht_greift_als_abweichung(
+            tmp_path / "rechnung.pdf", capsys)
+
+
+def test_mit_pruefen_ohne_grund_nennt_die_zeile_die_maske_nicht(tmp_path, monkeypatch, capsys):
+    """Review #575: Die Zeile einer Abweichung sagt, dass die Maske nicht griff."""
+    import test_golden_rechnung as _gr
+
+    monkeypatch.setattr(_gr.golden_rechnung, "REPO", tmp_path)
+    _gr.test_mit_pruefen_zaehlt_eine_maske_die_nicht_greift_als_abweichung(
+        tmp_path / "kontrolle.pdf", capsys)                                  # Kontrolle
+    monkeypatch.setattr(_gr.golden_rechnung, "_aktualisiere", _zeile_ersetzt(
+        _gr.golden_rechnung, "_aktualisiere",
+        '        zusatz = f" — Maske greift nicht: {roh[pfad]}" if pfad in roh else ""\n',
+        '        zusatz = ""\n'))
+    with pytest.raises(AssertionError, match="weicht ab  rechnung.pdf\n"):
+        _gr.test_mit_pruefen_zaehlt_eine_maske_die_nicht_greift_als_abweichung(
+            tmp_path / "rechnung.pdf", capsys)
+
+
+def test_ein_wieder_geworfener_maskenfehler_bricht_den_pruefen_lauf_ab(tmp_path, monkeypatch,
+                                                                       capsys):
+    """Nachbau von `_gleich` vor Review #575: Mit `--pruefen` wirft es den Maskenfehler
+    neu, `main` fängt ihn nicht, und der Lauf endet am ersten PDF."""
+    import conftest
+    import test_golden_rechnung as _gr
+
+    _gr.test_mit_pruefen_laeuft_ein_maskenfehler_bis_zur_zusammenfassung(
+        _gr._lauf(tmp_path / "kontrolle", monkeypatch), capsys)               # Kontrolle
+    monkeypatch.setattr(_gr.golden_rechnung, "_gleich", _zeile_ersetzt(
+        _gr.golden_rechnung, "_gleich",
+        "        roh[pfad] = str(fehler)\n        if nur_pruefen:\n            return False\n",
+        "        if nur_pruefen:\n            raise\n"))
+    with pytest.raises(conftest.TypstMaskeGreiftNicht, match="keine typst-Kennung im XMP"):
+        _gr.test_mit_pruefen_laeuft_ein_maskenfehler_bis_zur_zusammenfassung(
+            _gr._lauf(tmp_path / "sabotiert", monkeypatch), capsys)
+
+
+def test_ein_roher_vergleich_mit_exit_0_faellt_auf(tmp_path, monkeypatch, capsys):
+    """Nachbau von `main` vor Review #575: roh geschrieben, trotzdem Exit 0."""
+    import test_golden_rechnung as _gr
+
+    _gr.test_ohne_pruefen_endet_ein_roher_vergleich_mit_exit_2(
+        _gr._lauf(tmp_path / "kontrolle", monkeypatch), capsys)               # Kontrolle
+    monkeypatch.setattr(_gr.golden_rechnung, "main", _zeile_ersetzt(
+        _gr.golden_rechnung, "main", "        return 2\n", "        return 0\n"))
+    with pytest.raises(AssertionError, match="der rohe Vergleich endete mit Exit 0 statt 2"):
+        _gr.test_ohne_pruefen_endet_ein_roher_vergleich_mit_exit_2(
+            _gr._lauf(tmp_path / "sabotiert", monkeypatch), capsys)
+
+
+def test_ein_lauf_der_immer_exit_2_meldet_faellt_auf(tmp_path, monkeypatch, capsys):
+    """Die Kontrolle in `test_golden_rechnung` trennt: Endete jeder Lauf mit Exit 2,
+    wäre auch einer mit greifender Maske nicht mehr Exit 0."""
+    import test_golden_rechnung as _gr
+
+    _gr.test_greift_die_maske_endet_der_lauf_mit_0(
+        _gr._lauf(tmp_path / "kontrolle", monkeypatch), capsys)               # Kontrolle
+    monkeypatch.setattr(_gr.golden_rechnung, "main", _zeile_ersetzt(
+        _gr.golden_rechnung, "main", "    if roh:\n", "    if True:\n"))
+    with pytest.raises(AssertionError, match="ohne --pruefen nicht Exit 0"):
+        _gr.test_greift_die_maske_endet_der_lauf_mit_0(
+            _gr._lauf(tmp_path / "sabotiert", monkeypatch), capsys)
 
 
 def test_ohne_maske_gilt_eine_andere_typst_fassung_als_abweichung(tmp_path, monkeypatch,
