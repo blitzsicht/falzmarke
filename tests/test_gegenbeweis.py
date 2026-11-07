@@ -6283,6 +6283,48 @@ def test_mit_der_alten_textsuche_wird_code_zum_verweis(monkeypatch):
         pypi.test_code_ist_kein_verweis()
 
 
+# ── Erklärfilm: Standbild-Frame innerhalb der Komposition ───────────────────
+
+def _erklaerfilm_kopie(tmp_path, monkeypatch, datei: str, alt: str, neu: str):
+    """Eine Datei des Erklärfilms mit genau einer Ersetzung nach tmp_path, die
+    übrigen bleiben die echten."""
+    import test_erklaerfilm
+
+    attribut = {"package.json": "PAKET", "texte.json": "TEXTE"}[datei]
+    text = getattr(test_erklaerfilm, attribut).read_text(encoding="utf-8")
+    anzahl = text.count(alt)
+    assert anzahl >= 1, f"„{alt}“ steht nicht in {datei}: Sabotage greift nicht"
+    kopie = tmp_path / datei
+    kopie.write_text(text.replace(alt, neu), encoding="utf-8")
+    monkeypatch.setattr(test_erklaerfilm, attribut, kopie)
+    return test_erklaerfilm
+
+
+def test_ein_standbild_frame_hinter_dem_film_wird_rot(tmp_path, monkeypatch):
+    """Der Stand vor der Korrektur: Frame 800 bei 780 Frames."""
+    import test_erklaerfilm
+
+    test_erklaerfilm.test_jeder_standbild_frame_liegt_in_der_komposition()  # Kontrolle
+    probe = _erklaerfilm_kopie(tmp_path, monkeypatch, "package.json", "--frame=600", "--frame=800")
+    with pytest.raises(AssertionError, match=r"\(0 bis 779\): bild-quer: 800, bild-hoch: 800"):
+        probe.test_jeder_standbild_frame_liegt_in_der_komposition()
+
+
+def test_ohne_standbild_frame_wird_die_pruefung_rot(tmp_path, monkeypatch):
+    """Ohne einen einzigen `--frame=` liefe die Prüfung über null Befehle grün."""
+    probe = _erklaerfilm_kopie(tmp_path, monkeypatch, "package.json", "--frame=600", "")
+    with pytest.raises(AssertionError, match="kein `--frame=` in package.json gefunden"):
+        probe.test_jeder_standbild_frame_liegt_in_der_komposition()
+
+
+def test_ein_kuerzerer_film_macht_frame_600_ungueltig(tmp_path, monkeypatch):
+    """Die Grenze kommt aus texte.json, nicht aus einer Zahl im Test: 20 s × 30 FPS
+    sind 600 Frames, der höchste ist 599."""
+    probe = _erklaerfilm_kopie(tmp_path, monkeypatch, "texte.json", '"dauer": 26,', '"dauer": 20,')
+    with pytest.raises(AssertionError, match=r"\(0 bis 599\): bild-quer: 600, bild-hoch: 600"):
+        probe.test_jeder_standbild_frame_liegt_in_der_komposition()
+
+
 # ── #442 N2: Der abgebrochene Zug zeigt seinen Plan auch im Text ────────────
 
 def test_ohne_zugzeilen_im_grund_verschweigt_der_text_den_plan(monkeypatch):
