@@ -708,10 +708,20 @@ class Postfach:
                      imaplib.Time2Internaldate(time.time()), roh)
 
     def abmelden(self) -> None:
+        """Meldet ab und schließt die Verbindung, auch wenn das Abmelden scheitert.
+
+        `imaplib.logout` sendet erst `LOGOUT` und schließt danach mit `shutdown`.
+        Ist die Frist um, wirft schon das Senden (`_SocketMitFrist`), und ohne den
+        zweiten Schritt bliebe die TCP-Verbindung offen, bis die
+        Speicherbereinigung sie findet (Nachreview von #574).
+        """
         try:
             self._v.logout()
         except Exception:  # noqa: BLE001 — eine Abmeldung, die scheitert, ändert nichts mehr
-            pass
+            try:
+                self._v.shutdown()
+            except Exception:  # noqa: BLE001 — ebenso wenig ein Schließen, das scheitert
+                pass
 
 
 def _kurz(fehler) -> str:

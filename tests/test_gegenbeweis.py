@@ -2739,10 +2739,15 @@ def test_ohne_nachgestellte_restzeit_wartet_der_letzte_empfang_die_volle_frist(s
 
 
 @pytest.mark.skipif(sys.version_info >= (3, 14),
-                    reason="ab 3.14 liest imaplib über sock.recv, nicht über makefile")
+                    reason="ab 3.14 ruft imaplib makefile weiter auf, liest aber über "
+                           "sock.recv; ein durchgereichtes makefile ändert am Lesen nichts")
 def test_ohne_eigenes_makefile_liest_imaplib_an_der_huelle_vorbei(schein, monkeypatch):
     """Bis 3.13 liest `imaplib` über `sock.makefile`. Reicht die Hülle das an den
-    echten Socket durch, gilt dort wieder das Zeitlimit je Empfang."""
+    echten Socket durch, gilt dort wieder das Zeitlimit je Empfang. Ab 3.14 ruft
+    `IMAP4.open` `makefile` zwar weiter auf, legt die Datei aber nur in `_file`
+    ab (für die Eigenschaft `file` und für `shutdown`) und liest über
+    `sock.recv`. Dort trennt diese Probe nicht, die Restzeit am Empfang deckt
+    `test_ohne_nachgestellte_restzeit_wartet_der_letzte_empfang_die_volle_frist`."""
     from falzmarke import imap_frist
     from test_postfach_frist import FRIST, SPIEL, _dauer
 
@@ -2752,6 +2757,72 @@ def test_ohne_eigenes_makefile_liest_imaplib_an_der_huelle_vorbei(schein, monkey
                         lambda self, mode="rb": self._sock.makefile(mode))
     dauer, _ = _dauer(schein("troepfelt"), mit_list=False)
     assert dauer >= FRIST + SPIEL, f"makefile vorbei: {dauer:.2f} s, die Probe trennt nicht"
+
+
+def test_ohne_schliessen_nach_gescheitertem_logout_bleibt_die_verbindung_offen(schein,
+                                                                              monkeypatch):
+    """Nachreview von #574, Befund 1: Eine Zeile gekippt, und `abmelden` schließt
+    nach einem gescheiterten `logout` nicht mehr. Das ist der Stand von #574:
+    Nach abgelaufener Frist blieb der innere Socket offen. Die Kontrolle davor ist
+    dieselbe Probe mit dem heutigen Code."""
+    from falzmarke import postfach
+    from test_postfach_frist import (
+        test_nach_abgelaufener_frist_schliesst_das_abmelden_die_verbindung as probe,
+    )
+
+    probe(schein)                                                               # Kontrolle
+    monkeypatch.setattr(postfach.Postfach, "abmelden", _zeile_ersetzt(
+        postfach, "Postfach.abmelden", "self._v.shutdown()", "pass"))
+    with pytest.raises(AssertionError, match="nach dem Abmelden ist die Verbindung noch offen"):
+        probe(schein)
+
+
+@pytest.mark.parametrize("alt, neu, erwartet", [
+    # Jede Sabotage fügt hinzu und nimmt nichts weg: Die Anker der Prüfung
+    # (`_create_socket`, `sendall`, `SocketIO`) bleiben stehen, sonst schlüge
+    # einer von ihnen an statt der Regel, um die es geht.
+    ("sock = super()._create_socket(timeout)\n",
+     "sock = super()._create_socket(timeout)\n        self.store('1:*', '+FLAGS', 'x')\n",
+     "'store'"),
+    ("sock = super()._create_socket(timeout)\n",
+     ("sock = super()._create_socket(timeout)\n"
+      "        socket.create_connection(('smtp.example.org', 25))\n"),
+     "'socket.create_connection'"),
+    ("sock = super()._create_socket(timeout)\n",
+     "sock = super()._create_socket(timeout)\n        socket.socket()\n",
+     "'socket.socket(…)'"),
+    ("return self._sock.sendall(*args)",
+     "self._sock.connect(('smtp.example.org', 25))\n        return self._sock.sendall(*args)",
+     "'.connect'"),
+    ("sock = super()._create_socket(timeout)\n",
+     "sock = super()._create_socket(timeout)\n        socket.create_server(('127.0.0.1', 0))\n",
+     "'socket.create_server'"),
+    ("import socket\n", "import socket as _netz\n", "'import socket as _netz'"),
+    ("import socket\n", "from socket import create_connection\nimport socket\n",
+     "'from socket import create_connection'"),
+], ids=["aendernder-befehl", "verbindung", "eigener-socket", "connect", "create-server",
+        "alias", "from-import"])
+def test_ein_netzweg_oder_aendernder_befehl_in_der_socket_huelle_wird_rot(tmp_path, monkeypatch,
+                                                                         alt, neu, erwartet):
+    """Nachreview von #574, Befund 2: Die Prüfung liest `imap_frist`, nicht nur
+    `postfach`. Sabotiert wird eine Kopie von `imap_frist.py`, auf die
+    `imap_frist.__file__` zeigt. Läse die Prüfung ein anderes Objekt, bliebe sie
+    grün. Die Kontrolle davor läuft gegen die echte Datei."""
+    import re
+
+    from falzmarke import imap_frist
+    from test_postfach import (
+        test_die_socket_huelle_kennt_keinen_aendernden_befehl_und_keinen_netzweg as probe,
+    )
+
+    probe()                                                                     # Kontrolle
+    quelle = Path(imap_frist.__file__).read_text(encoding="utf-8")
+    assert quelle.count(alt) == 1, f"Anker nicht genau einmal: {alt!r}"
+    kopie = tmp_path / "imap_frist.py"
+    kopie.write_text(quelle.replace(alt, neu), encoding="utf-8")
+    monkeypatch.setattr(imap_frist, "__file__", str(kopie))
+    with pytest.raises(AssertionError, match=re.escape(erwartet)):
+        probe()
 
 
 # ── Die Ablage je Konto (#431, ADR 0061) ───────────────────────────────────
