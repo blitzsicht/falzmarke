@@ -5765,16 +5765,80 @@ def test_der_alte_vergleich_haelt_das_neu_erzeugen_an_der_maske_auf(tmp_path, mo
             tmp_path / "rechnung.pdf", capsys)
 
 
-def test_ein_verschluckter_maskenfehler_meldet_mit_pruefen_gleich(tmp_path, monkeypatch):
+def test_ein_verschluckter_maskenfehler_meldet_mit_pruefen_gleich(tmp_path, monkeypatch,
+                                                                   capsys):
     import test_golden_rechnung as _gr
 
     monkeypatch.setattr(_gr.golden_rechnung, "REPO", tmp_path)
-    _gr.test_mit_pruefen_scheitert_eine_maske_die_nicht_greift_laut(
-        tmp_path / "kontrolle.pdf")                                          # Kontrolle
+    _gr.test_mit_pruefen_zaehlt_eine_maske_die_nicht_greift_als_abweichung(
+        tmp_path / "kontrolle.pdf", capsys)                                  # Kontrolle
     monkeypatch.setattr(_gr.golden_rechnung, "_gleich", _zeile_ersetzt(
-        _gr.golden_rechnung, "_gleich", "            raise\n", "            return True\n"))
-    with pytest.raises(pytest.fail.Exception, match="DID NOT RAISE"):
-        _gr.test_mit_pruefen_scheitert_eine_maske_die_nicht_greift_laut(tmp_path / "rechnung.pdf")
+        _gr.golden_rechnung, "_gleich", "            return False\n", "            return True\n"))
+    with pytest.raises(AssertionError, match=re.escape(
+            "mit --pruefen gilt eine Datei, an der die Maske nicht greift, als „gleich“")):
+        _gr.test_mit_pruefen_zaehlt_eine_maske_die_nicht_greift_als_abweichung(
+            tmp_path / "rechnung.pdf", capsys)
+
+
+def test_mit_pruefen_ohne_grund_nennt_die_zeile_die_maske_nicht(tmp_path, monkeypatch, capsys):
+    """Review #575: Die Zeile einer Abweichung sagt, dass die Maske nicht griff."""
+    import test_golden_rechnung as _gr
+
+    monkeypatch.setattr(_gr.golden_rechnung, "REPO", tmp_path)
+    _gr.test_mit_pruefen_zaehlt_eine_maske_die_nicht_greift_als_abweichung(
+        tmp_path / "kontrolle.pdf", capsys)                                  # Kontrolle
+    monkeypatch.setattr(_gr.golden_rechnung, "_aktualisiere", _zeile_ersetzt(
+        _gr.golden_rechnung, "_aktualisiere",
+        '        zusatz = f" — Maske greift nicht: {roh[pfad]}" if pfad in roh else ""\n',
+        '        zusatz = ""\n'))
+    with pytest.raises(AssertionError, match="weicht ab  rechnung.pdf\n"):
+        _gr.test_mit_pruefen_zaehlt_eine_maske_die_nicht_greift_als_abweichung(
+            tmp_path / "rechnung.pdf", capsys)
+
+
+def test_ein_wieder_geworfener_maskenfehler_bricht_den_pruefen_lauf_ab(tmp_path, monkeypatch,
+                                                                       capsys):
+    """Nachbau von `_gleich` vor Review #575: Mit `--pruefen` wirft es den Maskenfehler
+    neu, `main` fängt ihn nicht, und der Lauf endet am ersten PDF."""
+    import conftest
+    import test_golden_rechnung as _gr
+
+    _gr.test_mit_pruefen_laeuft_ein_maskenfehler_bis_zur_zusammenfassung(
+        _gr._lauf(tmp_path / "kontrolle", monkeypatch), capsys)               # Kontrolle
+    monkeypatch.setattr(_gr.golden_rechnung, "_gleich", _zeile_ersetzt(
+        _gr.golden_rechnung, "_gleich",
+        "        roh[pfad] = str(fehler)\n        if nur_pruefen:\n            return False\n",
+        "        if nur_pruefen:\n            raise\n"))
+    with pytest.raises(conftest.TypstMaskeGreiftNicht, match="keine typst-Kennung im XMP"):
+        _gr.test_mit_pruefen_laeuft_ein_maskenfehler_bis_zur_zusammenfassung(
+            _gr._lauf(tmp_path / "sabotiert", monkeypatch), capsys)
+
+
+def test_ein_roher_vergleich_mit_exit_0_faellt_auf(tmp_path, monkeypatch, capsys):
+    """Nachbau von `main` vor Review #575: roh geschrieben, trotzdem Exit 0."""
+    import test_golden_rechnung as _gr
+
+    _gr.test_ohne_pruefen_endet_ein_roher_vergleich_mit_exit_2(
+        _gr._lauf(tmp_path / "kontrolle", monkeypatch), capsys)               # Kontrolle
+    monkeypatch.setattr(_gr.golden_rechnung, "main", _zeile_ersetzt(
+        _gr.golden_rechnung, "main", "        return 2\n", "        return 0\n"))
+    with pytest.raises(AssertionError, match="der rohe Vergleich endete mit Exit 0 statt 2"):
+        _gr.test_ohne_pruefen_endet_ein_roher_vergleich_mit_exit_2(
+            _gr._lauf(tmp_path / "sabotiert", monkeypatch), capsys)
+
+
+def test_ein_lauf_der_immer_exit_2_meldet_faellt_auf(tmp_path, monkeypatch, capsys):
+    """Die Kontrolle in `test_golden_rechnung` trennt: Endete jeder Lauf mit Exit 2,
+    wäre auch einer mit greifender Maske nicht mehr Exit 0."""
+    import test_golden_rechnung as _gr
+
+    _gr.test_greift_die_maske_endet_der_lauf_mit_0(
+        _gr._lauf(tmp_path / "kontrolle", monkeypatch), capsys)               # Kontrolle
+    monkeypatch.setattr(_gr.golden_rechnung, "main", _zeile_ersetzt(
+        _gr.golden_rechnung, "main", "    if roh:\n", "    if True:\n"))
+    with pytest.raises(AssertionError, match="ohne --pruefen nicht Exit 0"):
+        _gr.test_greift_die_maske_endet_der_lauf_mit_0(
+            _gr._lauf(tmp_path / "sabotiert", monkeypatch), capsys)
 
 
 def test_ohne_maske_gilt_eine_andere_typst_fassung_als_abweichung(tmp_path, monkeypatch,

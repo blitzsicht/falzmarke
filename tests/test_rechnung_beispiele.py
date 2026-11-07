@@ -195,8 +195,10 @@ def test_eine_andere_typst_fassung_kippt_kein_golden(beispiel):
 
 
 def test_ein_pdf_ohne_typst_kennung_bricht_den_vergleich_ab():
-    """Trifft die Maske nichts mehr, etwa weil typst sein XMP umbaut, soll das laut
-    scheitern statt still den rohen Vergleich zurückzubringen."""
+    """Trifft die Maske nichts mehr, etwa weil typst sein XMP umbaut, soll sie laut
+    scheitern statt still den rohen Vergleich zurückzubringen. Die eine Ausnahme ist
+    das Neu-Erzeugen in `scripts/golden_rechnung.py`: Es fängt den Fehler und vergleicht
+    roh, aber nicht still, sondern mit einer Zeile je Datei und Exit 2 (Review #575)."""
     golden = (GOLDEN / f"{RECHNUNG_BEISPIELE[0].stem}.pdf").read_bytes()
     ohne = golden.replace(b"<stEvt:softwareAgent>Typst ", b"<stEvt:softwareAgent>Tipst ")
     assert ohne != golden
@@ -239,7 +241,9 @@ def test_die_maske_prueft_auch_unter_python_O(tmp_path):
                                    b"<stEvt:softwareAgent>Tipst "))
     lauf = subprocess.run([sys.executable, "-O", "-c", _UNTER_O, str(KONFTEST), str(pdf)],
                           capture_output=True, text=True, encoding="utf-8", timeout=120,
-                          check=False, env={**os.environ, "PYTHONUTF8": "1"})
+                          check=False, env={**os.environ, "PYTHONUTF8": "1",
+                                            # Sonst landet `conftest.*.opt-1.pyc` im Repo.
+                                            "PYTHONDONTWRITEBYTECODE": "1"})
     ausgabe = lauf.stdout + lauf.stderr
     assert lauf.returncode in (0, 3), f"die Probe lief nicht: {ausgabe!r}"
     assert lauf.returncode == 3 and "TypstMaskeGreiftNicht" in lauf.stdout \

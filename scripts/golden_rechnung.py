@@ -20,14 +20,23 @@ Was typst selbst ins PDF schreibt und mit jeder Fassung wechselt (Fassung in
 (`conftest.ohne_typst_kennung`, #533). Eine neue typst-Fassung ohne sichtbare
 Änderung schreibt deshalb kein Golden neu.
 
-Greift die Maske nicht, weil typst sein XMP umgebaut hat, hält sie das Neu-Erzeugen
-nicht auf: Ohne Schalter wird roh verglichen und geschrieben, und eine Zeile auf
-stderr sagt, warum. Mit `--pruefen` bricht das Skript an dieser Stelle ab, statt
-„gleich“ zu melden (Review #568). Die Tests vergleichen weiter durch die Maske und
-bleiben rot, bis sie nachgezogen ist.
+Greift die Maske nicht, etwa weil typst sein XMP umgebaut hat oder eine Kennung öfter
+auftritt als erwartet, hält sie das Neu-Erzeugen nicht auf (Review #568): Ohne Schalter
+wird diese Datei roh verglichen und, wo sie abweicht, geschrieben. Je Datei sagt eine
+Zeile auf stderr, warum, am Ende fasst eine Liste alle roh verglichenen Dateien
+zusammen, und der Lauf endet mit Exit 2 statt 0 (Review #575). Das kann eine echte
+Änderung sein: den Diff prüfen und die Maske nachziehen. Die Tests vergleichen weiter
+durch die Maske und bleiben rot, bis sie nachgezogen ist.
+
+Mit `--pruefen` zählt eine solche Datei als Abweichung, und ihre Zeile nennt den Grund.
+Der Lauf vergleicht die übrigen Goldens weiter und endet mit der Zusammenfassung.
 
     python3 scripts/golden_rechnung.py            # schreibt Goldens neu
     python3 scripts/golden_rechnung.py --pruefen  # meldet nur Abweichungen
+
+Exit-Codes: 0 alles auf Stand bzw. geschrieben; 1 mit `--pruefen` mindestens eine
+Abweichung, oder keine Beispiele; 2 ohne `--pruefen` geschrieben, aber mindestens eine
+Datei roh verglichen, weil die Maske nicht griff.
 
 Nach einer *gewollten* Änderung an Emitter oder Positionstabelle: einmal ohne
 Schalter laufen lassen und den Diff der Goldens im PR mitlesen. Er ist der
@@ -84,35 +93,43 @@ def erzeuge(quelle: Path) -> tuple[bytes, bytes]:
             os.environ["SOURCE_DATE_EPOCH"] = alt
 
 
-def _gleich(alt: bytes, neu: bytes, maske, nur_pruefen: bool, pfad: Path) -> bool:
+def _gleich(alt: bytes, neu: bytes, maske, nur_pruefen: bool, pfad: Path,
+            roh: dict[Path, str]) -> bool:
     """Ob `alt` und `neu` gleich sind, mit `maske` durch sie verglichen.
 
-    Scheitert die Maske, gilt das nur mit `--pruefen` als Fehler. Ohne den Schalter
-    soll das Skript gerade dann schreiben können: Eine typst-Fassung, die ihr XMP
-    umbaut, bricht die Maske, und das Neu-Erzeugen ist die Antwort darauf."""
+    Scheitert die Maske, kommt ihr Grund unter `pfad` nach `roh`. Mit `--pruefen`
+    gilt die Datei dann als abweichend: Gleich ist nur, was die Maske gleich nennt.
+    Ohne den Schalter soll das Skript gerade dann schreiben können: Eine typst-Fassung,
+    die ihr XMP umbaut, bricht die Maske, und das Neu-Erzeugen ist die Antwort darauf.
+    Es vergleicht dann roh, und `main` endet mit Exit 2."""
     if maske is None:
         return alt == neu
     try:
         return maske(alt) == maske(neu)
     except TypstMaskeGreiftNicht as fehler:
+        roh[pfad] = str(fehler)
         if nur_pruefen:
-            raise
+            return False
         print(f"Maske griff nicht bei {pfad.relative_to(REPO)}, roh verglichen: {fehler}",
               file=sys.stderr)
         return alt == neu
 
 
-def _aktualisiere(pfad: Path, neu: bytes, nur_pruefen: bool, *, maske=None) -> bool:
+def _aktualisiere(pfad: Path, neu: bytes, nur_pruefen: bool, *, maske=None,
+                  roh: dict[Path, str] | None = None) -> bool:
     """Schreibt `pfad`, falls nötig. Gibt zurück, ob es eine Abweichung gab.
 
-    Mit `maske` werden beide Seiten erst durch sie verglichen (`_gleich`)."""
+    Mit `maske` werden beide Seiten erst durch sie verglichen (`_gleich`). Greift sie
+    nicht, steht der Grund danach in `roh`."""
+    roh = {} if roh is None else roh
     alt = pfad.read_bytes() if pfad.exists() else None
-    if alt is not None and _gleich(alt, neu, maske, nur_pruefen, pfad):
+    if alt is not None and _gleich(alt, neu, maske, nur_pruefen, pfad, roh):
         print(f"gleich     {pfad.relative_to(REPO)}")
         return False
     if nur_pruefen:
         grund = "fehlt" if alt is None else "weicht ab"
-        print(f"{grund:10} {pfad.relative_to(REPO)}", file=sys.stderr)
+        zusatz = f" — Maske greift nicht: {roh[pfad]}" if pfad in roh else ""
+        print(f"{grund:10} {pfad.relative_to(REPO)}{zusatz}", file=sys.stderr)
     else:
         pfad.write_bytes(neu)
         print(f"{'neu' if alt is None else 'erneuert':10} {pfad.relative_to(REPO)}")
@@ -128,12 +145,15 @@ def main(argv: list[str]) -> int:
     nur_pruefen = "--pruefen" in argv
     ZIEL.mkdir(parents=True, exist_ok=True)
     abweichungen = 0
+    roh: dict[Path, str] = {}
+    geschrieben: set[Path] = set()
 
     for quelle in RECHNUNG_BEISPIELE:
         pdf_bytes, xml_bytes = erzeuge(quelle)
-        if _aktualisiere(ZIEL / f"{quelle.stem}.pdf", pdf_bytes, nur_pruefen,
-                        maske=ohne_typst_kennung):
+        pdf = ZIEL / f"{quelle.stem}.pdf"
+        if _aktualisiere(pdf, pdf_bytes, nur_pruefen, maske=ohne_typst_kennung, roh=roh):
             abweichungen += 1
+            geschrieben.add(pdf)
         if _aktualisiere(ZIEL / f"{quelle.stem}.xml", xml_bytes, nur_pruefen):
             abweichungen += 1
 
@@ -141,6 +161,17 @@ def main(argv: list[str]) -> int:
         print(f"\n{abweichungen} Golden-Datei(en) nicht auf Stand — "
               "`python3 scripts/golden_rechnung.py` läuft dagegen.", file=sys.stderr)
         return 1
+    if roh:
+        print(f"\n{len(roh)} PDF-Golden(s) roh verglichen, weil die Maske nicht griff:",
+              file=sys.stderr)
+        for pfad, grund in roh.items():
+            wie = "geschrieben" if pfad in geschrieben else "unverändert"
+            print(f"  {pfad.relative_to(REPO)} ({wie}): {grund}", file=sys.stderr)
+        print("Hat typst sein XMP umgebaut, oder tritt eine Kennung öfter auf als erwartet? "
+              "Das kann auch eine echte Änderung sein: den Diff der Goldens prüfen und "
+              "`ohne_typst_kennung` in tests/conftest.py nachziehen. Bis dahin bleiben die "
+              "Tests rot.", file=sys.stderr)
+        return 2
     return 0
 
 
