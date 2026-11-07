@@ -576,6 +576,9 @@ def test_kein_fenster_ohne_oeffnen_sperrt_die_schon_gesendete_mit_exit_4(tmp_pat
     und der Befehl endet mit Exit 4. Der Text der Attrappe ist ein anderer, also
     heißt die Zeile `GEÄNDERTE FASSUNG`; sie sperrt wie `SCHON GESENDET`."""
     monkeypatch.delenv("FALZMARKE_GESENDET", raising=False)       # conftest schaltet sie ab
+    # Ein kleiner Wert aus der Shell schöbe die Mail von vor drei Minuten aus dem
+    # Fenster (Nachreview #576).
+    monkeypatch.delenv("FALZMARKE_GESENDET_STUNDEN", raising=False)
     zeit = datetime.now(timezone.utc) - timedelta(minutes=3)
     server = ImapAttrappe({
         "Entw&APw-rfe": [],
@@ -612,6 +615,76 @@ def test_ohne_beide_schalter_bleibt_es_bei_der_datei(tmp_path, monkeypatch, caps
     assert server.verbindungen == [], "ohne beide Schalter wurde das Postfach gefragt"
     assert "OK  Entwurf" not in ausgabe.out and "KEIN ENTWURF" not in ausgabe.err
     assert lauf.tb.compose == [] and uebergeben == []
+
+
+#: Die Lagen aus `docs/email.md`, Abschnitt zu `--kein-fenster`: Nur „ohne
+#: Bildschirm“ lässt den Gesendet-Ordner aus. `FALZMARKE_ENTWURF=nie` ist kein
+#: Rechner ohne Bildschirm, ein Mac ohne `DISPLAY` auch nicht (Nachreview #576).
+LAGEN_OHNE_ENTWURF = {"oeffnen-nie": 3, "entwurf-nie": 4, "mac-ohne-display": 4}
+
+
+def _stelle_lage_her(monkeypatch, lauf, lage: str) -> None:
+    """Die Lage für beide Leser: `cli.befehl_email` fragt `kein_bildschirm()` mit
+    `os.environ` und `sys.platform`, `oeffnen.entwurf` mit der Umgebung, die der
+    Test ihm mitgibt. Stimmten die beiden nicht überein, prüfte der Test eine Lage,
+    die es nicht gibt."""
+    if lage == "mac-ohne-display":
+        monkeypatch.delenv("DISPLAY", raising=False)
+        monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
+        umgebung: dict[str, str] = {}
+        # Zur Laufzeit gelesen, nicht beim Import: Die Gegenprobe ersetzt die
+        # Funktion vorher, und genau die ersetzte soll hier laufen.
+        echt = oeffnen.kein_bildschirm
+
+        def auf_dem_mac(umgebung=None, plattform="darwin"):
+            return echt(umgebung, plattform)
+        monkeypatch.setattr(oeffnen, "kein_bildschirm", auf_dem_mac)
+    else:
+        name = {"oeffnen-nie": "FALZMARKE_OEFFNEN", "entwurf-nie": "FALZMARKE_ENTWURF"}[lage]
+        monkeypatch.setenv(name, "nie")
+        umgebung = {"DISPLAY": ":0", name: "nie"}
+    monkeypatch.setattr(oeffnen, "entwurf", functools.partial(
+        oeffnen.entwurf.func, plattform="darwin", umgebung=umgebung, laufen=lauf.tb,
+        binaer=lambda: THUNDERBIRD_PFAD))
+
+
+def pruefe_lage_ohne_entwurf(tmp_path, monkeypatch, capsys, lage: str) -> None:
+    """Nachreview #576, Befund 5: `--kein-fenster` mit einer schon gesendeten
+    Nachricht. `FALZMARKE_OEFFNEN=nie` heißt „ohne Bildschirm“: kein Postfach
+    gefragt, `KEIN ENTWURF` und Exit 3. `FALZMARKE_ENTWURF=nie` und ein Mac ohne
+    `DISPLAY` fragen den Gesendet-Ordner, die Mail von vor drei Minuten sperrt,
+    Exit 4. Eine Funktion mit `lage`, damit die Gegenprobe sie je Lage ruft."""
+    monkeypatch.delenv("FALZMARKE_GESENDET", raising=False)       # conftest schaltet sie ab
+    monkeypatch.delenv("FALZMARKE_GESENDET_STUNDEN", raising=False)
+    zeit = datetime.now(timezone.utc) - timedelta(minutes=3)
+    server = ImapAttrappe({
+        "Entw&APw-rfe": [],
+        "Gesendete Elemente": [(nachricht(an="paula@example.org", betreff=BETREFF,
+                                          datum=zeit, von=ABSENDER), zeit)],
+    })
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", server)
+    uebergeben = _datei_uebergaben(monkeypatch)
+    lauf = _email_ohne_oeffnen(tmp_path, monkeypatch)
+    _stelle_lage_her(monkeypatch, lauf, lage)
+    erwartet = LAGEN_OHNE_ENTWURF[lage]
+    code = lauf("--kein-fenster")
+    ausgabe = capsys.readouterr()
+    assert code == erwartet, f"{lage}: Exit {code} statt {erwartet}: {ausgabe.err}"
+    if erwartet == falzmarke.EXIT_UMGEBUNG:
+        assert server.verbindungen == [], f"{lage}: ohne Bildschirm das Postfach gefragt"
+        assert "KEIN ENTWURF  FALZMARKE_OEFFNEN=nie ist gesetzt" in ausgabe.err, ausgabe.err
+    else:
+        assert erwartet == falzmarke.EXIT_SCHON_GESENDET
+        assert server.verbindungen, f"{lage}: den Gesendet-Ordner nicht gefragt"
+        assert ausgabe.err.startswith("GEÄNDERTE FASSUNG  „AW: Sommerfest"), ausgabe.err
+    assert server.befehle("APPEND") == [], f"{lage}: ein Entwurf trotz Sperre"
+    assert lauf.tb.compose == [] and uebergeben == [], "ein Fenster trotz --kein-fenster"
+
+
+@pytest.mark.parametrize("lage", list(LAGEN_OHNE_ENTWURF))
+def test_kein_fenster_fragt_den_gesendet_ordner_nur_mit_bildschirm(tmp_path, monkeypatch,
+                                                                  capsys, lage):
+    pruefe_lage_ohne_entwurf(tmp_path, monkeypatch, capsys, lage)
 
 
 def test_die_abgelegte_datei_ist_die_gemessene(eml_pfad, felder, monkeypatch):
