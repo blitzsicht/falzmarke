@@ -6105,6 +6105,45 @@ def test_ohne_die_pruefung_eigener_main_jobs_wird_die_probe_rot(tmp_path, monkey
         probe(tmp_path, "tests")
 
 
+# ── Dependabot 07.11.2026: jede Action in den Workflows auf einem Commit-SHA ──
+
+def _release_mit_publish_pin(tmp_path, monkeypatch, ersatz: str):
+    """release.yml mit einem anderen Ziel hinter `pypa/gh-action-pypi-publish@`,
+    als einziger Workflow in test_aktion.WORKFLOWS."""
+    import test_aktion
+
+    text = (REPO / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    sabotiert, anzahl = re.subn(r"(pypa/gh-action-pypi-publish@)[0-9a-f]{40}",
+                                lambda m: m.group(1) + ersatz, text)
+    assert anzahl == 1, f"der Publish-Pin steht {anzahl}-mal in release.yml, erwartet 1"
+    datei = tmp_path / "release.yml"
+    datei.write_text(sabotiert, encoding="utf-8")
+    monkeypatch.setattr(test_aktion, "WORKFLOWS", [datei])
+    return test_aktion
+
+
+@pytest.mark.parametrize("ersatz", ["v1.14.3", "7245906"], ids=["tag", "kurze-sha"])
+def test_ein_publish_pin_ohne_volle_sha_wird_rot(ersatz, tmp_path, monkeypatch):
+    """Der Stand vor dem 07.11.2026 (Tag) und ein abgekürzter SHA: beide verschiebbar
+    bzw. mehrdeutig, beide muss die Prüfung beim Namen nennen."""
+    import test_aktion
+
+    test_aktion.test_jede_action_in_den_workflows_ist_auf_einen_commit_sha_gepinnt()  # Kontrolle
+    probe = _release_mit_publish_pin(tmp_path, monkeypatch, ersatz)
+    with pytest.raises(AssertionError,
+                       match=rf"release\.yml:\d+: pypa/gh-action-pypi-publish@{re.escape(ersatz)}"):
+        probe.test_jede_action_in_den_workflows_ist_auf_einen_commit_sha_gepinnt()
+
+
+def test_ohne_workflows_wird_die_pin_pruefung_rot(monkeypatch):
+    """Ein leerer Glob ließe die Prüfung über null Zeilen grün werden."""
+    import test_aktion
+
+    monkeypatch.setattr(test_aktion, "WORKFLOWS", [])
+    with pytest.raises(AssertionError, match="keine fremde Action in .github/workflows gefunden"):
+        test_aktion.test_jede_action_in_den_workflows_ist_auf_einen_commit_sha_gepinnt()
+
+
 # ── #480: Code im Changelog bleibt auf dem Weg ins README Code ──────────────
 
 def _changelog():

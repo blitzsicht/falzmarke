@@ -24,6 +24,7 @@ from conftest import REPO
 AKTION = REPO / "action.yml"
 SELBSTTEST = REPO / ".github" / "workflows" / "aktion.yml"
 CI = REPO / ".github" / "workflows" / "ci.yml"
+WORKFLOWS = sorted((REPO / ".github" / "workflows").glob("*.yml"))
 
 
 @pytest.fixture(scope="module")
@@ -83,6 +84,32 @@ def test_fremde_actions_sind_auf_sha_gepinnt(aktion):
         and not re.search(r"uses:\s*\S+@[0-9a-f]{40}", zeile)
     ]
     assert not ungepinnt, f"nicht auf SHA gepinnt: {ungepinnt}"
+
+
+def test_jede_action_in_den_workflows_ist_auf_einen_commit_sha_gepinnt():
+    """Die Hausregel gilt für jeden Workflow, nicht nur für action.yml.
+
+    Bis zum 07.11.2026 stand die Publish-Action in release.yml als begründete
+    Ausnahme auf einem Tag. Die Begründung beruhte auf einer Verwechslung: Am
+    26.08. war die SHA des annotierten Tag-Objekts eingetragen, nicht die des
+    Commits, und für die gibt es kein Image. Ohne diese Prüfung kehrte eine
+    solche Ausnahme still zurück.
+
+    Ob eine SHA ein Commit ist und kein Tag-Objekt, sieht der Test nicht; das
+    steht als Messanleitung am Pin in release.yml.
+    """
+    gezaehlt = 0
+    ungepinnt = []
+    for datei in WORKFLOWS:
+        for nr, zeile in enumerate(datei.read_text(encoding="utf-8").splitlines(), 1):
+            treffer = re.search(r"^\s*(?:-\s+)?uses:\s*(\S+)", zeile.split("#", 1)[0])
+            if not treffer or treffer.group(1).startswith("./"):
+                continue
+            gezaehlt += 1
+            if not re.fullmatch(r"[\w.-]+/[\w./-]+@[0-9a-f]{40}", treffer.group(1)):
+                ungepinnt.append(f"{datei.name}:{nr}: {treffer.group(1)}")
+    assert gezaehlt, "keine fremde Action in .github/workflows gefunden: Glob oder Muster kaputt?"
+    assert not ungepinnt, "nicht auf Commit-SHA gepinnt: " + ", ".join(ungepinnt)
 
 
 def test_die_gepinnten_fassungen_stimmen_mit_der_ci_ueberein():
