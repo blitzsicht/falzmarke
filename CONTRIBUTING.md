@@ -198,6 +198,10 @@ Was typst selbst ins PDF schreibt (seine Fassung in `/Creator` und im XMP, die I
 diese Kennung ändert, kippt also kein Golden mehr.
 Wird beim Release ein Rechnungs-Golden rot, hat sich an einer Rechnung etwas geändert. Dann
 gehört der Diff gelesen, bevor `python3 scripts/golden_rechnung.py` ihn überschreibt.
+Greift dabei der Vergleich ohne typsts Kennung nicht, schreibt das Skript roh und endet mit
+Exit 2 statt 0. Die Liste auf stderr nennt die Dateien und den Grund. Dann hat typst sein XMP
+umgebaut, oder dahinter steckt eine echte Änderung: erst den Diff lesen, dann `ohne_typst_kennung`
+nachziehen. Mit `--pruefen` zählt so eine Datei als Abweichung (Exit 1).
 
 **Vor dem Tag einmal von Hand:**
 
