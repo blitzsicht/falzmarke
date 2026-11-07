@@ -24,7 +24,18 @@ from conftest import REPO
 AKTION = REPO / "action.yml"
 SELBSTTEST = REPO / ".github" / "workflows" / "aktion.yml"
 CI = REPO / ".github" / "workflows" / "ci.yml"
-WORKFLOWS = sorted((REPO / ".github" / "workflows").glob("*.yml"))
+WORKFLOW_ORDNER = REPO / ".github" / "workflows"
+
+
+def _pin_dateien(ordner) -> list:
+    """Jede Datei, deren `uses:` GitHub ausführt: Workflows mit beiden Endungen, die
+    GitHub annimmt (`.yml` und `.yaml`), dazu action.yml. AKTION wird erst beim Aufruf
+    gelesen, damit die Gegenprobe es umbiegen kann."""
+    return sorted([*ordner.glob("*.yml"), *ordner.glob("*.yaml")]) + [AKTION]
+
+
+PIN_DATEIEN = _pin_dateien(WORKFLOW_ORDNER)
+_USES = re.compile(r"^\s*(?:-\s+)?uses:\s*(\S+)")
 
 
 @pytest.fixture(scope="module")
@@ -97,19 +108,50 @@ def test_jede_action_in_den_workflows_ist_auf_einen_commit_sha_gepinnt():
 
     Ob eine SHA ein Commit ist und kein Tag-Objekt, sieht der Test nicht; das
     steht als Messanleitung am Pin in release.yml.
+
+    Seit dem Nachreview von #580 gehören `.yaml`-Dateien und action.yml dazu. Die
+    ältere Prüfung oben sucht in action.yml nur nach 40 Hex-Zeichen irgendwo hinter
+    dem @, diese verlangt genau 40.
     """
-    gezaehlt = 0
+    aus_workflows = 0
     ungepinnt = []
-    for datei in WORKFLOWS:
+    for datei in PIN_DATEIEN:
         for nr, zeile in enumerate(datei.read_text(encoding="utf-8").splitlines(), 1):
-            treffer = re.search(r"^\s*(?:-\s+)?uses:\s*(\S+)", zeile.split("#", 1)[0])
+            treffer = _USES.search(zeile.split("#", 1)[0])
             if not treffer or treffer.group(1).startswith("./"):
                 continue
-            gezaehlt += 1
+            aus_workflows += datei != AKTION
             if not re.fullmatch(r"[\w.-]+/[\w./-]+@[0-9a-f]{40}", treffer.group(1)):
                 ungepinnt.append(f"{datei.name}:{nr}: {treffer.group(1)}")
-    assert gezaehlt, "keine fremde Action in .github/workflows gefunden: Glob oder Muster kaputt?"
+    # Gezählt wird nur, was aus den Workflows kommt: action.yml allein hielte den
+    # Zählwert über null, auch wenn der Glob nichts mehr findet.
+    assert aus_workflows, "keine fremde Action in .github/workflows gefunden: Glob oder Muster kaputt?"
     assert not ungepinnt, "nicht auf Commit-SHA gepinnt: " + ", ".join(ungepinnt)
+
+
+def test_jede_action_steht_in_allen_dateien_auf_derselben_sha():
+    """Eine vergessene Stelle beim Anheben fällt sonst nicht auf.
+
+    #580 hob setup-python an 14 Stellen in sieben Dateien von Hand an. Bliebe eine
+    stehen, liefe etwa der Release mit einer anderen Fassung als die CI, und jede
+    andere Prüfung bliebe grün: Beide SHAs sind voll und gepinnt. Die Prüfung
+    darunter vergleicht nur action.yml mit ci.yml.
+    """
+    fundstellen: dict[str, dict[str, list[str]]] = {}
+    for datei in PIN_DATEIEN:
+        for nr, zeile in enumerate(datei.read_text(encoding="utf-8").splitlines(), 1):
+            treffer = _USES.search(zeile.split("#", 1)[0])
+            ziel = re.fullmatch(r"([\w.-]+/[\w./-]+)@([0-9a-f]{40})", treffer.group(1)) if treffer else None
+            if ziel:
+                fundstellen.setdefault(ziel.group(1), {}).setdefault(ziel.group(2), []).append(
+                    f"{datei.name}:{nr}")
+    assert fundstellen, "keine gepinnte Action gefunden: Glob oder Muster kaputt?"
+    abweichend = [
+        f"{name}: " + "; ".join(f"{sha[:8]} in {', '.join(orte)}" for sha, orte in shas.items())
+        for name, shas in sorted(fundstellen.items())
+        if len(shas) > 1
+    ]
+    assert not abweichend, "dieselbe Action auf verschiedenen SHAs: " + " | ".join(abweichend)
 
 
 def test_die_gepinnten_fassungen_stimmen_mit_der_ci_ueberein():
