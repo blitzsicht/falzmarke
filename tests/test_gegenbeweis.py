@@ -2540,9 +2540,81 @@ def test_ohne_kopplung_in_der_hilfe_schweigt_kein_fenster_dazu(monkeypatch, caps
         '"Nicht mit --programm outlook")'))
     for breite in modul.HILFE_BREITEN:
         monkeypatch.setattr(modul, "HILFE_BREITEN", (breite,))
-        with pytest.raises(AssertionError, match="--kein-fenster nennt die Kopplung nicht: "
-                                                 "den Entwurf ablegen"):
+        with pytest.raises(AssertionError, match=f"COLUMNS={breite}: --kein-fenster nennt "
+                                                 "die Kopplung nicht: den Entwurf ablegen"):
             probe(monkeypatch, capsys)
+
+
+def test_ohne_folgeoption_liest_der_hilfetest_den_satz_von_programm_nicht_mit(monkeypatch,
+                                                                              capsys):
+    """Nachreview #576, Befund 3: Der Hilfe-Test grenzt `--kein-fenster` an der
+    nächsten Option ab, nicht am Ende der Hilfe. Sabotiert: Der Satz fehlt bei
+    `--kein-fenster`, und jede Optionszeile danach steht eine Stelle tiefer, als
+    wäre sie eine Folgezeile. Mit `\\Z` als Ausweg reichte der Abschnitt dann bis
+    zum Schluss und läse den Satz von `--programm` mit: grün ohne Kopplung. Die
+    alte Suche läuft deshalb mit und muss genau darauf hereinfallen, sonst prüfte
+    die Sabotage nichts."""
+    import contextlib
+    import io
+
+    import test_befehl_email as modul
+
+    probe = modul.test_die_hilfe_nennt_bei_kein_fenster_die_kopplung
+    probe(monkeypatch, capsys)                                             # Kontrolle
+    ohne_satz = _zeile_ersetzt(
+        falzmarke, "main", '"Nicht mit --programm outlook; schließt --oeffnen ein")',
+        '"Nicht mit --programm outlook")')
+
+    def tiefer_eingerueckt(argv):
+        puffer = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(puffer):
+                return ohne_satz(argv)
+        finally:
+            print(re.sub(r"^  (?=-)(?!--kein-fenster\b)", "   ", puffer.getvalue(),
+                         flags=re.MULTILINE), end="")
+    monkeypatch.setattr(falzmarke, "main", tiefer_eingerueckt)
+    for breite in modul.HILFE_BREITEN:
+        monkeypatch.setenv("COLUMNS", str(breite))
+        with pytest.raises(SystemExit):
+            falzmarke.main(["email", "--help"])
+        alt = re.search(r"^( +)--kein-fenster\b(.*?)(?=^\1-|\Z)", capsys.readouterr().out,
+                        re.DOTALL | re.MULTILINE)
+        assert alt and "schließt --oeffnen ein" in " ".join(alt.group(2).split()), \
+            f"COLUMNS={breite}: die alte Suche fällt nicht herein, die Sabotage prüft nichts"
+        monkeypatch.setattr(modul, "HILFE_BREITEN", (breite,))
+        with pytest.raises(AssertionError,
+                           match=f"COLUMNS={breite}: keine Folgeoption nach --kein-fenster"):
+            probe(monkeypatch, capsys)
+
+
+@pytest.mark.parametrize(("lage", "ort", "alt", "neu", "meldung"), [
+    # Wie ohne Bildschirm: Der Gesendet-Ordner würde auch dann gefragt.
+    ("oeffnen-nie", "befehl_email", "ohne_fenster = oeffnen_modul.kein_bildschirm()",
+     "ohne_fenster = None", "oeffnen-nie: Exit 4 statt 3"),
+    # `FALZMARKE_ENTWURF=nie` als Rechner ohne Bildschirm behandelt.
+    ("entwurf-nie", "befehl_email", "ohne_fenster = oeffnen_modul.kein_bildschirm()",
+     ("ohne_fenster = oeffnen_modul.kein_bildschirm() or ("
+      'os.environ.get("FALZMARKE_ENTWURF") == "nie" and "FALZMARKE_ENTWURF=nie ist gesetzt")'),
+     "entwurf-nie: Exit 3 statt 4"),
+    # `DISPLAY` auf jeder Plattform verlangt, wie es die Doku bis #576 las.
+    ("mac-ohne-display", "kein_bildschirm",
+     'if plattform.startswith(("linux", "freebsd")) and not (', "if not (",
+     "mac-ohne-display: Exit 3 statt 4"),
+], ids=["oeffnen-nie", "entwurf-nie", "mac-ohne-display"])
+def test_ohne_trennung_der_lagen_fragt_kein_fenster_den_gesendet_ordner_falsch(
+        tmp_path, monkeypatch, capsys, lage, ort, alt, neu, meldung):
+    """Nachreview #576, Befund 5: je Lage die eine Stelle, an der sie sich von den
+    anderen trennt. Die Sabotage entsteht vor der Kontrolle: Die Probe ersetzt
+    `kein_bildschirm` für den Mac, danach fände `_zeile_ersetzt` deren Quelltext."""
+    from test_postfach_entwurf import pruefe_lage_ohne_entwurf as probe
+
+    modul = falzmarke if ort == "befehl_email" else _oeffnen
+    kaputt = _zeile_ersetzt(modul, ort, alt, neu)
+    probe(tmp_path, monkeypatch, capsys, lage)                             # Kontrolle
+    monkeypatch.setattr(modul, ort, kaputt)
+    with pytest.raises(AssertionError, match=re.escape(meldung)):
+        probe(tmp_path, monkeypatch, capsys, lage)
 
 
 def test_ohne_signaturklasse_findet_die_pruefung_keine_signatur(tmp_path, monkeypatch):

@@ -811,9 +811,10 @@ def test_die_wahl_schliesst_oeffnen_ein(tmp_path, monkeypatch):
 #: Breiten, unter denen die Hilfe gelesen wird. argparse bricht nach `COLUMNS` um;
 #: bei 60, 70 und 100 begann eine Folgezeile mit „-“ („-compose“, „--oeffnen ein“),
 #: und eine Abgrenzung an „irgendeiner Zeile mit -“ schnitt den Abschnitt zu früh ab
-#: (Review #562). Bei 40 ist die Spalte der Optionsnamen zu schmal: Der Hilfetext
-#: steht unter dem Namen statt daneben.
-HILFE_BREITEN = (40, 60, 70, 80, 100, 150)
+#: (Review #562). Bei 40 steht der Hilfetext von `--kein-fenster` noch neben dem
+#: Namen, ab 39 darunter; bei 30 beginnt eine Folgezeile mit „--oeffnen ein“
+#: (gemessen am 07.11.2026 unter Python 3.12.9 und 3.14, Nachreview #576).
+HILFE_BREITEN = (30, 39, 40, 60, 70, 80, 100, 150)
 
 
 def test_die_hilfe_nennt_bei_kein_fenster_die_kopplung(monkeypatch, capsys):
@@ -825,17 +826,31 @@ def test_die_hilfe_nennt_bei_kein_fenster_die_kopplung(monkeypatch, capsys):
     tiefer, auch wenn sie mit „-“ beginnen. Gelesen unter jeder Breite aus
     `HILFE_BREITEN`, damit das Terminal des Laufs nichts entscheidet. Im Prozess
     statt im Kindprozess, wegen des „ß“: Unter Windows schriebe das Kind in der
-    Codepage des Systems."""
+    Codepage des Systems.
+
+    Ohne Farbe: Ab Python 3.14 färbt argparse die Optionsnamen, sobald
+    `FORCE_COLOR` oder `PYTHON_COLORS` gesetzt ist, auch in den Puffer von
+    `capsys`. Dann steht vor „--kein-fenster“ eine Steuerfolge, und die Suche
+    trifft nichts. `PYTHON_COLORS=1` sticht `NO_COLOR`, deshalb fallen beide weg
+    (Nachreview #576, gemessen unter 3.14).
+
+    Der Abschnitt endet an einer echten Folgeoption, nicht am Ende der Hilfe:
+    Fände die Suche keine, reichte er bis zum Schluss und läse den Satz von
+    `--programm` mit (Nachreview #576)."""
+    monkeypatch.setenv("NO_COLOR", "1")
+    monkeypatch.delenv("FORCE_COLOR", raising=False)
+    monkeypatch.delenv("PYTHON_COLORS", raising=False)
     for breite in HILFE_BREITEN:
         monkeypatch.setenv("COLUMNS", str(breite))
         with pytest.raises(SystemExit):
             falzmarke.main(["email", "--help"])
         hilfe = capsys.readouterr().out
-        abschnitt = re.search(r"^( +)--kein-fenster\b(.*?)(?=^\1-|\Z)", hilfe,
+        abschnitt = re.search(r"^( +)--kein-fenster\b(.*?)(?=^\1-)", hilfe,
                               re.DOTALL | re.MULTILINE)
-        assert abschnitt, f"COLUMNS={breite}: {hilfe}"
+        assert abschnitt, f"COLUMNS={breite}: keine Folgeoption nach --kein-fenster: {hilfe}"
         text = " ".join(abschnitt.group(2).split())
-        assert "schließt --oeffnen ein" in text, f"--kein-fenster nennt die Kopplung nicht: {text}"
+        assert "schließt --oeffnen ein" in text, \
+            f"COLUMNS={breite}: --kein-fenster nennt die Kopplung nicht: {text}"
 
 
 def test_gegenprobe_ohne_beides_wird_kein_entwurf_versucht(tmp_path, monkeypatch):

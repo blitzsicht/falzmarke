@@ -280,15 +280,21 @@ Vier Eigenschaften, die dazugehören:
   Lauf für erledigt; der Abholer in siluri-angebote prüft deshalb auf die `OK`-Zeile, legt die
   Datei ohne sie nach `_fehler/` und versucht es nie von selbst neu (siluri-angebote#206).
 
-Auf einem Rechner ohne Bildschirm — gesetztes `CI`, unter Linux fehlendes `DISPLAY` — wird gar
-nicht erst gestartet. `FALZMARKE_ENTWURF=nie` schaltet **nur den Entwurf** ab und lässt die
-Dateiübergabe stehen; `FALZMARKE_OEFFNEN=nie` schaltet beides ab, `=immer` überstimmt die
-Erkennung. Mit `--kein-fenster` gibt es keine Dateiübergabe. Zwei Lagen enden dort mit
+Auf einem Rechner ohne Bildschirm wird gar nicht erst gestartet. Ob einer da ist, entscheidet
+`oeffnen.kein_bildschirm` in dieser Reihenfolge: `FALZMARKE_OEFFNEN=immer` überstimmt alles
+Weitere, `FALZMARKE_OEFFNEN=nie` heißt „ohne Bildschirm“, danach ein gesetztes `CI` (außer `0`
+und `false`), zuletzt **nur unter Linux und FreeBSD** eine Sitzung ohne `DISPLAY` und ohne
+`WAYLAND_DISPLAY`. Unter macOS und Windows zählt `DISPLAY` nicht; auf dem Mac fehlt es im
+Normalfall, und ein Bildschirm ist trotzdem da. `FALZMARKE_ENTWURF=nie` schaltet **nur den
+Entwurf** ab und lässt die Dateiübergabe stehen; `FALZMARKE_OEFFNEN=nie` schaltet beides ab.
+Mit `--kein-fenster` gibt es keine Dateiübergabe. Zwei Lagen enden dort mit
 `KEIN ENTWURF  <Grund>` und Exit 3, und sie sind nicht dieselbe:
 
-- **Ohne Bildschirm** (`CI`, fehlendes `DISPLAY`, `FALZMARKE_OEFFNEN=nie`): Es kann nichts
-  aufgehen, also fragt der Befehl auch den Gesendet-Ordner nicht. Exit 3, selbst wenn die
-  Nachricht schon hinausging.
+- **Ohne Bildschirm** (`FALZMARKE_OEFFNEN=nie`, gesetztes `CI`, unter Linux oder FreeBSD weder
+  `DISPLAY` noch `WAYLAND_DISPLAY`): Es kann nichts aufgehen, also fragt der Befehl auch den
+  Gesendet-Ordner nicht. Exit 3, selbst wenn die Nachricht schon hinausging. Ein Mac ohne
+  `DISPLAY` gehört nicht dazu: Dort wird der Gesendet-Ordner gefragt, und eine schon gesendete
+  Nachricht endet mit Exit 4.
 - **Entwurf abgeschaltet** (`FALZMARKE_ENTWURF=nie`): Das ist kein Rechner ohne Bildschirm, nur
   der Entwurf fällt weg. Der Gesendet-Ordner wird vorher trotzdem gefragt. Ging die Nachricht
   schon hinaus, endet der Befehl mit Exit 4, sonst mit `KEIN ENTWURF  FALZMARKE_ENTWURF=nie ist
