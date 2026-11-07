@@ -65,6 +65,10 @@ Commit-SHAs gepinnt, mit einer dokumentiert begründeten Ausnahme
 (`pypa/gh-action-pypi-publish@v1.14.2`, `release.yml:188` — das Docker-Image existiert unter dem
 Commit-SHA nicht). Dependabot läuft monatlich für Actions und pip.
 
+> **Nachtrag 07.11.2026:** Die Begründung der Ausnahme war falsch. Eingetragen war die SHA des
+> annotierten Tag-Objekts, nicht die des Commits; unter der Commit-SHA gibt es das Image. Seit
+> #580 steht auch die Publish-Action auf einer Commit-SHA, eine Ausnahme gibt es nicht mehr.
+
 Bitter ist die Rolle des Werkzeugs: veraPDF ist der **unabhängige** Prüfer, auf den sich die
 PDF/A- und PDF/UA-Behauptungen stützen. Ein Beleg, dessen Herkunft ungeprüft ist, trägt weniger,
 als er zu tragen scheint.

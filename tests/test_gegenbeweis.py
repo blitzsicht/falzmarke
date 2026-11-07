@@ -6109,7 +6109,7 @@ def test_ohne_die_pruefung_eigener_main_jobs_wird_die_probe_rot(tmp_path, monkey
 
 def _release_mit_publish_pin(tmp_path, monkeypatch, ersatz: str):
     """release.yml mit einem anderen Ziel hinter `pypa/gh-action-pypi-publish@`,
-    als einziger Workflow in test_aktion.WORKFLOWS."""
+    als einzige Datei in test_aktion.PIN_DATEIEN."""
     import test_aktion
 
     text = (REPO / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
@@ -6118,7 +6118,7 @@ def _release_mit_publish_pin(tmp_path, monkeypatch, ersatz: str):
     assert anzahl == 1, f"der Publish-Pin steht {anzahl}-mal in release.yml, erwartet 1"
     datei = tmp_path / "release.yml"
     datei.write_text(sabotiert, encoding="utf-8")
-    monkeypatch.setattr(test_aktion, "WORKFLOWS", [datei])
+    monkeypatch.setattr(test_aktion, "PIN_DATEIEN", [datei])
     return test_aktion
 
 
@@ -6136,12 +6136,60 @@ def test_ein_publish_pin_ohne_volle_sha_wird_rot(ersatz, tmp_path, monkeypatch):
 
 
 def test_ohne_workflows_wird_die_pin_pruefung_rot(monkeypatch):
-    """Ein leerer Glob ließe die Prüfung über null Zeilen grün werden."""
+    """Ein leerer Glob ließe nur action.yml übrig, und die Prüfung liefe über eine
+    einzige Datei grün (Nachreview #580: action.yml zählt seither mit)."""
     import test_aktion
 
-    monkeypatch.setattr(test_aktion, "WORKFLOWS", [])
+    monkeypatch.setattr(test_aktion, "PIN_DATEIEN", [test_aktion.AKTION])
     with pytest.raises(AssertionError, match="keine fremde Action in .github/workflows gefunden"):
         test_aktion.test_jede_action_in_den_workflows_ist_auf_einen_commit_sha_gepinnt()
+
+
+def test_eine_yaml_datei_wird_mitgeprueft(tmp_path, monkeypatch):
+    """GitHub führt auch `.github/workflows/*.yaml` aus. Ein Glob nur auf `*.yml`
+    sähe einen ungepinnten Workflow dort nie (Nachreview #580)."""
+    import test_aktion
+
+    (tmp_path / "nachts.yaml").write_text(
+        "jobs:\n  a:\n    steps:\n      - uses: fremd/aktion@v1\n", encoding="utf-8")
+    monkeypatch.setattr(test_aktion, "PIN_DATEIEN", test_aktion._pin_dateien(tmp_path))
+    with pytest.raises(AssertionError, match=r"nachts\.yaml:4: fremd/aktion@v1"):
+        test_aktion.test_jede_action_in_den_workflows_ist_auf_einen_commit_sha_gepinnt()
+
+
+def test_action_yml_wird_mitgeprueft(tmp_path, monkeypatch):
+    """action.yml läuft in fremden Repositories; ein Tag dort muss die strenge
+    Prüfung beim Namen nennen, nicht nur die ältere (Nachreview #580)."""
+    import test_aktion
+
+    text = test_aktion.AKTION.read_text(encoding="utf-8")
+    sabotiert, anzahl = re.subn(r"(actions/setup-python@)[0-9a-f]{40}",
+                                lambda m: m.group(1) + "v7.1.0", text, count=1)
+    assert anzahl == 1, "kein setup-python-Pin in action.yml: Sabotage greift nicht"
+    kopie = tmp_path / "action.yml"
+    kopie.write_text(sabotiert, encoding="utf-8")
+    monkeypatch.setattr(test_aktion, "AKTION", kopie)
+    monkeypatch.setattr(test_aktion, "PIN_DATEIEN", test_aktion._pin_dateien(test_aktion.WORKFLOW_ORDNER))
+    with pytest.raises(AssertionError, match=r"action\.yml:\d+: actions/setup-python@v7\.1\.0"):
+        test_aktion.test_jede_action_in_den_workflows_ist_auf_einen_commit_sha_gepinnt()
+
+
+def test_eine_beim_anheben_vergessene_stelle_wird_rot(tmp_path, monkeypatch):
+    """Eine Stelle in release.yml bleibt auf setup-python 7.0.0 stehen, ci.yml ist
+    angehoben: Beide SHAs sind voll, nur der Vergleich über die Dateien sieht es."""
+    import test_aktion
+
+    test_aktion.test_jede_action_steht_in_allen_dateien_auf_derselben_sha()  # Kontrolle
+    text = (REPO / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    alt = "5fda3b95a4ea91299a34e894583c3862153e4b97"  # setup-python v7.0.0, vor #580
+    sabotiert, anzahl = re.subn(r"(actions/setup-python@)[0-9a-f]{40}",
+                                lambda m: m.group(1) + alt, text, count=1)
+    assert anzahl == 1 and alt not in text, "Sabotage greift nicht"
+    kopie = tmp_path / "release.yml"
+    kopie.write_text(sabotiert, encoding="utf-8")
+    monkeypatch.setattr(test_aktion, "PIN_DATEIEN", [test_aktion.CI, kopie])
+    with pytest.raises(AssertionError, match=r"actions/setup-python: .*5fda3b95 in release\.yml:\d+"):
+        test_aktion.test_jede_action_steht_in_allen_dateien_auf_derselben_sha()
 
 
 # ── #480: Code im Changelog bleibt auf dem Weg ins README Code ──────────────
