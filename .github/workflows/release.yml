@@ -255,7 +255,8 @@ jobs:
       # 07.11.2026 als Ausnahme auf dem Tag; die Begründung hielt das Tag-Objekt
       # für den Commit.
       #
-      # Beim Anheben die Commit-SHA so ermitteln (Dependabot tut das von selbst):
+      # Beim Anheben die Commit-SHA so ermitteln. Ob Dependabot hier die Commit-SHA
+      # einträgt oder die des Tag-Objekts, ist nicht gemessen: auch seinen PR so prüfen.
       #   gh api repos/pypa/gh-action-pypi-publish/git/ref/tags/<tag>
       #   → object.type "tag": gh api …/git/tags/<object.sha> → object.sha
       # tests/test_aktion.py verlangt eine 40-stellige SHA, kann aber nicht
