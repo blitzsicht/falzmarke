@@ -51,7 +51,7 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref }}
 
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
           python-version: "3.12"
 
@@ -193,7 +193,7 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref_name }}
 
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
           python-version: "3.12"
 
@@ -233,20 +233,34 @@ jobs:
           # Action gibt die Hashes mit `print-hash: true` selbst noch einmal aus.
           sha256sum dist/*
 
-      # AUSNAHME von der Hausregel "Actions auf Commit-SHAs pinnen" — begruendet,
-      # nicht vergessen. Diese Action laeuft als Docker-Container und zieht ihr
-      # Image mit dem `action_ref` als Image-Tag. Beim SHA-Pinning ist das der
-      # Commit-SHA, und dafuer existiert im Registry kein Image: Sie werden nur
-      # fuer Release-Tags gebaut. Gemessen am 26.08.2026 gegen ghcr.io:
+      # Gepinnt auf die SHA des COMMITS, nicht auf die des Tag-Objekts.
       #
-      #   v1.14.2                                    HTTP 200
-      #   a892a5a61159132606e93a2fa6f4358831b04d26   manifest unknown
+      # Diese Action läuft als Docker-Container und zieht ihr Image unter
+      # `ghcr.io/pypa/gh-action-pypi-publish:<action_ref>` (create-docker-action.py,
+      # set_image). Der Image-Tag ist also genau das, was hinter dem @ steht.
+      # Die Releases der Action sind annotierte Tags, und ein annotierter Tag hat
+      # zwei SHAs: die seines Tag-Objekts und die des Commits, auf den er zeigt.
+      # Ein Image gibt es nur unter der Commit-SHA. Gemessen am 07.11.2026 gegen
+      # ghcr.io, jeweils Manifest bzw. `docker pull`:
       #
-      # Der Lauf 32965096295 ist genau daran gescheitert — nach der Freigabe,
-      # aber vor jedem Upload. Der Tag v1.14.2 zeigt auf denselben Commit
-      # a892a5a; wer das SHA-Pinning wiederherstellen will, muss vorher pruefen,
-      # ob die Action ihr Image inzwischen unter dem SHA ablegt.
-      - uses: pypa/gh-action-pypi-publish@v1.14.2
+      #   a892a5a61159132606e93a2fa6f4358831b04d26  Tag-Objekt v1.14.2  404
+      #   dc37677b2e1c63e2034f94d8a5b11f265b73ba33  Commit v1.14.2      200
+      #   7245906fb61fa33a13554f9d5fb856fe61758086  Commit v1.14.3      200, Pull ok
+      #   0000000000000000000000000000000000000000  Gegenprobe          404
+      #
+      # Der Lauf 32965096295 (26.08.2026) ist an genau dieser Verwechslung
+      # gescheitert: Gepinnt war a892a5a, das Tag-Objekt, und das Protokoll zeigt
+      # „Unable to find image 'ghcr.io/pypa/gh-action-pypi-publish:a892a5a…'“ —
+      # nach der Freigabe, vor jedem Upload. Danach stand die Action bis zum
+      # 07.11.2026 als Ausnahme auf dem Tag; die Begründung hielt das Tag-Objekt
+      # für den Commit.
+      #
+      # Beim Anheben die Commit-SHA so ermitteln (Dependabot tut das von selbst):
+      #   gh api repos/pypa/gh-action-pypi-publish/git/ref/tags/<tag>
+      #   → object.type "tag": gh api …/git/tags/<object.sha> → object.sha
+      # tests/test_aktion.py verlangt eine 40-stellige SHA, kann aber nicht
+      # sehen, ob es die richtige ist.
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086  # v1.14.3
         with:
           print-hash: true
 
