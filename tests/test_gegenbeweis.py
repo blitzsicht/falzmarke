@@ -6285,15 +6285,26 @@ def test_mit_der_alten_textsuche_wird_code_zum_verweis(monkeypatch):
 
 # ── Erklärfilm: Standbild-Frame innerhalb der Komposition ───────────────────
 
-def _erklaerfilm_kopie(tmp_path, monkeypatch, datei: str, alt: str, neu: str):
-    """Eine Datei des Erklärfilms mit genau einer Ersetzung nach tmp_path, die
-    übrigen bleiben die echten."""
+_ERKLAERFILM_DATEIEN = {
+    "package.json": "PAKET",
+    "texte.json": "TEXTE",
+    "Erklaerfilm.tsx": "FILM_TSX",
+    "index.tsx": "WURZEL_TSX",
+    "README.md": "LIESMICH",
+}
+
+
+def _erklaerfilm_kopie(tmp_path, monkeypatch, datei: str, alt: str, neu: str, anzahl: int = 1):
+    """Eine Datei des Erklärfilms nach tmp_path, mit `alt` an genau `anzahl` Stellen
+    ersetzt; die übrigen Dateien bleiben die echten."""
     import test_erklaerfilm
 
-    attribut = {"package.json": "PAKET", "texte.json": "TEXTE"}[datei]
+    attribut = _ERKLAERFILM_DATEIEN[datei]
     text = getattr(test_erklaerfilm, attribut).read_text(encoding="utf-8")
-    anzahl = text.count(alt)
-    assert anzahl >= 1, f"„{alt}“ steht nicht in {datei}: Sabotage greift nicht"
+    gefunden = text.count(alt)
+    assert gefunden == anzahl, (
+        f"„{alt}“ steht {gefunden}-mal in {datei}, erwartet {anzahl}: Sabotage trifft anders"
+    )
     kopie = tmp_path / datei
     kopie.write_text(text.replace(alt, neu), encoding="utf-8")
     monkeypatch.setattr(test_erklaerfilm, attribut, kopie)
@@ -6305,15 +6316,34 @@ def test_ein_standbild_frame_hinter_dem_film_wird_rot(tmp_path, monkeypatch):
     import test_erklaerfilm
 
     test_erklaerfilm.test_jeder_standbild_frame_liegt_in_der_komposition()  # Kontrolle
-    probe = _erklaerfilm_kopie(tmp_path, monkeypatch, "package.json", "--frame=600", "--frame=800")
+    probe = _erklaerfilm_kopie(tmp_path, monkeypatch, "package.json", "--frame=600", "--frame=800",
+                               anzahl=2)
     with pytest.raises(AssertionError, match=r"\(0 bis 779\): bild-quer: 800, bild-hoch: 800"):
         probe.test_jeder_standbild_frame_liegt_in_der_komposition()
 
 
 def test_ohne_standbild_frame_wird_die_pruefung_rot(tmp_path, monkeypatch):
-    """Ohne einen einzigen `--frame=` liefe die Prüfung über null Befehle grün."""
-    probe = _erklaerfilm_kopie(tmp_path, monkeypatch, "package.json", "--frame=600", "")
-    with pytest.raises(AssertionError, match="kein `--frame=` in package.json gefunden"):
+    """Ohne einen einzigen `--frame` liefe die Prüfung über null Befehle grün."""
+    probe = _erklaerfilm_kopie(tmp_path, monkeypatch, "package.json", " --frame=600", "", anzahl=2)
+    with pytest.raises(AssertionError, match="kein `--frame` in package.json gefunden"):
+        probe.test_jeder_standbild_frame_liegt_in_der_komposition()
+
+
+def test_ein_standbild_ohne_frame_neben_einem_mit_frame_wird_rot(tmp_path, monkeypatch):
+    """Nachreview #583: Solange ein anderes Skript `--frame` trägt, fing der Zählwert
+    ein Standbild ohne Frame nicht. Remotion nähme dort still Frame 0."""
+    probe = _erklaerfilm_kopie(tmp_path, monkeypatch, "package.json",
+                               "erklaerfilm-9x16.png --frame=600", "erklaerfilm-9x16.png")
+    with pytest.raises(AssertionError, match=r"(?m)Standbild ohne `--frame`: bild-hoch$"):
+        probe.test_jeder_standbild_frame_liegt_in_der_komposition()
+
+
+def test_ein_frame_mit_leerzeichen_statt_gleichheitszeichen_wird_mitgeprueft(tmp_path, monkeypatch):
+    """Nachreview #583: `--frame 800` versteht Remotion genauso. Die erste Fassung las
+    nur `--frame=` und meldete deshalb nur bild-quer, nie bild-hoch."""
+    probe = _erklaerfilm_kopie(tmp_path, monkeypatch, "package.json",
+                               "erklaerfilm-9x16.png --frame=600", "erklaerfilm-9x16.png --frame 800")
+    with pytest.raises(AssertionError, match=r"(?m)\(0 bis 779\): bild-hoch: 800$"):
         probe.test_jeder_standbild_frame_liegt_in_der_komposition()
 
 
@@ -6323,6 +6353,63 @@ def test_ein_kuerzerer_film_macht_frame_600_ungueltig(tmp_path, monkeypatch):
     probe = _erklaerfilm_kopie(tmp_path, monkeypatch, "texte.json", '"dauer": 26,', '"dauer": 20,')
     with pytest.raises(AssertionError, match=r"\(0 bis 599\): bild-quer: 600, bild-hoch: 600"):
         probe.test_jeder_standbild_frame_liegt_in_der_komposition()
+
+
+def test_die_grenze_rundet_halbe_frames_wie_math_round(tmp_path, monkeypatch):
+    """Nachreview #583: 25,55 s × 30 sind 766,5 Frames. Math.round macht daraus 767,
+    Pythons round() 766. Frame 766 ist im Film, Frame 767 nicht."""
+    _erklaerfilm_kopie(tmp_path, monkeypatch, "texte.json", '"dauer": 26,', '"dauer": 25.55,')
+    probe = _erklaerfilm_kopie(tmp_path, monkeypatch, "package.json", "--frame=600", "--frame=766",
+                               anzahl=2)
+    probe.test_jeder_standbild_frame_liegt_in_der_komposition()  # mit round() wäre das rot
+    zweite = tmp_path / "zweite"
+    zweite.mkdir()
+    _erklaerfilm_kopie(zweite, monkeypatch, "package.json", "--frame=766", "--frame=767", anzahl=2)
+    with pytest.raises(AssertionError, match=r"\(0 bis 766\): bild-quer: 767"):
+        probe.test_jeder_standbild_frame_liegt_in_der_komposition()
+
+
+def test_ein_film_ohne_laenge_nennt_die_dauer(tmp_path, monkeypatch):
+    """Nachreview #583: Mit `dauer` 0 hieß die Meldung „(0 bis -1): bild-quer: 600“ und
+    zeigte auf package.json statt auf texte.yaml."""
+    probe = _erklaerfilm_kopie(tmp_path, monkeypatch, "texte.json", '"dauer": 26,', '"dauer": 0,')
+    with pytest.raises(AssertionError, match=r"Film ohne Länge: dauer 0 in texte\.json"):
+        probe.test_jeder_standbild_frame_liegt_in_der_komposition()
+
+
+def test_eine_andere_laengenformel_in_erklaerfilm_tsx_wird_rot(tmp_path, monkeypatch):
+    """Nachreview #583: Der Test rechnet die Formel nach. Ändert sie sich, gälte sonst
+    weiter seine alte Grenze."""
+    probe = _erklaerfilm_kopie(tmp_path, monkeypatch, "Erklaerfilm.tsx",
+                               "Math.round(texte.dauer * FPS);", "Math.round((texte.dauer - 1) * FPS);")
+    with pytest.raises(AssertionError, match="berechnet GESAMT_FRAMES nicht mehr"):
+        probe.test_jeder_standbild_frame_liegt_in_der_komposition()
+
+
+def test_eine_gekuerzte_komposition_wird_rot(tmp_path, monkeypatch):
+    """Nachreview #583: Nur eine der beiden Kompositionen kürzt ihre Länge selbst."""
+    import test_erklaerfilm
+
+    test_erklaerfilm.test_jede_komposition_laeuft_ueber_den_ganzen_film()  # Kontrolle
+    wurzel = test_erklaerfilm.WURZEL_TSX.read_text(encoding="utf-8")
+    kopie = tmp_path / "index.tsx"
+    kopie.write_text(wurzel.replace("durationInFrames={GESAMT_FRAMES}",
+                                    "durationInFrames={GESAMT_FRAMES - 30}", 1), encoding="utf-8")
+    assert kopie.read_text(encoding="utf-8").count("{GESAMT_FRAMES - 30}") == 1
+    monkeypatch.setattr(test_erklaerfilm, "WURZEL_TSX", kopie)
+    with pytest.raises(AssertionError,
+                       match=r"nicht jede der 2 Kompositionen setzt durationInFrames=\{GESAMT_FRAMES\}"):
+        test_erklaerfilm.test_jede_komposition_laeuft_ueber_den_ganzen_film()
+
+
+def test_eine_veraltete_laenge_in_der_readme_wird_rot(tmp_path, monkeypatch):
+    """Nachreview #583: Die README hieß „Sechzig Sekunden“, der Film lief 26."""
+    import test_erklaerfilm
+
+    test_erklaerfilm.test_die_readme_nennt_die_laenge_aus_texte_yaml()  # Kontrolle
+    probe = _erklaerfilm_kopie(tmp_path, monkeypatch, "README.md", "26 Sekunden", "25 Sekunden")
+    with pytest.raises(AssertionError, match="README nennt 25 Sekunden, texte.yaml 26"):
+        probe.test_die_readme_nennt_die_laenge_aus_texte_yaml()
 
 
 # ── #442 N2: Der abgebrochene Zug zeigt seinen Plan auch im Text ────────────

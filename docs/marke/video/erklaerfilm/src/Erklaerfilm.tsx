@@ -15,8 +15,8 @@ export const FPS = 30;
  * Die Zeiten stehen in docs/marke/texte.yaml, nicht hier. tests/test_marke.py
  * prueft sie auf Lueckenlosigkeit und jede Szene auf mindestens 2,5 Sekunden.
  *
- * Getaktet auf 25 Sekunden. Die erste Fassung lief 60, die zweite 37 — beide
- * waren zu langsam geschnitten. Harte Schnitte, keine Blenden: wer nach zwei
+ * Die Gesamtdauer steht ebenfalls dort (film.dauer), nicht hier. Die erste
+ * Fassung lief 60 Sekunden, die zweite 37 — beide waren zu langsam geschnitten. Harte Schnitte, keine Blenden: wer nach zwei
  * Sekunden nicht weiss, worum es geht, ist weg.
  *
  * Dramaturgie: Auftrag -> was ohne feste Form herauskommt (durchgestrichen) ->
