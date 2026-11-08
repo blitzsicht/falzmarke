@@ -56,6 +56,9 @@ abschließt, und der Entwurf kennt die Ursprungsmail über `antwort_auf`.
   `+FLAGS` an einem stehenden ändert nichts. Die Zeile meldet „nicht nachgelesen“.
 - **Gegen einen echten Server ist der Weg nicht gemessen** (Stand 06.11.2026), nur gegen die
   IMAP-Attrappe. Der erste Lauf gegen den emailproxy wird hier mit Datum nachgetragen.
+  **Gemessen am 08.11.2026**, siehe Nachtrag #566: Eine Antwort mit `antwort_auf` und ohne
+  `erledigt` setzte über `email --oeffnen` das Fähnchen an der Ursprungsmail. Vorher trug sie
+  `\Seen`, danach `\Seen \Flagged`, rein lesend nachgelesen.
 
 ## Nachtrag: Code-Review #553 (06.11.2026)
 
@@ -95,8 +98,16 @@ Fähnchen im Archiv weiter. In falzmarke gab es keinen Weg, es abzunehmen.
   oder `aufraeumen --entwuerfe` ihn wegräumt. Dafür müsste das Entwurfsbuch festhalten, wer das
   Fähnchen gesetzt hat, und ein Fähnchen, das der Mensch nachher selbst noch setzen wollte, sähe
   genauso aus. Entscheidung des Betreibers, 08.11.2026.
-- **Gegen einen echten Server ist der Weg nicht gemessen** (Stand 08.11.2026), nur gegen die
-  IMAP-Attrappe.
+- **Gemessen am 08.11.2026 gegen den emailproxy**, an einem eigenen Geschäftskonto (Exchange).
+  Ablauf: eine Probe an das eigene Konto, dazu eine Antwort per `email --oeffnen` ohne `erledigt`.
+  Die Antwort ging hinaus, und das Fähnchen blieb wie vorgesehen stehen. Danach lief
+  `raeume_auf(uids=[…], faehnchen_weg=True)` erst als Vorschau („Fähnchen kommt mit --machen weg“),
+  dann mit `machen`. Ergebnis: 1 verschoben, `faehnchen_entfernt` nennt die UID. Rein lesend
+  nachgelesen: Im Eingang liegt die Mail nicht mehr. Im Zielordner liegt sie mit derselben
+  `Message-ID` und trägt `\Seen \Recent`, ohne `\Flagged`. Vor dem Lauf trug sie `\Flagged`.
+  Gefahren wurde über die Funktion, nicht über die CLI: Das Konto hat keinen Ordner mit
+  `\Archive`, und das Profil nennt keine `ablage`. Die CLI lehnte das Ziel deshalb ab, wie
+  vorgesehen. Den Weg durch `cli.py` deckt `test_faehnchen_weg_ueber_die_cli` an der Attrappe.
 
 ## Warum dieses Flag und warum ein voller Eingang
 
