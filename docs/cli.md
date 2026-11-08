@@ -75,12 +75,30 @@ Maskierliste (`*`, `_`, `#`, `[`, `` ` ``) wäre einfacher und irgendwann unvoll
 Aus demselben Grund läuft die Typografie nicht über den Wert: Aus `Nord -- Süd` wird kein
 Halbgeviertstrich. Im Vorlagentext greift sie weiterhin.
 
+### Anschriften mit unterschiedlich vielen Zeilen
+
+Eine Vorlage mit festen Zeilen passt auch für Empfänger mit weniger Zeilen (#389):
+
+```yaml
+empfaenger:
+  - "{{name}}"
+  - "{{zusatz}}"
+  - "{{strasse}}"
+  - "{{plz}} {{ort}}"
+```
+
+Ist `zusatz` in einem Datensatz leer, fällt die Zeile in diesem Brief weg, statt als Leerzeile
+im Anschriftfeld zu stehen. Das gilt nur für `empfaenger` und nur für eine Zeile, die einen
+Platzhalter trägt und durch leere Werte leer wird. Eine Leerzeile, die schon in der Vorlage steht,
+bleibt ein Fehler. Auch `z. Hd. {{name}}` mit leerem Namen bleibt stehen, denn dort steht fester
+Text.
+
 ### Ein Datensatz, ein Ergebnis
 
 Ein Datensatz, der nicht durchgeht, bricht **diesen** ab und nicht die Serie:
 
 ```
-FEHL  Zeile 3: empfaenger: Leerzeilen sind im Anschriftfeld nicht zulässig.
+FEHL  Zeile 3: Pflichtfelder fehlen: empfaenger
 serie: 2/3 Briefe geschrieben
 ```
 

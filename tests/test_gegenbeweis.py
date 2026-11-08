@@ -5674,6 +5674,27 @@ def test_ohne_die_warnung_bleibt_erledigt_ohne_antwort_auf_still(monkeypatch, tm
         probe(tmp_path)
 
 
+# ── #389: Eine leer gefüllte Anschriftzeile fällt weg ───────────────────────
+
+@pytest.mark.parametrize("alt, neu, probe, meldung", [
+    ("            continue\n", "            pass\n",
+     "test_eine_leer_gefuellte_anschriftzeile_faellt_weg", "die Leerzeile blieb stehen"),
+    ("PLATZHALTER.search(zeile) and ", "",
+     "test_gegenprobe_fester_text_und_leerzeilen_der_vorlage_bleiben", "assert"),
+], ids=["weglassen", "nur_platzhalter"])
+def test_ohne_die_stelle_bleibt_die_leerzeile_oder_faellt_zu_viel(monkeypatch, alt, neu, probe,
+                                                                  meldung):
+    """Sabotage an genau einer Stelle von `serie._fuelle_zeilen` (#389)."""
+    import test_serie
+    from falzmarke import serie as _serie
+
+    getattr(test_serie, probe)()                                            # Kontrolle
+    monkeypatch.setattr(_serie, "_fuelle_zeilen",
+                        _zeile_ersetzt(_serie, "_fuelle_zeilen", alt, neu))
+    with pytest.raises(AssertionError, match=re.escape(meldung)):
+        getattr(test_serie, probe)()
+
+
 # ── #566: --faehnchen-weg nimmt das Fähnchen vor dem Ablegen ab ─────────────
 #
 # Jede Probe ist ein Test aus `test_ablage.py`. Gekippt wird je eine Zeile in

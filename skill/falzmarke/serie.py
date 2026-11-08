@@ -203,15 +203,38 @@ def fuelle_text(text: str, satz: dict) -> str:
     return PLATZHALTER.sub(lambda m: satz.get(m.group(1), ""), text)
 
 
+#: Listen, in denen eine leer gefüllte Platzhalterzeile wegfällt (#389).
+#:
+#: Das Anschriftfeld hat je Empfänger drei bis sechs Zeilen, die Vorlage aber
+#: feste `{{zeileN}}`. Eine leere Spalte ergäbe eine Leerzeile, und die ist im
+#: Anschriftfeld verboten. Weg fällt nur eine Zeile, die einen Platzhalter
+#: trägt und nach dem Füllen leer ist: Eine Leerzeile, die schon in der Vorlage
+#: steht, bleibt ein Fehler der Vorlage, und `z. Hd. {{name}}` mit leerem Namen
+#: bleibt stehen, denn dort steht fester Text.
+ZEILENFELDER = frozenset({"empfaenger"})
+
+
 def fuelle_kopf(kopf, satz: dict):
     """Dasselbe rekursiv über das ganze Frontmatter."""
     if isinstance(kopf, str):
         return fuelle_text(kopf, satz)
     if isinstance(kopf, dict):
-        return {k: fuelle_kopf(v, satz) for k, v in kopf.items()}
+        return {k: _fuelle_zeilen(v, satz) if k in ZEILENFELDER and isinstance(v, list)
+                else fuelle_kopf(v, satz) for k, v in kopf.items()}
     if isinstance(kopf, list):
         return [fuelle_kopf(v, satz) for v in kopf]
     return kopf
+
+
+def _fuelle_zeilen(zeilen: list, satz: dict) -> list:
+    """Eine Liste füllen und die Zeilen weglassen, die nur durch leere Werte leer sind."""
+    aus = []
+    for zeile in zeilen:
+        gefuellt = fuelle_kopf(zeile, satz)
+        if isinstance(zeile, str) and PLATZHALTER.search(zeile) and not gefuellt.strip():
+            continue
+        aus.append(gefuellt)
+    return aus
 
 
 def fuelle_bloecke(bloecke, satz: dict):

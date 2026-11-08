@@ -398,7 +398,9 @@ python3 scripts/falzmarke.py serie vorlage.md --daten empfaenger.csv --ziel brie
 
 Die Vorlage ist ein gewöhnlicher Brief mit `{{spalte}}` an den Stellen, die aus den Daten kommen
 — im Frontmatter wie im Text. Ein Wert wird nie zu Markup: Was in der Datenquelle steht, kommt
-als Text an. Ein Datensatz, der nicht durchgeht, bricht **diesen** ab und nicht die Serie;
+als Text an. Eine Anschriftzeile, die nur aus Platzhaltern besteht und leer gefüllt wird, fällt
+weg, sodass eine Vorlage für vier und fünf Zeilen passt. Ein Datensatz, der nicht durchgeht,
+bricht **diesen** ab und nicht die Serie;
 angehalten wird nur bei einem Fehler an der Vorlage oder der Datenquelle. `--sammel` legt
 zusätzlich alle Briefe in eine Datei für den Druck.
 
