@@ -2467,7 +2467,8 @@ def befehl_aufraeumen(args) -> int:
         for schalter, gesetzt in (("--absender", args.absender), ("--uid", args.uid),
                                   ("--entwuerfe", args.entwuerfe),
                                   ("--uidvalidity", args.uidvalidity),
-                                  ("--trotz-faehnchen", args.trotz_faehnchen)):
+                                  ("--trotz-faehnchen", args.trotz_faehnchen),
+                                  ("--faehnchen-weg", args.faehnchen_weg)):
             if gesetzt:
                 print(f"FEHLER  --alle gilt nicht mit {schalter}: die Konten kommen aus den "
                       "Profilen", file=sys.stderr)
@@ -2509,6 +2510,12 @@ def befehl_aufraeumen(args) -> int:
                   "die Anzeige ohne --machen. Ohne ihn ist nicht zu prüfen, ob die UIDs "
                   "noch dieselben Mails meinen", file=sys.stderr)
             return EXIT_EINGABE
+    if args.faehnchen_weg and args.uid is None:
+        # #566: Das Fähnchen kommt nur von Mails, die der Bediener nennt. Ohne
+        # `--uid` nähme der Lauf es jeder beantworteten Mail ab.
+        print("FEHLER  --faehnchen-weg gilt nur mit --uid: das Fähnchen kommt nur von "
+              "Mails, die du nennst", file=sys.stderr)
+        return EXIT_EINGABE
     if args.uidvalidity is not None:
         if args.uid is None:
             print("FEHLER  --uidvalidity gilt nur mit --uid", file=sys.stderr)
@@ -2562,7 +2569,8 @@ def befehl_aufraeumen(args) -> int:
             adresse, wunsch=wunsch, seit_tagen=args.seit, machen=args.machen,
             uids=[str(u) for u in args.uid] if args.uid is not None else None,
             trotz_faehnchen=args.trotz_faehnchen,
-            uidvalidity=str(args.uidvalidity) if args.uidvalidity is not None else None))
+            uidvalidity=str(args.uidvalidity) if args.uidvalidity is not None else None,
+            faehnchen_weg=args.faehnchen_weg))
     if args.json:
         konten = [ablage_modul.als_json(b) for b in berichte]
         if args.alle:
@@ -3213,7 +3221,7 @@ def main(argv: list[str] | None = None) -> int:
                    help="jedes Konto, dessen Profil `email.ablage` nennt; ohne `ablage` "
                         "wird übersprungen, ein unlesbares Profil ergibt Exit 3. Für den "
                         "Zeitplan; nicht mit --absender, --uid, --uidvalidity, "
-                        "--trotz-faehnchen und --entwuerfe")
+                        "--trotz-faehnchen, --faehnchen-weg und --entwuerfe")
     # `default=None`, nicht 30: Nur so ist „gesetzt“ von „Vorgabe“ zu trennen,
     # und mit `--uid` ist ein gesetztes `--seit` ein Fehler (Nachreview #494).
     p.add_argument("--seit", type=int, default=None,
@@ -3232,6 +3240,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--trotz-faehnchen", action="store_true",
                    help="auch Mails mit Fähnchen ablegen; ohne diesen Schalter bleiben sie "
                         "im Eingang")
+    p.add_argument("--faehnchen-weg", action="store_true",
+                   help="nur mit --uid: das Fähnchen von den genannten Mails nehmen und sie "
+                        "ablegen; steht es danach noch, wandert keine")
     p.add_argument("--machen", action="store_true",
                    help="wirklich verschieben; ohne diesen Schalter wird nur gezeigt")
     p.add_argument("--profiles", help="Verzeichnis mit den Absenderprofilen")

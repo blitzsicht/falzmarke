@@ -254,10 +254,33 @@ def test_gegenprobe_das_markieren_ist_einzeln_einzuschalten():
         offen.uid("MOVE", "1", '"Archiv"')
 
 
+
+def test_gegenprobe_das_entmarkieren_ist_einzeln_einzuschalten():
+    """#566: `markieren_erlaubt` öffnet kein `-FLAGS`, `entmarkieren_erlaubt` kein
+    `+FLAGS` und kein anderes Flag."""
+    nur_setzen = ImapAttrappe(markieren_erlaubt=True)
+    nur_setzen.select('"INBOX"')
+    with pytest.raises(AssertionError, match="nur als"):
+        nur_setzen.uid("STORE", "1", "-FLAGS", "(\\Flagged)")
+
+    nur_weg = ImapAttrappe(entmarkieren_erlaubt=True)
+    nur_weg.select('"INBOX"')
+    assert nur_weg.uid("STORE", "1,2", "-FLAGS", "(\\Flagged)")[0] == "OK"
+    with pytest.raises(AssertionError, match="UID STORE ändert Flags"):
+        nur_weg.uid("STORE", "1", "+FLAGS", "(\\Flagged)")
+    for falsch in (("1", "-FLAGS", "(\\Seen)"), ("1", "-FLAGS", "(\\Flagged \\Seen)"),
+                   ("1:*", "-FLAGS", "(\\Flagged)")):
+        with pytest.raises(AssertionError, match="nur als"):
+            nur_weg.uid("STORE", *falsch)
+    with pytest.raises(AssertionError, match="UID MOVE"):
+        nur_weg.uid("MOVE", "1", '"Archiv"')
+
+
 # ── Die Quelle selbst ───────────────────────────────────────────────────────
 
 def test_das_modul_kennt_genau_einen_aendernden_befehl():
-    """`STORE` mit `+FLAGS` und `\\Flagged` — gelesen am Syntaxbaum, ohne Docstrings."""
+    """`STORE` mit `\\Flagged`, `+FLAGS` nur in `_setze_in` und `-FLAGS` nur in
+    `nimm_weg` (#566) — gelesen am Syntaxbaum."""
     import ast
     from pathlib import Path
 
@@ -271,7 +294,14 @@ def test_das_modul_kennt_genau_einen_aendernden_befehl():
 
     texte = {k.value for k in ast.walk(baum)
              if isinstance(k, ast.Constant) and isinstance(k.value, str)}
-    assert "+FLAGS" in texte and "-FLAGS" not in texte and "FLAGS" not in texte
+    assert "+FLAGS" in texte and "-FLAGS" in texte and "FLAGS" not in texte
+    # Je Funktion gelesen: Ein `-FLAGS` in `setze` oder `_setze_in` nähme dem Menschen
+    # ein Fähnchen ab, ohne dass er es gesagt hat.
+    je_funktion = {f.name: {k.value for k in ast.walk(f)
+                            if isinstance(k, ast.Constant) and isinstance(k.value, str)}
+                   for f in baum.body if isinstance(f, ast.FunctionDef)}
+    assert [n for n, w in je_funktion.items() if "-FLAGS" in w] == ["nimm_weg"], je_funktion
+    assert [n for n, w in je_funktion.items() if "+FLAGS" in w] == ["_setze_in"], je_funktion
     assert faehnchen.FLAG == "\\Flagged"
     assert not any(("\\Deleted" in t or "\\Seen" in t) and len(t) < 20 for t in texte), \
         "ein zweites Flag steht als Wert im Code"

@@ -13,10 +13,17 @@ Das dritte Modul des Pakets, das im Postfach etwas ändert, neben `ablage` und
 der einzige schreibende Befehl ist `APPEND`“ wahr bleibt.
 
 **Ein ändernder Befehl: `UID STORE <uid> +FLAGS (\\Flagged)`.** Nur dieses Flag,
-nur hinzufügen, an genau einer UID. Kein `-FLAGS`, kein `\\Deleted`, kein
-`\\Seen`, kein Verschieben. Ein Fähnchen, das schon steht, wird nicht noch einmal
-gesetzt. Entfernt wird es nie: Ob die Sache inzwischen erledigt ist, weiß nur der
+nur hinzufügen, an genau einer UID. Kein `\\Deleted`, kein `\\Seen`, kein
+Verschieben. Ein Fähnchen, das schon steht, wird nicht noch einmal gesetzt. Von
+selbst entfernt wird es nie: Ob die Sache inzwischen erledigt ist, weiß nur der
 Mensch. `tests/test_faehnchen.py` liest das am Syntaxbaum nach.
+
+**Die eine Ausnahme: `nimm_weg`** (#566, ADR 0063, Nachtrag). Sagt der Mensch es
+ausdrücklich, mit `aufraeumen --uid … --faehnchen-weg --machen`, geht vor dem
+Ablegen `UID STORE <uids> -FLAGS (\\Flagged)` an genau die genannten Mails. Das
+ist der einzige Weg zu `-FLAGS`, und kein Lauf ohne diese Angabe erreicht ihn.
+Ein verworfener Antwortentwurf ließ sonst sein Fähnchen stehen, und die Mail
+trug es auch im Archiv weiter.
 
 **Genau eine Mail oder keine.** Gesucht wird im Eingang des Absenderkontos nach
 der `Message-ID`, exakt verglichen (`Postfach.suche_kennung`). Liegt sie dort
@@ -146,6 +153,61 @@ def _setze_in(sitzung: postfach.Postfach, kennung: str) -> Faehnchen:
                          "Fähnchen", uid=kopf.uid, betreff=kopf.betreff)
     return Faehnchen("gesetzt", uid=kopf.uid, betreff=kopf.betreff)
 
+
+
+class FaehnchenFehler(Exception):
+    """Ein Grund in einem Satz, warum das Fähnchen nicht sicher weg ist."""
+
+
+def nimm_weg(sitzung: postfach.Postfach, uids: list[str], *,
+             uidvalidity: str | None) -> tuple[str, ...]:
+    """Nimmt `\\Flagged` von genau diesen Mails im Eingang (#566). Gibt die UIDs zurück.
+
+    Nur für `aufraeumen --uid … --faehnchen-weg --machen`: Der Mensch hat die
+    Mails genannt und gesagt, dass das Fähnchen weg soll. `ablage` ruft das vor
+    dem `UID MOVE`, in derselben Sitzung, mit der UIDVALIDITY des Plans.
+
+    Dieselben Sicherungen wie beim Setzen: Ohne Planwert oder bei einem Wechsel
+    am `SELECT` geht kein `STORE` hinaus. Danach wird nachgelesen. Steht das
+    Fähnchen noch an einer der Mails, oder nennt der Server keine Flags, wirft
+    das `FaehnchenFehler`, und `ablage` verschiebt dann nichts. Anders als
+    `setze` bricht diese Funktion also ab, denn hier steht noch kein Entwurf,
+    den ein Abbruch gefährden könnte, und das Ablegen soll an ihr hängen.
+    """
+    if not uids:
+        return ()
+    if uidvalidity is None:
+        raise FaehnchenFehler("der Plan las für den Eingang keine UIDVALIDITY — ob die UIDs "
+                              "noch dieselben Mails meinen, ist nicht zu prüfen; das Fähnchen "
+                              "bleibt, verschoben wird nichts")
+    zitiert = postfach._zitiert
+    # SELECT, nicht EXAMINE: In einem nur lesend geöffneten Ordner ändert der
+    # Server keine Flags. Gewählt wird allein der Eingang.
+    sitzung._befehl(f"Ordner „{EINGANG}“ nicht wählbar", sitzung._v.select, zitiert(EINGANG))
+    jetzt = sitzung._lies_uidvalidity()
+    if jetzt != uidvalidity:
+        raise FaehnchenFehler(f"die UIDVALIDITY des Eingangs ist jetzt {jetzt}, der Plan las "
+                              f"{uidvalidity} — die UIDs könnten andere Mails meinen; das "
+                              "Fähnchen bleibt, verschoben wird nichts")
+    menge = ",".join(uids)
+    try:
+        sitzung._befehl("Fähnchen entfernen", sitzung._v.uid, "STORE", menge, "-FLAGS",
+                        f"({FLAG})")
+    except postfach.PostfachFehler as fehler:
+        raise FaehnchenFehler(f"{fehler} — ob das Fähnchen an UID {menge} schon weg ist, "
+                              "ist nicht geprüft; verschoben wird nichts") from None
+    # Nachlesen statt der Antwort glauben: `OK` heißt angenommen, nicht entfernt.
+    try:
+        nach = {k.uid: k.fahnen for k in sitzung.koepfe(EINGANG, uids=uids, grenze=len(uids))}
+    except postfach.PostfachFehler as fehler:
+        raise FaehnchenFehler(f"{fehler} — das Entfernen an UID {menge} ging hinaus, "
+                              "nachgelesen ist es nicht; verschoben wird nichts") from None
+    offen = [u for u in uids if nach.get(u) is None or "\\flagged" in nach[u]]
+    if offen:
+        raise FaehnchenFehler(f"nach dem Entfernen trägt UID {', '.join(offen)} das Fähnchen "
+                              "noch, oder der Server nennt ihre Flags nicht — verschoben wird "
+                              "nichts")
+    return tuple(uids)
 
 def zeile(ergebnis: Faehnchen, adresse: str) -> str:
     """Die eine Zeile für den Lauf. `OK` für gesetzt und schon da, sonst `HINWEIS`."""

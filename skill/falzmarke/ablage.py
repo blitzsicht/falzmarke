@@ -31,7 +31,12 @@ Servers, nicht an Namen in einer Liste.
 Fähnchen (`\\Flagged`) wartet auf etwas und gehört in den Eingang. Nennt der
 Server ihre Flags nicht, ist das Fähnchen unbekannt, und auch dann bleibt sie
 liegen. `--trotz-faehnchen` hebt beides auf, ausdrücklich und nur für diesen
-Lauf.
+Lauf. Das Fähnchen wandert dann mit ins Archiv.
+
+**`--faehnchen-weg`** (#566) gilt nur mit `--uid`. Es legt ab wie
+`--trotz-faehnchen` und nimmt vorher das Fähnchen von den genannten Mails. Der
+Befehl dafür steht nicht hier, sondern in `faehnchen.nimm_weg`: Dieses Modul
+bleibt beim einen `UID MOVE`. Steht das Fähnchen danach noch, wandert keine Mail.
 
 **Benannte Mails** (`--uid`, #478) sind erledigt, weil der Bediener es sagt,
 nicht wegen einer Antwort. Es bleibt bei denselben Sperren und demselben einen
@@ -60,7 +65,7 @@ from collections.abc import Mapping
 from datetime import date, datetime, timedelta, timezone
 from typing import NamedTuple
 
-from falzmarke import postfach
+from falzmarke import faehnchen, postfach
 
 #: Der Eingang. IMAP schreibt ihn groß und ohne Kennzeichen vor (RFC 3501, 5.1).
 EINGANG = "INBOX"
@@ -181,6 +186,11 @@ class Bericht(NamedTuple):
     #: nannte oder der Eingang nicht gelesen wurde. Die UIDs der Züge gelten
     #: nur zusammen mit ihr, und `verschiebe` vergleicht sie am SELECT (#495).
     uidvalidity: str | None = None
+    #: War `--faehnchen-weg` gesetzt (#566)? Dann zeigt die Anzeige, an welcher
+    #: Mail das Fähnchen mit `--machen` wegkommt.
+    faehnchen_weg: bool = False
+    #: Die UIDs, an denen das Fähnchen nachgelesen weg ist. Ohne `--machen` leer.
+    faehnchen_entfernt: tuple[str, ...] = ()
 
 
 # ── Das Ziel ────────────────────────────────────────────────────────────────
@@ -410,7 +420,8 @@ def plane_benannt(sitzung: postfach.Postfach, uids: list[str], *, wunsch: str | 
             # Mit der UIDVALIDITY der Anzeige: `--uid` und `--machen` verlangen sie, sonst
             # endete der Befehl aus dem Rat auf Exit 1 (#504, Befund 1).
             wert = f" --uidvalidity {ist}" if ist is not None else ""
-            grund += f"; mit --trotz-faehnchen{wert} hebt das Fähnchen für diesen Lauf auf"
+            grund += (f"; mit --trotz-faehnchen{wert} hebt das Fähnchen für diesen Lauf auf, "
+                      f"mit --faehnchen-weg{wert} nimmt es vor dem Ablegen ab")
     if jahr_grund:
         # Der Grund des Jahresordners wird angehängt, nicht vorangestellt: Ein fehlender
         # Jahresordner kommt dazu, statt zu verschwinden. Sonst erführe der Bediener
@@ -574,10 +585,7 @@ def verschiebe(sitzung: postfach.Postfach, ziel: str, uids: list[str], *,
                            "ob die UIDs noch dieselben Mails meinen, ist nicht zu prüfen; "
                            + _SCHLUSS_AM_ZUG)
     if not _kann_verschieben(sitzung):
-        raise AblageFehler(
-            "der Server nennt in CAPABILITY kein MOVE (RFC 6851) — falzmarke baut es nicht "
-            "aus COPY, STORE und EXPUNGE nach: ein Verschieben in drei Schritten kann in der "
-            "Mitte abbrechen und die Nachricht zweimal liegen lassen")
+        raise AblageFehler(_KEIN_MOVE)
     zitiert = postfach._zitiert
     # SELECT, nicht EXAMINE: Aus einem nur lesend geöffneten Ordner bewegt
     # der Server nichts. Gewählt wird allein der Eingang.
@@ -593,6 +601,12 @@ def verschiebe(sitzung: postfach.Postfach, ziel: str, uids: list[str], *,
     except postfach.PostfachFehler as fehler:
         raise ZugAbgebrochen(str(fehler)) from None
     return len(uids)
+
+
+#: Warum ohne `MOVE` in CAPABILITY nichts wandert — und kein Fähnchen wegkommt (#566).
+_KEIN_MOVE = ("der Server nennt in CAPABILITY kein MOVE (RFC 6851) — falzmarke baut es nicht "
+              "aus COPY, STORE und EXPUNGE nach: ein Verschieben in drei Schritten kann in der "
+              "Mitte abbrechen und die Nachricht zweimal liegen lassen")
 
 
 def _kann_verschieben(sitzung: postfach.Postfach) -> bool:
@@ -614,14 +628,23 @@ def _je_ziel(zuege: tuple[Zug, ...]) -> list[tuple[str, list[str]]]:
 def raeume_auf(adresse: str, *, wunsch: str | None = None, seit_tagen: int = SEIT_TAGEN,
                machen: bool = False, umgebung: Mapping[str, str] | None = None,
                frist: float = FRIST_S, uids: list[str] | None = None,
-               trotz_faehnchen: bool = False, uidvalidity: str | None = None) -> Bericht:
+               trotz_faehnchen: bool = False, uidvalidity: str | None = None,
+               faehnchen_weg: bool = False) -> Bericht:
     """Ein Absender, von der Anmeldung bis zum Zug. Ohne `machen` wird nur gelesen.
 
     Mit `uids` sind es genau diese Eingangsmails statt der beantworteten, und
     `uidvalidity` ist dann der Wert, den die Anzeige nannte (#495).
+    `faehnchen_weg` gilt nur mit `uids` (#566).
     """
     bericht = Bericht(adresse=adresse, ziel=None, grund=None, seit=None, antworten=0,
-                      nicht_im_eingang=0, zuege=(), verschoben=0, benannt=uids is not None)
+                      nicht_im_eingang=0, zuege=(), verschoben=0, benannt=uids is not None,
+                      faehnchen_weg=faehnchen_weg)
+    if faehnchen_weg and uids is None:
+        # Dieselbe Pflicht wie in `cli.py`: Das Fähnchen kommt nur von Mails, die
+        # der Bediener genannt hat, nie von allen beantworteten.
+        return bericht._replace(
+            grund="faehnchen_weg gilt nur mit UIDs — das Fähnchen kommt nur von Mails, die "
+                  "jemand genannt hat; verschoben wird nichts")
     if uids is not None and machen and uidvalidity is None:
         # Dieselbe Pflicht wie in `cli.py`, hier für jeden Aufrufer: Ohne den Wert der
         # Anzeige verglich der Lauf die aktuelle Nummerierung mit sich selbst und
@@ -639,14 +662,30 @@ def raeume_auf(adresse: str, *, wunsch: str | None = None, seit_tagen: int = SEI
     with sitzung:
         try:
             if uids is not None:
+                # Wer das Fähnchen abnimmt, legt auch die Mail mit Fähnchen ab.
                 bericht = plane_benannt(sitzung, uids, wunsch=wunsch,
-                                        trotz_faehnchen=trotz_faehnchen,
+                                        trotz_faehnchen=trotz_faehnchen or faehnchen_weg,
                                         uidvalidity=uidvalidity, machen=machen)
+                bericht = bericht._replace(faehnchen_weg=faehnchen_weg)
             else:
                 bericht = plane(sitzung, wunsch=wunsch, seit_tagen=seit_tagen,
                                 trotz_faehnchen=trotz_faehnchen)
             if not machen or bericht.grund or not bericht.zuege:
                 return bericht
+            if faehnchen_weg:
+                # Vor dem Verschieben: Danach trägt die Mail im Ablageordner eine
+                # neue UID, und das Fähnchen wäre dort nur noch über COPYUID zu
+                # finden. Steht es nachher noch, wandert keine (#566). Ohne MOVE
+                # bliebe die Mail ohne Fähnchen im Eingang, also vorher fragen.
+                if not _kann_verschieben(sitzung):
+                    raise AblageFehler(_KEIN_MOVE)
+                try:
+                    entfernt = faehnchen.nimm_weg(
+                        sitzung, [z.uid for z in bericht.zuege if _mit_faehnchen(z)],
+                        uidvalidity=bericht.uidvalidity)
+                except faehnchen.FaehnchenFehler as fehler:
+                    raise AblageFehler(str(fehler)) from None
+                bericht = bericht._replace(faehnchen_entfernt=entfernt)
             # Das Ziel steht an jedem Zug. Ein zweites `ablageordner` wäre eine
             # zweite Bestimmung, und die kann anders ausfallen als die erste.
             for ziel, gruppe in _je_ziel(bericht.zuege):
@@ -662,8 +701,20 @@ def raeume_auf(adresse: str, *, wunsch: str | None = None, seit_tagen: int = SEI
             # Für den Rest zählt nur, ob **sein** MOVE hinausging. Brach der
             # Lauf davor ab, etwa am SELECT der zweiten Jahresgruppe, ist für
             # ihn sicher nichts gesendet (Nachreview von #494, Befund 3).
-            return bericht._replace(grund=str(fehler), verschoben=verschoben,
+            grund = str(fehler)
+            if bericht.faehnchen_entfernt:
+                # Das Fähnchen ist dann schon weg, die Mail aber womöglich nicht
+                # abgelegt (#566). Bei `{jahr}` kann ein Teil schon gewandert sein.
+                grund += (f"; das Fähnchen an UID {', '.join(bericht.faehnchen_entfernt)} ist "
+                          "schon entfernt — was davon nicht verschoben ist, liegt ohne "
+                          "Fähnchen im Eingang")
+            return bericht._replace(grund=grund, verschoben=verschoben,
                                     zug_gesendet=isinstance(fehler, ZugAbgebrochen))
+
+
+def _mit_faehnchen(zug: Zug) -> bool:
+    """Trägt die Mail ein Fähnchen, oder ist das unbekannt? Beides nimmt `--faehnchen-weg` ab."""
+    return zug.fahnen is None or FAEHNCHEN in zug.fahnen
 
 
 # ── Ausgabe: ein Bericht, zwei Darstellungen ────────────────────────────────
@@ -682,6 +733,10 @@ def _zugzeilen(bericht: Bericht) -> list[str]:
             zeile += f" — beantwortet mit „{zug.antwort_betreff}“"
         if zug.ziel and zug.ziel != bericht.ziel:
             zeile += f" → „{zug.ziel}“"
+        if bericht.faehnchen_weg and zug.uid in bericht.faehnchen_entfernt:
+            zeile += " — Fähnchen entfernt"
+        elif bericht.faehnchen_weg and _mit_faehnchen(zug):
+            zeile += " — Fähnchen kommt mit --machen weg"
         aus.append(zeile)
     aus += [f"{_kopfzeile(liegt.zug)} — liegt, {liegt.grund}" for liegt in bericht.liegen]
     return aus
@@ -768,6 +823,8 @@ def als_json(bericht: Bericht) -> dict:
         "zug_gesendet": bericht.zug_gesendet,
         "benannt": bericht.benannt,
         "uidvalidity": bericht.uidvalidity,
+        "faehnchen_weg": bericht.faehnchen_weg,
+        "faehnchen_entfernt": list(bericht.faehnchen_entfernt),
         "hinweise": list(bericht.hinweise),
         "zuege": [{"uid": z.uid, "betreff": z.betreff,
                    "datum": z.datum.isoformat() if z.datum else None,

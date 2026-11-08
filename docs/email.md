@@ -472,7 +472,7 @@ zurück angesehen werden (Vorgabe 30 Tage).
 **Das Fähnchen hält eine Mail im Eingang.** Eine Mail mit `\Flagged` wartet auf etwas, auch wenn
 sie beantwortet ist. Sie bleibt liegen, und die Ausgabe nennt sie mit „liegt, Fähnchen“. Nennt der
 Server keine Flags, bleibt sie ebenfalls. `--trotz-faehnchen` legt sie für diesen einen Lauf
-trotzdem ab. Eine mit falzmarke entworfene Antwort setzt das Fähnchen selbst, außer sie trägt
+trotzdem ab, und sie trägt das Fähnchen dann auch im Archiv. Eine mit falzmarke entworfene Antwort setzt das Fähnchen selbst, außer sie trägt
 `erledigt: ja` (#549, siehe `--oeffnen`).
 
 **Erledigt ohne Antwort: `--uid`.** Eine Abschlussmail, die keine Antwort braucht, legt man über
@@ -507,6 +507,22 @@ genannte Mail liegen bliebe, etwa wegen eines Fähnchens oder unbekannter Flags:
 keine, und der Grund nennt `--trotz-faehnchen`. Wer eine UID nennt, hat das Fähnchen vermutlich
 übersehen. `--uid` gilt für genau ein `--absender`, denn dieselbe UID ist in einem anderen
 Postfach eine andere Mail.
+
+**Fähnchen abnehmen: `--faehnchen-weg`** (#566). Wird ein Antwortentwurf verworfen, bleibt das
+Fähnchen an der Ursprungsmail stehen, das `email --oeffnen` gesetzt hat. Von selbst nimmt
+falzmarke es nie ab, denn ob die Sache erledigt ist, weiß nur der Mensch (ADR 0063). Wer es
+weiß, nennt die Mail:
+
+```bash
+falzmarke aufraeumen --absender ADRESSE --uid 101                       # zeigt, was wegkäme
+falzmarke aufraeumen --absender ADRESSE --uid 101 --faehnchen-weg --machen --uidvalidity V
+```
+
+Vor dem `UID MOVE` geht `UID STORE <uids> -FLAGS (\Flagged)` an genau die genannten Mails, die ein
+Fähnchen tragen oder deren Flags unbekannt sind. Danach wird nachgelesen. Steht das Fähnchen noch,
+nennt der Server keine Flags oder kennt er kein `MOVE`, wandert keine Mail. Bricht erst das
+Verschieben ab, sagt der Grund, dass die Mail ohne Fähnchen im Eingang liegt. Ein Fähnchen an einer
+Mail, die nicht genannt ist, bleibt. Ohne `--uid` gibt es den Schalter nicht (Exit 1).
 
 **Jahresordner: `ablage: Archiv/{jahr}`.** `{jahr}` wird je Mail zum Jahr ihrer Ankunft im
 Postfach (INTERNALDATE, Ortszeit). Thunderbirds Taste A mit `archive_granularity 1` nimmt dagegen
@@ -545,8 +561,8 @@ falzmarke aufraeumen --alle --machen --json      # verschieben, Bericht je Konto
   `uebersprungen`, `unlesbar` (Dateiname und Grund) und `nicht_geprueft` (Zahl der Konten mit
   Grund).
 - Ohne `--machen` bewegt auch `--alle` nichts. `--seit`, `--machen`, `--profiles` und `--json`
-  gelten wie sonst; `--absender`, `--uid`, `--uidvalidity`, `--trotz-faehnchen` und `--entwuerfe`
-  gehören nicht dazu (Exit 1).
+  gelten wie sonst; `--absender`, `--uid`, `--uidvalidity`, `--trotz-faehnchen`, `--faehnchen-weg`
+  und `--entwuerfe` gehören nicht dazu (Exit 1).
 
 Der Zeitplan liegt beim Betreiber, nicht im Repo. Ein Beispiel für launchd auf macOS, täglich um
 7:30 Uhr (Pfade und Benutzer anpassen; `/PFAD/ZU/` steht für die eigene Installation):
