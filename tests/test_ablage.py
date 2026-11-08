@@ -1050,7 +1050,9 @@ def test_bliebe_eine_benannte_mail_liegen_wandert_keine():
                                     "wenn jede genannte UID wandern kann; ")
     rat = bericht.grund.rsplit("; ", 1)[-1]
     assert "--trotz-faehnchen" in rat and "--uidvalidity 1" in rat, rat
-    assert rat.endswith("hebt das Fähnchen für diesen Lauf auf"), rat
+    assert "hebt das Fähnchen für diesen Lauf auf" in rat, rat
+    # #566: Der Rat nennt auch den Weg, der das Fähnchen abnimmt, mit demselben Wert.
+    assert rat.endswith("mit --faehnchen-weg --uidvalidity 1 nimmt es vor dem Ablegen ab"), rat
     assert bericht.verschoben == 0 and not attrappe.befehle("UID MOVE")
     assert _uids(attrappe) == [101, 102]
     text = ablage.zeilen(bericht)
@@ -1092,6 +1094,190 @@ def test_eine_benannte_mail_mit_faehnchen_endet_ueber_die_cli_mit_exit_3(monkeyp
     assert fehler.startswith("NICHT GEPRÜFT  joe@example.org: UID 101 bliebe liegen")
     assert "--trotz-faehnchen" in fehler
     assert _uids(attrappe) == [101] and not attrappe.befehle("UID MOVE")
+
+
+# ── #566: --faehnchen-weg nimmt das Fähnchen vor dem Ablegen ab ─────────────
+#
+# Fall vom 06.11.2026: Ein Antwortentwurf wurde verworfen, sein Fähnchen blieb,
+# und `--trotz-faehnchen` legte die Mail samt Fähnchen ins Archiv.
+
+STORE_WEG = ("UID STORE", "101", "-FLAGS", "(\\Flagged)")
+
+
+def _weg(*eingang, machen=True, uids=("101",), **optionen):
+    """Ein Lauf mit `--uid … --faehnchen-weg`; zurück kommen Attrappe und Bericht."""
+    optionen.setdefault("entmarkieren_erlaubt", True)
+    attrappe, _ = _postfach(eingang=list(eingang), **optionen)
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=machen, umgebung={},
+                                uidvalidity="1", uids=list(uids), faehnchen_weg=True)
+    return attrappe, bericht
+
+
+def _flags(attrappe, ordner, uid):
+    return next(n.flags for n in attrappe.ordner[ordner] if n.uid == uid)
+
+
+def test_faehnchen_weg_nimmt_das_faehnchen_ab_und_legt_die_mail_ab():
+    attrappe, bericht = _weg(_mit_fahnen(_offen(), "\\Seen \\Flagged"))
+    assert bericht.grund is None and bericht.verschoben == 1, bericht.grund
+    assert attrappe.befehle("UID STORE") == [STORE_WEG], "kein STORE -FLAGS vor dem Ablegen"
+    assert _uids(attrappe, "Archiv") == [101]
+    assert _flags(attrappe, "Archiv", 101) == "\\Seen", "die Mail trägt im Archiv ein Fähnchen"
+    # Vor dem MOVE: Danach hat die Mail im Archiv eine andere UID.
+    namen = [b[0] for b in attrappe.protokoll]
+    assert namen.index("UID STORE") < namen.index("UID MOVE")
+    assert bericht.faehnchen_entfernt == ("101",)
+    assert any(z.startswith("    UID 101 ") and z.endswith("— Fähnchen entfernt")
+               for z in ablage.zeilen(bericht))
+    aus = ablage.als_json(bericht)
+    assert aus["faehnchen_weg"] is True and aus["faehnchen_entfernt"] == ["101"]
+
+
+def test_gegenprobe_trotz_faehnchen_legt_die_mail_mit_dem_faehnchen_ab():
+    """Der Weg vom 06.11.: Ohne `--faehnchen-weg` geht kein STORE hinaus, und das
+    Fähnchen wandert mit. Sonst belegte der Test darüber nicht den Schalter."""
+    attrappe, _ = _postfach(eingang=[_mit_fahnen(_offen(), "\\Seen \\Flagged")],
+                            entmarkieren_erlaubt=True)
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
+                                uidvalidity="1", uids=["101"], trotz_faehnchen=True)
+    assert bericht.grund is None and bericht.verschoben == 1
+    assert not attrappe.befehle("UID STORE"), "STORE ohne --faehnchen-weg"
+    assert "\\Flagged" in _flags(attrappe, "Archiv", 101)
+
+
+def test_das_faehnchen_einer_nicht_genannten_mail_bleibt():
+    """Nur die genannten Mails verlieren ihr Fähnchen; ein anderes, etwa von Hand
+    gesetztes, bleibt stehen."""
+    attrappe, bericht = _weg(_mit_fahnen(_offen("Erste", "<e1@example.org>"), "\\Flagged"),
+                             _mit_fahnen(_offen("Zweite", "<e2@example.org>"), "\\Flagged"))
+    assert bericht.grund is None and bericht.verschoben == 1
+    assert attrappe.befehle("UID STORE") == [STORE_WEG]
+    assert _flags(attrappe, "INBOX", 102) == "\\Flagged", "das Fähnchen der Zweiten ist weg"
+
+
+def test_eine_genannte_mail_ohne_faehnchen_bekommt_kein_store():
+    attrappe, bericht = _weg(_mit_fahnen(_offen("Erste", "<e1@example.org>"), "\\Flagged"),
+                             _mit_fahnen(_offen("Zweite", "<e2@example.org>"), "\\Seen"),
+                             uids=("101", "102"))
+    assert bericht.grund is None and bericht.verschoben == 2
+    assert attrappe.befehle("UID STORE") == [STORE_WEG], "STORE an einer Mail ohne Fähnchen"
+    text = ablage.zeilen(bericht)
+    assert not any(z.startswith("    UID 102 ") and "Fähnchen" in z for z in text), text
+
+
+def test_ohne_machen_zeigt_die_anzeige_welches_faehnchen_wegkaeme():
+    attrappe, bericht = _weg(_mit_fahnen(_offen(), "\\Flagged"), machen=False)
+    assert bericht.grund is None and bericht.verschoben == 0
+    assert not attrappe.befehle("UID STORE") and not attrappe.befehle("UID MOVE")
+    assert any(z.startswith("    UID 101 ") and z.endswith("— Fähnchen kommt mit --machen weg")
+               for z in ablage.zeilen(bericht)), "die Anzeige verschweigt das Fähnchen"
+    assert ablage.als_json(bericht)["faehnchen_entfernt"] == []
+
+
+@pytest.mark.parametrize("optionen, satz", [
+    ({"store_wirkt": False}, "trägt UID 101 das Fähnchen noch"),
+    ({"store_fehler": "Mailbox is read-only"}, "ob das Fähnchen an UID 101 schon weg ist"),
+    ({"uidvalidity_select": "2"}, "die UIDVALIDITY des Eingangs ist jetzt 2, der Plan las 1"),
+], ids=["ohne-wirkung", "abgelehnt", "uidvalidity"])
+def test_steht_das_faehnchen_nicht_sicher_ab_wandert_keine_mail(optionen, satz):
+    attrappe, bericht = _weg(_mit_fahnen(_offen(), "\\Flagged"), **optionen)
+    assert not attrappe.befehle("UID MOVE"), "UID MOVE, obwohl das Fähnchen nicht sicher weg ist"
+    assert satz in (bericht.grund or ""), f"Grund ohne „{satz}“: {bericht.grund}"
+    assert _uids(attrappe) == [101] and bericht.verschoben == 0
+
+
+def test_ein_wechsel_der_uidvalidity_laesst_kein_store_hinaus():
+    attrappe, _ = _weg(_mit_fahnen(_offen(), "\\Flagged"), uidvalidity_select="2")
+    assert not attrappe.befehle("UID STORE"), "STORE trotz gewechselter UIDVALIDITY"
+    assert _flags(attrappe, "INBOX", 101) == "\\Flagged"
+
+
+def test_unbekannte_flags_werden_abgenommen_aber_ohne_nachlesen_wandert_keine():
+    """Nennt der Server keine Flags, kann ein Fähnchen stehen. `-FLAGS` geht
+    hinaus, doch ob es wirkte, ist nicht nachzulesen."""
+    attrappe, bericht = _weg(_offen(), ohne_flags=True)
+    assert attrappe.befehle("UID STORE") == [STORE_WEG]
+    assert "nennt ihre Flags nicht" in (bericht.grund or ""), bericht.grund
+    assert not attrappe.befehle("UID MOVE")
+
+
+def test_reisst_das_nachlesen_ab_sagt_der_grund_dass_das_store_hinausging(monkeypatch):
+    """Das STORE ist gesendet, das Nachlesen bricht ab: Der Grund darf nicht klingen,
+    als sei nichts geschehen."""
+    echt = postfach.Postfach.koepfe
+    aufrufe = []
+
+    def koepfe(self, *a, **k):
+        aufrufe.append(a)
+        if self._v.befehle("UID STORE"):
+            raise postfach.PostfachFehler("Kopfzeilen lesen: Verbindung getrennt")
+        return echt(self, *a, **k)
+
+    monkeypatch.setattr(postfach.Postfach, "koepfe", koepfe)
+    attrappe, bericht = _weg(_mit_fahnen(_offen(), "\\Flagged"))
+    assert attrappe.befehle("UID STORE") == [STORE_WEG] and len(aufrufe) == 2
+    assert "das Entfernen an UID 101 ging hinaus, nachgelesen ist es nicht" in \
+        (bericht.grund or ""), f"der Grund verschweigt das gesendete STORE: {bericht.grund}"
+    assert not attrappe.befehle("UID MOVE")
+
+
+def test_ohne_move_im_server_bleibt_auch_das_faehnchen():
+    """Sonst läge die Mail danach ohne Fähnchen und unverschoben im Eingang."""
+    attrappe, bericht = _weg(_mit_fahnen(_offen(), "\\Flagged"),
+                             faehigkeiten=("IMAP4REV1", "UIDPLUS"))
+    assert "CAPABILITY kein MOVE" in (bericht.grund or ""), bericht.grund
+    assert not attrappe.befehle("UID STORE"), "STORE, obwohl der Server nicht verschieben kann"
+    assert _flags(attrappe, "INBOX", 101) == "\\Flagged"
+
+
+def test_bricht_der_zug_nach_dem_entfernen_ab_sagt_der_grund_es(monkeypatch):
+    def abbruch(*_a, **_k):
+        raise ablage.ZugAbgebrochen("MOVE nach „Archiv“: Verbindung getrennt")
+
+    monkeypatch.setattr(ablage, "verschiebe", abbruch)
+    attrappe, bericht = _weg(_mit_fahnen(_offen(), "\\Flagged"))
+    assert attrappe.befehle("UID STORE") == [STORE_WEG]
+    assert bericht.grund.endswith("das Fähnchen an UID 101 ist schon entfernt — was davon nicht "
+                                  "verschoben ist, liegt ohne Fähnchen im Eingang"), \
+        f"der Grund verschweigt das entfernte Fähnchen: {bericht.grund}"
+
+
+def test_faehnchen_weg_ohne_uids_aendert_nichts():
+    """Dieselbe Pflicht wie in der CLI, hier für jeden Aufrufer."""
+    attrappe, _ = _postfach(eingang=[_mit_fahnen(_eingegangen(), "\\Flagged")],
+                            gesendet=[_antwort()], entmarkieren_erlaubt=True)
+    bericht = ablage.raeume_auf("joe@example.org", wunsch="Archiv", machen=True, umgebung={},
+                                faehnchen_weg=True)
+    assert "gilt nur mit UIDs" in (bericht.grund or ""), \
+        f"faehnchen_weg ohne UIDs lief ohne Grund: {bericht.grund}"
+    assert not attrappe.befehle("UID STORE") and not attrappe.befehle("UID MOVE")
+
+
+def test_faehnchen_weg_ueber_die_cli(monkeypatch, capsys):
+    from falzmarke import cli as falzmarke
+
+    attrappe, _ = _postfach(eingang=[_mit_fahnen(_offen(), "\\Flagged")],
+                            sonder={"INBOX": "", "Gesendete Elemente": "\\Sent",
+                                    "Archiv": "\\Archive"}, entmarkieren_erlaubt=True)
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", attrappe)
+    assert falzmarke.main(["aufraeumen", "--absender", "joe@example.org", "--uid", "101",
+                           "--uidvalidity", "1", "--faehnchen-weg", "--machen"]) == 0
+    aus = capsys.readouterr().out
+    assert "— Fähnchen entfernt" in aus, aus
+    assert _uids(attrappe, "Archiv") == [101] and _flags(attrappe, "Archiv", 101) == ""
+
+
+def test_faehnchen_weg_ohne_uid_ist_ein_eingabefehler(monkeypatch, capsys):
+    from falzmarke import cli as falzmarke
+
+    attrappe, _ = _postfach(entmarkieren_erlaubt=True)
+    monkeypatch.setattr(postfach, "IMAP_KLASSE", attrappe)
+    vorher = len(attrappe.protokoll)
+    code = falzmarke.main(["aufraeumen", "--absender", "joe@example.org", "--faehnchen-weg",
+                           "--machen"])
+    assert code == falzmarke.EXIT_EINGABE, f"Exit {code}: --faehnchen-weg lief ohne --uid"
+    assert capsys.readouterr().err.startswith("FEHLER  --faehnchen-weg gilt nur mit --uid")
+    assert len(attrappe.protokoll) == vorher, "ein Postfach wurde geöffnet"
 
 
 @pytest.mark.parametrize("hinten", [False, True], ids=["vor-dem-literal", "hinter-dem-literal"])
@@ -1861,8 +2047,8 @@ def test_alle_ohne_konto_erklaert_vor_dem_nicht_geprueft(monkeypatch, tmp_path, 
 
 @pytest.mark.parametrize("zusatz", [
     ["--absender", "a@example.de"], ["--uid", "101"], ["--entwuerfe"],
-    ["--uidvalidity", "3"], ["--trotz-faehnchen"],
-], ids=["absender", "uid", "entwuerfe", "uidvalidity", "trotz-faehnchen"])
+    ["--uidvalidity", "3"], ["--trotz-faehnchen"], ["--faehnchen-weg"],
+], ids=["absender", "uid", "entwuerfe", "uidvalidity", "trotz-faehnchen", "faehnchen-weg"])
 def test_alle_ist_mit_einzelkonto_schaltern_unvereinbar(zusatz, monkeypatch, tmp_path, capsys):
     from falzmarke import cli as falzmarke
 

@@ -5674,6 +5674,82 @@ def test_ohne_die_warnung_bleibt_erledigt_ohne_antwort_auf_still(monkeypatch, tm
         probe(tmp_path)
 
 
+# ── #566: --faehnchen-weg nimmt das Fähnchen vor dem Ablegen ab ─────────────
+#
+# Jede Probe ist ein Test aus `test_ablage.py`. Gekippt wird je eine Zeile in
+# `faehnchen.nimm_weg`, `ablage` oder `cli`; die Probe muss mit ihrer eigenen
+# Meldung anschlagen, nicht mit irgendeiner.
+
+def _probe_566(name, monkeypatch, capsys):
+    """Der Test `name` aus `test_ablage.py`, aufrufbar ohne seine Fixtures."""
+    import inspect
+
+    import test_ablage
+    from falzmarke import postfach as _postfach
+
+    # `test_ablage._postfach` setzt die Klasse ohne monkeypatch; dort räumt eine
+    # autouse-Fixture auf, die hier nicht läuft.
+    monkeypatch.setattr(_postfach, "IMAP_KLASSE", _postfach.IMAP_KLASSE, raising=False)
+    if name == "nicht_sicher_ab":
+        return lambda: test_ablage.test_steht_das_faehnchen_nicht_sicher_ab_wandert_keine_mail(
+            {"store_wirkt": False}, "trägt UID 101 das Fähnchen noch")
+    funktion = getattr(test_ablage, name)
+    vorrat = {"monkeypatch": monkeypatch, "capsys": capsys}
+    return lambda: funktion(**{k: vorrat[k] for k in inspect.signature(funktion).parameters})
+
+
+@pytest.mark.parametrize("modul, funktion, alt, neu, probe_name, meldung", [
+    ("faehnchen", "nimm_weg", "if jetzt != uidvalidity:", "if False:",
+     "test_ein_wechsel_der_uidvalidity_laesst_kein_store_hinaus",
+     "STORE trotz gewechselter UIDVALIDITY"),
+    ("faehnchen", "nimm_weg", "if offen:", "if False:",
+     "nicht_sicher_ab", "UID MOVE, obwohl das Fähnchen nicht sicher weg ist"),
+    ("ablage", "raeume_auf", "            if faehnchen_weg:\n", "            if False:\n",
+     "test_faehnchen_weg_nimmt_das_faehnchen_ab_und_legt_die_mail_ab",
+     "kein STORE -FLAGS vor dem Ablegen"),
+    ("ablage", "raeume_auf", "trotz_faehnchen=trotz_faehnchen or faehnchen_weg,",
+     "trotz_faehnchen=trotz_faehnchen,",
+     "test_faehnchen_weg_nimmt_das_faehnchen_ab_und_legt_die_mail_ab",
+     "UID 101 bliebe liegen (Fähnchen)"),
+    ("ablage", "raeume_auf",
+     "                if not _kann_verschieben(sitzung):\n"
+     "                    raise AblageFehler(_KEIN_MOVE)\n", "",
+     "test_ohne_move_im_server_bleibt_auch_das_faehnchen",
+     "STORE, obwohl der Server nicht verschieben kann"),
+    ("ablage", "_mit_faehnchen", "return zug.fahnen is None or FAEHNCHEN in zug.fahnen",
+     "return True", "test_eine_genannte_mail_ohne_faehnchen_bekommt_kein_store",
+     "STORE an einer Mail ohne Fähnchen"),
+    ("ablage", "raeume_auf", "            if bericht.faehnchen_entfernt:\n",
+     "            if False:\n", "test_bricht_der_zug_nach_dem_entfernen_ab_sagt_der_grund_es",
+     "der Grund verschweigt das entfernte Fähnchen"),
+    ("ablage", "raeume_auf", "    if faehnchen_weg and uids is None:\n", "    if False:\n",
+     "test_faehnchen_weg_ohne_uids_aendert_nichts", "faehnchen_weg ohne UIDs lief ohne Grund"),
+    ("ablage", "_zugzeilen", "        elif bericht.faehnchen_weg and _mit_faehnchen(zug):\n",
+     "        elif False:\n", "test_ohne_machen_zeigt_die_anzeige_welches_faehnchen_wegkaeme",
+     "die Anzeige verschweigt das Fähnchen"),
+    ("cli", "befehl_aufraeumen", "    if args.faehnchen_weg and args.uid is None:\n",
+     "    if False:\n", "test_faehnchen_weg_ohne_uid_ist_ein_eingabefehler",
+     "--faehnchen-weg lief ohne --uid"),
+    ("faehnchen", "nimm_weg",
+     'except postfach.PostfachFehler as fehler:\n        raise FaehnchenFehler(f"{fehler} — '
+     'das Entfernen', 'except ZeroDivisionError as fehler:\n        raise FaehnchenFehler('
+     'f"{fehler} — das Entfernen',
+     "test_reisst_das_nachlesen_ab_sagt_der_grund_dass_das_store_hinausging",
+     "der Grund verschweigt das gesendete STORE"),
+], ids=["uidvalidity", "nachlesen", "aufruf", "liegen", "kein_move", "nur_mit_faehnchen",
+        "grund_nach_abbruch", "ohne_uids", "anzeige", "cli_ohne_uid", "nachlesen_reisst_ab"])
+def test_ohne_die_stelle_nimmt_faehnchen_weg_zu_viel_oder_schweigt(
+        monkeypatch, capsys, modul, funktion, alt, neu, probe_name, meldung):
+    """Sabotage an genau einer Stelle je Fall (#566)."""
+    import importlib
+
+    ziel = importlib.import_module(f"falzmarke.{modul}")
+    _probe_566(probe_name, monkeypatch, capsys)()                           # Kontrolle
+    monkeypatch.setattr(ziel, funktion, _zeile_ersetzt(ziel, funktion, alt, neu))
+    with pytest.raises(AssertionError, match=re.escape(meldung)):
+        _probe_566(probe_name, monkeypatch, capsys)()
+
+
 # ── #454: Der Plugin-Ordner bleibt aus dem Skill-Paket ──────────────────────
 
 def test_ohne_ausschluss_landet_der_plugin_ordner_im_skill_paket(tmp_path):

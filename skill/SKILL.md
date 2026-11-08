@@ -347,7 +347,9 @@ geöffnet und nichts bewegt — welcher Ordner gilt, muss im Profil stehen. Brau
 diese Mails eines Kontos ab und nennt je UID Datum, Absender und Betreff. Fehlt eine davon im
 Eingang oder bliebe eine liegen (Fähnchen), wandert keine; `--seit` gibt es dabei nicht.
 `--machen` braucht dabei `--uidvalidity V` mit dem Wert aus der Anzeige; weicht er ab, hat der
-Server die UIDs neu vergeben, und es wandert keine.
+Server die UIDs neu vergeben, und es wandert keine. `--faehnchen-weg` (nur mit `--uid`) nimmt das
+Fähnchen vor dem Ablegen von genau diesen Mails, etwa nach einem verworfenen Antwortentwurf; steht
+es danach noch, wandert keine.
 `ablage: Archiv/{jahr}` legt nach dem Jahr der Ankunft ab; fehlt ein Jahresordner, wandert keine
 Mail des Laufs.
 **`aufraeumen --alle`** läuft über jede Absenderadresse, für die ein Profil `email.ablage` nennt, und
@@ -356,7 +358,7 @@ und im Bericht genannt, kein `NICHT GEPRÜFT`. Ein nicht geprüftes Konto hält 
 an; der Exit-Code ist dann 3. Die mitgelieferten Beispielprofile zählen nicht. Ein unlesbares Profil
 steht als `UNLESBAR` im Bericht; solange wird für kein Konto etwas verschoben, auch nicht unter
 `--absender`, und der Exit-Code ist 3. Nicht mit `--absender`, `--uid`,
-`--uidvalidity`, `--trotz-faehnchen` oder `--entwuerfe`.
+`--uidvalidity`, `--trotz-faehnchen`, `--faehnchen-weg` oder `--entwuerfe`.
 
 **`aufraeumen --entwuerfe` — überholte Entwürfe in den Papierkorb.** Niemand soll einen Entwurf von
 Hand löschen; das geschieht bei jedem `email --oeffnen` von selbst für den eigenen Absender.

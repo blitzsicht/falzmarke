@@ -75,6 +75,29 @@ abschließt, und der Entwurf kennt die Ursprungsmail über `antwort_auf`.
   Entwurfs setzen statt in einer eigenen. Das spart eine Anmeldung, bindet aber den ändernden
   Befehl an `oeffnen`, und Punkt 7 hält ihn in einem eigenen Modul.
 
+## Nachtrag: #566 (08.11.2026) — die eine Ausnahme von „entfernt wird nie“
+
+Fall vom 06.11.2026: Ein Antwortentwurf wurde nach einem Telefonat verworfen. Das Fähnchen an der
+Ursprungsmail blieb, `aufraeumen --uid … --trotz-faehnchen` legte die Mail ab, und sie trug das
+Fähnchen im Archiv weiter. In falzmarke gab es keinen Weg, es abzunehmen.
+
+- **Punkt 3 bekommt eine benannte Ausnahme:** `aufraeumen --uid … --faehnchen-weg --machen`. Der
+  Befehl ist `UID STORE <uids> -FLAGS (\Flagged)`, an genau den genannten Mails, vor dem
+  `UID MOVE`, in derselben Sitzung. Er steht in `faehnchen.nimm_weg`; `ablage` bleibt beim einen
+  `UID MOVE`. `tests/test_faehnchen.py` liest am Syntaxbaum nach, dass `-FLAGS` nur in `nimm_weg`
+  und `+FLAGS` nur in `_setze_in` steht.
+- **Der Mensch entscheidet weiter.** Ohne `--uid` gibt es den Schalter nicht, unter `--alle` auch
+  nicht. Kein Lauf nimmt ein Fähnchen von selbst ab, auch nicht nach einem verworfenen Entwurf.
+- **Dieselben Sicherungen wie beim Setzen:** UIDVALIDITY des Plans gegen das `SELECT`, danach
+  nachgelesen. Steht das Fähnchen noch oder nennt der Server keine Flags, wandert keine Mail.
+  Kennt der Server kein `MOVE`, geht auch das `STORE` nicht hinaus.
+- **Verworfen:** das Fähnchen von selbst abnehmen, wenn `status` den Entwurf als `GELÖSCHT` sieht
+  oder `aufraeumen --entwuerfe` ihn wegräumt. Dafür müsste das Entwurfsbuch festhalten, wer das
+  Fähnchen gesetzt hat, und ein Fähnchen, das der Mensch nachher selbst noch setzen wollte, sähe
+  genauso aus. Entscheidung des Betreibers, 08.11.2026.
+- **Gegen einen echten Server ist der Weg nicht gemessen** (Stand 08.11.2026), nur gegen die
+  IMAP-Attrappe.
+
 ## Warum dieses Flag und warum ein voller Eingang
 
 Das ist der erste Schreibzugriff auf eine **fremde** Mail im Eingang. `ablage` verschiebt nur, was
@@ -92,7 +115,7 @@ eine gesendete Antwort als erledigt ausweist; `entwurfsablage` räumt nur eigene
 ## Nicht Teil davon
 
 - Antworten, die direkt in Thunderbird geschrieben werden. Dort bleibt das Fähnchen Handarbeit.
-- Das Fähnchen später automatisch wieder entfernen.
+- Das Fähnchen später automatisch wieder entfernen (Abnehmen auf Anweisung: Nachtrag #566).
 - Ein `--json` für `email`. Der Befehl hat keines; die vier Zustände trennen die Textzeilen
   (`OK  Fähnchen gesetzt`, `OK  Fähnchen stand schon`, `HINWEIS  erledigt: ja`,
   `HINWEIS  Fähnchen nicht gesetzt`). Entscheidung des Betreibers, 06.11.2026.

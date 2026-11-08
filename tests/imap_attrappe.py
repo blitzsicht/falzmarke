@@ -22,6 +22,12 @@ die Erweiterung hier eine Hintertür für jeden anderen Test.
 `falzmarke.faehnchen` (#549). Jede andere Form von `STORE` wirft auch dann:
 anderes Flag, `-FLAGS`, `FLAGS` ohne Vorzeichen, mehrere UIDs.
 
+**Eine dritte, ebenso einzeln:** `entmarkieren_erlaubt=True` öffnet `SELECT` ohne
+`readonly` und genau `UID STORE <uids> -FLAGS (\\Flagged)` — für
+`faehnchen.nimm_weg` (#566), das `aufraeumen --uid … --faehnchen-weg` vor dem
+Ablegen ruft. `+FLAGS` öffnet dieser Schalter nicht, und `markieren_erlaubt`
+öffnet `-FLAGS` nicht.
+
 **Sie ist an drei Stellen strenger als ein bequemer Nachbau** (#438, #442), und
 alle sind gemessen, nicht vorsorglich: Kopfzeilen werden vor dem Vergleich
 entfaltet, weil ein Server den ganzen Feldwert sucht und nicht dessen erste Zeile;
@@ -130,7 +136,8 @@ class ImapAttrappe:
                  uidvalidity_select: str | None = None,
                  markieren_erlaubt: bool = False,
                  store_fehler: str | None = None,
-                 store_wirkt: bool = True):
+                 store_wirkt: bool = True,
+                 entmarkieren_erlaubt: bool = False):
         self.ordner: dict[str, list[Eintrag]] = {}
         self._naechste_uid = 100
         for name, nachrichten in (ordner or {}).items():
@@ -150,6 +157,8 @@ class ImapAttrappe:
         self.verschieben_erlaubt = verschieben_erlaubt
         #: `UID STORE +FLAGS (\\Flagged)` an einer UID — und nichts sonst (#549).
         self.markieren_erlaubt = markieren_erlaubt
+        #: `UID STORE <uids> -FLAGS (\\Flagged)` — und nichts sonst (#566).
+        self.entmarkieren_erlaubt = entmarkieren_erlaubt
         #: Antwortet auf das STORE mit `NO` und diesem Text.
         self.store_fehler = store_fehler
         #: `False`: Das STORE wird mit `OK` beantwortet, ändert aber nichts —
@@ -227,7 +236,8 @@ class ImapAttrappe:
         self._pruefe(mailbox)
         name = self._name(mailbox)
         self.protokoll.append(("EXAMINE" if readonly else "SELECT", name))
-        if not readonly and not (self.verschieben_erlaubt or self.markieren_erlaubt):
+        if not readonly and not (self.verschieben_erlaubt or self.markieren_erlaubt
+                                 or self.entmarkieren_erlaubt):
             raise AssertionError(f"SELECT ohne readonly auf {name} — das Postfach wird nur gelesen")
         # Wie `imaplib`: Jedes SELECT/EXAMINE verwirft die alten Antwortcodes.
         self._antwortcodes = {}
@@ -314,6 +324,19 @@ class ImapAttrappe:
             self.ordner[self.ausgewaehlt] = [n for n in nachrichten if n.uid not in uids]
             self.ordner[ziel].extend(bewegt)
             return "OK", [f"[COPYUID 1 {menge} {menge}] MOVE completed.".encode()]
+        # Ohne den Schalter fällt `-FLAGS` in den Zweig darunter und wirft dort,
+        # mit derselben Meldung wie vor #566.
+        if befehl == "STORE" and self.entmarkieren_erlaubt and args[1:2] == ("-FLAGS",):
+            menge, _, flags = args
+            uids = str(menge).split(",")
+            if not all(u.isdigit() for u in uids) or flags != "(\\Flagged)":
+                raise AssertionError(f"UID STORE -FLAGS nur als `<uids> -FLAGS (\\Flagged)`: {args}")
+            if self.store_fehler is not None:
+                return "NO", [self.store_fehler.encode()]
+            for n in nachrichten:
+                if str(n.uid) in uids and self.store_wirkt:
+                    n.flags = " ".join(f for f in n.flags.split() if f.lower() != "\\flagged")
+            return "OK", [b"STORE completed."]
         if befehl == "STORE":
             if not self.markieren_erlaubt:
                 raise AssertionError("UID STORE ändert Flags — verboten")
