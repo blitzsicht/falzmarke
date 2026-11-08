@@ -276,6 +276,20 @@ def test_gegenprobe_das_entmarkieren_ist_einzeln_einzuschalten():
         nur_weg.uid("MOVE", "1", '"Archiv"')
 
 
+def test_gegenprobe_nach_examine_lehnt_die_attrappe_jedes_aendern_ab():
+    """Nachreview #585, Befund 4: Wie ein echter Server ändert die Attrappe nach
+    `EXAMINE` nichts. Sonst blieben die Tests grün, wenn ein `SELECT` fehlt."""
+    attrappe = ImapAttrappe(markieren_erlaubt=True, entmarkieren_erlaubt=True,
+                            verschieben_erlaubt=True)
+    attrappe.select('"INBOX"', readonly=True)
+    for args in (("1", "+FLAGS", "(\\Flagged)"), ("1,2", "-FLAGS", "(\\Flagged)"),
+                 ("1", '"Archiv"')):
+        befehl = "MOVE" if len(args) == 2 else "STORE"
+        assert attrappe.uid(befehl, *args) == ("NO", [b"[READ-ONLY] Mailbox is read-only."])
+    attrappe.select('"INBOX"')
+    assert attrappe.uid("STORE", "1,2", "-FLAGS", "(\\Flagged)")[0] == "OK"
+
+
 # ── Die Quelle selbst ───────────────────────────────────────────────────────
 
 def test_das_modul_kennt_genau_einen_aendernden_befehl():

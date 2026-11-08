@@ -705,9 +705,12 @@ def raeume_auf(adresse: str, *, wunsch: str | None = None, seit_tagen: int = SEI
             if bericht.faehnchen_entfernt:
                 # Das Fähnchen ist dann schon weg, die Mail aber womöglich nicht
                 # abgelegt (#566). Bei `{jahr}` kann ein Teil schon gewandert sein.
-                grund += (f"; das Fähnchen an UID {', '.join(bericht.faehnchen_entfernt)} ist "
-                          "schon entfernt — was davon nicht verschoben ist, liegt ohne "
-                          "Fähnchen im Eingang")
+                # Die UIDs zählen nach der UIDVALIDITY des Plans. Brach der Lauf an
+                # einem Wechsel ab, meinen sie jetzt womöglich andere Mails
+                # (Nachreview #585, Befund 9).
+                grund += (f"; UIDs nach UIDVALIDITY {bericht.uidvalidity}: das Fähnchen an UID "
+                          f"{', '.join(bericht.faehnchen_entfernt)} ist schon entfernt — was "
+                          "davon nicht verschoben ist, liegt ohne Fähnchen im Eingang")
             return bericht._replace(grund=grund, verschoben=verschoben,
                                     zug_gesendet=isinstance(fehler, ZugAbgebrochen))
 

@@ -1197,8 +1197,23 @@ def test_unbekannte_flags_werden_abgenommen_aber_ohne_nachlesen_wandert_keine():
     hinaus, doch ob es wirkte, ist nicht nachzulesen."""
     attrappe, bericht = _weg(_offen(), ohne_flags=True)
     assert attrappe.befehle("UID STORE") == [STORE_WEG]
-    assert "nennt ihre Flags nicht" in (bericht.grund or ""), bericht.grund
+    assert "nennt ihre Flags nicht" in (bericht.grund or ""), \
+        f"die Mail ohne bekannte Flags wanderte: {bericht.grund}"
     assert not attrappe.befehle("UID MOVE")
+
+
+def test_bleibt_das_faehnchen_an_einer_von_zwei_mails_nennt_der_grund_die_andere():
+    """Nachreview #585, Befund 1: An UID 101 wirkt das Entfernen, an 102 nicht.
+    Keine wandert, und der Grund sagt, dass 101 jetzt ohne Fähnchen im Eingang liegt."""
+    attrappe, bericht = _weg(_mit_fahnen(_offen("Erste", "<e1@example.org>"), "\\Flagged"),
+                             _mit_fahnen(_offen("Zweite", "<e2@example.org>"), "\\Flagged"),
+                             uids=("101", "102"), store_wirkt=frozenset({"101"}))
+    assert not attrappe.befehle("UID MOVE") and bericht.verschoben == 0
+    assert _flags(attrappe, "INBOX", 101) == "" and _flags(attrappe, "INBOX", 102) == "\\Flagged"
+    grund = bericht.grund or ""
+    assert "trägt UID 102 das Fähnchen noch" in grund, grund
+    assert "an UID 101 ist es schon entfernt, diese Mail liegt jetzt ohne Fähnchen" in grund, \
+        f"der Grund verschweigt das entfernte Fähnchen an 101: {grund}"
 
 
 def test_reisst_das_nachlesen_ab_sagt_der_grund_dass_das_store_hinausging(monkeypatch):
@@ -1240,6 +1255,9 @@ def test_bricht_der_zug_nach_dem_entfernen_ab_sagt_der_grund_es(monkeypatch):
     assert bericht.grund.endswith("das Fähnchen an UID 101 ist schon entfernt — was davon nicht "
                                   "verschoben ist, liegt ohne Fähnchen im Eingang"), \
         f"der Grund verschweigt das entfernte Fähnchen: {bericht.grund}"
+    # Nachreview #585, Befund 9: Nach welcher Nummerierung die UIDs zählen.
+    assert "; UIDs nach UIDVALIDITY 1: das Fähnchen an UID 101" in bericht.grund, \
+        f"der Grund verschweigt die Nummerierung: {bericht.grund}"
 
 
 def test_faehnchen_weg_ohne_uids_aendert_nichts():
