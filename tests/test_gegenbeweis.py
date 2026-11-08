@@ -5693,6 +5693,9 @@ def _probe_566(name, monkeypatch, capsys):
     if name == "nicht_sicher_ab":
         return lambda: test_ablage.test_steht_das_faehnchen_nicht_sicher_ab_wandert_keine_mail(
             {"store_wirkt": False}, "trägt UID 101 das Fähnchen noch")
+    if name == "store_abgelehnt":
+        return lambda: test_ablage.test_steht_das_faehnchen_nicht_sicher_ab_wandert_keine_mail(
+            {"store_fehler": "Mailbox is read-only"}, "ob das Fähnchen an UID 101 schon weg ist")
     funktion = getattr(test_ablage, name)
     vorrat = {"monkeypatch": monkeypatch, "capsys": capsys}
     return lambda: funktion(**{k: vorrat[k] for k in inspect.signature(funktion).parameters})
@@ -5736,8 +5739,34 @@ def _probe_566(name, monkeypatch, capsys):
      'f"{fehler} — das Entfernen',
      "test_reisst_das_nachlesen_ab_sagt_der_grund_dass_das_store_hinausging",
      "der Grund verschweigt das gesendete STORE"),
+    # Nachreview #585, Befund 3: der Fehlerzweig des STORE und die unbekannten Flags.
+    ("faehnchen", "nimm_weg",
+     'except postfach.PostfachFehler as fehler:\n        raise FaehnchenFehler(f"{fehler} — '
+     'ob das Fähnchen', 'except ZeroDivisionError as fehler:\n        raise FaehnchenFehler('
+     'f"{fehler} — ob das Fähnchen',
+     "store_abgelehnt", "Grund ohne „ob das Fähnchen an UID 101 schon weg ist“"),
+    ("faehnchen", "nimm_weg", 'nach.get(u) is None or "\\\\flagged" in nach[u]',
+     '"\\\\flagged" in (nach.get(u) or ())',
+     "test_unbekannte_flags_werden_abgenommen_aber_ohne_nachlesen_wandert_keine",
+     "die Mail ohne bekannte Flags wanderte"),
+    # Befund 1: der Teil, der das Fähnchen schon verlor.
+    ("faehnchen", "nimm_weg", 'ohne Fähnchen im Eingang") if weg else ""',
+     'ohne Fähnchen im Eingang") if False else ""',
+     "test_bleibt_das_faehnchen_an_einer_von_zwei_mails_nennt_der_grund_die_andere",
+     "der Grund verschweigt das entfernte Fähnchen an 101"),
+    # Befund 4: ohne SELECT kein Schreiben; die Attrappe sieht das jetzt.
+    ("faehnchen", "nimm_weg", "sitzung._v.select, zitiert(EINGANG))",
+     "sitzung._v.select, zitiert(EINGANG), True)",
+     "test_faehnchen_weg_nimmt_das_faehnchen_ab_und_legt_die_mail_ab", "READ-ONLY"),
+    # Befund 9: nach welcher Nummerierung die UIDs zählen.
+    ("ablage", "raeume_auf", 'f"; UIDs nach UIDVALIDITY {bericht.uidvalidity}: das Fähnchen an UID "',
+     'f"; das Fähnchen an UID "',
+     "test_bricht_der_zug_nach_dem_entfernen_ab_sagt_der_grund_es",
+     "der Grund verschweigt die Nummerierung"),
 ], ids=["uidvalidity", "nachlesen", "aufruf", "liegen", "kein_move", "nur_mit_faehnchen",
-        "grund_nach_abbruch", "ohne_uids", "anzeige", "cli_ohne_uid", "nachlesen_reisst_ab"])
+        "grund_nach_abbruch", "ohne_uids", "anzeige", "cli_ohne_uid", "nachlesen_reisst_ab",
+        "store_abgelehnt", "flags_unbekannt", "teil_entfernt", "schreibend",
+        "nummerierung"])
 def test_ohne_die_stelle_nimmt_faehnchen_weg_zu_viel_oder_schweigt(
         monkeypatch, capsys, modul, funktion, alt, neu, probe_name, meldung):
     """Sabotage an genau einer Stelle je Fall (#566)."""

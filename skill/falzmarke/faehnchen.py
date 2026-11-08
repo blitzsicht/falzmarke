@@ -12,8 +12,8 @@ Das dritte Modul des Pakets, das im Postfach etwas ändert, neben `ablage` und
 `entwurfsablage`. Es steht nicht in `postfach`, damit dessen Zusage „nur lesend,
 der einzige schreibende Befehl ist `APPEND`“ wahr bleibt.
 
-**Ein ändernder Befehl: `UID STORE <uid> +FLAGS (\\Flagged)`.** Nur dieses Flag,
-nur hinzufügen, an genau einer UID. Kein `\\Deleted`, kein `\\Seen`, kein
+**Beim Setzen ein ändernder Befehl: `UID STORE <uid> +FLAGS (\\Flagged)`.** Nur
+dieses Flag, nur hinzufügen, an genau einer UID. Kein `\\Deleted`, kein `\\Seen`, kein
 Verschieben. Ein Fähnchen, das schon steht, wird nicht noch einmal gesetzt. Von
 selbst entfernt wird es nie: Ob die Sache inzwischen erledigt ist, weiß nur der
 Mensch. `tests/test_faehnchen.py` liest das am Syntaxbaum nach.
@@ -25,15 +25,16 @@ ist der einzige Weg zu `-FLAGS`, und kein Lauf ohne diese Angabe erreicht ihn.
 Ein verworfener Antwortentwurf ließ sonst sein Fähnchen stehen, und die Mail
 trug es auch im Archiv weiter.
 
-**Genau eine Mail oder keine.** Gesucht wird im Eingang des Absenderkontos nach
+**Beim Setzen genau eine Mail oder keine.** Gesucht wird im Eingang des Absenderkontos nach
 der `Message-ID`, exakt verglichen (`Postfach.suche_kennung`). Liegt sie dort
 nicht (längst abgelegt, anderes Konto) oder tragen mehrere Mails dieselbe
 Kennung, wird nichts geändert und der Grund genannt. Die UID gilt nur zusammen
 mit der UIDVALIDITY des Eingangs (#495): Nennt das `SELECT` eine andere als das
 `EXAMINE` der Suche, geht kein `STORE` hinaus.
 
-**Nie ein Abbruch.** Der Entwurf steht schon, wenn dieses Modul läuft. Jeder
-Fehler wird zu einem Zustand mit Grund. `setze` wirft nicht.
+**Beim Setzen nie ein Abbruch.** Der Entwurf steht schon, wenn `setze` läuft.
+Jeder Fehler wird zu einem Zustand mit Grund. `nimm_weg` dagegen wirft, denn an
+ihm hängt das Ablegen.
 """
 
 from __future__ import annotations
@@ -204,9 +205,15 @@ def nimm_weg(sitzung: postfach.Postfach, uids: list[str], *,
                               "nachgelesen ist es nicht; verschoben wird nichts") from None
     offen = [u for u in uids if nach.get(u) is None or "\\flagged" in nach[u]]
     if offen:
+        # Bei mehreren Mails kann ein Teil das Fähnchen schon verloren haben, und
+        # der Grund muss das sagen: Diese Mails liegen jetzt ohne Fähnchen im
+        # Eingang (Nachreview #585, Befund 1).
+        weg = [u for u in uids if u not in offen]
+        zusatz = (f"; an UID {', '.join(weg)} ist es schon entfernt, diese Mail liegt jetzt "
+                  "ohne Fähnchen im Eingang") if weg else ""
         raise FaehnchenFehler(f"nach dem Entfernen trägt UID {', '.join(offen)} das Fähnchen "
                               "noch, oder der Server nennt ihre Flags nicht — verschoben wird "
-                              "nichts")
+                              f"nichts{zusatz}")
     return tuple(uids)
 
 def zeile(ergebnis: Faehnchen, adresse: str) -> str:

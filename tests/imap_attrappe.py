@@ -136,7 +136,7 @@ class ImapAttrappe:
                  uidvalidity_select: str | None = None,
                  markieren_erlaubt: bool = False,
                  store_fehler: str | None = None,
-                 store_wirkt: bool = True,
+                 store_wirkt: bool | frozenset[str] = True,
                  entmarkieren_erlaubt: bool = False):
         self.ordner: dict[str, list[Eintrag]] = {}
         self._naechste_uid = 100
@@ -162,7 +162,8 @@ class ImapAttrappe:
         #: Antwortet auf das STORE mit `NO` und diesem Text.
         self.store_fehler = store_fehler
         #: `False`: Das STORE wird mit `OK` beantwortet, ändert aber nichts —
-        #: der Server, dem man nicht glauben darf.
+        #: der Server, dem man nicht glauben darf. Eine Menge von UIDs: Nur an
+        #: diesen wirkt `-FLAGS` (Nachreview #585, Befund 1).
         self.store_wirkt = store_wirkt
         #: Wie `imaplib.IMAP4.capabilities` — `falzmarke.ablage` liest daraus,
         #: ob der Server `MOVE` kennt, statt es anzunehmen.
@@ -190,6 +191,9 @@ class ImapAttrappe:
         self.verbindungen: list[tuple] = []
         self.angemeldet: list[tuple[str, str]] = []
         self.ausgewaehlt: str | None = None
+        #: Wurde der Ordner mit `SELECT` gewählt? Nach `EXAMINE` lehnt ein echter
+        #: Server `STORE` und `MOVE` mit `NO [READ-ONLY]` ab (Nachreview #585, Befund 4).
+        self.schreibend = False
         self.abgemeldet = 0
 
     # ── als Klasse aufrufbar, wie imaplib.IMAP4(host, port, timeout=…) ──────
@@ -244,6 +248,7 @@ class ImapAttrappe:
         if name not in self.ordner:
             return "NO", [b"Folder not found."]
         self.ausgewaehlt = name
+        self.schreibend = not readonly
         wert = self.uidvalidity
         if not readonly and self.uidvalidity_select is not None:
             wert = self.uidvalidity_select
@@ -315,6 +320,8 @@ class ImapAttrappe:
         if befehl == "MOVE":
             if not self.verschieben_erlaubt:
                 raise AssertionError("UID MOVE ändert das Postfach — verboten")
+            if not self.schreibend:
+                return "NO", [b"[READ-ONLY] Mailbox is read-only."]
             menge, ziel = args
             ziel = self._name(ziel)
             if ziel not in self.ordner:
@@ -331,10 +338,14 @@ class ImapAttrappe:
             uids = str(menge).split(",")
             if not all(u.isdigit() for u in uids) or flags != "(\\Flagged)":
                 raise AssertionError(f"UID STORE -FLAGS nur als `<uids> -FLAGS (\\Flagged)`: {args}")
+            if not self.schreibend:
+                return "NO", [b"[READ-ONLY] Mailbox is read-only."]
             if self.store_fehler is not None:
                 return "NO", [self.store_fehler.encode()]
+            wirkt = self.store_wirkt
             for n in nachrichten:
-                if str(n.uid) in uids and self.store_wirkt:
+                if str(n.uid) in uids and (wirkt is True or (wirkt is not False
+                                                              and str(n.uid) in wirkt)):
                     n.flags = " ".join(f for f in n.flags.split() if f.lower() != "\\flagged")
             return "OK", [b"STORE completed."]
         if befehl == "STORE":
@@ -343,6 +354,8 @@ class ImapAttrappe:
             menge, art, flags = args
             if not str(menge).isdigit() or art != "+FLAGS" or flags != "(\\Flagged)":
                 raise AssertionError(f"UID STORE nur als `<uid> +FLAGS (\\Flagged)`: {args}")
+            if not self.schreibend:
+                return "NO", [b"[READ-ONLY] Mailbox is read-only."]
             if self.store_fehler is not None:
                 return "NO", [self.store_fehler.encode()]
             for n in nachrichten:
