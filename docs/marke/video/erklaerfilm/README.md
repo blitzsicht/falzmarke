@@ -1,6 +1,6 @@
 # Erklärfilm
 
-Sechsundzwanzig Sekunden vom Wunsch zum Ziel, in zwei Formaten: `Querformat` 1920 × 1080 und
+26 Sekunden vom Wunsch zum Ziel, in zwei Formaten: `Querformat` 1920 × 1080 und
 `Hochformat` 1080 × 1920. Eine Zeitleiste, zwei Kompositionen — das Hochformat stapelt,
 was quer nebeneinander steht.
 
