@@ -185,7 +185,7 @@ def test_ein_kaputter_satz_haelt_die_serie_nicht_an(tmp_path):
     """Die Forderung aus dem Vorgang, wörtlich."""
     zeilen = [list(ZEILEN[0]), list(ZEILEN[1]), list(ZEILEN[0])]
     # Kein Wert für die Anschrift: Leer gefüllte Zeilen fallen seit #389 weg, und
-    # ohne eine einzige Zeile ist das Anschriftfeld kaputt.
+    # ohne eine einzige Zeile scheitert dieser Datensatz.
     zeilen[1][0:4] = ["", "", "", ""]
     zeilen[2][5] = "Sommer"
     code, dateien = _lauf(tmp_path, zeilen=zeilen)
@@ -200,7 +200,10 @@ def test_und_die_meldung_nennt_die_zeile(tmp_path, capsys):
     _lauf(tmp_path, zeilen=zeilen)
     ausgabe = capsys.readouterr().out
     assert "Zeile 3" in ausgabe, ausgabe
-    assert "empfaenger" in ausgabe, ausgabe
+    # Der Grund, nicht nur der Feldname: Die Meldung zeigt auf die Daten. Der
+    # Linter allein sähe ein fehlendes `empfaenger:` und riete zu `typ: urkunde`.
+    assert f"Zeile 3: {serie.LEERE_ANSCHRIFT}" in ausgabe, ausgabe
+    assert "typ: urkunde" not in ausgabe, ausgabe
 
 
 def test_ohne_fehler_ist_der_rueckgabewert_null(tmp_path):
@@ -375,6 +378,27 @@ def test_eine_leer_gefuellte_anschriftzeile_faellt_weg():
         "TC Muster e. V.", "Am Platz 1", "12345 Musterstadt"], "die Leerzeile blieb stehen"
 
 
+def test_eine_zeile_aus_leerraum_faellt_ebenso_weg():
+    """`{{plz}} {{ort}}` mit zwei leeren Werten ergibt ein Leerzeichen, keinen
+    leeren String, und ist trotzdem leer."""
+    satz = {"name": "TC Muster e. V.", "strasse": "Am Platz 1", "plz": "", "ort": ""}
+    kopf = {"empfaenger": ["{{name}}", "{{strasse}}", "{{plz}} {{ort}}"]}
+    assert serie.fuelle_kopf(kopf, satz)["empfaenger"] == [
+        "TC Muster e. V.", "Am Platz 1"], "die Zeile aus Leerraum blieb stehen"
+
+
+def test_sind_alle_anschriftzeilen_leer_nennt_die_meldung_die_daten():
+    kopf = {"empfaenger": ["{{name}}", "{{plz}} {{ort}}"]}
+    # Kein pytest.raises: Dessen „DID NOT RAISE“ ist kein AssertionError, und die
+    # Gegenprobe in test_gegenbeweis.py erwartet die Meldung namentlich.
+    try:
+        serie.fuelle_kopf(kopf, {"name": "", "plz": "", "ort": ""})
+    except serie.Seriefehler as fehler:
+        assert str(fehler) == serie.LEERE_ANSCHRIFT, str(fehler)
+    else:
+        raise AssertionError("kein Fehler für einen Datensatz ohne Anschrift")
+
+
 def test_gegenprobe_fester_text_und_leerzeilen_der_vorlage_bleiben():
     """Weg fällt nur, was ein leerer Wert leer gemacht hat. Eine Leerzeile, die in
     der Vorlage steht, und eine Zeile mit festem Text bleiben, und die übrigen
@@ -382,7 +406,8 @@ def test_gegenprobe_fester_text_und_leerzeilen_der_vorlage_bleiben():
     satz = {"name": ""}
     kopf = {"empfaenger": ["z. Hd. {{name}}", "", "{{name}}"], "vermerke": ["{{name}}"]}
     gefuellt = serie.fuelle_kopf(kopf, satz)
-    assert gefuellt["empfaenger"] == ["z. Hd. ", ""]
+    assert gefuellt["empfaenger"] == ["z. Hd. ", ""], (
+        "fester Text oder eine Leerzeile der Vorlage fiel weg")
     assert gefuellt["vermerke"] == [""]
 
 
