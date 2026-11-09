@@ -184,7 +184,9 @@ def test_und_im_vorlagentext_greift_sie_sehr_wohl(tmp_path):
 def test_ein_kaputter_satz_haelt_die_serie_nicht_an(tmp_path):
     """Die Forderung aus dem Vorgang, wörtlich."""
     zeilen = [list(ZEILEN[0]), list(ZEILEN[1]), list(ZEILEN[0])]
-    zeilen[1][0] = ""                        # leere Zeile im Anschriftfeld
+    # Kein Wert für die Anschrift: Leer gefüllte Zeilen fallen seit #389 weg, und
+    # ohne eine einzige Zeile ist das Anschriftfeld kaputt.
+    zeilen[1][0:4] = ["", "", "", ""]
     zeilen[2][5] = "Sommer"
     code, dateien = _lauf(tmp_path, zeilen=zeilen)
     assert code == 1, "ein gescheiterter Satz muss sich im Rückgabewert zeigen"
@@ -194,11 +196,11 @@ def test_ein_kaputter_satz_haelt_die_serie_nicht_an(tmp_path):
 def test_und_die_meldung_nennt_die_zeile(tmp_path, capsys):
     """„Ein Datensatz ist kaputt“ hilft bei zweihundert Zeilen niemandem."""
     zeilen = [list(ZEILEN[0]), list(ZEILEN[1])]
-    zeilen[1][0] = ""
+    zeilen[1][0:4] = ["", "", "", ""]
     _lauf(tmp_path, zeilen=zeilen)
     ausgabe = capsys.readouterr().out
     assert "Zeile 3" in ausgabe, ausgabe
-    assert "Anschriftfeld" in ausgabe, ausgabe
+    assert "empfaenger" in ausgabe, ausgabe
 
 
 def test_ohne_fehler_ist_der_rueckgabewert_null(tmp_path):
@@ -343,6 +345,65 @@ def test_ohne_die_option_entsteht_keines(tmp_path):
 
 
 # ── Die Einzelteile ─────────────────────────────────────────────────────────
+
+# ── #389: Anschriftfelder mit unterschiedlich vielen Zeilen ─────────────────
+#
+# Fall vom 08.10.2026: Serienbrief an Vereine, manche mit vier, manche mit fünf
+# Anschriftzeilen. Eine leere Spalte ergab eine Leerzeile, und der Brief brach ab.
+
+VORLAGE_ZEILEN = """---
+profil: example
+empfaenger:
+  - "{{name}}"
+  - "{{zusatz}}"
+  - "{{strasse}}"
+  - "{{plz}} {{ort}}"
+datum: 2026-08-29
+betreff: Ihre Anfrage
+anrede: "Sehr geehrte Damen und Herren,"
+---
+
+vielen Dank für Ihre Anfrage.
+"""
+
+
+def test_eine_leer_gefuellte_anschriftzeile_faellt_weg():
+    satz = {"name": "TC Muster e. V.", "zusatz": "", "strasse": "Am Platz 1",
+            "plz": "12345", "ort": "Musterstadt"}
+    kopf = {"empfaenger": ["{{name}}", "{{zusatz}}", "{{strasse}}", "{{plz}} {{ort}}"]}
+    assert serie.fuelle_kopf(kopf, satz)["empfaenger"] == [
+        "TC Muster e. V.", "Am Platz 1", "12345 Musterstadt"], "die Leerzeile blieb stehen"
+
+
+def test_gegenprobe_fester_text_und_leerzeilen_der_vorlage_bleiben():
+    """Weg fällt nur, was ein leerer Wert leer gemacht hat. Eine Leerzeile, die in
+    der Vorlage steht, und eine Zeile mit festem Text bleiben, und die übrigen
+    Felder werden nicht gekürzt."""
+    satz = {"name": ""}
+    kopf = {"empfaenger": ["z. Hd. {{name}}", "", "{{name}}"], "vermerke": ["{{name}}"]}
+    gefuellt = serie.fuelle_kopf(kopf, satz)
+    assert gefuellt["empfaenger"] == ["z. Hd. ", ""]
+    assert gefuellt["vermerke"] == [""]
+
+
+def test_vier_und_fuenf_anschriftzeilen_aus_einer_vorlage(tmp_path, capsys):
+    (tmp_path / "vorlage.md").write_text(VORLAGE_ZEILEN, encoding="utf-8")
+    daten = tmp_path / "daten.csv"
+    daten.write_text("name;zusatz;strasse;plz;ort\n"
+                     "TC Muster e. V.;;Am Platz 1;12345;Musterstadt\n"
+                     "TV Beispiel;Abteilung Tennis;Beispielweg 7;54321;Beispielhausen\n",
+                     encoding="utf-8")
+    ziel = tmp_path / "briefe"
+    code = cli.main(["serie", str(tmp_path / "vorlage.md"), "--daten", str(daten),
+                     "--ziel", str(ziel), "--profiles", str(PROFILE)])
+    aus = capsys.readouterr()
+    assert code == 0, f"die Leerzeile hielt den Brief an: {aus.out}{aus.err}"
+    pdfs = sorted(ziel.glob("*.pdf"))
+    assert len(pdfs) == 2
+    texte = "\n".join(_pdftext(p) for p in pdfs)
+    for wert in ("TC Muster e. V.", "Am Platz 1", "Abteilung Tennis", "54321 Beispielhausen"):
+        assert wert in texte, wert
+
 
 def test_platzhalter_werden_gefunden():
     assert serie.platzhalter("{{a}} und {{ b }} und {{c-d}}") == {"a", "b", "c-d"}
