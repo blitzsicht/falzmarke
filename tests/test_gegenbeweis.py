@@ -5680,8 +5680,16 @@ def test_ohne_die_warnung_bleibt_erledigt_ohne_antwort_auf_still(monkeypatch, tm
     ("            continue\n", "            pass\n",
      "test_eine_leer_gefuellte_anschriftzeile_faellt_weg", "die Leerzeile blieb stehen"),
     ("PLATZHALTER.search(zeile) and ", "",
-     "test_gegenprobe_fester_text_und_leerzeilen_der_vorlage_bleiben", "assert"),
-], ids=["weglassen", "nur_platzhalter"])
+     "test_gegenprobe_fester_text_und_leerzeilen_der_vorlage_bleiben",
+     "fester Text oder eine Leerzeile der Vorlage fiel weg"),
+    # Nachreview #588: Leerraum zählt als leer, und ein ganz leerer Datensatz
+    # meldet sich selbst, statt den Linter auf die Vorlage zeigen zu lassen.
+    ("not gefuellt.strip():", "not gefuellt:",
+     "test_eine_zeile_aus_leerraum_faellt_ebenso_weg", "die Zeile aus Leerraum blieb stehen"),
+    ("        raise Seriefehler(LEERE_ANSCHRIFT)\n", "        pass\n",
+     "test_sind_alle_anschriftzeilen_leer_nennt_die_meldung_die_daten",
+     "kein Fehler für einen Datensatz ohne Anschrift"),
+], ids=["weglassen", "nur_platzhalter", "leerraum", "leerer_datensatz"])
 def test_ohne_die_stelle_bleibt_die_leerzeile_oder_faellt_zu_viel(monkeypatch, alt, neu, probe,
                                                                   meldung):
     """Sabotage an genau einer Stelle von `serie._fuelle_zeilen` (#389)."""

@@ -234,7 +234,17 @@ def _fuelle_zeilen(zeilen: list, satz: dict) -> list:
         if isinstance(zeile, str) and PLATZHALTER.search(zeile) and not gefuellt.strip():
             continue
         aus.append(gefuellt)
+    if zeilen and not aus:
+        # Fällt jede Zeile weg, ist der Datensatz leer, nicht die Vorlage. Der
+        # Linter sähe nur ein fehlendes `empfaenger:` und riete zu `typ: urkunde`,
+        # was `serie` nicht setzt. Die Meldung zeigt deshalb auf die Daten.
+        raise Seriefehler(LEERE_ANSCHRIFT)
     return aus
+
+
+#: Meldung für einen Datensatz, dessen Anschriftwerte alle leer sind.
+LEERE_ANSCHRIFT = ("empfaenger: Alle Anschriftzeilen sind in diesem Datensatz leer. "
+                   "Die Daten prüfen, nicht die Vorlage.")
 
 
 def fuelle_bloecke(bloecke, satz: dict):

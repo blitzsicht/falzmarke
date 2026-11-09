@@ -98,7 +98,7 @@ Text.
 Ein Datensatz, der nicht durchgeht, bricht **diesen** ab und nicht die Serie:
 
 ```
-FEHL  Zeile 3: Pflichtfelder fehlen: empfaenger
+FEHL  Zeile 3: empfaenger: Alle Anschriftzeilen sind in diesem Datensatz leer. Die Daten prüfen, nicht die Vorlage.
 serie: 2/3 Briefe geschrieben
 ```
 
