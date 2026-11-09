@@ -97,6 +97,21 @@ def test_der_fehler_mit_absicht_ist_ausgeschlossen(text):
     assert "nicht menschlicher, sondern schlechter" in text
 
 
+def test_die_ueberfluessige_rueckfrage_wird_gestrichen(text):
+    """Eine Frage, deren Antwort schon dasteht, ist eine Zusage dieser Datei.
+
+    Anlass: Eine Antwort fragte „pro Monat?“ nach, obwohl die Mail des
+    Gegenübers auf die Frage nach Anfragen pro Monat antwortete. Die Regel steht
+    als Zeile in der Streichtabelle und als Prüfauftrag vor dem Schreiben;
+    verschwindet eines von beiden, wird dieser Test rot.
+    """
+    anfang = text.index("## Was gestrichen wird")
+    ende = text.index("**Was hier ausdrücklich nicht steht.**", anfang)
+    abschnitt = text[anfang:ende]
+    assert "| Rückfrage, deren Antwort schon dasteht" in abschnitt
+    assert "**Jede Frage vor dem Schreiben prüfen.**" in abschnitt
+
+
 # ── Die Gegenprobe: die Absage muss stimmen ─────────────────────────────────
 
 def test_die_absage_an_den_englischen_humanizer_traegt(text):
