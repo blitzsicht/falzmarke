@@ -112,6 +112,14 @@ Frage, ob der Satz etwas trägt.
 | Werbesprache: „maßgeschneiderte, ganzheitliche Lösung“ | „zwei Vorlagen, eine davon mit Logo“ |
 | Nacherzählen: „Sie schreiben, die Lieferung fehlt.“ | „Die Lieferung geht am 3. September raus.“ |
 | Schlusszeile ohne Folge: „Bei Fragen gerne jederzeit“ | „Bitte bestätigen Sie bis 1. September“ |
+| Rückfrage, deren Antwort schon dasteht: „Meinen Sie fünf Anfragen pro Monat?“ | Frage nach dem, was fehlt: „Wer ist Ansprechpartner für die Referenz?“ |
+
+**Jede Frage vor dem Schreiben prüfen.** Bevor eine Nachricht eine Frage stellt, wird diese gegen die
+Mail des Gegenübers und den Vorlauf gehalten. Steht die Antwort dort oder ergibt sie sich aus dem
+Zusammenhang, entfällt die Frage. Bei Kennzahlen ergibt sie sich meist: Wer nach Anfragen pro
+Monat gefragt hat, bekommt eine Zahl pro Monat zurück. Jede überflüssige Rückfrage kostet den
+Empfänger eine Antwort. Sie verdrängt die Frage, auf die es ankommt, und zeigt ihm, dass seine Mail
+nicht gelesen wurde.
 
 **Was hier ausdrücklich nicht steht.** Englischsprachige Anleitungen zum „Entmaschinisieren“ von
 Text verlangen regelmäßig drei Dinge, die für deutsche Geschäftspost falsch sind: keine
