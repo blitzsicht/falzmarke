@@ -402,7 +402,10 @@ def rumpf_fuer_compose(html: str) -> str:
     `<style>` der Hülle ist das einzige, was Umbrüche im Text trägt, und es
     fällt mit der Hülle weg. Der `style` des `<body>` (Schrift, Größe, Farbe)
     wandert auf ein umhüllendes `<div>`, damit der Entwurf nicht die Schrift
-    der Datei verliert.
+    der Datei verliert. **Nur die Schrift wandert mit, nicht `margin` und
+    `padding`:** Thunderbird setzt die Signatur der Identität hinter dieses
+    `<div>` (ADR 0050). Trug es den Innenabstand des `<body>`, stand der Text
+    16 px weiter rechts als die Signatur (gesehen am 12.11.2026).
     """
     treffer = re.search(r"<body(?P<attribute>[^>]*)>(?P<inhalt>.*?)</body>", html,
                         re.S | re.I)
@@ -410,7 +413,10 @@ def rumpf_fuer_compose(html: str) -> str:
         inhalt = treffer.group("inhalt").strip()
         stil = re.search(r'style="([^"]*)"', treffer.group("attribute"))
         if stil:
-            inhalt = f'<div style="{stil.group(1)}">{inhalt}</div>'
+            schrift = [d.strip() for d in stil.group(1).split(";")
+                       if d.strip() and not re.match(r"(margin|padding)\b", d.strip(), re.I)]
+            if schrift:
+                inhalt = f'<div style="{"; ".join(schrift)};">{inhalt}</div>'
     else:
         inhalt = html
     return re.sub(r"[ \t]*\n[ \t]*", " ", inhalt).strip()
