@@ -1440,9 +1440,30 @@ def test_der_rumpf_ist_nur_der_inhalt_von_body_ohne_umbrueche():
     assert not rumpf.lower().startswith(("<!doctype", "<html", "<head", "<body"))
     assert "<style" not in rumpf and "</body>" not in rumpf and "<meta" not in rumpf
     assert rumpf == rumpf.strip()
-    # Der Stil des <body> bleibt — auf einem umhüllenden <div>.
-    assert rumpf.startswith('<div style="margin: 0; font-family: Arial, sans-serif;">')
+    # Die Schrift des <body> bleibt — auf einem umhüllenden <div>, ohne seine Abstände.
+    assert rumpf.startswith('<div style="font-family: Arial, sans-serif;">')
     assert "<p>Mit freundlichen Grüßen</p>" in rumpf
+
+
+def test_der_rahmen_traegt_die_schrift_aber_keinen_abstand():
+    """Thunderbird setzt die Signatur der Identität hinter den Rahmen, nicht hinein
+    (ADR 0050). Trägt der Rahmen den Innenabstand des `<body>`, steht der Text 16 px
+    weiter rechts als die Signatur: gesehen am 12.11.2026 in einem Entwurf, den
+    `-compose` öffnete, weil der IMAP-Proxy nicht antwortete."""
+    huelle = HUELLE.replace(
+        'style="margin: 0; font-family: Arial, sans-serif;"',
+        'style="margin: 0; padding: 16px; font-family: Arial, sans-serif; '
+        'font-size: 16px; line-height: 1.45;"')
+    assert "padding: 16px" in huelle, "die Probe trägt den Abstand nicht"
+    rahmen = oeffnen.rumpf_fuer_compose(huelle).split(">", 1)[0]
+    assert rahmen == ('<div style="font-family: Arial, sans-serif; font-size: 16px; '
+                      'line-height: 1.45;"')
+
+
+def test_ein_body_nur_mit_abstaenden_bekommt_keinen_rahmen():
+    huelle = HUELLE.replace('style="margin: 0; font-family: Arial, sans-serif;"',
+                            'style="margin: 0; padding: 16px;"')
+    assert oeffnen.rumpf_fuer_compose(huelle).startswith("<p>Mit freundlichen Grüßen</p>")
 
 
 def test_ein_tag_ueber_zwei_zeilen_wird_eins():
