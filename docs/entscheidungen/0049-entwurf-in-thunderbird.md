@@ -156,8 +156,8 @@ Leerzeilen. Vor dem Nachtrag zum Logo fiel das nicht auf, weil es zufällig nich
 
 **Entscheidung:** `rumpf_fuer_compose` übergibt nur den Inhalt von `<body>`, getrimmt, und
 macht aus jedem Umbruch samt Einrückung ein Leerzeichen — HTML liest ihn ohnehin so, und der
-Emitter setzt kein `<pre>`, in dem ein Umbruch etwas hieße. Der `style` des `<body>` (Schrift,
-Größe, Farbe) wandert auf ein umhüllendes `<div>`. Das `<style>` der Hülle mit dem dunklen
+Emitter setzt kein `<pre>`, in dem ein Umbruch etwas hieße. Vom `style` des `<body>` wandern nur
+Schrift, Größe und Zeilenhöhe auf ein umhüllendes `<div>`. Das `<style>` der Hülle mit dem dunklen
 Farbschema fällt weg; das tat es im Entwurf vorher schon, nur unsichtbar.
 
 **Prüfmittel vor dem Aufruf:** `_rumpf_stimmt` — kein Leerraum vorn, keine Hülle, kein
