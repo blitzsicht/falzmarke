@@ -400,12 +400,15 @@ def rumpf_fuer_compose(html: str) -> str:
     Bedeutung, im Tag der Abstand zwischen Attributen, im Text ein Wortabstand.
     Der Emitter setzt kein `<pre>`, in dem ein Umbruch etwas hieße; das
     `<style>` der Hülle ist das einzige, was Umbrüche im Text trägt, und es
-    fällt mit der Hülle weg. Der `style` des `<body>` (Schrift, Größe, Farbe)
-    wandert auf ein umhüllendes `<div>`, damit der Entwurf nicht die Schrift
-    der Datei verliert. **Nur die Schrift wandert mit, nicht `margin` und
-    `padding`:** Thunderbird setzt die Signatur der Identität hinter dieses
+    fällt mit der Hülle weg. Vom `style` des `<body>` wandern Schrift, Größe
+    und Zeilenhöhe auf ein umhüllendes `<div>`, damit der Entwurf nicht die
+    Schrift der Datei verliert. **Nur `font-*` und `line-height` wandern mit,
+    sonst nichts:** Thunderbird setzt die Signatur der Identität hinter dieses
     `<div>` (ADR 0050). Trug es den Innenabstand des `<body>`, stand der Text
-    16 px weiter rechts als die Signatur (gesehen am 12.11.2026).
+    16 px weiter rechts als die Signatur (gesehen am 12.11.2026). Deshalb steht
+    hier, was mitgeht, und nicht, was wegfällt: Mit einer Liste der Ausnahmen
+    (`margin`, `padding`) landete jede weitere Angabe am `<body>`, etwa
+    `max-width` oder `text-indent`, still auf dem Rahmen (Nachreview #591).
     """
     treffer = re.search(r"<body(?P<attribute>[^>]*)>(?P<inhalt>.*?)</body>", html,
                         re.S | re.I)
@@ -414,7 +417,7 @@ def rumpf_fuer_compose(html: str) -> str:
         stil = re.search(r'style="([^"]*)"', treffer.group("attribute"))
         if stil:
             schrift = [d.strip() for d in stil.group(1).split(";")
-                       if d.strip() and not re.match(r"(margin|padding)\b", d.strip(), re.I)]
+                       if re.match(r"\s*(font-[a-z-]+|line-height)\s*:", d, re.I)]
             if schrift:
                 inhalt = f'<div style="{"; ".join(schrift)};">{inhalt}</div>'
     else:

@@ -92,6 +92,13 @@ def _start_tag(dokument: str, muster: str) -> str:
     return treffer.group(0)
 
 
+def _rahmen(rumpf: str) -> dict[str, str]:
+    """Die Deklarationen des `<div>`, auf das `rumpf_fuer_compose` den Stil des
+    `<body>` legt."""
+    aussen = _start_tag(rumpf, r"^<div\b[^>]*>")
+    return _deklarationen(re.search(r'style="([^"]*)"', aussen).group(1))
+
+
 # ── Die Messung selbst kann rot werden ──────────────────────────────────────
 
 class TestFarbenImRumpf:
@@ -246,6 +253,30 @@ class TestRumpfFuerCompose:
         """Das `<div>`, auf das `rumpf_fuer_compose` den Stil des `<body>`
         legt, ist die Stelle, an der am 15.10.2026 `#1a1a1a` stand."""
         seite = _html_der_eml(gesetzt[EMAIL_BEISPIELE[0].stem][0])
-        aussen = _start_tag(oeffnen.rumpf_fuer_compose(seite), r"^<div\b[^>]*>")
-        stil = _deklarationen(re.search(r'style="([^"]*)"', aussen).group(1))
-        assert not {"color", "background-color", "background"} & set(stil), aussen
+        stil = _rahmen(oeffnen.rumpf_fuer_compose(seite))
+        assert not {"color", "background-color", "background"} & set(stil), stil
+
+    @pytest.mark.parametrize("beispiel", EMAIL_BEISPIELE, **IDS)
+    def test_der_rahmen_traegt_nur_die_schrift(self, beispiel, gesetzt):
+        """Hinter diesen Rahmen setzt Thunderbird die Signatur (ADR 0050). Was er
+        über Schrift, Größe und Zeilenhöhe hinaus trägt, verschiebt den Text
+        gegen sie; am 12.11.2026 war es `padding: 16px` (#591)."""
+        seite = _html_der_eml(gesetzt[beispiel.stem][0])
+        stil = _rahmen(oeffnen.rumpf_fuer_compose(seite))
+        assert "font-family" in stil, f"der Rahmen trägt die Schrift nicht: {stil}"
+        fremd = [e for e in stil if not (e.startswith("font-") or e == "line-height")]
+        assert fremd == [], stil
+
+    @pytest.mark.parametrize("angabe", ["max-width: 640px", "text-indent: 2em",
+                                        "background: #ffffff"])
+    def test_eine_weitere_angabe_am_body_bleibt_vom_rahmen_weg(self, angabe, gesetzt):
+        """Gegenprobe zur Allow-Liste (#593, Nachreview #591): Die echte Seite des
+        Emitters bekommt am `<body>` eine Angabe, die keine Schrift ist. Eine Liste
+        dessen, was wegfällt (`margin`, `padding`), ließe sie auf den Rahmen."""
+        seite = _html_der_eml(gesetzt[EMAIL_BEISPIELE[0].stem][0])
+        probe, ersetzt = re.subn(r'(<body\b[^>]*\bstyle=")', rf"\g<1>{angabe}; ", seite,
+                                 count=1)
+        assert ersetzt == 1, "die Probe trägt die Angabe nicht"
+        stil = _rahmen(oeffnen.rumpf_fuer_compose(probe))
+        assert "font-family" in stil, f"der Rahmen trägt die Schrift nicht: {stil}"
+        assert angabe.split(":")[0] not in stil, stil
