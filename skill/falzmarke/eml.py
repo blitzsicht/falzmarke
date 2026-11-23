@@ -41,6 +41,7 @@ import re
 import tempfile
 from email.headerregistry import Address
 from email.message import EmailMessage
+from email.policy import EmailPolicy
 from email.utils import formatdate, getaddresses, parseaddr
 from pathlib import Path
 from typing import NamedTuple
@@ -60,6 +61,51 @@ SIGNATUR_TRENNER = "-- "
 #: ihrer Suche alles mit dieser Klasse heraus (`MsgComposeCommands.js`,
 #: Thunderbird 158.0). Im Textteil leistet dasselbe der Trenner `-- `.
 KLASSE_SIGNATUR = "moz-signature"
+
+#: Kopfzeilen, die Kennungen (`<…@…>`) tragen und den Verlauf einer Antwort bilden.
+_KENNUNGS_KOEPFE = frozenset({"in-reply-to", "references"})
+
+
+class _Richtlinie(EmailPolicy):
+    """`email.policy.default` mit einer Ausnahme: Kennungen werden nie kodiert.
+
+    Die Standardbibliothek behandelt `In-Reply-To` und `References` als freien
+    Text. Sprengt eine einzelne Kennung die Zeilenbreite von 78 Zeichen, faltet
+    sie sie als `=?utf-8?q?=3C…?=` (gemessen mit Python 3.12.9 und 3.13.9, nicht
+    mit 3.15.2). Outlook-Kennungen sind rund 80 Zeichen lang. Eine kodierte
+    Kennung erkennt kein Mailprogramm wieder: Die Antwort fällt aus ihrem Verlauf,
+    und im abgelegten Entwurf fehlt der Bezug. RFC 5322, Abschnitt 2.2.3, faltet
+    nur an Leerraum und lässt Zeilen bis 998 Zeichen zu. Darum wird hier nur
+    zwischen zwei Kennungen umbrochen, nie in einer.
+    """
+
+    def _kennungen(self, name: str, value) -> str | None:
+        if name.lower() not in _KENNUNGS_KOEPFE:
+            return None
+        text = str(value)
+        kennungen = text.split()
+        if not kennungen or not text.isascii():
+            return None
+        grenze = self.max_line_length or 998
+        zeilen, zeile = [], f"{name}: {kennungen[0]}"
+        for kennung in kennungen[1:]:
+            if len(zeile) + 1 + len(kennung) > grenze:
+                zeilen.append(zeile)
+                zeile = ""
+            zeile += f" {kennung}"
+        zeilen.append(zeile)
+        return self.linesep.join(zeilen) + self.linesep
+
+    def fold(self, name, value):
+        return self._kennungen(name, value) or super().fold(name, value)
+
+    def fold_binary(self, name, value):
+        gefaltet = self._kennungen(name, value)
+        return gefaltet.encode("ascii") if gefaltet else super().fold_binary(name, value)
+
+
+#: Die Richtlinie jeder Nachricht, die `baue` erzeugt.
+RICHTLINIE = _Richtlinie()
 
 
 def _als_liste(wert) -> list[str]:
@@ -978,7 +1024,7 @@ def baue(kopf: dict, profil: dict, quelle_md: str, bloecke, *,
         raise ValueError("Das Profil hat keinen `email.absender:` — ohne ihn gibt es kein From.")
 
     sprache = str(kopf.get("sprache") or profil.get("sprache") or "de")
-    nachricht = EmailMessage()
+    nachricht = EmailMessage(policy=RICHTLINIE)
     nachricht["From"] = _from_kopf(email_teil.get("anzeigename"), absender)
     nachricht["To"] = _adressliste(kopf.get("an"))
     if kopf.get("cc"):

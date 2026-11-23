@@ -198,6 +198,46 @@ def test_kopfzeilen_ueberstehen_den_parser(profil, bloecke):
     assert geparst["References"] == "<k@example.de>"
 
 
+#: So lang wie eine Kennung von Outlook (86 Zeichen), ausgedacht.
+LANGE_KENNUNG = "<" + "A" * 39 + "@" + "B" * 14 + ".eurprd00.prod.outlook.example>"
+
+
+def _rohkopf(roh: bytes, name: bytes) -> list[bytes]:
+    """Die Zeilen einer Kopfzeile, Fortsetzungen eingeschlossen, so wie sie in
+    der Datei stehen."""
+    zeilen = roh.split(b"\n\n", 1)[0].split(b"\n")
+    for i, zeile in enumerate(zeilen):
+        if zeile.lower().startswith(name.lower() + b":"):
+            j = i + 1
+            while j < len(zeilen) and zeilen[j][:1] in (b" ", b"\t"):
+                j += 1
+            return zeilen[i:j]
+    raise AssertionError(f"{name!r} fehlt im Kopf")
+
+
+@pytest.mark.parametrize("antwort_auf", [
+    LANGE_KENNUNG,
+    f"<k@example.de> {LANGE_KENNUNG} {LANGE_KENNUNG.replace('A', 'C')}",
+])
+def test_lange_kennung_steht_unkodiert_in_der_datei(profil, bloecke, antwort_auf):
+    """Python 3.12 und 3.13 falten eine Kennung über 78 Zeichen als
+    `=?utf-8?q?=3C…?=`. Kein Mailprogramm erkennt sie so wieder, die Antwort fällt
+    aus ihrem Verlauf. Der Parser dekodiert das Kodierte zurück, ein Vergleich
+    nach `_geparst` wäre darum auch beim Fehler grün. Geprüft werden die Rohbytes."""
+    nachricht = _baue(profil, bloecke, kopf={**KOPF, "antwort_auf": antwort_auf})
+    roh = nachricht.as_bytes()
+    for name in (b"In-Reply-To", b"References"):
+        zeilen = _rohkopf(roh, name)
+        assert not any(b"=?" in z for z in zeilen), zeilen
+        assert all(len(z) <= 998 for z in zeilen)
+        assert all(z[:1] == b" " for z in zeilen[1:])
+        for kennung in antwort_auf.split():
+            assert any(kennung.encode() in z for z in zeilen), (kennung, zeilen)
+    geparst = _geparst(nachricht)
+    assert " ".join(geparst["In-Reply-To"].split()) == antwort_auf
+    assert " ".join(geparst["References"].split()) == antwort_auf
+
+
 @pytest.mark.parametrize("sprache", ["de", "en"])
 def test_content_language_steht_im_umschlag(profil, bloecke, sprache):
     """`set_content` und `add_alternative` räumen jede `Content-*`-Kopfzeile
